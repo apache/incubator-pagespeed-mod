@@ -22,8 +22,8 @@
 #include <cstddef>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/image/jpeg_reader.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 
@@ -32,8 +32,8 @@ extern "C" {
 #include "webp/encode.h"
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/encode.h"
-#include "third_party/libwebp/src/webp/decode.h"
+#include "third_party/libwebp/webp/encode.h"
+#include "third_party/libwebp/webp/decode.h"
 #endif
 // TODO(jmaessen): open source imports & build of libwebp.
 }

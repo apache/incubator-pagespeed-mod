@@ -17,8 +17,8 @@
 // Author: jmaessen@google.com (Jan Maessen)
 
 #include "net/instaweb/htmlparse/public/logging_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/htmlparse/public/statistics_log.h"
-#include "pagespeed/kernel/html/html_element.h"
 
 // TODO(jmarantz): convert to Statistics interface
 
@@ -45,15 +45,13 @@ void LoggingFilter::StartDocument() {
 
 void LoggingFilter::StartElement(HtmlElement* element) {
   // Does EndElement get called for singleton elements?
-  if (element->style() != HtmlElement::INVISIBLE) {
-    ++stats_[NUM_UNCLOSED];
-    ++stats_[NUM_TAGS];
-  }
+  ++stats_[NUM_UNCLOSED];
+  ++stats_[NUM_TAGS];
 }
 
 void LoggingFilter::EndElement(HtmlElement* element) {
   // Figure out what's up with the element (implicitly vs explicitly closed)
-  switch (element->style()) {
+  switch (element->close_style()) {
     case HtmlElement::EXPLICIT_CLOSE: {
       --stats_[NUM_UNCLOSED];
       ++stats_[NUM_CLOSED];
@@ -72,7 +70,6 @@ void LoggingFilter::EndElement(HtmlElement* element) {
       ++stats_[NUM_BRIEF_CLOSED];
       break;
     }
-    case HtmlElement::INVISIBLE:
     case HtmlElement::UNCLOSED: {
       // We assumed unmatchedness at StartElement, so do nothing.
       break;

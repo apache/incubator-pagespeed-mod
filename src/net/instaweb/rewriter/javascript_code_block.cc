@@ -22,11 +22,11 @@
 #include <cstddef>
 
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
-#include "pagespeed/kernel/base/message_handler.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/source_map.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/js/js_minify.h"
 
 namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
@@ -55,9 +55,6 @@ const char JavascriptRewriteConfig::kJSDidNotShrink[] =
     "javascript_did_not_shrink";
 const char JavascriptRewriteConfig::kJSFailedToWrite[] =
     "javascript_failed_to_write";
-
-const char JavascriptCodeBlock::kIntrospectionComment[] =
-    "This script contains introspective JavaScript and is unsafe to replace.";
 
 JavascriptRewriteConfig::JavascriptRewriteConfig(
     Statistics* stats, bool minify, bool use_experimental_minifier,
@@ -229,7 +226,7 @@ void JavascriptCodeBlock::SwapRewrittenString(GoogleString* other) {
 
 bool JavascriptCodeBlock::MinifyJs(
     StringPiece input, GoogleString* output,
-    source_map::MappingVector* source_mappings) {
+    std::vector<source_map::Mapping>* source_mappings) {
   if (config_->use_experimental_minifier()) {
     return pagespeed::js::MinifyUtf8JsWithSourceMap(
         config_->js_tokenizer_patterns(), input, output, source_mappings);

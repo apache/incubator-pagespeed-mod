@@ -22,34 +22,34 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/debug_filter.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/charset_util.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/charset_util.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mem_file_system.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
 
 namespace net_instaweb {
 
@@ -73,7 +73,6 @@ class CssCombineFilterTest : public RewriteTestBase {
 
   virtual void SetUp() {
     RewriteTestBase::SetUp();
-    options()->set_support_noscript_enabled(false);
     AddFilter(RewriteOptions::kCombineCss);
     AddOtherFilter(RewriteOptions::kCombineCss);
   }
@@ -206,12 +205,13 @@ class CssCombineFilterTest : public RewriteTestBase {
         "  ", (is_barrier ? Link("c.css") : ""), "\n"
         "</body>\n")));
     if (!debug_text.empty()) {
-      EXPECT_HAS_SUBSTR(DebugFilter::FormatEndDocumentMessage(
-                        0, 0, 0, 0, 0, false, StringSet(), StringVector()),
-                    output_buffer_);
+      StrAppend(&expected_output,
+                "<!--",
+                DebugFilter::FormatEndDocumentMessage(0, 0, 0, 0, 0),
+                "-->");
     }
     if (expect_combine) {
-      EXPECT_HAS_SUBSTR(expected_output, output_buffer_);
+      EXPECT_EQ(expected_output, output_buffer_);
 
       // Fetch the combination to make sure we can serve the result from above.
       ExpectStringAsyncFetch expect_callback(true, CreateRequestContext());
@@ -504,6 +504,7 @@ class CssCombineFilterTest : public RewriteTestBase {
     SetFetchResponse(kUrl2, default_css_header, kBlue);
     BarrierTestHelper("combine_css_with_style", css_in, &css_out);
     EXPECT_EQ(2, css_out.size());
+    GoogleString actual_combination;
     EXPECT_STREQ(kUrl1, css_out[0]->url_);
     EXPECT_STREQ(kUrl2, css_out[1]->url_);
   }
@@ -821,12 +822,12 @@ TEST_F(CssCombineFilterWithDebugTest, NonStandardAttributesBarrier) {
   UseMd5Hasher();
   CombineCss("non_standard_attributes_barrier", barrier,
              "<!--combine_css: Could not combine over barrier: "
-             "potentially non-combinable attribute: &#39;foo&#39;-->", true);
+             "non-standard attributes-->", true);
 }
 
 TEST_F(CssCombineFilterTest, CombineCssWithImportInFirst) {
   CssLink::Vector css_in, css_out;
-  css_in.Add("1.css", "@Import '1a.css';", "", true);
+  css_in.Add("1.css", "@Import '1a.css'", "", true);
   css_in.Add("2.css", kYellow, "", true);
   css_in.Add("3.css", kYellow, "", true);
   BarrierTestHelper("combine_css_with_import1", css_in, &css_out);
@@ -836,7 +837,7 @@ TEST_F(CssCombineFilterTest, CombineCssWithImportInFirst) {
 TEST_F(CssCombineFilterTest, CombineCssWithImportInSecond) {
   CssLink::Vector css_in, css_out;
   css_in.Add("1.css", kYellow, "", true);
-  css_in.Add("2.css", "@Import '2a.css';", "", true);
+  css_in.Add("2.css", "@Import '2a.css'", "", true);
   css_in.Add("3.css", kYellow, "", true);
   BarrierTestHelper("combine_css_with_import1", css_in, &css_out);
   EXPECT_EQ("1.css", css_out[0]->url_);
@@ -1346,7 +1347,7 @@ TEST_F(CssCombineFilterTest, CrossAcrossPathsExceedingUrlSize) {
                                  "x", "x"));
   EXPECT_EQ(dummy_encoded.PathSansLeaf(), gurl.PathSansLeaf());
   ResourceNamer namer;
-  ASSERT_TRUE(rewrite_driver()->Decode(gurl.LeafWithQuery(), &namer));
+  ASSERT_TRUE(namer.Decode(gurl.LeafWithQuery()));
   EXPECT_EQ("a.css+b.css", namer.name());
   EXPECT_EQ(StrCat(kYellow, kBlue), actual_combination);
 }
@@ -1389,32 +1390,6 @@ TEST_F(CssCombineFilterTest, CrossMappedDomain) {
 // the domain mapping.
 TEST_F(CssCombineFilterTest, CrossUnmappedDomain) {
   VerifyCrossUnmappedDomainNotRewritten();
-}
-
-// Verifies the same but we check the debug message.
-TEST_F(CssCombineFilterWithDebugTest, DebugUnauthorizedDomain) {
-  VerifyCrossUnmappedDomainNotRewritten();
-  EXPECT_HAS_SUBSTR("<html>\n"
-                      "<head>\n"
-                      "  <link rel=\"stylesheet\" type=\"text/css\""
-                      " href=\"http://a.com/1.css\">\n"
-                      "  <link "
-                      "rel=\"stylesheet\" type=\"text/css\""
-                      " href=\"http://b.com/2.css\">\n"
-                      "</head>\n"
-                      "<body>\n"
-                      "  <div class='yellow'>\n"
-                      "    Hello, mod_pagespeed!\n"
-                      "  </div>\n"
-                      "</body>\n"
-                      "\n"
-                      "</html>"
-                      "<!--", output_buffer_);
-  EXPECT_HAS_SUBSTR(
-      StrCat(DebugFilter::FormatEndDocumentMessage(0, 0, 0, 0, 0, false,
-                                                   StringSet(), StringVector()),
-             "-->"),
-      output_buffer_);
 }
 
 // Verifies that we cannot do the same cross-domain combo when we lack
@@ -1504,30 +1479,6 @@ TEST_F(CssCombineFilterTest, NoCombineParseErrorsAtRule) {
   // next stylesheet if they are combined, changing the page.
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
                                 "@foobar { color: red", 100);
-  SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
-                                "h2 { color: blue; }", 100);
-
-  ValidateNoChanges("bad_parse", StrCat(CssLinkHref("a.css"),
-                                        CssLinkHref("b.css")));
-}
-
-TEST_F(CssCombineFilterTest, NoCombineParseErrorsUnclosedComment) {
-  // Notice: This CSS file does not close its /* and thus would break the
-  // next stylesheet if they were combined.
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
-                                "h1 { color: red; } /* ", 100);
-  SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
-                                "h2 { color: blue; }", 100);
-
-  ValidateNoChanges("bad_parse", StrCat(CssLinkHref("a.css"),
-                                        CssLinkHref("b.css")));
-}
-
-TEST_F(CssCombineFilterTest, NoCombineParseErrorUnclosedImport) {
-  // Notice: This CSS file does not close its @import (with a ;)
-  // and thus would break the next stylesheet if they were combined.
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
-                                "@import url(b.css)", 100);
   SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
                                 "h2 { color: blue; }", 100);
 

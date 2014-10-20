@@ -23,7 +23,7 @@
 
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace Css {
 
@@ -79,12 +79,14 @@ class CssImageRewriter {
   RewriteDriver* driver() const {
     return filter_->driver();
   }
-  bool RewriteImport(RewriteContext* parent, CssHierarchy* hierarchy,
-                     bool* is_authorized);
-  bool RewriteImage(int64 image_inline_max_bytes, const GoogleUrl& trim_url,
-                    const GoogleUrl& original_url, RewriteContext* parent,
-                    Css::Values* values, size_t value_index,
-                    bool* is_authorized);
+  bool RewriteImport(RewriteContext* parent,
+                     CssHierarchy* hierarchy);
+
+  void RewriteImage(int64 image_inline_max_bytes,
+                    const GoogleUrl& trim_url,
+                    const GoogleUrl& original_url,
+                    RewriteContext* parent,
+                    Css::Values* values, size_t value_index);
 
   // Needed for import flattening.
   CssFilter* filter_;

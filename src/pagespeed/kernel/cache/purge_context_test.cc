@@ -24,7 +24,6 @@
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/null_statistics.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/thread_system.h"
@@ -43,8 +42,7 @@ const char kBasePath[] = "/cache";
 
 namespace net_instaweb {
 
-class PurgeContextTest : public ::testing::Test,
-                         public ::testing::WithParamInterface<bool> {
+class PurgeContextTest : public testing::Test {
  public:
   void CorruptWrittenFileHook(const GoogleString& filename) {
     EXPECT_TRUE(file_system_.WriteFile(filename.c_str(), "bogus",
@@ -81,14 +79,9 @@ class PurgeContextTest : public ::testing::Test,
         message_handler_(thread_system_->NewMutex()),
         file_system_(thread_system_.get(), &timer_),
         scheduler_(thread_system_.get(), &timer_),
-        lock_manager_(&file_system_, kBasePath, &scheduler_,
-                      &message_handler_) {
-    if (HasValidStats()) {
-      statistics_.reset(new SimpleStats(thread_system_.get()));
-    } else {
-      statistics_.reset(new NullStatistics);
-    }
-    PurgeContext::InitStats(statistics_.get());
+        lock_manager_(&file_system_, kBasePath, &scheduler_, &message_handler_),
+        simple_stats_(thread_system_.get()) {
+    PurgeContext::InitStats(&simple_stats_);
     purge_context1_.reset(MakePurgeContext());
     purge_context2_.reset(MakePurgeContext());
 
@@ -100,31 +93,29 @@ class PurgeContextTest : public ::testing::Test,
     message_handler_.AddPatternToSkipPrinting("*opening input file*");
   }
 
-  bool HasValidStats() const { return GetParam(); }
-
   PurgeContext* MakePurgeContext() {
     return new PurgeContext(kPurgeFile, &file_system_, &timer_,
                             kMaxBytes, thread_system_.get(), &lock_manager_,
-                            &scheduler_, statistics_.get(), &message_handler_);
+                            &scheduler_, &simple_stats_, &message_handler_);
   }
 
   GoogleString LockName() { return purge_context1_->LockName(); }
 
-  void ExpectSuccessHelper(bool x, StringPiece reason) {
+  void ExpectSuccessHelper(bool x) {
     EXPECT_TRUE(x);
   }
-  PurgeContext::PurgeCallback* ExpectSuccess() {
+  PurgeContext::BoolCallback* ExpectSuccess() {
     return NewCallback(this, &PurgeContextTest::ExpectSuccessHelper);
   }
 
-  void ExpectFailureHelper(bool x, StringPiece reason) {
+  void ExpectFailureHelper(bool x) {
     EXPECT_FALSE(x);
   }
-  PurgeContext::PurgeCallback* ExpectFailure() {
+  PurgeContext::BoolCallback* ExpectFailure() {
     return NewCallback(this, &PurgeContextTest::ExpectFailureHelper);
   }
 
-  int64 LockContentionStart(PurgeContext::PurgeCallback* callback) {
+  int64 LockContentionStart(PurgeContext::BoolCallback* callback) {
     scheduler_.AdvanceTimeMs(10 * Timer::kSecondMs);
     lock_.reset(lock_manager_.CreateNamedLock(LockName()));
     EXPECT_TRUE(lock_->LockTimedWaitStealOld(0, 0));
@@ -148,27 +139,23 @@ class PurgeContextTest : public ::testing::Test,
   }
 
   int num_cancellations() {
-    return statistics_->GetVariable(PurgeContext::kCancellations)->Get();
+    return simple_stats_.GetVariable(PurgeContext::kCancellations)->Get();
   }
 
   int num_contentions() {
-    return statistics_->GetVariable(PurgeContext::kContentions)->Get();
+    return simple_stats_.GetVariable(PurgeContext::kContentions)->Get();
   }
 
   int file_parse_failures() {
-    return statistics_->GetVariable(PurgeContext::kFileParseFailures)->Get();
+    return simple_stats_.GetVariable(PurgeContext::kFileParseFailures)->Get();
   }
 
   int num_file_stats() {
-    return statistics_->GetVariable(PurgeContext::kFileStats)->Get();
-  }
-
-  int ExpectStat(int expected_value) const {
-    return HasValidStats() ? expected_value : 0;
+    return simple_stats_.GetVariable(PurgeContext::kFileStats)->Get();
   }
 
   int file_writes() {
-    return statistics_->GetVariable(PurgeContext::kFileWrites)->Get();
+    return simple_stats_.GetVariable(PurgeContext::kFileWrites)->Get();
   }
 
   void UpdatePurgeSet1(const CopyOnWrite<PurgeSet>& purge_set) {
@@ -185,7 +172,7 @@ class PurgeContextTest : public ::testing::Test,
   MemFileSystem file_system_;
   MockScheduler scheduler_;
   FileSystemLockManager lock_manager_;
-  scoped_ptr<Statistics> statistics_;
+  SimpleStats simple_stats_;
   scoped_ptr<PurgeContext> purge_context1_;
   scoped_ptr<PurgeContext> purge_context2_;
   CopyOnWrite<PurgeSet> purge_set1_;
@@ -193,11 +180,11 @@ class PurgeContextTest : public ::testing::Test,
   scoped_ptr<NamedLock> lock_;
 };
 
-TEST_P(PurgeContextTest, Empty) {
+TEST_F(PurgeContextTest, Empty) {
   EXPECT_TRUE(PollAndTest1("a", 500));
 }
 
-TEST_P(PurgeContextTest, InvalidationSharing) {
+TEST_F(PurgeContextTest, InvalidationSharing) {
   // Set up a write-delay on purge_context1_, but let purge_context2_ have
   // immediate writes.
   purge_context1_->set_request_batching_delay_ms(1000);
@@ -216,12 +203,8 @@ TEST_P(PurgeContextTest, InvalidationSharing) {
   // Wait a second for the write-timer to fire, then both purges will be
   // written together in one file-write.
   scheduler_.AdvanceTimeMs(1000);
-  EXPECT_EQ(ExpectStat(1), file_writes());
-  EXPECT_EQ(ExpectStat(2), num_file_stats());
-
-  if (!HasValidStats()) {
-    scheduler_.AdvanceTimeMs(6000);
-  }
+  EXPECT_EQ(1, file_writes());
+  EXPECT_EQ(2, num_file_stats());
 
   EXPECT_FALSE(PollAndTest1("a", 500000));
   EXPECT_TRUE(PollAndTest1("a", 500001));
@@ -238,24 +221,16 @@ TEST_P(PurgeContextTest, InvalidationSharing) {
   EXPECT_FALSE(PollAndTest2("b", 400000));
   EXPECT_TRUE(PollAndTest2("b", 400001));
 
-  EXPECT_EQ(ExpectStat(4), num_file_stats());
+  EXPECT_EQ(4, num_file_stats());
 
   // Now push a time-based flush the other direction.  Because
   // we only poll the file system periodically we do have to advance
   // time.
   purge_context2_->SetCachePurgeGlobalTimestampMs(600000, ExpectSuccess());
 
-  if (!HasValidStats()) {
-    scheduler_.AdvanceTimeMs(6000);
-  }
-
   // This will have immediate effect because purge_context2_ has no write-delay.
   EXPECT_FALSE(PollAndTest2("a", 500001));
-
-  // There will also be no delay for purge_context1 because purge_context2_
-  // found a new version of the purge file, it updated shared stat "purge_index"
-  // which is cheaply checked in every context on every poll.
-  EXPECT_FALSE(PollAndTest1("a", 500001));
+  EXPECT_TRUE(PollAndTest1("a", 500001));
   scheduler_.AdvanceTimeMs(10 * Timer::kSecondMs);     // force poll
   EXPECT_FALSE(PollAndTest1("a", 500001));
   EXPECT_TRUE(PollAndTest1("b", 600001));
@@ -264,11 +239,9 @@ TEST_P(PurgeContextTest, InvalidationSharing) {
 
   // Now invalidate 'b' till 700k.
   purge_context2_->AddPurgeUrl("b", 700000, ExpectSuccess());
-  scheduler_.AdvanceTimeMs(HasValidStats() ? 1000 : 6000);
+  scheduler_.AdvanceTimeMs(1000);
   EXPECT_FALSE(PollAndTest2("b", 700000));
-
-  // Again, this new value is immediately reflected in purge_context1.
-  EXPECT_FALSE(PollAndTest1("b", 700000));
+  EXPECT_TRUE(PollAndTest1("b", 700000));
   scheduler_.AdvanceTimeMs(10 * Timer::kSecondMs);      // force poll
   EXPECT_FALSE(PollAndTest1("b", 700000));
   EXPECT_TRUE(PollAndTest1("b", 700001));
@@ -277,7 +250,7 @@ TEST_P(PurgeContextTest, InvalidationSharing) {
   EXPECT_EQ(0, file_parse_failures());
 }
 
-TEST_P(PurgeContextTest, EmptyPurgeFile) {
+TEST_F(PurgeContextTest, EmptyPurgeFile) {
   // The currently documented mechanism to flush the entire cache is
   // to simply touch CACHE_DIR/cache.flush.  This mode of operation
   // requires disabling purging in the context.
@@ -289,7 +262,7 @@ TEST_P(PurgeContextTest, EmptyPurgeFile) {
   EXPECT_EQ(0, file_parse_failures());
 }
 
-TEST_P(PurgeContextTest, LockContentionFailure) {
+TEST_F(PurgeContextTest, LockContentionFailure) {
   int64 now_ms = LockContentionStart(ExpectFailure());
 
   // Release & retake the lock making it harder to steal by refreshing it.
@@ -301,12 +274,12 @@ TEST_P(PurgeContextTest, LockContentionFailure) {
   scheduler_.AdvanceTimeMs(10 * Timer::kSecondMs);
   EXPECT_TRUE(PollAndTest1("b", now_ms - 1));
   EXPECT_TRUE(PollAndTest2("b", now_ms - 1));
-  EXPECT_EQ(ExpectStat(1), num_cancellations());
-  EXPECT_EQ(ExpectStat(0), num_contentions());
-  EXPECT_EQ(ExpectStat(0), file_parse_failures());
+  EXPECT_EQ(1, num_cancellations());
+  EXPECT_EQ(0, num_contentions());
+  EXPECT_EQ(0, file_parse_failures());
 }
 
-TEST_P(PurgeContextTest, LockContentionSuccess) {
+TEST_F(PurgeContextTest, LockContentionSuccess) {
   int64 now_ms = LockContentionStart(ExpectSuccess());
 
   // Now advance time by 10 seconds; this should ensure that we steal
@@ -319,7 +292,7 @@ TEST_P(PurgeContextTest, LockContentionSuccess) {
   EXPECT_EQ(0, file_parse_failures());
 }
 
-TEST_P(PurgeContextTest, FileWriteConflict) {
+TEST_F(PurgeContextTest, FileWriteConflict) {
   int64 now_ms = LockContentionStart(ExpectSuccess());
   file_system_.set_write_callback(
       NewCallback(this, &PurgeContextTest::CorruptWrittenFileHook));
@@ -332,11 +305,11 @@ TEST_P(PurgeContextTest, FileWriteConflict) {
   EXPECT_FALSE(PollAndTest1("b", now_ms - 1));
   EXPECT_FALSE(PollAndTest2("b", now_ms - 1));
   EXPECT_EQ(0, num_cancellations());
-  EXPECT_EQ(ExpectStat(1), num_contentions());
-  EXPECT_EQ(ExpectStat(1), file_parse_failures());
+  EXPECT_EQ(1, num_contentions());
+  EXPECT_EQ(1, file_parse_failures());
 }
 
-TEST_P(PurgeContextTest,  FileWriteConflictWithInterveningUpdate) {
+TEST_F(PurgeContextTest,  FileWriteConflictWithInterveningUpdate) {
   int64 now_ms = LockContentionStart(ExpectSuccess());
 
   file_system_.set_write_callback(
@@ -350,11 +323,11 @@ TEST_P(PurgeContextTest,  FileWriteConflictWithInterveningUpdate) {
   EXPECT_FALSE(PollAndTest1("b", now_ms - 1));
   EXPECT_FALSE(PollAndTest2("b", now_ms - 1));
   EXPECT_EQ(0, num_cancellations());
-  EXPECT_EQ(ExpectStat(1), num_contentions());
-  EXPECT_EQ(ExpectStat(1), file_parse_failures());
+  EXPECT_EQ(1, num_contentions());
+  EXPECT_EQ(1, file_parse_failures());
 }
 
-TEST_P(PurgeContextTest, InvalidTimestampInPurgeRecord) {
+TEST_F(PurgeContextTest, InvalidTimestampInPurgeRecord) {
   ASSERT_TRUE(file_system_.WriteFile(
       kPurgeFile,
       "-1\n"                // Valid initial timestamp
@@ -364,13 +337,8 @@ TEST_P(PurgeContextTest, InvalidTimestampInPurgeRecord) {
       "500 a\n",            // valid record should be parsed.
       &message_handler_));
   EXPECT_FALSE(PollAndTest1("a", 500));
-  EXPECT_EQ(ExpectStat(3), file_parse_failures());
   EXPECT_TRUE(PollAndTest1("a", 501));
-  EXPECT_EQ(ExpectStat(6), file_parse_failures());
+  EXPECT_EQ(3, file_parse_failures());
 }
-
-// We test with use_null_statistics == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(PurgeContextTestInstance, PurgeContextTest,
-                        ::testing::Bool());
 
 }  // namespace net_instaweb

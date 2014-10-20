@@ -25,6 +25,7 @@
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 
 #include <cstdarg>
+#include <cstddef>                     // for size_t
 #include <algorithm>
 #include <utility>                      // for pair
 #include <vector>
@@ -34,52 +35,51 @@
 #include "base/logging.h"
 #include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/base64_util.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/base64_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/queued_alarm.h"
+#include "net/instaweb/util/public/request_trace.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/proto_util.h"
-#include "pagespeed/kernel/base/request_trace.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/shared_string.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/thread/queued_alarm.h"
-#include "pagespeed/kernel/util/url_segment_encoder.h"
 
 namespace net_instaweb {
 
@@ -384,11 +384,7 @@ class RewriteContext::OutputCacheCallback : public CacheInterface::Callback {
         DCHECK(input_info.has_expiration_time_ms());
         const RewriteOptions* options = rewrite_context_->Options();
         if (input_info.has_url()) {
-          // We do not search wildcards when validating metadata because
-          // that would require N wildcard matches (not even a
-          // FastWildcardGroup) per input dependency.
-          if (!options->IsUrlCacheValid(input_info.url(), input_info.date_ms(),
-                                        false /* search_wildcards */)) {
+          if (options->IsUrlPurged(input_info.url(), input_info.date_ms())) {
             *purged = true;
             return false;
           }
@@ -1294,7 +1290,12 @@ CachedResult* RewriteContext::output_partition(int i) {
 
 void RewriteContext::AddSlot(const ResourceSlotPtr& slot) {
   CHECK(!started_);
-  CHECK(slot.get() != NULL);
+
+  // TODO(jmarantz): eliminate this transitional code to allow JavascriptFilter
+  // to straddle the old rewrite flow and the new async flow.
+  if (slot.get() == NULL) {
+    return;
+  }
 
   slots_.push_back(slot);
   render_slots_.push_back(false);
@@ -1719,11 +1720,9 @@ GoogleString RewriteContext::DistributedFetchUrl(StringPiece url) {
 
   // TODO(jkarlin): Maybe we can store this output in outputs_ and write the
   // response data to it instead of replicating this work later.
-  GoogleString failure_reason;
   OutputResourcePtr output(Driver()->CreateOutputResourceWithPath(
       gurl.AllExceptLeaf(), gurl.AllExceptLeaf(), Driver()->base_url().Origin(),
-      id(), encoded_leaf, kind(), &failure_reason));
-  // TODO(sligocki): Propagate failure_reason up in some way.
+      id(), encoded_leaf, kind()));
 
   if (output.get() == NULL) {
     return "";
@@ -1867,7 +1866,8 @@ void RewriteContext::OutputCacheRevalidate(
 void RewriteContext::RepeatedSuccess(const RewriteContext* primary) {
   CHECK(outputs_.empty());
   CHECK_EQ(num_slots(), primary->num_slots());
-  CHECK_EQ(primary->num_output_partitions(), primary->num_outputs());
+  CHECK_EQ(primary->outputs_.size(),
+           static_cast<size_t>(primary->num_output_partitions()));
   // Copy over busy bit, partition tables, outputs, and render_slot_ (as well as
   // was_optimized) information --- everything we can set in normal
   // OutputCacheDone.
@@ -1875,7 +1875,7 @@ void RewriteContext::RepeatedSuccess(const RewriteContext* primary) {
     MarkTooBusy();
   }
   partitions_->CopyFrom(*primary->partitions_.get());
-  for (int i = 0, n = primary->num_outputs(); i < n; ++i) {
+  for (int i = 0, n = primary->outputs_.size(); i < n; ++i) {
     outputs_.push_back(primary->outputs_[i]);
     if ((outputs_[i].get() != NULL) && !outputs_[i]->loaded()) {
       // We cannot safely alias resources that are not loaded, as the loading
@@ -2085,8 +2085,7 @@ void RewriteContext::PartitionDone(RewriteResult result_or_busy) {
   if (outstanding_rewrites_ == 0) {
     DCHECK(!IsFetchRewrite());
     // The partitioning succeeded, but yielded zero rewrites.  Write out the
-    // partition table (which might include a single partition with some errors
-    // in it) and let any successor Rewrites run.
+    // empty partition table and let any successor Rewrites run.
     rewrite_done_ = true;
 
     // TODO(morlovich): The filters really should be doing this themselves,
@@ -2107,7 +2106,7 @@ void RewriteContext::PartitionDone(RewriteResult result_or_busy) {
     // inside a fetch (top-levels for fetches are handled inside
     // StartRewriteForFetch), so failing it due to load-shedding will not
     // prevent us from serving requests.
-    CHECK_EQ(outstanding_rewrites_, num_outputs());
+    CHECK_EQ(outstanding_rewrites_, static_cast<int>(outputs_.size()));
     for (int i = 0, n = outstanding_rewrites_; i < n; ++i) {
       InvokeRewriteFunction* invoke_rewrite =
           new InvokeRewriteFunction(this, i, outputs_[i]);
@@ -2356,53 +2355,21 @@ void RewriteContext::Propagate(bool render_slots) {
         Render();
       }
     }
-    CHECK_EQ(num_output_partitions(), num_outputs());
-    if (has_parent()) {
-      parent()->partitions()->mutable_debug_message()->MergeFrom(
-          partitions_->debug_message());
-    } else if (render_slots && num_slots() >= 1) {
-      Driver()->InsertDebugComments(partitions_->debug_message(),
-                                    slot(0)->element());
-    }
+    CHECK_EQ(num_output_partitions(), static_cast<int>(outputs_.size()));
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
       CachedResult* partition = output_partition(p);
-      int n = partition->input_size();
-      if (partition->debug_message_size() > 0) {
-        if (has_parent()) {
-          parent()->partitions()->mutable_debug_message()->MergeFrom(
-              partition->debug_message());
-        } else if (render_slots) {
-          // If no input slots defined, then we created a partition just to hold
-          // debug information.  Put that information in 0th slot of context.
-          int slot_index = 0;
-          if (n > 0) {
-            // Insert debug messages associated with *partition after the
-            // element associated with the first slot of this partition.  This
-            // is slightly arbitrary, but provides a consistent place to include
-            // debug feedback (since we don't want to repeat it n times).
-            slot_index = partition->input(0).index();
-          }
-          Driver()->InsertDebugComments(partition->debug_message(),
-                                        slots_[slot_index]->element());
-        } else {
-          // Can't render the debug feedback, it'll be cached until later and
-          // we can render it when it actually appears in a page.
-        }
-      }
-      // Now debug information is propagated, render the slots.
-      for (int i = 0; i < n; ++i) {
+      for (int i = 0, n = partition->input_size(); i < n; ++i) {
         int slot_index = partition->input(i).index();
         if (render_slots_[slot_index]) {
-          ResourceSlotPtr slot = slots_[slot_index];
           ResourcePtr resource(outputs_[p]);
-          slot->SetResource(resource);
+          slots_[slot_index]->SetResource(resource);
           if (render_slots && partition->url_relocatable() && !was_too_busy_) {
             // This check for relocatable is potentially unsafe in that later
             // filters might still try to relocate the resource.  We deal with
             // this for the current case of javscript by having checks in each
             // potential later filter (combine and inline) that duplicate the
             // logic that went into setting url_relocatable on the partition.
-            slot->Render();
+            slots_[slot_index]->Render();
           }
         }
       }
@@ -2601,14 +2568,13 @@ bool RewriteContext::CreateOutputResourceForCachedOutput(
       NameExtensionToContentType(StrCat(".", cached_result->extension()));
 
   ResourceNamer namer;
-  if (gurl.IsWebValid() &&
-      Driver()->Decode(gurl.LeafWithQuery(), &namer)) {
+  if (gurl.IsWebValid() && namer.Decode(gurl.LeafWithQuery())) {
     output_resource->reset(
-        new OutputResource(Driver(),
+        new OutputResource(FindServerContext(),
                            gurl.AllExceptLeaf() /* resolved_base */,
                            gurl.AllExceptLeaf() /* unmapped_base */,
                            Driver()->base_url().Origin() /* original_base */,
-                           namer, kind()));
+                           namer, Options(), kind()));
     // We trust the type here since we should have gotten it right when
     // writing it into the cache.
     (*output_resource)->SetType(content_type);
@@ -2636,14 +2602,10 @@ void RewriteContext::CrossThreadPartitionDone(RewriteResult result) {
 
 // Helper function to create a resource pointer to freshen the resource.
 ResourcePtr RewriteContext::CreateUrlResource(const StringPiece& input_url) {
-  // As this is only used when fetching resources to be freshened we don't care
-  // if the URL isn't authorized (although it must have been originally), since
-  // we don't have any HTML to write any +debug message to.
-  bool unused;
   const GoogleUrl resource_url(input_url);
   ResourcePtr resource;
   if (resource_url.IsWebValid()) {
-    resource = Driver()->CreateInputResource(resource_url, &unused);
+    resource = Driver()->CreateInputResource(resource_url);
   }
   return resource;
 }
@@ -2660,8 +2622,7 @@ void RewriteContext::CheckAndFreshenResource(
        ResponseHeaders::IsImminentlyExpiring(
            input_info.date_ms(),
            input_info.expiration_time_ms(),
-           FindServerContext()->timer()->NowMs(),
-           Options()->ComputeHttpOptions()))) {
+           FindServerContext()->timer()->NowMs()))) {
     if (input_info.has_input_content_hash()) {
       RewriteFreshenCallback* callback =
           new RewriteFreshenCallback(resource, partition_index, input_index,
@@ -2831,18 +2792,11 @@ bool RewriteContext::PrepareFetch(
         break;
       }
 
-      bool is_authorized;
-      ResourcePtr resource(driver->CreateInputResource(*url, &is_authorized));
+      ResourcePtr resource(driver->CreateInputResource(*url));
       if (resource.get() == NULL) {
         // TODO(jmarantz): bump invalid-input-resource count
-        // TODO(matterbury): Add DCHECK(is_authorized) ...
-        // Note that for the current unit tests, is_authorized is always true
-        // at this point, implying we never try to fetch something that isn't
-        // authorized, which is good. Perhaps we should DCHECK it? But looking
-        // at the code doesn't convince me this /must/ be true so I'm way of
-        // crash-and-burning if it's wrong.
-        is_valid = false;
-        break;
+         is_valid = false;
+         break;
       }
       if (!IsDistributedRewriteForHtml()) {
         resource->set_is_background_fetch(false);
@@ -3043,14 +2997,11 @@ void RewriteContext::FixFetchFallbackHeaders(
     headers->ComputeCaching();
   }
 
-  const char* cache_control_suffix = "";
-
   // In the case of a resource fetch with hash mismatch, we will not have
   // inputs, so fix headers based on the metadata. As we do not consider
   // FILE_BASED inputs here, if all inputs are FILE_BASED, the TTL will be the
   // minimum of headers->cache_ttl_ms() and headers->implicit_cache_ttl_ms().
-  int64 date_ms = headers->date_ms();
-  int64 min_cache_expiry_time_ms = headers->cache_ttl_ms() + date_ms;
+  int64 min_cache_expiry_time_ms = headers->cache_ttl_ms() + headers->date_ms();
   for (int i = 0, n = partitions_->partition_size(); i < n; ++i) {
     const CachedResult& partition = partitions_->partition(i);
     for (int j = 0, m = partition.input_size(); j < m; ++j) {
@@ -3065,18 +3016,14 @@ void RewriteContext::FixFetchFallbackHeaders(
       }
     }
   }
-  int64 ttl_ms = min_cache_expiry_time_ms - date_ms;
-  if (!Options()->publicly_cache_mismatched_hashes_experimental()) {
-    // Shorten cache length, and prevent proxies caching this, as it's under
-    // the "wrong" URL.
-    cache_control_suffix = ",private";
-    ttl_ms = std::min(ttl_ms, headers->implicit_cache_ttl_ms());
-  }
-  headers->SetDateAndCaching(date_ms, ttl_ms, cache_control_suffix);
 
-  // TODO(jmarantz): Use the actual content-hash to replace the W/"0" etag
-  // rather than removing the etag altogether.  This requires adding code to
-  // validate the etag of course.
+  // Shorten cache length, and prevent proxies caching this, as it's under
+  // the "wrong" URL.
+  headers->SetDateAndCaching(
+      headers->date_ms(),
+      std::min(min_cache_expiry_time_ms - headers->date_ms(),
+               headers->implicit_cache_ttl_ms()),
+      ",private");
   headers->RemoveAll(HttpAttributes::kEtag);
   headers->ComputeCaching();
 }

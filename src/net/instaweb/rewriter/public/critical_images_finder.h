@@ -24,10 +24,10 @@
 
 #include "net/instaweb/rewriter/critical_images.pb.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -112,14 +112,11 @@ class CriticalImagesFinder {
   // implementation of this function returns meaningful results and provide a
   // default behavior if it does not.  If no critical set value has been
   // obtained, returns false (not critical).
-  // TODO(jud): It would be simpler to modify these interfaces to take
-  // HtmlElement* instead of GoogleStrings. This would move some complexity in
-  // getting the correct URL from the caller into this function. For instance,
-  // if an image has been modified by LazyloadImages then the actual src we want
-  // to check is in the pagespeed_lazyload_src attribute, not in src.
-  bool IsHtmlCriticalImage(StringPiece image_url, RewriteDriver* driver);
+  bool IsHtmlCriticalImage(const GoogleString& image_url,
+                           RewriteDriver* driver);
 
-  bool IsCssCriticalImage(StringPiece image_url, RewriteDriver* driver);
+  bool IsCssCriticalImage(const GoogleString& image_url,
+                          RewriteDriver* driver);
 
   // Returns true if rendered dimensions exist for the image_src_url and
   // populates dimensions in the std::pair.
@@ -237,7 +234,9 @@ class CriticalImagesFinder {
   // after this function has been called.
   virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
 
-  virtual GoogleString GetKeyForUrl(StringPiece url) { return url.as_string(); }
+  virtual GoogleString GetKeyForUrl(const GoogleString& url) {
+    return url;
+  }
 
   // Extracts the critical images from the given property_value into
   // critical_images_info, after checking if the property value is still valid

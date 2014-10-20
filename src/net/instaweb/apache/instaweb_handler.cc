@@ -25,6 +25,7 @@
 #include "net/instaweb/apache/apache_request_context.h"
 #include "net/instaweb/apache/apache_rewrite_driver_factory.h"
 #include "net/instaweb/apache/apache_server_context.h"
+#include "net/instaweb/apache/apache_slurp.h"
 #include "net/instaweb/apache/apache_writer.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
@@ -33,7 +34,9 @@
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -44,27 +47,21 @@
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/system/public/admin_site.h"
 #include "net/instaweb/system/public/in_place_resource_recorder.h"
 #include "net/instaweb/system/public/system_rewrite_options.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/condvar.h"
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/system/public/system_server_context.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/condvar.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/timer.h"
 
 #include "http_config.h"
 #include "http_core.h"
 #include "http_protocol.h"
 #include "http_request.h"
-#include "util_filter.h"
 #include "net/instaweb/apache/apache_logging_includes.h"
 
 namespace net_instaweb {
@@ -74,6 +71,8 @@ namespace {
 const char kAdminHandler[] = "pagespeed_admin";
 const char kGlobalAdminHandler[] = "pagespeed_global_admin";
 const char kStatisticsHandler[] = "mod_pagespeed_statistics";
+const char kTempStatisticsGraphsHandler[] =
+    "mod_pagespeed_temp_statistics_graphs";
 const char kConsoleHandler[] = "pagespeed_console";
 const char kGlobalStatisticsHandler[] = "mod_pagespeed_global_statistics";
 const char kMessageHandler[] = "mod_pagespeed_message";
@@ -128,19 +127,11 @@ void ApacheFetch::HandleHeadersComplete() {
   status_ok_ = (status_code != 0) && (status_code < 400);
 
   if (handle_error_ || status_ok_) {
-    bool inject_error_message = false;
-
     // 304 and 204 responses aren't expected to have Content-Types.
     // All other responses should.
-    if ((status_code != HttpStatus::kNotModified) &&
-        (status_code != HttpStatus::kNoContent) &&
-        !response_headers()->Has(HttpAttributes::kContentType)) {
-      status_code = HttpStatus::kForbidden;
-      status_ok_ = false;
-      response_headers()->SetStatusAndReason(HttpStatus::kForbidden);
-      response_headers()->Add(HttpAttributes::kContentType, "text/html");
-      response_headers()->RemoveAll(HttpAttributes::kCacheControl);
-      inject_error_message = true;
+    if (status_code != HttpStatus::kNotModified &&
+        status_code != HttpStatus::kNoContent) {
+      DCHECK(response_headers()->Has(HttpAttributes::kContentType));
     }
 
     int64 now_ms = server_context_->timer()->NowMs();
@@ -157,7 +148,7 @@ void ApacheFetch::HandleHeadersComplete() {
     }
 
     // TODO(sligocki): Add X-Mod-Pagespeed header.
-    if (content_length_known() && !inject_error_message) {
+    if (content_length_known()) {
       apache_writer_.set_content_length(content_length());
     }
 
@@ -169,12 +160,6 @@ void ApacheFetch::HandleHeadersComplete() {
     response_headers()->ComputeCaching();
 
     apache_writer_.OutputHeaders(response_headers());
-
-    if (inject_error_message) {
-      apache_writer_.Write("Missing Content-Type required for proxied "
-                           "resource", server_context_->message_handler());
-      apache_writer_.set_squelch_output(true);
-    }
   }
 }
 
@@ -223,23 +208,16 @@ InstawebHandler::InstawebHandler(request_rec* request)
       num_response_attributes_(0) {
   apache_request_context_ = server_context_->NewApacheRequestContext(request);
   request_context_.reset(apache_request_context_);
-
-  // Global options
   options_ = server_context_->global_config();
-  if (request_context_->using_spdy() &&
+  if (apache_request_context_->using_spdy() &&
       (server_context_->SpdyGlobalConfig() != NULL)) {
     options_ = server_context_->SpdyGlobalConfig();
   }
-
   request_headers_.reset(new RequestHeaders);
   ApacheRequestToRequestHeaders(*request, request_headers_.get());
-
   original_url_ = InstawebContext::MakeRequestUrl(*options_, request);
   apache_request_context_->set_url(original_url_);
-
-  // Note: request_context_ must be initialized before ComputeCustomOptions().
   ComputeCustomOptions();
-  request_context_->set_options(options_->ComputeHttpOptions());
 }
 
 InstawebHandler::~InstawebHandler() {
@@ -352,18 +330,14 @@ void InstawebHandler::ComputeCustomOptions() {
   // hard to fix, so instead we're documenting that you must make sure the
   // configuration for your resources matches the configuration for your html
   // files.
-  {
-    // In subscope so directory_options can't be used later by mistake since
-    // it should only be used for computing the custom options.
-    ApacheConfig* directory_options = static_cast<ApacheConfig*>
-        ap_get_module_config(request_->per_dir_config, &pagespeed_module);
-    if ((directory_options != NULL) && directory_options->modified()) {
-      custom_options_.reset(
-          server_context_->apache_factory()->NewRewriteOptions());
-      custom_options_->Merge(*options_);
-      directory_options->Freeze();
-      custom_options_->Merge(*directory_options);
-    }
+  ApacheConfig* directory_options = static_cast<ApacheConfig*>
+      ap_get_module_config(request_->per_dir_config, &pagespeed_module);
+  if ((directory_options != NULL) && directory_options->modified()) {
+    custom_options_.reset(
+        server_context_->apache_factory()->NewRewriteOptions());
+    custom_options_->Merge(*options_);
+    directory_options->Freeze();
+    custom_options_->Merge(*directory_options);
   }
 
   // TODO(sligocki): Move inside PSOL.
@@ -372,29 +346,17 @@ void InstawebHandler::ComputeCustomOptions() {
   // so NULL is passed in instead.
   stripped_gurl_.Reset(original_url_);
 
-  // Note: options is not actually the final options for this request, but the
-  // final options depend upon the ResponseHeaders, so these are the best we
-  // have. As long as we don't allow changing implicit cache TTL in
-  // ResponseHeaders, this should be fine.
-  const RewriteOptions* directory_aware_options =
-      (custom_options_.get() != NULL) ? custom_options_.get() : options_;
-  response_headers_.reset(
-      new ResponseHeaders(directory_aware_options->ComputeHttpOptions()));
-
   // Copy headers_out and err_headers_out into response_headers.
   // Note that err_headers_out will come after the headers_out in the list of
   // headers. Because of this, err_headers_out will effectively override
   // headers_out when we call GetQueryOptions as it applies the header options
   // in order.
-  ApacheRequestToResponseHeaders(*request_, response_headers_.get(),
-                                 response_headers_.get());
-  num_response_attributes_ = response_headers_->NumAttributes();
+  ApacheRequestToResponseHeaders(*request_, &response_headers_,
+                                 &response_headers_);
+  num_response_attributes_ = response_headers_.NumAttributes();
 
-  if (!server_context_->GetQueryOptions(request_context(),
-                                        directory_aware_options,
-                                        &stripped_gurl_, request_headers_.get(),
-                                        response_headers_.get(),
-                                        &rewrite_query_)) {
+  if (!server_context_->GetQueryOptions(&stripped_gurl_, request_headers_.get(),
+                                        &response_headers_, &rewrite_query_)) {
     server_context_->message_handler()->Message(
         kWarning, "Invalid PageSpeed query params or headers for "
         "request %s. Serving with default options.",
@@ -419,29 +381,28 @@ void InstawebHandler::ComputeCustomOptions() {
   }
 }
 
-void InstawebHandler::RemoveStrippedResponseHeadersFromApacheRequest() {
+void InstawebHandler::RemoveStrippedResponseHeadersFromApacheReequest() {
   // Write back the modified response headers if any have been stripped by
   // GetQueryOptions (which indicates that options were found).
   // Note: GetQueryOptions should not add or mutate headers, only remove
   // them.
-  DCHECK(response_headers_->NumAttributes() <= num_response_attributes_);
-  if (response_headers_->NumAttributes() < num_response_attributes_) {
+  DCHECK(response_headers_.NumAttributes() <= num_response_attributes_);
+  if (response_headers_.NumAttributes() < num_response_attributes_) {
     // Something was stripped, but we don't know if it came from
     // headers_out or err_headers_out.  We need to treat them separately.
     if (apr_is_empty_table(request_->err_headers_out)) {
       // We know that response_headers were all from request->headers_out
       apr_table_clear(request_->headers_out);
-      ResponseHeadersToApacheRequest(*response_headers_, request_);
+      ResponseHeadersToApacheRequest(response_headers_, request_);
     } else if (apr_is_empty_table(request_->headers_out)) {
       // We know that response_headers were all from err_headers_out
       apr_table_clear(request_->err_headers_out);
-      ErrorHeadersToApacheRequest(*response_headers_, request_);
+      ErrorHeadersToApacheRequest(response_headers_, request_);
     } else {
       // We don't know which table changed, so scan them individually and
       // write them both back. This should be a rare case and could be
       // optimized a bit if we find that we're spending time here.
-      ResponseHeaders tmp_err_resp_headers(options_->ComputeHttpOptions());
-      ResponseHeaders tmp_resp_headers(options_->ComputeHttpOptions());
+      ResponseHeaders tmp_err_resp_headers, tmp_resp_headers;
       ThreadSystem* thread_system = server_context_->thread_system();
       ApacheConfig unused_opts1("unused_options1", thread_system),
           unused_opts2("unused_options2", thread_system);
@@ -452,21 +413,12 @@ void InstawebHandler::RemoveStrippedResponseHeadersFromApacheRequest() {
       // Use ScanHeader's parsing logic to find and strip the PageSpeed
       // options from the headers. Use NULL for device_properties as no
       // device property information is needed for the stripping.
-      RequestContextPtr null_request_context;
-      RewriteQuery::ScanHeader(true /* enable options */,
-                               "" /* request option override */,
-                               null_request_context,
-                               &tmp_err_resp_headers,
-                               NULL /* device_properties */,
-                               &unused_opts1,
-                               server_context_->message_handler());
-      RewriteQuery::ScanHeader(true /* enable options */,
-                               "" /* request option override */,
-                               null_request_context,
-                               &tmp_resp_headers,
-                               NULL /* device_properties */,
-                               &unused_opts2,
-                               server_context_->message_handler());
+      RewriteQuery::ScanHeader(
+          &tmp_err_resp_headers, NULL /* device_properties */,
+          &unused_opts1, server_context_->message_handler());
+      RewriteQuery::ScanHeader(
+          &tmp_resp_headers, NULL  /* device_properties */, &unused_opts2,
+          server_context_->message_handler());
 
       // Write the stripped headers back to the Apache record.
       apr_table_clear(request_->err_headers_out);
@@ -559,8 +511,10 @@ bool InstawebHandler::HandleAsInPlace() {
         stripped_gurl_.Spec(),
         driver->CacheFragment(),
         request_properties,
+        options_->respect_vary(),
         options_->ipro_max_response_bytes(),
         options_->ipro_max_concurrent_recordings(),
+        options_->implicit_cache_ttl_ms(),
         server_context_->http_cache(),
         server_context_->statistics(),
         server_context_->message_handler());
@@ -648,9 +602,7 @@ void InstawebHandler::write_handler_response(const StringPiece& output,
                                              request_rec* request,
                                              ContentType content_type,
                                              const StringPiece& cache_control) {
-  // We don't need custom options for our produced resources. In fact, options
-  // shouldn't matter.
-  ResponseHeaders response_headers(kDeprecatedDefaultHttpOptions);
+  ResponseHeaders response_headers;
   response_headers.SetStatusAndReason(HttpStatus::kOK);
   response_headers.set_major_version(1);
   response_headers.set_minor_version(1);
@@ -970,26 +922,23 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
                               instaweb_handler.options(),
                               instaweb_handler.MakeFetch());
     ret = OK;
-  } else if (global_config->enable_cache_purge() &&
-             !global_config->purge_method().empty() &&
-             (global_config->purge_method() == request->method)) {
-    InstawebHandler instaweb_handler(request);
-    AdminSite* admin_site = server_context->admin_site();
-    admin_site->PurgeHandler(instaweb_handler.original_url_,
-                             server_context->cache_path(),
-                             instaweb_handler.MakeFetch());
+  } else if (request_handler_str == kTempStatisticsGraphsHandler) {
+    // TODO(sligocki): Merge this into kConsoleHandler.
+    GoogleString output;
+    StringWriter writer(&output);
+    server_context->StatisticsGraphsHandler(&writer);
+    write_handler_response(output, request);
     ret = OK;
   } else if (request_handler_str == kConsoleHandler) {
     InstawebHandler instaweb_handler(request);
     server_context->ConsoleHandler(*instaweb_handler.options(),
-                                   AdminSite::kOther,
+                                   SystemServerContext::kOther,
                                    instaweb_handler.query_params(),
                                    instaweb_handler.MakeFetch());
     ret = OK;
   } else if (request_handler_str == kMessageHandler) {
     InstawebHandler instaweb_handler(request);
-    server_context->MessageHistoryHandler(*instaweb_handler.options(),
-                                          AdminSite::kOther,
+    server_context->MessageHistoryHandler(SystemServerContext::kOther,
                                           instaweb_handler.MakeFetch());
     ret = OK;
   } else if (request_handler_str == kLogRequestHeadersHandler) {
@@ -1046,23 +995,14 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
                  handle_as_resource(server_context, request, &gurl)) {
         ret = OK;
       }
+    }
 
-      // Check for HTTP_NO_CONTENT here since that's the status used for a
-      // successfully handled beacon.
-      if (ret != OK && ret != HTTP_NO_CONTENT &&
-          gurl.Host() != "localhost" &&
-          (global_config->slurping_enabled() || global_config->test_proxy() ||
-           !global_config->domain_lawyer()->proxy_suffix().empty())) {
-        // TODO(jmarantz): Consider moving the InstawebHandler up above
-        // where we assign 'const char* url' above because we are repeating
-        // a bunch of string-hacking here in the constructor.  However, we
-        // really want the query-param evaluation happening inside the
-        // constructor here.
-        InstawebHandler instaweb_handler(request);
-        if (instaweb_handler.ProxyUrl()) {
-          ret = OK;
-        }
-      }
+    // Check for HTTP_NO_CONTENT here since that's the status used for a
+    // successfully handled beacon.
+    if (ret != OK && ret != HTTP_NO_CONTENT &&
+        (global_config->slurping_enabled() || global_config->test_proxy())) {
+      SlurpUrl(server_context, request);
+      ret = OK;
     }
   }
   return ret;

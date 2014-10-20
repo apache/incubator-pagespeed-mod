@@ -34,17 +34,12 @@
 #include "pagespeed/kernel/base/writer.h"
 #include "pagespeed/kernel/http/caching_headers.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/headers.h"
 #include "pagespeed/kernel/http/http.pb.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/query_params.h"
 #include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
-
-class MessageHandler;
 
 // Specifies the maximum amount of forward drift we'll allow for a Date
 // timestamp.  E.g. if it's 3:00:00 and the Date header says its 3:01:00,
@@ -52,24 +47,19 @@ class MessageHandler;
 // we'll set it back to 3:00:00 exactly in FixDateHeaders.
 const int64 kMaxAllowedDateDriftMs = 3L * net_instaweb::Timer::kMinuteMs;
 
-ResponseHeaders::ResponseHeaders(const ResponseHeaders& other) {
-  CopyFrom(other);
-}
-ResponseHeaders& ResponseHeaders::operator=(const ResponseHeaders& other) {
-  if (&other != this) {
-    CopyFrom(other);
-  }
-  return *this;
-}
+class MessageHandler;
 
-ResponseHeaders::~ResponseHeaders() {
+const int64 ResponseHeaders::kDefaultImplicitCacheTtlMs;
+const int64 ResponseHeaders::kDefaultMinCacheTtlMs;
+
+ResponseHeaders::ResponseHeaders()
+    : implicit_cache_ttl_ms_(kDefaultImplicitCacheTtlMs),
+      min_cache_ttl_ms_(kDefaultMinCacheTtlMs) {
+  Headers<HttpResponseHeaders>::SetProto(new HttpResponseHeaders);
   Clear();
 }
 
-void ResponseHeaders::Init(const HttpOptions& http_options) {
-  http_options_ = http_options;
-
-  Headers<HttpResponseHeaders>::SetProto(new HttpResponseHeaders);
+ResponseHeaders::~ResponseHeaders() {
   Clear();
 }
 
@@ -92,8 +82,7 @@ void ApplyTimeDelta(const char* attr, int64 delta_ms,
 }  // namespace
 
 bool ResponseHeaders::IsImminentlyExpiring(
-    int64 start_date_ms, int64 expire_ms, int64 now_ms,
-    const HttpOptions& http_options) {
+    int64 start_date_ms, int64 expire_ms, int64 now_ms) {
   // Consider a resource with 5 minute expiration time (the default
   // assumed by mod_pagespeed when a potentialy cacheable resource
   // lacks a cache control header, which happens a lot).  If the
@@ -113,11 +102,11 @@ bool ResponseHeaders::IsImminentlyExpiring(
   // implicit ttl. If the implicit ttl has been overridden by a site, we will
   // not honor it here. Fix that.
 
-  if (ttl_ms < http_options.implicit_cache_ttl_ms) {
+  if (ttl_ms < ResponseHeaders::kDefaultImplicitCacheTtlMs) {
     return false;
   }
   int64 freshen_threshold = std::min(
-      http_options.implicit_cache_ttl_ms,
+      ResponseHeaders::kDefaultImplicitCacheTtlMs,
       ((100 - kRefreshExpirePercent) * ttl_ms) / 100);
   return (expire_ms - now_ms < freshen_threshold);
 }
@@ -196,8 +185,8 @@ void ResponseHeaders::CopyFrom(const ResponseHeaders& other) {
   cache_fields_dirty_ = other.cache_fields_dirty_;
   force_cache_ttl_ms_ = other.force_cache_ttl_ms_;
   force_cached_ = other.force_cached_;
-  min_cache_ttl_applied_ = other.min_cache_ttl_applied_;
-  http_options_ = other.http_options_;
+  implicit_cache_ttl_ms_ = other.implicit_cache_ttl_ms_;
+  min_cache_ttl_ms_ = other.min_cache_ttl_ms_;
 }
 
 void ResponseHeaders::Clear() {
@@ -218,9 +207,6 @@ void ResponseHeaders::Clear() {
   force_cache_ttl_ms_ = -1;
   force_cached_ = false;
   min_cache_ttl_applied_ = false;
-
-  // Note: http_options_ are not cleared here!
-  // Those should only be set at construction time and never mutated.
 }
 
 int ResponseHeaders::status_code() const {
@@ -228,7 +214,6 @@ int ResponseHeaders::status_code() const {
 }
 
 void ResponseHeaders::set_status_code(int code) {
-  cache_fields_dirty_ = true;
   mutable_proto()->set_status_code(code);
 }
 
@@ -638,7 +623,7 @@ void ResponseHeaders::ComputeCaching() {
     // Implicitly cached items stay alive in our system for the specified
     // implicit ttl ms.
     bool is_proxy_cacheable = computer.IsProxyCacheable();
-    int64 cache_ttl_ms = http_options_.implicit_cache_ttl_ms;
+    int64 cache_ttl_ms = implicit_cache_ttl_ms();
     if (computer.IsExplicitlyCacheable()) {
       // TODO(sligocki): Do we care about the return value.
       computer.GetFreshnessLifetimeMillis(&cache_ttl_ms);
@@ -646,8 +631,8 @@ void ResponseHeaders::ComputeCaching() {
       // explicitly set in the header. Use the max of min_cache_ttl_ms and
       // the cache_ttl computed so far. Do this only for non HTML.
       if (type != NULL && !type->IsHtmlLike() &&
-          http_options_.min_cache_ttl_ms > cache_ttl_ms) {
-        cache_ttl_ms = http_options_.min_cache_ttl_ms;
+          min_cache_ttl_ms_ > cache_ttl_ms) {
+        cache_ttl_ms = min_cache_ttl_ms_;
         min_cache_ttl_applied_ = true;
       }
     }
@@ -679,12 +664,12 @@ void ResponseHeaders::ComputeCaching() {
         // caching headers and is not force cached, explicitly set the caching
         // headers.
         DCHECK(has_date);
-        DCHECK(cache_ttl_ms == http_options_.implicit_cache_ttl_ms);
+        DCHECK(cache_ttl_ms == implicit_cache_ttl_ms());
         proto->set_is_implicitly_cacheable(true);
         SetDateAndCaching(date, cache_ttl_ms, CacheControlValuesToPreserve());
       } else if (min_cache_ttl_applied_) {
         DCHECK(has_date);
-        DCHECK(cache_ttl_ms == http_options_.min_cache_ttl_ms);
+        DCHECK(cache_ttl_ms == min_cache_ttl_ms());
         SetDateAndCaching(date, cache_ttl_ms, CacheControlValuesToPreserve());
       }
     }
@@ -868,10 +853,10 @@ void ResponseHeaders::DebugPrint() const {
           BoolToString(cache_fields_dirty_));
   fprintf(stderr, "is_implicitly_cacheable = %s\n",
           BoolToString(proto()->is_implicitly_cacheable()));
-  fprintf(stderr, "http_options_.implicit_cache_ttl_ms = %s\n",
-          Integer64ToString(http_options_.implicit_cache_ttl_ms).c_str());
-  fprintf(stderr, "http_options_.min_cache_ttl_ms = %s\n",
-          Integer64ToString(http_options_.min_cache_ttl_ms).c_str());
+  fprintf(stderr, "implicit_cache_ttl_ms_ = %s\n",
+          Integer64ToString(implicit_cache_ttl_ms()).c_str());
+  fprintf(stderr, "min_cache_ttl_ms_ = %s\n",
+          Integer64ToString(min_cache_ttl_ms()).c_str());
   fprintf(stderr, "min_cache_ttl_applied_ = %s\n",
           BoolToString(min_cache_ttl_applied_));
   if (!cache_fields_dirty_) {
@@ -997,78 +982,6 @@ bool ResponseHeaders::HasAnyCookiesWithAttribute(StringPiece attribute_name,
     }
   }
   return false;
-}
-
-bool ResponseHeaders::SetQueryParamsAsCookies(
-    const GoogleUrl& gurl, StringPiece query_params,
-    const StringPieceVector& options_to_exclude, int64 expiration_time) {
-  bool result = false;
-  // Domain (aka host).
-  StringPiece host = gurl.Host();
-  // Expiration time.
-  GoogleString expires;
-  ConvertTimeToString(expiration_time, &expires);
-  // Go through each query param and set a cookie for it.
-  QueryParams params;
-  params.ParseFromUntrustedString(query_params);
-  for (int i = 0, n = params.size(); i < n; ++i) {
-    StringPiece name = params.name(i);
-    bool skipit = false;
-    for (int j = 0, n = options_to_exclude.size(); j < n; ++j) {
-      if (name == options_to_exclude[j]) {
-        skipit = true;
-        break;
-      }
-    }
-    if (!skipit) {
-      // See RewriteQuery::Scan() for the discussion about why we apparently
-      // double-escape by GoogleUrl escaping the QueryParams escaped value.
-      const GoogleString* value = params.EscapedValue(i);
-      GoogleString escaped_value;
-      if (value != NULL) {
-        escaped_value = StrCat("=", GoogleUrl::Escape(*value));
-      }
-      GoogleString cookie = StrCat(
-          name, escaped_value, "; Expires=", expires, "; Domain=", host,
-          "; Path=/; HttpOnly");
-      Add(HttpAttributes::kSetCookie, cookie);
-      result = true;
-    }
-  }
-  return result;
-}
-
-bool ResponseHeaders::ClearOptionCookies(
-    const GoogleUrl& gurl, StringPiece option_cookies,
-    const StringPieceVector& options_to_exclude) {
-  bool result = false;
-  // Domain (aka host).
-  StringPiece host = gurl.Host();
-  // Expiration time. Zero is "the start of the epoch" and is the conventional
-  // way to immediately expire a cookie per:
-  // http://en.wikipedia.org/wiki/HTTP_cookie#Expires_and_Max-Age
-  GoogleString expires;
-  ConvertTimeToString(0, &expires);
-  // Go through each option cookie and clear each one.
-  QueryParams params;
-  params.ParseFromUntrustedString(option_cookies);
-  for (int i = 0, n = params.size(); i < n; ++i) {
-    StringPiece name = params.name(i);
-    bool skipit = false;
-    for (int j = 0, n = options_to_exclude.size(); j < n; ++j) {
-      if (name == options_to_exclude[j]) {
-        skipit = true;
-        break;
-      }
-    }
-    if (!skipit) {
-      GoogleString cookie = StrCat(params.name(i), "; Expires=", expires,
-                                   "; Domain=", host, "; Path=/; HttpOnly");
-      Add(HttpAttributes::kSetCookie, cookie);
-      result = true;
-    }
-  }
-  return result;
 }
 
 void ResponseHeaders::UpdateHook() {

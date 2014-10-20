@@ -19,22 +19,22 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_FILTER_H_
 
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/css_hierarchy.h"
 #include "net/instaweb/rewriter/public/css_resource_slot.h"
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace Css {
 
@@ -58,7 +58,6 @@ class RewriteContext;
 class RewriteDriver;
 class RewriteDomainTransformer;
 class Statistics;
-class UpDownCounter;
 class UrlSegmentEncoder;
 class Variable;
 
@@ -171,8 +170,7 @@ class CssFilter : public RewriteFilter {
   // attribute 'src' of 'link'.
   void StartExternalRewrite(HtmlElement* link, HtmlElement::Attribute* src);
 
-  ResourceSlot* MakeSlotForInlineCss(HtmlElement* element,
-                                     const StringPiece& content);
+  ResourceSlot* MakeSlotForInlineCss(const StringPiece& content);
   CssFilter::Context* StartRewriting(const ResourceSlotPtr& slot);
 
   // Get the charset of the HTML being parsed which can be specified in the
@@ -220,7 +218,7 @@ class CssFilter : public RewriteFilter {
   // from @import flattening).
   // TODO(sligocki): This should consider the input size to be the input sizes
   // of all CSS files flattened into this one. Currently it does not.
-  UpDownCounter* total_bytes_saved_;
+  Variable* total_bytes_saved_;
   // Sum of original bytes of all successfully rewritten CSS blocks.
   // total_bytes_saved_ / total_original_bytes_ should be the
   // average percentage reduction of CSS block size.

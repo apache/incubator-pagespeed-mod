@@ -19,13 +19,6 @@
 this_dir=$(dirname "${BASH_SOURCE[0]}")
 source "$this_dir/system_test_helpers.sh" || exit 1
 
-# Exit the script on an undefined variable or a failed command.  Note that this
-# means we must run all commands that are intended to fail inside "check_not" or
-# "check_not_from", which will prevent the script from exiting.
-set -e
-set -u
-trap 'handle_failure Line:${LINENO}' ERR
-
 # General system tests
 
 start_test Page Speed Automatic is running and writes the expected header.
@@ -90,7 +83,7 @@ check_not_from "$OUT" egrep 'X-Mod-Pagespeed|X-Page-Speed'
 
 start_test We behave sanely on whitespace served as HTML
 OUT=$($WGET_DUMP $TEST_ROOT/whitespace.html)
-check_200_http_response "$OUT"
+check_from "$OUT" egrep -q 'HTTP/1[.]. 200 OK'
 
 start_test Query params and headers are recognized in resource flow.
 URL=$REWRITTEN_ROOT/styles/W.rewrite_css_images.css.pagespeed.cf.Hash.css
@@ -181,9 +174,8 @@ check run_wget_with_args $URL
 #test_resource_ext_corruption $URL $combine_css_filename
 
 start_test combine_css without hash field should 404
-URL=$REWRITTEN_ROOT/styles/yellow.css+blue.css.pagespeed.cc..css
-echo run_wget_with_args $URL
-check_not run_wget_with_args $URL
+echo run_wget_with_args $REWRITTEN_ROOT/styles/yellow.css+blue.css.pagespeed.cc..css
+run_wget_with_args $REWRITTEN_ROOT/styles/yellow.css+blue.css.pagespeed.cc..css
 check fgrep "404 Not Found" $WGET_OUTPUT
 
 # Note: this large URL can only be processed by Apache if
@@ -201,9 +193,9 @@ big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
 big.css+bold.css+yellow.css+blue.css+big.css+bold.css+yellow.css+blue.css+\
 big.css+bold.css+yellow.css+blue.css+big.css+\
 bold.css.pagespeed.cc.46IlzLf_NK.css"
-echo "$WGET --save-headers -q -O - $LARGE_URL | check_200_http_response"
-OUT=$($WGET --save-headers -q -O - $LARGE_URL)
-check_200_http_response "$OUT"
+echo "$WGET --save-headers -q -O - $LARGE_URL | head -1 | egrep \"HTTP/1[.]. 200 OK\""
+OUT=$($WGET --save-headers -q -O - $LARGE_URL | head -1)
+check_from "$OUT" egrep -q "HTTP/1[.]. 200 OK"
 LARGE_URL_LINE_COUNT=$($WGET -q -O - $LARGE_URL | wc -l)
 echo Checking that response body is at least 900 lines -- it should be 954
 check [ $LARGE_URL_LINE_COUNT -gt 900 ]
@@ -232,13 +224,13 @@ echo about to test resource ext corruption...
 #test_resource_ext_corruption $URL images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
 
 start_test Attempt to fetch cache-extended image without hash should 404
-check_not run_wget_with_args $REWRITTEN_ROOT/images/Puzzle.jpg.pagespeed.ce..jpg
+run_wget_with_args $REWRITTEN_ROOT/images/Puzzle.jpg.pagespeed.ce..jpg
 check fgrep "404 Not Found" $WGET_OUTPUT
 
 start_test Cache-extended image should respond 304 to an If-Modified-Since.
 URL=$REWRITTEN_ROOT/images/Puzzle.jpg.pagespeed.ce.91_WewrLtP.jpg
 DATE=$(date -R)
-check_not run_wget_with_args --header "If-Modified-Since: $DATE" $URL
+run_wget_with_args --header "If-Modified-Since: $DATE" $URL
 check fgrep "304 Not Modified" $WGET_OUTPUT
 
 start_test Legacy format URLs should still work.
@@ -246,7 +238,7 @@ URL=$REWRITTEN_ROOT/images/ce.0123456789abcdef0123456789abcdef.Puzzle,j.jpg
 # Note: Wget request is HTTP/1.0, so some servers respond back with
 # HTTP/1.0 and some respond back 1.1.
 $WGET_DUMP $URL > $FETCHED
-check_200_http_response_file "$FETCHED"
+check egrep -q 'HTTP/1[.]. 200 OK' $FETCHED
 
 start_test Filters do not rewrite blacklisted JavaScript files.
 URL=$TEST_ROOT/blacklist/blacklist.html?PageSpeedFilters=extend_cache,rewrite_javascript,trim_urls
@@ -265,6 +257,7 @@ check grep -q "<script src=\".*swfobject\.js\.pagespeed\..*\.js\">" $FETCHED
 check grep -q \
   "<script src=\".*another_normal\.js\.pagespeed\..*\.js\">" $FETCHED
 
+WGET_ARGS=""
 start_test move_css_above_scripts works.
 URL=$EXAMPLE_ROOT/move_css_above_scripts.html?PageSpeedFilters=move_css_above_scripts
 $WGET_DUMP $URL > $FETCHED
@@ -338,7 +331,7 @@ JS_URL=$(egrep -o http://.*.pagespeed.*.js $FETCHED)
 echo "JS_URL=\$\(egrep -o http://.*[.]pagespeed.*[.]js $FETCHED\)=\"$JS_URL\""
 JS_HEADERS=$($WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
   $JS_URL 2>&1)
-check_200_http_response "$JS_HEADERS"
+check_from "$JS_HEADERS" egrep -qi 'HTTP/1[.]. 200 OK'
 check_from "$JS_HEADERS" fgrep -qi 'Content-Encoding: gzip'
 #check_from "$JS_HEADERS" fgrep -qi 'Vary: Accept-Encoding'
 check_from "$JS_HEADERS" egrep -qi '(Etag: W/"0")|(Etag: W/"0-gzip")'
@@ -349,6 +342,7 @@ check run_wget_with_args $URL
 check fgrep -q 'text/javascript' $FETCHED # should find script type
 check fgrep -q 'text/css' $FETCHED        # should find style type
 
+
 test_filter remove_comments removes comments but not IE directives.
 check run_wget_with_args $URL
 check_not grep removed $FETCHED   # comment, should not find
@@ -357,8 +351,9 @@ check grep -q preserved $FETCHED  # preserves IE directives
 test_filter remove_quotes does what it says on the tin.
 check run_wget_with_args $URL
 num_quoted=$(sed 's/ /\n/g' $FETCHED | grep -c '"')
-check [ $num_quoted -eq 2 ]       # 2 quoted attrs
-check_not grep -q "'" $FETCHED    # no apostrophes
+check [ $num_quoted -eq 2 ]  # 2 quoted attrs
+num_apos=$(grep -c "'" $FETCHED)
+check [ $num_apos -eq 0 ]    # no apostrophes
 
 test_filter trim_urls makes urls relative
 check run_wget_with_args $URL
@@ -400,7 +395,7 @@ start_test headers for rewritten image
 echo "$IMG_URL"
 IMG_HEADERS=$($WGET -O /dev/null -q -S --header='Accept-Encoding: gzip' \
   $IMG_URL 2>&1)
-check_200_http_response "$IMG_HEADERS"
+check_from "$IMG_HEADERS" egrep -qi 'HTTP/1[.]. 200 OK'
 # Make sure we have some valid headers.
 check_from "$IMG_HEADERS" fgrep -qi 'Content-Type: image/jpeg'
 # Make sure the response was not gzipped.
@@ -428,6 +423,7 @@ URL="$TEST_ROOT/image_rewriting/rewrite_images.html"
 WGET_ARGS="--header PageSpeedFilters:rewrite_images "
 WGET_ARGS+="--header ${IMAGES_QUALITY}:75 "
 fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimized
+WGET_ARGS=""
 # This filter produces different images on 32 vs 64 bit builds. On 32 bit, the
 # size is 8157B, while on 64 it is 8155B. Initial investigation showed no
 # visible differences between the generated images.
@@ -445,6 +441,7 @@ WGET_ARGS="--header PageSpeedFilters:rewrite_images "
 WGET_ARGS+="--header ${IMAGES_QUALITY}:85 "
 WGET_ARGS+="--header ${JPEG_QUALITY}:70"
 fetch_until -save -recursive $URL 'grep -c .pagespeed.ic' 2   # 2 images optimized
+WGET_ARGS=""
 #
 # If this this test fails because the image size is 7673 bytes it means
 # that image_rewrite_filter.cc decided it was a good idea to convert to
@@ -469,16 +466,17 @@ check_file_size "$WGET_DIR/*256x192*Puzzle*webp" -le 5140   # resized, webp'd
 BAD_IMG_URL=$REWRITTEN_ROOT/images/xBadName.jpg.pagespeed.ic.Zi7KMNYwzD.jpg
 start_test rewrite_images fails broken image
 echo run_wget_with_args $BAD_IMG_URL
-check_not run_wget_with_args $BAD_IMG_URL  # fails
+run_wget_with_args $BAD_IMG_URL  # fails
 check grep "404 Not Found" $WGET_OUTPUT
 
 start_test "rewrite_images doesn't 500 on unoptomizable image."
 IMG_URL=$REWRITTEN_ROOT/images/xOptPuzzle.jpg.pagespeed.ic.Zi7KMNYwzD.jpg
-run_wget_with_args -q $IMG_URL
-check_200_http_response_file "$WGET_OUTPUT"
+run_wget_with_args $IMG_URL
+check egrep "HTTP/1[.]. 200 OK" $WGET_OUTPUT
 
 # These have to run after image_rewrite tests. Otherwise it causes some images
 # to be loaded into memory before they should be.
+WGET_ARGS=""
 start_test rewrite_css,extend_cache extends cache of images in CSS.
 FILE=rewrite_css_images.html?PageSpeedFilters=rewrite_css,extend_cache
 URL=$EXAMPLE_ROOT/$FILE
@@ -557,46 +555,26 @@ check grep -q preserved $FETCH_FILE                # Preserves certain comments.
 # Rewritten JS is cache-extended.
 check grep -qi "Cache-control: max-age=31536000" $WGET_OUTPUT
 check grep -qi "Expires:" $WGET_OUTPUT
-WGET_ARGS=""
-
-start_test rewrite_javascript_external
-URL="$EXAMPLE_ROOT/rewrite_javascript.html"
-fetch_until -save "$URL?PageSpeedFilters=rewrite_javascript_external" \
-  'grep -c src=.*rewrite_javascript\.js\.pagespeed\.jm\.' 2
-check_from "$(< $FETCH_UNTIL_OUTFILE)" \
-  fgrep -q "// This comment will be removed"
-
-start_test rewrite_javascript_inline
-URL="$EXAMPLE_ROOT/rewrite_javascript.html"
-# We test with blocking rewrites here because we are trying to prove
-# we will never rewrite the external JS, which is impractical to do
-# with fetch_until.
-OUT=$($WGET_DUMP --header=X-PSA-Blocking-Rewrite:psatest \
-  $URL?PageSpeedFilters=rewrite_javascript_inline)
-# Checks that the inline JS block was minified.
-check_not_from "$OUT" fgrep -q "// This comment will be removed"
-check_from "$OUT" fgrep -q 'id="int1">var state=0;document.write'
-# Checks that the external JS links were left alone.
-check [ $(echo "$OUT" | fgrep -c 'src="rewrite_javascript.js"') -eq 2 ]
-check_not_from "$OUT" fgrep -q 'src=.*rewrite_javascript\.js\.pagespeed\.jm\.'
 
 # Error path for fetch of outlined resources that are not in cache leaked
 # at one point of development.
 start_test regression test for RewriteDriver leak
-check_not $WGET -O /dev/null -o /dev/null \
-  $TEST_ROOT/_.pagespeed.jo.3tPymVdi9b.js
+$WGET -O /dev/null -o /dev/null $TEST_ROOT/_.pagespeed.jo.3tPymVdi9b.js
 
 # Combination rewrite in which the same URL occurred twice used to
 # lead to a large delay due to overly late lock release.
 start_test regression test with same filtered input twice in combination
 PAGE=_,Mco.0.css+_,Mco.0.css.pagespeed.cc.0.css
 URL=$TEST_ROOT/$PAGE?PageSpeedFilters=combine_css,outline_css
-check_error_code 8 \
-  $WGET -q -O /dev/null -o /dev/null --tries=1 --read-timeout=3 $URL
+echo $WGET -O /dev/null -o /dev/null --tries=1 --read-timeout=3 $URL
+$WGET -O /dev/null -o /dev/null --tries=1 --read-timeout=3 $URL
 # We want status code 8 (server-issued error) and not 4
 # (network failure/timeout)
+check [ $? = 8 ]
 
-start_test Simple test that https is working.
+WGET_ARGS=""
+
+# Simple test that https is working.
 if [ -n "$HTTPS_HOST" ]; then
   URL="$HTTPS_EXAMPLE_ROOT/combine_css.html"
   fetch_until $URL 'fgrep -c css+' 1 --no-check-certificate
@@ -694,32 +672,28 @@ check grep -q "PageSpeed=noscript" $FETCHED
 # Extract out the DeferJs url from the HTML above and fetch it.
 start_test Fetch the deferJs url with hash.
 echo run_wget_with_args $DEFERJSURL
-run_wget_with_args -q \
-  http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/$DEFERJSURL
-check_200_http_response_file "$WGET_OUTPUT"
+run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/$DEFERJSURL
+check fgrep "200 OK" $WGET_OUTPUT
 check fgrep "Cache-Control: max-age=31536000" $WGET_OUTPUT
 
 # Checks that we return 404 for static file request without hash.
 start_test Access to js_defer.js without hash returns 404.
-URL="http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer.js"
-echo run_wget_with_args "$URL"
-check_not run_wget_with_args "$URL"
+echo run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer.js
+run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer.js
 check fgrep "404 Not Found" $WGET_OUTPUT
 
 # Checks that outlined js_defer.js is served correctly.
 start_test serve js_defer.0.js
-URL="http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer.0.js"
-echo run_wget_with_args "$URL"
-run_wget_with_args -q "$URL"
-check_200_http_response_file "$WGET_OUTPUT"
+echo run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer.0.js
+run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer.0.js
+check fgrep "200 OK" $WGET_OUTPUT
 check fgrep "Cache-Control: max-age=300,private" $WGET_OUTPUT
 
 # Checks that outlined js_defer_debug.js is  served correctly.
 start_test serve js_defer_debug.0.js
-URL="http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer_debug.0.js"
-echo run_wget_with_args "$URL"
-run_wget_with_args -q "$URL"
-check_200_http_response_file "$WGET_OUTPUT"
+echo run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer_debug.0.js
+run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/js_defer_debug.0.js
+check fgrep "200 OK" $WGET_OUTPUT
 check fgrep "Cache-Control: max-age=300,private" $WGET_OUTPUT
 
 # Checks that lazyload_images injects compiled javascript from
@@ -737,10 +711,9 @@ BLANKGIFSRC=`grep -m1 -o " src=.*1.*.gif" $FETCHED | sed 's/^.*1\./1./;s/\.gif.*
 
 # Fetch the blank image and make sure it's served correctly.
 start_test serve_blank_gif
-URL="http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/$BLANKGIFSRC"
-echo run_wget_with_args $URL
-run_wget_with_args -q $URL
-check_200_http_response_file "$WGET_OUTPUT"
+echo run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/$BLANKGIFSRC
+run_wget_with_args http://$PROXY_DOMAIN/$PSA_JS_LIBRARY_URL_PREFIX/$BLANKGIFSRC
+check fgrep "200 OK" $WGET_OUTPUT
 check fgrep "Cache-Control: max-age=31536000" $WGET_OUTPUT
 
 # Checks that lazyload_images,debug injects non-optimized javascript from
@@ -875,11 +848,9 @@ check_not grep "yellow.background-color:" $FETCHED
 
 # Cache extend PDFs.
 test_filter extend_cache_pdfs PDF cache extension
-
-# Saves any WGET_ARGS computed by 'test_filter' into WGET_EC, past the
-# invocation of start_test Cache-extended PDFs below, which clears WGET_ARGS.
 WGET_EC="$WGET_DUMP $WGET_ARGS"
 
+start_test Html is rewritten with cache-extended PDFs.
 fetch_until -save $URL 'fgrep -c .pagespeed.' 3
 check grep -q 'a href=".*pagespeed.*\.pdf' $FETCH_FILE
 check grep -q 'embed src=".*pagespeed.*\.pdf' $FETCH_FILE
@@ -910,252 +881,15 @@ test_filter dedup_inlined_images,inline_images
 fetch_until -save $URL 'fgrep -ocw inlineImg(' 4
 check grep -q "PageSpeed=noscript" $FETCH_FILE
 
-if [ "$SECONDARY_HOSTNAME" != "" ]; then
-  # Test that we can set options using cookies.
-
-  start_test Cookie options on: by default comments not removed, whitespace is
-  URL="$(generate_url options-by-cookies-enabled.example.com \
-                      /mod_pagespeed_test/forbidden.html)"
-  echo  http_proxy=$SECONDARY_HOSTNAME wget $URL
-  echo http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)"
-  check_from     "$OUT" grep -q '<!--'
-  check_not_from "$OUT" grep -q '  '
-
-  start_test Cookie options on: set option by cookie takes effect
-  echo wget --header=Cookie:PageSpeedFilters=%2bremove_comments $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP \
-         --header=Cookie:PageSpeedFilters=%2bremove_comments $URL)"
-  check_not_from "$OUT" grep -q '<!--'
-  check_not_from "$OUT" grep -q '  '
-
-  start_test Cookie options on: invalid cookie does not take effect
-  # The '+' must be encoded as %2b for the cookie parsing code to accept it.
-  echo wget --header=Cookie:PageSpeedFilters=+remove_comments $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP \
-         --header=Cookie:PageSpeedFilters=+remove_comments $URL)"
-  check_from     "$OUT" grep -q '<!--'
-  check_not_from "$OUT" grep -q '  '
-
-  start_test Cookie options off: by default comments nor whitespace removed
-  URL="$(generate_url options-by-cookies-disabled.example.com \
-                      /mod_pagespeed_test/forbidden.html)"
-  echo wget $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)"
-  check_from "$OUT" grep -q '<!--'
-  check_from "$OUT" grep -q '  '
-
-  start_test Cookie options off: set option by cookie has no effect
-  echo wget --header=Cookie:PageSpeedFilters=%2bremove_comments $URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP \
-         --header=Cookie:PageSpeedFilters=%2bremove_comments $URL)"
-  check_from "$OUT" grep -q '<!--'
-  check_from "$OUT" grep -q '  '
-
-  # Test that we can make options sticky using cookies.
-
-  start_test Sticky option cookies: initially remove_comments only
-  URL="$(generate_url options-by-cookies-enabled.example.com \
-                      /mod_pagespeed_test/forbidden.html)"
-  COOKIES=""
-  PARAMS=""
-  echo wget $COOKIES $URL$PARAMS
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $COOKIES $URL$PARAMS)"
-  check_from     "$OUT" grep -q '<!-- This comment should not be deleted -->'
-  check_not_from "$OUT" grep -q '  '
-  check_not_from "$OUT" grep -q 'Cookie'
-
-  start_test Sticky option cookies: wrong token has no effect
-  PARAMS="?PageSpeedStickyQueryParameters=wrong_secret"
-  PARAMS+="&PageSpeedFilters=+remove_comments"
-  echo wget $COOKIES $URL$PARAMS
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $COOKIES $URL$PARAMS)"
-  check_not_from "$OUT" grep -q '<!-- This comment should not be deleted -->'
-  check_not_from "$OUT" grep -q '  '
-  check_not_from "$OUT" grep -q 'Set-Cookie'
-
-  start_test Sticky option cookies: right token IS adhesive
-  PARAMS="?PageSpeedStickyQueryParameters=sticky_secret"
-  PARAMS+="&PageSpeedFilters=+remove_comments"
-  echo wget $COOKIES $URL$PARAMS
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $COOKIES $URL$PARAMS)"
-  check_not_from "$OUT" grep -q '<!-- This comment should not be deleted -->'
-  check_not_from "$OUT" grep -q '  '
-  check_from "$OUT" grep -q 'Set-Cookie: PageSpeedFilters=%2bremove_comments;'
-  # We know we got the right cookie, now check that we got the right number.
-  check [ $(echo "$OUT" | egrep -c 'Set-Cookie:') = 1 ]
-
-  start_test Sticky option cookies: no token leaves option cookies untouched
-  COOKIES=$(echo "$OUT" | extract_cookies)
-  PARAMS=""
-  echo wget $COOKIES $URL$PARAMS
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $COOKIES $URL$PARAMS)"
-  check_not_from "$OUT" grep -q '<!-- This comment should not be deleted -->'
-  check_not_from "$OUT" grep -q '  '
-  check_not_from "$OUT" grep -q 'Set-Cookie'
-
-  start_test Sticky option cookies: wrong token expires option cookies
-  PARAMS="?PageSpeedStickyQueryParameters=off"
-  echo wget $COOKIES $URL$PARAMS
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $COOKIES $URL$PARAMS)"
-  check_not_from "$OUT" grep -q '<!-- This comment should not be deleted -->'
-  check_not_from "$OUT" grep -q '  '
-  check_from "$OUT" grep -q 'Cookie: PageSpeedFilters; Expires=Thu, 01 Jan 1970'
-  COOKIES=$(echo "$OUT" | grep -v 'Expires=Thu, 01 Jan 1970'| extract_cookies)
-  check [ -z "$COOKIES" ]
-
-  start_test Sticky option cookies: back to remove_comments only
-  PARAMS=""
-  echo wget $COOKIES $URL$PARAMS
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $COOKIES $URL$PARAMS)"
-  check_from     "$OUT" grep -q '<!-- This comment should not be deleted -->'
-  check_not_from "$OUT" grep -q '  '
-  check_not_from "$OUT" grep -q 'Cookie'
-
-  start_test Signed Urls : Correct URL signature is passed
-  URL_PATH="/mod_pagespeed_test/unauthorized/inline_css.html"
-  OPTS="?PageSpeedFilters=rewrite_images,rewrite_css"
-  FETCH_GREP='fgrep -c all_styles.css.pagespeed.cf'
-  URL_REGEX="http:\/\/[^[:space:]]+css\.pagespeed[^[:space:]]+\.css"
-  COMBINED_CSS=".yellow{background-color:#ff0}"
-  # Constants used in the next few tests.
-  URL="$(generate_url "signed-urls.example.com" $URL_PATH$OPTS)"
-  http_proxy=$SECONDARY_HOSTNAME fetch_until -save "$URL" \
-      'fgrep -c all_styles.css.pagespeed.cf' 1
-  URL="$(grep -Eo "$URL_REGEX" $FETCH_FILE)"
-  check test -n "$URL"
-  echo wget $URL
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $URL \
-    "fgrep -c $COMBINED_CSS" 1
-
-  start_test Signed Urls : Incorrect URL signature is passed
-  # Substring, all but last 14 characters to remove the signature and extension.
-  URL="${URL:0:-14}"
-  FINAL_URL="${URL}AAAAAAAAAA.css"
-  echo http_proxy=$SECONDARY_HOSTNAME wget $FINAL_URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME check_not $WGET $FINAL_URL -O - 2>&1)"
-  check_from "$OUT" egrep -q "403 Forbidden|404 Not Found"
-
-  start_test Signed Urls : No signature is passed
-  FINAL_URL="$URL.css"
-  echo http_proxy=$SECONDARY_HOSTNAME wget $FINAL_URL
-  OUT="$(http_proxy=$SECONDARY_HOSTNAME check_not $WGET $FINAL_URL -O - 2>&1)"
-  check_from "$OUT" egrep -q "403 Forbidden|404 Not Found"
-
-  start_test Signed Urls, ignored signature : Correct URL signature is passed
-  URL="$(generate_url "signed-urls-transition.example.com" $URL_PATH$OPTS)"
-  http_proxy=$SECONDARY_HOSTNAME fetch_until -save "$URL" \
-      'fgrep -c all_styles.css.pagespeed.cf' 1
-  URL="$(grep -Eo "$URL_REGEX" $FETCH_FILE)"
-  check test -n "$URL"
-  echo http_proxy=$SECONDARY_HOSTNAME wget $URL
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $URL \
-    "fgrep -c $COMBINED_CSS" 1
-
-  start_test Signed Urls, ignored signatures : Incorrect URL signature is passed
-  # Substring, all but last 14 characters to remove the signature and extension.
-  URL="${URL:0:-14}"
-  FINAL_URL="${URL}AAAAAAAAAA.css"
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $FINAL_URL \
-    "fgrep -c $COMBINED_CSS" 1
-
-  start_test Signed Urls, ignored signatures : No signature is passed
-  FINAL_URL="$URL.css"
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $FINAL_URL \
-    "fgrep -c $COMBINED_CSS" 1
-
-  start_test Unsigned Urls, ignored signature : URL with bad signature is passed
-  # Change the domain from signed-urls.example.com to unsigned-urls.example.com.
-  URL="$(echo $URL | sed -e 's/signed-urls/unsigned-urls/')"
-  # And change the hash without a signature to a hash with an invalid signature.
-  URL="$(echo $URL | sed -e 's/Cxc4pzojlP/UH8L-zY4b4AAAAAAAAAA/')"
-  FINAL_URL="$URL.css"
-  echo http_proxy=$SECONDARY_HOSTNAME wget $FINAL_URL
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $FINAL_URL \
-    "fgrep -c $COMBINED_CSS" 1
-
-  start_test Unsigned Urls, ignored signatures : no signature is passed
-  URL="$(echo $URL | sed -e 's/AAAAAAAAAA//')"  # Remove signature.
-  FINAL_URL="$URL.css"
-  echo http_proxy=$SECONDARY_HOSTNAME wget $FINAL_URL
-  http_proxy=$SECONDARY_HOSTNAME fetch_until $FINAL_URL \
-    "fgrep -c $COMBINED_CSS" 1
-
-  # Test that redirecting to the same domain retains MPS query parameters.
-  # The test domain is configured for collapse_whitepsace,add_instrumentation
-  # so if the QPs are retained we should get the former but not the latter.
-
-  start_test Redirecting to the same domain retains PageSpeed query parameters.
-  URL="$(generate_url redirect.example.com /mod_pagespeed_test/forbidden.html)"
-  WGET_STDERR="${WGET_OUTPUT}.stderr"
-  MY_WGET_DUMP="$WGET -O $WGET_OUTPUT --server-response"
-  OPTS="?PageSpeedFilters=-add_instrumentation"
-  # First, fetch with add_instrumentation enabled (default) to ensure it is on.
-  echo wget $URL
-  http_proxy=$SECONDARY_HOSTNAME $MY_WGET_DUMP $URL 2>$WGET_STDERR
-  check_not_from "$(< $WGET_STDERR)" egrep -q ' 301 Moved Permanentl| 302 Found'
-  check_not_from "$(< $WGET_STDERR)" grep -q '^ *Location:'
-  check_from     "$(< $WGET_OUTPUT)" grep -q 'pagespeed.addInstrumentationInit'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q '  '
-  # Then, fetch with add_instrumentation disabled and the URL not redirected.
-  echo wget $URL$OPTS
-  http_proxy=$SECONDARY_HOSTNAME $MY_WGET_DUMP $URL$OPTS 2>$WGET_STDERR
-  check_not_from "$(< $WGET_STDERR)" egrep -q ' 301 Moved Permanentl| 302 Found'
-  check_not_from "$(< $WGET_STDERR)" grep -q '^ *Location:'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q 'pagespeed.addInstrumentationInit'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q '  '
-  # Finally, fetch with add_instrumentation disabled and the URL redirected.
-  URL="$(generate_url redirect.example.com \
-                      /redirect/mod_pagespeed_test/forbidden.html)"
-  echo wget $URL$OPTS
-  http_proxy=$SECONDARY_HOSTNAME $MY_WGET_DUMP $URL$OPTS 2>$WGET_STDERR
-  check_from     "$(< $WGET_STDERR)" egrep -q ' 301 Moved Permanentl| 302 Found'
-  check_from     "$(< $WGET_STDERR)" grep -q '^ *Location:.*=-add_instrumentati'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q 'pagespeed.addInstrumentationInit'
-  check_not_from "$(< $WGET_OUTPUT)" grep -q '  '
-fi
-
-start_test PageSpeed resources should have a content length.
-HTML_URL="$EXAMPLE_ROOT/rewrite_css_images.html?PageSpeedFilters=rewrite_css"
-fetch_until -save "$HTML_URL" "fgrep -c rewrite_css_images.css.pagespeed.cf" 1
-# Pull the rewritten resource name out so we get an accurate hash.
-REWRITTEN_URL=$(grep rewrite_css_images.css $FETCH_UNTIL_OUTFILE | \
-                awk -F'"' '{print $(NF-1)}')
-if [[ $REWRITTEN_URL == *//* ]]; then
-  URL="$REWRITTEN_URL"
-else
-  URL="$REWRITTEN_ROOT/$REWRITTEN_URL"
-fi
-# This will use REWRITE_DOMAIN as an http_proxy if set, otherwise no proxy.
-OUT=$(http_proxy=${REWRITE_DOMAIN:-} $WGET_DUMP $URL)
-check_from "$OUT" grep "^Content-Length:"
-check_not_from "$OUT" grep "^Transfer-Encoding: chunked"
-check_not_from "$OUT" grep "^Cache-Control:.*private"
-
 # Make sure we don't blank url(data:...) in CSS.
 start_test CSS data URLs
 URL=$REWRITTEN_ROOT/styles/A.data.css.pagespeed.cf.Hash.css
 OUT=$($WGET_DUMP $URL)
 check_from "$OUT" fgrep -q 'data:image/png'
 
-start_test "combine_css debug filter"
-URL=$EXAMPLE_ROOT/combine_css_debug.html?PageSpeedFilters=combine_css,debug
-fetch_until -save "$URL" \
-  "fgrep -c styles/yellow.css+blue.css+big.css+bold.css.pagespeed.cc" 1
-check fgrep "potentially non-combinable attribute: &#39;id&#39;" $FETCH_FILE
-check fgrep \
-  "potentially non-combinable attributes: &#39;data-foo&#39; and &#39;data-bar&#39;" \
-  $FETCH_FILE
-check fgrep \
-  "attributes: &#39;data-foo&#39;, &#39;data-bar&#39; and &#39;data-baz&#39;" \
-  $FETCH_FILE
-check fgrep "looking for media &#39;&#39; but found media=&#39;print&#39;." \
-  $FETCH_FILE
-check fgrep "looking for media &#39;print&#39; but found media=&#39;&#39;." \
-  $FETCH_FILE
-check fgrep "Could not combine over barrier: noscript" $FETCH_FILE
-check fgrep "Could not combine over barrier: inline style" $FETCH_FILE
-check fgrep "Could not combine over barrier: IE directive" $FETCH_FILE
-
 # Cleanup
 rm -rf $OUTDIR
+
+# TODO(jefftk): Find out what test breaks without the next two lines and fix it.
+filter_spec_method="query_params"
+test_filter '' Null Filter

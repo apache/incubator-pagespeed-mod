@@ -21,12 +21,12 @@
 #include <vector>
 
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/pool.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/pool.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 // To enable HTTPS fetching with serf, we must link against OpenSSL,
 // which is a a large library with licensing restrictions not known to
@@ -54,7 +54,6 @@ class Statistics;
 class SerfFetch;
 class SerfThreadedFetcher;
 class Timer;
-class UpDownCounter;
 class Variable;
 
 struct SerfStats {
@@ -229,7 +228,7 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
 
   // This is protected because it's updated along with active_fetches_,
   // which happens in subclass SerfThreadedFetcher as well as this class.
-  UpDownCounter* active_count_;
+  Variable* active_count_;
 
  private:
   friend class SerfFetch;  // To access stats variables below.

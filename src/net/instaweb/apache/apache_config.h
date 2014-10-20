@@ -19,8 +19,8 @@
 
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/system/public/system_rewrite_options.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -63,10 +63,9 @@ class ApacheConfig : public SystemRewriteOptions {
                                 OptionClass ApacheConfig::*offset,
                                 const char* id,
                                 StringPiece option_name,
-                                const char* help,
-                                bool safe_to_print) {
+                                const char* help) {
     AddProperty(default_value, offset, id, option_name,
-                RewriteOptions::kServerScope, help, safe_to_print,
+                RewriteOptions::kServerScope, help,
                 apache_properties_);
   }
 

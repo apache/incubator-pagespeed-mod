@@ -313,9 +313,11 @@ goog.setCssNameMapping = function(mapping, opt_style) {
   goog.cssNameMappingStyle_ = opt_style;
 };
 goog.getMsg = function(str, opt_values) {
-  opt_values && (str = str.replace(/\{\$([^}]+)}/g, function(match, key) {
-    return key in opt_values ? opt_values[key] : match;
-  }));
+  var values = opt_values || {}, key;
+  for (key in values) {
+    var value = ("" + values[key]).replace(/\$/g, "$$$$");
+    str = str.replace(new RegExp("\\{\\$" + key + "\\}", "gi"), value);
+  }
   return str;
 };
 goog.getMsgWithFallback = function(a) {
@@ -381,40 +383,6 @@ goog.MODIFY_FUNCTION_PROTOTYPES && (Function.prototype.bind = Function.prototype
 }, Function.prototype.mixin = function(source) {
   goog.mixin(this.prototype, source);
 });
-goog.defineClass = function(superClass, def) {
-  var constructor = def.constructor, statics = def.statics;
-  constructor && constructor != Object.prototype.constructor || (constructor = function() {
-    throw Error("cannot instantiate an interface (no constructor defined).");
-  });
-  var cls = goog.defineClass.createSealingConstructor_(constructor);
-  superClass && goog.inherits(cls, superClass);
-  delete def.constructor;
-  delete def.statics;
-  goog.defineClass.applyProperties_(cls.prototype, def);
-  null != statics && (statics instanceof Function ? statics(cls) : goog.defineClass.applyProperties_(cls, statics));
-  return cls;
-};
-goog.defineClass.SEAL_CLASS_INSTANCES = goog.DEBUG;
-goog.defineClass.createSealingConstructor_ = function(ctr) {
-  if (goog.defineClass.SEAL_CLASS_INSTANCES && Object.seal instanceof Function) {
-    var wrappedCtr = function() {
-      var instance = ctr.apply(this, arguments) || this;
-      this.constructor === wrappedCtr && Object.seal(instance);
-      return instance;
-    };
-    return wrappedCtr;
-  }
-  return ctr;
-};
-goog.defineClass.OBJECT_PROTOTYPE_FIELDS_ = "constructor hasOwnProperty isPrototypeOf propertyIsEnumerable toLocaleString toString valueOf".split(" ");
-goog.defineClass.applyProperties_ = function(target, source) {
-  for (var key in source) {
-    Object.prototype.hasOwnProperty.call(source, key) && (target[key] = source[key]);
-  }
-  for (var i = 0;i < goog.defineClass.OBJECT_PROTOTYPE_FIELDS_.length;i++) {
-    key = goog.defineClass.OBJECT_PROTOTYPE_FIELDS_[i], Object.prototype.hasOwnProperty.call(source, key) && (target[key] = source[key]);
-  }
-};
 goog.structs = {};
 goog.structs.Collection = function() {
 };
@@ -432,7 +400,6 @@ goog.inherits(goog.debug.Error, Error);
 goog.dom = {};
 goog.dom.NodeType = {ELEMENT:1, ATTRIBUTE:2, TEXT:3, CDATA_SECTION:4, ENTITY_REFERENCE:5, ENTITY:6, PROCESSING_INSTRUCTION:7, COMMENT:8, DOCUMENT:9, DOCUMENT_TYPE:10, DOCUMENT_FRAGMENT:11, NOTATION:12};
 goog.string = {};
-goog.string.DETECT_DOUBLE_ESCAPING = !1;
 goog.string.Unicode = {NBSP:"\u00a0"};
 goog.string.startsWith = function(str, prefix) {
   return 0 == str.lastIndexOf(prefix, 0);
@@ -548,29 +515,24 @@ goog.string.newLineToBr = function(str, opt_xml) {
 };
 goog.string.htmlEscape = function(str, opt_isLikelyToContainHtmlChars) {
   if (opt_isLikelyToContainHtmlChars) {
-    str = str.replace(goog.string.AMP_RE_, "&amp;").replace(goog.string.LT_RE_, "&lt;").replace(goog.string.GT_RE_, "&gt;").replace(goog.string.QUOT_RE_, "&quot;").replace(goog.string.SINGLE_QUOTE_RE_, "&#39;").replace(goog.string.NULL_RE_, "&#0;"), goog.string.DETECT_DOUBLE_ESCAPING && (str = str.replace(goog.string.E_RE_, "&#101;"));
-  } else {
-    if (!goog.string.ALL_RE_.test(str)) {
-      return str;
-    }
-    -1 != str.indexOf("&") && (str = str.replace(goog.string.AMP_RE_, "&amp;"));
-    -1 != str.indexOf("<") && (str = str.replace(goog.string.LT_RE_, "&lt;"));
-    -1 != str.indexOf(">") && (str = str.replace(goog.string.GT_RE_, "&gt;"));
-    -1 != str.indexOf('"') && (str = str.replace(goog.string.QUOT_RE_, "&quot;"));
-    -1 != str.indexOf("'") && (str = str.replace(goog.string.SINGLE_QUOTE_RE_, "&#39;"));
-    -1 != str.indexOf("\x00") && (str = str.replace(goog.string.NULL_RE_, "&#0;"));
-    goog.string.DETECT_DOUBLE_ESCAPING && -1 != str.indexOf("e") && (str = str.replace(goog.string.E_RE_, "&#101;"));
+    return str.replace(goog.string.amperRe_, "&amp;").replace(goog.string.ltRe_, "&lt;").replace(goog.string.gtRe_, "&gt;").replace(goog.string.quotRe_, "&quot;").replace(goog.string.singleQuoteRe_, "&#39;");
   }
+  if (!goog.string.allRe_.test(str)) {
+    return str;
+  }
+  -1 != str.indexOf("&") && (str = str.replace(goog.string.amperRe_, "&amp;"));
+  -1 != str.indexOf("<") && (str = str.replace(goog.string.ltRe_, "&lt;"));
+  -1 != str.indexOf(">") && (str = str.replace(goog.string.gtRe_, "&gt;"));
+  -1 != str.indexOf('"') && (str = str.replace(goog.string.quotRe_, "&quot;"));
+  -1 != str.indexOf("'") && (str = str.replace(goog.string.singleQuoteRe_, "&#39;"));
   return str;
 };
-goog.string.AMP_RE_ = /&/g;
-goog.string.LT_RE_ = /</g;
-goog.string.GT_RE_ = />/g;
-goog.string.QUOT_RE_ = /"/g;
-goog.string.SINGLE_QUOTE_RE_ = /'/g;
-goog.string.NULL_RE_ = /\x00/g;
-goog.string.E_RE_ = /e/g;
-goog.string.ALL_RE_ = goog.string.DETECT_DOUBLE_ESCAPING ? /[\x00&<>"'e]/ : /[\x00&<>"']/;
+goog.string.amperRe_ = /&/g;
+goog.string.ltRe_ = /</g;
+goog.string.gtRe_ = />/g;
+goog.string.quotRe_ = /"/g;
+goog.string.singleQuoteRe_ = /'/g;
+goog.string.allRe_ = /[&<>"']/;
 goog.string.unescapeEntities = function(str) {
   return goog.string.contains(str, "&") ? "document" in goog.global ? goog.string.unescapeEntitiesUsingDom_(str) : goog.string.unescapePureXmlEntities_(str) : str;
 };
@@ -579,7 +541,7 @@ goog.string.unescapeEntitiesWithDocument = function(str, document) {
 };
 goog.string.unescapeEntitiesUsingDom_ = function(str, opt_document) {
   var seen = {"&amp;":"&", "&lt;":"<", "&gt;":">", "&quot;":'"'}, div;
-  div = opt_document ? opt_document.createElement("div") : goog.global.document.createElement("div");
+  div = opt_document ? opt_document.createElement("div") : document.createElement("div");
   return str.replace(goog.string.HTML_ENTITY_PATTERN_, function(s, entity) {
     var value = seen[s];
     if (value) {
@@ -618,9 +580,6 @@ goog.string.unescapePureXmlEntities_ = function(str) {
 goog.string.HTML_ENTITY_PATTERN_ = /&([^;\s<&]+);?/g;
 goog.string.whitespaceEscape = function(str, opt_xml) {
   return goog.string.newLineToBr(str.replace(/  /g, " &#160;"), opt_xml);
-};
-goog.string.preserveSpaces = function(str) {
-  return str.replace(/(^|[\n ]) /g, "$1" + goog.string.Unicode.NBSP);
 };
 goog.string.stripQuotes = function(str, quoteChars) {
   for (var length = quoteChars.length, i = 0;i < length;i++) {
@@ -810,10 +769,6 @@ goog.asserts.AssertionError = function(messagePattern, messageArgs) {
   messageArgs.shift();
 };
 goog.inherits(goog.asserts.AssertionError, goog.debug.Error);
-goog.asserts.DEFAULT_ERROR_HANDLER = function(e) {
-  throw e;
-};
-goog.asserts.errorHandler_ = goog.asserts.DEFAULT_ERROR_HANDLER;
 goog.asserts.doAssertFailure_ = function(defaultMessage, defaultArgs, givenMessage, givenArgs) {
   var message = "Assertion failed";
   if (givenMessage) {
@@ -821,18 +776,16 @@ goog.asserts.doAssertFailure_ = function(defaultMessage, defaultArgs, givenMessa
   } else {
     defaultMessage && (message += ": " + defaultMessage, args = defaultArgs);
   }
-  var e = new goog.asserts.AssertionError("" + message, args || []);
-  goog.asserts.errorHandler_(e);
-};
-goog.asserts.setErrorHandler = function(errorHandler) {
-  goog.asserts.ENABLE_ASSERTS && (goog.asserts.errorHandler_ = errorHandler);
+  throw new goog.asserts.AssertionError("" + message, args || []);
 };
 goog.asserts.assert = function(condition, opt_message, var_args) {
   goog.asserts.ENABLE_ASSERTS && !condition && goog.asserts.doAssertFailure_("", null, opt_message, Array.prototype.slice.call(arguments, 2));
   return condition;
 };
 goog.asserts.fail = function(opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && goog.asserts.errorHandler_(new goog.asserts.AssertionError("Failure" + (opt_message ? ": " + opt_message : ""), Array.prototype.slice.call(arguments, 1)));
+  if (goog.asserts.ENABLE_ASSERTS) {
+    throw new goog.asserts.AssertionError("Failure" + (opt_message ? ": " + opt_message : ""), Array.prototype.slice.call(arguments, 1));
+  }
 };
 goog.asserts.assertNumber = function(value, opt_message, var_args) {
   goog.asserts.ENABLE_ASSERTS && !goog.isNumber(value) && goog.asserts.doAssertFailure_("Expected number but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));

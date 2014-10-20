@@ -76,7 +76,6 @@ using net_instaweb::MessageHandler;
 
 bool ReadFile(const GoogleString& file_name,
               GoogleString* content) {
-  content->clear();
   net_instaweb::StdioFileSystem file_system;
   net_instaweb::MockMessageHandler message_handler(new net_instaweb::NullMutex);
   net_instaweb::StringWriter writer(content);
@@ -152,11 +151,7 @@ void DecodeAndCompareImagesByPSNR(
       for (size_t x = 0; x < width1; ++x) {
         for (int ch = 0; ch < num_channels; ++ch) {
           int index = y * stride1 + (x * num_channels + ch);
-          EXPECT_EQ(pixels1[index], pixels2[index])
-              << "  y: " << y
-              << "  x: " << x
-              << "  ch: " << ch
-              << "  index: " << index;
+          EXPECT_EQ(pixels1[index], pixels2[index]);
         }
       }
     }

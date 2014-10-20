@@ -17,7 +17,6 @@
 // Author: jmarantz@google.com (Joshua Marantz)
 
 #include "pagespeed/kernel/html/empty_html_filter.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -64,7 +63,7 @@ void EmptyHtmlFilter::Directive(HtmlDirectiveNode* directive) {
 void EmptyHtmlFilter::Flush() {
 }
 
-void EmptyHtmlFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void EmptyHtmlFilter::DetermineEnabled() {
   set_is_enabled(true);
 }
 

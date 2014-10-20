@@ -119,7 +119,6 @@ const char* kPanelSupportMobileWhitelist[] = {
 const char* kWebpWhitelist[] = {
   "*Android *",
   "*Chrome/*",
-  "*CriOS/??.*",
   "*Opera/9.80*Version/??.*",
   "*Opera???.*",
   // User agents used only for internal testing.
@@ -144,29 +143,17 @@ const char* kWebpBlacklist[] = {
   "*Chrome/14.*",
   "*Chrome/15.*",
   "*Chrome/16.*",
-  "*CriOS/1?.*",
-  "*CriOS/20.*",
-  "*CriOS/21.*",
-  "*CriOS/22.*",
-  "*CriOS/23.*",
-  "*CriOS/24.*",
-  "*CriOS/25.*",
-  "*CriOS/26.*",
-  "*CriOS/27.*",
-  "*CriOS/28.*",
   "*Android *Chrome/1?.*",
   "*Android *Chrome/20.*",
   "*Opera/9.80*Version/10.*",
   "*Opera?10.*",
   "*Opera/9.80*Version/11.0*",
   "*Opera?11.0*",
-  "*Windows Phone*",
 };
 
 const char* kWebpLosslessAlphaWhitelist[] = {
   "*Chrome/??.*",
   "*Chrome/???.*",
-  "*CriOS/??.*",
   // User agent used only for internal testing.
   "webp-la",
 };
@@ -177,16 +164,6 @@ const char* kWebpLosslessAlphaBlacklist[] = {
   "*Chrome/20.*",
   "*Chrome/21.*",
   "*Chrome/22.*",
-  "*CriOS/1?.*",
-  "*CriOS/20.*",
-  "*CriOS/21.*",
-  "*CriOS/22.*",
-  "*CriOS/23.*",
-  "*CriOS/24.*",
-  "*CriOS/25.*",
-  "*CriOS/26.*",
-  "*CriOS/27.*",
-  "*CriOS/28.*",
 };
 
 // TODO(rahulbansal): We haven't added Safari here since it supports dns
@@ -274,7 +251,6 @@ const char* kIeUserAgents[] = {
   "*IE 1*",                 // Initial numeral avoids Samsung UA
   "*Trident/7*",            // Opera sometimes pretends to be earlier Trident
 };
-const int kIEBefore11Index = 0;
 
 // Match either 'CriOS' (iOS Chrome) or 'Chrome'. ':?' marks a non-capturing
 // group.
@@ -329,15 +305,13 @@ UserAgentMatcher::UserAgentMatcher()
     // Explicitly allowed blink UAs should also allow defer_javascript.
     defer_js_whitelist_.Allow(kPanelSupportDesktopWhitelist[i]);
   }
-  blink_desktop_whitelist_.Allow(kIeUserAgents[kIEBefore11Index]);
-  defer_js_whitelist_.Allow(kIeUserAgents[kIEBefore11Index]);
+  for (int i = 0, n = arraysize(kIeUserAgents); i < n; ++i) {
+    blink_desktop_whitelist_.Allow(kIeUserAgents[i]);
+    defer_js_whitelist_.Allow(kIeUserAgents[i]);
+  }
   for (int i = 0, n = arraysize(kDeferJSWhitelist); i < n; ++i) {
     defer_js_whitelist_.Allow(kDeferJSWhitelist[i]);
   }
-
-  // https://code.google.com/p/modpagespeed/issues/detail?id=982
-  defer_js_whitelist_.Disallow("* MSIE 9.*");
-
   for (int i = 0, n = arraysize(kPanelSupportDesktopBlacklist); i < n; ++i) {
     blink_desktop_blacklist_.Allow(kPanelSupportDesktopBlacklist[i]);
 
@@ -496,10 +470,6 @@ bool UserAgentMatcher::IsAndroidUserAgent(const StringPiece& user_agent) const {
 bool UserAgentMatcher::IsiOSUserAgent(const StringPiece& user_agent) const {
   return user_agent.find("iPhone") != GoogleString::npos ||
       user_agent.find("iPad") != GoogleString::npos;
-}
-
-bool UserAgentMatcher::IsChromeLike(const StringPiece& user_agent) const {
-  return user_agent.find("Chrome/") != StringPiece::npos;
 }
 
 bool UserAgentMatcher::GetChromeBuildNumber(const StringPiece& user_agent,

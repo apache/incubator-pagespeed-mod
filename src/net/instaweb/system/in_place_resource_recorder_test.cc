@@ -19,19 +19,20 @@
 
 #include "net/instaweb/system/public/in_place_resource_recorder.h"
 
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
+
 
 namespace net_instaweb {
 
@@ -69,7 +70,9 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
         RequestContext::NewTestRequestContext(
             server_context()->thread_system()),
         url, rewrite_driver_->CacheFragment(), headers.GetProperties(),
+        true /* respect_vary*/,
         kMaxResponseBytes, 4, /* max_concurrent_recordings*/
+        300 * Timer::kSecondMs /* implicit_cache_ttl_ms*/,
         http_cache(), statistics(), message_handler());
   }
 
@@ -118,34 +121,6 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     EXPECT_FALSE(headers_out.Has(HttpAttributes::kContentEncoding));
     EXPECT_FALSE(headers_out.Has(HttpAttributes::kContentLength));
   }
-
-  void CheckCacheableContentType(const ContentType* content_type) {
-    ResponseHeaders headers;
-    SetDefaultLongCacheHeaders(content_type, &headers);
-    scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
-    recorder->ConsiderResponseHeaders(
-        InPlaceResourceRecorder::kFullHeaders, &headers);
-    EXPECT_FALSE(recorder->failed());
-    HTTPValue value_out;
-    ResponseHeaders headers_out;
-    EXPECT_EQ(
-        HTTPCache::kNotFound,  // Check it wasn't cached as 'not cacheable'.
-        HttpBlockingFind(kTestUrl, http_cache(), &value_out, &headers_out));
-  }
-
-  void CheckNotCacheableContentType(const ContentType* content_type) {
-    ResponseHeaders headers;
-    SetDefaultLongCacheHeaders(content_type, &headers);
-    scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
-    recorder->ConsiderResponseHeaders(
-        InPlaceResourceRecorder::kFullHeaders, &headers);
-    EXPECT_TRUE(recorder->failed());
-    HTTPValue value_out;
-    ResponseHeaders headers_out;
-    EXPECT_EQ(
-        HTTPCache::kRecentFetchNotCacheable,
-        HttpBlockingFind(kTestUrl, http_cache(), &value_out, &headers_out));
-  }
 };
 
 TEST_F(InPlaceResourceRecorderTest, BasicOperation) {
@@ -169,17 +144,6 @@ TEST_F(InPlaceResourceRecorderTest, BasicOperation) {
   StringPiece contents;
   EXPECT_TRUE(value_out.ExtractContents(&contents));
   EXPECT_EQ(StrCat(kHello, kBye), contents);
-}
-
-TEST_F(InPlaceResourceRecorderTest, CheckCacheableContentTypes) {
-  CheckCacheableContentType(&kContentTypeJpeg);
-  CheckCacheableContentType(&kContentTypeCss);
-  CheckCacheableContentType(&kContentTypeJavascript);
-  CheckCacheableContentType(&kContentTypeJson);
-}
-
-TEST_F(InPlaceResourceRecorderTest, CheckNotCacheableContentTypes) {
-  CheckNotCacheableContentType(&kContentTypePdf);
 }
 
 TEST_F(InPlaceResourceRecorderTest, BasicOperationFullHeaders) {

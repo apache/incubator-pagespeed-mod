@@ -16,16 +16,13 @@
 
 #include "net/instaweb/system/public/in_place_resource_recorder.h"
 
-#include <algorithm>
-
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -45,15 +42,17 @@ AtomicInt32 InPlaceResourceRecorder::active_recordings_(0);
 InPlaceResourceRecorder::InPlaceResourceRecorder(
     const RequestContextPtr& request_context,
     StringPiece url, StringPiece fragment,
-    const RequestHeaders::Properties& request_properties,
+    const RequestHeaders::Properties request_properties, bool respect_vary,
     int max_response_bytes, int max_concurrent_recordings,
-    HTTPCache* cache, Statistics* stats, MessageHandler* handler)
+    int64 implicit_cache_ttl_ms, HTTPCache* cache, Statistics* stats,
+    MessageHandler* handler)
     : url_(url.data(), url.size()),
       fragment_(fragment.data(), fragment.size()),
       request_properties_(request_properties),
-      http_options_(request_context->options()),
+      respect_vary_(ResponseHeaders::GetVaryOption(respect_vary)),
       max_response_bytes_(max_response_bytes),
       max_concurrent_recordings_(max_concurrent_recordings),
+      implicit_cache_ttl_ms_(implicit_cache_ttl_ms),
       write_to_resource_value_(request_context, &resource_value_),
       inflating_fetch_(&write_to_resource_value_),
       cache_(cache), handler_(handler),
@@ -73,18 +72,6 @@ InPlaceResourceRecorder::InPlaceResourceRecorder(
     VLOG(1) << "IPRO: too many recordings in progress, not recording";
     num_dropped_due_to_load_->Add(1);
     failure_ = true;
-  }
-
-  // The http cache also has a maximum response body length that it will accept,
-  // so we need to look at max_response_bytes_ and takes the most constraining
-  // of the two.
-  int64 cache_max_cl = cache_->max_cacheable_response_content_length();
-  if (cache_max_cl != -1) {
-    if (max_response_bytes_ <= 0) {
-      max_response_bytes_ = cache_max_cl;
-    } else {
-      max_response_bytes_ = std::min(max_response_bytes_, cache_max_cl);
-    }
   }
 }
 
@@ -112,7 +99,7 @@ bool InPlaceResourceRecorder::Write(const StringPiece& contents,
 
   // Write into resource_value_ decompressing if needed.
   failure_ = !inflating_fetch_.Write(contents, handler_);
-  if (max_response_bytes_ <= 0 ||
+  if (max_response_bytes_ == 0 ||
       resource_value_.contents_size() < max_response_bytes_) {
     return !failure_;
   } else {
@@ -136,18 +123,6 @@ void InPlaceResourceRecorder::ConsiderResponseHeaders(
     inflating_fetch_.response_headers()->CopyFrom(*response_headers);
     write_to_resource_value_.response_headers()->set_status_code(
         HttpStatus::kOK);
-  }
-
-  // Shortcut for bailing out early when the response will be too large.
-  int64 content_length;
-  if (max_response_bytes_ <= 0 &&
-      response_headers->FindContentLength(&content_length) &&
-      content_length > max_response_bytes_) {
-    VLOG(1) << "IPRO: Content-Length header indicates that ["
-            << url_ << "] is too large to record (" << content_length
-            << " bytes)";
-    DroppedDueToSize();
-    return;
   }
 
   if (headers_kind != kFullHeaders) {
@@ -182,21 +157,31 @@ void InPlaceResourceRecorder::ConsiderResponseHeaders(
   if (content_type == NULL ||
       !(content_type->IsImage() ||
         content_type->IsCss() ||
-        content_type->IsJs())) {
+        content_type->type() == ContentType::kJavascript)) {
     cache_->RememberNotCacheable(
         url_, fragment_, status_code_ == 200, handler_);
     failure_ = true;
     return;
   }
   bool is_cacheable = response_headers->IsProxyCacheable(
-      request_properties_,
-      ResponseHeaders::GetVaryOption(http_options_.respect_vary),
+      request_properties_, respect_vary_,
       ResponseHeaders::kNoValidator);
   if (!is_cacheable) {
     cache_->RememberNotCacheable(
         url_, fragment_, status_code_ == 200, handler_);
     num_not_cacheable_->Add(1);
     failure_ = true;
+    return;
+  }
+  // Shortcut for bailing out early when the response will be too large
+  int64 content_length;
+  if (max_response_bytes_ != 0 &&
+      response_headers->FindContentLength(&content_length) &&
+      content_length > max_response_bytes_) {
+    VLOG(1) << "IPRO: Content-Length header indicates that ["
+            << url_ << "] is too large to record (" << content_length
+            << " bytes)";
+    DroppedDueToSize();
     return;
   }
 }
@@ -224,7 +209,7 @@ void InPlaceResourceRecorder::DoneAndSetHeaders(
     response_headers->RemoveAll(HttpAttributes::kContentEncoding);
     response_headers->RemoveAll(HttpAttributes::kContentLength);
     resource_value_.SetHeaders(response_headers);
-    cache_->Put(url_, fragment_, request_properties_, http_options_,
+    cache_->Put(url_, fragment_, request_properties_, respect_vary_,
                 &resource_value_, handler_);
     // TODO(sligocki): Start IPRO rewrite.
     num_inserted_into_cache_->Add(1);

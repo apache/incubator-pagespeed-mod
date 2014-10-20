@@ -23,8 +23,8 @@
 #include "net/instaweb/rewriter/public/google_font_service_input_resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
@@ -44,9 +44,7 @@ void GoogleFontCssInlineFilter::InitStats(Statistics* statistics) {
   GoogleFontServiceInputResource::InitStats(statistics);
 }
 
-ResourcePtr GoogleFontCssInlineFilter::CreateResource(const char* url,
-                                                      bool* is_authorized) {
-  *is_authorized = true;  // Google font resources don't have to be authorized.
+ResourcePtr GoogleFontCssInlineFilter::CreateResource(const char* url) {
   GoogleUrl abs_url;
   ResolveUrl(url, &abs_url);
   ResourcePtr resource(GoogleFontServiceInputResource::Make(abs_url, driver()));

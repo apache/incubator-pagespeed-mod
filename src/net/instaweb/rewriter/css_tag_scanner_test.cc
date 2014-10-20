@@ -20,21 +20,21 @@
 
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/null_writer.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/null_writer.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
 
@@ -49,7 +49,7 @@ class CssTagScannerTest : public testing::Test {
  protected:
   CssTagScannerTest()
       : html_parse_(&message_handler_), scanner_(&html_parse_),
-        link_(NULL), href_(NULL), media_(NULL) {
+        link_(NULL), href_(NULL), media_(NULL), num_nonstandard_attributes_(0) {
   }
 
   void SetUp() {
@@ -74,7 +74,7 @@ class CssTagScannerTest : public testing::Test {
   HtmlElement* link_;
   HtmlElement::Attribute* href_;
   const char* media_;
-  StringPieceVector nonstandard_attributes_;
+  int num_nonstandard_attributes_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CssTagScannerTest);
@@ -102,48 +102,48 @@ TEST_F(CssTagScannerTest, TestGurl) {
 TEST_F(CssTagScannerTest, MinimalOK) {
   // We can parse css if it has only href= and rel=stylesheet attributes.
   EXPECT_TRUE(scanner_.ParseCssElement(link_, &href_, &media_,
-                                       &nonstandard_attributes_));
+                                       &num_nonstandard_attributes_));
   EXPECT_STREQ("", media_);
   EXPECT_STREQ(kUrl, href_->DecodedValueOrNull());
-  EXPECT_EQ(0, nonstandard_attributes_.size());
+  EXPECT_EQ(0, num_nonstandard_attributes_);
 }
 
 TEST_F(CssTagScannerTest, NonstandardAttributeOK) {
   // Add a nonstandard attribute.
   html_parse_.AddAttribute(link_, HtmlName::kOther, "value");
   EXPECT_TRUE(scanner_.ParseCssElement(link_, &href_, &media_,
-                                       &nonstandard_attributes_));
+                                       &num_nonstandard_attributes_));
   EXPECT_STREQ("", media_);
   EXPECT_STREQ(kUrl, href_->DecodedValueOrNull());
-  EXPECT_EQ(1, nonstandard_attributes_.size());
-  EXPECT_EQ("other", nonstandard_attributes_[0]);
+  EXPECT_EQ(1, num_nonstandard_attributes_);
 }
 
 TEST_F(CssTagScannerTest, WithTypeOK) {
   // Type=text/css works
   html_parse_.AddAttribute(link_, HtmlName::kType, "text/css");
   EXPECT_TRUE(scanner_.ParseCssElement(link_, &href_, &media_,
-                                       &nonstandard_attributes_));
+                                       &num_nonstandard_attributes_));
   EXPECT_STREQ("", media_);
   EXPECT_STREQ(kUrl, href_->DecodedValueOrNull());
-  EXPECT_EQ(0, nonstandard_attributes_.size());
+  EXPECT_EQ(0, num_nonstandard_attributes_);
 }
 
 TEST_F(CssTagScannerTest, BadTypeFail) {
   // Types other than text/css don't work.
   html_parse_.AddAttribute(link_, HtmlName::kType, "text/plain");
-  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_));
+  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_,
+                                        &num_nonstandard_attributes_));
 }
 
 TEST_F(CssTagScannerTest, WithMediaOK) {
   // Add a media attribute.  It should still pass, yielding media.
   html_parse_.AddAttribute(link_, HtmlName::kMedia, kPrint);
   EXPECT_TRUE(scanner_.ParseCssElement(link_, &href_, &media_,
-                                       &nonstandard_attributes_));
+                                      &num_nonstandard_attributes_));
   EXPECT_STREQ(kPrint, media_);
   EXPECT_FALSE(css_util::CanMediaAffectScreen(media_));
   EXPECT_STREQ(kUrl, href_->DecodedValueOrNull());
-  EXPECT_EQ(0, nonstandard_attributes_.size());
+  EXPECT_EQ(0, num_nonstandard_attributes_);
 }
 
 TEST_F(CssTagScannerTest, DoubledHrefFail) {
@@ -152,20 +152,23 @@ TEST_F(CssTagScannerTest, DoubledHrefFail) {
   // not worth the bother.
   HtmlElement::Attribute* attr = link_->FindAttribute(HtmlName::kHref);
   link_->AddAttribute(*attr);
-  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_));
+  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_,
+                                      &num_nonstandard_attributes_));
 }
 
 TEST_F(CssTagScannerTest, MissingRelFail) {
   // Removal of rel= attribute.
   link_->DeleteAttribute(HtmlName::kRel);
-  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_));
+  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_,
+                                      &num_nonstandard_attributes_));
 }
 
 TEST_F(CssTagScannerTest, AlternateRelFail) {
   // rel="alternate stylesheet" should fail.
   link_->DeleteAttribute(HtmlName::kRel);
   html_parse_.AddAttribute(link_, HtmlName::kRel, kAlternateStylesheet);
-  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_));
+  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_,
+                                      &num_nonstandard_attributes_));
 }
 
 TEST_F(CssTagScannerTest, MissingRelDoubledHrefFail) {
@@ -174,7 +177,8 @@ TEST_F(CssTagScannerTest, MissingRelDoubledHrefFail) {
   link_->DeleteAttribute(HtmlName::kRel);
   HtmlElement::Attribute* attr = link_->FindAttribute(HtmlName::kHref);
   link_->AddAttribute(*attr);
-  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_));
+  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_,
+                                      &num_nonstandard_attributes_));
 }
 
 TEST_F(CssTagScannerTest, DoubledRelOK) {
@@ -182,10 +186,10 @@ TEST_F(CssTagScannerTest, DoubledRelOK) {
   HtmlElement::Attribute* attr = link_->FindAttribute(HtmlName::kRel);
   link_->AddAttribute(*attr);
   EXPECT_TRUE(scanner_.ParseCssElement(link_, &href_, &media_,
-                                       &nonstandard_attributes_));
+                                       &num_nonstandard_attributes_));
   EXPECT_STREQ("", media_);
   EXPECT_STREQ(kUrl, href_->DecodedValueOrNull());
-  EXPECT_EQ(0, nonstandard_attributes_.size());
+  EXPECT_EQ(0, num_nonstandard_attributes_);
 }
 
 TEST_F(CssTagScannerTest, MissingHrefDoubledRelFailOK) {
@@ -194,7 +198,8 @@ TEST_F(CssTagScannerTest, MissingHrefDoubledRelFailOK) {
   link_->DeleteAttribute(HtmlName::kHref);
   HtmlElement::Attribute* attr = link_->FindAttribute(HtmlName::kRel);
   link_->AddAttribute(*attr);
-  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_));
+  EXPECT_FALSE(scanner_.ParseCssElement(link_, &href_, &media_,
+                                        &num_nonstandard_attributes_));
 }
 
 TEST_F(CssTagScannerTest, RelCaseInsensitiveOK) {
@@ -203,10 +208,10 @@ TEST_F(CssTagScannerTest, RelCaseInsensitiveOK) {
   html_parse_.AddAttribute(link_, HtmlName::kRel, "StyleSheet");
 
   EXPECT_TRUE(scanner_.ParseCssElement(link_, &href_, &media_,
-                                       &nonstandard_attributes_));
+                                       &num_nonstandard_attributes_));
   EXPECT_STREQ("", media_);
   EXPECT_STREQ(kUrl, href_->DecodedValueOrNull());
-  EXPECT_EQ(0, nonstandard_attributes_.size());
+  EXPECT_EQ(0, num_nonstandard_attributes_);
 }
 
 TEST_F(CssTagScannerTest, TestHasImport) {

@@ -25,7 +25,12 @@
 #include "base/logging.h"               // for operator<<, etc
 #include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
@@ -49,34 +54,28 @@
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/rendered_image.pb.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"        // for int64
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/cache_property_store.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"          // for STLDeleteElements
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/query_params.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"          // for STLDeleteElements
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_synchronizer.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/query_params.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/thread/thread_synchronizer.h"
 
 namespace net_instaweb {
 
@@ -210,8 +209,6 @@ class BeaconPropertyCallback : public PropertyPage {
 }  // namespace
 
 const int64 ServerContext::kGeneratedMaxAgeMs = Timer::kYearMs;
-const int64 ServerContext::kCacheTtlForMismatchedContentMs =
-    5 * Timer::kMinuteMs;
 
 // Statistics group names.
 const char ServerContext::kStatisticsGroup[] = "Statistics";
@@ -268,7 +265,6 @@ ServerContext::ServerContext(RewriteDriverFactory* factory)
       default_system_fetcher_(NULL),
       default_distributed_fetcher_(NULL),
       hasher_(NULL),
-      signature_(NULL),
       lock_hasher_(RewriteOptions::kHashBytes),
       contents_hasher_(21),
       statistics_(NULL),
@@ -355,13 +351,10 @@ void ServerContext::InitWorkers() {
       RewriteDriverFactory::kLowPriorityRewriteWorkers);
 }
 
-void ServerContext::PostInitHook() {
-  InitWorkers();
-}
-
-void ServerContext::SetDefaultLongCacheHeaders(
+// TODO(jmarantz): consider moving this method to ResponseHeaders
+void ServerContext::SetDefaultLongCacheHeadersWithCharset(
     const ContentType* content_type, StringPiece charset,
-    StringPiece suffix, ResponseHeaders* header) const {
+    ResponseHeaders* header) const {
   header->set_major_version(1);
   header->set_minor_version(1);
   header->SetStatusAndReason(HttpStatus::kOK);
@@ -378,7 +371,7 @@ void ServerContext::SetDefaultLongCacheHeaders(
   }
 
   int64 now_ms = timer()->NowMs();
-  header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs, suffix);
+  header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs);
 
   // While PageSpeed claims the "Vary" header is needed to avoid proxy cache
   // issues for clients where some accept gzipped content and some don't, it
@@ -576,7 +569,7 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // are generated by separate client-side JS and that failure of one should not
   // prevent attempting to parse the other.
   QueryParams query_params;
-  query_params.ParseFromUntrustedString(params);
+  query_params.Parse(params);
   GoogleString query_param_str;
   GoogleUrl url_query_param;
 
@@ -904,20 +897,14 @@ RewriteOptions* ServerContext::NewOptions() {
 }
 
 bool ServerContext::GetQueryOptions(
-    const RequestContextPtr& request_context,
-    const RewriteOptions* domain_options, GoogleUrl* request_url,
-    RequestHeaders* request_headers, ResponseHeaders* response_headers,
+    GoogleUrl* request_url, RequestHeaders* request_headers,
+    ResponseHeaders* response_headers,
     RewriteQuery* rewrite_query) {
-  if (domain_options == NULL) {
-    domain_options = global_options();
-  }
   // Note: success==false is treated as an error (we return 405 in
   // proxy_interface.cc).
   return RewriteQuery::IsOK(rewrite_query->Scan(
-      domain_options->add_options_to_urls(),
-      domain_options->allow_options_to_be_set_by_cookies(),
-      domain_options->request_option_override(), request_context, factory(),
-      this, request_url, request_headers, response_headers, message_handler_));
+      global_options()->add_options_to_urls(), factory(), this, request_url,
+      request_headers, response_headers, message_handler_));
 }
 
 bool ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
@@ -929,7 +916,7 @@ bool ServerContext::ScanSplitHtmlRequest(const RequestContextPtr& ctx,
   GoogleUrl gurl(*url);
   QueryParams query_params;
   // TODO(bharathbhushan): Can we use the results of any earlier query parse?
-  query_params.ParseFromUrl(gurl);
+  query_params.Parse(gurl.Query());
 
   GoogleString value;
   if (!query_params.Lookup1Unescaped(HttpAttributes::kXSplit, &value)) {
@@ -1136,47 +1123,15 @@ const CacheInterface* ServerContext::pcache_cache_backend() {
 
 namespace {
 
-void FormatResponse(ServerContext::Format format,
-                    const GoogleString& text,
-                    AsyncFetch* fetch,
-                    MessageHandler* handler) {
-  ResponseHeaders* response_headers = fetch->response_headers();
-  response_headers->SetStatusAndReason(HttpStatus::kOK);
-  response_headers->Add(HttpAttributes::kCacheControl,
-                        HttpAttributes::kNoStore);
-  response_headers->Add(RewriteQuery::kPageSpeed, "off");
-
-  if (format == ServerContext::kFormatAsHtml) {
-    response_headers->Add(HttpAttributes::kContentType, "text/html");
-    HtmlKeywords::WritePre(text, "", fetch, handler);
-  } else {
-    response_headers->Add(
-        HttpAttributes::kContentType, "application/javascript; charset=utf-8");
-    response_headers->Add("X-Content-Type-Options", "nosniff");
-    // Prevent some cases of improper embedding of data, which risks
-    // misinterpreting it.
-    response_headers->Add("Content-Disposition",
-                          "attachment; filename=\"data.json\"");
-    fetch->Write(")]}\n", handler);
-
-    GoogleString escaped;
-    EscapeToJsonStringLiteral(text, true, &escaped);
-    fetch->Write(StrCat("{\"value\":", escaped, "}"), handler);
-  }
-  fetch->Done(true);
-}
-
 class MetadataCacheResultCallback
     : public RewriteContext::CacheLookupResultCallback {
  public:
   // Will cleanup the driver
-  MetadataCacheResultCallback(ServerContext::Format format,
-                              ServerContext* server_context,
+  MetadataCacheResultCallback(ServerContext* server_context,
                               RewriteDriver* driver,
                               AsyncFetch* fetch,
                               MessageHandler* handler)
-      : format_(format),
-        server_context_(server_context),
+      : server_context_(server_context),
         driver_(driver),
         fetch_(fetch),
         handler_(handler) {
@@ -1189,6 +1144,12 @@ class MetadataCacheResultCallback
     scoped_ptr<RewriteContext::CacheLookupResult> result(in_result);
     driver_->Cleanup();
 
+    ResponseHeaders* response_headers = fetch_->response_headers();
+    response_headers->SetStatusAndReason(HttpStatus::kOK);
+    response_headers->Add(HttpAttributes::kCacheControl,
+                          HttpAttributes::kNoStore);
+    response_headers->Add(HttpAttributes::kContentType, "text/html");
+    response_headers->Add(RewriteQuery::kPageSpeed, "off");
     GoogleString cache_dump;
     StringWriter cache_writer(&cache_dump);
     cache_writer.Write(StrCat("Metadata cache key:", cache_key, "\n"),
@@ -1200,8 +1161,58 @@ class MetadataCacheResultCallback
         StrCat("can_revalidate:", (result->can_revalidate ? "true" : "false"),
         "\n"), handler_);
     if (result->partitions.get() != NULL) {
+      const OutputPartitions* partitions = result->partitions.get();
       // Display the input info which has the minimum expiration time of all
       // the inputs.
+      //
+      // TODO(morlovich): consider killing this minimum thing: IMHO it only
+      // makes the output harder to read (alternatively it needs some better
+      // formatting).
+      int min_partition_index = -1;
+      int min_input_index = -1;
+      int64 min_input_expiration_ms = kint64max;
+      for (int j = 0, m = partitions->partition_size(); j < m; ++j) {
+        const CachedResult& partition = partitions->partition(j);
+        for (int k = 0, l = partition.input_size(); k < l; ++k) {
+          const InputInfo& input_info = partition.input(k);
+          if (input_info.type() == InputInfo::CACHED &&
+              input_info.has_expiration_time_ms() &&
+              input_info.expiration_time_ms() < min_input_expiration_ms) {
+             min_input_expiration_ms = input_info.expiration_time_ms();
+             min_partition_index = j;
+             min_input_index = k;
+          }
+        }
+      }
+      if (min_partition_index != -1 && min_input_index != -1) {
+        const InputInfo& input_info =
+            partitions->partition(min_partition_index).input(min_input_index);
+        cache_writer.Write(
+            StrCat("partition_min_expiration_input {\n",
+            input_info.DebugString(), "}\n"),
+            handler_);
+      }
+
+      // Display the other dependency field which has the minimum expiration
+      // time of all the dependencies.
+      int64 min_other_expiration_ms = kint64max;
+      int min_other_index = -1;
+      for (int i = 0, n = partitions->other_dependency_size(); i < n; ++i) {
+        const InputInfo& input_info = partitions->other_dependency(i);
+        if (input_info.type() == InputInfo::CACHED &&
+            input_info.has_expiration_time_ms() &&
+            input_info.expiration_time_ms() < min_other_expiration_ms) {
+           min_other_expiration_ms = input_info.expiration_time_ms();
+           min_other_index = i;
+        }
+      }
+      if (min_other_index != -1) {
+        cache_writer.Write(
+            StrCat("partition_min_expiration_other_dependency {\n",
+            partitions->other_dependency(min_other_index).DebugString(),
+            "}\n"), handler_);
+      }
+
       cache_writer.Write(
           StrCat("partitions:", result->partitions->DebugString(), "\n"),
           handler_);
@@ -1209,16 +1220,16 @@ class MetadataCacheResultCallback
       cache_writer.Write("partitions is NULL\n", handler_);
     }
     for (int i = 0, n = result->revalidate.size(); i < n; ++i) {
-      cache_writer.Write(StrCat("Revalidate entry ", IntegerToString(i), " ",
-                                result->revalidate[i]->DebugString(), "\n"),
+      cache_writer.Write(StrCat("Revalidate entry ", IntegerToString(i),
+                           result->revalidate[i]->DebugString(), "\n"),
                     handler_);
     }
-    FormatResponse(format_, cache_dump, fetch_, handler_);
+    HtmlKeywords::WritePre(cache_dump, fetch_, handler_);
+    fetch_->Done(true);
     delete this;
   }
 
  private:
-  ServerContext::Format format_;
   ServerContext* server_context_;
   RewriteDriver* driver_;
   AsyncFetch* fetch_;
@@ -1227,88 +1238,68 @@ class MetadataCacheResultCallback
 
 }  // namespace
 
-void ServerContext::ShowCacheHandler(
-    Format format,  StringPiece url, StringPiece ua, AsyncFetch* fetch,
-    RewriteOptions* options_arg) {
-  scoped_ptr<RewriteOptions> options(options_arg);
-  if (url.empty()) {
-    FormatResponse(format, "Empty URL", fetch, message_handler_);
-  } else if (!GoogleUrl(url).IsWebValid()) {
-    FormatResponse(format, "Invalid URL", fetch, message_handler_);
-  } else {
-    RewriteDriver* driver = NewCustomRewriteDriver(
-        options.release(), fetch->request_context());
-    driver->SetUserAgent(ua);
-
-    GoogleString error_out;
-    MetadataCacheResultCallback* callback = new MetadataCacheResultCallback(
-        format, this, driver, fetch, message_handler_);
-    if (!driver->LookupMetadataForOutputResource(url, &error_out, callback)) {
-      driver->Cleanup();
-      delete callback;
-      FormatResponse(format, error_out, fetch, message_handler_);
-    }
-  }
-}
-
-GoogleString ServerContext::ShowCacheForm(StringPiece user_agent) {
+GoogleString ServerContext::ShowCacheForm(const char* user_agent) const {
   GoogleString ua_default;
-  if (!user_agent.empty()) {
+  if (user_agent != NULL) {
     GoogleString buf;
     ua_default = StrCat("value=\"", HtmlKeywords::Escape(user_agent, &buf),
                         "\" ");
   }
+
   // The styling on this form could use some love, but the 110/103 sizing
   // is to make those input fields decently wide to fit large URLs and UAs
   // and to roughly line up.
   GoogleString out = StrCat(
-      "<form>\n",
-      "  URL: <input id=metadata_text type=text name=url size=110 /><br>\n"
-      "  User-Agent: <input id=user_agent type=text size=103 name=user_agent ",
+      "<form method=get>\n",
+      "  URL: <input type=text name=url size=110 /><br>\n"
+      "  User-Agent: <input type=text size=103 name=user_agent ",
       ua_default,
       "/></br> \n",
-      "  <input id=metadata_submit type=submit "
-      "   value='Show Metadata Cache Entry' />"
-      "  <input id=metadata_clear type=reset value='Clear' />",
+      "   <input type=submit value='Show Metadata Cache Entry'/>"
       "</form>\n");
   return out;
 }
 
-GoogleString ServerContext::FormatOption(StringPiece option_name,
-                                         StringPiece args) {
-  return StrCat(option_name, " ", args);
-}
-
-CacheUrlAsyncFetcher* ServerContext::CreateCustomCacheFetcher(
-    const RewriteOptions* options, const GoogleString& fragment,
-    CacheUrlAsyncFetcher::AsyncOpHooks* hooks, UrlAsyncFetcher* fetcher) {
-  CacheUrlAsyncFetcher* cache_fetcher = new CacheUrlAsyncFetcher(
-      lock_hasher(),
-      lock_manager(),
-      http_cache(),
-      fragment,
-      hooks,
-      fetcher);
-  RewriteStats* stats = rewrite_stats();
-  cache_fetcher->set_respect_vary(options->respect_vary());
-  cache_fetcher->set_default_cache_html(options->default_cache_html());
-  cache_fetcher->set_backend_first_byte_latency_histogram(
-      stats->backend_latency_histogram());
-  cache_fetcher->set_fallback_responses_served(
-      stats->fallback_responses_served());
-  cache_fetcher->set_fallback_responses_served_while_revalidate(
-      stats->fallback_responses_served_while_revalidate());
-  cache_fetcher->set_num_conditional_refreshes(
-      stats->num_conditional_refreshes());
-  cache_fetcher->set_serve_stale_if_fetch_error(
-      options->serve_stale_if_fetch_error());
-  cache_fetcher->set_proactively_freshen_user_facing_request(
-      options->proactively_freshen_user_facing_request());
-  cache_fetcher->set_num_proactively_freshen_user_facing_request(
-      stats->num_proactively_freshen_user_facing_request());
-  cache_fetcher->set_serve_stale_while_revalidate_threshold_sec(
-      options->serve_stale_while_revalidate_threshold_sec());
-  return cache_fetcher;
+void ServerContext::ShowCacheHandler(
+    StringPiece url, AsyncFetch* fetch, RewriteOptions* options_arg) {
+  scoped_ptr<RewriteOptions> options(options_arg);
+  const char* user_agent = fetch->request_headers()->Lookup1(
+      HttpAttributes::kUserAgent);
+  if (url.empty()) {
+    // If the url was not supplied, provide the user with a form to set it.
+    ResponseHeaders* response_headers = fetch->response_headers();
+    response_headers->SetStatusAndReason(HttpStatus::kOK);
+    response_headers->Add(HttpAttributes::kCacheControl,
+                          HttpAttributes::kNoStore);
+    response_headers->Add(HttpAttributes::kContentType, "text/html");
+    fetch->Write(StrCat("<html><body>",
+                        ShowCacheForm(user_agent),
+                        "</body></html>"),
+                 message_handler_);
+    fetch->Done(true);
+  } else if (!GoogleUrl(url).IsWebValid()) {
+    ResponseHeaders* response_headers = fetch->response_headers();
+    response_headers->SetStatusAndReason(HttpStatus::kNotFound);
+    response_headers->Add(HttpAttributes::kContentType, "text/html");
+    fetch->Write("<html><body>Invalid URL</body></html>", message_handler_);
+    fetch->Done(false);
+  } else {
+    RewriteDriver* driver = NewCustomRewriteDriver(
+        options.release(), fetch->request_context());
+    if (user_agent != NULL) {
+      driver->SetUserAgent(user_agent);
+    }
+    GoogleString error_out;
+    MetadataCacheResultCallback* callback = new MetadataCacheResultCallback(
+        this, driver, fetch, message_handler_);
+    if (!driver->LookupMetadataForOutputResource(url, &error_out, callback)) {
+      driver->Cleanup();
+      delete callback;
+      fetch->response_headers()->SetStatusAndReason(HttpStatus::kNotFound);
+      fetch->Write(error_out, message_handler_);
+      fetch->Done(false);
+    }
+  }
 }
 
 }  // namespace net_instaweb

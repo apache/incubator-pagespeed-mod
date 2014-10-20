@@ -19,9 +19,9 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DEDUP_INLINED_IMAGES_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DEDUP_INLINED_IMAGES_FILTER_H_
 
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -56,7 +56,7 @@ class DedupInlinedImagesFilter : public CommonFilter {
   virtual void EndDocument();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   virtual const char* Name() const { return "DedupInlinedImages"; }
 

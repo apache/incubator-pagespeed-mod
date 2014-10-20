@@ -22,16 +22,16 @@
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -76,10 +76,7 @@ bool UrlPartnership::AddUrl(const StringPiece& untrimmed_resource_url,
       handler->Message(kInfo,
                        "Rewriting URL %s is disallowed via configuration",
                        resolved_request->spec_c_str());
-    } else if (FindResourceDomain(original_origin_and_path_,
-                                  url_namer_,
-                                  rewrite_options_,
-                                  resolved_request.get(),
+    } else if (FindResourceDomain(resolved_request.get(),
                                   &mapped_domain_name,
                                   handler)) {
       if (url_vector_.empty()) {
@@ -104,21 +101,18 @@ bool UrlPartnership::AddUrl(const StringPiece& untrimmed_resource_url,
   return ret;
 }
 
-bool UrlPartnership::FindResourceDomain(const GoogleUrl& base_url,
-                                        const UrlNamer* url_namer,
-                                        const RewriteOptions* rewrite_options,
-                                        GoogleUrl* resource,
+bool UrlPartnership::FindResourceDomain(GoogleUrl* resource,
                                         GoogleString* domain,
-                                        MessageHandler* handler) {
+                                        MessageHandler* handler) const {
   bool ret = false;
   GoogleString resource_url;
-  if (url_namer->Decode(*resource, rewrite_options, NULL, &resource_url)) {
+  if (url_namer_->Decode(*resource, NULL, &resource_url)) {
     resource->Reset(resource_url);
     ret = resource->IsWebValid();
     resource->Origin().CopyToString(domain);
   } else {
-    ret = rewrite_options->domain_lawyer()->MapRequestToDomain(
-        base_url, resource->Spec(), domain,
+    ret = rewrite_options_->domain_lawyer()->MapRequestToDomain(
+        original_origin_and_path_, resource->Spec(), domain,
         resource, handler);
   }
   return ret;

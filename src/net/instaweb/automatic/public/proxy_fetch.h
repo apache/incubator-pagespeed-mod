@@ -29,17 +29,17 @@
 
 #include "net/instaweb/automatic/public/html_detector.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
+#include "net/instaweb/util/public/gtest_prod.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -155,7 +155,7 @@ class ProxyFetchPropertyCallback : public PropertyPage {
   DISALLOW_COPY_AND_ASSIGN(ProxyFetchPropertyCallback);
 };
 
-// Tracks a collection of property-cache lookups occurring in parallel.
+// Tracks a collection of property-cache lookups occuring in parallel.
 // Sequence is used to execute various functions in an orderly fashion to
 // avoid any kind of race between Done(), ConnectProxyFetch(), Detach() and
 // AddPostLookupTask().  When any function is called, it is added to the
@@ -172,9 +172,6 @@ class ProxyFetchPropertyCallback : public PropertyPage {
 //                                        ConnectProxyFetch()     Detach()
 //                                                 (Added to Sequence)
 //
-// This will also wait for RequestHeadersComplete() to be called before
-// invoking any post-completion callbacks (but not before canceling them
-// due to Detach).
 class ProxyFetchPropertyCallbackCollector {
  public:
   ProxyFetchPropertyCallbackCollector(ServerContext* server_context,
@@ -187,10 +184,6 @@ class ProxyFetchPropertyCallbackCollector {
   // Add a callback to be handled by this collector.
   // Transfers ownership of the callback to the collector.
   void AddCallback(ProxyFetchPropertyCallback* callback);
-
-  // Must be called once request headers have been resolved from configuration,
-  // Gates successful post-lookup callback invocation.
-  void RequestHeadersComplete();
 
   // In our flow, we initiate the property-cache lookup prior to
   // creating a proxy-fetch, so that RewriteOptions lookup can proceed
@@ -233,8 +226,7 @@ class ProxyFetchPropertyCallbackCollector {
   // ProxyFetch is set. But there may be instances where the result may be
   // required even before proxy-fetch is created. Any task that depends on the
   // PropertyCache result will be executed as soon as PropertyCache lookup is
-  // done and RequestHeadersComplete() has been called.
-  //
+  // done.
   // func is guaranteed to execute after PropertyCache lookup has completed, as
   // long as ProxyFetch is not set before PropertyCache lookup is done. One
   // should use PropertyCache result via RewriteDriver if some other thread can
@@ -260,9 +252,6 @@ class ProxyFetchPropertyCallbackCollector {
   void ExecuteAddPostLookupTask(Function* func);
   void ExecuteConnectProxyFetch(ProxyFetch* proxy_fetch);
   void ExecuteDetach(HttpStatus::Code status_code);
-  void ExecuteRequestHeadersComplete();
-
-  void RunPostLookupsAndCleanupIfSafe();
 
   // Updates the status code of response in property cache.
   void UpdateStatusCodeInPropertyCache();
@@ -271,18 +260,16 @@ class ProxyFetchPropertyCallbackCollector {
   std::map<ProxyFetchPropertyCallback::PageType, PropertyPage*>
   property_pages_;
   scoped_ptr<AbstractMutex> mutex_;
-  ServerContext* const server_context_;
-  QueuedWorkerPool::Sequence* const sequence_;
-  const GoogleString url_;
-  const RequestContextPtr request_context_;
-  const UserAgentMatcher::DeviceType device_type_;
+  ServerContext* server_context_;
+  QueuedWorkerPool::Sequence* sequence_;
+  GoogleString url_;
+  RequestContextPtr request_context_;
+  UserAgentMatcher::DeviceType device_type_;
   bool is_options_valid_;     // protected by mutex_.
-  // Unless guarded by mutex_, the fields are only accessed by code serialized
-  // via sequence_.
-  bool detached_;
-  bool done_;
-  bool request_headers_ok_;
-  ProxyFetch* proxy_fetch_;
+  bool detached_;             // protected by mutex_.
+  bool done_;                 // protected by mutex_.
+  ProxyFetch* proxy_fetch_;   // protected by mutex_.
+  // protected by mutex_.
   std::vector<Function*> post_lookup_task_vector_;
   const RewriteOptions* options_;  // protected by mutex_;
   HttpStatus::Code status_code_;  // status_code_ of the response.
@@ -320,7 +307,6 @@ class ProxyFetch : public SharedAsyncFetch {
   static const char kCollectorDoneFinish[];
   static const char kCollectorFinish[];
   static const char kCollectorDetachStart[];
-  static const char kCollectorRequestHeadersCompleteFinish[];
 
   // These strings identify sync-points for introducing races between
   // PropertyCache lookup completion and HeadersComplete.

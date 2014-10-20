@@ -19,20 +19,20 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/image.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/http/image_types.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -48,16 +48,6 @@ class UrlSegmentEncoder;
 class Variable;
 class WorkBound;
 struct ContentType;
-
-enum InlineResult {
-  INLINE_SUCCESS,
-  INLINE_UNSUPPORTED_DEVICE,
-  INLINE_NOT_CRITICAL,
-  INLINE_NO_DATA,
-  INLINE_TOO_LARGE,
-  INLINE_CACHE_SMALL_IMAGES_UNREWRITTEN,
-  INLINE_INTERNAL_ERROR,
-};
 
 // Identify img tags in html and optimize them.
 // TODO(jmaessen): Big open question: how best to link pulled-in resources to
@@ -120,7 +110,7 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Can we inline resource?  If so, encode its contents into the data_url,
   // otherwise leave data_url alone.
-  InlineResult TryInline(bool is_html, bool is_critical,
+  bool TryInline(
       int64 image_inline_max_bytes, const CachedResult* cached_result,
       ResourceSlot* slot, GoogleString* data_url);
 
@@ -213,14 +203,13 @@ class ImageRewriteFilter : public RewriteFilter {
   // Returns true if it rewrote (ie inlined) the URL.
   bool FinishRewriteCssImageUrl(
       int64 css_image_inline_max_bytes,
-      const CachedResult* cached, ResourceSlot* slot,
-      InlineResult* inline_result);
+      const CachedResult* cached, ResourceSlot* slot);
 
   // Returns true if it rewrote the URL.
   bool FinishRewriteImageUrl(
       const CachedResult* cached, const ResourceContext* resource_context,
       HtmlElement* element, HtmlElement::Attribute* src, int image_index,
-      HtmlResourceSlot* slot, InlineResult* inline_result);
+      HtmlResourceSlot* slot);
 
   // Save image contents in cached if the image is inlinable.
   void SaveIfInlinable(const StringPiece& contents,
@@ -257,10 +246,6 @@ class ImageRewriteFilter : public RewriteFilter {
   bool StoreUrlInPropertyCache(const StringPiece& url);
 
   bool SquashImagesForMobileScreenEnabled() const;
-
-  void SaveDebugMessageToCache(const GoogleString& message,
-                               Context* rewrite_context,
-                               CachedResult* cached_result);
 
   scoped_ptr<WorkBound> work_bound_;
 

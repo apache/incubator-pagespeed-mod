@@ -27,27 +27,25 @@
 #include "apr_uri.h"
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/gzip_inflater.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/platform.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/util/gzip_inflater.h"
-#include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/util/simple_stats.h"
 
 namespace {
 
@@ -69,6 +67,8 @@ const char kFetchHost[] = "modpagespeed.com";
 namespace net_instaweb {
 
 namespace {
+const char kProxy[] = "";
+const int kMaxMs = 20000;
 const int kThreadedPollMs = 200;
 const int kWaitTimeoutMs = 5 * 1000;
 const int kFetcherTimeoutMs = 5 * 1000;
@@ -113,13 +113,6 @@ class SerfTestFetch : public AsyncFetch {
     return done_;
   }
 
-  virtual void Reset() {
-    ScopedMutex lock(mutex_);
-    AsyncFetch::Reset();
-    done_ = false;
-    success_ = false;
-    response_headers()->Clear();
-  }
 
  private:
   AbstractMutex* mutex_;
@@ -133,7 +126,7 @@ class SerfTestFetch : public AsyncFetch {
 
 }  // namespace
 
-class SerfUrlAsyncFetcherTest : public ::testing::Test {
+class SerfUrlAsyncFetcherTest: public ::testing::Test {
  public:
   static void SetUpTestCase() {
     apr_initialize();
@@ -143,29 +136,21 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
  protected:
   SerfUrlAsyncFetcherTest()
       : thread_system_(Platform::CreateThreadSystem()),
-        message_handler_(thread_system_->NewMutex()),
-        flaky_retries_(0) {
+        message_handler_(thread_system_->NewMutex()) {
   }
 
   virtual void SetUp() {
-    SetUpWithProxy("");
-  }
-
-  void SetUpWithProxy(const char* proxy) {
-    const char* env_host = getenv("PAGESPEED_TEST_HOST");
-    if (env_host != NULL) {
-      test_host_ = env_host;
+    StringPiece test_host(getenv("PAGESPEED_TEST_HOST"));
+    if (test_host.empty()) {
+      test_host = kFetchHost;
     }
-    if (test_host_.empty()) {
-      test_host_ = kFetchHost;
-    }
-    GoogleString fetch_test_domain = StrCat("//", test_host_);
+    GoogleString fetch_test_domain = StrCat("//", test_host);
     apr_pool_create(&pool_, NULL);
     timer_.reset(Platform::CreateTimer());
     statistics_.reset(new SimpleStats(thread_system_.get()));
     SerfUrlAsyncFetcher::InitStats(statistics_.get());
     serf_url_async_fetcher_.reset(
-        new SerfUrlAsyncFetcher(proxy, pool_, thread_system_.get(),
+        new SerfUrlAsyncFetcher(kProxy, pool_, thread_system_.get(),
                                 statistics_.get(), timer_.get(),
                                 kFetcherTimeoutMs, &message_handler_));
     mutex_.reset(thread_system_->NewMutex());
@@ -227,7 +212,6 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   }
 
   void StartFetch(int idx) {
-    fetches_[idx]->Reset();
     serf_url_async_fetcher_->Fetch(
         urls_[idx], &message_handler_, fetches_[idx]);
   }
@@ -239,8 +223,7 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   }
 
   int ActiveFetches() {
-    return statistics_->GetUpDownCounter(
-        SerfStats::kSerfFetchActiveCount)->Get();
+    return statistics_->GetVariable(SerfStats::kSerfFetchActiveCount)->Get();
   }
 
   int CountCompletedFetches(size_t first, size_t last) {
@@ -253,27 +236,22 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
     return completed;
   }
 
-  void FlakyRetry(int idx) {
-    for (int i = 0; !fetches_[idx]->success() && (i < 10); ++i) {
-      // We've started to see some flakiness in this test requesting
-      // google.com/favicon, so try, at most 10 times, to re-issue
-      // the request and sleep.
-      //
-      // Note: this flakiness appears to remain despite using static
-      // resources.
-      usleep(50 * Timer::kMsUs);
-      LOG(ERROR) << "Serf retrying flaky url " << urls_[idx];
-      ++flaky_retries_;
-      fetches_[idx]->Reset();
-      StartFetch(idx);
-      WaitTillDone(idx, idx);
-    }
-  }
-
   void ValidateFetches(size_t first, size_t last) {
     for (size_t idx = first; idx <= last; ++idx) {
       ASSERT_TRUE(fetches_[idx]->IsDone());
-      FlakyRetry(idx);
+
+      for (int i = 0; !fetches_[idx]->success() && (i < 10); ++i) {
+        // We've started to see some flakiness in this test requesting
+        // google.com/favicon, so try, at most 10 times, to re-issue
+        // the request and sleep.
+        // TODO(sligocki): See if this flakiness goes away now that we
+        // changed to a static resource.
+        usleep(50 * Timer::kMsUs);
+        LOG(ERROR) << "Serf retrying flaky url " << urls_[idx];
+        fetches_[idx]->Reset();
+        StartFetch(idx);
+        WaitTillDone(idx, idx, kMaxMs);
+      }
       EXPECT_TRUE(fetches_[idx]->success());
 
       if (content_starts_[idx].empty()) {
@@ -296,12 +274,18 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
     usleep(1);
   }
 
-  int WaitTillDone(size_t first, size_t last) {
+  int WaitTillDone(size_t first, size_t last, int64 delay_ms) {
     bool done = false;
+    int64 now_ms = timer_->NowMs();
+    int64 end_ms = now_ms + delay_ms;
     size_t done_count = 0;
-    while (!done) {
+    while (!done && (now_ms < end_ms)) {
+      int64 to_wait_ms = end_ms - now_ms;
+      if (to_wait_ms > kThreadedPollMs) {
+        to_wait_ms = kThreadedPollMs;
+      }
       YieldToThread();
-      serf_url_async_fetcher_->Poll(kThreadedPollMs);
+      serf_url_async_fetcher_->Poll(to_wait_ms);
       done_count = 0;
       for (size_t idx = first; idx <= last; ++idx) {
         if (fetches_[idx]->IsDone()) {
@@ -312,13 +296,14 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
         prev_done_count = done_count;
         done = (done_count == (last - first + 1));
       }
+      now_ms = timer_->NowMs();
     }
     return done_count;
   }
 
   int TestFetch(size_t first, size_t last) {
     StartFetches(first, last);
-    int done = WaitTillDone(first, last);
+    int done = WaitTillDone(first, last, kMaxMs);
     ValidateFetches(first, last);
     return (done == (last - first + 1));
   }
@@ -326,7 +311,7 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   // Exercise the Serf code when a connection is refused.
   void ConnectionRefusedTest() {
     StartFetches(kConnectionRefused, kConnectionRefused);
-    ASSERT_EQ(WaitTillDone(kConnectionRefused, kConnectionRefused), 1);
+    ASSERT_EQ(WaitTillDone(kConnectionRefused, kConnectionRefused, kMaxMs), 1);
     ASSERT_TRUE(fetches_[kConnectionRefused]->IsDone());
     EXPECT_EQ(HttpStatus::kNotFound,
               response_headers(kConnectionRefused)->status_code());
@@ -338,7 +323,7 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
     int num_fetches = last - first + 1;
     CHECK_LT(0, num_fetches);
     StartFetches(first, last);
-    ASSERT_EQ(num_fetches, WaitTillDone(first, last));
+    ASSERT_EQ(num_fetches, WaitTillDone(first, last, kMaxMs));
     for (int index = first; index <= last; ++index) {
       ASSERT_TRUE(fetches_[index]->IsDone()) << urls_[index];
       ASSERT_TRUE(content_starts_[index].empty()) << urls_[index];
@@ -374,8 +359,7 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
 
   // Verifies that an added & started fetch at index succeeds.
   void ExpectHttpsSucceeds(int index) {
-    ASSERT_EQ(1, WaitTillDone(index, index));
-    FlakyRetry(index);
+    ASSERT_EQ(WaitTillDone(index, index, kMaxMs), 1);
     ASSERT_TRUE(fetches_[index]->IsDone());
     ASSERT_FALSE(content_starts_[index].empty());
     EXPECT_FALSE(contents(index).empty());
@@ -396,7 +380,6 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   const GoogleString& contents(int idx) { return fetches_[idx]->buffer(); }
 
   apr_pool_t* pool_;
-  GoogleString test_host_;
   std::vector<GoogleString> urls_;
   std::vector<GoogleString> content_starts_;
   std::vector<SerfTestFetch*> fetches_;
@@ -410,7 +393,6 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   scoped_ptr<SimpleStats> statistics_;
   GoogleString https_favicon_url_;
   GoogleString favicon_head_;
-  int64 flaky_retries_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SerfUrlAsyncFetcherTest);
@@ -421,7 +403,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURL) {
   EXPECT_FALSE(response_headers(kModpagespeedSite)->IsGzipped());
   int request_count =
       statistics_->GetVariable(SerfStats::kSerfFetchRequestCount)->Get();
-  EXPECT_EQ(1, request_count - flaky_retries_);
+  EXPECT_EQ(1, request_count);
   int bytes_count =
       statistics_->GetVariable(SerfStats::kSerfFetchByteCount)->Get();
   // We don't care about the exact size, which can change, just that response
@@ -434,7 +416,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURL) {
 TEST_F(SerfUrlAsyncFetcherTest, FetchUsingDifferentRequestMethod) {
   request_headers(kModpagespeedSite)->set_method(RequestHeaders::kPurge);
   StartFetches(kModpagespeedSite, kModpagespeedSite);
-  ASSERT_EQ(1, WaitTillDone(kModpagespeedSite, kModpagespeedSite));
+  ASSERT_EQ(1, WaitTillDone(kModpagespeedSite, kModpagespeedSite, kMaxMs));
   ASSERT_TRUE(fetches_[kModpagespeedSite]->IsDone());
   EXPECT_LT(static_cast<size_t>(0), contents(kModpagespeedSite).size());
   EXPECT_EQ(501,  // PURGE method not implemented in test apache servers.
@@ -451,7 +433,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLGzipped) {
   request_headers(kModpagespeedSite)->Add(HttpAttributes::kAcceptEncoding,
                                           HttpAttributes::kGzip);
   StartFetches(kModpagespeedSite, kModpagespeedSite);
-  ASSERT_EQ(1, WaitTillDone(kModpagespeedSite, kModpagespeedSite));
+  ASSERT_EQ(1, WaitTillDone(kModpagespeedSite, kModpagespeedSite, kMaxMs));
   ASSERT_TRUE(fetches_[kModpagespeedSite]->IsDone());
   EXPECT_LT(static_cast<size_t>(0), contents(kModpagespeedSite).size());
   EXPECT_EQ(200, response_headers(kModpagespeedSite)->status_code());
@@ -480,7 +462,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLWithGzip) {
   EXPECT_FALSE(response_headers(kModpagespeedSite)->IsGzipped());
   int request_count =
       statistics_->GetVariable(SerfStats::kSerfFetchRequestCount)->Get();
-  EXPECT_EQ(1, request_count - flaky_retries_);
+  EXPECT_EQ(1, request_count);
   int bytes_count =
       statistics_->GetVariable(SerfStats::kSerfFetchByteCount)->Get();
   // Since we've asked for gzipped content, we expect between 2k and 5k.
@@ -498,7 +480,7 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchTwoURLs) {
   EXPECT_TRUE(TestFetch(kGoogleFavicon, kGoogleLogo));
   int request_count =
       statistics_->GetVariable(SerfStats::kSerfFetchRequestCount)->Get();
-  EXPECT_EQ(2, request_count - flaky_retries_);
+  EXPECT_EQ(2, request_count);
   int bytes_count =
       statistics_->GetVariable(SerfStats::kSerfFetchByteCount)->Get();
   // Maybe also need a rough number here. We will break if google's icon or logo
@@ -580,35 +562,23 @@ TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
 
 TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreaded) {
   StartFetches(kModpagespeedSite, kGoogleLogo);
-  int done = WaitTillDone(kModpagespeedSite, kGoogleLogo);
+  int done = WaitTillDone(kModpagespeedSite, kGoogleLogo, kMaxMs);
   EXPECT_EQ(3, done);
   ValidateFetches(kModpagespeedSite, kGoogleLogo);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestTimeout) {
-  // Try this up to 10 times.  We expect the fetch to timeout, but it might
-  // fail for some other reason instead, such as 'Serf status 111(Connection
-  // refused) polling for 1 threaded fetches for 0.05 seconds', so retry a few
-  // times till we get the timeout we seek.
-  Variable* timeouts =
-      statistics_->GetVariable(SerfStats::kSerfFetchTimeoutCount);
-  for (int i = 0; i < 10; ++i) {
-    statistics_->Clear();
-    StartFetches(kCgiSlowJs, kCgiSlowJs);
-    int64 start_ms = timer_->NowMs();
-    ASSERT_EQ(1, WaitTillDone(kCgiSlowJs, kCgiSlowJs));
-    if (timeouts->Get() == 1) {
-      int64 elapsed_ms = timer_->NowMs() - start_ms;
-      EXPECT_LE(kFetcherTimeoutMs, elapsed_ms);
-      ASSERT_TRUE(fetches_[kCgiSlowJs]->IsDone());
-      EXPECT_FALSE(fetches_[kCgiSlowJs]->success());
+  StartFetches(kCgiSlowJs, kCgiSlowJs);
+  ASSERT_EQ(0, WaitTillDone(kCgiSlowJs, kCgiSlowJs, kThreadedPollMs));
+  ASSERT_EQ(1, WaitTillDone(kCgiSlowJs, kCgiSlowJs, kFetcherTimeoutMs));
+  ASSERT_TRUE(fetches_[kCgiSlowJs]->IsDone());
+  EXPECT_FALSE(fetches_[kCgiSlowJs]->success());
 
-      int time_duration =
-          statistics_->GetVariable(SerfStats::kSerfFetchTimeDurationMs)->Get();
-      EXPECT_LE(kFetcherTimeoutMs, time_duration);
-      break;
-    }
-  }
+  EXPECT_EQ(1,
+            statistics_->GetVariable(SerfStats::kSerfFetchTimeoutCount)->Get());
+  int time_duration =
+      statistics_->GetVariable(SerfStats::kSerfFetchTimeDurationMs)->Get();
+  EXPECT_LE(kFetcherTimeoutMs, time_duration);
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, Test204) {
@@ -721,33 +691,6 @@ TEST_F(SerfUrlAsyncFetcherTest, ThreadedConnectionRefusedWithDetail) {
   // messages.
   EXPECT_LE(1, message_handler_.SeriousMessages());
   EXPECT_GE(2, message_handler_.SeriousMessages());
-  GoogleString text;
-  StringWriter text_writer(&text);
-  message_handler_.Dump(&text_writer);
-  EXPECT_TRUE(text.find(StrCat("URL ", urls_[kConnectionRefused],
-                               " active for")) != GoogleString::npos)
-      << text;
-}
-
-// Make sure when we use URL and Host: mismatch to route request to
-// a particular point, that the message is helpful.
-TEST_F(SerfUrlAsyncFetcherTest,
-       ThreadedConnectionRefusedCustomRouteWithDetail) {
-  serf_url_async_fetcher_->set_list_outstanding_urls_on_error(true);
-
-  int index = AddTestUrl("http://127.0.0.1:1023/refused.jpg", "");
-  request_headers(index)->Add(HttpAttributes::kHost,
-                              StrCat(test_host_, ":1023"));
-  StartFetches(index, index);
-  ASSERT_EQ(WaitTillDone(index, index), 1);
-  ASSERT_TRUE(fetches_[index]->IsDone());
-  EXPECT_EQ(HttpStatus::kNotFound, response_headers(index)->status_code());
-  GoogleString text;
-  StringWriter text_writer(&text);
-  message_handler_.Dump(&text_writer);
-  GoogleString msg = StrCat(urls_[kConnectionRefused],
-                            " (connecting to:127.0.0.1:1023)");
-  EXPECT_TRUE(text.find(msg) != GoogleString::npos) << text;
 }
 
 // Test that the X-Original-Content-Length header is properly set
@@ -755,8 +698,7 @@ TEST_F(SerfUrlAsyncFetcherTest,
 TEST_F(SerfUrlAsyncFetcherTest, TestTrackOriginalContentLength) {
   serf_url_async_fetcher_->set_track_original_content_length(true);
   StartFetch(kModpagespeedSite);
-  WaitTillDone(kModpagespeedSite, kModpagespeedSite);
-  FlakyRetry(kModpagespeedSite);
+  WaitTillDone(kModpagespeedSite, kModpagespeedSite, kMaxMs);
   const char* ocl_header = response_headers(kModpagespeedSite)->Lookup1(
       HttpAttributes::kXOriginalContentLength);
   ASSERT_TRUE(ocl_header != NULL);
@@ -806,36 +748,6 @@ TEST_F(SerfUrlAsyncFetcherTest, TestPortRemoval) {
   EXPECT_EQ(
       "[::1]",
       SerfUrlAsyncFetcher::RemovePortFromHostHeader("[::1]:80"));
-}
-
-TEST_F(SerfUrlAsyncFetcherTest, TestPost) {
-  int index = AddTestUrl(StrCat("http://", test_host_,
-                                "/do_not_modify/cgi/verify_post.cgi"),
-                         "PASS");
-  request_headers(index)->set_method(RequestHeaders::kPost);
-  request_headers(index)->set_message_body("a=b&c=d");
-  StartFetches(index, index);
-  ASSERT_EQ(WaitTillDone(index, index), 1);
-  ValidateFetches(index, index);
-  EXPECT_EQ(HttpStatus::kOK, response_headers(index)->status_code());
-}
-
-class SerfUrlAsyncFetcherTestWithProxy : public SerfUrlAsyncFetcherTest {
- protected:
-  virtual void SetUp() {
-    // We don't expect this to be a working proxy; this is only used for
-    // just covering a crash bug.
-    SetUpWithProxy("127.0.0.1:8080");
-  }
-};
-
-TEST_F(SerfUrlAsyncFetcherTestWithProxy, TestBlankUrl) {
-  // Fetcher used to have problems if blank URLs got to it somehow.
-  int index = AddTestUrl("", "");
-  StartFetches(index, index);
-  ASSERT_EQ(WaitTillDone(index, index), 1);
-  ASSERT_TRUE(fetches_[index]->IsDone());
-  EXPECT_EQ(HttpStatus::kNotFound, response_headers(index)->status_code());
 }
 
 }  // namespace net_instaweb

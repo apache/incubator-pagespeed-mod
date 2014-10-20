@@ -22,23 +22,23 @@
 
 #include <cstddef>
 #include "base/logging.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/platform.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/util/simple_stats.h"
 
 namespace {
 // Set the cache size large enough so nothing gets evicted during this test.
@@ -112,7 +112,6 @@ class WriteThroughHTTPCacheTest : public testing::Test {
       : thread_system_(Platform::CreateThreadSystem()),
         mock_timer_(thread_system_->NewMutex(), ParseDate(kStartDate)),
         cache1_(kMaxSize), cache2_(kMaxSize),
-        simple_stats_(thread_system_.get()),
         key_("http://www.test.com/1"),
         key2_("http://www.test.com/2"),
         fragment_("www.test.com"),
@@ -135,7 +134,9 @@ class WriteThroughHTTPCacheTest : public testing::Test {
     headers->ComputeCaching();
   }
 
-  int GetStat(const char* name) { return simple_stats_.LookupValue(name); }
+  int GetStat(const StringPiece& stat_name) {
+    return simple_stats_.FindVariable(stat_name)->Get();
+  }
 
   HTTPCache::FindResult Find(const GoogleString& key,
                              const GoogleString& fragment,
@@ -281,7 +282,7 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   CheckCachedValueExpired();
   EXPECT_EQ(2, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheExpirations));
+  EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
   EXPECT_EQ(2, cache1_.num_hits());
@@ -310,7 +311,7 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheExpirations));
+  EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
   EXPECT_EQ(0, cache1_.num_misses());
@@ -344,7 +345,7 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
-  EXPECT_EQ(1, GetStat(HTTPCache::kCacheExpirations));
+  EXPECT_EQ(2, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
   EXPECT_EQ(0, cache1_.num_misses());
@@ -371,7 +372,7 @@ TEST_F(WriteThroughHTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheHits));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheMisses));
   EXPECT_EQ(1, GetStat(HTTPCache::kCacheFallbacks));
-  EXPECT_EQ(0, GetStat(HTTPCache::kCacheExpirations));
+  EXPECT_EQ(1, GetStat(HTTPCache::kCacheExpirations));
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheInserts));
   EXPECT_EQ(1, cache1_.num_hits());
   EXPECT_EQ(0, cache1_.num_misses());

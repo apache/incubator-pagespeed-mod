@@ -22,15 +22,14 @@
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 
@@ -44,9 +43,7 @@ class CompressedCacheTest : public CacheTestBase {
  protected:
   CompressedCacheTest()
       : lru_cache_(new LRUCache(kMaxSize)),
-        thread_system_(Platform::CreateThreadSystem()),
-        stats_(thread_system_.get()),
-        random_(thread_system_->NewMutex()) {
+        random_(new NullMutex) {
     CompressedCache::InitStats(&stats_);
     compressed_cache_.reset(new CompressedCache(lru_cache_.get(), &stats_));
   }
@@ -66,7 +63,6 @@ class CompressedCacheTest : public CacheTestBase {
 
   GoogleMessageHandler handler_;
   scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   scoped_ptr<CompressedCache> compressed_cache_;
   SimpleRandom random_;

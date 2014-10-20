@@ -18,37 +18,37 @@
 
 #include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/fake_filter.h"
-#include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
+#include "net/instaweb/rewriter/public/file_load_policy.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/worker_test_base.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -184,10 +184,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
         redirect_url_("http://www.example.com/redir.url"),
         rewritten_jpg_url_(
             "http://www.example.com/cacheable.jpg.pagespeed.ic.0.jpg"),
-        json_js_type_url_("http://www.example.com/cacheable_js_type.json"),
-        json_json_type_url_("http://www.example.com/cacheable_json_type.json"),
-        json_json_type_synonym_url_(
-            "http://www.example.com/cacheable_json_synonym_type.json"),
         cache_body_("good"), nocache_body_("bad"),
         bad_body_("ugly"),
         redirect_body_("Location: http://www.example.com/final.url"),
@@ -245,21 +241,9 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
                 kNoWriteToCache, kTransform);
     AddResponse(cache_js_no_max_age_url_, kContentTypeJavascript, cache_body_,
                 start_time_ms(), 0, "", kNoVary, kNoWriteToCache, kTransform);
-    AddResponseStrContentType(
-        json_js_type_url_, "application/javascript", cache_body_,
-        start_time_ms(), ttl_ms_, "", kNoVary,
-        kNoWriteToCache, kTransform);
-    AddResponseStrContentType(
-        json_json_type_url_, "application/json", cache_body_,
-        start_time_ms(), ttl_ms_, "", kNoVary,
-        kNoWriteToCache, kTransform);
-    AddResponseStrContentType(
-        json_json_type_synonym_url_, "application/x-json", cache_body_,
-        start_time_ms(), ttl_ms_, "", kNoVary,
-        kNoWriteToCache, kTransform);
 
     ResponseHeaders private_headers;
-    SetDefaultHeaders(kContentTypeJavascript.mime_type(), &private_headers);
+    SetDefaultHeaders(kContentTypeJavascript, &private_headers);
     private_headers.SetDateAndCaching(start_time_ms(), 1200 /*ttl*/,
                                       ",private");
     mock_url_fetcher()->SetResponse(
@@ -273,7 +257,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     // Add a response for permanent redirect.
     ResponseHeaders redirect_headers;
     redirect_headers.set_first_line(1, 1, 301, "Moved Permanently");
-    redirect_headers.ComputeCaching();
     redirect_headers.SetCacheControlMaxAge(36000);
     redirect_headers.Add(HttpAttributes::kCacheControl, "public");
     redirect_headers.Add(HttpAttributes::kContentType, "image/jpeg");
@@ -291,8 +274,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     rewrite_driver()->AppendRewriteFilter(css_filter_);
     options()->ClearSignatureForTesting();
     AddRecompressImageFilters();
-    options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
-    options()->EnableFilter(RewriteOptions::kRewriteJavascriptInline);
+    options()->EnableFilter(RewriteOptions::kRewriteJavascript);
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     if (optimize_for_browser()) {
       options()->EnableFilter(RewriteOptions::kInPlaceOptimizeForBrowser);
@@ -313,11 +295,10 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
         RewriteContext::kNumDistributedRewriteSuccesses);
   }
 
-  void AddResponseStrContentType(
-      const GoogleString& url, const GoogleString& content_type,
-      const GoogleString& body, int64 now_ms, int64 ttl_ms,
-      const GoogleString& etag, const StringPiece& vary,
-      bool write_to_cache, bool no_transform) {
+  void AddResponse(const GoogleString& url, const ContentType& content_type,
+                   const GoogleString& body, int64 now_ms, int64 ttl_ms,
+                   const GoogleString& etag, const StringPiece& vary,
+                   bool write_to_cache, bool no_transform) {
     ResponseHeaders response_headers;
     SetDefaultHeaders(content_type, &response_headers);
     if (ttl_ms > 0) {
@@ -350,20 +331,12 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     }
   }
 
-  void AddResponse(const GoogleString& url, const ContentType& content_type,
-                   const GoogleString& body, int64 now_ms, int64 ttl_ms,
-                   const GoogleString& etag, const StringPiece& vary,
-                   bool write_to_cache, bool no_transform) {
-    AddResponseStrContentType(url, content_type.mime_type(), body, now_ms,
-                              ttl_ms, etag, vary, write_to_cache, no_transform);
-  }
-
-  void SetDefaultHeaders(const GoogleString& content_type,
+  void SetDefaultHeaders(const ContentType& content_type,
                          ResponseHeaders* header) const {
     header->set_major_version(1);
     header->set_minor_version(1);
     header->SetStatusAndReason(HttpStatus::kOK);
-    header->Replace(HttpAttributes::kContentType, content_type);
+    header->Replace(HttpAttributes::kContentType, content_type.mime_type());
   }
 
   void SetAcceptWebp() {
@@ -448,7 +421,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     options()->ClearSignatureForTesting();
     other_options()->ClearSignatureForTesting();
     AddRecompressImageFilters();
-    options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
+    options()->EnableFilter(RewriteOptions::kRewriteJavascript);
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     options_->DistributeFilter(distributed_filter);
     options_->set_distributed_rewrite_servers("example.com:80");
@@ -520,45 +493,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     EXPECT_EQ(0, css_filter_->num_rewrites());
   }
 
-  void CheckCachingAndContentType(const GoogleString& url,
-                                  const GoogleString& expected_mime_type,
-                                  const GoogleString& cache_body,
-                                  const GoogleString& filter_prefix) {
-    FetchAndCheckResponse(url, cache_body, true, ttl_ms_,
-                          NULL, start_time_ms());
-    EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-    EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-    EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-    EXPECT_EQ(0, lru_cache()->num_hits());
-    EXPECT_EQ(3, lru_cache()->num_misses());
-    EXPECT_EQ(4, lru_cache()->num_inserts());
-    EXPECT_EQ(0, img_filter_->num_rewrites());
-    EXPECT_EQ(1, js_filter_->num_rewrites());
-    EXPECT_EQ(0, css_filter_->num_rewrites());
-
-    // Make sure the content type is unmodified.
-    EXPECT_STREQ(expected_mime_type,
-                 response_headers_.Lookup1(HttpAttributes::kContentType));
-
-    // Try a second fetch and ensure we get a cache hit.
-    ResetHeadersAndStats();
-    FetchAndCheckResponse(url, StrCat(cache_body, ":", filter_prefix), true,
-                          ttl_ms_, etag_, start_time_ms());
-    EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-    EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-    EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-    EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-    EXPECT_EQ(2, lru_cache()->num_hits());
-    EXPECT_EQ(0, lru_cache()->num_misses());
-    EXPECT_EQ(0, lru_cache()->num_inserts());
-    EXPECT_EQ(0, img_filter_->num_rewrites());
-    EXPECT_EQ(0, js_filter_->num_rewrites());
-    EXPECT_EQ(0, css_filter_->num_rewrites());
-    EXPECT_STREQ(expected_mime_type,
-                 response_headers_.Lookup1(HttpAttributes::kContentType));
-  }
-
   bool exceed_deadline() { return exceed_deadline_; }
   void set_exceed_deadline(bool x) { exceed_deadline_ = x; }
 
@@ -593,9 +527,6 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
   const GoogleString bad_url_;
   const GoogleString redirect_url_;
   const GoogleString rewritten_jpg_url_;
-  const GoogleString json_js_type_url_;
-  const GoogleString json_json_type_url_;
-  const GoogleString json_json_type_synonym_url_;
 
   const GoogleString cache_body_;
   const GoogleString nocache_body_;
@@ -803,17 +734,16 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteNotFound) {
                         0);     // number of rewrites
 
   // Ingress task distributes and returns the 404 it gets back.
-  // Rewrite task misses metadata and http. The 404 isn't cacheable, so it's
-  // not written.
+  // Rewrite task misses metadata and http, writes 404 http and returns.
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
+  EXPECT_EQ(1, lru_cache()->num_inserts());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
+  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
 
   // Ingress task distributes.
-  // Rewrite task misses ipro metadata + http, and returns that.
+  // Rewrite task misses ipro metadata but hits http, and returns that.
   ResetHeadersAndStats();
   FetchAndCheckResponse(orig_url, "", true, ServerContext::kGeneratedMaxAgeMs,
                         ServerContext::kResourceEtagValue, start_time_ms());
@@ -821,11 +751,11 @@ TEST_F(InPlaceRewriteContextTest, IngressDistributedRewriteNotFound) {
                         0,      // unsuccessful distributed fetches
                         0,      // number of ingress fetches
                         0);     // number of rewrites
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(2, lru_cache()->num_misses());
+  EXPECT_EQ(1, lru_cache()->num_hits());
+  EXPECT_EQ(1, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
+  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
+  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
   EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
 }
 
@@ -1467,7 +1397,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableJsUrlRewritingWithStaleServing) {
   SetTimeMs(start_time_ms() + (3 * ttl_ms_) / 2);
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, "good:jm", true,
-                        RewriteOptions::kDefaultImplicitCacheTtlMs, etag_,
+                        ResponseHeaders::kDefaultImplicitCacheTtlMs, etag_,
                         start_time_ms() + (3 * ttl_ms_) / 2);
   // The metadata and cache entry is stale now. We serve the rewritten resource
   // here, but trigger a fetch and rewrite to update the metadata.
@@ -2071,7 +2001,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   // file-input-resources so we default to the implicit cache TTL.
   // We should probably have a new config options for file-input
   // TTL for use with in-place.
-  const int64 kIproFileTtl = RewriteOptions::kDefaultImplicitCacheTtlMs;
+  const int64 kIproFileTtl = ResponseHeaders::kDefaultImplicitCacheTtlMs;
   FetchAndCheckResponse(cache_js_url_, cache_body_, true,
                         kIproFileTtl, NULL, start_time_ms());
 
@@ -2169,30 +2099,6 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   FetchAndCheckResponse(cache_js_url_, "new_content:jm", true,
                         kIproFileTtl, etag_, timer()->NowMs());
   CheckWarmCache("second_fetch_after_mutation");
-}
-
-TEST_F(InPlaceRewriteContextTest, JsonWithJsContentTypeSucceeds) {
-  Init();
-  CheckCachingAndContentType(json_js_type_url_,
-                             "application/javascript",
-                             cache_body_,
-                             RewriteOptions::kJavascriptMinId);
-}
-
-TEST_F(InPlaceRewriteContextTest, JsonWithJsonContentTypeSucceeds) {
-  Init();
-  CheckCachingAndContentType(json_json_type_url_,
-                             "application/json",
-                             cache_body_,
-                             RewriteOptions::kJavascriptMinId);
-}
-
-TEST_F(InPlaceRewriteContextTest, JsonWithJsonContentTypeSynonymSucceeds) {
-  Init();
-  CheckCachingAndContentType(json_json_type_synonym_url_,
-                             "application/x-json",
-                             cache_body_,
-                             RewriteOptions::kJavascriptMinId);
 }
 
 }  // namespace

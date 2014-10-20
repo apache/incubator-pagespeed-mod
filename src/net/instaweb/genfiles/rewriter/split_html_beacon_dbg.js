@@ -1,144 +1,112 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(a, c, d) {
-  var b;
+(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+  var httpRequest;
   if (window.XMLHttpRequest) {
-    b = new XMLHttpRequest;
+    httpRequest = new XMLHttpRequest;
   } else {
     if (window.ActiveXObject) {
       try {
-        b = new ActiveXObject("Msxml2.XMLHTTP");
+        httpRequest = new ActiveXObject("Msxml2.XMLHTTP");
       } catch (e) {
         try {
-          b = new ActiveXObject("Microsoft.XMLHTTP");
-        } catch (f) {
+          httpRequest = new ActiveXObject("Microsoft.XMLHTTP");
+        } catch (e2) {
         }
       }
     }
   }
-  if (!b) {
+  if (!httpRequest) {
     return!1;
   }
-  var g = -1 == a.indexOf("?") ? "?" : "&";
-  a = a + g + "url=" + encodeURIComponent(c);
-  b.open("POST", a);
-  b.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-  b.send(d);
+  httpRequest.open("POST", beaconUrl + (-1 == beaconUrl.indexOf("?") ? "?" : "&") + "url=" + encodeURIComponent(htmlUrl));
+  httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+  httpRequest.send(data);
   return!0;
-}, addHandler:function(a, c, d) {
-  if (a.addEventListener) {
-    a.addEventListener(c, d, !1);
+}, addHandler:function(elem, eventName, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(eventName, func, !1);
   } else {
-    if (a.attachEvent) {
-      a.attachEvent("on" + c, d);
+    if (elem.attachEvent) {
+      elem.attachEvent("on" + eventName, func);
     } else {
-      var b = a["on" + c];
-      a["on" + c] = function() {
-        d.call(this);
-        b && b.call(this);
+      var oldHandler = elem["on" + eventName];
+      elem["on" + eventName] = function() {
+        func.call(this);
+        oldHandler && oldHandler.call(this);
       };
     }
   }
-}, getPosition:function(a) {
-  for (var c = a.offsetTop, d = a.offsetLeft;a.offsetParent;) {
-    a = a.offsetParent, c += a.offsetTop, d += a.offsetLeft;
+}, getPosition:function(element) {
+  for (var top = element.offsetTop, left = element.offsetLeft;element.offsetParent;) {
+    element = element.offsetParent, top += element.offsetTop, left += element.offsetLeft;
   }
-  return{top:c, left:d};
+  return{top:top, left:left};
 }, getWindowSize:function() {
   return{height:window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width:window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth};
-}, inViewport:function(a, c) {
-  var d = pagespeedutils.getPosition(a);
-  return pagespeedutils.positionInViewport(d, c);
-}, positionInViewport:function(a, c) {
-  return a.top < c.height && a.left < c.width;
+}, inViewport:function(element, windowSize) {
+  return pagespeedutils.positionInViewport(pagespeedutils.getPosition(element), windowSize);
+}, positionInViewport:function(pos, windowSize) {
+  return pos.top < windowSize.height && pos.left < windowSize.width;
 }, getRequestAnimationFrame:function() {
   return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
-pagespeedutils.CriticalXPaths = function(a, c, d) {
-  this.windowSize_ = {height:c, width:a};
-  this.xpathPairs_ = [];
-  this.document_ = d;
+pagespeedutils.CriticalXPaths = function(viewportWidth, viewportHeight) {
+  this.windowSize_ = {height:viewportHeight, width:viewportWidth};
 };
-pagespeedutils.CriticalXPaths.prototype.getNonCriticalPanelXPathPairs = function() {
-  this.findNonCriticalPanelBoundaries_(this.document_.body);
-  return this.xpathPairs_;
-};
-pagespeedutils.CriticalXPaths.prototype.addXPathPair_ = function(a, c) {
-  if (a) {
-    var d = a;
-    c && (d += ":" + c);
-    this.xpathPairs_.push(d);
-  }
-};
-pagespeedutils.CriticalXPaths.prototype.findNonCriticalPanelBoundaries_ = function(a) {
-  for (var c = pagespeedutils.inViewport(a, this.windowSize_), d = c, b = "", e = "", f = a = this.visibleNodeOrSibling_(a.firstChild);null != f;f = this.visibleNodeOrSibling_(f.nextSibling)) {
-    var g = this.findNonCriticalPanelBoundaries_(f);
-    g != d && (g ? (c || (a != f && (b = pagespeedutils.generateXPath(a, this.document_)), c = !0), (e = pagespeedutils.generateXPath(f, this.document_)) || (b = ""), b && this.addXPathPair_(b, e), b = "") : (b = pagespeedutils.generateXPath(f, this.document_), e = ""), d = g);
-  }
-  b && this.addXPathPair_(b, e);
-  return c;
-};
-pagespeedutils.generateXPath = function(a, c) {
-  for (var d = [];a != c.body;) {
-    var b = a.getAttribute("id");
-    if (b && 1 == c.querySelectorAll("#" + b).length) {
-      d.unshift(a.tagName.toLowerCase() + '[@id="' + a.getAttribute("id") + '"]');
+pagespeedutils.generateXPath = function(node, doc) {
+  for (var xpathUnits = [];node != doc.body;) {
+    var id = node.getAttribute("id");
+    if (id && 1 == doc.querySelectorAll("#" + id).length) {
+      xpathUnits.unshift(node.tagName.toLowerCase() + '[@id="' + node.getAttribute("id") + '"]');
       break;
     } else {
-      for (var b = 0, e = a;e;e = e.previousElementSibling) {
-        "SCRIPT" !== e.tagName && "NOSCRIPT" !== e.tagName && "STYLE" !== e.tagName && "LINK" !== e.tagName && ++b;
+      for (var i = 0, sibling = node;sibling;sibling = sibling.previousElementSibling) {
+        "SCRIPT" !== sibling.tagName && "NOSCRIPT" !== sibling.tagName && "STYLE" !== sibling.tagName && "LINK" !== sibling.tagName && ++i;
       }
-      d.unshift(a.tagName.toLowerCase() + "[" + b + "]");
+      xpathUnits.unshift(node.tagName.toLowerCase() + "[" + i + "]");
     }
-    a = a.parentNode;
+    node = node.parentNode;
   }
-  return d.length ? d.join("/") : "";
-};
-pagespeedutils.CriticalXPaths.prototype.visibleNodeOrSibling_ = function(a) {
-  for (;null != a;a = a.nextSibling) {
-    if (a.nodeType == Node.ELEMENT_NODE && (0 != a.offsetWidth || 0 != a.offsetHeight) && (a.offsetParent || "BODY" == a.tagName || "fixed" == a.style.position)) {
-      return a;
-    }
-  }
-  return null;
+  return xpathUnits.length ? xpathUnits.join("/") : "";
 };
 window.pagespeed = window.pagespeed || {};
 var pagespeed = window.pagespeed;
-pagespeed.SplitHtmlBeacon = function(a, c, d, b) {
+pagespeed.SplitHtmlBeacon = function(beaconUrl, htmlUrl, optionsHash, nonce) {
   this.btfNodes_ = [];
-  this.beaconUrl_ = a;
-  this.htmlUrl_ = c;
-  this.optionsHash_ = d;
-  this.nonce_ = b;
+  this.beaconUrl_ = beaconUrl;
+  this.htmlUrl_ = htmlUrl;
+  this.optionsHash_ = optionsHash;
+  this.nonce_ = nonce;
   this.windowSize_ = pagespeedutils.getWindowSize();
 };
-pagespeed.SplitHtmlBeacon.prototype.walkDom_ = function(a) {
-  for (var c = !0, d = [], b = a.firstChild;null != b;b = b.nextSibling) {
-    b.nodeType === Node.ELEMENT_NODE && "SCRIPT" != b.tagName && "NOSCRIPT" != b.tagName && "STYLE" != b.tagName && "LINK" != b.tagName && (this.walkDom_(b) ? d.push(b) : c = !1);
+pagespeed.SplitHtmlBeacon.prototype.walkDom_ = function(node) {
+  for (var allChildrenBtf = !0, btfChildren = [], currChild = node.firstChild;null != currChild;currChild = currChild.nextSibling) {
+    currChild.nodeType === Node.ELEMENT_NODE && "SCRIPT" != currChild.tagName && "NOSCRIPT" != currChild.tagName && "STYLE" != currChild.tagName && "LINK" != currChild.tagName && (this.walkDom_(currChild) ? btfChildren.push(currChild) : allChildrenBtf = !1);
   }
-  if (c && !pagespeedutils.inViewport(a, this.windowSize_)) {
+  if (allChildrenBtf && !pagespeedutils.inViewport(node, this.windowSize_)) {
     return!0;
   }
-  for (a = 0;a < d.length;++a) {
-    this.btfNodes_.push(pagespeedutils.generateXPath(d[a], window.document));
+  for (var i = 0;i < btfChildren.length;++i) {
+    this.btfNodes_.push(pagespeedutils.generateXPath(btfChildren[i], window.document));
   }
   return!1;
 };
 pagespeed.SplitHtmlBeacon.prototype.checkSplitHtml_ = function() {
   this.walkDom_(document.body);
   if (0 != this.btfNodes_.length) {
-    for (var a = "oh=" + this.optionsHash_ + "&n=" + this.nonce_, a = a + ("&xp=" + encodeURIComponent(this.btfNodes_[0])), c = 1;c < this.btfNodes_.length;++c) {
-      var d = "," + encodeURIComponent(this.btfNodes_[c]);
-      if (a.length + d.length > pagespeedutils.MAX_POST_SIZE) {
+    for (var data = "oh=" + this.optionsHash_ + "&n=" + this.nonce_, data = data + ("&xp=" + encodeURIComponent(this.btfNodes_[0])), i = 1;i < this.btfNodes_.length;++i) {
+      var tmp = "," + encodeURIComponent(this.btfNodes_[i]);
+      if (data.length + tmp.length > pagespeedutils.MAX_POST_SIZE) {
         break;
       }
-      a += d;
+      data += tmp;
     }
-    pagespeedutils.sendBeacon(this.beaconUrl_, this.htmlUrl_, a);
+    pagespeedutils.sendBeacon(this.beaconUrl_, this.htmlUrl_, data);
   }
 };
-pagespeed.splitHtmlBeaconInit = function(a, c, d, b) {
-  var e = new pagespeed.SplitHtmlBeacon(a, c, d, b);
+pagespeed.splitHtmlBeaconInit = function(beaconUrl, htmlUrl, optionsHash, nonce) {
+  var temp = new pagespeed.SplitHtmlBeacon(beaconUrl, htmlUrl, optionsHash, nonce);
   pagespeedutils.addHandler(window, "load", function() {
-    e.checkSplitHtml_();
+    temp.checkSplitHtml_();
   });
 };
 pagespeed.splitHtmlBeaconInit = pagespeed.splitHtmlBeaconInit;

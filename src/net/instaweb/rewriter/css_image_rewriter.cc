@@ -25,36 +25,24 @@
 #include "net/instaweb/rewriter/public/css_filter.h"
 #include "net/instaweb/rewriter/public/css_hierarchy.h"
 #include "net/instaweb/rewriter/public/css_resource_slot.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/image_combine_filter.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"  // for StrCat
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
 #include "util/utf8/public/unicodetext.h"
+#include "pagespeed/kernel/base/string_util.h"  // for StrCat
 #include "webutil/css/parser.h"
 #include "webutil/css/property.h"
 #include "webutil/css/value.h"
 
 
 namespace net_instaweb {
-
-namespace {
-
-GoogleString CannotImportMessage(StringPiece action, StringPiece url,
-                                 bool is_authorized) {
-  return StrCat("Cannot ", action, " ", url,
-                (is_authorized
-                 ? " for an unknown reason"
-                 : " as it is on an unauthorized domain"));
-}
-
-}  // namespace
 
 CssImageRewriter::CssImageRewriter(CssFilter::Context* root_context,
                                    CssFilter* filter,
@@ -87,12 +75,11 @@ bool CssImageRewriter::RewritesEnabled(
           options->Enabled(RewriteOptions::kSpriteImages));
 }
 
-bool CssImageRewriter::RewriteImport(RewriteContext* parent,
-                                     CssHierarchy* hierarchy,
-                                     bool* is_authorized) {
+bool CssImageRewriter::RewriteImport(
+    RewriteContext* parent,
+    CssHierarchy* hierarchy) {
   GoogleUrl import_url(hierarchy->url());
-  ResourcePtr resource = driver()->CreateInputResource(import_url,
-                                                       is_authorized);
+  ResourcePtr resource = driver()->CreateInputResource(import_url);
   if (resource.get() == NULL) {
     return false;
   }
@@ -103,18 +90,15 @@ bool CssImageRewriter::RewriteImport(RewriteContext* parent,
   return true;
 }
 
-bool CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
+void CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
                                     const GoogleUrl& trim_url,
                                     const GoogleUrl& original_url,
                                     RewriteContext* parent,
-                                    Css::Values* values,
-                                    size_t value_index,
-                                    bool* is_authorized) {
+                                    Css::Values* values, size_t value_index) {
   const RewriteOptions* options = driver()->options();
-  ResourcePtr resource = driver()->CreateInputResource(original_url,
-                                                       is_authorized);
+  ResourcePtr resource = driver()->CreateInputResource(original_url);
   if (resource.get() == NULL) {
-    return false;
+    return;
   }
 
   CssResourceSlotPtr slot(
@@ -125,7 +109,6 @@ bool CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
   }
 
   RewriteSlot(ResourceSlotPtr(slot), image_inline_max_bytes, parent);
-  return true;
 }
 
 void CssImageRewriter::RewriteSlot(const ResourceSlotPtr& slot,
@@ -171,12 +154,11 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
       for (int i = 0, n = hierarchy->children().size(); i < n; ++i) {
         CssHierarchy* child = hierarchy->children()[i];
         if (child->NeedsRewriting()) {
-          bool is_authorized;
-          if (!RewriteImport(parent, child, &is_authorized)) {
+          if (!RewriteImport(parent, child)) {
             hierarchy->set_flattening_succeeded(false);
             hierarchy->AddFlatteningFailureReason(
-                CannotImportMessage("import", child->url_for_humans(),
-                                    is_authorized));
+                StrCat("Cannot import ", child->url_for_humans(),
+                       ": is it on an unauthorized domain?"));
           }
         }
       }
@@ -239,7 +221,6 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
                 if (!options->IsAllowed(original_url.Spec())) {
                   continue;
                 }
-                bool is_authorized;
                 if (spriting_ok) {
                   // TODO(sligocki): Pass in the correct base URL here.
                   // Specifically, the final base URL of the CSS that will
@@ -249,25 +230,13 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
                   // Note that currently preserving URLs doesn't work for
                   // image combining filter, so we need to fix that before
                   // testing which URL is correct.
-                  if (!image_combiner_->AddCssBackgroundContext(
-                          original_url, hierarchy->css_trim_url(),
-                          values, value_index, root_context_, &decls,
-                          &is_authorized, handler)) {
-                    // This doesn't fail flattening but we want to log it.
-                    hierarchy->AddFlatteningFailureReason(
-                        CannotImportMessage("rewrite", original_url.Spec(),
-                                            is_authorized));
-                  }
+                  image_combiner_->AddCssBackgroundContext(
+                      original_url, hierarchy->css_trim_url(),
+                      values, value_index, root_context_, &decls, handler);
                 }
-                if (!RewriteImage(image_inline_max_bytes,
-                                  hierarchy->css_trim_url(), original_url,
-                                  parent, values, value_index,
-                                  &is_authorized)) {
-                  // This doesn't fail flattening but we want to log it.
-                  hierarchy->AddFlatteningFailureReason(
-                      CannotImportMessage("rewrite", original_url.Spec(),
-                                          is_authorized));
-                }
+                RewriteImage(image_inline_max_bytes,
+                             hierarchy->css_trim_url(), original_url,
+                             parent, values, value_index);
               }
             }
             break;

@@ -573,25 +573,6 @@ void UpdateLineAndCol(StringPiece text, int* line, int* col) {
   }
 }
 
-bool ShouldRecordStep(
-    const net_instaweb::source_map::MappingVector& mapping,
-    const net_instaweb::source_map::Mapping& next) {
-  // Should record first mapping.
-  if (mapping.empty()) {
-    return true;
-  }
-
-  const net_instaweb::source_map::Mapping& prev = mapping.back();
-  if (next.gen_line == prev.gen_line) {
-    // Should record iff different number of newlines or different num of cols.
-    return (next.src_line != prev.src_line ||
-            next.gen_col - prev.gen_col != next.src_col - prev.src_col);
-  }
-
-  // If line changes, we should record it.
-  return true;
-}
-
 }  // namespace
 
 JsMinifyingTokenizer::JsMinifyingTokenizer(
@@ -603,7 +584,7 @@ JsMinifyingTokenizer::JsMinifyingTokenizer(
 
 JsMinifyingTokenizer::JsMinifyingTokenizer(
     const JsTokenizerPatterns* patterns, StringPiece input,
-    net_instaweb::source_map::MappingVector* mappings)
+    std::vector<net_instaweb::source_map::Mapping>* mappings)
     : tokenizer_(patterns, input), whitespace_(kNoWhitespace),
       prev_type_(JsKeywords::kEndOfInput), prev_token_(),
       next_type_(JsKeywords::kEndOfInput), next_token_(),
@@ -615,8 +596,7 @@ JsMinifyingTokenizer::~JsMinifyingTokenizer() {}
 JsKeywords::Type JsMinifyingTokenizer::NextToken(StringPiece* token_out) {
   net_instaweb::source_map::Mapping token_out_position;
   const JsKeywords::Type type = NextTokenHelper(token_out, &token_out_position);
-  if (mappings_ != NULL && type != JsKeywords::kEndOfInput &&
-      ShouldRecordStep(*mappings_, token_out_position)) {
+  if (mappings_ != NULL && type != JsKeywords::kEndOfInput) {
     mappings_->push_back(token_out_position);
   }
   // Update generated file line and col # with the output token.
@@ -747,7 +727,7 @@ bool MinifyUtf8Js(const JsTokenizerPatterns* patterns,
 bool MinifyUtf8JsWithSourceMap(
     const JsTokenizerPatterns* patterns,
     StringPiece input, GoogleString* output,
-    net_instaweb::source_map::MappingVector* mappings) {
+    std::vector<net_instaweb::source_map::Mapping>* mappings) {
   JsMinifyingTokenizer tokenizer(patterns, input, mappings);
   while (true) {
     StringPiece token;

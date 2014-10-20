@@ -23,23 +23,23 @@
 #include <cstddef>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_data_lookup.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/webp_optimizer.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/countdown_timer.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/annotated_message_handler.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/image/gif_reader.h"
 #include "pagespeed/kernel/image/image_analysis.h"
 #include "pagespeed/kernel/image/image_converter.h"
 #include "pagespeed/kernel/image/image_resizer.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 #include "pagespeed/kernel/image/png_optimizer.h"
@@ -52,7 +52,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "third_party/libwebp/webp/decode.h"
 #endif
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
@@ -62,8 +62,6 @@ extern "C" {
 }
 
 using pagespeed::image_compression::AnalyzeImage;
-using pagespeed::image_compression::ComputeImageFormat;
-using pagespeed::image_compression::ConversionTimeoutHandler;
 using pagespeed::image_compression::CreateScanlineReader;
 using pagespeed::image_compression::CreateScanlineWriter;
 using pagespeed::image_compression::GifReader;
@@ -122,25 +120,171 @@ const char kGifString[] = "gif";
 const char kPngString[] = "png";
 const uint8 kAlphaOpaque = 255;
 
-void UpdateWebpStats(bool ok, bool was_timed_out, int64 time_elapsed_ms,
-                     Image::ConversionVariables::VariableType var_type,
-                     Image::ConversionVariables* conversion_vars) {
-  if (conversion_vars != NULL) {
-    Image::ConversionBySourceVariable* the_var = conversion_vars->Get(var_type);
-    if (the_var != NULL) {
-      if (was_timed_out) {
-        the_var->timeout_count->Add(1);
-        DCHECK(!ok);
-      } else {
-        if (ok) {
-          the_var->success_ms->Add(time_elapsed_ms);
+// To estimate the number of bytes from the number of pixels, we divide
+// by a magic ratio.  The 'correct' ratio is of course dependent on the
+// image itself, but we are ignoring that so we can make a fast judgement.
+// It is also dependent on a variety of image optimization settings, but
+// for now we will assume the 'rewrite_images' bucket is on, and vary only
+// on the jpeg compression level.
+//
+// Consider a testcase from our system tests, which resizes
+// mod_pagespeed_example/images/Puzzle.jpg to 256x192, or 49152
+// pixels, using compression level 75.  Our default byte threshold for
+// jpeg progressive conversion is 10240 (rewrite_options.cc).
+// Converting to progressive in this case makes the image slightly
+// larger (8251 bytes vs 8157 bytes), so we'd like this to be the
+// threshold where we decide *not* to convert to progressive.
+// Dividing 49152 by 5 (multiplying by 0.2) gets us just under our
+// default 10k byte threshold.
+//
+// Making this number smaller will break apache/system_test.sh with this
+// failure:
+//     failure at line 353
+// FAILed Input: /tmp/.../fetched_directory/*256x192*Puzzle* : 8251 -le 8157
+// in 'quality of jpeg output images with generic quality flag'
+// FAIL.
+//
+// A first attempt at computing that ratio is based on an analysis of Puzzle.jpg
+// at various compression ratios.  Sized to 256x192, or 49152 pixels:
+//
+// compression level    size(no progressive)  no_progressive/49152
+// 50,                  5891,                 0.1239217122
+// 55,                  6186,                 0.1299615486
+// 60,                  6661,                 0.138788298
+// 65,                  7068,                 0.1467195606
+// 70,                  7811,                 0.1611197005
+// 75,                  8402,                 0.1728746669
+// 80,                  9800,                 0.1976280565
+// 85,                  11001,                0.220020749
+// 90,                  15021,                0.2933279089
+// 95,                  19078,                0.3703545493
+// 100,                 19074,                0.3704283796
+//
+// At compression level 100, byte-sizes are almost identical to compression 95
+// so we throw this data-point out.
+//
+// Plotting this data in a graph the data is non-linear.  Experimenting in a
+// spreadsheet we get decent visual linearity by transforming the somewhat
+// arbitrary compression ratio with the formula (1 / (110 - compression_level)).
+// Drawing a line through the data-points at compression levels 50 and 95, we
+// get a slope of 4.92865674 and an intercept of 0.04177743.  Double-checking,
+// this fits the other data-points we have reasonably well, except for the
+// one at compression_level 100.
+const double JpegPixelToByteRatio(int compression_level) {
+  if ((compression_level > 95) || (compression_level < 0)) {
+    compression_level = 95;
+  }
+  double kSlope = 4.92865674;
+  double kIntercept = 0.04177743;
+  double ratio = kSlope / (110.0 - compression_level) + kIntercept;
+  return ratio;
+}
+
+// Class to manage WebP conversion timeouts.
+class ConversionTimeoutHandler {
+ public:
+  ConversionTimeoutHandler(const GoogleString& url,
+                     Timer* timer,
+                     MessageHandler* handler,
+                     int64 timeout_ms,
+                     GoogleString* output_contents) :
+      url_(url),
+      countdown_timer_(timer,
+                       this /* not used */,
+                       timeout_ms),
+      handler_(handler),
+      expired_(false),
+      output_(output_contents),
+      stopped_(false),
+      time_elapsed_(0) {}
+
+  ~ConversionTimeoutHandler() {
+    VLOG(1) << "WebP attempts (which " << (expired_ ? "DID" : "did NOT")
+            << " expire) took " << countdown_timer_.TimeElapsedMs()
+            << " ms for " << url_;
+    if (!stopped_) {
+      DCHECK(expired_) << "Should have called RegisterStatus()";
+    }
+  }
+
+  // The first time this is called, it records the elapsed time. Every
+  // time this is called, this updates conversion_vars according to
+  // the status 'ok' and the recorded elapsed time.
+  void RegisterStatus(bool ok,
+                      Image::ConversionVariables::VariableType var_type,
+                      Image::ConversionVariables* conversion_vars) {
+    if (!stopped_) {
+      time_elapsed_ = countdown_timer_.TimeElapsedMs();
+      stopped_ = true;
+    }
+    if (conversion_vars != NULL) {
+      Image::ConversionBySourceVariable* the_var =
+          conversion_vars->Get(var_type);
+      if (the_var != NULL) {
+        if (expired_) {
+          IncrementVariable(the_var->timeout_count);
+          DCHECK(!ok);
         } else {
-          the_var->failure_ms->Add(time_elapsed_ms);
+          IncrementHistogram(ok ? the_var->success_ms : the_var->failure_ms);
         }
       }
     }
   }
-}
+
+  // This function may be passed as a progress hook to
+  // ImageConverter::ConvertPngToWebp or to OptimizeWebp(). user_data
+  // should be a pointer to a WebpTimeoutHandler object. This function
+  // returns true if countdown_timer_ hasn't expired or there are some
+  // bytes in output_contents_ (meaning WebP conversion is essentially
+  // finished).
+  static bool Continue(int percent, void* user_data) {
+    ConversionTimeoutHandler* timeout_handler =
+        static_cast<ConversionTimeoutHandler*>(user_data);
+    VLOG(2) <<  "WebP conversions: " << percent <<"% done; time left: "
+            << timeout_handler->countdown_timer_.TimeLeftMs() << " ms";
+    VLOG(2) << "Progress: " << percent << "% for " << timeout_handler->url_;
+    if (!timeout_handler->HaveTimeLeft()) {
+      // We include the output_->empty() check after HaveTimeLeft()
+      // for testing, in case there's a callback that writes to
+      // output_ invoked at a time that triggers a timeout.
+      if (!timeout_handler->output_->empty()) {
+        VLOG(2) << "Output non-empty at " << percent
+                << "% for " << timeout_handler->url_;
+        return true;
+      }
+      PS_LOG_WARN(timeout_handler->handler_, "WebP conversion timed out!");
+      timeout_handler->expired_ = true;
+      return false;
+    }
+    return true;
+  }
+
+  bool HaveTimeLeft() {
+    return countdown_timer_.HaveTimeLeft();
+  }
+
+ private:
+  void IncrementVariable(Variable* variable) {
+    if (variable) {
+      variable->Add(1);
+    }
+  }
+
+  void IncrementHistogram(Histogram* histogram) {
+    if (histogram) {
+      DCHECK(stopped_);
+      histogram->Add(time_elapsed_);
+    }
+  }
+
+  const GoogleString& url_;
+  CountdownTimer countdown_timer_;
+  MessageHandler* handler_;
+  bool expired_;
+  GoogleString* output_;
+  bool stopped_;
+  int64 time_elapsed_;
+};
 
 // TODO(huibao): Unify ImageType and ImageFormat.
 ImageFormat ImageTypeToImageFormat(ImageType type) {
@@ -177,7 +321,7 @@ ImageFormat GetOutputImageFormat(ImageFormat in_format) {
 ScanlineWriterInterface* CreateUncompressedPngWriter(
     size_t width, size_t height, GoogleString* output,
     MessageHandler* handler, bool use_transparent_for_blank_image) {
-  PngCompressParams config(PNG_FILTER_NONE, Z_NO_COMPRESSION, false);
+  PngCompressParams config(PNG_FILTER_NONE, Z_NO_COMPRESSION);
   PixelFormat pixel_format =
       use_transparent_for_blank_image ?
       RGBA_8888 :
@@ -212,10 +356,6 @@ class ImageImpl : public Image {
   virtual void SetResizedDimensions(const ImageDim& dims) { dims_ = dims; }
   virtual void SetTransformToLowRes();
   virtual const GoogleString& url() { return url_; }
-  virtual const GoogleString& debug_message() { return debug_message_; }
-  virtual const GoogleString& resize_debug_message() {
-    return resize_debug_message_;
-  }
 
   bool GenerateBlankImage();
 
@@ -321,8 +461,6 @@ class ImageImpl : public Image {
   scoped_ptr<Image::CompressionOptions> options_;
   bool low_quality_enabled_;
   Timer* timer_;
-  GoogleString debug_message_;
-  GoogleString resize_debug_message_;
 
   DISALLOW_COPY_AND_ASSIGN(ImageImpl);
 };
@@ -398,13 +536,35 @@ ImageImpl::ImageImpl(int width, int height, ImageType type,
 bool ImageImpl::GenerateBlankImage() {
   DCHECK(image_type_ == IMAGE_PNG) << "Blank image must be a PNG.";
 
-  if (pagespeed::image_compression::GenerateBlankImage(dims_.width(),
-      dims_.height(), options_->use_transparent_for_blank_image,
-      &output_contents_, handler_.get())) {
-    output_valid_ = true;
-    return true;
+  // Create a PNG writer with no compression.
+  scoped_ptr<ScanlineWriterInterface> png_writer(
+      CreateUncompressedPngWriter(dims_.width(), dims_.height(),
+                                  &output_contents_, handler_.get(),
+                                  options_->use_transparent_for_blank_image));
+  if (png_writer == NULL) {
+    PS_LOG_ERROR(handler_, "Failed to create an image writer.");
+    return false;
   }
-  return false;
+
+  // Create a transparent scanline.
+  const size_t bytes_per_scanline = dims_.width() *
+      GetNumChannelsFromPixelFormat(RGBA_8888, handler_.get());
+  scoped_array<unsigned char> scanline(new unsigned char[bytes_per_scanline]);
+  memset(scanline.get(), 0, bytes_per_scanline);
+
+  // Fill the entire image with the blank scanline.
+  for (int row = 0; row < dims_.height(); ++row) {
+    if (!png_writer->WriteNextScanline(
+        reinterpret_cast<void*>(scanline.get()))) {
+      return false;
+    }
+  }
+
+  if (!png_writer->FinalizeWrite()) {
+    return false;
+  }
+  output_valid_ = true;
+  return true;
 }
 
 Image* BlankImageWithOptions(int width, int height, ImageType type,
@@ -527,33 +687,61 @@ void ImageImpl::FindWebpSize() {
 // Looks at image data in order to determine image type, and also fills in any
 // dimension information it can (setting image_type_ and dims_).
 void ImageImpl::ComputeImageType() {
-  bool is_webp_lossless_alpha = false;
-  ImageFormat image_format = ComputeImageFormat(original_contents_,
-                                                &is_webp_lossless_alpha);
-  switch (image_format) {
-    case pagespeed::image_compression::IMAGE_UNKNOWN:
-      image_type_ = IMAGE_UNKNOWN;
-      break;
-    case pagespeed::image_compression::IMAGE_JPEG:
-      image_type_ = IMAGE_JPEG;
-      FindJpegSize();
-      break;
-    case pagespeed::image_compression::IMAGE_PNG:
-      image_type_ = IMAGE_PNG;
-      FindPngSize();
-      break;
-    case pagespeed::image_compression::IMAGE_GIF:
-      image_type_ = IMAGE_GIF;
-      FindGifSize();
-      break;
-    case pagespeed::image_compression::IMAGE_WEBP:
-      if (is_webp_lossless_alpha) {
-        image_type_ = IMAGE_WEBP_LOSSLESS_OR_ALPHA;
-      } else {
-        image_type_ = IMAGE_WEBP;
-      }
-      FindWebpSize();
-      break;
+  // Image classification based on buffer contents gakked from leptonica,
+  // but based on well-documented headers (see Wikipedia etc.).
+  // Note that we can be fooled if we're passed random binary data;
+  // we make the call based on as few as two bytes (JPEG).
+  const StringPiece& buf = original_contents_;
+  if (buf.size() >= 8) {
+    // Note that gcc rightly complains about constant ranges with the
+    // negative char constants unless we cast.
+    switch (CharToInt(buf[0])) {
+      case 0xff:
+        // Either jpeg or jpeg2
+        // (the latter we don't handle yet, and don't bother looking for).
+        if (CharToInt(buf[1]) == 0xd8) {
+          image_type_ = IMAGE_JPEG;
+          FindJpegSize();
+        }
+        break;
+      case 0x89:
+        // Possible png.
+        if (StringPiece(buf.data(), ImageHeaders::kPngHeaderLength) ==
+            StringPiece(ImageHeaders::kPngHeader,
+                        ImageHeaders::kPngHeaderLength)) {
+          image_type_ = IMAGE_PNG;
+          FindPngSize();
+        }
+        break;
+      case 'G':
+        // Possible gif.
+        if ((StringPiece(buf.data(), ImageHeaders::kGifHeaderLength) ==
+             StringPiece(ImageHeaders::kGifHeader,
+                         ImageHeaders::kGifHeaderLength)) &&
+            (buf[ImageHeaders::kGifHeaderLength] == '7' ||
+             buf[ImageHeaders::kGifHeaderLength] == '9') &&
+            buf[ImageHeaders::kGifHeaderLength + 1] == 'a') {
+          image_type_ = IMAGE_GIF;
+          FindGifSize();
+        }
+        break;
+      case 'R':
+        // Possible Webp
+        // Detailed explanation on parsing webp format is available at
+        // http://code.google.com/speed/webp/docs/riff_container.html
+        if (buf.size() >= 20 && buf.substr(1, 3) == "IFF" &&
+            buf.substr(8, 4) == "WEBP") {
+          if (buf.substr(12, 4) == "VP8L") {
+            image_type_ = IMAGE_WEBP_LOSSLESS_OR_ALPHA;
+          } else {
+            image_type_ = IMAGE_WEBP;
+          }
+          FindWebpSize();
+        }
+        break;
+      default:
+        break;
+    }
   }
 }
 
@@ -699,20 +887,17 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
                            original_contents_.length(),
                            handler_.get()));
   if (image_reader == NULL) {
-    resize_debug_message_ = "Cannot resize: Cannot open the image to resize";
     PS_LOG_INFO(handler_, "Cannot open the image to resize.");
     return false;
   }
 
   if (image_reader->GetPixelFormat() == RGBA_8888) {
-    resize_debug_message_ = "Cannot resize: RGBA_8888 pixel format";
     return false;
   }
 
   ScanlineResizer resizer(handler_.get());
   if (!resizer.Initialize(image_reader.get(), new_dim.width(),
                           new_dim.height())) {
-    resize_debug_message_ = "Cannot resize: Unable to initialize resizer";
     return false;
   }
 
@@ -737,8 +922,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
 
     case pagespeed::image_compression::IMAGE_PNG:
       {
-        PngCompressParams png_config(PNG_FILTER_NONE, Z_DEFAULT_STRATEGY,
-                                     false);
+        PngCompressParams png_config(PNG_FILTER_NONE, Z_DEFAULT_STRATEGY);
         writer.reset(CreateScanlineWriter(resized_format,
                                           resizer.GetPixelFormat(),
                                           resizer.GetImageWidth(),
@@ -750,7 +934,6 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
       break;
 
     default:
-      resize_debug_message_ = "Cannot resize: Unsupported image format";
       PS_LOG_DFATAL(handler_, "Unsupported image format");
   }
 
@@ -762,16 +945,13 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   void* scanline = NULL;
   while (resizer.HasMoreScanLines()) {
     if (!resizer.ReadNextScanline(&scanline)) {
-      resize_debug_message_ = "Cannot resize: Reading image failed";
       return false;
     }
     if (!writer->WriteNextScanline(scanline)) {
-      resize_debug_message_ = "Cannot resize: Writing image failed";
       return false;
     }
   }
   if (!writer->FinalizeWrite()) {
-    resize_debug_message_ = "Cannot resize: Finalizing writing image failed";
     return false;
   }
 
@@ -780,9 +960,6 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   rewrite_attempted_ = false;
   output_contents_.clear();
   resized_dimensions_ = new_dim;
-  resize_debug_message_ = StringPrintf(
-      "Resized image from %dx%d to %dx%d", dims_.width(), dims_.height(),
-      resized_dimensions_.width(), resized_dimensions_.height());
   return true;
 }
 
@@ -877,7 +1054,8 @@ bool ImageImpl::ComputeOutputContents() {
             (options_->preferred_webp != WEBP_NONE)) {
           ok = ConvertJpegToWebp(string_for_image, options_->webp_quality,
                                  &output_contents_);
-          VLOG(1) << "Image conversion: " << ok << " jpeg->webp for " << url_;
+          VLOG(1) << "Image conversion: " << ok
+                  << " jpeg->webp for " << url_.c_str();
           if (!ok) {
             // Image is not going to be webp-converted!
             minimal_webp_support_ = ResourceContext::LIBWEBP_NONE;
@@ -892,7 +1070,8 @@ bool ImageImpl::ComputeOutputContents() {
           ConvertToJpegOptions(*options_.get(), &jpeg_options);
           ok = OptimizeJpegWithOptions(string_for_image, &output_contents_,
                                        jpeg_options, handler_.get());
-          VLOG(1) << "Image conversion: " << ok << " jpeg->jpeg for " << url_;
+          VLOG(1) << "Image conversion: " << ok
+                  << " jpeg->jpeg for " << url_.c_str();
         }
         break;
       case IMAGE_PNG:
@@ -934,24 +1113,20 @@ bool ImageImpl::ComputeOutputContents() {
 inline bool ImageImpl::ConvertJpegToWebp(
     const GoogleString& original_jpeg, int configured_quality,
     GoogleString* compressed_webp) {
-  ConversionTimeoutHandler timeout_handler(options_->webp_conversion_timeout_ms,
-                                           timer_, handler_.get());
-  timeout_handler.Start(compressed_webp);
+  ConversionTimeoutHandler timeout_handler(url_, timer_, handler_.get(),
+                                           options_->webp_conversion_timeout_ms,
+                                           compressed_webp);
   bool ok = OptimizeWebp(original_jpeg, configured_quality,
                          ConversionTimeoutHandler::Continue, &timeout_handler,
                          compressed_webp, handler_.get());
-  timeout_handler.Stop();
-
-  bool was_timed_out = timeout_handler.was_timed_out();
-  int64 time_elapsed_ms = timeout_handler.time_elapsed_ms();
-
-  UpdateWebpStats(ok, was_timed_out, time_elapsed_ms,
-                 Image::ConversionVariables::FROM_JPEG,
-                 options_->webp_conversion_variables);
-
-  UpdateWebpStats(ok, was_timed_out, time_elapsed_ms,
-                 Image::ConversionVariables::OPAQUE,
-                 options_->webp_conversion_variables);
+  timeout_handler.RegisterStatus(
+      ok,
+      Image::ConversionVariables::FROM_JPEG,
+      options_->webp_conversion_variables);
+  timeout_handler.RegisterStatus(
+      ok,
+      Image::ConversionVariables::OPAQUE,
+      options_->webp_conversion_variables);
   return ok;
 }
 
@@ -975,15 +1150,7 @@ inline bool ImageImpl::ComputeOutputContentsFromPngReader(
 
   AnalyzeImage(ImageTypeToImageFormat(input_type),
                string_for_image.data(), string_for_image.length(),
-               NULL /* width */, NULL /* height */, NULL /* is_progressive */,
-               NULL /* is_animated */, &has_transparency, &is_photo,
-               NULL /* quality */, NULL /* reader */, handler_.get());
-
-  debug_message_ = StringPrintf("Image has%s transparent pixels"
-                                " and is%s sensitive to compression noise.",
-                                (has_transparency ? "" : " no"),
-                                (is_photo ? " not" : ""));
-
+               handler_.get(), &has_transparency, &is_photo);
   // By default, a lossless image conversion is eligible for lossless webp
   // conversion.
   minimal_webp_support_ = ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA;
@@ -1061,9 +1228,10 @@ inline bool ImageImpl::ComputeOutputContentsFromPngReader(
     image_type_ = input_type;
   }
 
-  VLOG(1) << "Image conversion: " << ok << " " << dbg_input_format << "->"
-          << ImageFormatToString(ImageTypeToImageFormat(image_type_)) << " for "
-          << url_;
+  VLOG(1) << "Image conversion: " << ok
+          << " " << dbg_input_format
+          << "->" << ImageFormatToString(ImageTypeToImageFormat(image_type_))
+          << " for " << url_.c_str();
 
   return ok;
 }
@@ -1074,8 +1242,10 @@ bool ImageImpl::ConvertPngToWebp(
       bool compress_color_losslessly,
       bool has_transparency,
       ConversionVariables::VariableType var_type) {
-  ConversionTimeoutHandler timeout_handler(options_->webp_conversion_timeout_ms,
-                                           timer_, handler_.get());
+  ConversionTimeoutHandler timeout_handler(
+      url_, timer_, handler_.get(),
+      options_->webp_conversion_timeout_ms,
+      &output_contents_);
   WebpConfiguration webp_config;
 
   // Quality/speed trade-off (0=fast, 6=slower-better).
@@ -1110,7 +1280,6 @@ bool ImageImpl::ConvertPngToWebp(
   // The technique they use can only detect some of the opaque images.
   // PixelFormatOptimizer has a more expensive, but comprehensive solution.
   bool not_used;
-  timeout_handler.Start(&output_contents_);
   bool ok = ImageConverter::ConvertPngToWebp(
       png_reader, input_image, webp_config,
       &output_contents_, &not_used, handler_.get());
@@ -1118,19 +1287,17 @@ bool ImageImpl::ConvertPngToWebp(
   if (ok) {
     image_type_ = target_image_type;
   }
-  timeout_handler.Stop();
 
-  bool was_timed_out = timeout_handler.was_timed_out();
-  int64 time_elapsed_ms = timeout_handler.time_elapsed_ms();
+  timeout_handler.RegisterStatus(ok,
+                                 var_type,
+                                 options_->webp_conversion_variables);
 
-  UpdateWebpStats(ok, was_timed_out, time_elapsed_ms, var_type,
-                  options_->webp_conversion_variables);
-
-  UpdateWebpStats(ok, was_timed_out, time_elapsed_ms,
-                  (has_transparency ?
-                   Image::ConversionVariables::NONOPAQUE :
-                   Image::ConversionVariables::OPAQUE),
-                  options_->webp_conversion_variables);
+  timeout_handler.RegisterStatus(
+      ok,
+      (has_transparency ?
+       Image::ConversionVariables::NONOPAQUE :
+       Image::ConversionVariables::OPAQUE),
+      options_->webp_conversion_variables);
 
   return ok;
 }
@@ -1203,18 +1370,24 @@ void ImageImpl::ConvertToJpegOptions(const Image::CompressionOptions& options,
 
 bool ImageImpl::ShouldConvertToProgressive(int64 quality) const {
   bool progressive = false;
-  const ImageDim* expected_dimensions = &dims_;
-  if (ImageUrlEncoder::HasValidDimensions(resized_dimensions_)) {
-    expected_dimensions = &resized_dimensions_;
-  }
-  if (ImageUrlEncoder::HasValidDimensions(*expected_dimensions)) {
-    progressive = pagespeed::image_compression::ShouldConvertToProgressive(
-        quality, options_->progressive_jpeg_min_bytes,
-        original_contents_.size(), expected_dimensions->width(),
-        expected_dimensions->height());
-  } else {
-    progressive = (static_cast<int64>(original_contents_.size()) >=
-                   options_->progressive_jpeg_min_bytes);
+
+  if (static_cast<int64>(original_contents_.size()) >=
+      options_->progressive_jpeg_min_bytes) {
+    progressive = true;
+    const ImageDim* expected_dimensions = &dims_;
+    if (ImageUrlEncoder::HasValidDimensions(resized_dimensions_)) {
+      expected_dimensions = &resized_dimensions_;
+    }
+    if (ImageUrlEncoder::HasValidDimensions(*expected_dimensions)) {
+      int64 estimated_output_pixels =
+          static_cast<int64>(expected_dimensions->width()) *
+          static_cast<int64>(expected_dimensions->height());
+      double ratio = JpegPixelToByteRatio(quality);
+      int64 estimated_output_bytes = estimated_output_pixels * ratio;
+      if (estimated_output_bytes < options_->progressive_jpeg_min_bytes) {
+        progressive = false;
+      }
+    }
   }
   return progressive;
 }

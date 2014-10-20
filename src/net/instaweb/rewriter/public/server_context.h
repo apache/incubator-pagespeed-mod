@@ -25,20 +25,19 @@
 #include <utility>
 #include <vector>
 
-#include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/util/public/atomic_bool.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/util/simple_random.h"
 
 namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
@@ -75,7 +74,6 @@ class RewriteOptions;
 class RewriteOptionsManager;
 class RewriteQuery;
 class RewriteStats;
-class SHA1Signature;
 class Scheduler;
 class StaticAssetManager;
 class Statistics;
@@ -104,8 +102,6 @@ class ServerContext {
 
   // The lifetime for cache-extended generated resources, in milliseconds.
   static const int64 kGeneratedMaxAgeMs;
-  // Short lifetime for generated resources fetched with mismatching hash.
-  static const int64 kCacheTtlForMismatchedContentMs;
 
   // This value is a shared constant so that it can also be used in
   // the Apache-specific code that repairs our caching headers downstream
@@ -124,13 +120,16 @@ class ServerContext {
   //
   // Also sets Content-Type headers if content_type is provided.
   // If content_type is null, the Content-Type header is omitted.
-  //
-  // Sets charset if it's non-empty and content_type is non-NULL.
-  //
-  // If cache_control suffix is non-empty, adds that to the Cache-Control
-  void SetDefaultLongCacheHeaders(
+  void SetDefaultLongCacheHeaders(const ContentType* content_type,
+                                  ResponseHeaders* header) const {
+    SetDefaultLongCacheHeadersWithCharset(content_type, StringPiece(), header);
+  }
+
+  // As above, but also sets charset if it's non-empty and content_type
+  // is non-NULL.
+  void SetDefaultLongCacheHeadersWithCharset(
       const ContentType* content_type, StringPiece charset,
-      StringPiece cache_control_suffix, ResponseHeaders* header) const;
+      ResponseHeaders* header) const;
 
   void set_filename_prefix(const StringPiece& file_prefix);
   void set_statistics(Statistics* x) { statistics_ = x; }
@@ -185,7 +184,6 @@ class ServerContext {
   RewriteOptionsManager* rewrite_options_manager() const {
     return rewrite_options_manager_.get();
   }
-  SHA1Signature* signature() const { return signature_; }
   // Takes ownership of RewriteOptionsManager.
   void SetRewriteOptionsManager(RewriteOptionsManager* rom);
   StaticAssetManager* static_asset_manager() const {
@@ -209,13 +207,6 @@ class ServerContext {
   UrlAsyncFetcher* DefaultDistributedFetcher() {
     return default_distributed_fetcher_;
   }
-
-  // Creates a caching-fetcher based on the specified options.  If you call
-  // this with DefaultSystemFetcher() then it will not include any loopback
-  // fetching installed in the RewriteDriver.
-  CacheUrlAsyncFetcher* CreateCustomCacheFetcher(
-      const RewriteOptions* options, const GoogleString& fragment,
-      CacheUrlAsyncFetcher::AsyncOpHooks* hooks, UrlAsyncFetcher* fetcher);
 
   Timer* timer() const { return timer_; }
 
@@ -338,7 +329,6 @@ class ServerContext {
 
   // Setters should probably only be used in testing.
   void set_hasher(Hasher* hasher) { hasher_ = hasher; }
-  void set_signature(SHA1Signature* signature) { signature_ = signature; }
   void set_default_system_fetcher(UrlAsyncFetcher* fetcher) {
     default_system_fetcher_ = fetcher;
   }
@@ -377,11 +367,7 @@ class ServerContext {
 
   // Runs the rewrite_query parser for any options set in query-params
   // or in the headers. If all the pagespeed options that were parsed
-  // were valid, they are available either in rewrite_query->options() or in
-  // request_context if they are not actual options. The passed-in domain
-  // options control how options are handled, notably whether we allow related
-  // options or allow options to be specified by cookies. If you don't have
-  // domain specific options, pass NULL and global_options() will be used.
+  // were valid, they are available in rewrite_query->options().
   //
   // True is returned in two cases:
   //    - Valid PageSpeed query params or headers were parsed
@@ -391,12 +377,8 @@ class ServerContext {
   //
   // It also strips off the PageSpeed query parameters and headers from the
   // request_url, request headers, and response headers respectively. Stripped
-  // query params are copied into rewrite_query->pagespeed_query_params() and
-  // any PageSpeed option cookies are copied into
-  // rewrite_query->pagespeed_option_cookies().
-  bool GetQueryOptions(const RequestContextPtr& request_context,
-                       const RewriteOptions* domain_options,
-                       GoogleUrl* request_url,
+  // query params are copied into rewrite_query->pagespeed_query_params().
+  bool GetQueryOptions(GoogleUrl* request_url,
                        RequestHeaders* request_headers,
                        ResponseHeaders* response_headers,
                        RewriteQuery* rewrite_query);
@@ -555,9 +537,6 @@ class ServerContext {
   // with all its dependencies.  This populates the worker threads.
   void InitWorkers();
 
-  // To set up AdminSite for SystemServerContext.
-  virtual void PostInitHook();
-
   // Returns whether or not this attribute can be merged into headers
   // without additional considerations.
   static bool IsExcludedAttribute(const char* attribute);
@@ -656,27 +635,15 @@ class ServerContext {
     return js_tokenizer_patterns_;
   }
 
-  enum Format {
-    kFormatAsHtml,
-    kFormatAsJson
-  };
-
   // Shows cached data related to a URL.  Ownership of options is transferred
   // to this function.
-  void ShowCacheHandler(Format format, StringPiece url, StringPiece ua,
-                        AsyncFetch* fetch, RewriteOptions* options);
+  void ShowCacheHandler(StringPiece url, AsyncFetch* fetch,
+                        RewriteOptions* options);
 
   // Returns an HTML form for entering a URL for ShowCacheHandler.  If
   // the user_agent is non-null, then it's used to prepopulate the
   // "User Agent" field in the form.
-  static GoogleString ShowCacheForm(StringPiece user_agent);
-
-  // Returns the format for specifying a configuration file option.  E.g.
-  // for option_name="EnableCachePurge", args="on", returns:
-  //     nginx: "pagespeed EnableCachePurge on;"
-  //     apache: "ModPagespeed EnableCachePurge on"
-  // The base class simply returns "EnableCachePurge on".
-  virtual GoogleString FormatOption(StringPiece option_name, StringPiece args);
+  GoogleString ShowCacheForm(const char* user_agent) const;
 
  protected:
   // Takes ownership of the given pool, making sure to clean it up at the
@@ -704,7 +671,6 @@ class ServerContext {
   UrlAsyncFetcher* default_system_fetcher_;
   UrlAsyncFetcher* default_distributed_fetcher_;
   Hasher* hasher_;
-  SHA1Signature* signature_;
   scoped_ptr<CriticalImagesFinder> critical_images_finder_;
   scoped_ptr<CriticalCssFinder> critical_css_finder_;
   scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;

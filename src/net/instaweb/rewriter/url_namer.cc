@@ -19,9 +19,9 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/string_hash.h"
-#include "pagespeed/kernel/base/string_util.h"  // for StrCat, etc
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string_hash.h"
+#include "net/instaweb/util/public/string_util.h"  // for StrCat, etc
 
 namespace net_instaweb {
 
@@ -65,7 +65,6 @@ GoogleString UrlNamer::Encode(const RewriteOptions* rewrite_options,
 }
 
 bool UrlNamer::Decode(const GoogleUrl& request_url,
-                      const RewriteOptions* rewrite_options,
                       GoogleUrl* owner_domain,
                       GoogleString* decoded) const {
   return false;

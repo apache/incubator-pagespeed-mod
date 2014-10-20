@@ -21,14 +21,15 @@
 
 #include <cstddef>
 
+#include <vector>
+
 #include "base/logging.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/source_map.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
 
@@ -39,25 +40,13 @@ class MessageHandler;
 class Statistics;
 class Variable;
 
+namespace source_map { struct Mapping; }
+
 // Class wrapping up configuration information for javascript
 // rewriting, in order to minimize footprint of later changes
 // to javascript rewriting.
 class JavascriptRewriteConfig {
  public:
-  // Statistics names.
-  static const char kBlocksMinified[];
-  static const char kLibrariesIdentified[];
-  static const char kMinificationFailures[];
-  static const char kTotalBytesSaved[];
-  static const char kTotalOriginalBytes[];
-  static const char kMinifyUses[];
-  static const char kNumReducingMinifications[];
-
-  // Those are JS rewrite failure type statistics.
-  static const char kJSMinificationDisabled[];
-  static const char kJSDidNotShrink[];
-  static const char kJSFailedToWrite[];
-
   JavascriptRewriteConfig(
       Statistics* statistics, bool minify, bool use_experimental_minifier,
       const JavascriptLibraryIdentification* identification,
@@ -89,6 +78,20 @@ class JavascriptRewriteConfig {
   Variable* minification_disabled() { return minification_disabled_; }
   Variable* did_not_shrink() { return did_not_shrink_; }
   Variable* failed_to_write() { return failed_to_write_; }
+
+  // Statistics names.
+  static const char kBlocksMinified[];
+  static const char kLibrariesIdentified[];
+  static const char kMinificationFailures[];
+  static const char kTotalBytesSaved[];
+  static const char kTotalOriginalBytes[];
+  static const char kMinifyUses[];
+  static const char kNumReducingMinifications[];
+
+  // Those are JS rewrite failure type statistics.
+  static const char kJSMinificationDisabled[];
+  static const char kJSDidNotShrink[];
+  static const char kJSFailedToWrite[];
 
  private:
   bool minify_;
@@ -138,11 +141,6 @@ class JavascriptRewriteConfig {
 // For now, we're content just being able to pull data in and parse it at all.
 class JavascriptCodeBlock {
  public:
-  // If debug_filter and AvoidRenamingIntrospectiveJavascript option are
-  // turned on, this comment will be injected right after the introspective
-  // Javascript context for debugging.
-  static const char kIntrospectionComment[];
-
   JavascriptCodeBlock(const StringPiece& original_code,
                       JavascriptRewriteConfig* config,
                       const StringPiece& message_id,
@@ -172,7 +170,7 @@ class JavascriptCodeBlock {
   // Returns the contents of a source map from original to rewritten.
   // PRECONDITION: Rewrite() must have been called first and
   // successfully_rewritten() must be true.
-  const source_map::MappingVector& SourceMappings() const {
+  const std::vector<source_map::Mapping>& SourceMappings() const {
     DCHECK(rewritten_);
     DCHECK(successfully_rewritten_);
     return source_mappings_;
@@ -235,13 +233,13 @@ class JavascriptCodeBlock {
 
   // Temporary wrapper around calling new or old version of JS minifier.
   bool MinifyJs(StringPiece input, GoogleString* output,
-                source_map::MappingVector* source_mappings);
+                std::vector<source_map::Mapping>* source_mappings);
 
   JavascriptRewriteConfig* config_;
   const GoogleString message_id_;  // ID to stick at begining of message.
   const GoogleString original_code_;
   GoogleString rewritten_code_;
-  source_map::MappingVector source_mappings_;
+  std::vector<source_map::Mapping> source_mappings_;
 
   // Used to make sure we don't rewrite twice and that results aren't looked at
   // before produced.

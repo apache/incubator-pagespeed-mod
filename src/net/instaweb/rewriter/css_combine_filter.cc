@@ -22,10 +22,12 @@
 
 #include "net/instaweb/rewriter/public/css_combine_filter.h"
 
-#include <memory>
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -33,24 +35,21 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/charset_util.h"
-#include "pagespeed/kernel/base/proto_util.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/charset_util.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -177,15 +176,16 @@ class CssCombineFilter::Context : public RewriteContext {
   CssCombiner* combiner() { return &combiner_; }
 
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
-    ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
-        href->DecodedValueOrNull(), element));
-    if (resource.get() == NULL) {
-      return false;
+    bool ret = false;
+    ResourcePtr resource(filter_->CreateInputResource(
+        href->DecodedValueOrNull()));
+    if (resource.get() != NULL) {
+      ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
+      AddSlot(slot);
+      elements_.push_back(element);
+      ret = true;
     }
-    ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
-    AddSlot(slot);
-    elements_.push_back(element);
-    return true;
+    return ret;
   }
 
   bool empty() const { return elements_.empty(); }
@@ -284,7 +284,7 @@ class CssCombineFilter::Context : public RewriteContext {
           RewriteDriver::kIsNotXhtml) {
         int first_element_index = partition->input(0).index();
         HtmlElement* first_element = elements_[first_element_index];
-        first_element->set_style(HtmlElement::BRIEF_CLOSE);
+        first_element->set_close_style(HtmlElement::BRIEF_CLOSE);
       }
 
       // We want to call this here so that we disable_further_processing
@@ -386,7 +386,7 @@ void CssCombineFilter::EndDocument() {
 void CssCombineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
   const char* media;
-  StringPieceVector nonstandard_attributes;
+  int num_nonstandard_attributes;
   if (element->keyword() == HtmlName::kStyle) {
     // We can't reorder styles on a page, so if we are only combining <link>
     // tags, we can't combine them across a <style> tag.
@@ -395,7 +395,7 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
     NextCombination("inline style");
     return;
   } else if (css_tag_scanner_.ParseCssElement(element, &href, &media,
-                                              &nonstandard_attributes)) {
+                                              &num_nonstandard_attributes)) {
     ++css_links_;
     // Element is a <link rel="stylesheet" ...>.
     if (driver()->HasChildrenInFlushWindow(element)) {
@@ -403,37 +403,11 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
       NextCombination("children in flush window");
       return;
     }
-    if (!nonstandard_attributes.empty()) {
+    if (num_nonstandard_attributes > 0) {
       // TODO(jmaessen): allow more attributes.  This is the place it's
       // riskiest:  we can't combine multiple elements with an id, for
       // example, so we'd need to explicitly catch and handle that case.
-      // TODO(jefftk): figure out how likely things are to break if you do go
-      // ahead and combine multiple elements with an id; various templates seem
-      // to put in ids when they're not actually referenced and we've gotten
-      // several mailing list questions about why we don't combine in this
-      // case.  Is there actually javascript referencing css link tags by id?
-      GoogleString message("potentially non-combinable attribute");
-      if (DebugMode()) {
-        if (nonstandard_attributes.size() > 1) {
-          message.append("s");
-        }
-        for (int i = 0, n = nonstandard_attributes.size(); i < n; ++i) {
-          if (i == 0) {
-            message.append(": ");
-          } else if (i == n - 1) {
-            message.append(" and ");
-          } else {
-            message.append(", ");
-          }
-          message.append("'");
-          message.append(nonstandard_attributes[i].as_string());
-          message.append("'");
-        }
-      } else {
-        // If we didn't count the number, indicate that it might be plural.
-        message.append("(s)");
-      }
-      NextCombination(message);
+      NextCombination("non-standard attributes");
       return;
     }
     // We cannot combine with a link in <noscript> tag and we cannot combine
@@ -452,9 +426,7 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
       // thing?  sligocki thinks mdsteele looked into this and it
       // depended on HTML version.  In one display was default, in the
       // other screen was IIRC.
-      NextCombination(StrCat(
-          "media mismatch: looking for media '", combiner()->media(),
-          "' but found media='", media, "'."));
+      NextCombination("media mismatch");
       context_->SetMedia(media);
     }
     if (!context_->AddElement(element, href)) {
@@ -526,7 +498,7 @@ RewriteContext* CssCombineFilter::MakeRewriteContext() {
   return MakeContext();
 }
 
-void CssCombineFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void CssCombineFilter::DetermineEnabled() {
   set_is_enabled(!driver()->flushed_cached_html());
 }
 

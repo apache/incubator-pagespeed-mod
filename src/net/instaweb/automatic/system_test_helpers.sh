@@ -154,7 +154,6 @@ mkdir -p $OUTDIR
 
 CURRENT_TEST="pre tests"
 function start_test() {
-  WGET_ARGS=""
   CURRENT_TEST="$@"
   echo "TEST: $CURRENT_TEST"
 }
@@ -244,20 +243,6 @@ function handle_failure() {
   if [ $# -eq 1 ]; then
     echo FAILed Input: "$1"
   fi
-
-  # From http://stackoverflow.com/questions/685435/bash-stacktrace
-  # to avoid printing 'handle_failure' we start with 1 to skip get_stack caller
-  local i
-  local stack_size=${#FUNCNAME[@]}
-  for (( i=1; i<$stack_size ; i++ )); do
-    local func="${FUNCNAME[$i]}"
-    [ -z "$func" ] && func=MAIN
-    local line_number="${BASH_LINENO[(( i - 1 ))]}"
-    local src="${BASH_SOURCE[$i]}"
-    [ -z "$src" ] && src=non_file_source
-    echo "${src}:${line_number}: $func"
-  done
-
   # Note: we print line number after "failed input" so that it doesn't get
   # knocked out of the terminal buffer.
   if type caller > /dev/null 2>&1 ; then
@@ -293,20 +278,7 @@ function check_from() {
 # Same as check(), but expects command to fail.
 function check_not() {
   echo "     check_not" "$@"
-  # We use "|| true" here to avoid having the script exit if it was being run
-  # under 'set -e'
-  ("$@" && handle_failure || true)
-}
-
-# Runs a command and verifies that it exits with an expected error code.
-function check_error_code() {
-  expected_error_code=$1
-  shift
-  echo "     check_error_code $expected_error_code $@"
-  # We use "|| true" here to avoid having the script exit if it was being run
-  # under 'set -e'
-  error_code=$("$@" || echo $? || true)
-  check [ $error_code = $expected_error_code ]
+  "$@" && handle_failure
 }
 
 # Like check_not, but the first argument is text to pipe into the
@@ -315,17 +287,7 @@ function check_not_from() {
   text="$1"
   shift
   echo "     check_not_from" "$@"
-  # We use "|| true" here to avoid having the script exit if it was being run
-  # under 'set -e'
-  echo "$text" | ("$@" && handle_failure "$text" || true)
-}
-
-function check_200_http_response() {
-  check_from "$(head -1 <<< $1)" egrep -q '[ ]*HTTP/1[.]. 200 OK'
-}
-
-function check_200_http_response_file() {
-  check_200_http_response "$(< $1)"
+  echo "$text" | "$@" && handle_failure "$text"
 }
 
 # Check for the existence of a single file matching the pattern
@@ -360,9 +322,6 @@ function get_stat() {
 }
 
 function check_stat() {
-  if [ "${statistics_enabled:-1}" -eq "0" ]; then
-    return
-  fi
   OLD_STATS_FILE=$1
   NEW_STATS_FILE=$2
   COUNTER_NAME=$3
@@ -402,26 +361,26 @@ FETCH_UNTIL_OUTFILE="$WGET_DIR/fetch_until_output.$$"
 # file are loaded into $WGET_DIR as a result of this command.
 function fetch_until() {
   save=0
-  if [ "$1" = "-save" ]; then
+  if [ $1 = "-save" ]; then
     save=1
     shift
   fi
 
   gzip=""
-  if [ "$1" = "-gzip" ]; then
+  if [ $1 = "-gzip" ]; then
     gzip="--header=Accept-Encoding:gzip"
     shift
   fi
 
   recursive=0
-  if [ "$1" = "-recursive" ]; then
+  if [ $1 = "-recursive" ]; then
     recursive=1
     shift
   fi
 
   REQUESTURL=$1
   COMMAND=$2
-  EXPECTED_RESULT=$3
+  RESULT=$3
   FETCH_UNTIL_WGET_ARGS="$gzip $WGET_ARGS ${4:-}"
   OP=${5:-=}  # Default to =
 
@@ -450,16 +409,15 @@ function fetch_until() {
   STOP=$((START+$TIMEOUT))
   WGET_HERE="$WGET -q $FETCH_UNTIL_WGET_ARGS"
   echo -n "      Fetching $REQUESTURL $FETCH_UNTIL_WGET_ARGS"
-  echo " until \$($COMMAND) $OP $EXPECTED_RESULT"
+  echo " until \$($COMMAND) $OP $RESULT"
   echo "$WGET_HERE $REQUESTURL and checking with $COMMAND"
   while test -t; do
     # Clean out WGET_DIR so that wget doesn't create .1 files.
     rm -rf $WGET_DIR
     mkdir -p $WGET_DIR
 
-    $WGET_HERE $REQUESTURL || true
-    ACTUAL_RESULT=$($COMMAND < "$FETCH_FILE" || true)
-    if [ "$ACTUAL_RESULT" "$OP" "$EXPECTED_RESULT" ]; then
+    $WGET_HERE $REQUESTURL
+    if [ "$($COMMAND < "$FETCH_FILE")" "$OP" "$RESULT" ]; then
       echo "."
       if [ $save -eq 0 ]; then
         if [ $recursive -eq 1 ]; then
@@ -552,23 +510,4 @@ function extract_headers {
   carriage_return=$(printf "\r")
   last_line_number=$(grep --text -n \^${carriage_return}\$ $1 | cut -f1 -d:)
   head --lines=$last_line_number "$1" | sed -e "s/$carriage_return//"
-}
-
-# Extracts the cookies from a 'wget --save-headers' dump.
-function extract_cookies {
-  grep "Set-Cookie" | \
-  sed -e 's/;.*//' -e 's/^.*Set-Cookie: */ --header=Cookie:/'
-}
-
-# Returns the "URL" suitable for either Apache or Nginx
-function generate_url {
-  DOMAIN="$1"  # Must not have leading 'http://'
-  PATH="$2"    # Must have leading '/'.
-  if [ -z "${STATIC_DOMAIN:-}" ]; then
-    RESULT="http://$DOMAIN$PATH"
-  else
-    RESULT="--header X-Google-Pagespeed-Config-Domain:$DOMAIN"
-    RESULT+=" $STATIC_DOMAIN$PATH"
-  fi
-  echo $RESULT
 }

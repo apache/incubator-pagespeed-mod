@@ -20,17 +20,16 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
-class CachedResult;
 class HtmlElement;
 class ResponseHeaders;
 class RewriteContext;
@@ -77,13 +76,11 @@ class CacheExtender : public RewriteFilter {
   friend class Context;
 
   RewriteResult RewriteLoadedResource(const ResourcePtr& input_resource,
-                                      const OutputResourcePtr& output_resource,
-                                      CachedResult* result);
+                                      const OutputResourcePtr& output_resource);
 
   bool ShouldRewriteResource(
       const ResponseHeaders* headers, int64 now_ms,
-      const ResourcePtr& input_resource, const StringPiece& url,
-      CachedResult* result) const;
+      const ResourcePtr& input_resource, const StringPiece& url) const;
 
   Variable* extension_count_;
   Variable* not_cacheable_count_;

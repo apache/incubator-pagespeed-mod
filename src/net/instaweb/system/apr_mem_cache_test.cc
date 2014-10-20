@@ -25,25 +25,25 @@
 #include "apr_pools.h"
 
 #include "net/instaweb/apache/apr_timer.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_timer.h"
+#include "net/instaweb/util/cache_test_base.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/fallback_cache.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/null_statistics.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/null_statistics.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/shared_string.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/cache_spammer.h"
-#include "pagespeed/kernel/cache/cache_test_base.h"
-#include "pagespeed/kernel/cache/fallback_cache.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
 #include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/util/simple_stats.h"
 
 namespace net_instaweb {
 
@@ -62,8 +62,7 @@ class AprMemCacheTest : public CacheTestBase {
   AprMemCacheTest()
       : timer_(new NullMutex, MockTimer::kApr_5_2010_ms),
         lru_cache_(new LRUCache(kLRUCacheSize)),
-        thread_system_(Platform::CreateThreadSystem()),
-        statistics_(thread_system_.get()) {
+        thread_system_(Platform::CreateThreadSystem()) {
     AprMemCache::InitStats(&statistics_);
   }
 
@@ -134,12 +133,12 @@ class AprMemCacheTest : public CacheTestBase {
   GoogleMessageHandler handler_;
   MD5Hasher md5_hasher_;
   MockHasher mock_hasher_;
+  SimpleStats statistics_;
   MockTimer timer_;
   scoped_ptr<LRUCache> lru_cache_;
   scoped_ptr<AprMemCache> servers_;
   scoped_ptr<FallbackCache> cache_;
   scoped_ptr<ThreadSystem> thread_system_;
-  SimpleStats statistics_;
   GoogleString server_spec_;
 };
 

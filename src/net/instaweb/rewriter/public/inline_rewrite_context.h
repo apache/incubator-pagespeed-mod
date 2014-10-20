@@ -19,14 +19,13 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_INLINE_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_INLINE_REWRITE_CONTEXT_H_
 
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
+#include "net/instaweb/rewriter/public/rewrite_context.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -52,12 +51,7 @@ class InlineRewriteContext : public RewriteContext {
 
  protected:
   // Subclasses of InlineRewriteContext must override these:
-
-  // Return whether the resource should be inlined. If false
-  // is returned, this should set *explanation to the reason for the failure.
-  // explanation is guaranteed to be non-NULL.
-  virtual bool ShouldInline(const ResourcePtr& resource,
-                            GoogleString* explanation) const = 0;
+  virtual bool ShouldInline(const ResourcePtr& resource) const = 0;
   virtual void RenderInline(const ResourcePtr& resource,
                             const StringPiece& text,
                             HtmlElement* element) = 0;
@@ -65,8 +59,8 @@ class InlineRewriteContext : public RewriteContext {
   // Subclasses of InlineRewriteContext may override this to customize
   // resource creation. Default version just uses
   // CommonFilter::CreateInputResource().
-  // url is permitted to be NULL. is_authorized is not.
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
+  // url is permitted to be NULL.
+  virtual ResourcePtr CreateResource(const char* url);
 
   // InlineRewriteContext takes care of these methods from RewriteContext;
   virtual bool Partition(OutputPartitions* partitions,

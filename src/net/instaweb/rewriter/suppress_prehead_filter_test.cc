@@ -17,23 +17,23 @@
 
 #include "net/instaweb/rewriter/public/suppress_prehead_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/kernel/http/http.pb.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
+#include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/flush_early_info_finder_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http.pb.h"
-#include "pagespeed/kernel/http/http_names.h"  // for HttpAttributes, etc
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
 
@@ -150,7 +150,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppress) {
       "</head>"
       "<body></body></html>";
   GoogleString html_input = StrCat(pre_head_input, post_head_input);
-  RequestTimingInfo* timing_info = mutable_timing_info();
+  RequestContext::TimingInfo* timing_info = mutable_timing_info();
   timing_info->FetchStarted();
   AdvanceTimeMs(100);
   timing_info->FetchHeaderReceived();
@@ -188,7 +188,7 @@ TEST_F(SuppressPreheadFilterTest, FlushEarlyHeadSuppressWithCacheableHtml) {
       "</head>"
       "<body></body></html>";
   GoogleString html_input = StrCat(pre_head_input, post_head_input);
-  RequestTimingInfo* timing_info = mutable_timing_info();
+  RequestContext::TimingInfo* timing_info = mutable_timing_info();
   timing_info->FetchStarted();
   AdvanceTimeMs(100);
   timing_info->FetchHeaderReceived();

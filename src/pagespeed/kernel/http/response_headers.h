@@ -20,15 +20,14 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/headers.h"
-#include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
-class GoogleUrl;
 class HttpResponseHeaders;
 class MessageHandler;
 class Writer;
@@ -36,27 +35,28 @@ class Writer;
 // Read/write API for HTTP response headers.
 class ResponseHeaders : public Headers<HttpResponseHeaders> {
  public:
+  // The number of milliseconds of cache TTL we assign to resources that
+  // are "likely cacheable" (e.g. images, js, css, not html) and have no
+  // explicit cache ttl or expiration date.
+  static const int64 kDefaultImplicitCacheTtlMs = 5 * Timer::kMinuteMs;
+
+  // The minimum number of milliseconds of cache TTL that we assign to resources
+  // irrespective of the max-age specified in the headers. Controlled by an
+  // option. This will be set to the correct default value after conclusive
+  // experiments.
+  static const int64 kDefaultMinCacheTtlMs = -1;
+
   enum VaryOption { kRespectVaryOnResources, kIgnoreVaryOnResources };
   enum ValidatorOption { kHasValidator, kNoValidator };
 
-  // This constructor with options explicitly set should be used by all callers.
-  explicit ResponseHeaders(const HttpOptions& options) { Init(options); }
-
-  explicit ResponseHeaders(const ResponseHeaders& other);
-  ResponseHeaders& operator=(const ResponseHeaders& other);
-
-  // This default constructor should only be used in tests.
-  // TODO(sligocki): Phase this out so that nobody uses this one by accident.
-  ResponseHeaders() { Init(kDeprecatedDefaultHttpOptions); }
-
+  ResponseHeaders();
   virtual ~ResponseHeaders();
 
   // Returns true if the resource with given date and TTL is going to expire
   // shortly and should hence be proactively re-fetched. All the parameters are
   // absolute times.
   static bool IsImminentlyExpiring(
-      int64 start_date_ms, int64 expire_ms, int64 now_ms,
-      const HttpOptions& options);
+      int64 start_date_ms, int64 expire_ms, int64 now_ms);
 
   // This will set Date and (if supplied in the first place, Expires)
   // header to now if the delta of date header wrt now_ms is more than
@@ -113,8 +113,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // be validated.  Callers can indicate their ability to validate requests
   // by passing kHasRequestValidator for has_request_validator.
   bool IsProxyCacheable(RequestHeaders::Properties properties,
-                        // TODO(sligocki): Use http_options_.respect_vary.
-                        // Some inconsistencies need to be worked out first.
                         VaryOption respect_vary_on_resources,
                         ValidatorOption has_request_validator) const;
 
@@ -196,22 +194,13 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   void set_status_code(const int code);
   const char* reason_phrase() const;
   void set_reason_phrase(const StringPiece& reason_phrase);
-
-  const HttpOptions& http_options() const { return http_options_; }
-
-  // TODO(sligocki): Remove these setters (and getters) once we make sure
-  // that all values are set at construction time.
-  int64 implicit_cache_ttl_ms() const {
-    return http_options_.implicit_cache_ttl_ms;
-  }
+  int64 implicit_cache_ttl_ms() const { return implicit_cache_ttl_ms_; }
   void set_implicit_cache_ttl_ms(const int64 ttl) {
-    http_options_.implicit_cache_ttl_ms = ttl;
+    implicit_cache_ttl_ms_ = ttl;
   }
-  int64 min_cache_ttl_ms() const {
-    return http_options_.min_cache_ttl_ms;
-  }
+  int64 min_cache_ttl_ms() const { return min_cache_ttl_ms_; }
   void set_min_cache_ttl_ms(const int64 ttl) {
-    http_options_.min_cache_ttl_ms = ttl;
+    min_cache_ttl_ms_ = ttl;
   }
 
   int64 last_modified_time_ms() const;
@@ -339,23 +328,10 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   bool HasAnyCookiesWithAttribute(StringPiece attribute_name,
                                   StringPiece* attribute_value);
 
-  // Set or clears the given query parameters as response header cookies,
-  // skipping any in to_exclude. query_params and option_cookies are both
-  // query parameters (name=value separated by '&'s) and are treated as
-  // untrusted data. Sets the cookies' Expires attributes to the given value.
-  // Returns true if any cookies were set, false if not.
-  bool SetQueryParamsAsCookies(const GoogleUrl& gurl, StringPiece query_params,
-                               const StringPieceVector& to_exclude,
-                               int64 expiration_time);
-  bool ClearOptionCookies(const GoogleUrl& gurl, StringPiece option_cookies,
-                          const StringPieceVector& to_exclude);
-
  protected:
   virtual void UpdateHook();
 
  private:
-  void Init(const HttpOptions& options);
-
   // Parse the original and fresh content types, and add a new header based
   // on the two of them, giving preference to the original.
   // e.g. if the original specified charset=UTF-8 and the new one specified
@@ -366,8 +342,14 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   friend class ResponseHeadersTest;
   bool cache_fields_dirty_;
 
-  // TODO(sligocki): Make this const.
-  HttpOptions http_options_;
+  // The number of milliseconds of cache TTL we assign to resources that are
+  // likely cacheable and have no explicit cache ttl or expiration date.
+  int64 implicit_cache_ttl_ms_;
+
+  // The min number of milliseconds of cache TTL that we assign to all
+  // cacheable resources irrespective of whether it has an explicit age
+  // specified in the headers.
+  int64 min_cache_ttl_ms_;
 
   // The number of milliseconds of cache TTL for which we should cache the
   // response even if it was originally uncacheable.
@@ -376,7 +358,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   bool force_cached_;
   bool min_cache_ttl_applied_;
 
-  // Allow copy and assign.
+  DISALLOW_COPY_AND_ASSIGN(ResponseHeaders);
 };
 
 }  // namespace net_instaweb

@@ -23,6 +23,8 @@
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/mock_resource_callback.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for Resource, etc
@@ -36,8 +38,6 @@
 #include "pagespeed/kernel/cache/lru_cache.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -144,17 +144,17 @@ class CacheableResourceBaseTest : public RewriteTestBase {
   void CheckStats(TestResource* resource,
                   int expect_hits,
                   int expect_recent_fetch_failures,
-                  int expect_recent_uncacheables_miss,
-                  int expect_recent_uncacheables_failure,
+                  int expect_recent_uncacheables_treated_as_miss,
+                  int expect_recent_uncacheables_treated_as_failure,
                   int expect_misses) {
     EXPECT_EQ(expect_hits,
               resource->hits_->Get());
     EXPECT_EQ(expect_recent_fetch_failures,
               resource->recent_fetch_failures_->Get());
-    EXPECT_EQ(expect_recent_uncacheables_miss,
-              resource->recent_uncacheables_miss_->Get());
-    EXPECT_EQ(expect_recent_uncacheables_failure,
-              resource->recent_uncacheables_failure_->Get());
+    EXPECT_EQ(expect_recent_uncacheables_treated_as_miss,
+              resource->recent_uncacheables_treated_as_miss_->Get());
+    EXPECT_EQ(expect_recent_uncacheables_treated_as_failure,
+              resource->recent_uncacheables_treated_as_failure_->Get());
     EXPECT_EQ(expect_misses,
               resource->misses_->Get());
   }

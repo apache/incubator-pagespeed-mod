@@ -23,9 +23,14 @@
 
 #include "base/logging.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
@@ -41,26 +46,21 @@
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/escaping.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/proto_util.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"  // for Timer
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"  // for Timer
-#include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http.pb.h"
-#include "pagespeed/kernel/http/http_names.h"  // for Code::kOK
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace {
 
@@ -428,7 +428,7 @@ void FlushEarlyFlow::FlushEarly() {
         RewrittenContentScanningFilter::kNumProxiedRewrittenResourcesProperty);
 
     if (num_rewritten_resources_property_value->has_value()) {
-      StringToInt(num_rewritten_resources_property_value->value(),
+      StringToInt(num_rewritten_resources_property_value->value().data(),
                   &num_rewritten_resources_);
     }
     PropertyValue* status_code_property_value = fallback_page->GetProperty(

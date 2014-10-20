@@ -19,16 +19,17 @@
 #include "net/instaweb/rewriter/public/inline_rewrite_context.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
 
@@ -49,59 +50,53 @@ bool InlineRewriteContext::StartInlining() {
   ResourcePtr input_resource;
   const char* url = src_->DecodedValueOrNull();
   if (url != NULL) {
-    bool is_authorized;
-    input_resource.reset(CreateResource(url, &is_authorized));
-    if (input_resource.get() != NULL) {
-      ResourceSlotPtr slot(driver->GetSlot(input_resource, element_, src_));
-      AddSlot(slot);
-      driver->InitiateRewrite(this);
-      return true;
-    }
-    if (!is_authorized) {
-      driver->InsertUnauthorizedDomainDebugComment(url, element_);
-    }
-  } else if (driver->DebugMode()) {
-    driver->InsertDebugComment("Following resource not rewritten because its "
-                               "src attribute cannot be decoded", element_);
+    input_resource.reset(CreateResource(url));
   }
-  delete this;
-  return false;
+  if (input_resource.get() != NULL) {
+    ResourceSlotPtr slot(driver->GetSlot(input_resource, element_, src_));
+    AddSlot(slot);
+    driver->InitiateRewrite(this);
+    return true;
+  } else {
+    // Add a debug message indicating that this is an unauthorized resource
+    // that could not be created.
+    if (driver->DebugMode()) {
+      // Do not add it though if it's a special URL, since it's not helpful
+      // in that case.
+      bool claimed_elsewhere = false;
+      if (url != NULL) {
+        GoogleUrl gurl(url);
+        claimed_elsewhere = driver->IsResourceUrlClaimed(gurl);
+      }
+
+      if (!claimed_elsewhere) {
+        driver->InsertComment(
+            StrCat(filter_->Name(), ": ",
+                   CommonFilter::kCreateResourceFailedDebugMsg));
+      }
+    }
+    delete this;
+    return false;
+  }
 }
 
-ResourcePtr InlineRewriteContext::CreateResource(const char* url,
-                                                 bool* is_authorized) {
-  return filter_->CreateInputResource(url, is_authorized);
+ResourcePtr InlineRewriteContext::CreateResource(const char* url) {
+  return filter_->CreateInputResource(url);
 }
 
 bool InlineRewriteContext::Partition(OutputPartitions* partitions,
                                      OutputResourceVector* outputs) {
   CHECK_EQ(1, num_slots()) << "InlineRewriteContext only handles one slot";
   ResourcePtr resource(slot(0)->resource());
-
-  // Always create someplace to store stuff, since we may need debug info.
-  CachedResult* partition = partitions->add_partition();
-  outputs->push_back(OutputResourcePtr(NULL));
-
-  bool ok = false;
-  GoogleString reason_for_failure;
-  if (!resource->IsSafeToRewrite(rewrite_uncacheable())) {
-    AddRecheckDependency();
-    // TODO(morlovich): Follow up by integrating with jmaessen's instrumentation
-    // of IsSafeToRewrite?
-    reason_for_failure =
-        "Can't inline since resource not fetchable or cacheable";
-  } else {
+  if (resource->IsSafeToRewrite(rewrite_uncacheable()) &&
+      ShouldInline(resource)) {
+    CachedResult* partition = partitions->add_partition();
     resource->AddInputInfoToPartition(Resource::kOmitInputHash, 0, partition);
-    if (ShouldInline(resource, &reason_for_failure)) {
-      partition->set_inlined_data(resource->contents().as_string());
-      ok = true;
-    }
+    partition->set_inlined_data(resource->contents().as_string());
+    outputs->push_back(OutputResourcePtr(NULL));
   }
-
-  if (!ok) {
-    partition->add_debug_message(reason_for_failure);
-  }
-
+  // If we don't inline, or resource is invalid, we write out an empty partition
+  // table, making us do nothing.
   return true;
 }
 
@@ -113,19 +108,15 @@ void InlineRewriteContext::Rewrite(int partition_index,
 
   // Mark slot as needing no further processing. Note that needs to be done
   // before calling RewriteDone, as that may cause us to be deleted!
-  if (output_partition(0)->has_inlined_data()) {
-    slot(0)->set_disable_further_processing(true);
-  }
+  slot(0)->set_disable_further_processing(true);
 
   // We signal as rewrite failed, as we do not create an output resource.
   RewriteDone(kRewriteFailed, 0);
 }
 
 void InlineRewriteContext::Render() {
-  if (num_output_partitions() == 1 &&
-      output_partition(0)->has_inlined_data() &&
-      !slot(0)->should_delete_element()) {
-    // We've decided to inline, and no one destroyed our element before us.
+  if (num_output_partitions() == 1 && !slot(0)->should_delete_element()) {
+    // We've decided to inline...
     slot(0)->set_disable_rendering(true);
     ResourceSlotPtr our_slot = slot(0);
     RenderInline(

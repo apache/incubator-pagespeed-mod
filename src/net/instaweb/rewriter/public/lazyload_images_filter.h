@@ -20,8 +20,8 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_LAZYLOAD_IMAGES_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -99,7 +99,7 @@ class LazyloadImagesFilter : public CommonFilter {
   virtual void EndDocument();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   // Clears all state associated with the filter.
   void Clear();

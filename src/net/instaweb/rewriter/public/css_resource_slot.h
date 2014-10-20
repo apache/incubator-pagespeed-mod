@@ -28,16 +28,15 @@
 
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
 
 namespace Css { class Values; }
 
 namespace net_instaweb {
 
-class HtmlElement;
 class RewriteOptions;
 
 // A place storing a rewritable URL inside a CSS AST.
@@ -47,7 +46,6 @@ class CssResourceSlot : public ResourceSlot {
   virtual void Finished();
   virtual GoogleString LocationString();
 
-  virtual HtmlElement* element() const { return NULL; }
   Css::Values* values() const { return values_; }
   size_t value_index() const { return value_index_; }
   UrlRelativity url_relativity() const { return url_relativity_; }

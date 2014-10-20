@@ -22,28 +22,26 @@
 #include <cstddef>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/resource_namer.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/proto_util.h"
-#include "pagespeed/kernel/base/sha1_signature.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "pagespeed/kernel/util/url_to_filename_encoder.h"
 
 namespace net_instaweb {
@@ -68,30 +66,29 @@ class SyncCallback : public CacheInterface::Callback {
 
 }  // namespace
 
-OutputResource::OutputResource(const RewriteDriver* driver,
-                               StringPiece resolved_base,
-                               StringPiece unmapped_base,
-                               StringPiece original_base,
+OutputResource::OutputResource(ServerContext* server_context,
+                               const StringPiece& resolved_base,
+                               const StringPiece& unmapped_base,
+                               const StringPiece& original_base,
                                const ResourceNamer& full_name,
+                               const RewriteOptions* options,
                                OutputResourceKind kind)
-    : Resource(driver, NULL /* no type yet*/),
+    : Resource(server_context, NULL /* no type yet*/),
       writing_complete_(false),
       cached_result_owned_(false),
       cached_result_(NULL),
       resolved_base_(resolved_base.data(), resolved_base.size()),
       unmapped_base_(unmapped_base.data(), unmapped_base.size()),
       original_base_(original_base.data(), original_base.size()),
-      rewrite_options_(driver->options()),
+      rewrite_options_(options),
       kind_(kind) {
-  DCHECK(rewrite_options_ != NULL);
+  DCHECK(options != NULL);
   full_name_.CopyFrom(full_name);
   CHECK(EndsInSlash(resolved_base)) <<
       "resolved_base must end in a slash, was: " << resolved_base;
-  set_enable_cache_purge(rewrite_options_->enable_cache_purge());
-  set_respect_vary(
-      ResponseHeaders::GetVaryOption(rewrite_options_->respect_vary()));
-  set_proactive_resource_freshening(
-      rewrite_options_->proactive_resource_freshening());
+  set_enable_cache_purge(options->enable_cache_purge());
+  set_respect_vary(ResponseHeaders::GetVaryOption(options->respect_vary()));
+  set_proactive_resource_freshening(options->proactive_resource_freshening());
 }
 
 OutputResource::~OutputResource() {
@@ -139,7 +136,6 @@ void OutputResource::EndWrite(MessageHandler* handler) {
   value_.SetHeaders(&response_headers_);
   Hasher* hasher = server_context_->hasher();
   full_name_.set_hash(hasher->Hash(contents()));
-  full_name_.set_signature(ComputeSignature());
   computed_url_.clear();  // Since dependent on full_name_.
   writing_complete_ = true;
 }
@@ -210,7 +206,7 @@ GoogleString OutputResource::UrlEvenIfHashNotSet() {
   return result;
 }
 
-void OutputResource::SetHash(StringPiece hash) {
+void OutputResource::SetHash(const StringPiece& hash) {
   CHECK(!writing_complete_);
   CHECK(!has_hash());
   full_name_.set_hash(hash);
@@ -228,8 +224,7 @@ void OutputResource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
 GoogleString OutputResource::decoded_base() const {
   GoogleUrl gurl(url());
   GoogleString decoded_url;
-  if (server_context()->url_namer()->Decode(gurl, rewrite_options(), NULL,
-                                            &decoded_url)) {
+  if (server_context()->url_namer()->Decode(gurl, NULL, &decoded_url)) {
     gurl.Reset(decoded_url);
   }
   return gurl.AllExceptLeaf().as_string();
@@ -275,55 +270,6 @@ void OutputResource::clear_cached_result() {
     cached_result_owned_ = false;
   }
   cached_result_ = NULL;
-}
-
-GoogleString OutputResource::ComputeSignature() {
-  GoogleString signing_key = rewrite_options_->url_signing_key();
-  GoogleString computed_signature;
-  if (!signing_key.empty()) {
-    GoogleString data = HttpCacheKey();
-    int data_length =
-        data.size() -
-        (full_name_.ext().size() + full_name_.hash().size() +
-         full_name_.signature().size() + 2);  // For the two separating dots.
-    const SHA1Signature* signature = rewrite_options_->sha1signature();
-    computed_signature =
-        signature->Sign(signing_key, data.substr(0, data_length));
-  }
-  return computed_signature;
-}
-
-bool OutputResource::CheckSignature() {
-  // If signing isn't enforced, then consider all URLs to be valid and just
-  // ignore the passed signature if there is one.
-  if (rewrite_options_->url_signing_key().empty()) {
-    return true;
-  }
-  GoogleString computed_signature = ComputeSignature();
-  StringPiece provided_signature = full_name_.signature();
-  // The following code is equivalent to "computed_signature ==
-  // provided_signature" but will not short-circuit. This protects us from
-  // timing attacks where someone may be able to figure out the correct
-  // signature by measuring that ones with the correct first N characters take
-  // slightly longer to check. See
-  // http://codahale.com/a-lesson-in-timing-attacks/
-  bool valid =
-      CountCharacterMismatches(computed_signature, provided_signature) == 0;
-  if (!valid) {
-    MessageHandler* handler = server_context_->message_handler();
-    GoogleString message =
-        StrCat("Invalid resource signature for ", UrlEvenIfHashNotSet(),
-               " provided. Expected ", computed_signature, " Received ",
-               provided_signature);
-    handler->Message(
-        kInfo,
-        "Invalid resource signature for %s provided. Expected %s Received %s",
-        UrlEvenIfHashNotSet().c_str(), computed_signature.c_str(),
-        provided_signature.data());
-  }
-  // If signing isn't enforced, return true always, but do this after checking
-  // if the signature was correct for logging purposes.
-  return valid || rewrite_options_->accept_invalid_signatures();
 }
 
 }  // namespace net_instaweb

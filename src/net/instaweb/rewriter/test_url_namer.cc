@@ -23,8 +23,8 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/string_util.h"        // for StringPiece
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string_util.h"        // for StringPiece
 
 namespace net_instaweb {
 
@@ -80,9 +80,9 @@ GoogleString TestUrlNamer::Encode(const RewriteOptions* rewrite_options,
   }
 }
 
-bool TestUrlNamer::Decode(const GoogleUrl& request_url, const RewriteOptions*,
-                          GoogleUrl* owner_domain,
-                          GoogleString* decoded) const {
+bool TestUrlNamer::Decode(const GoogleUrl& request_url,
+                         GoogleUrl* owner_domain,
+                         GoogleString* decoded) const {
   if (!IsPathEncoded(request_url)) {
     return false;
   }

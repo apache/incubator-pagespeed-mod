@@ -18,12 +18,12 @@
 
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
+#include "net/instaweb/util/public/statistics.h"
 
 namespace {
 
@@ -56,8 +56,6 @@ void CssMoveToHeadFilter::StartDocumentImpl() {
 }
 
 void CssMoveToHeadFilter::EndElementImpl(HtmlElement* element) {
-  HtmlElement::Attribute* href;
-  const char* media;
   if (move_to_element_ == NULL) {
     // We record the first we see, either </head> or <script>. That will be
     // the anchor for where to move all styles.
@@ -70,19 +68,17 @@ void CssMoveToHeadFilter::EndElementImpl(HtmlElement* element) {
       move_to_element_ = element;
       element_is_head_ = false;
     }
-  } else if (element->keyword() == HtmlName::kStyle ||
-             css_tag_scanner_.ParseCssElement(element, &href, &media)) {
-    if (noscript_element() != NULL ||
-        (element->keyword() == HtmlName::kStyle &&
-         element->FindAttribute(HtmlName::kScoped) != NULL)) {
-      // Do not move anything out of a <noscript> element, and do not move
-      // <style scoped> elements.  These act as a barrier preventing subsequent
-      // styles from moving to head.
-      move_to_element_ = NULL;
-    } else {
+
+  // Do not move anything out of a <noscript> element.
+  // MoveCurrent* methods will check that that we are allowed to move these
+  // elements into the approriate places.
+  } else if (noscript_element() == NULL) {
+    HtmlElement::Attribute* href;
+    const char* media;
+    if ((element->keyword() == HtmlName::kStyle) ||
+        css_tag_scanner_.ParseCssElement(element, &href, &media)) {
       css_elements_moved_->Add(1);
-      // MoveCurrent* methods will check that that we are allowed to move these
-      // elements into the approriate places.
+
       if (element_is_head_) {
         // Move styles to end of head.
         driver()->MoveCurrentInto(move_to_element_);
@@ -94,7 +90,7 @@ void CssMoveToHeadFilter::EndElementImpl(HtmlElement* element) {
   }
 }
 
-void CssMoveToHeadFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void CssMoveToHeadFilter::DetermineEnabled() {
   set_is_enabled(!driver()->flushed_cached_html());
 }
 

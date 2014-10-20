@@ -21,9 +21,9 @@
 
 #include "net/instaweb/rewriter/public/url_namer.h"
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -44,7 +44,6 @@ class TestUrlNamer : public UrlNamer {
                               EncodeOption encode_option) const;
 
   virtual bool Decode(const GoogleUrl& request_url,
-                      const RewriteOptions* rewrite_options,
                       GoogleUrl* owner_domain,
                       GoogleString* decoded) const;
 

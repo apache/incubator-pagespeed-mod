@@ -17,8 +17,12 @@
 // Author: sligocki@google.com (Shawn Ligocki)
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
@@ -28,22 +32,18 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stdio_file_system.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stdio_file_system.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 
 using net_instaweb::MockMessageHandler;
@@ -965,7 +965,7 @@ TEST_F(CssImageRewriterTest, DummyRuleset) {
       "}\n"
       "@to-infinity and beyond;\n";
   const GoogleString css_after =
-      StrCat("@font-face{font-family:'Robotnik';font-style:normal}"
+      StrCat("@font-face { font-family: 'Robotnik'; font-style: normal }"
              "body{background-image:url(",
              Encode("", "ce", "0", "foo.png", "png"),
              ")}@to-infinity and beyond;");
@@ -1178,34 +1178,6 @@ TEST_F(CssRecompressImagesInStyleAttributes, ServeCssToDifferentUA) {
   EXPECT_EQ(1, TestInlineWithUA("ff", kHtmlInput, kJpegInline, kFF));
   EXPECT_EQ(0, TestInlineWithUA("ie9", kHtmlInput, kJpegInline, kIE9));
   EXPECT_EQ(0, TestInlineWithUA("ie7", kHtmlInput, kJpegFile, kIE7));
-}
-
-TEST_F(CssImageRewriterTest, DebugMessage) {
-  options()->ClearSignatureForTesting();
-  options()->set_image_inline_max_bytes(20000);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kDebug);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineImages);
-  options()->SoftEnableFilterForTesting(RewriteOptions::kRecompressPng);
-  server_context()->ComputeSignature(options());
-  AddFileToMockFetcher(StrCat(kTestDomain, "foo.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  static const char kCss[] =
-      "body {\n"
-      "  background-image: url(foo.png);\n"
-      "}\n";
-
-  const GoogleString kCssAfter = StrCat(
-      "body{background-image:url(",
-      Encode("", "ic", "0", "foo.png", "png"),
-      ")}");
-
-  debug_message_ =
-      "<!--Image does not appear to need resizing.-->"
-      "<!--Image has no transparent pixels and is not sensitive "
-      "to compression noise.-->"
-      "<!--The image was not inlined because it has too many bytes.-->";
-  ValidateRewriteInlineCss("recompress_css_images", kCss, kCssAfter,
-                           kNoStatCheck | kExpectCached);
 }
 
 }  // namespace

@@ -17,14 +17,13 @@
 
 #include "net/instaweb/http/public/async_fetch.h"
 
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/null_mutex.h"
 
 namespace net_instaweb {
 namespace {
@@ -48,8 +47,7 @@ class TestSharedAsyncFetch : public SharedAsyncFetch {
 class AsyncFetchTest : public testing::Test {
  protected:
   AsyncFetchTest()
-      : request_context_(new RequestContext(
-            kDefaultHttpOptionsForTests, new NullMutex, NULL)),
+      : request_context_(new RequestContext(new NullMutex, NULL)),
         string_fetch_(request_context_),
         handler_(new NullMutex) {
   }

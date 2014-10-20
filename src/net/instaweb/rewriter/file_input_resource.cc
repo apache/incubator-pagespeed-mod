@@ -19,18 +19,16 @@
 #include "net/instaweb/rewriter/public/file_input_resource.h"
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace {
 
@@ -40,17 +38,14 @@ const int64 kTimestampUnset = 0;
 
 namespace net_instaweb {
 
-FileInputResource::FileInputResource(const RewriteDriver* driver,
-                                     const ContentType* type, StringPiece url,
-                                     StringPiece filename)
-    : Resource(driver, type),
+FileInputResource::FileInputResource(ServerContext* server_context,
+                                     const ContentType* type,
+                                     const StringPiece& url,
+                                     const StringPiece& filename)
+    : Resource(server_context, type),
       url_(url.data(), url.size()),
       filename_(filename.data(), filename.size()),
-      last_modified_time_sec_(kTimestampUnset),
-      load_from_file_cache_ttl_ms_(
-          driver->options()->load_from_file_cache_ttl_ms()),
-      load_from_file_ttl_set_(
-          driver->options()->load_from_file_cache_ttl_ms_was_set()) {
+      last_modified_time_sec_(kTimestampUnset) {
 }
 
 FileInputResource::~FileInputResource() {
@@ -117,13 +112,8 @@ void FileInputResource::SetDefaultHeaders(const ContentType* content_type,
   // Note(sligocki): We are setting these to get FileInputResources
   // automatically cached for 5 minutes on the sync pathway. We could
   // probably remove it once we kill the sync pathway.
-  int64 cache_ttl_ms;
-  if (load_from_file_ttl_set_) {
-    cache_ttl_ms = load_from_file_cache_ttl_ms_;
-  } else {
-    cache_ttl_ms = header->implicit_cache_ttl_ms();
-  }
-  header->SetDateAndCaching(server_context_->timer()->NowMs(), cache_ttl_ms);
+  header->SetDateAndCaching(server_context_->timer()->NowMs(),
+                            header->implicit_cache_ttl_ms());
   header->SetLastModified(last_modified_time_sec_ * Timer::kSecondMs);
   header->ComputeCaching();
 }

@@ -26,36 +26,6 @@
 
 namespace net_instaweb {
 
-SplitUpDownCounter::SplitUpDownCounter(UpDownCounter* rw, UpDownCounter* w)
-    : rw_(rw), w_(w) {
-}
-
-SplitUpDownCounter::~SplitUpDownCounter() {
-}
-
-void SplitUpDownCounter::Set(int64 value) {
-  w_->Set(value);
-  rw_->Set(value);
-}
-
-int64 SplitUpDownCounter::SetReturningPreviousValue(int64 value) {
-  w_->Set(value);
-  return rw_->SetReturningPreviousValue(value);
-}
-
-int64 SplitUpDownCounter::Get() const {
-  return rw_->Get();
-}
-
-StringPiece SplitUpDownCounter::GetName() const {
-  return rw_->GetName();
-}
-
-int64 SplitUpDownCounter::AddHelper(int delta) {
-  w_->Add(delta);
-  return rw_->Add(delta);
-}
-
 SplitVariable::SplitVariable(Variable* rw, Variable* w)
     : rw_(rw), w_(w) {
 }
@@ -63,20 +33,25 @@ SplitVariable::SplitVariable(Variable* rw, Variable* w)
 SplitVariable::~SplitVariable() {
 }
 
-int64 SplitVariable::Get() const {
-  return rw_->Get();
+void SplitVariable::Set(int64 value) {
+  w_->Set(value);
+  rw_->Set(value);
 }
 
-void SplitVariable::Clear() {
-  w_->Clear();
-  rw_->Clear();
+int64 SplitVariable::SetReturningPreviousValue(int64 value) {
+  w_->Set(value);
+  return rw_->SetReturningPreviousValue(value);
+}
+
+int64 SplitVariable::Get() const {
+  return rw_->Get();
 }
 
 StringPiece SplitVariable::GetName() const {
   return rw_->GetName();
 }
 
-int64 SplitVariable::AddHelper(int delta) {
+int64 SplitVariable::Add(int delta) {
   w_->Add(delta);
   return rw_->Add(delta);
 }
@@ -201,18 +176,8 @@ SplitStatistics::SplitStatistics(
 SplitStatistics::~SplitStatistics() {
 }
 
-SplitUpDownCounter* SplitStatistics::NewUpDownCounter(StringPiece name) {
-  UpDownCounter* local_var = local_->FindUpDownCounter(name);
-  CHECK(local_var != NULL);
-
-  UpDownCounter* global_var = global_->FindUpDownCounter(name);
-  CHECK(global_var != NULL);
-
-  return new SplitUpDownCounter(local_var /* read/write */,
-                                global_var /* write only */);
-}
-
-SplitVariable* SplitStatistics::NewVariable(StringPiece name) {
+SplitVariable* SplitStatistics::NewVariable(const StringPiece& name,
+                                            int index /*unused*/) {
   Variable* local_var = local_->FindVariable(name);
   CHECK(local_var != NULL);
 
@@ -223,20 +188,21 @@ SplitVariable* SplitStatistics::NewVariable(StringPiece name) {
                            global_var /* write only */);
 }
 
-SplitUpDownCounter* SplitStatistics::NewGlobalUpDownCounter(StringPiece name) {
-  UpDownCounter* local_var = local_->FindUpDownCounter(name);
+SplitVariable* SplitStatistics::NewGlobalVariable(
+    const StringPiece& name, int index /* unused */) {
+  Variable* local_var = local_->FindVariable(name);
   CHECK(local_var != NULL);
 
-  UpDownCounter* global_var = global_->FindUpDownCounter(name);
+  Variable* global_var = global_->FindVariable(name);
   CHECK(global_var != NULL);
 
-  // For NewGlobalUpDownCounter we reverse global and local from their usual
+  // For NewGlobalVariable we reverse global and local from their usual
   // behavior in NewVariable, doing reads from the global/aggregate.
-  return new SplitUpDownCounter(global_var /* read/write */,
-                                local_var /* write only */);
+  return new SplitVariable(global_var /* read/write */,
+                           local_var /* write only */);
 }
 
-SplitHistogram* SplitStatistics::NewHistogram(StringPiece name) {
+SplitHistogram* SplitStatistics::NewHistogram(const StringPiece& name) {
   Histogram* local_histo = local_->FindHistogram(name);
   CHECK(local_histo != NULL);
 
@@ -248,7 +214,8 @@ SplitHistogram* SplitStatistics::NewHistogram(StringPiece name) {
                             global_histo /* write only */);
 }
 
-SplitTimedVariable* SplitStatistics::NewTimedVariable(StringPiece name) {
+SplitTimedVariable* SplitStatistics::NewTimedVariable(const StringPiece& name,
+                                                      int index /*unused*/) {
   TimedVariable* local_timed_var = local_->FindTimedVariable(name);
   CHECK(local_timed_var != NULL);
 

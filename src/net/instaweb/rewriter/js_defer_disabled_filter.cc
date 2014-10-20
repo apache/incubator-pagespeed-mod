@@ -18,17 +18,17 @@
 
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
+#include "net/instaweb/util/public/null_message_handler.h"
 
 namespace net_instaweb {
 
@@ -38,7 +38,7 @@ JsDeferDisabledFilter::JsDeferDisabledFilter(RewriteDriver* driver)
 
 JsDeferDisabledFilter::~JsDeferDisabledFilter() { }
 
-void JsDeferDisabledFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void JsDeferDisabledFilter::DetermineEnabled() {
   set_is_enabled(ShouldApply(driver()) &&
                  !driver()->flushing_cached_html() &&
                  !driver()->flushed_cached_html());

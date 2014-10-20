@@ -19,8 +19,8 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SUPPORT_NOSCRIPT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SUPPORT_NOSCRIPT_FILTER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
@@ -36,7 +36,7 @@ class SupportNoscriptFilter : public EmptyHtmlFilter {
   explicit SupportNoscriptFilter(RewriteDriver* rewrite_driver);
   virtual ~SupportNoscriptFilter();
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   virtual void StartElement(HtmlElement* element);
   virtual const char* Name() const { return "SupportNoscript"; }

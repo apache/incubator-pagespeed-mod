@@ -26,19 +26,19 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -268,7 +268,7 @@ bool DelayImagesFilter::ShouldRewriteInplace() const {
             driver_->request_properties()->IsMobile()));
 }
 
-void DelayImagesFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void DelayImagesFilter::DetermineEnabled() {
   AbstractLogRecord* log_record = driver_->log_record();
   if (!driver_->request_properties()->SupportsImageInlining()) {
     log_record->LogRewriterHtmlStatus(

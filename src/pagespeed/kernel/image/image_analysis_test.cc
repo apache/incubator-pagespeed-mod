@@ -27,7 +27,6 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_analysis.h"
 #include "pagespeed/kernel/image/read_image.h"
-#include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_utils.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
@@ -38,66 +37,43 @@ using net_instaweb::MockMessageHandler;
 using net_instaweb::NullMutex;
 using pagespeed::image_compression::GRAY_8;
 using pagespeed::image_compression::Histogram;
-using pagespeed::image_compression::ImageFormat;
 using pagespeed::image_compression::IMAGE_GIF;
 using pagespeed::image_compression::IMAGE_JPEG;
-using pagespeed::image_compression::IMAGE_PNG;
-using pagespeed::image_compression::IMAGE_UNKNOWN;
 using pagespeed::image_compression::kGifTestDir;
 using pagespeed::image_compression::kJpegTestDir;
 using pagespeed::image_compression::kNumColorHistogramBins;
-using pagespeed::image_compression::kPngSuiteTestDir;
 using pagespeed::image_compression::PixelFormat;
 using pagespeed::image_compression::ReadImage;
 using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::RGB_888;
 using pagespeed::image_compression::RGBA_8888;
-using pagespeed::image_compression::ScanlineReaderInterface;
 using pagespeed::image_compression::SynthesizeImage;
 
 struct ImageInfo {
   const char* file_name;
-  int width;
-  int height;
-  // For a single frame image, "is_progressive" reports that whether the image
-  // was progressively encoded; for a multiple frame image, "is_progressive" is
-  // always false.
-  bool is_progressive;
-  bool is_animated;
   bool is_photo;
   bool has_transparency;
-  int quality;
 };
 
 const ImageInfo kJpegImages[] = {
-  {"quality100", 200, 200, false, false, false, false, 100},
-  {"progressive", 200, 200, true, false, false, false, 100},
-  {"sjpeg1", 120, 90, false, false, false, false, 93},
-  {"sjpeg6", 512, 512, false, false, false, false, 100},
-  {"sjpeg3", 512, 384, false, false, true, false, 89},
-  {"sjpeg4", 512, 384, false, false, true, false, 100},
-  {"already_optimized", 130, 97, false, false, true, false, 85},
-  {"test444", 130, 97, false, false, true, false, 85},
+  {"quality100", false, false},
+  {"sjpeg1", false, false},
+  {"sjpeg6", false, false},
+  {"sjpeg3", true, false},
+  {"sjpeg4", true, false},
+  {"already_optimized", true, false},
+  {"test444", true, false}
 };
 const size_t kJpegImageCount = arraysize(kJpegImages);
 // In kJpegImages[], the images at position kJpegImageFirstPhotoIdx and later
 // are photos.
-const size_t kJpegImageFirstPhotoIdx = 4;
+const size_t kJpegImageFirstPhotoIdx = 3;
 
 const ImageInfo kGifImages[] = {
-  {"transparent", 320, 320, true, false, false, true, -1},
-  {"interlaced", 213, 323, true, false, true, false, -1},
-  {"animated", 120, 50, false, true, false, false, -1},
-  {"animated_interlaced", 120, 50, false, true, false, false, -1},
+  {"transparent", false, true},
+  {"interlaced", true, false},
 };
 const size_t kGifImageCount = arraysize(kGifImages);
-
-const ImageInfo kPngImages[] = {
-  {"basi0g04", 32, 32, true, false, false, false, -1},
-  {"basi3p02", 32, 32, true, false, false, false, -1},
-  {"basn6a16", 32, 32, false, false, false, true, -1},
-};
-const size_t kPngImageCount = arraysize(kPngImages);
 
 class ImageAnalysisTest : public testing::Test {
  public:
@@ -134,49 +110,6 @@ class ImageAnalysisTest : public testing::Test {
     // Verify the gradient.
     EXPECT_EQ(0, memcmp(gradient.get(), expected_gradient,
                         width * height * sizeof(gradient[0])));
-  }
-
-  void VerifyKeyInformation(ImageFormat image_format, const char* dir,
-                            const char* ext, const ImageInfo* images,
-                            int num_images) {
-    for (size_t i = 0; i < num_images; ++i) {
-      GoogleString image_string;
-      ASSERT_TRUE(ReadTestFile(dir, images[i].file_name, ext, &image_string));
-
-      int width = -1;
-      int height = -1;
-      bool is_progressive = false;
-      bool is_animated = false;
-      bool has_transparency = false;
-      bool is_photo = false;
-      int quality = -1;
-      ScanlineReaderInterface* reader = NULL;
-
-      EXPECT_TRUE(AnalyzeImage(image_format, image_string.data(),
-                               image_string.length(), &width, &height,
-                               &is_progressive, &is_animated,
-                               &has_transparency, &is_photo, &quality, &reader,
-                               &message_handler_));
-      EXPECT_EQ(images[i].width, width);
-      EXPECT_EQ(images[i].height, height);
-      EXPECT_EQ(images[i].is_progressive, is_progressive);
-      EXPECT_EQ(images[i].is_animated, is_animated);
-      EXPECT_EQ(images[i].has_transparency, has_transparency);
-      EXPECT_EQ(images[i].quality, quality);
-
-      bool expected_is_photo = images[i].is_photo;
-      if (image_format == IMAGE_JPEG) {
-        expected_is_photo = true;
-      }
-      EXPECT_EQ(expected_is_photo, is_photo);
-
-      if (is_animated || image_format != IMAGE_JPEG) {
-        EXPECT_EQ(static_cast<ScanlineReaderInterface*>(NULL), reader);
-      } else {
-        EXPECT_NE(static_cast<ScanlineReaderInterface*>(NULL), reader);
-      }
-      delete reader;
-    }
   }
 
  protected:
@@ -360,13 +293,20 @@ TEST_F(ImageAnalysisTest, PhotoMetric) {
   }
 }
 
-TEST_F(ImageAnalysisTest, KeyInformation) {
-  VerifyKeyInformation(IMAGE_GIF, kGifTestDir, "gif", kGifImages,
-                       kGifImageCount);
-  VerifyKeyInformation(IMAGE_JPEG, kJpegTestDir, "jpg", kJpegImages,
-                       kJpegImageCount);
-  VerifyKeyInformation(IMAGE_PNG, kPngSuiteTestDir, "png", kPngImages,
-                       kPngImageCount);
+TEST_F(ImageAnalysisTest, PhotoTransparency) {
+  for (size_t i = 0; i < kGifImageCount; ++i) {
+    GoogleString image_string;
+    ASSERT_TRUE(ReadTestFile(kGifTestDir, kGifImages[i].file_name, "gif",
+                             &image_string));
+
+    bool has_transparency = false;
+    bool is_photo = false;
+    EXPECT_TRUE(AnalyzeImage(IMAGE_GIF, image_string.data(),
+                             image_string.length(), &message_handler_,
+                             &has_transparency, &is_photo));
+    EXPECT_EQ(kGifImages[i].has_transparency, has_transparency);
+    EXPECT_EQ(kGifImages[i].is_photo, is_photo);
+  }
 }
 
 }  // namespace

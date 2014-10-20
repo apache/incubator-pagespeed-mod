@@ -21,7 +21,6 @@
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/statistics_template.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/timer.h"
@@ -37,9 +36,7 @@ const char kVar1[] = "v1";
 const char kVar2[] = "num_flushes";
 const char kHist1[] = "H1";
 const char kHist2[] = "Html Time us Histogram";
-
-// We cannot init the logger unless all stats are initialized.
-const char kStatsLogFile[] = "";
+const char kStatsLogFile[] = "mod_pagespeed_stats.log";
 
 }  // namespace
 
@@ -65,9 +62,8 @@ void SharedMemStatisticsTestBase::SetUp() {
       new MockTimer(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms));
   file_system_.reset(new MemFileSystem(thread_system_.get(), timer_.get()));
   stats_.reset(new SharedMemStatistics(
-      kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, false /* no logging */,
-      kPrefix, shmem_runtime_.get(), &handler_, file_system_.get(),
-      timer_.get()));
+      kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, true, kPrefix,
+      shmem_runtime_.get(), &handler_, file_system_.get(), timer_.get()));
 }
 
 void SharedMemStatisticsTestBase::TearDown() {
@@ -82,8 +78,8 @@ bool SharedMemStatisticsTestBase::CreateChild(TestMethod method) {
 }
 
 bool SharedMemStatisticsTestBase::AddVars(SharedMemStatistics* stats) {
-  UpDownCounter* v1 = stats->AddUpDownCounter(kVar1);
-  UpDownCounter* v2 = stats->AddUpDownCounter(kVar2);
+  Variable* v1 = stats->AddVariable(kVar1);
+  Variable* v2 = stats->AddVariable(kVar2);
   return ((v1 != NULL) && (v2 != NULL));
 }
 
@@ -95,9 +91,8 @@ bool SharedMemStatisticsTestBase::AddHistograms(SharedMemStatistics* stats) {
 
 SharedMemStatistics* SharedMemStatisticsTestBase::ChildInit() {
   scoped_ptr<SharedMemStatistics> stats(new SharedMemStatistics(
-      kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, false /* no logging */,
-      kPrefix, shmem_runtime_.get(), &handler_, file_system_.get(),
-      timer_.get()));
+          kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, true, kPrefix,
+          shmem_runtime_.get(), &handler_, file_system_.get(), timer_.get()));
   if (!AddVars(stats.get()) || !AddHistograms(stats.get())) {
     test_env_->ChildFailed();
     return NULL;
@@ -117,8 +112,8 @@ void SharedMemStatisticsTestBase::TestCreate() {
   // Basic initialization/reading/cleanup test
   ParentInit();
 
-  UpDownCounter* v1 = stats_->GetUpDownCounter(kVar1);
-  UpDownCounter* v2 = stats_->GetUpDownCounter(kVar2);
+  Variable* v1 = stats_->GetVariable(kVar1);
+  Variable* v2 = stats_->GetVariable(kVar2);
   EXPECT_EQ(0, v1->Get());
   EXPECT_EQ(0, v2->Get());
   Histogram* hist1 = stats_->GetHistogram(kHist1);
@@ -133,10 +128,10 @@ void SharedMemStatisticsTestBase::TestCreate() {
 void SharedMemStatisticsTestBase::TestCreateChild() {
   scoped_ptr<SharedMemStatistics> stats(ChildInit());
 
-  UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
+  Variable* v1 = stats->GetVariable(kVar1);
   Histogram* hist1 = stats->GetHistogram(kHist1);
   stats->Init(false, &handler_);
-  UpDownCounter* v2 = stats->GetUpDownCounter(kVar2);
+  Variable* v2 = stats->GetVariable(kVar2);
   Histogram* hist2 = stats->GetHistogram(kHist2);
   // We create one var & hist before SHM attach, one after for test coverage.
 
@@ -153,8 +148,8 @@ void SharedMemStatisticsTestBase::TestSet() {
   // -> Set works as well, propagates right
   ParentInit();
 
-  UpDownCounter* v1 = stats_->GetUpDownCounter(kVar1);
-  UpDownCounter* v2 = stats_->GetUpDownCounter(kVar2);
+  Variable* v1 = stats_->GetVariable(kVar1);
+  Variable* v2 = stats_->GetVariable(kVar2);
   EXPECT_EQ(0, v1->Get());
   EXPECT_EQ(0, v2->Get());
   v1->Set(3);
@@ -171,9 +166,9 @@ void SharedMemStatisticsTestBase::TestSet() {
 void SharedMemStatisticsTestBase::TestSetChild() {
   scoped_ptr<SharedMemStatistics> stats(ChildInit());
 
-  UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
+  Variable* v1 = stats->GetVariable(kVar1);
   stats->Init(false, &handler_);
-  UpDownCounter* v2 = stats->GetUpDownCounter(kVar2);
+  Variable* v2 = stats->GetVariable(kVar2);
 
   v1->Set(v1->Get() * v1->Get());
   v2->Set(v2->Get() * v2->Get());
@@ -183,8 +178,8 @@ void SharedMemStatisticsTestBase::TestClear() {
   // We can clear things from the kid
   ParentInit();
 
-  UpDownCounter* v1 = stats_->GetUpDownCounter(kVar1);
-  UpDownCounter* v2 = stats_->GetUpDownCounter(kVar2);
+  Variable* v1 = stats_->GetVariable(kVar1);
+  Variable* v2 = stats_->GetVariable(kVar2);
   EXPECT_EQ(0, v1->Get());
   EXPECT_EQ(0, v2->Get());
   v1->Set(3);
@@ -231,8 +226,8 @@ void SharedMemStatisticsTestBase::TestClearChild() {
 void SharedMemStatisticsTestBase::TestAdd() {
   ParentInit();
 
-  UpDownCounter* v1 = stats_->GetUpDownCounter(kVar1);
-  UpDownCounter* v2 = stats_->GetUpDownCounter(kVar2);
+  Variable* v1 = stats_->GetVariable(kVar1);
+  Variable* v2 = stats_->GetVariable(kVar2);
   Histogram* hist1 = stats_->GetHistogram(kHist1);
   Histogram* hist2 = stats_->GetHistogram(kHist2);
   EXPECT_EQ(0, v1->Get());
@@ -263,7 +258,7 @@ void SharedMemStatisticsTestBase::TestAdd() {
 void SharedMemStatisticsTestBase::TestSetReturningPrevious() {
   ParentInit();
 
-  UpDownCounter* v1 = stats_->GetUpDownCounter(kVar1);
+  Variable* v1 = stats_->GetVariable(kVar1);
   EXPECT_EQ(0, v1->Get());
   EXPECT_EQ(0, v1->SetReturningPreviousValue(5));
   EXPECT_EQ(5, v1->SetReturningPreviousValue(-3));
@@ -274,8 +269,8 @@ void SharedMemStatisticsTestBase::TestSetReturningPrevious() {
 void SharedMemStatisticsTestBase::TestAddChild() {
   scoped_ptr<SharedMemStatistics> stats(ChildInit());
   stats->Init(false, &handler_);
-  UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
-  UpDownCounter* v2 = stats->GetUpDownCounter(kVar2);
+  Variable* v1 = stats->GetVariable(kVar1);
+  Variable* v2 = stats->GetVariable(kVar2);
   Histogram* hist1 = stats->GetHistogram(kHist1);
   Histogram* hist2 = stats->GetHistogram(kHist2);
   v1->Add(1);
@@ -454,7 +449,7 @@ void SharedMemStatisticsTestBase::TestHistogramExtremeBuckets() {
 void SharedMemStatisticsTestBase::TestTimedVariableEmulation() {
   // Simple test of timed variable emulation. Not using ParentInit
   // here since we want to add some custom things.
-  UpDownCounter* a = stats_->AddUpDownCounter("A");
+  Variable* a = stats_->AddVariable("A");
   TimedVariable* b = stats_->AddTimedVariable("B", "some group");
   stats_->Init(true, &handler_);
 

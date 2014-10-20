@@ -22,13 +22,14 @@
 #include <set>
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/vector_deque.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/vector_deque.h"
-#include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
@@ -60,8 +61,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   }
 
   ResourcePtr resource() const { return resource_; }
-  // Return HTML element associated with slot, or NULL if none (CSS, IPRO)
-  virtual HtmlElement* element() const = 0;
 
   // Note that while slots can be mutated by multiple threads; they are
   // implemented with thread-safety in mind -- only mainline render their
@@ -198,7 +197,7 @@ class FetchResourceSlot : public ResourceSlot {
   explicit FetchResourceSlot(const ResourcePtr& resource)
       : ResourceSlot(resource) {
   }
-  virtual HtmlElement* element() const { return NULL; }
+
   virtual void Render();
   virtual GoogleString LocationString();
 
@@ -217,8 +216,8 @@ class HtmlResourceSlot : public ResourceSlot {
                    HtmlElement::Attribute* attribute,
                    RewriteDriver* driver);
 
-  virtual HtmlElement* element() const { return element_; }
-  HtmlElement::Attribute* attribute() const { return attribute_; }
+  HtmlElement* element() { return element_; }
+  HtmlElement::Attribute* attribute() { return attribute_; }
 
   virtual void Render();
   virtual GoogleString LocationString();

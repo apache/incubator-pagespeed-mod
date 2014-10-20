@@ -21,38 +21,36 @@
 #include <cstddef>
 
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"  // for ScopedMutex
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/abstract_mutex.h"  // for ScopedMutex
+#include "net/instaweb/util/public/file_system_lock_manager.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mem_file_system.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/platform.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_synchronizer.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/statistics_template.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
-#include "pagespeed/kernel/thread/thread_synchronizer.h"
-#include "pagespeed/kernel/util/file_system_lock_manager.h"
-#include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/util/simple_stats.h"
 
 namespace net_instaweb {
 
@@ -224,9 +222,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
   CacheUrlAsyncFetcherTest()
       : lru_cache_(1000),
         thread_system_(Platform::CreateThreadSystem()),
-        statistics_(thread_system_.get()),
         timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
-        http_options_(kDefaultHttpOptionsForTests),
         cache_url_("http://www.example.com/cacheable.html"),
         cache_css_url_("http://www.example.com/cacheable.css"),
         cache_https_html_url_("https://www.example.com/cacheable.html"),
@@ -408,8 +404,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
     fetch_response_headers.set_implicit_cache_ttl_ms(implicit_cache_ttl_ms_);
     fetch_response_headers.set_min_cache_ttl_ms(min_cache_ttl_ms_);
     MockFetch* fetch = new MockFetch(
-        RequestContextPtr(new RequestContext(
-            http_options_, thread_system_->NewMutex(), NULL)),
+        RequestContext::NewTestRequestContext(thread_system_.get()),
         &fetch_content, &fetch_done, &fetch_success, &is_cacheable);
     fetch->set_cache_result_valid(cache_result_valid_);
     fetch->request_headers()->CopyFrom(request_headers);
@@ -591,13 +586,13 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
     headers->ComputeCaching();
   }
 
+  SimpleStats statistics_;
+
   LRUCache lru_cache_;
   scoped_ptr<ThreadSystem> thread_system_;
-  SimpleStats statistics_;
   MockTimer timer_;
   MockHasher mock_hasher_;
   scoped_ptr<HTTPCache> http_cache_;
-  HttpOptions http_options_;
 
   scoped_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
 
@@ -1507,7 +1502,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForNonHtml) {
 
   // Respect Vary is enabled. Vary: Accept-Encoding is cached.
   cache_fetcher_->set_respect_vary(true);
-  http_options_.respect_vary = true;
   ExpectCache(vary_url_, vary_body_);
   lru_cache_.Clear();
 
@@ -1519,7 +1513,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForNonHtml) {
 
   // Respect Vary is disabled. Vary: Accept-Encoding,User-Agent is cached.
   cache_fetcher_->set_respect_vary(false);
-  http_options_.respect_vary = false;
   ExpectCache(vary_url_, vary_body_);
   lru_cache_.Clear();
 
@@ -1532,7 +1525,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForNonHtml) {
 
   // Respect Vary is enabled. Vary: Cookie is not cached.
   cache_fetcher_->set_respect_vary(true);
-  http_options_.respect_vary = true;
   ExpectNoCache(vary_url_, vary_body_);
 
   // Without clearing the cache send a request with cookies in the request. This
@@ -1547,14 +1539,12 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForNonHtml) {
 
   // Respect Vary is disabled, but Vary: Cookie is still not cached.
   cache_fetcher_->set_respect_vary(false);
-  http_options_.respect_vary = false;
   ExpectNoCacheWithRequestHeaders(vary_url_, vary_body_,
                                   request_headers_with_cookies);
 
   // Without clearing the cache, change respect vary to true. We should not
   // fetch the response that was inserted into the cache above.
   cache_fetcher_->set_respect_vary(true);
-  http_options_.respect_vary = true;
   ExpectNoCacheWithRequestHeaders(vary_url_, vary_body_,
                                   request_headers_with_cookies);
 
@@ -1579,7 +1569,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForHtml) {
 
   // Respect Vary is enabled. Vary: Accept-Encoding is cached.
   cache_fetcher_->set_respect_vary(true);
-  http_options_.respect_vary = true;
   ExpectCache(vary_url_, vary_body_);
   lru_cache_.Clear();
 
@@ -1591,7 +1580,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForHtml) {
 
   // Respect Vary is disabled. Vary: Accept-Encoding,User-Agent is not cached.
   cache_fetcher_->set_respect_vary(false);
-  http_options_.respect_vary = false;
   ExpectNoCache(vary_url_, vary_body_);
   lru_cache_.Clear();
 
@@ -1605,7 +1593,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForHtml) {
   // Respect Vary is enabled. Vary: Cookie is cached. Note that the request has
   // no cookies.
   cache_fetcher_->set_respect_vary(true);
-  http_options_.respect_vary = true;
   ExpectCache(vary_url_, vary_body_);
 
   // Without clearing the cache send a request with cookies in the request. This
@@ -1623,7 +1610,6 @@ TEST_F(CacheUrlAsyncFetcherTest, CacheVaryForHtml) {
   // Respect Vary is disabled. Vary: Cookie is not cached since the request has
   // cookies set.
   cache_fetcher_->set_respect_vary(false);
-  http_options_.respect_vary = false;
   ExpectNoCacheWithRequestHeaders(vary_url_, vary_body_,
                                   request_headers_with_cookies);
   lru_cache_.Clear();

@@ -29,8 +29,14 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/critical_css.pb.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
@@ -39,19 +45,13 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -162,7 +162,7 @@ CriticalCssFilter::CriticalCssFilter(RewriteDriver* driver,
 CriticalCssFilter::~CriticalCssFilter() {
 }
 
-void CriticalCssFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void CriticalCssFilter::DetermineEnabled() {
   bool is_ie = driver()->user_agent_matcher()->IsIe(driver()->user_agent());
   if (is_ie) {
     // Disable critical CSS for IE because conditional-comments are not handled
@@ -178,9 +178,6 @@ void CriticalCssFilter::DetermineEnabled(GoogleString* disabled_reason) {
     driver()->log_record()->LogRewriterHtmlStatus(
         RewriteOptions::FilterId(RewriteOptions::kPrioritizeCriticalCss),
         RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED);
-
-    *disabled_reason = StrCat("User agent '", driver()->user_agent(),
-                              "' appears to be Internet Explorer");
   }
   set_is_enabled(!is_ie);
 }
@@ -444,7 +441,7 @@ GoogleString CriticalCssFilter::DecodeUrl(const GoogleString& url) {
       return decoded_urls.at(0);
     } else {
       driver()->InfoHere("Critical CSS: Unable to process combined URL: %s",
-                         url.c_str());
+                         url.data());
       return "";
     }
   }
@@ -456,7 +453,7 @@ const CriticalCssResult_LinkRules* CriticalCssFilter::GetLinkRules(
   UrlIndexes::const_iterator it = url_indexes_.find(decoded_url);
   if (it == url_indexes_.end()) {
     driver()->InfoHere("Critical CSS rules not found for URL: %s",
-                       decoded_url.c_str());
+                       decoded_url.data());
     return NULL;
   }
 

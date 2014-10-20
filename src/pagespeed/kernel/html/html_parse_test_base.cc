@@ -34,8 +34,8 @@ const char HtmlParseTestBaseNoAlloc::kXhtmlDtd[] =
 HtmlParseTestBaseNoAlloc::~HtmlParseTestBaseNoAlloc() {
 }
 
-void HtmlParseTestBaseNoAlloc::ParseUrl(StringPiece url,
-                                        StringPiece html_input) {
+void HtmlParseTestBaseNoAlloc::ParseUrl(const StringPiece& url,
+                                        const StringPiece& html_input) {
   // We don't add the filter in the constructor because it needs to be the
   // last filter added.
   SetupWriter();
@@ -44,9 +44,9 @@ void HtmlParseTestBaseNoAlloc::ParseUrl(StringPiece url,
   html_parse()->FinishParse();
 }
 
-bool HtmlParseTestBaseNoAlloc::ValidateExpected(StringPiece case_id,
-                                                StringPiece html_input,
-                                                StringPiece expected) {
+bool HtmlParseTestBaseNoAlloc::ValidateExpected(const StringPiece& case_id,
+                                                const GoogleString& html_input,
+                                                const GoogleString& expected) {
   Parse(case_id, html_input);
   GoogleString xbody = doctype_string_ + AddHtmlBody(expected);
   EXPECT_EQ(xbody, output_buffer_) << "Test id:" << case_id;
@@ -56,7 +56,9 @@ bool HtmlParseTestBaseNoAlloc::ValidateExpected(StringPiece case_id,
 }
 
 bool HtmlParseTestBaseNoAlloc::ValidateExpectedUrl(
-    StringPiece url, StringPiece html_input, StringPiece expected) {
+    const StringPiece& url,
+    const GoogleString& html_input,
+    const GoogleString& expected) {
   ParseUrl(url, html_input);
   GoogleString xbody = doctype_string_ + AddHtmlBody(expected);
   EXPECT_EQ(xbody, output_buffer_) << "Test url:" << url;
@@ -66,7 +68,9 @@ bool HtmlParseTestBaseNoAlloc::ValidateExpectedUrl(
 }
 
 void HtmlParseTestBaseNoAlloc::ValidateExpectedFail(
-    StringPiece case_id, StringPiece html_input, StringPiece expected) {
+    const StringPiece& case_id,
+    const GoogleString& html_input,
+    const GoogleString& expected) {
   Parse(case_id, html_input);
   GoogleString xbody = AddHtmlBody(expected);
   EXPECT_NE(xbody, output_buffer_) << "Test id:" << case_id;

@@ -103,9 +103,7 @@
         'kernel/base/posix_timer.cc',
         'kernel/base/request_trace.cc',
         'kernel/base/rolling_hash.cc',
-        'kernel/base/sha1_signature.cc',
         'kernel/base/shared_string.cc',
-        'kernel/base/signature.cc',
         'kernel/base/source_map.cc',
         'kernel/base/split_statistics.cc',
         'kernel/base/split_writer.cc',
@@ -116,7 +114,6 @@
       'dependencies': [
         'pagespeed_base_core',
         '<(DEPTH)/third_party/jsoncpp/jsoncpp.gyp:jsoncpp',
-        '<(DEPTH)/third_party/serf/openssl.gyp:openssl',
       ],
     },
     {
@@ -271,9 +268,7 @@
       'type': '<(library)',
       'sources': [
         'kernel/http/data_url.cc',
-        'kernel/http/domain_registry.cc',
         'kernel/http/headers.cc',
-        'kernel/http/http_options.cc',
         'kernel/http/response_headers_parser.cc',
         'kernel/http/response_headers.cc',
         'kernel/http/request_headers.cc',
@@ -281,7 +276,6 @@
         'kernel/http/user_agent_normalizer.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/third_party/domain_registry_provider/src/domain_registry/domain_registry.gyp:init_registry_tables_lib',
         'pagespeed_http_core',
         'pagespeed_http_gperf',
         'pagespeed_http_pb',
@@ -313,19 +307,6 @@
       'sources': [
         'kernel/http/http.proto',
         '<(protoc_out_dir)/<(instaweb_protoc_subdir)/http.pb.cc',
-      ],
-      'includes': [
-        '../net/instaweb/protoc.gypi',
-      ],
-    },
-    {
-      'target_name': 'pagespeed_image_types_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'pagespeed/kernel/http',
-      },
-      'sources': [
-        'kernel/http/image_types.proto',
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/image_types.pb.cc',
       ],
       'includes': [
         '../net/instaweb/protoc.gypi',
@@ -411,12 +392,11 @@
       'type': '<(library)',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/build/libwebp.gyp:libwebp_enc',
-        '<(DEPTH)/build/libwebp.gyp:libwebp_enc_mux',
-        '<(DEPTH)/build/libwebp.gyp:libwebp_dec',
         '<(DEPTH)/third_party/giflib/giflib.gyp:dgiflib',
         '<(DEPTH)/third_party/libjpeg_turbo/libjpeg_turbo.gyp:libjpeg_turbo',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+        '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp_enc',
+        '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp_dec',
         '<(DEPTH)/third_party/optipng/optipng.gyp:opngreduc',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
@@ -439,7 +419,6 @@
       ],
       'include_dirs': [
         '<(DEPTH)',
-        '<(DEPTH)/third_party/libwebp/src',
       ],
       'msvs_disabled_warnings': [
         4996,  # std::string::copy() is deprecated on Windows, but we use it,
@@ -456,7 +435,6 @@
       'target_name': 'pagespeed_image_test_util',
       'type': '<(library)',
       'sources': [
-        'kernel/image/gif_square.cc',
         'kernel/image/jpeg_optimizer_test_helper.cc',
         'kernel/image/test_utils.cc',
       ],
@@ -472,7 +450,6 @@
       'dependencies': [
         ':kernel_test_util',
         ':pagespeed_image_processing',
-        '<(DEPTH)/third_party/giflib/giflib.gyp:egiflib',
       ],
     },
     {

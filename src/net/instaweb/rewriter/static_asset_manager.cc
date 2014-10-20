@@ -22,29 +22,31 @@
 #include <memory>
 #include <utility>
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/doctype.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/doctype.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
+extern const char* CSS_console_css;
 extern const char* JS_add_instrumentation;
 extern const char* JS_add_instrumentation_opt;
 extern const char* JS_client_domain_rewriter;
 extern const char* JS_client_domain_rewriter_opt;
+extern const char* JS_console_js;
+extern const char* JS_console_js_opt;
 extern const char* JS_critical_css_beacon;
 extern const char* JS_critical_css_beacon_opt;
 extern const char* JS_critical_css_loader;
@@ -75,8 +77,7 @@ extern const char* JS_split_html_beacon;
 extern const char* JS_split_html_beacon_opt;
 
 // TODO(jud): use the data2c build flow to create this data.
-const unsigned char GIF_blank[] = {
-  0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x1, 0x0, 0x1,
+const char GIF_blank[] = { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x1, 0x0, 0x1,
   0x0, 0x80, 0x0, 0x0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x21, 0xfe, 0x6,
   0x70, 0x73, 0x61, 0x5f, 0x6c, 0x6c, 0x0, 0x21, 0xf9, 0x4, 0x1, 0xa, 0x0, 0x1,
   0x0, 0x2c, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x2, 0x2, 0x4c, 0x1,
@@ -115,10 +116,10 @@ StaticAssetManager::StaticAssetManager(
       library_url_prefix_(kDefaultLibraryUrlPrefix) {
   InitializeAssetStrings();
 
-  // Note: We use these default options because the actual options will
-  // not affect what we are computing here.
-  ResponseHeaders header(kDeprecatedDefaultHttpOptions);
-  header.SetDateAndCaching(0, ServerContext::kCacheTtlForMismatchedContentMs);
+  ResponseHeaders header;
+  // TODO(ksimbili): Define a new constant kShortCacheTtlForMismatchedContentMs
+  // in ServerContext for 5min.
+  header.SetDateAndCaching(0, ResponseHeaders::kDefaultImplicitCacheTtlMs);
   cache_header_with_private_ttl_ = StrCat(
       header.Lookup1(HttpAttributes::kCacheControl),
       ",private");
@@ -165,6 +166,7 @@ void StaticAssetManager::InitializeAssetStrings() {
       StrCat(JS_js_defer_opt, "\n", JS_panel_loader_opt);
   assets_[kBlinkJs]->file_name = "blink";
   assets_[kClientDomainRewriter]->file_name = "client_domain_rewriter";
+  assets_[kConsoleJs]->file_name = "console_js";
   assets_[kCriticalCssBeaconJs]->file_name = "critical_css_beacon";
   assets_[kCriticalCssLoaderJs]->file_name = "critical_css_loader";
   assets_[kCriticalImagesBeaconJs]->file_name = "critical_images_beacon";
@@ -186,6 +188,7 @@ void StaticAssetManager::InitializeAssetStrings() {
   assets_[kBlinkJs]->js_optimized = blink_js_string.c_str();
   assets_[kClientDomainRewriter]->js_optimized =
       JS_client_domain_rewriter_opt;
+  assets_[kConsoleJs]->js_optimized = JS_console_js_opt;
   assets_[kCriticalCssBeaconJs]->js_optimized = JS_critical_css_beacon_opt;
   assets_[kCriticalCssLoaderJs]->js_optimized = JS_critical_css_loader_opt;
   assets_[kCriticalImagesBeaconJs]->js_optimized =
@@ -208,6 +211,7 @@ void StaticAssetManager::InitializeAssetStrings() {
   // unit test expects debug code to include comments->
   assets_[kBlinkJs]->js_debug = blink_js_string.c_str();
   assets_[kClientDomainRewriter]->js_debug = JS_client_domain_rewriter;
+  assets_[kConsoleJs]->js_debug = JS_console_js;
   assets_[kCriticalCssBeaconJs]->js_debug = JS_critical_css_beacon;
   assets_[kCriticalCssLoaderJs]->js_debug = JS_critical_css_loader;
   assets_[kCriticalImagesBeaconJs]->js_debug = JS_critical_images_beacon;
@@ -226,11 +230,15 @@ void StaticAssetManager::InitializeAssetStrings() {
   // Initialize non-JS assets
 
   assets_[kBlankGif]->file_name = "1";
-  assets_[kBlankGif]->js_optimized.append(
-      reinterpret_cast<const char*>(GIF_blank), GIF_blank_len);
-  assets_[kBlankGif]->js_debug.append(
-      reinterpret_cast<const char*>(GIF_blank), GIF_blank_len);
+  assets_[kBlankGif]->js_optimized.append(GIF_blank, GIF_blank_len);
+  assets_[kBlankGif]->js_debug.append(GIF_blank, GIF_blank_len);
   assets_[kBlankGif]->content_type = kContentTypeGif;
+
+  assets_[kConsoleCss]->file_name = "console_css";
+  // TODO(sligocki): Do we want to have a minified version of console CSS?
+  assets_[kConsoleCss]->js_optimized = CSS_console_css;
+  assets_[kConsoleCss]->js_debug = CSS_console_css;
+  assets_[kConsoleCss]->content_type = kContentTypeCss;
 
   for (std::vector<Asset*>::iterator it = assets_.begin();
        it != assets_.end(); ++it) {

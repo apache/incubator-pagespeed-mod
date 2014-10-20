@@ -18,20 +18,20 @@
 
 #include "net/instaweb/rewriter/public/css_summarizer_base.h"
 
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/semantic_type.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
 
@@ -244,23 +244,22 @@ class CssSummarizerBaseTest : public RewriteTestBase {
     return FinishTest(full_pre_comment, post_comment);
   }
 
-  void VerifyUnauthNotRendered(StringPiece summary_comment) {
+  void VerifyUnauthNotRendered() {
     FullTest("will_not_render", "", "");
     EXPECT_STREQ(
-        StrCat("<html>\n"
+        StrCat("<html>\n",
                "<style>* {display: none; }</style>",
                CssLinkHref("a.css"),
                StrCat("<!--WillNotRender:2 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("b.css"),
-                      "<!--WillNotRender:3 --- ParseOrCloseStyleTagError-->",
+                       CssLinkHref("b.css")),
+               StrCat("<!--WillNotRender:3 --- ParseOrCloseStyleTagError-->",
                        CssLinkHref("c.css")),
                StrCat("<!--WillNotRender:4 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("close_style_tag.css"),
-                      "<!--WillNotRender:5 --- FetchError-->",
+                       CssLinkHref("close_style_tag.css")),
+               StrCat("<!--WillNotRender:5 --- FetchError-->",
                        CssLinkHref("404.css")),
                StrCat("<!--WillNotRender:6 --- ResourceError-->",
                        CssLinkHref("http://evil.com/d.css")),
-               summary_comment,
                StrCat("<!--", kExpectedResult, "-->")),
         output_buffer_);
   }
@@ -295,7 +294,7 @@ TEST_F(CssSummarizerBaseTest, RenderSummary) {
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummary) {
   filter_->set_will_not_render_summaries_in_place(true);
-  VerifyUnauthNotRendered(/* summary_comment= */ "");
+  VerifyUnauthNotRendered();
 }
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWithUnauthEnabled) {
@@ -303,31 +302,7 @@ TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWithUnauthEnabled) {
   options()->ClearSignatureForTesting();
   options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
   server_context()->ComputeSignature(options());
-  VerifyUnauthNotRendered(/* summary_comment= */ "");
-}
-
-TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWithDebug) {
-  filter_->set_will_not_render_summaries_in_place(true);
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kDebug);
-  server_context()->ComputeSignature(options());
-  const char kDebugSummary[] =
-      "<!--Summary computation status for Minify10\n"
-      "Resource 0 http://test.com/will_not_render:2: Computed OK\n"
-      "Resource 1 http://test.com/a.css: Computed OK\n"
-      "Resource 2 http://test.com/b.css: "
-      "Unrecoverable CSS parse error or resource contains closing style tag\n"
-      "Resource 3 http://test.com/c.css: "
-      "Unrecoverable CSS parse error or resource contains closing style tag\n"
-      "Resource 4 http://test.com/close_style_tag.css: "
-      "Unrecoverable CSS parse error or resource contains closing style tag\n"
-      "Resource 5 http://test.com/404.css: "
-      "Fetch failed or resource not publicly cacheable\n"
-      "Resource 6 http://evil.com/d.css: Cannot create resource: either its "
-      "domain is unauthorized and InlineUnauthorizedResources is not enabled, "
-      "or it cannot be fetched (check the server logs)\n"
-      "-->";
-  VerifyUnauthNotRendered(kDebugSummary);
+  VerifyUnauthNotRendered();
 }
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWait) {
@@ -376,13 +351,11 @@ TEST_F(CssSummarizerBaseTest, IgnoreNonSummarizable) {
   Parse("non-summarizable",
         "<style>* { background: blue; }</style>"
         "<style pagespeed_no_defer>div {display:none;}</style>"
-        "<style scoped>p {display:none;}</style>"
         "<link rel=stylesheet href='b.css' pagespeed_no_defer>"
         "<link rel=stylesheet href='a.css'>");
   EXPECT_STREQ("<html>\n"
                "<style>*{backgrou</style>"
                "<style pagespeed_no_defer>div {display:none;}</style>"
-               "<style scoped>p {display:none;}</style>"
                "<link rel=stylesheet href='b.css' pagespeed_no_defer>"
                "<style>div{displa</style>\n"
                "<!--OK/*{backgrou|OK/div{displa/rel=stylesheet|--></html>",

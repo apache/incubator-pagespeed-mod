@@ -22,9 +22,9 @@
 #include <cstddef>
 
 #include "net/instaweb/http/public/http_cache.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
@@ -56,8 +56,8 @@ class WriteThroughHTTPCache : public HTTPCache {
                     MessageHandler* handler,
                     Callback* callback);
 
-  // Implements HTTPCache::DeleteInternal().
-  virtual void DeleteInternal(const GoogleString& key_fragment);
+  // Implements HTTPCache::Delete().
+  virtual void Delete(const GoogleString& key, const GoogleString& fragment);
 
   // Implements HTTPCache::set_force_caching().
   virtual void set_force_caching(bool force);

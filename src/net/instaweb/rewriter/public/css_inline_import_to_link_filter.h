@@ -19,8 +19,8 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_IMPORT_TO_LINK_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_IMPORT_TO_LINK_FILTER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
@@ -31,17 +31,10 @@ class Statistics;
 class Variable;
 
 // Filter to rewrite style tags of the form:
-//   <style type="text/css" ...>
-//     @import url(URL1);
-//     @import url(URL2);
-//     foobar
-//   </style>
+//   <style type="text/css" ...>@import url(URL) ;</style>
 // to
-//   <link type="text/css" ... rel="stylesheet" href="URL1"/>
-//   <link type="text/css" ... rel="stylesheet" href="URL2"/>
-//   <style type="text/css" ...>
-//     foobar
-//   </style>
+//   <link type="text/css" ... rel="stylesheet" href="URL"/>
+//
 class CssInlineImportToLinkFilter : public EmptyHtmlFilter {
  public:
   explicit CssInlineImportToLinkFilter(RewriteDriver* driver,

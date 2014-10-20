@@ -23,7 +23,11 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
@@ -35,16 +39,12 @@
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "pagespeed/kernel/base/proto_util.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/base/writer.h"  // for Writer
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/writer.h"  // for Writer
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 
 namespace net_instaweb {
@@ -102,7 +102,7 @@ void RecordingFetch::HandleHeadersComplete() {
   streaming_ = ShouldStream();
   if (can_in_place_rewrite_) {
     // Save the headers, and wait to finalize them in HandleDone().
-    saved_headers_.reset(new ResponseHeaders(*response_headers()));
+    saved_headers_.CopyFrom(*response_headers());
     if (streaming_) {
       SharedAsyncFetch::HandleHeadersComplete();
     }
@@ -127,15 +127,9 @@ void RecordingFetch::HandleHeadersComplete() {
       // to us.
       streaming_ = false;
       set_request_headers(NULL);
-      // If we cannot rewrite in-place, we should not serve a 200/OK.  Serve
-      // kNotInCacheStatus instead to fall back to the server's native method of
-      // serving the url and indicate we do want it recorded.
-      if (!response_headers()->IsErrorStatus()) {
-        response_headers()->set_status_code(
-            CacheUrlAsyncFetcher::kNotInCacheStatus);
-      }
       set_response_headers(NULL);
       set_extra_response_headers(NULL);
+      response_headers()->set_status_code(HttpStatus::kNotFound);
       SharedAsyncFetch::HandleDone(false);
     }
   }
@@ -201,10 +195,10 @@ void RecordingFetch::HandleDone(bool success) {
     int64 ocl;
     if (original_content_length_hdr != NULL &&
         StringToInt64(original_content_length_hdr, &ocl)) {
-      saved_headers_->SetOriginalContentLength(ocl);
+      saved_headers_.SetOriginalContentLength(ocl);
     }
     // Now finalize the headers.
-    cache_value_writer_.SetHeaders(saved_headers_.get());
+    cache_value_writer_.SetHeaders(&saved_headers_);
   }
 
   if (streaming_) {
@@ -249,7 +243,7 @@ bool RecordingFetch::CanInPlaceRewrite() {
     return false;
   }
   if (type->type() == ContentType::kCss ||
-      type->IsJs() ||
+      type->type() == ContentType::kJavascript ||
       type->IsImage()) {
     RewriteDriver* driver = context_->Driver();
     HTTPCache* const cache = driver->server_context()->http_cache();
@@ -390,7 +384,6 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
                                                   id(), "-", rewritten_hash_)));
     }
     headers->set_implicit_cache_ttl_ms(Options()->implicit_cache_ttl_ms());
-    headers->set_min_cache_ttl_ms(Options()->min_cache_ttl_ms());
     headers->ComputeCaching();
     int64 expire_at_ms = kint64max;
     int64 date_ms = kint64max;
@@ -466,8 +459,8 @@ RewriteFilter* InPlaceRewriteContext::GetRewriteFilter(
       options->Enabled(RewriteOptions::kRewriteCss)) {
     return Driver()->FindFilter(RewriteOptions::kCssFilterId);
   }
-  if (type.IsJs() &&
-      options->Enabled(RewriteOptions::kRewriteJavascriptExternal)) {
+  if (type.type() == ContentType::kJavascript &&
+      options->Enabled(RewriteOptions::kRewriteJavascript)) {
     return Driver()->FindFilter(RewriteOptions::kJavascriptMinId);
   }
   if (type.IsImage() && options->ImageOptimizationEnabled()) {

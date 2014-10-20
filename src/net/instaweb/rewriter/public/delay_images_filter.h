@@ -72,8 +72,8 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_DELAY_IMAGES_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -100,7 +100,7 @@ class DelayImagesFilter : public CommonFilter {
 
   virtual const char* Name() const { return "DelayImages"; }
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   static void InitStats(Statistics* statistics);
   static void Terminate();

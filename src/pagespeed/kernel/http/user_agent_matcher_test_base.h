@@ -46,7 +46,6 @@ class UserAgentMatcherTestBase : public testing::Test {
   static const char kChrome12UserAgent[];
   static const char kChrome15UserAgent[];
   static const char kChrome18UserAgent[];
-  static const char kChrome37UserAgent[];
   static const char kChrome9UserAgent[];
   static const char kChromeUserAgent[];
   static const char kCompalUserAgent[];
@@ -64,15 +63,10 @@ class UserAgentMatcherTestBase : public testing::Test {
   static const char kIe7UserAgent[];
   static const char kIe8UserAgent[];
   static const char kIe9UserAgent[];
-  static const char kIe10UserAgent[];
-  static const char kIPadChrome28UserAgent[];
-  static const char kIPadChrome29UserAgent[];
-  static const char kIPadChrome36UserAgent[];
   static const char kIPadTabletUserAgent[];
   static const char kIPadUserAgent[];
   static const char kIPhone4Safari[];
   static const char kIPhoneChrome21UserAgent[];
-  static const char kIPhoneChrome36UserAgent[];
   static const char kIPhoneUserAgent[];
   static const char kIPodSafari[];
   static const char kiUserAgent[];
@@ -125,7 +119,6 @@ class UserAgentMatcherTestBase : public testing::Test {
   static const char kSpiceUserAgent[];
   static const char kTIANYUUserAgent[];
   static const char kVodafoneMobileUserAgent[];
-  static const char kWindowsPhoneUserAgent[];
   static const char kWinWAPUserAgent[];
   static const char kXWapProfile[];
   static const char kXWapProfileHeaderValue[];

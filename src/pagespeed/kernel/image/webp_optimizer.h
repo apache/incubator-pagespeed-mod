@@ -19,14 +19,11 @@
 #ifndef PAGESPEED_KERNEL_IMAGE_WEBP_OPTIMIZER_H_
 #define PAGESPEED_KERNEL_IMAGE_WEBP_OPTIMIZER_H_
 
-// For libwebp, encode.h must be included before gif2webp_util.h.
 #include <cstddef>
-#include "third_party/libwebp/src/webp/encode.h"
-#include "third_party/libwebp/examples/gif2webp_util.h"
+#include "third_party/libwebp/webp/encode.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/image_frame_interface.h"
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
@@ -79,87 +76,66 @@ struct WebpConfiguration {
   // WebPConfig, please update the CopyTo() method.
 };
 
-class WebpFrameWriter : public MultipleFrameWriter {
+
+class WebpScanlineWriter : public ScanlineWriterInterface {
  public:
-  explicit WebpFrameWriter(MessageHandler* handler);
-  virtual ~WebpFrameWriter();
+  explicit WebpScanlineWriter(MessageHandler* handler);
+  virtual ~WebpScanlineWriter();
 
-  // Sets the WebP configuration to be 'config', which should be a
+  virtual ScanlineStatus InitWithStatus(const size_t width, const size_t height,
+                                        PixelFormat pixel_format);
+  // Sets the WebP configuration to be 'params', which should be a
   // WebpConfiguration* and should not be NULL.
-  virtual ScanlineStatus Initialize(const void* config, GoogleString* out);
-
-  // image_spec must remain valid for the lifetime of
-  // WebpFrameWriter.
-  virtual ScanlineStatus PrepareImage(const ImageSpec* image_spec);
-
-  // frame_spec must remain valid while the frame is being written.
-  virtual ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec);
-
-  virtual ScanlineStatus WriteNextScanline(const void *scanline_bytes);
+  virtual ScanlineStatus InitializeWriteWithStatus(const void* params,
+                                                   GoogleString* const out);
+  virtual ScanlineStatus WriteNextScanlineWithStatus(
+      const void *scanline_bytes);
 
   // Note that even after WriteNextScanline() has been called,
-  // Initialize() and FinalizeWrite() may be called repeatedly to
+  // InitializeWrite() and FinalizeWrite() may be called repeatedly to
   // write the image with, say, different configs.
-  virtual ScanlineStatus FinalizeWrite();
+  virtual ScanlineStatus FinalizeWriteWithStatus();
+
+  MessageHandler* message_handler() {
+    return message_handler_;
+  }
 
  private:
-  // The function to be called by libwebp's progress hook (with 'this'
-  // as the user data), which in turn will call the user-supplied function
-  // in progress_hook_, passing it progress_hook_data_.
-  static int ProgressHook(int percent, const WebPPicture* picture);
+  // Number of bytes per row. See
+  // https://developers.google.com/speed/webp/docs/api#encodingapi
+  int stride_bytes_;
 
-  // Commits the just-read frame to the animation cache.
-  ScanlineStatus CacheCurrentFrame();
+  // Allocated pointer to the start of memory for the RGB(A) data.
+  uint8_t* rgb_;
 
-  // Utility function to deallocate libwebp-defined data structures.
-  void FreeWebpStructs();
+  // Pointer to the end of the RGB(A) data (i.e. to the first byte
+  // after the allocated memory).
+  uint8_t* rgb_end_;
 
-  // This class does NOT own image_spec_.
-  const ImageSpec* image_spec_;
-  FrameSpec frame_spec_;
-
-  // Zero-based index of the next frame (after the current one) to be
-  // written.
-  size_px next_frame_;
-
-  // Zero-based index of the next scanline to be written.
-  size_px next_scanline_;
-
-  // Flag to indicate whether the current frame is empty, due to at
-  // least one of its dimensions being zero. Note that all frames must
-  // fit completely within their image (see the comment in
-  // image_frame_interface.h), so out-of-bounds frames are not
-  // considered here.
-  bool empty_frame_;
-
-  // Number of pixels to advance by exactly one row.
-  size_px frame_stride_px_;
-
-  // Pointer to the next pixel to be written via WriteNextScanline().
-  uint32_t* frame_position_px_;
-
-  // The number of bytes per pixel in the current frame.
-  uint32_t frame_bytes_per_pixel_;
+  // Pointer to the next byte of RGB(A) data to be filled in.
+  uint8_t* position_bytes_;
 
   // libwebp objects for the WebP generation.
-  WebPPicture* webp_image_;
-  WebPPicture webp_frame_;
-  WebPFrameCache* webp_frame_cache_;
-  WebPMux* webp_mux_;
-  WebPConfig webp_config_;
-
+  WebPPicture picture_;
+  WebPConfig* config_;
 #ifndef NDEBUG
   WebPAuxStats stats_;
 #endif
 
   // Pointer to the webp output.
-  GoogleString* output_image_;
+  GoogleString* webp_image_;
 
   // Whether the image has an alpha channel.
   bool has_alpha_;
 
-  // Whether PrepareImage() has been called successfully.
-  bool image_prepared_;
+  // Whether Init() has been called successfully.
+  bool init_ok_;
+
+  // Whether WebPPictureImport* has been called.
+  bool imported_;
+
+  // Whether all the scanlines have been written.
+  bool got_all_scanlines_;
 
   // The user-supplied progress hook.
   WebpConfiguration::WebpProgressHook progress_hook_;
@@ -169,12 +145,19 @@ class WebpFrameWriter : public MultipleFrameWriter {
   // take ownership of this pointer.
   void* progress_hook_data_;
 
+  // The function to be called by libwebp's progress hook (with 'this'
+  // as the user data), which in turn will call the user-supplied function
+  // in progress_hook_, passing it progress_hook_data_.
+  static int ProgressHook(int percent, const WebPPicture* picture);
+
   // WebP does not have native support for gray scale images. The workaround
   // is to replicate the luminance to RGB; then WebP can compress the expanded
   // images efficiently.
   bool should_expand_gray_to_rgb_;
 
-  DISALLOW_COPY_AND_ASSIGN(WebpFrameWriter);
+  MessageHandler* message_handler_;
+
+  DISALLOW_COPY_AND_ASSIGN(WebpScanlineWriter);
 };
 
 // WebpScanlineReader decodes WebP images. It returns a scanline (a row of
@@ -206,8 +189,6 @@ class WebpScanlineReader : public ScanlineReaderInterface {
   virtual PixelFormat GetPixelFormat() { return pixel_format_; }
   virtual size_t GetImageHeight() { return height_; }
   virtual size_t GetImageWidth() {  return width_; }
-  // WebP does not have progressive mode.
-  virtual bool IsProgressive() { return false; }
 
  private:
   // Buffer and length of the input (compressed) image.

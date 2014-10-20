@@ -29,9 +29,9 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -126,8 +126,8 @@ class CacheableResourceBase : public Resource {
   RewriteDriver* rewrite_driver_;
   Variable* hits_;
   Variable* recent_fetch_failures_;
-  Variable* recent_uncacheables_miss_;
-  Variable* recent_uncacheables_failure_;
+  Variable* recent_uncacheables_treated_as_miss_;
+  Variable* recent_uncacheables_treated_as_failure_;
   Variable* misses_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheableResourceBase);

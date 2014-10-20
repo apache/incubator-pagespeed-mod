@@ -22,9 +22,9 @@
 #include <map>
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -38,9 +38,6 @@ struct ContentType;
 // Composes URLs for the javascript files injected by the various PSA filters.
 // TODO(ksimbili): Refactor out the common base class to serve the static files
 // of type css, images or html etc.
-// TODO(xqyin): Refactor out StaticAssetManager to have shared infrastructure
-// used by both RewriteStaticAssetManager and SystemStaticAssetManager. Now the
-// JS files in system/ are done directly in AdminSite.
 class StaticAssetManager {
  public:
   static const char kGStaticBase[];
@@ -51,6 +48,8 @@ class StaticAssetManager {
     kBlankGif,
     kBlinkJs,
     kClientDomainRewriter,
+    kConsoleCss,
+    kConsoleJs,
     kCriticalCssBeaconJs,
     kCriticalCssLoaderJs,
     kCriticalImagesBeaconJs,

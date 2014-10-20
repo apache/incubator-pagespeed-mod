@@ -18,18 +18,18 @@
 
 #include "net/instaweb/rewriter/public/common_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class HtmlElement;
@@ -70,8 +70,7 @@ class CommonFilterTest : public RewriteTestBase {
   }
 
   bool CanRewriteResource(CommonFilter* filter, const StringPiece& url) {
-    bool unused;
-    ResourcePtr resource(filter->CreateInputResource(url, &unused));
+    ResourcePtr resource(filter->CreateInputResource(url));
     return (resource.get() != NULL);
   }
 

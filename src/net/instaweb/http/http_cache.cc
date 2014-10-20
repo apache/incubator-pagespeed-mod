@@ -22,18 +22,18 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
@@ -248,14 +248,10 @@ class HTTPCacheCallback : public CacheInterface::Callback {
 
     // TODO(gee): Perhaps all of this belongs in TimingInfo.
     int64 elapsed_us = std::max(static_cast<int64>(0), now_us - start_us_);
-    http_cache_->cache_time_us()->Add(elapsed_us);
+    http_cache_->UpdateStats(key_, fragment_, backend_state, result,
+                             !callback_->fallback_http_value()->Empty(),
+                             is_expired, elapsed_us, handler_);
     callback_->ReportLatencyMs(elapsed_us/1000);
-    if (callback_->update_stats_on_failure() ||
-        (result == HTTPCache::kFound)) {
-      http_cache_->UpdateStats(key_, fragment_, backend_state, result,
-                               !callback_->fallback_http_value()->Empty(),
-                               is_expired, handler_);
-    }
     if (result != HTTPCache::kFound) {
       headers->Clear();
       callback_->http_value()->Clear();
@@ -287,7 +283,9 @@ void HTTPCache::Find(const GoogleString& key, const GoogleString& fragment,
 void HTTPCache::UpdateStats(
     const GoogleString& key, const GoogleString& fragment,
     CacheInterface::KeyState backend_state, FindResult result,
-    bool has_fallback, bool is_expired, MessageHandler* handler) {
+    bool has_fallback, bool is_expired, int64 delta_us,
+    MessageHandler* handler) {
+  cache_time_us_->Add(delta_us);
   if (backend_state == CacheInterface::kAvailable) {
     cache_backend_hits_->Add(1);
   } else {
@@ -407,6 +405,7 @@ void HTTPCache::PutInternal(
   if (cache_time_us_ != NULL) {
     int64 delta_us = timer_->NowUs() - start_us;
     cache_time_us_->Add(delta_us);
+    cache_inserts_->Add(1);
   }
 }
 
@@ -415,21 +414,19 @@ void HTTPCache::PutInternal(
 // config.
 void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
                     RequestHeaders::Properties req_properties,
-                    const HttpOptions& http_options,
+                    ResponseHeaders::VaryOption respect_vary_on_resources,
                     HTTPValue* value, MessageHandler* handler) {
   int64 start_us = timer_->NowUs();
   // Extract headers and contents.
-  ResponseHeaders headers(http_options);
+  ResponseHeaders headers;
   bool success = value->ExtractHeaders(&headers, handler);
   DCHECK(success);
   if (!MayCacheUrl(key, headers)) {
     return;
   }
   if (!force_caching_ &&
-      !(headers.IsProxyCacheable(
-          req_properties,
-          ResponseHeaders::GetVaryOption(http_options.respect_vary),
-          ResponseHeaders::kHasValidator) &&
+      !(headers.IsProxyCacheable(req_properties, respect_vary_on_resources,
+                                 ResponseHeaders::kHasValidator) &&
         IsCacheableBodySize(value->contents_size()))) {
     LOG(DFATAL) << "trying to Put uncacheable data for key=" << key
                 << " fragment=" << fragment;
@@ -441,10 +438,6 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
   // Put into underlying cache.
   if (new_value != NULL) {
     PutInternal(key, fragment, start_us, new_value);
-    if (cache_inserts_ != NULL) {
-      cache_inserts_->Add(1);
-    }
-
     // Delete new_value if it is newly allocated.
     if (new_value != value) {
       delete new_value;
@@ -477,9 +470,6 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
   // Put into underlying cache.
   if (value.get() != NULL) {
     PutInternal(key, fragment, start_us, value.get());
-    if (cache_inserts_ != NULL) {
-      cache_inserts_->Add(1);
-    }
   }
 }
 
@@ -510,11 +500,7 @@ bool HTTPCache::MayCacheUrl(const GoogleString& url,
 
 void HTTPCache::Delete(const GoogleString& key, const GoogleString& fragment) {
   cache_deletes_->Add(1);
-  DeleteInternal(CompositeKey(key, fragment));
-}
-
-void HTTPCache::DeleteInternal(const GoogleString& key_fragment) {
-  cache_->Delete(key_fragment);
+  return cache_->Delete(CompositeKey(key, fragment));
 }
 
 void HTTPCache::InitStats(Statistics* statistics) {

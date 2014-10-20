@@ -21,11 +21,11 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/system/public/system_server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 struct request_rec;
 struct server_rec;
@@ -162,8 +162,6 @@ class ApacheServerContext : public SystemServerContext {
     ReportNotFoundHelper(kInfo, message, request,
                          rewrite_stats()->slurp_404_count());
   }
-
-  virtual GoogleString FormatOption(StringPiece option_name, StringPiece args);
 
  private:
   virtual bool UpdateCacheFlushTimestampMs(int64 timestamp_ms);

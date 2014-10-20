@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdlib>
 #include <vector>
 
 #include "pagespeed/kernel/base/string.h"
@@ -354,7 +353,8 @@ GoogleString CEscape(const StringPiece& src) {
 // but we don't need any other aspect of protobufs so we don't want to
 // incur the link cost.
 bool HasPrefixString(const StringPiece& str, const StringPiece& prefix) {
-  return str.starts_with(prefix);
+  return ((str.size() >= prefix.size()) &&
+          (str.substr(0, prefix.size()) == prefix));
 }
 
 // From src/third_party/protobuf/src/google/protobuf/stubs/strutil.h
@@ -462,16 +462,6 @@ StringPiece PieceAfterEquals(const StringPiece& piece) {
     return ret;
   }
   return StringPiece(piece.data(), 0);
-}
-
-int CountCharacterMismatches(StringPiece s1, StringPiece s2) {
-  int s1_length = s1.size();
-  int s2_length = s2.size();
-  int mismatches = 0;
-  for (int i = 0, n = std::min(s1_length, s2_length); i < n; ++i) {
-    mismatches += s1[i] != s2[i];
-  }
-  return mismatches + std::abs(s1_length - s2_length);
 }
 
 void ParseShellLikeString(const StringPiece& input,

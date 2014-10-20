@@ -17,21 +17,21 @@
 #include "net/instaweb/rewriter/public/js_inline_filter.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/rewriter/public/inline_rewrite_context.h"
-#include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
+#include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/statistics.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/re2.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/util/re2.h"
 
 namespace net_instaweb {
 
@@ -43,9 +43,8 @@ class JsInlineFilter::Context : public InlineRewriteContext {
           HtmlElement::Attribute* src)
       : InlineRewriteContext(filter, element, src), filter_(filter) {}
 
-  virtual bool ShouldInline(const ResourcePtr& resource,
-                            GoogleString* reason) const {
-    return filter_->ShouldInline(resource, reason);
+  virtual bool ShouldInline(const ResourcePtr& resource) const {
+    return filter_->ShouldInline(resource);
   }
 
   virtual void RenderInline(
@@ -111,22 +110,17 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
   should_inline_ = false;
 }
 
-bool JsInlineFilter::ShouldInline(const ResourcePtr& resource,
-                                  GoogleString* reason) const {
+bool JsInlineFilter::ShouldInline(const ResourcePtr& resource) const {
   // Don't inline if it's too big or looks like it's trying to get at its own
   // url.
 
   StringPiece contents(resource->contents());
   if (contents.size() > size_threshold_bytes_) {
-    *reason = StrCat("JS not inlined since it's bigger than ",
-                     Integer64ToString(size_threshold_bytes_),
-                     " bytes");
     return false;
   }
 
   if (driver()->options()->avoid_renaming_introspective_javascript() &&
       JavascriptCodeBlock::UnsafeToRename(contents)) {
-    *reason = "JS not inlined since it may be looking for its source";
     return false;
   }
 

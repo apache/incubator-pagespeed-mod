@@ -22,6 +22,10 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/css_inline_filter.h"
@@ -34,20 +38,15 @@
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/charset_util.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/charset_util.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -59,21 +58,17 @@ namespace {
 // A slot we use when rewriting inline CSS --- there is no place or need
 // to write out an output URL, so it has a no-op Render().
 // TODO(morlovich): Dupe'd from CssFilter; refactor?
-class InlineCssSummarizerSlot : public ResourceSlot {
+class InlineCssSlot : public ResourceSlot {
  public:
-  InlineCssSummarizerSlot(HtmlElement* element,
-                          const ResourcePtr& resource,
-                          const GoogleString& location)
-      : ResourceSlot(resource), element_(element), location_(location) {}
-  virtual ~InlineCssSummarizerSlot() {}
-  virtual HtmlElement* element() const { return element_; }
+  InlineCssSlot(const ResourcePtr& resource, const GoogleString& location)
+      : ResourceSlot(resource), location_(location) {}
+  virtual ~InlineCssSlot() {}
   virtual void Render() {}
   virtual GoogleString LocationString() { return location_; }
 
  private:
-  HtmlElement* element_;
   GoogleString location_;
-  DISALLOW_COPY_AND_ASSIGN(InlineCssSummarizerSlot);
+  DISALLOW_COPY_AND_ASSIGN(InlineCssSlot);
 };
 
 }  // namespace
@@ -347,14 +342,10 @@ void CssSummarizerBase::EndDocument() {
 void CssSummarizerBase::StartElementImpl(HtmlElement* element) {
   // HtmlParse should not pass us elements inside a style element.
   CHECK(style_element_ == NULL);
-  if (element->keyword() == HtmlName::kStyle &&
-      element->FindAttribute(HtmlName::kScoped) == NULL) {
+  if (element->keyword() == HtmlName::kStyle) {
     style_element_ = element;
   }
   // We deal with <link> elements in EndElement.
-  // We ignore scoped style elements, as they are already inlined,
-  // can't safely be moved, and take precedence in cascade order
-  // regardless of their position relative to non-scoped CSS.
 }
 
 void CssSummarizerBase::Characters(HtmlCharactersNode* characters_node) {
@@ -447,9 +438,7 @@ void CssSummarizerBase::ReportSummariesDone() {
           break;
       }
     }
-    GoogleString escaped;
-    HtmlKeywords::Escape(comment, &escaped);
-    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, escaped));
+    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, comment));
   }
   for (int i = 0, n = summaries_.size(); i < n; ++i) {
     if (summaries_[i].state == kSummaryOk) {
@@ -463,7 +452,7 @@ void CssSummarizerBase::ReportSummariesDone() {
 
 void CssSummarizerBase::StartInlineRewrite(
     HtmlElement* style, HtmlCharactersNode* text) {
-  ResourceSlotPtr slot(MakeSlotForInlineCss(style, text->contents()));
+  ResourceSlotPtr slot(MakeSlotForInlineCss(text->contents()));
   Context* context =
       CreateContextAndSummaryInfo(style, false /* not external */,
                                   slot, slot->LocationString(),
@@ -476,9 +465,7 @@ void CssSummarizerBase::StartInlineRewrite(
 void CssSummarizerBase::StartExternalRewrite(
     HtmlElement* link, HtmlElement::Attribute* src, StringPiece rel) {
   // Create the input resource for the slot.
-  bool is_authorized;
-  ResourcePtr input_resource(CreateInputResource(src->DecodedValueOrNull(),
-                                                 &is_authorized));
+  ResourcePtr input_resource(CreateInputResource(src->DecodedValueOrNull()));
   if (input_resource.get() == NULL) {
     // Record a failure, so the subclass knows of it.
     summaries_.push_back(SummaryInfo());
@@ -492,13 +479,8 @@ void CssSummarizerBase::StartExternalRewrite(
 
     // TODO(morlovich): Stat?
     if (DebugMode()) {
-      if (is_authorized || url == NULL) {
-        driver()->InsertComment(StrCat(
-            Name(), ": ", kCreateResourceFailedDebugMsg));
-      } else {
-        // Do not write a debug message in this case because that has already
-        // been done by the CSS rewriting filter.
-      }
+      driver()->InsertComment(StrCat(
+          Name(), ": ", kCreateResourceFailedDebugMsg));
     }
     return;
   }
@@ -511,15 +493,15 @@ void CssSummarizerBase::StartExternalRewrite(
 }
 
 ResourceSlot* CssSummarizerBase::MakeSlotForInlineCss(
-    HtmlElement* element, const StringPiece& content) {
+    const StringPiece& content) {
   // Create the input resource for the slot.
   GoogleString data_url;
   // TODO(morlovich): This does a lot of useless conversions and
   // copying. Get rid of them.
   DataUrl(kContentTypeCss, PLAIN, content, &data_url);
-  ResourcePtr input_resource(DataUrlInputResource::Make(data_url, driver()));
-  return new InlineCssSummarizerSlot(
-      element, input_resource, driver()->UrlLine());
+  ResourcePtr input_resource(DataUrlInputResource::Make(data_url,
+                                                        server_context()));
+  return new InlineCssSlot(input_resource, driver()->UrlLine());
 }
 
 CssSummarizerBase::Context* CssSummarizerBase::CreateContextAndSummaryInfo(

@@ -19,25 +19,23 @@
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
-#include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/escaping.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -176,7 +174,7 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
     }
   }
 
-  const RequestTimingInfo& timing_info =
+  const RequestContext::TimingInfo& timing_info =
       driver()->request_context()->timing_info();
   int64 header_fetch_ms;
   if (timing_info.GetFetchHeaderLatencyMs(&header_fetch_ms)) {
@@ -220,10 +218,6 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
   StrAppend(&js, "'", html_url, "');");
 
   return js;
-}
-
-void AddInstrumentationFilter::DetermineEnabled(GoogleString* disabled_reason) {
-  set_is_enabled(!driver()->request_properties()->IsBot());
 }
 
 }  // namespace net_instaweb

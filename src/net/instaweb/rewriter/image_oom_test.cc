@@ -22,14 +22,14 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/image_test_base.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/gtest.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/http/image_types.pb.h"
 
 namespace net_instaweb {
 namespace {
@@ -93,7 +93,7 @@ TEST_F(ImageOomTest, BlankImageNotTooLarge) {
 #endif
 
   Image::CompressionOptions* options = new Image::CompressionOptions();
-  ImagePtr not_too_large(BlankImageWithOptions(4096, 2048, IMAGE_PNG,
+  ImagePtr not_too_large(BlankImageWithOptions(100000, 10000, IMAGE_PNG,
                                                GTestTempDir(), &timer_,
                                                &message_handler_, options));
   // Image of this size can be created.

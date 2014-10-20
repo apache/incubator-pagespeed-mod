@@ -21,9 +21,9 @@
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -45,7 +45,7 @@ class SplitHtmlHelperFilter : public CommonFilter {
   explicit SplitHtmlHelperFilter(RewriteDriver* rewrite_driver);
   virtual ~SplitHtmlHelperFilter();
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   virtual void StartDocumentImpl();
   virtual void EndDocument();

@@ -30,6 +30,10 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_filter.h"
@@ -37,29 +41,20 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/url_partnership.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/js/js_keywords.h"
-#include "pagespeed/kernel/js/js_tokenizer.h"
-
-using pagespeed::JsKeywords;
 
 namespace net_instaweb {
 
@@ -103,8 +98,10 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
 
     // In strict mode of ES262-5 eval runs in a private variable scope,
     // (see 10.4.2 step 3 and 10.4.2.1), so our transformation is not safe.
-    if (IsLikelyStrictMode(filter_->server_context()->js_tokenizer_patterns(),
-                           resource->contents())) {
+    // Strict mode is identified by 'use strict' or "use strict" string literals
+    // (escape-free) in some contexts. As a conservative approximation, we just
+    // look for the text
+    if (resource->contents().find("use strict") != StringPiece::npos) {
       *failure_reason = "Combining strict mode files unsupported";
       return false;
     }
@@ -217,19 +214,21 @@ class JsCombineFilter::Context : public RewriteContext {
 
   // Create and add the slot that corresponds to this element.
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
-    ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
-        href->DecodedValueOrNull(), element));
-    if (resource.get() == NULL) {
-      return false;
+    bool ret = true;
+    ResourcePtr resource(filter_->CreateInputResource(
+        href->DecodedValueOrNull()));
+    if (resource.get() != NULL) {
+      ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
+      AddSlot(slot);
+      fresh_combination_ = false;
+      elements_.push_back(element);
+      // Extract the charset, if any, from the element while it's valid.
+      StringPiece elements_charset(element->AttributeValue(HtmlName::kCharset));
+      elements_charset.CopyToString(StringVectorAdd(&elements_charsets_));
+    } else {
+      ret = false;
     }
-    ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
-    AddSlot(slot);
-    fresh_combination_ = false;
-    elements_.push_back(element);
-    // Extract the charset, if any, from the element while it's valid.
-    StringPiece elements_charset(element->AttributeValue(HtmlName::kCharset));
-    elements_charset.CopyToString(StringVectorAdd(&elements_charsets_));
-    return true;
+    return ret;
   }
 
   // If we get a flush in the middle of things, we may have put a
@@ -377,9 +376,9 @@ class JsCombineFilter::Context : public RewriteContext {
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
   virtual GoogleString CacheKeySuffix() const {
-    // Updated to make sure certain bugfixes actually deploy, and we don't
-    // end up using old broken cached version.
-    return "v4";
+    // Force recompute on update: not critical, but if we don't we may keep
+    // using nested URLs for a while.
+    return "v3";
   }
 
  private:
@@ -428,8 +427,8 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlElement* original = html_slot->element();
     HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
     Driver()->InsertNodeBeforeNode(original, element);
-    GoogleString var_name = filter_->VarName(Driver(),
-                                             html_slot->resource()->url());
+    GoogleString var_name = filter_->VarName(
+        FindServerContext(), html_slot->resource()->url());
     HtmlNode* script_code = Driver()->NewCharactersNode(
         element, StrCat("eval(", var_name, ");"));
     Driver()->AppendChild(element, script_code);
@@ -457,7 +456,7 @@ bool JsCombineFilter::JsCombiner::WritePiece(
   // TODO(morlovich): And now we're not updating some stats instead.
   // Factor out that bit in JsFilter.
   const RewriteOptions* options = rewrite_driver_->options();
-  if (options->Enabled(RewriteOptions::kRewriteJavascriptExternal)) {
+  if (options->Enabled(RewriteOptions::kRewriteJavascript)) {
     JavascriptCodeBlock* code_block = BlockForResource(input);
     if (code_block->successfully_rewritten()) {
       not_escaped = code_block->rewritten_code();
@@ -467,7 +466,7 @@ bool JsCombineFilter::JsCombiner::WritePiece(
   // We write out code of each script into a variable.
   writer->Write(StrCat("var ",
                        JsCombineFilter::VarName(
-                           rewrite_driver_, input->url()),
+                           filter_->server_context(), input->url()),
                        " = "),
                 handler);
 
@@ -513,43 +512,6 @@ JsCombineFilter::~JsCombineFilter() {
 
 void JsCombineFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kJsFileCountReduction);
-}
-
-bool JsCombineFilter::IsLikelyStrictMode(
-    const pagespeed::js::JsTokenizerPatterns* jstp, StringPiece input) {
-  pagespeed::js::JsTokenizer tokenizer(jstp, input);
-
-  // The prolog is spec'd as a sequence of expression statements
-  // consisting only of string literals at beginning of a scope.
-  // If one of them is 'use strict' then it indicates strict mode.
-  // Rather than worry about finer points of the grammar we basically
-  // accept any mixture of strings, semicolons and whitespace.
-  while (true) {
-    StringPiece token_text;
-    JsKeywords::Type token_type = tokenizer.NextToken(&token_text);
-    switch (token_type) {
-      case JsKeywords::kComment:
-      case JsKeywords::kWhitespace:
-      case JsKeywords::kLineSeparator:
-      case JsKeywords::kSemiInsert:
-        // All of these can occur in prologue sections (but not quite that
-        // freely).
-        break;
-      case JsKeywords::kOperator:
-        // ; may also be OK, but other stuff isn't.
-        if (token_text != ";") {
-          return false;
-        }
-        break;
-      case JsKeywords::kStringLiteral:
-        if (token_text == "'use strict'" || token_text == "\"use strict\"") {
-          return true;
-        }
-        break;
-      default:
-        return false;
-    }
-  }
 }
 
 void JsCombineFilter::StartDocumentImpl() {
@@ -672,38 +634,13 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
   context_->AddElement(element, src);
 }
 
-GoogleString JsCombineFilter::VarName(const RewriteDriver* driver,
+GoogleString JsCombineFilter::VarName(const ServerContext* server_context,
                                       const GoogleString& url) {
-  // We want to apply any rewrite mappings, since they can change the directory
-  // and hence affect variable names.
-  GoogleString output_url;
-
-  GoogleString domain_out;  // ignored.
-  GoogleUrl resource_url(url);
-  // We can't generally use the preexisting UrlPartnership in the
-  // ResourceCombiner since during the .pagespeed. resource fetch it's not
-  // filled in.
-  UrlPartnership::FindResourceDomain(driver->base_url(),
-                                     driver->server_context()->url_namer(),
-                                     driver->options(),
-                                     &resource_url,
-                                     &domain_out,
-                                     driver->message_handler());
-  if (resource_url.IsWebValid()) {
-    resource_url.Spec().CopyToString(&output_url);
-  } else {
-    LOG(DFATAL) << "Somehow got invalid URL in JsCombineFilter::VarName:"
-                << resource_url.UncheckedSpec() << " starting from:"
-                << url;
-    output_url = url;
-  }
-
   // We hash the non-host portion of URL to keep it consistent when sharding.
   // This is safe since we never include URLs from different hosts in a single
   // combination.
   GoogleString url_hash =
-      JavascriptCodeBlock::JsUrlHash(output_url,
-                                     driver->server_context()->hasher());
+      JavascriptCodeBlock::JsUrlHash(url, server_context->hasher());
 
   return StrCat("mod_pagespeed_", url_hash);
 }
@@ -732,7 +669,7 @@ void JsCombineFilter::NextCombination() {
   context_->Reset();
 }
 
-void JsCombineFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void JsCombineFilter::DetermineEnabled() {
   set_is_enabled(!driver()->flushed_cached_html());
 }
 

@@ -21,12 +21,11 @@
 #include <map>
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_cache.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/shared_mem_cache.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -108,8 +107,8 @@ class SystemCaches {
   //
   // Returns whether successful or not, and if not, *error_msg will contain
   // an error message.  Meant to be called from config parsing.
-  bool CreateShmMetadataCache(
-      StringPiece name, int64 size_kb, GoogleString* error_msg);
+  bool CreateShmMetadataCache(const GoogleString& name, int64 size_kb,
+                              GoogleString* error_msg);
 
   // Returns, perhaps creating it, an appropriate named manager for this config
   // (potentially sharing with others as appropriate).

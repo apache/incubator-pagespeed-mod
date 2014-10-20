@@ -32,6 +32,7 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "pagespeed/kernel/http/response_headers.h"
 
 #include "apr_pools.h"  // for apr_status_t
 // The httpd header must be after the instaweb_context.h. Otherwise,
@@ -47,7 +48,6 @@ class ApacheServerContext;
 class InPlaceResourceRecorder;
 class QueryParams;
 class RequestHeaders;
-class ResponseHeaders;
 class RewriteDriver;
 class ServerContext;
 class SystemRewriteOptions;
@@ -133,15 +133,9 @@ class InstawebHandler {
   const RequestContextPtr request_context() const { return request_context_; }
   bool use_custom_options() const { return custom_options_.get() != NULL; }
   const QueryParams& query_params() { return rewrite_query_.query_params(); }
-  const QueryParams& pagespeed_query_params() {
-    return rewrite_query_.pagespeed_query_params();
-  }
-  const QueryParams& pagespeed_option_cookies() {
-    return rewrite_query_.pagespeed_option_cookies();
-  }
 
   void SetupSpdyConnectionIfNeeded();
-  void RemoveStrippedResponseHeadersFromApacheRequest();
+  void RemoveStrippedResponseHeadersFromApacheReequest();
 
   // Makes a driver from the request_context and options.  Note that
   // this can only be called once, as it potentially mutates the options
@@ -172,11 +166,6 @@ class InstawebHandler {
 
   // Waits for an outstanding fetch (obtained by MakeFetch) to complete.
   void WaitForFetch();
-
-  // Loads the URL based on the fetchers and other infrastructure in the
-  // factory, returning true if the request was handled.  This is used
-  // both for slurping and for handling URLs ending with proxy_suffix.
-  bool ProxyUrl();
 
   RequestHeaders* ReleaseRequestHeaders() { return request_headers_.release(); }
 
@@ -288,7 +277,7 @@ class InstawebHandler {
   ApacheRequestContext* apache_request_context_;  // owned by request_context_.
   ApacheServerContext* server_context_;
   scoped_ptr<RequestHeaders> request_headers_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  ResponseHeaders response_headers_;
   GoogleString original_url_;
   GoogleUrl stripped_gurl_;  // Any PageSpeed query params are removed.
   scoped_ptr<SystemRewriteOptions> custom_options_;

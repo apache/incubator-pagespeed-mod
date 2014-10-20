@@ -43,6 +43,7 @@ PixelFormatOptimizer::~PixelFormatOptimizer() {
 
 // Reset the scanline reader to its initial state.
 bool PixelFormatOptimizer::Reset() {
+  reader_ = NULL;
   bytes_per_row_ = 0;
   pixel_format_ = UNSUPPORTED;
   output_row_ = 0;
@@ -65,9 +66,6 @@ ScanlineStatus PixelFormatOptimizer::InitializeWithStatus(
 
 ScanlineStatus PixelFormatOptimizer::Initialize(
     ScanlineReaderInterface* reader) {
-  Reset();
-  reader_.reset(reader);
-
   if (reader == NULL ||
       reader->GetPixelFormat() == UNSUPPORTED ||
       reader->GetImageWidth() == 0 ||
@@ -78,6 +76,8 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
                             "Invalid input image.");
   }
 
+  Reset();
+  reader_ = reader;
   pixel_format_ = reader->GetPixelFormat();
   bytes_per_row_ = reader_->GetBytesPerScanline();
 
@@ -101,10 +101,12 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
   input_row_ = 0;
   while (input_row_ < image_height) {
     void* in_scanline = NULL;
-    ScanlineStatus status = reader_->ReadNextScanlineWithStatus(&in_scanline);
-    if (!status.Success()) {
+    if (!reader_->ReadNextScanline(&in_scanline)) {
       Reset();
-      return status;
+      return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
+                              SCANLINE_STATUS_INTERNAL_ERROR,
+                              SCANLINE_PIXEL_FORMAT_OPTIMIZER,
+                              "Failed to read a scanline.");
     }
 
     // Buffer the scanline.
@@ -139,18 +141,11 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
 // Reads the next available scanline.
 ScanlineStatus PixelFormatOptimizer::ReadNextScanlineWithStatus(
     void** out_scanline_bytes) {
-  if (!was_initialized_) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-                            "Uninitialized");
-  }
-
-  if (!HasMoreScanLines()) {
+  if (!was_initialized_ || !HasMoreScanLines()) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-                            "No more scanlines");
+                            "Uninitialized or no more scanlines");
   }
 
   const int bytes_per_in_pixel = GetNumChannelsFromPixelFormat(RGBA_8888,

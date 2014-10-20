@@ -89,11 +89,17 @@ inline GoogleString PointerToString(void* pointer) {
 // NOTE: For a string of the form "45x", this sets *out = 45 but returns false.
 // It sets *out = 0 given "Junk45" or "".
 inline bool StringToInt(const char* in, int* out) {
-  return base::StringToInt(in, out);
+  // TODO(bmcquade): Use char*-based StringToInt once we sync the
+  // Chromium repository.
+  std::string str(in);
+  return base::StringToInt(str, out);
 }
 
 inline bool StringToInt64(const char* in, int64* out) {
-  return base::StringToInt64(in, out);
+  // TODO(bmcquade): Use char*-based StringToInt64 once we sync the
+  // Chromium repository.
+  std::string str(in);
+  return base::StringToInt64(str, out);
 }
 
 inline bool StringToInt(const GoogleString& in, int* out) {
@@ -331,11 +337,6 @@ bool StringCaseEndsWith(const StringPiece& str, const StringPiece& suffix);
 // that this respects case.
 bool StringEqualConcat(const StringPiece& str, const StringPiece& first,
                        const StringPiece& second);
-
-// Return the number of mismatched chars in two strings. Useful for string
-// comparisons without short-circuiting to prevent timing attacks.
-// See http://codahale.com/a-lesson-in-timing-attacks/
-int CountCharacterMismatches(StringPiece s1, StringPiece s2);
 
 struct CharStarCompareInsensitive {
   bool operator()(const char* s1, const char* s2) const {

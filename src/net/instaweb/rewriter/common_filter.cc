@@ -18,20 +18,19 @@
 
 #include "net/instaweb/rewriter/public/common_filter.h"
 
-#include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -158,9 +157,7 @@ void CommonFilter::ResolveUrl(StringPiece input_url, GoogleUrl* out_url) {
   }
 }
 
-ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
-                                              bool* is_authorized) {
-  *is_authorized = true;  // Must be false iff input_url is not authorized.
+ResourcePtr CommonFilter::CreateInputResource(const StringPiece& input_url) {
   ResourcePtr resource;
   GoogleUrl resource_url;
   ResolveUrl(input_url, &resource_url);
@@ -168,25 +165,11 @@ ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
     resource = driver_->CreateInputResource(
         resource_url,
         AllowUnauthorizedDomain(),
-        (IntendedForInlining()
-         ? RewriteDriver::kIntendedForInlining
-         : RewriteDriver::kIntendedForGeneral),
-        is_authorized);
+        IntendedForInlining() ?
+            RewriteDriver::kIntendedForInlining :
+            RewriteDriver::kIntendedForGeneral);
   }
   return resource;
-}
-
-ResourcePtr CommonFilter::CreateInputResourceOrInsertDebugComment(
-    StringPiece input_url, HtmlElement* element) {
-  DCHECK(element != NULL);
-  bool is_authorized;
-  ResourcePtr input_resource(CreateInputResource(input_url, &is_authorized));
-  if (input_resource.get() == NULL) {
-    if (!is_authorized) {
-      driver()->InsertUnauthorizedDomainDebugComment(input_url, element);
-    }
-  }
-  return input_resource;
 }
 
 const GoogleUrl& CommonFilter::base_url() const {

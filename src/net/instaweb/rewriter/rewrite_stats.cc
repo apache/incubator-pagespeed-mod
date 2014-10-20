@@ -19,9 +19,9 @@
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/waveform.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/waveform.h"
 
 namespace net_instaweb {
 
@@ -149,7 +149,7 @@ void RewriteStats::InitStats(Statistics* statistics) {
   statistics->AddVariable(kNumResourceFetchFailures);
 
   for (int i = 0; i < RewriteDriverFactory::kNumWorkerPools; ++i) {
-    statistics->AddUpDownCounter(kWaveFormCounters[i]);
+    statistics->AddVariable(kWaveFormCounters[i]);
   }
 }
 
@@ -231,7 +231,7 @@ RewriteStats::RewriteStats(Statistics* stats,
   for (int i = 0; i < RewriteDriverFactory::kNumWorkerPools; ++i) {
     thread_queue_depths_.push_back(
         new Waveform(thread_system, timer, kNumWaveformSamples,
-                     stats->GetUpDownCounter(kWaveFormCounters[i])));
+                     stats->GetVariable(kWaveFormCounters[i])));
   }
 }
 

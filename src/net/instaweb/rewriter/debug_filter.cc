@@ -19,15 +19,11 @@
 #include "net/instaweb/rewriter/public/debug_filter.h"
 
 #include "base/logging.h"
-#include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace {
 
@@ -68,7 +64,6 @@ DebugFilter::DebugFilter(RewriteDriver* driver)
     : driver_(driver),
       timer_(driver->server_context()->timer()) {
   Clear();
-  driver_->SetDynamicallyDisabledFilterList(&dynamically_disabled_filter_list_);
 }
 
 DebugFilter::~DebugFilter() {}
@@ -81,8 +76,6 @@ void DebugFilter::Clear() {
   render_.Clear();
   start_doc_time_us_ = kTimeNotSet;
   flush_messages_.clear();
-  critical_image_urls_.clear();
-  dynamically_disabled_filter_list_.clear();
 }
 
 void DebugFilter::InitParse() {
@@ -124,79 +117,31 @@ GoogleString DebugFilter::FormatFlushMessage(int64 time_since_init_parse_us,
 }
 
 GoogleString DebugFilter::FormatEndDocumentMessage(
-    int64 time_since_init_parse_us, int64 total_parse_duration_us,
-    int64 total_render_duration_us, int64 total_idle_duration_us,
-    int num_flushes, bool is_critical_images_beacon_enabled,
-    const StringSet& critical_image_urls,
-    const StringVector& dynamically_disabled_filter_list) {
+    int64 time_since_init_parse_us,
+    int64 total_parse_duration_us,
+    int64 total_render_duration_us,
+    int64 total_idle_duration_us,
+    int num_flushes) {
   // This format is designed for easy searching in View->Page Source.
-  GoogleString str = StrCat(
+  return StrCat(
       "\n"
-      "#NumFlushes            ",
-      IntegerToString(num_flushes),
-      "\n"
-      "#EndDocument after     ",
-      Integer64ToString(time_since_init_parse_us),
+      "#NumFlushes            ", IntegerToString(num_flushes), "\n"
+      "#EndDocument after     ", Integer64ToString(time_since_init_parse_us),
       "us\n"
-      "#Total Parse duration  ",
-      Integer64ToString(total_parse_duration_us), "us\n");
-  StrAppend(&str, "#Total Render duration ",
-            Integer64ToString(total_render_duration_us),
-            "us\n"
-            "#Total Idle duration   ",
-            Integer64ToString(total_idle_duration_us), "us\n");
-
-  if (is_critical_images_beacon_enabled) {
-    if (critical_image_urls.empty()) {
-      StrAppend(&str, "No critical images detected.\n");
-    } else {
-      StrAppend(&str, "Critical Images:\n\t",
-                JoinCollection(critical_image_urls, "\n\t"), "\n");
-    }
-  }
-
-  if (dynamically_disabled_filter_list.empty()) {
-    StrAppend(&str, "No filters were disabled for this request.\n");
-  } else {
-    StrAppend(&str, "The following filters were disabled for this request:\n\t",
-              JoinCollection(dynamically_disabled_filter_list, "\n\t"), "\n");
-  }
-  return str;
-}
-
-GoogleString DebugFilter::ListActiveFiltersAndOptions() const {
-  const RewriteOptions* options = driver_->options();
-  GoogleString settings_list("\nmod_pagespeed on\nFilters:\n");
-  StrAppend(&settings_list, options->EnabledFiltersToString());
-  StrAppend(&settings_list, "\nOptions:\n",
-            options->SafeEnabledOptionsToString());
-  return settings_list;
+      "#Total Parse duration  ", Integer64ToString(total_parse_duration_us),
+      "us\n",
+      StrCat(
+          "#Total Render duration ",
+          Integer64ToString(total_render_duration_us),
+          "us\n"
+          "#Total Idle duration   ",  Integer64ToString(total_idle_duration_us),
+          "us\n"));
 }
 
 void DebugFilter::EndElement(HtmlElement* element) {
   if (!flush_messages_.empty()) {
     driver_->InsertComment(flush_messages_);
     flush_messages_.clear();
-  }
-
-  // Keep track of critical images to print out the list of them at the end. We
-  // can't just use the critical images stored in the property cache since it
-  // stores the image hashes, not the full URLs.
-  if (element->keyword() == HtmlName::kImg) {
-    // Check if the lazyload filter has modified the original src attribute, and
-    // if so, use the original src.
-    HtmlElement::Attribute* src;
-    if ((src = element->FindAttribute(HtmlName::kPagespeedLazySrc)) != NULL ||
-        (src = element->FindAttribute(HtmlName::kSrc)) != NULL) {
-      GoogleUrl gurl(driver_->base_url(),
-                     StringPiece(src->DecodedValueOrNull()));
-      GoogleString url_str = gurl.UncheckedSpec().as_string();
-      CriticalImagesFinder* finder =
-          driver_->server_context()->critical_images_finder();
-      if (finder->IsHtmlCriticalImage(url_str, driver_)) {
-        critical_image_urls_.insert(url_str);
-      }
-    }
   }
 }
 
@@ -232,13 +177,12 @@ void DebugFilter::Flush() {
   idle_.AddToTotal();
 
   if (end_document_seen_) {
-    driver_->InsertComment(
-        StrCat(ListActiveFiltersAndOptions(),
-               FormatEndDocumentMessage(
-                   time_since_init_parse_us, parse_.total_us(),
-                   render_.total_us(), idle_.total_us(), num_flushes_,
-                   driver_->is_critical_images_beacon_enabled(),
-                   critical_image_urls_, dynamically_disabled_filter_list_)));
+    driver_->InsertComment(FormatEndDocumentMessage(
+        time_since_init_parse_us,
+        parse_.total_us(),
+        render_.total_us(),
+        idle_.total_us(),
+        num_flushes_));
   } else {
     // We don't count the flush at end-of-document because that is automatically
     // called by RewriteDriver/HtmlParse, and is not initiated from upstream,

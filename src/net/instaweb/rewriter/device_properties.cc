@@ -17,13 +17,13 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/bot_checker.h"
+#include "net/instaweb/http/public/bot_checker.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 
 namespace net_instaweb {
 
@@ -194,23 +194,9 @@ bool DeviceProperties::SupportsWebpInPlace() const {
   return (accepts_webp_ == kTrue);
 }
 
-bool DeviceProperties::PossiblyMasqueradingAsChrome() const {
-  // Note that Chrome started sending Accept:image/webp as of v25.
-  //
-  // We will stop sending pre-v25 Chrome webp due to this change.  The
-  // alternative is to use GetChromeBuildNumber, but the risk is that IE 11
-  // will masquerade as an old version of Chrome and so this change won't do
-  // any good.
-  // TODO(jmarantz): Reevaluate the implementation of this method once we
-  // know exactly what the IE11 UA string will be.
-  return ua_matcher_->IsChromeLike(user_agent_) && (accepts_webp_ != kTrue);
-}
-
 bool DeviceProperties::SupportsWebpRewrittenUrls() const {
   if (supports_webp_rewritten_urls_ == kNotSet) {
-    if (SupportsWebpInPlace() ||
-        (ua_matcher_->SupportsWebp(user_agent_) &&
-         !PossiblyMasqueradingAsChrome())) {
+    if (SupportsWebpInPlace() || ua_matcher_->SupportsWebp(user_agent_)) {
       supports_webp_rewritten_urls_ = kTrue;
     } else {
       supports_webp_rewritten_urls_ = kFalse;
@@ -221,12 +207,9 @@ bool DeviceProperties::SupportsWebpRewrittenUrls() const {
 
 bool DeviceProperties::SupportsWebpLosslessAlpha() const {
   if (supports_webp_lossless_alpha_ == kNotSet) {
-    if (ua_matcher_->SupportsWebpLosslessAlpha(user_agent_) &&
-        !PossiblyMasqueradingAsChrome()) {
-      supports_webp_lossless_alpha_ = kTrue;
-    } else {
-      supports_webp_lossless_alpha_ = kFalse;
-    }
+    supports_webp_lossless_alpha_ =
+        ua_matcher_->SupportsWebpLosslessAlpha(user_agent_) ?
+        kTrue : kFalse;
   }
   return (supports_webp_lossless_alpha_ == kTrue);
 }
@@ -325,24 +308,6 @@ bool DeviceProperties::GetScreenGroupIndex(
 
 int DeviceProperties::GetPreferredImageQualityCount() {
   return kPreferredImageQualityCount;
-}
-
-// Chrome 36 on iOS devices failed to display inlined WebP image, so inlining
-// WebP on these devices is forbidden.
-// https://code.google.com/p/chromium/issues/detail?id=402514
-bool DeviceProperties::ForbidWebpInlining() const {
-  if (ua_matcher_->IsiOSUserAgent(user_agent_)) {
-    int major = kNotSet;
-    int minor = kNotSet;
-    int build = kNotSet;
-    int patch = kNotSet;
-    if (ua_matcher_->GetChromeBuildNumber(user_agent_, &major, &minor, &build,
-                                          &patch) &&
-        (major == 36 || major == 37)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 }  // namespace net_instaweb

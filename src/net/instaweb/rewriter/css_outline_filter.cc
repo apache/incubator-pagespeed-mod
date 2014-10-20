@@ -19,20 +19,20 @@
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 
 namespace net_instaweb {
 
@@ -65,13 +65,7 @@ void CssOutlineFilter::StartElementImpl(HtmlElement* element) {
     inline_element_ = NULL;  // Don't outline what we don't understand.
     inline_chars_ = NULL;
   }
-  if (element->keyword() == HtmlName::kStyle &&
-      element->FindAttribute(HtmlName::kScoped) == NULL) {
-    // <style scoped> can't be directly converted to a <link>. We could
-    // theoretically convert it to a <style scoped>@import ... </style>, but
-    // given the feature has very little browser support, it's probably not
-    // worth the effort, so we just leave it alone.
-    // All other <style> blocks are candidates for conversion.
+  if (element->keyword() == HtmlName::kStyle) {
     inline_element_ = element;
     inline_chars_ = NULL;
   }
@@ -119,6 +113,14 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
                                     const GoogleString& content_str) {
   StringPiece content(content_str);
   if (driver()->IsRewritable(style_element)) {
+    if (style_element->FindAttribute(HtmlName::kScoped) != NULL) {
+      // <style scoped> can't be directly converted to a <link>. We could
+      // theoretically convert it to a <style scoped>@import ... </style>,
+      // but given the feature has very little browser support, it's probably
+      // not worth the effort, so we just leave it alone.
+      return;
+    }
+
     // Create style file from content.
     const char* type = style_element->AttributeValue(HtmlName::kType);
     // We only deal with CSS styles.  If no type specified, CSS is assumed.
@@ -127,15 +129,11 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
       MessageHandler* handler = driver()->message_handler();
       // Create outline resource at the document location,
       // not base URL location.
-      GoogleString failure_reason;
       OutputResourcePtr output_resource(
           driver()->CreateOutputResourceWithUnmappedUrl(
-              driver()->google_url(), kFilterId, "_", kOutlinedResource,
-              &failure_reason));
+              driver()->google_url(), kFilterId, "_", kOutlinedResource));
 
-      if (output_resource.get() == NULL) {
-        driver()->InsertDebugComment(failure_reason, style_element);
-      } else {
+      if (output_resource.get() != NULL) {
         // Rewrite URLs in content.
         GoogleString transformed_content;
         StringWriter writer(&transformed_content);
@@ -176,9 +174,8 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
         }
       }
     } else {
-      driver()->InsertDebugComment(StrCat(
-          "Cannot outline stylesheet with non-CSS type=", type), style_element);
-      GoogleString element_string = style_element->ToString();
+      GoogleString element_string;
+      style_element->ToString(&element_string);
       driver()->InfoHere("Cannot outline non-css stylesheet %s",
                          element_string.c_str());
     }

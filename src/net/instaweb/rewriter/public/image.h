@@ -21,12 +21,12 @@
 
 #include <cstddef>
 
+#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/image_types.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class Histogram;
@@ -222,12 +222,6 @@ class Image {
 
   // Returns the image URL.
   virtual const GoogleString& url() = 0;
-
-  // Returns the debug message.
-  virtual const GoogleString& debug_message() = 0;
-
-  // Returns the resized image debug message.
-  virtual const GoogleString& resize_debug_message() = 0;
 
  protected:
   explicit Image(const StringPiece& original_contents);

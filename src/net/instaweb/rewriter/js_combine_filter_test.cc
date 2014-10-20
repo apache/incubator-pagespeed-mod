@@ -23,33 +23,32 @@
 #include <memory>
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
-#include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/charset_util.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/charset_util.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/worker_test_base.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -61,8 +60,6 @@ const char kJsUrl3[] = "c.js";
 const char kJsUrl4[] = "d.js";
 const char kStrictUrl1[] = "strict1.js";
 const char kStrictUrl2[] = "strict2.js";
-const char kPseudoStrictUrl1[] = "pseudo_strict1.js";
-const char kPseudoStrictUrl2[] = "pseudo_strict2.js";
 const char kIntrospectiveUrl1[] = "introspective1.js";
 const char kIntrospectiveUrl2[] = "introspective2.js";
 const char kJsText1[] = "// script1\nvar a=\"hello\\nsecond line\"";
@@ -73,8 +70,6 @@ const char kJsText3[] = "var x = 42;\nvar y = 31459;\n";
 const char kJsText4[] = "var m = 'abcd';\n";
 const char kStrictText1[] = "'use strict'; var x = 32;";
 const char kStrictText2[] = "\"use strict\"; var x = 42;";
-const char kPseudoStrictText1[] = "function(){'use strict'; var x = 32;}";
-const char kPseudoStrictText2[] = "function(){\"use strict\"; var x = 42;}";
 const char kIntrospectiveText1[] = "var x = 7; $('script') ; var y = 42;";
 const char kIntrospectiveText2[] = "document.getElementsByTagName('script');";
 const char kEscapedJs1[] =
@@ -154,8 +149,6 @@ class JsCombineFilterTest : public RewriteTestBase {
     SimulateJsResource(kJsUrl4, kJsText4);
     SimulateJsResource(kStrictUrl1, kStrictText1);
     SimulateJsResource(kStrictUrl2, kStrictText2);
-    SimulateJsResource(kPseudoStrictUrl1, kPseudoStrictText1);
-    SimulateJsResource(kPseudoStrictUrl2, kPseudoStrictText2);
     SimulateJsResource(kIntrospectiveUrl1, kIntrospectiveText1);
     SimulateJsResource(kIntrospectiveUrl2, kIntrospectiveText2);
 
@@ -206,8 +199,7 @@ class JsCombineFilterTest : public RewriteTestBase {
     ASSERT_TRUE(combination_url.IsAnyValid()) << info.url;
     EXPECT_STREQ(encoded.AllExceptLeaf(), combination_url.AllExceptLeaf());
     ResourceNamer namer;
-    EXPECT_TRUE(
-        rewrite_driver()->Decode(combination_url.LeafWithQuery(), &namer));
+    EXPECT_TRUE(namer.Decode(combination_url.LeafWithQuery()));
     EXPECT_STREQ(RewriteOptions::kJavascriptCombinerId, namer.id());
     GoogleString encoding;
     for (int i = 0, n = name_vector.size(); i < n; ++i) {
@@ -228,7 +220,7 @@ class JsCombineFilterTest : public RewriteTestBase {
     EXPECT_TRUE(info.url.empty());
     EXPECT_EQ(
         StrCat("eval(",
-               JsCombineFilter::VarName(rewrite_driver(), abs_url),
+               JsCombineFilter::VarName(server_context(), abs_url),
                ");"),
         info.text_content);
   }
@@ -310,8 +302,7 @@ class JsCombineFilterTest : public RewriteTestBase {
 
 class JsFilterAndCombineFilterTest : public JsCombineFilterTest {
   virtual void SetUpExtraFilters() {
-    options()->SoftEnableFilterForTesting(
-        RewriteOptions::kRewriteJavascriptExternal);
+    options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteJavascript);
   }
 };
 
@@ -463,21 +454,12 @@ TEST_F(JsFilterAndCombineFilterTest, MinifyCombineJs) {
 // of component minified unauthorized resources even if they were created.
 TEST_F(JsFilterAndCombineFilterTest, TestCrossDomainRejectUnauthEnabled) {
   options()->ClearSignatureForTesting();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kDebug);
   options()->AddInlineUnauthorizedResourceType(semantic_type::kScript);
   server_context()->ComputeSignature(options());
-  GoogleUrl gurl(StrCat(other_domain_, kJsUrl1));
-  GoogleString debug_message = StrCat(
-      "<!--", RewriteDriver::GenerateUnauthorizedDomainDebugComment(gurl),
-      "-->");
-  // Note that we get the debug message twice, once for the combining attempt
-  // and once for the rewriting attempt, both of which fail due to the domain
-  // being unauthorized. This is unfortunate but not worth fixing right now.
   ValidateExpected("xd",
-                   StrCat("<script src=", gurl.Spec(), "></script>",
+                   StrCat("<script src=", other_domain_, kJsUrl1, "></script>",
                           "<script src=", kJsUrl2, "></script>"),
-                   StrCat("<script src=", gurl.Spec(), "></script>",
-                          debug_message, debug_message,
+                   StrCat("<script src=", other_domain_, kJsUrl1, "></script>",
                           "<script src=",
                           Encode("", "jm", "Y1kknPfzVs", kJsUrl2, "js"),
                           ">",
@@ -569,22 +551,6 @@ TEST_F(JsFilterAndCombineProxyTest, MinifyCombineAcrossHostsProxy) {
   EXPECT_EQ(Encode(kAlternateDomain, "jm", "Y1kknPfzVs", kJsUrl2, "js"),
             scripts[1].url);
   ServeResourceFromManyContexts(scripts[1].url, kMinifiedJs2);
-}
-
-TEST_F(JsCombineFilterTest, NotReallyStrict) {
-  // https://code.google.com/p/modpagespeed/issues/detail?id=909
-  GoogleString simple_rel_url =
-      Encode("", "jc", "DuUKa0RTAg",
-             MultiUrl(kPseudoStrictUrl1, kPseudoStrictUrl2), "js");
-  const char kVar1[] = "mod_pagespeed_s8uoLecjQN";
-  const char kVar2[] = "mod_pagespeed_oHli2SAs3Q";
-
-  ValidateExpected("not_strict",
-                   StrCat("<script src=", kPseudoStrictUrl1, "></script>",
-                          "<script src=", kPseudoStrictUrl2, "></script>"),
-                   StrCat("<script src=\"", simple_rel_url, "\"></script>",
-                          "<script>eval(", kVar1, ");</script>",
-                          "<script>eval(", kVar2, ");</script>"));
 }
 
 // Various things that prevent combining
@@ -1219,79 +1185,6 @@ TEST_F(JsCombineFilterTest, LoadShedPartition) {
   StringPiece combine_url(scripts[0].url);
   EXPECT_TRUE(combine_url.starts_with("a.js+b.js.pagespeed.jc"))
       << combine_url;
-}
-
-TEST_F(JsCombineFilterTest, IsLikelyStrictMode) {
-  EXPECT_TRUE(
-      JsCombineFilter::IsLikelyStrictMode(
-          server_context()->js_tokenizer_patterns(),
-          "'some string';\n      \"use strict\""));
-
-  EXPECT_TRUE(
-      JsCombineFilter::IsLikelyStrictMode(
-          server_context()->js_tokenizer_patterns(),
-          "'use strict'; function x() {}"));
-
-  EXPECT_FALSE(
-      JsCombineFilter::IsLikelyStrictMode(
-          server_context()->js_tokenizer_patterns(),
-          "// 'use strict';"));
-
-  EXPECT_TRUE(
-      JsCombineFilter::IsLikelyStrictMode(
-          server_context()->js_tokenizer_patterns(),
-          "// Comment \n'use strict';"));
-
-  // Function is strict, but whole script is not.
-  EXPECT_FALSE(
-      JsCombineFilter::IsLikelyStrictMode(
-          server_context()->js_tokenizer_patterns(),
-          "function x() {'use strict'; }"));
-
-  // Shouldn't permit just random operators.
-  EXPECT_FALSE(
-      JsCombineFilter::IsLikelyStrictMode(
-          server_context()->js_tokenizer_patterns(),
-          "+ * ! 'use strict';"));
-}
-
-TEST_F(JsCombineFilterTest, MapRewriteDomainAccrossDirs) {
-  // Setup a MapRewriteDomain "CDN" with a subdir.
-  const char kSubDir[] = "subdir/";
-  options()->ClearSignatureForTesting();
-  options()->WriteableDomainLawyer()->AddRewriteDomainMapping(
-      StrCat(other_domain_, kSubDir),
-      kTestDomain,
-      message_handler());
-  server_context()->ComputeSignature(options());
-  SimulateJsResourceOnDomain(other_domain_, StrCat(kSubDir, kJsUrl1), kJsText1);
-  SimulateJsResourceOnDomain(other_domain_, StrCat(kSubDir, kJsUrl2), kJsText2);
-
-  const char kDataHash1[] = "K4w22M2i$3";
-  const char kDataHash2[] = "4SWUiisZ$T";
-
-  GoogleString combined_url =
-      StrCat(other_domain_, kSubDir, "a.js+b.js.pagespeed.jc.8HvRqZnJ8O.js");
-
-  ValidateExpected("rewrite_subdir", TestHtml(),
-                   StrCat(
-                       StrCat("<script src=\"", combined_url, "\"></script>"),
-                       StrCat("<script>eval(mod_pagespeed_", kDataHash1,
-                              ");</script>"),
-                       StrCat("<script>eval(mod_pagespeed_", kDataHash2,
-                              ");</script>")));
-  // Now make sure hashes on other domain match, on reconstruction.
-  EXPECT_EQ(0, lru_cache()->num_deletes());
-  lru_cache()->Delete(HttpCacheKey(combined_url));
-  EXPECT_EQ(1, lru_cache()->num_deletes());  // deleted OK.
-  lru_cache()->ClearStats();
-  GoogleString combination_src;
-  ASSERT_TRUE(FetchResourceUrl(combined_url, &combination_src));
-  EXPECT_TRUE(combination_src.find(kDataHash1) != GoogleString::npos)
-      << combination_src;
-  EXPECT_TRUE(combination_src.find(kDataHash2) != GoogleString::npos)
-      << combination_src;
-  EXPECT_GT(lru_cache()->num_inserts(), 0);  // Actually did work.
 }
 
 }  // namespace net_instaweb

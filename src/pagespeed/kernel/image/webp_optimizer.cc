@@ -18,6 +18,8 @@
 
 #include "pagespeed/kernel/image/webp_optimizer.h"
 
+#include <cstdlib>
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/image/scanline_utils.h"
@@ -26,7 +28,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "third_party/libwebp/webp/decode.h"
 #endif
 }
 
@@ -60,6 +62,20 @@ static const char* const kWebPErrorMessages[] = {
 // The libwebp error code returned in case of timeouts.
 static const int kWebPErrorTimeout = VP8_ENC_ERROR_USER_ABORT;
 
+// Byte-emission function for use via WebPPicture.writer.
+int WriteWebpIncrementally(const uint8_t* data, size_t data_size,
+                           const WebPPicture* const pic) {
+  GoogleString* const out = static_cast<GoogleString*>(pic->custom_ptr);
+  out->append(reinterpret_cast<const char*>(data), data_size);
+
+  PS_DLOG_INFO( \
+      static_cast<WebpScanlineWriter*>(pic->user_data)->message_handler(), \
+      "Writing to webp: %d bytes. Total size: %d", \
+      static_cast<int>(data_size), static_cast<int>(out->size()));
+
+  return true;
+}
+
 void WebpConfiguration::CopyTo(WebPConfig* webp_config) const {
   webp_config->lossless = lossless;
   webp_config->quality = quality;
@@ -70,282 +86,95 @@ void WebpConfiguration::CopyTo(WebPConfig* webp_config) const {
   webp_config->alpha_quality = alpha_quality;
 }
 
-WebpFrameWriter::WebpFrameWriter(MessageHandler* handler) :
-    MultipleFrameWriter(handler), image_spec_(NULL), next_frame_(0),
-    next_scanline_(0), empty_frame_(false), frame_stride_px_(0),
-    frame_position_px_(NULL), frame_bytes_per_pixel_(0), webp_image_(NULL),
-    webp_frame_cache_(NULL), webp_mux_(NULL), output_image_(NULL),
-    has_alpha_(false), image_prepared_(false), progress_hook_(NULL),
-    progress_hook_data_(NULL) {
+WebpScanlineWriter::WebpScanlineWriter(MessageHandler* handler)
+    : stride_bytes_(0), rgb_(NULL), rgb_end_(NULL), position_bytes_(NULL),
+      config_(NULL), webp_image_(NULL), has_alpha_(false),
+      init_ok_(false), imported_(false), got_all_scanlines_(false),
+      progress_hook_(NULL), progress_hook_data_(NULL),
+      message_handler_(handler) {
 }
 
-WebpFrameWriter::~WebpFrameWriter() {
-  FreeWebpStructs();
-}
-
-void WebpFrameWriter::FreeWebpStructs() {
-  // Shortcut the initial case, which will happen every time this
-  // class is used.
-  if ((webp_frame_cache_ == NULL) &&
-      (webp_image_ == NULL) &&
-      (webp_mux_ == NULL)) {
-    return;
+WebpScanlineWriter::~WebpScanlineWriter() {
+  if (imported_) {
+    WebPPictureFree(&picture_);
   }
-
-  WebPFrameCacheDelete(webp_frame_cache_);
-  webp_frame_cache_ = NULL;
-
-  WebPPictureFree(webp_image_);
-  delete webp_image_;
-  webp_image_ = NULL;
-
-  WebPMuxDelete(webp_mux_);
-  webp_mux_ = NULL;
+  delete config_;
+  free(rgb_);
 }
 
+ScanlineStatus WebpScanlineWriter::InitializeWriteWithStatus(
+    const void* const params,
+    GoogleString* const out) {
 
-ScanlineStatus WebpFrameWriter::Initialize(const void* config,
-                                           GoogleString* out) {
-  FreeWebpStructs();
-  webp_mux_ = WebPMuxNew();
-  if (webp_mux_ == NULL) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_WEBPWRITER,
-                            "WebPMuxNew() failure");
-  }
-
-  if (config == NULL) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
+  if (params == NULL) {
+    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                             SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_WEBPWRITER,
+                            SCANLINE_WEBPWRITER,
                             "missing WebpConfiguration*");
   }
-
   const WebpConfiguration* webp_config =
-      static_cast<const WebpConfiguration*>(config);
+      static_cast<const WebpConfiguration*>(params);
 
-  if (!WebPConfigInit(&webp_config_)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_WEBPWRITER, "WebPConfigInit()");
+  if (!init_ok_) {
+    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
+                            SCANLINE_STATUS_INVOCATION_ERROR,
+                            SCANLINE_WEBPWRITER,
+                            "prior initialization failure");
   }
 
-  webp_config->CopyTo(&webp_config_);
-
-  if (!WebPValidateConfig(&webp_config_)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
+  // Since config_ might have been modified during a previous call to
+  // FinalizeWrite() and can't be re-used, create a fresh copy.
+  delete config_;
+  config_ = new WebPConfig();
+  if (!WebPConfigInit(config_)) {
+    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                             SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_WEBPWRITER, "WebPValidateConfig()");
+                            SCANLINE_WEBPWRITER, "WebPConfigInit()");
   }
 
+  webp_config->CopyTo(config_);
+
+  if (!WebPValidateConfig(config_)) {
+    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
+                            SCANLINE_STATUS_INTERNAL_ERROR,
+                            SCANLINE_WEBPWRITER, "WebPValidateConfig()");
+  }
+
+  webp_image_ = out;
   if (webp_config->progress_hook) {
     progress_hook_ = webp_config->progress_hook;
     progress_hook_data_ = webp_config->user_data;
   }
-
-  output_image_ = out;
-
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
 
-int WebpFrameWriter::ProgressHook(int percent, const WebPPicture* picture) {
-  const WebpFrameWriter* webp_writer =
-      static_cast<WebpFrameWriter*>(picture->user_data);
+int WebpScanlineWriter::ProgressHook(int percent, const WebPPicture* picture) {
+  const WebpScanlineWriter* webp_writer =
+      static_cast<WebpScanlineWriter*>(picture->user_data);
   return webp_writer->progress_hook_(percent, webp_writer->progress_hook_data_);
 }
 
-ScanlineStatus WebpFrameWriter::PrepareImage(const ImageSpec* image_spec) {
-  DVLOG(1) << image_spec->ToString();
-  if (image_prepared_) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
+ScanlineStatus WebpScanlineWriter::InitWithStatus(const size_t width,
+                                                  const size_t height,
+                                                  PixelFormat pixel_format) {
+  if (init_ok_) {
+    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                             SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_WEBPWRITER, "image already prepared");
+                            SCANLINE_WEBPWRITER, "already initialized");
   }
 
-  DVLOG(1) << "PrepareImage: num_frames: " << image_spec->num_frames;
-
-  if ((image_spec->height > WEBP_MAX_DIMENSION) ||
-      (image_spec->width > WEBP_MAX_DIMENSION)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-                            FRAME_WEBPWRITER,
-                            "each image dimension must be at most %d",
+  if ((height > WEBP_MAX_DIMENSION) ||
+      (width > WEBP_MAX_DIMENSION)) {
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
+                            SCANLINE_STATUS_INTERNAL_ERROR,
+                            SCANLINE_WEBPWRITER,
+                            "image dimensions larger than the maximum of %d",
                             WEBP_MAX_DIMENSION);
   }
 
-  if ((image_spec->height < 1) || (image_spec->width < 1)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-                            FRAME_WEBPWRITER,
-                            "each image dimension must be at least 1");
-  }
-
-  webp_image_ = new WebPPicture();
-
-  if (!WebPPictureInit(webp_image_)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_WEBPWRITER, "WebPPictureInit()");
-  }
-
-  webp_image_->width = image_spec->width;
-  webp_image_->height = image_spec->height;
-  webp_image_->use_argb = true;
-#ifndef NDEBUG
-  webp_image_->stats = &stats_;
-#endif
-
-  if (!WebPPictureAlloc(webp_image_)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_WEBPWRITER, "WebPPictureAlloc()");
-  }
-  WebPUtilClearPic(webp_image_, NULL);
-
-  webp_image_->user_data = this;
-  if (progress_hook_) {
-    webp_image_->progress_hook = ProgressHook;
-  }
-
-  image_spec_ = image_spec;
-  next_frame_ = 0;
-  image_prepared_ = true;
-
-  // Key frame parameters: do not insert unnecessary key frames.
-  static const size_t kMax = ~0;
-  static const size_t kMin = kMax -1;
-  webp_frame_cache_ = WebPFrameCacheNew(
-      image_spec->width, image_spec->height, kMin, kMax,
-      false /* don't allow mixing lossy and lossless frames */);
-
-  frame_position_px_ = NULL;
-  frame_stride_px_ = 0;
-  next_scanline_ = 0;
-
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
-}
-
-WebPMuxAnimDispose FrameDisposalToWebPDisposal(
-    FrameSpec::DisposalMethod frame_disposal) {
-  switch (frame_disposal) {
-    case FrameSpec::DISPOSAL_UNKNOWN:
-    case FrameSpec::DISPOSAL_NONE:
-      return WEBP_MUX_DISPOSE_NONE;
-    case FrameSpec::DISPOSAL_BACKGROUND:
-    case FrameSpec::DISPOSAL_RESTORE:
-      return WEBP_MUX_DISPOSE_BACKGROUND;
-  }
-  return WEBP_MUX_DISPOSE_NONE;
-}
-
-ScanlineStatus WebpFrameWriter::CacheCurrentFrame() {
-  // If we're not even on the first frame, no-op.
-  if (next_frame_ < 1) {
-    return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
-  }
-
-  // Don't add empty frames.
-  if (empty_frame_) {
-    return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
-  }
-
-  // All scanlines must be written before caching a frame.
-  if (next_scanline_ < frame_spec_.height) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_WEBPWRITER,
-                            "CacheCurrentFrame: not all scanlines written");
-  }
-
-  struct WebPMuxFrameInfo webp_frame_info;
-  memset(&webp_frame_info, 0, sizeof(webp_frame_info));
-  webp_frame_info.id = WEBP_CHUNK_ANMF;
-  webp_frame_info.dispose_method =
-      FrameDisposalToWebPDisposal(frame_spec_.disposal);
-  webp_frame_info.blend_method = WEBP_MUX_BLEND;
-  webp_frame_info.duration = frame_spec_.duration_ms;
-
-  // We need to pass image to add frame.
-  WebPFrameRect frame_rect = {
-    static_cast<int>(frame_spec_.left),
-    static_cast<int>(frame_spec_.top),
-    static_cast<int>(frame_spec_.width),
-    static_cast<int>(frame_spec_.height)
-  };
-
-  if (progress_hook_) {
-    CHECK(webp_image_->progress_hook == ProgressHook);
-    CHECK(webp_image_->user_data == this);
-  }
-
-  if (!WebPFrameCacheAddFrame(webp_frame_cache_, &webp_config_, &frame_rect,
-                              webp_image_, &webp_frame_info)) {
-    if (webp_image_->error_code == kWebPErrorTimeout) {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                              SCANLINE_STATUS_TIMEOUT_ERROR,
-                              FRAME_WEBPWRITER,
-                              "WebPFrameCacheAddFrame(): %s",
-                              kWebPErrorMessages[webp_image_->error_code]);
-    } else {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              FRAME_WEBPWRITER,
-                              "WebPFrameCacheAddFrame(): %s\n%s\n%s",
-                              kWebPErrorMessages[webp_image_->error_code],
-                              image_spec_->ToString().c_str(),
-                              frame_spec_.ToString().c_str());
-    }
-  }
-
-  if (WebPFrameCacheFlush(webp_frame_cache_, false /*verbose*/, webp_mux_) !=
-      WEBP_MUX_OK) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_WEBPWRITER,
-                            "WebPFrameCacheFlush() error");
-  }
-
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
-}
-
-ScanlineStatus WebpFrameWriter::PrepareNextFrame(const FrameSpec* frame_spec) {
-  if (!image_prepared_) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_WEBPWRITER,
-                            "PrepareNextFrame: image not prepared");
-  }
-
-  if (next_frame_ >= image_spec_->num_frames) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_WEBPWRITER,
-                            "PrepareNextFrame: no next frame");
-  }
-
-  ScanlineStatus status = CacheCurrentFrame();
-  if (!status.Success()) {
-    return status;
-  }
-
-  // Bounds-check the frame.
-  if (!image_spec_->CanContainFrame(*frame_spec)) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_WEBPWRITER,
-                            "PrepareNextFrame: frame does not fit in image:\n"
-                            "%s\n%s",
-                            image_spec_->ToString().c_str(),
-                            frame_spec->ToString().c_str());
-  }
-
-  ++next_frame_;
-  frame_spec_ = *frame_spec;
-
   should_expand_gray_to_rgb_ = false;
-  PixelFormat new_pixel_format = frame_spec_.pixel_format;
-  switch (new_pixel_format) {
+  PixelFormat new_pixel_format = pixel_format;
+  switch (pixel_format) {
     case RGB_888:
       has_alpha_ = false;
       break;
@@ -359,136 +188,141 @@ ScanlineStatus WebpFrameWriter::PrepareNextFrame(const FrameSpec* frame_spec) {
       new_pixel_format = RGB_888;
       break;
     default:
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              FRAME_WEBPWRITER,
-                              "unknown pixel format: %d",
-                              new_pixel_format);
+      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
+                              SCANLINE_STATUS_UNSUPPORTED_FEATURE,
+                              SCANLINE_WEBPWRITER,
+                              "unhandled or unknown pixel format: %d",
+                              pixel_format);
   }
-  DVLOG(1) << "Pixel format:" << GetPixelFormatString(frame_spec_.pixel_format);
-
-  empty_frame_ = (frame_spec_.width < 1) || (frame_spec_.height < 1);
-  if (empty_frame_) {
-    frame_stride_px_ = frame_spec_.width;
-    frame_position_px_ = NULL;
-  } else {
-    if (!WebPPictureView(webp_image_,
-                         frame_spec_.left, frame_spec_.top,
-                         frame_spec_.width, frame_spec_.height,
-                         &webp_frame_)) {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              FRAME_WEBPWRITER,
-                              "WebPPictureView() failure: %s",
-                              frame_spec_.ToString().c_str());
-    }
-    frame_stride_px_ = webp_frame_.argb_stride;
-    frame_position_px_ = webp_frame_.argb;
+  PS_DLOG_INFO(message_handler_, "Pixel format: %s", \
+      GetPixelFormatString(pixel_format));
+  if (!WebPPictureInit(&picture_)) {
+    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
+                            SCANLINE_STATUS_INTERNAL_ERROR,
+                            SCANLINE_WEBPWRITER, "WebPPictureInit()");
   }
 
-  frame_bytes_per_pixel_ = GetBytesPerPixel(frame_spec_.pixel_format);
-  next_scanline_ = 0;
+  picture_.width = width;
+  picture_.height = height;
+  picture_.use_argb = true;
+#ifndef NDEBUG
+  picture_.stats = &stats_;
+#endif
 
-  return status;
-}
+  COMPILE_ASSERT(sizeof(*rgb_) == 1, Expected_size_of_one_byte);
+  stride_bytes_ = picture_.width * sizeof(*rgb_) *
+      GetNumChannelsFromPixelFormat(new_pixel_format, message_handler_);
 
-ScanlineStatus WebpFrameWriter::WriteNextScanline(const void *scanline_bytes) {
-  if (next_scanline_ >= frame_spec_.height) {
-      return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                              SCANLINE_STATUS_INVOCATION_ERROR,
-                              FRAME_WEBPWRITER,
-                              "WriteNextScanline: too many scanlines");
+  int size_bytes = stride_bytes_ * picture_.height;
+  if (rgb_ != NULL) {
+    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
+                            SCANLINE_STATUS_INTERNAL_ERROR,
+                            SCANLINE_WEBPWRITER,
+                            "rgb_ previously initialized");
   }
-  if (!empty_frame_) {
-    if (should_expand_gray_to_rgb_) {
-      // Replicate the luminance to RGB.
-      const uint8_t* const in_bytes =
-          reinterpret_cast<const uint8_t*>(scanline_bytes);
-      for (int idx = 0; idx < webp_frame_.width; ++idx) {
-        frame_position_px_[idx] = GrayscaleToPackedArgb(in_bytes[idx]);
-      }
-    } else if (has_alpha_) {
-      // Note: this branch and the next only differ in the packing
-      // function used. It is tempting to assign a function pointer
-      // based on has_alpha_ and then implement the loop only
-      // once. However, since this is an "inner loop" iterating over a
-      // series of pixels, we want to take advantage of the inline
-      // forms of the packing functions for speed.
-      for (size_t px_col = 0, byte_col = 0;
-           px_col < frame_spec_.width;
-           ++px_col, byte_col += frame_bytes_per_pixel_) {
-        frame_position_px_[px_col] =
-            RgbaToPackedArgb(static_cast<const uint8_t*>(scanline_bytes) +
-                             byte_col);
-      }
-    } else {
-      for (size_t px_col = 0, byte_col = 0;
-           px_col < frame_spec_.width;
-           ++px_col, byte_col += frame_bytes_per_pixel_) {
-        frame_position_px_[px_col] =
-            RgbToPackedArgb(static_cast<const uint8_t*>(scanline_bytes) +
-                            byte_col);
-      }
-    }
-    frame_position_px_ += frame_stride_px_;
+  if ((rgb_ = static_cast<uint8_t*>(malloc(size_bytes))) == NULL) {
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
+                            SCANLINE_STATUS_MEMORY_ERROR,
+                            SCANLINE_WEBPWRITER,
+                            "malloc()");
   }
-
-  ++next_scanline_;
+  rgb_end_ = rgb_ + size_bytes;
+  position_bytes_ = rgb_;
+  init_ok_ = true;
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
 
-ScanlineStatus WebpFrameWriter::FinalizeWrite() {
-  ScanlineStatus status = CacheCurrentFrame();
-  if (!status.Success()) {
-    return status;
-  }
-
-  if (WebPFrameCacheFlushAll(webp_frame_cache_, false /*verbose*/, webp_mux_) !=
-      WEBP_MUX_OK) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
+ScanlineStatus WebpScanlineWriter::WriteNextScanlineWithStatus(
+    const void* const scanline_bytes) {
+  if ((position_bytes_ == NULL) ||
+      (position_bytes_ + stride_bytes_ > rgb_end_)) {
+    PS_DLOG_INFO(message_handler_, \
+        "Attempting to write past allocated memory "
+        "(rgb_ == %p; position_bytes_ == %p; stride_bytes_ == %d; "
+        "rgb_end_ == %p)",
+        static_cast<void*>(rgb_), static_cast<void*>(position_bytes_),
+        stride_bytes_, static_cast<void*>(rgb_end_));
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                             SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_WEBPWRITER,
-                            "WebPFrameCacheFlushAll error");
+                            SCANLINE_WEBPWRITER,
+                            "attempting to write past allocated memory");
   }
 
-  if (next_frame_ > 1) {
-    // This was an animated image.
-    WebPMuxAnimParams anim = {
-      RgbaToPackedArgb(image_spec_->bg_color),
-      static_cast<int>(image_spec_->loop_count - 1)
-    };
-    if (WebPMuxSetAnimationParams(webp_mux_, &anim) != WEBP_MUX_OK) {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              FRAME_WEBPWRITER,
-                              "WebPMuxSetAnimationParams error");
+  const int kNumRgbChannels = 3;
+  if (should_expand_gray_to_rgb_) {
+    // Replicate the luminance to RGB.
+    const uint8_t* const in_bytes =
+        reinterpret_cast<const uint8_t*>(scanline_bytes);
+    for (int idx_in = 0, idx_out = 0;
+         idx_in < picture_.width;
+         ++idx_in, idx_out += kNumRgbChannels) {
+      memset(position_bytes_+idx_out, in_bytes[idx_in], kNumRgbChannels);
     }
+  } else {
+    memcpy(position_bytes_, scanline_bytes, stride_bytes_);
+  }
+  position_bytes_ += stride_bytes_;
+  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+}
+
+ScanlineStatus WebpScanlineWriter::FinalizeWriteWithStatus() {
+  if (!got_all_scanlines_) {
+    if (position_bytes_ != rgb_end_) {
+      return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
+                              SCANLINE_STATUS_INVOCATION_ERROR,
+                              SCANLINE_WEBPWRITER, "unwritten scanlines");
+    }
+    got_all_scanlines_ = true;
+    position_bytes_ = NULL;
   }
 
-  WebPData webp_data = { NULL, 0 };
-  if (WebPMuxAssemble(webp_mux_, &webp_data) != WEBP_MUX_OK) {
-    if (webp_image_->error_code == kWebPErrorTimeout) {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                              SCANLINE_STATUS_TIMEOUT_ERROR,
-                              FRAME_WEBPWRITER,
-                              "WebPMuxAssemble: %s",
-                              kWebPErrorMessages[webp_image_->error_code]);
+  bool ok = has_alpha_ ?
+      (WebPPictureImportRGBA(&picture_, rgb_, stride_bytes_) != 0) :
+      (WebPPictureImportRGB(&picture_, rgb_, stride_bytes_) != 0);
+
+  if (!ok) {
+    if (has_alpha_) {
+      return PS_LOGGED_STATUS(PS_DLOG_ERROR, message_handler_,
+                              SCANLINE_STATUS_INTERNAL_ERROR,
+                              SCANLINE_WEBPWRITER,
+                              "WebPPictureImportRGBA()");
     } else {
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
+      return PS_LOGGED_STATUS(PS_DLOG_ERROR, message_handler_,
                               SCANLINE_STATUS_INTERNAL_ERROR,
-                              FRAME_WEBPWRITER,
-                              "WebPMuxAssemble: %s",
-                              kWebPErrorMessages[webp_image_->error_code]);
+                              SCANLINE_WEBPWRITER,
+                              "WebPPictureImportRGB()");
     }
   }
 
-  output_image_->append(reinterpret_cast<const char *>(webp_data.bytes),
-                        webp_data.size);
-  WebPDataClear(&webp_data);
+  imported_ = true;
 
-  PS_DLOG_INFO(message_handler(), \
-      "Stats: coded_size: %d; lossless_size: %d; alpha size: %d;",
-      stats_.coded_size, stats_.lossless_size, stats_.alpha_data_size);
+  picture_.writer = WriteWebpIncrementally;
+  picture_.custom_ptr = webp_image_;
+  picture_.user_data = this;
+  if (progress_hook_) {
+    picture_.progress_hook = ProgressHook;
+  }
+  if (!WebPEncode(config_, &picture_)) {
+    if (picture_.error_code == kWebPErrorTimeout) {
+      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
+                              SCANLINE_STATUS_TIMEOUT_ERROR,
+                              SCANLINE_WEBPWRITER,
+                              "WebPEncode(): %s",
+                              kWebPErrorMessages[picture_.error_code]);
+    } else {
+      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
+                              SCANLINE_STATUS_INTERNAL_ERROR,
+                              SCANLINE_WEBPWRITER,
+                              "WebPEncode(): %s",
+                              kWebPErrorMessages[picture_.error_code]);
+    }
+  }
+
+  PS_DLOG_INFO(message_handler_, \
+      "Stats: coded_size: %d; lossless_size: %d; alpha size: %d;"
+      " layer size: %d",
+      stats_.coded_size, stats_.lossless_size, stats_.alpha_data_size,
+      stats_.layer_data_size);
 
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
@@ -576,7 +410,7 @@ ScanlineStatus WebpScanlineReader::ReadNextScanlineWithStatus(
     pixels_.reset(new uint8_t[bytes_per_row_ * height_]);
     if (pixels_ == NULL) {
       Reset();
-      return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
+      return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
                               SCANLINE_STATUS_MEMORY_ERROR,
                               SCANLINE_WEBPREADER,
                               "Failed to allocate memory.");
@@ -601,8 +435,8 @@ ScanlineStatus WebpScanlineReader::ReadNextScanlineWithStatus(
      bool decode_ok = (WebPDecode(image_buffer_, buffer_length_, &config)
                        == VP8_STATUS_OK);
 
-     // Clean up WebP decoder because it is not needed any more,
-     // regardless of whether whether decoding was successful or not.
+     // Clean up WebP decoder because it is not needed any more no matter
+     // whether decoding was successful or not.
      WebPFreeDecBuffer(&config.output);
 
      if (!decode_ok) {

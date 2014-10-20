@@ -18,20 +18,20 @@
 
 #include "net/instaweb/rewriter/public/js_outline_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -123,14 +123,11 @@ void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
     // Create script file from content.
     MessageHandler* handler = driver()->message_handler();
     // Create outline resource at the document location, not base URL location
-    GoogleString failure_reason;
     OutputResourcePtr resource(
         driver()->CreateOutputResourceWithUnmappedUrl(
-            driver()->google_url(), kFilterId, "_", kOutlinedResource,
-            &failure_reason));
-    if (resource.get() == NULL) {
-      driver()->InsertDebugComment(failure_reason, inline_element);
-    } else if (WriteResource(content, resource.get(), handler)) {
+            driver()->google_url(), kFilterId, "_", kOutlinedResource));
+    if (resource.get() != NULL &&
+        WriteResource(content, resource.get(), handler)) {
       HtmlElement* outline_element = driver()->CloneElement(inline_element);
       driver()->AddAttribute(outline_element, HtmlName::kSrc,
                              resource->url());
@@ -141,8 +138,6 @@ void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
         driver()->FatalErrorHere("Failed to delete inline script element");
       }
     } else {
-      driver()->InsertDebugComment("Failed to write outlined script resource.",
-                                   inline_element);
       driver()->ErrorHere("Failed to write outlined script resource.");
     }
   }

@@ -51,10 +51,6 @@ ModPagespeedRetainComment " google_ad_section*"
 # Test proxying of non-.pagespeed. resources.
 ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/modpagespeed_http \
                            http://@@PAGESPEED-TEST-HOST@@/do_not_modify
-ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/content_type_present \
-                           http://@@PAGESPEED-TEST-HOST@@:8091
-ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/content_type_absent \
-                           http://@@PAGESPEED-TEST-HOST@@:8092
 
 # Turn on "KeepAlive" so we can test it in system_test.sh.
 KeepAlive On
@@ -224,6 +220,12 @@ ModPagespeedLoadFromFile "http://@@APACHE_DOMAIN@@/mod_pagespeed_test/ipro/insta
     ModPagespeedCriticalLineConfig div[@id="container"]/div[4]
 </Directory>
 
+# Test purging individual URLs without flushing the entire
+# metadata cache.  Note that we do not support any URL-based purging
+# in mod_pagespeed yet so there is no need to cover the 'off' case in
+# our tests.
+ModPagespeedEnableCachePurge on
+
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/disable_no_transform" >
   ModPagespeedDisableRewriteOnNoTransform off
   <IfModule headers_module>
@@ -336,32 +338,6 @@ Header append 'X-Extra-Header' '1'
   ModPagespeedRewriteLevel CoreFilters
 </Directory>
 
-# Build a configuration hierarchy where at the root we have turned on a few
-# filters, several of which do not preserve URLs, and in a subdirectory we have
-# turned on preserve URLs.
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/preserveurls" >
-#ModPagespeedEnableFilters inline_preview_images,lazyload_images
-#ModPagespeedEnableFilters resize_mobile_images,rewrite_images,sprite_images
-#ModPagespeedEnableFilters fallback_rewrite_css_urls,flatten_css_imports
-#ModPagespeedEnableFilters inline_css,move_css_above_scripts,move_css_to_head
-#ModPagespeedEnableFilters outline_css,rewrite_css,combine_css
-#ModPagespeedEnableFilters combine_javascript,defer_javascript,inline_javascript
-#ModPagespeedEnableFilters outline_javascript,rewrite_javascript
-ModPagespeedRewriteLevel CoreFilters
-</Directory>
-
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/preserveurls/on" >
-ModPagespeedJsPreserveURLs On
-ModPagespeedImagePreserveURLs On
-ModPagespeedCssPreserveURLs On
-
-# TODO(jmarantz): PreserveURLs should override the explicit setting at
-# the level above that turns on inline_preview_images, resize_mobile_images,
-# and lazyload_images
-ModPagespeedDisableFilters inline_preview_images,resize_mobile_images
-ModPagespeedDisableFilters lazyload_images
-</Directory>
-
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/experimental_js_minifier" >
   ModPagespeedUseExperimentalJsMinifier on
 </Directory>
@@ -420,21 +396,6 @@ ModPagespeedRespectXForwardedProto on
 
 ModPagespeedCompressMetadataCache true
 
-# Make a non-empty subdirectory config to make sure that
-# cache.flush updates get transmitted to nested configurations.
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/cache_flush/" >
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters inline_css
-  ModPagespeedDisableFilters add_instrumentation
-</Directory>
-
-# Directory config for gathering sample data from instrumented pages for
-# purposes of mobilization.
-<Directory "@@APACHE_DOC_ROOT@@/mobilization/" >
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters mobilize,debug
-</Directory>
-
 # Another VirtualHost can be enabled by default as it does no harm.  This can
 # be used for testing alternate configuration settings in system tests without
 # restarting Apache.
@@ -467,14 +428,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 
   # Helps testing whether the configuration of reporting 'unload' time works.
   ModPagespeedReportUnloadTime on
-
-  # Make a non-empty subdirectory config to make sure that
-  # cache.flush updates get transmitted to nested configurations.
-  <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/cache_flush/" >
-    ModPagespeedRewriteLevel PassThrough
-    ModPagespeedEnableFilters inline_css
-    ModPagespeedDisableFilters add_instrumentation
-  </Directory>
 
 #REWRITE   # These lines are only needed for the mod_rewrite test, where
 #REWRITE   # we are just trying to prove that we remove mod_rewrite from
@@ -729,83 +682,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeed unplugged
 </VirtualHost>
 
-# For testing setting options by cookies.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName options-by-cookies-enabled.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_optionsbycookieson"
-  ModPagespeedAllowOptionsToBeSetByCookies true
-  ModPagespeedStickyQueryParameters sticky_secret
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters collapse_whitespace
-  ModPagespeedDisableFilters remove_comments,add_instrumentation
-</VirtualHost>
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName options-by-cookies-disabled.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@_optionsbycookiesoff"
-  ModPagespeedAllowOptionsToBeSetByCookies false
-  ModPagespeedDisableFilters add_instrumentation
-</VirtualHost>
-
-# For testing request option overriding.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName request-option-override.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRequestOptionOverride abc
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters collapse_whitespace
-  ModPagespeedDisableFilters remove_comments,add_instrumentation
-</VirtualHost>
-
-# For testing ipro + load from file + unknown extensions.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName lff-ipro.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedLoadFromFile \
-   "http://lff-ipro.example.com/mod_pagespeed_test/lff_ipro" \
-   "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/lff_ipro"
-</VirtualHost>
-
-# For testing signed urls.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName signed-urls.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedUrlSigningKey helloworld
-  ModPagespeedRewriteLevel PassThrough
-</VirtualHost>
-
-# For testing signed urls, ignoring signature validity.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName signed-urls-transition.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedUrlSigningKey helloworld
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedAcceptInvalidSignatures true
-</VirtualHost>
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName unsigned-urls-transition.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  # This server will not sign URLs, but AcceptInvalidSignatures is on.
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedAcceptInvalidSignatures true
-</VirtualHost>
-
-# For testing handling of redirected requests.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName redirect.example.com
-  Redirect /redirect/ /
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters add_instrumentation,collapse_whitespace
-</VirtualHost>
-
 # Proxy + IPRO a gzip'd file for testing Issue 896.
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
   ServerName ipro-proxy.example.com
@@ -822,7 +698,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   AddOutputFilterByType DEFLATE text/css
 </VirtualHost>
 
-# Backend for ipro-proxy.example.com
+# Backend for ipro-proxy.exampe.com
 Listen 127.0.0.1:@@APACHE_TERTIARY_PORT@@
 NameVirtualHost 127.0.0.1:@@APACHE_TERTIARY_PORT@@
 <VirtualHost 127.0.0.1:@@APACHE_TERTIARY_PORT@@>
@@ -973,28 +849,6 @@ ModPagespeedUsePerVHostStatistics on
     "http://localhost:@@APACHE_SECONDARY_PORT@@/purge"
 </VirtualHost>
 
-# Set up a reverse proxy (rproxy.) and origin (origin.) as vhosts for
-# showing that we can configure PageSpeed via response headers.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName rproxy.rmcomments.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedDisableFilters add_instrumentation,remove_comments
-  # Note that we don't enable remove_comments here; that setting
-  # comes from the response headers from origin.rmcomments.example.com
-  ProxyRemote * http://localhost:@@APACHE_SECONDARY_PORT@@
-  ProxyPass / http://origin.rmcomments.example.com/
-  ProxyPassReverse / http://origin.rmcomments.example.com/
-</VirtualHost>
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName origin.rmcomments.example.com
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeed unplugged
-  Header add PageSpeedFilters remove_comments
-</VirtualHost>
-
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
   ServerName renderedimagebeacon.example.com
 
@@ -1110,20 +964,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
     SetHandler mod_pagespeed_temp_statistics_graphs
 </Location>
 
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName purge.example.com
-
-  # Test purging individual URLs without flushing the entire metadata cache.
-  ModPagespeedEnableCachePurge on
-
-  ModPagespeedPurgeMethod PURGE
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@_purge"
-  ModPagespeedDisableFilters add_instrumentation
-  ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters rewrite_css
-</VirtualHost>
-
 #STATS_LOGGING ModPagespeedStatistics on
 #STATS_LOGGING ModPagespeedStatisticsLogging on
 #STATS_LOGGING ModPagespeedLogDir "@@MOD_PAGESPEED_LOG@@"
@@ -1213,7 +1053,7 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
 #COVERAGE   ModPagespeedFileCacheCleanIntervalMs     120000
 #COVERAGE   ModPagespeedLRUCacheKbPerProcess           1024
 #COVERAGE   ModPagespeedLRUCacheByteLimit             16384
-#COVERAGE   ModPagespeedCssFlattenMaxBytes           102400
+#COVERAGE   ModPagespeedCssFlattenMaxBytes             2048
 #COVERAGE   ModPagespeedCssInlineMaxBytes              2048
 #COVERAGE   ModPagespeedCssImageInlineMaxBytes            0
 #COVERAGE   ModPagespeedImageInlineMaxBytes            3072
@@ -1376,17 +1216,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
 #EXPERIMENT_NO_GA ModPagespeedExperimentSpec "id=2;enable=recompress_images,rewrite_javascript;percent=50;options=AvoidRenamingIntrospectiveJavascript=on"
 #EXPERIMENT_NO_GA ModPagespeedExperimentSpec "id=3;default;percent=0"
 
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName experiment.devicematch.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-
-  ModPagespeedRewriteLevel PassThrough
-
-  ModPagespeedRunExperiment on
-  ModPagespeedExperimentSpec "id=1;percent=100;matches_device_type=mobile;enable=recompress_images"
-</VirtualHost>
-
 # Support for embedded configurations, where image flags in the
 # VirtualHost serving HTML is not the same as the one serving resources,
 # and thus we must embed the image flags in the rewritten image URLs.
@@ -1522,7 +1351,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedAllow foo
 #ALL_DIRECTIVES ModPagespeedAnalyticsID 1234
 #ALL_DIRECTIVES ModPagespeedAvoidRenamingIntrospectiveJavascript true
-#ALL_DIRECTIVES ModPagespeedAllowOptionsToBeSetByCookies true
 #ALL_DIRECTIVES ModPagespeedBeaconUrl "http://example.com/beacon"
 #ALL_DIRECTIVES ModPagespeedBlockingRewriteKey test
 #ALL_DIRECTIVES ModPagespeedCacheFlushFilename /tmp/cache.flush
@@ -1570,7 +1398,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedImageWebpRecompressionQuality 85
 #ALL_DIRECTIVES ModPagespeedImageWebpRecompressionQualityForSmallScreens 85
 #ALL_DIRECTIVES ModPagespeedImplicitCacheTtlMs 60000
-#ALL_DIRECTIVES ModPagespeedLoadFromFileCacheTtlMs 60000
 #ALL_DIRECTIVES ModPagespeedInPlaceResourceOptimization on
 #ALL_DIRECTIVES ModPagespeedIncreaseSpeedTracking true
 #ALL_DIRECTIVES ModPagespeedInstallCrashHandler off
@@ -1604,7 +1431,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedModifyCachingHeaders true
 #ALL_DIRECTIVES ModPagespeedNumExpensiveRewriteThreads 2
 #ALL_DIRECTIVES ModPagespeedNumRewriteThreads 4
-#ALL_DIRECTIVES ModPagespeedOptionCookiesDurationMs 12345
 #ALL_DIRECTIVES ModPagespeedPreserveUrlRelativity on
 #ALL_DIRECTIVES ModPagespeedProgressiveJpegMinBytes 1000
 #ALL_DIRECTIVES ModPagespeedRateLimitBackgroundFetches true
@@ -1630,7 +1456,6 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingFile /tmp/log/stats.log
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingIntervalMs 3000
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingMaxFileSizeKb 1024
-#ALL_DIRECTIVES ModPagespeedStickyQueryParameters something-private
 #ALL_DIRECTIVES ModPagespeedSupportNoScriptEnabled true
 #ALL_DIRECTIVES ModPagespeedTestProxy off
 #ALL_DIRECTIVES ModPagespeedUrlValuedAttribute span src Hyperlink

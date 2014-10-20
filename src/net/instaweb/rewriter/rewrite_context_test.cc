@@ -21,12 +21,19 @@
 
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"  // for Code::kOK
 #include "net/instaweb/http/public/mock_url_fetcher.h"
-#include "net/instaweb/http/public/rate_controller.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/rate_controller.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/http/public/write_through_http_cache.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
@@ -35,39 +42,32 @@
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for ResourcePtr, etc
-#include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
+#include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/simple_text_filter.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"  // for Code::kOK
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mem_file_system.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/worker_test_base.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -96,8 +96,6 @@ class RewriteContextTest : public RewriteContextTestBase {
     other_rewrite_driver()->AppendRewriteFilter(
         new TrimWhitespaceSyncFilter(kind, rewrite_driver()));
     other_rewrite_driver()->AddFilters();
-
-    EnableDebug();
   }
 
   void InitTwoFilters(OutputResourceKind kind) {
@@ -113,9 +111,7 @@ class RewriteContextTest : public RewriteContextTestBase {
     // The first rewrite was successful because we got an 'instant' url
     // fetch, not because we did any cache lookups.
     *input_html = CssLinkHref("a.css");
-    *output_html =
-        StrCat(CssLinkHref(Encode("", "tw", "0", "a.css", "css")),
-               DebugMessage("a.css"));
+    *output_html = CssLinkHref(Encode("", "tw", "0", "a.css", "css"));
     ValidateExpected("trimmable", *input_html, *output_html);
     EXPECT_EQ(0, lru_cache()->num_hits());
     EXPECT_EQ(2, lru_cache()->num_misses());   // Metadata + input-resource.
@@ -787,7 +783,6 @@ TEST_F(RewriteContextTest, TrimRepeated404) {
 }
 
 TEST_F(RewriteContextTest, FetchNonOptimizable) {
-  options()->set_implicit_cache_ttl_ms(kOriginTtlMs + 100 * Timer::kSecondMs);
   InitTrimFilters(kRewrittenResource);
   InitResources();
   // We use MD5 hasher instead of mock hasher so that the we get the actual hash
@@ -806,62 +801,11 @@ TEST_F(RewriteContextTest, FetchNonOptimizable) {
   // Since this resource URL has a zero hash in it, this turns out to be a hash
   // mismatch. So, cache TTL should be short and the result should be marked
   // private.
-  EXPECT_FALSE(headers.IsProxyCacheable());
-  EXPECT_TRUE(headers.IsBrowserCacheable());
-  EXPECT_EQ(kOriginTtlMs + 0,
-            headers.CacheExpirationTimeMs() - timer()->NowMs());
-
-  // After 100 seconds, we'll only have 200 seconds left in the cache.
-  headers.Clear();
-  output.clear();
-  AdvanceTimeMs(200 * Timer::kSecondMs);
-  EXPECT_TRUE(FetchResourceUrl(Encode(kTestDomain, "tw", "0", "b.css", "css"),
-                               &output, &headers));
-  EXPECT_EQ("b", output);
-  EXPECT_FALSE(headers.IsProxyCacheable());
-  EXPECT_TRUE(headers.IsBrowserCacheable());
-  EXPECT_EQ(kOriginTtlMs - 200 * Timer::kSecondMs,
-            headers.CacheExpirationTimeMs() - timer()->NowMs());
-}
-
-TEST_F(RewriteContextTest, FetchNonOptimizableWithPublicCaching) {
-  options()->set_implicit_cache_ttl_ms(kOriginTtlMs + 100 * Timer::kSecondMs);
-  options()->set_publicly_cache_mismatched_hashes_experimental(true);
-  InitTrimFilters(kRewrittenResource);
-  InitResources();
-  // We use MD5 hasher instead of mock hasher so that the we get the actual hash
-  // of the content and not hash 0 always.
-  UseMd5Hasher();
-
-  // Fetching a resource that's not optimizable under the rewritten URL
-  // should still work in a single-input case. This is important to be more
-  // robust against JS URL manipulation.
-  GoogleString output;
-  ResponseHeaders headers;
-  EXPECT_TRUE(FetchResourceUrl(Encode(kTestDomain, "tw", "0", "b.css", "css"),
-                               &output, &headers));
-  EXPECT_EQ("b", output);
-
-  // Since this resource URL has a zero hash in it, this turns out to be a hash
-  // mismatch. However, the result should be proxy-cacheable and match the
-  // origin TTL, because we have specified
-  // set_publicly_cache_mismatched_hashes_experimental(true).
-  EXPECT_TRUE(headers.IsProxyCacheable());
-  EXPECT_EQ(kOriginTtlMs + 0,
-            headers.CacheExpirationTimeMs() - timer()->NowMs());
-
-  // After 200 seconds, we'll only have 200 seconds left in the cache.
-  headers.Clear();
-  output.clear();
-  AdvanceTimeMs(200 * Timer::kSecondMs);
-  EXPECT_TRUE(FetchResourceUrl(Encode(kTestDomain, "tw", "0", "b.css", "css"),
-                               &output, &headers));
-  EXPECT_EQ("b", output);
-  EXPECT_TRUE(headers.IsProxyCacheable());
-  // We really want this to be (kOriginTtlMs + 0), not to have the TTL decay
-  // with elapased time.
-  EXPECT_EQ(kOriginTtlMs - 200 * Timer::kSecondMs,
-            headers.CacheExpirationTimeMs() - timer()->NowMs());
+  ConstStringStarVector values;
+  headers.Lookup(HttpAttributes::kCacheControl, &values);
+  ASSERT_EQ(2, values.size());
+  EXPECT_STREQ("max-age=300", *values[0]);
+  EXPECT_STREQ("private", *values[1]);
 }
 
 TEST_F(RewriteContextTest, FetchNonOptimizableLowTtl) {
@@ -1410,9 +1354,8 @@ TEST_F(RewriteContextTest, PreserveNoCacheWithFailedRewrites) {
 TEST_F(RewriteContextTest, TestRewritesOnEmptyPublicResources) {
   options()->EnableFilter(RewriteOptions::kExtendCacheCss);
   rewrite_driver()->AddFilters();
-  EnableDebug();
 
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs;
   const char kPath[] = "test.css";
   const char kDataIn[] = "";
 
@@ -1433,7 +1376,6 @@ TEST_F(RewriteContextTest, TestRewritesOnEmptyPublicResources) {
 TEST_F(RewriteContextTest, TestRewritesOnEmptyPrivateResources) {
   options()->EnableFilter(RewriteOptions::kExtendCacheCss);
   rewrite_driver()->AddFilters();
-  EnableDebug();
 
   const char kPath[] = "test.css";
   ResponseHeaders no_store_css_header;
@@ -1581,7 +1523,6 @@ TEST_F(RewriteContextTest, PreservePrivateWithRewrites) {
 // resources.
 TEST_F(RewriteContextTest, CacheControlWithMultipleInputResources) {
   InitCombiningFilter(0);
-  EnableDebug();
   combining_filter_->set_on_the_fly(true);
   InitResources();
 
@@ -1613,7 +1554,6 @@ TEST_F(RewriteContextTest, CacheControlWithMultipleInputResources) {
 // Fetching & reconstructing a combined resource with a healthy cache.
 TEST_F(RewriteContextTest, CombineFetchHealthyCache) {
   InitCombiningFilter(0);
-  EnableDebug();
   InitResources();
 
   GoogleString content;
@@ -1647,7 +1587,6 @@ TEST_F(RewriteContextTest, CombineFetchHealthyCache) {
 TEST_F(RewriteContextTest, CombineFetchUnhealthyCache) {
   lru_cache()->set_is_healthy(false);
   InitCombiningFilter(0);
-  EnableDebug();
   InitResources();
 
   GoogleString content;
@@ -1682,7 +1621,6 @@ TEST_F(RewriteContextTest, CombineFetchUnhealthyCache) {
 // resources.
 TEST_F(RewriteContextTest, CacheControlWithMultipleInputResourcesAndNoStore) {
   InitCombiningFilter(0);
-  EnableDebug();
   combining_filter_->set_on_the_fly(true);
   InitResources();
 
@@ -1727,8 +1665,7 @@ TEST_F(RewriteContextTest, CacheExtendCacheableResource) {
                               &headers));
     EXPECT_EQ("a", content);
     EXPECT_STREQ(StringPrintf("max-age=%lld",
-                              static_cast<long long int>(
-                                  ServerContext::kGeneratedMaxAgeMs / 1000)),
+                              ServerContext::kGeneratedMaxAgeMs/1000),
                  headers.Lookup1(HttpAttributes::kCacheControl));
   }
 }
@@ -1838,7 +1775,7 @@ TEST_F(RewriteContextTest, TrimFetchWrongHash) {
   EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
 
   // Make sure the TTL is correct, and the result is private.
-  EXPECT_EQ(RewriteOptions::kDefaultImplicitCacheTtlMs,
+  EXPECT_EQ(ResponseHeaders::kDefaultImplicitCacheTtlMs,
             headers.cache_ttl_ms());
   EXPECT_FALSE(headers.IsProxyCacheable());
   EXPECT_TRUE(headers.IsBrowserCacheable());
@@ -1857,7 +1794,7 @@ TEST_F(RewriteContextTest, TrimFetchWrongHashColdCache) {
   EXPECT_STREQ("a", contents);
 
   // Make sure the TTL is correct (short), and the result is private.
-  EXPECT_EQ(RewriteOptions::kDefaultImplicitCacheTtlMs,
+  EXPECT_EQ(ResponseHeaders::kDefaultImplicitCacheTtlMs,
             headers.cache_ttl_ms());
   EXPECT_FALSE(headers.IsProxyCacheable());
   EXPECT_TRUE(headers.IsBrowserCacheable());
@@ -1886,7 +1823,7 @@ TEST_F(RewriteContextTest, TrimFetchHashFailed) {
   EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
 
   // Make sure the TTL is correct, and the result is private.
-  EXPECT_EQ(RewriteOptions::kDefaultImplicitCacheTtlMs,
+  EXPECT_EQ(ResponseHeaders::kDefaultImplicitCacheTtlMs,
             headers.cache_ttl_ms());
   EXPECT_FALSE(headers.IsProxyCacheable());
   EXPECT_TRUE(headers.IsBrowserCacheable());
@@ -2438,7 +2375,6 @@ TEST_F(RewriteContextTest, DisableFurtherProcessing) {
 
 TEST_F(RewriteContextTest, CombinationRewrite) {
   InitCombiningFilter(0);
-  EnableDebug();
   InitResources();
   GoogleString combined_url = Encode("", CombiningFilter::kFilterId,
                                      "0", MultiUrl("a.css", "b.css"), "css");
@@ -2465,15 +2401,10 @@ TEST_F(RewriteContextTest, CombinationRewrite) {
 // the Rewrite flow.
 TEST_F(RewriteContextTest, CombinationRewriteWithDelay) {
   InitCombiningFilter(kRewriteDelayMs);
-  DebugWithMessage("<!--deadline_exceeded for filter Combining-->");
   InitResources();
   GoogleString combined_url = Encode("", CombiningFilter::kFilterId,
                                      "0", MultiUrl("a.css", "b.css"), "css");
-  ValidateExpected(
-      "xx",
-      StrCat(CssLinkHref("a.css"), CssLinkHref("b.css")),
-      StrCat(CssLinkHref("a.css"), DebugMessage(""),
-             CssLinkHref("b.css"), DebugMessage("")));
+  ValidateNoChanges("xx", StrCat(CssLinkHref("a.css"), CssLinkHref("b.css")));
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(3, lru_cache()->num_misses());   // partition, and 2 inputs.
   EXPECT_EQ(3, lru_cache()->num_inserts());  // partition+2 in, output not ready
@@ -2508,24 +2439,8 @@ TEST_F(RewriteContextTest, CombinationRewriteWithDelay) {
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
 }
 
-// This is the same test as the first stanza of CombinationRewriteWithDelay, but
-// includes the Debug filter so we get DeadlineExceeded debug messages injected.
-TEST_F(RewriteContextTest, CombinationRewriteWithDelayAndDebug) {
-  InitCombiningFilter(kRewriteDelayMs);
-  EnableDebug();
-  InitResources();
-  Parse("xx", StrCat(CssLinkHref("a.css"), CssLinkHref("b.css")));
-  GoogleString kDeadlineExceededComment(StrCat(
-      "<!--", RewriteDriver::DeadlineExceededMessage("Combining"), "-->"));
-  EXPECT_TRUE(output_buffer_.find(
-      StrCat(CssLinkHref("a.css"), kDeadlineExceededComment,
-             CssLinkHref("b.css"), kDeadlineExceededComment))
-              != GoogleString::npos);
-}
-
 TEST_F(RewriteContextTest, CombinationFetch) {
   InitCombiningFilter(0);
-  EnableDebug();
   InitResources();
 
   GoogleString combined_url = Encode(kTestDomain, CombiningFilter::kFilterId,
@@ -2564,7 +2479,6 @@ TEST_F(RewriteContextTest, FetchDeadlineTest) {
   // This uses a combining filter with one input, as it has the needed delay
   // functionality.
   InitCombiningFilter(Timer::kMonthMs);
-  EnableDebug();
   InitResources();
   combining_filter_->set_prefix("|");
 
@@ -2598,7 +2512,6 @@ TEST_F(RewriteContextTest, FetchDeadlineMandatoryTest) {
   // Version of FetchDeadlineTest where the filter is marked as not being
   // an optimization only. This effectively disables the deadline.
   InitCombiningFilter(Timer::kMonthMs);
-  EnableDebug();
   InitResources();
   combining_filter_->set_optimization_only(false);
   combining_filter_->set_prefix("|");
@@ -2618,7 +2531,6 @@ TEST_F(RewriteContextTest, FetchDeadlineTestBeforeDeadline) {
   // As above, but rewrite finishes quickly. This time we should see the |
   // immediately
   InitCombiningFilter(1 /*ms*/);
-  EnableDebug();
   InitResources();
   combining_filter_->set_prefix("|");
 
@@ -2660,7 +2572,6 @@ TEST_F(RewriteContextTest, LoadSheddingTest) {
   // We use a sync point here to wedge the combining filter, and then have
   // other filters behind it accumulate lots of work and get load-shed.
   InitCombiningFilter(0);
-  EnableDebug();
   combining_filter_->set_prefix("|");
   WorkerTestBase::SyncPoint rewrite_reached(
       server_context()->thread_system());
@@ -2735,7 +2646,6 @@ TEST_F(RewriteContextTest, LoadSheddingTest) {
 
 TEST_F(RewriteContextTest, CombinationFetchMissing) {
   InitCombiningFilter(0);
-  EnableDebug();
   SetFetchFailOnUnexpected(false);
   GoogleString combined_url = Encode(kTestDomain, CombiningFilter::kFilterId,
                                      "0", MultiUrl("a.css", "b.css"), "css");
@@ -2746,7 +2656,6 @@ TEST_F(RewriteContextTest, CombinationFetchNestedMalformed) {
   // Fetch of a combination where nested URLs look like they were pagespeed-
   // produced, but actually have invalid filter ids.
   InitCombiningFilter(0);
-  EnableDebug();
   SetFetchFailOnUnexpected(false);
   GoogleString combined_url = Encode(
       kTestDomain, CombiningFilter::kFilterId, "0",
@@ -2759,7 +2668,6 @@ TEST_F(RewriteContextTest, CombinationFetchSeedsCache) {
   // Make sure that fetching a combination seeds cache for future rewrites
   // properly.
   InitCombiningFilter(0 /* no rewrite delay*/);
-  EnableDebug();
   InitResources();
 
   // First fetch it..
@@ -2927,9 +2835,8 @@ class TestNotifyFilter : public CommonFilter {
   virtual void StartElementImpl(net_instaweb::HtmlElement* element) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
     if (href != NULL) {
-      bool unused;
       ResourcePtr input_resource(CreateInputResource(
-          href->DecodedValueOrNull(), &unused));
+          href->DecodedValueOrNull()));
       ResourceSlotPtr slot(driver()->GetSlot(input_resource, element, href));
       Context* context = new Context(driver(), sync_);
       context->AddSlot(slot);
@@ -3096,7 +3003,7 @@ TEST_F(RewriteContextTest, TestFreshen) {
   FetcherUpdateDateHeaders();
 
   // Note that this must be >= kDefaultImplicitCacheTtlMs for freshening.
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs * 10;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs * 10;
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
 
@@ -3211,18 +3118,17 @@ TEST_F(RewriteContextTest, TestFreshen) {
 TEST_F(RewriteContextTest, TestFreshenForMultipleResourceRewrites) {
   FetcherUpdateDateHeaders();
   InitCombiningFilter(0 /* no rewrite delay */);
-  EnableDebug();
   // We use MD5 hasher instead of mock hasher so that the rewritten url changes
   // when its content gets updated.
   UseMd5Hasher();
 
   // Note that this must be >= kDefaultImplicitCacheTtlMs for freshening.
-  const int kTtlMs1 = RewriteOptions::kDefaultImplicitCacheTtlMs * 10;
+  const int kTtlMs1 = ResponseHeaders::kDefaultImplicitCacheTtlMs * 10;
   const char kPath1[] = "first.css";
   const char kDataIn1[] = " first ";
   const char kDataNew1[] = " new first ";
 
-  const int kTtlMs2 = RewriteOptions::kDefaultImplicitCacheTtlMs * 5;
+  const int kTtlMs2 = ResponseHeaders::kDefaultImplicitCacheTtlMs * 5;
   const char kPath2[] = "second.css";
   const char kDataIn2[] = " second ";
 
@@ -3454,7 +3360,7 @@ TEST_F(RewriteContextTest, TestFreshenForLowTtl) {
 
 TEST_F(RewriteContextTest, TestFreshenWithTwoLevelCache) {
   // Note that this must be >= kDefaultImplicitCacheTtlMs for freshening.
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs * 10;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs * 10;
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
 
@@ -3623,7 +3529,7 @@ TEST_F(RewriteContextTest, TestFreshenForExtendCache) {
   UseMd5Hasher();
 
   // Note that this must be >= kDefaultImplicitCacheTtlMs for freshening.
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs * 10;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs * 10;
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
   const char kHash[] = "mmVFI7stDo";
@@ -3716,15 +3622,16 @@ TEST_F(RewriteContextTest, TestFreshenForEmbeddedDependency) {
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  // proactive_resource_freshening is off by default, so turn it on.
+  // Enable this option so urls are stored and freshen can be triggered on
+  // the nested input info.
   options()->set_proactive_resource_freshening(true);
   options()->ComputeSignature();
   rewrite_driver()->AddFilters();
 
   // Set up the resources and ttl. Ttl should be bigger than default implicit
   // cache ttl.
-  const int kImageTtl = RewriteOptions::kDefaultImplicitCacheTtlMs * 5;
-  const int kCssTtl = RewriteOptions::kDefaultImplicitCacheTtlMs * 10;
+  const int kImageTtl = ResponseHeaders::kDefaultImplicitCacheTtlMs * 5;
+  const int kCssTtl = ResponseHeaders::kDefaultImplicitCacheTtlMs * 10;
   const char kImageContent[] = "image1";
   const char kImagePath[] = "1.jpg";
   const char kCssPath[] = "text.css";
@@ -3812,118 +3719,13 @@ TEST_F(RewriteContextTest, TestFreshenForEmbeddedDependency) {
   EXPECT_EQ(3, http_cache()->cache_inserts()->Get());
 }
 
-TEST_F(RewriteContextTest, TestNoFreshenForEmbeddedDependency) {
-  FetcherUpdateDateHeaders();
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kRewriteCss);
-  options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-  // proactive resource freshening is off by default so no need to disable it.
-  EXPECT_FALSE(options()->proactive_resource_freshening());
-  options()->set_proactive_resource_freshening(false);
-  options()->ComputeSignature();
-  rewrite_driver()->AddFilters();
-
-  // Set up the resources and ttl. Ttl should be bigger than default implicit
-  // cache ttl.
-  const int kImageTtl = RewriteOptions::kDefaultImplicitCacheTtlMs * 5;
-  const int kCssTtl = RewriteOptions::kDefaultImplicitCacheTtlMs * 10;
-  const char kImageContent[] = "image1";
-  const char kImagePath[] = "1.jpg";
-  const char kCssPath[] = "text.css";
-  GoogleString css_content = StrCat("{background:url(\"",
-                                    AbsolutifyUrl("1.jpg"), "\")}");
-
-  // Start with non-zero time and init the resources.
-  AdvanceTimeMs(kImageTtl / 2);
-  SetResponseWithDefaultHeaders(kImagePath, kContentTypeJpeg, kImageContent,
-                                kImageTtl / Timer::kSecondMs);
-  SetResponseWithDefaultHeaders(kCssPath, kContentTypeCss, css_content,
-                                kCssTtl / Timer::kSecondMs);
-  GoogleString css_url = AbsolutifyUrl("text.css");
-  // Note: Output is absolute, because input is absolute.
-  GoogleString rewritten_url =
-      Encode(kTestDomain, "cf", "0", "text.css", "css");
-
-  // First fetch misses cache and resources are inserted into the cache.
-  ClearStats();
-  ValidateExpected("first_fetch", CssLinkHref(css_url),
-                   CssLinkHref(rewritten_url));
-  EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(4, lru_cache()->num_misses());  // cf, ic, 1.jpg, original text.css
-  EXPECT_EQ(5, lru_cache()->num_inserts());  // above + rewritten text.css
-  EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(2, http_cache()->cache_misses()->Get());
-  // text.css, 1.jpg, rewritten text.css get inserted in http cache.
-  EXPECT_EQ(3, http_cache()->cache_inserts()->Get());
-
-  // The ttl of the resource is the min of all its dependencies and hence
-  // kImageTtl in this case. Advance halfway and it should be a hit.
-  ClearStats();
-  AdvanceTimeMs(kImageTtl / 2);
-  ValidateExpected("fully hit", CssLinkHref(css_url),
-                   CssLinkHref(rewritten_url));
-  EXPECT_EQ(1, lru_cache()->num_hits());
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-
-  // Advance time close to the ttl of the image. This will not cause any
-  // proactive freshening since we turned it off.
-  ClearStats();
-  AdvanceTimeMs((kImageTtl / 2) - 2 * Timer::kMinuteMs);
-  ValidateExpected("freshen", CssLinkHref(css_url),
-                   CssLinkHref(rewritten_url));
-  EXPECT_EQ(1, lru_cache()->num_hits());  // test.css metadata
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(0, lru_cache()->num_inserts());
-  EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
-
-  // Advance past the original TTL.  We weren't proactively freshening
-  // the individual images that expired, but now all the resources
-  // need to be re-fetched the cache entries updated.
-  ClearStats();
-  AdvanceTimeMs(3 * Timer::kMinuteMs);
-  ValidateExpected("past original ttl", CssLinkHref(css_url),
-                   CssLinkHref(rewritten_url));
-  EXPECT_EQ(4, lru_cache()->num_hits());  // test.css MD/http, 1.jpg MD/http
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(4, lru_cache()->num_inserts());
-  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(1, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
-
-  // Advance time to Css ttl - 2 minutes. This will again cause no proactive
-  // freshening since we turned that off, but test.css will be expired so we
-  // will need to re-fetch it.  1.jpg will not have expired so we will not
-  // re-fetch it or check its cache entry.
-  ClearStats();
-  AdvanceTimeMs(kCssTtl - kImageTtl - 3 * Timer::kMinuteMs);
-  ValidateExpected("past highest ttl", CssLinkHref(css_url),
-                   CssLinkHref(rewritten_url));
-  EXPECT_EQ(2, lru_cache()->num_hits());  // test.css MD/http
-  EXPECT_EQ(0, lru_cache()->num_misses());
-  EXPECT_EQ(2, lru_cache()->num_inserts());
-  EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, http_cache()->cache_hits()->Get());  // old rewritten css
-  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
-}
-
 TEST_F(RewriteContextTest, TestReuse) {
   FetcherUpdateDateHeaders();
 
   // Test to make sure we are able to avoid rewrites when inputs don't
   // change even when they expire.
 
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs;
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
 
@@ -3964,11 +3766,10 @@ TEST_F(RewriteContextTest, TestReuse) {
 TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
   FetcherUpdateDateHeaders();
   InitTrimFilters(kRewrittenResource);
-  EnableDebug();
 
   // Test to make sure we are able to serve stale resources if available when
   // the fetch fails.
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs;
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
   const char kDataOut[] = "data";
@@ -3984,11 +3785,7 @@ TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
 
   // First fetch. No rewriting happens since the fetch fails. We cache that the
   // fetch failed for kDefaultImplicitCacheTtlMs.
-  GoogleString input_html = CssLinkHref(kPath);
-  GoogleString fetch_failure_html =
-      StrCat(input_html, "<!--Fetch failure, preventing rewriting of ",
-             kTestDomain, kPath, "-->");
-  ValidateExpected("initial_500", input_html, fetch_failure_html);
+  ValidateNoChanges("initial_500", CssLinkHref(kPath));
   EXPECT_EQ(0, trim_filter_->num_rewrites());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
@@ -4001,7 +3798,7 @@ TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
   // remembered that the fetch failed, we don't trigger a fetch for the CSS and
   // don't rewrite it either.
   AdvanceTimeMs(kTtlMs / 2);
-  ValidateExpected("forward_500", input_html, fetch_failure_html);
+  ValidateNoChanges("forward_500", CssLinkHref(kPath));
   EXPECT_EQ(0, trim_filter_->num_rewrites());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
@@ -4019,7 +3816,7 @@ TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
 
   // The resource is rewritten successfully.
   ValidateExpected("forward_200",
-                   input_html,
+                   CssLinkHref(kPath),
                    CssLinkHref(rewritten_url));
   EXPECT_EQ(1, trim_filter_->num_rewrites());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
@@ -4042,11 +3839,8 @@ TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
   AdvanceTimeMs(kTtlMs * 10);
   lru_cache()->Delete(HttpCacheKey(abs_rewritten_url));
   mock_url_fetcher()->SetResponse(AbsolutifyUrl(kPath), bad_headers, "");
-  GoogleString expired_html =
-      StrCat(input_html, "<!--Cached content expired, preventing rewriting of ",
-             kTestDomain, kPath, "-->");
 
-  ValidateExpected("forward_500_fallback_served", input_html, expired_html);
+  ValidateNoChanges("forward_500_fallback_served", CssLinkHref(kPath));
   EXPECT_EQ(0, trim_filter_->num_rewrites());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
@@ -4070,7 +3864,7 @@ TEST_F(RewriteContextTest, TestFallbackOnFetchFails) {
 
   ClearStats();
   lru_cache()->Delete(HttpCacheKey(abs_rewritten_url));
-  ValidateExpected("forward_500_no_fallback", input_html, fetch_failure_html);
+  ValidateNoChanges("forward_500_no_fallback", CssLinkHref(kPath));
   EXPECT_EQ(0, trim_filter_->num_rewrites());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
@@ -4279,7 +4073,7 @@ TEST_F(RewriteContextTest, TestReuseNotFastEnough) {
   // Make sure we handle deadline passing when trying to reuse properly.
   FetcherUpdateDateHeaders();
 
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs;
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
 
@@ -4325,7 +4119,7 @@ TEST_F(RewriteContextTest, TestStaleRewriting) {
   // when its content gets updated.
   UseMd5Hasher();
 
-  const int kTtlMs = RewriteOptions::kDefaultImplicitCacheTtlMs;
+  const int kTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs;
   const char kPath[] = "test.css";
   const char kDataIn[] = "   data  ";
   const char kNewDataIn[] = "   newdata  ";
@@ -4409,7 +4203,6 @@ TEST_F(RewriteContextTest, TestStaleRewriting) {
 // finished by the time the response is completely flushed.
 TEST_F(RewriteContextTest, BlockingRewrite) {
   InitCombiningFilter(kRewriteDelayMs);
-  EnableDebug();
   InitResources();
   GoogleString combined_url = Encode("", CombiningFilter::kFilterId,
                                      "0", MultiUrl("a.css", "b.css"), "css");
@@ -4723,11 +4516,15 @@ TEST_F(RewriteContextTest, DropFetchesAndRecover) {
 
   // Let's take a look at the rate-controlling fetcher's stats and make
   // sure they are sane.
-  UpDownCounter* fetch_queue_size = statistics()->GetUpDownCounter(
+  Variable* queued_fetches = statistics()->GetVariable(
+      RateController::kQueuedFetchCount);
+  Variable* dropped_fetches = statistics()->GetVariable(
+      RateController::kDroppedFetchCount);
+  Variable* fetch_queue_size = statistics()->GetVariable(
       RateController::kCurrentGlobalFetchQueueSize);
   EXPECT_EQ(TestRewriteDriverFactory::kFetchesPerHostQueuedRequestThreshold,
-            TimedValue(RateController::kQueuedFetchCount));
-  EXPECT_EQ(kExcessResources, TimedValue(RateController::kDroppedFetchCount));
+            queued_fetches->Get());
+  EXPECT_EQ(kExcessResources, dropped_fetches->Get());
   EXPECT_EQ(TestRewriteDriverFactory::kMaxFetchGlobalQueueSize,
             fetch_queue_size->Get());
 

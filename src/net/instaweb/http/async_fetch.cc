@@ -21,12 +21,11 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/request_timing_info.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/statistics.h"
 
 namespace net_instaweb {
 
@@ -113,7 +112,6 @@ void AsyncFetch::Done(bool success) {
       // successful ones to.
       response_headers()->set_status_code(HttpStatus::kNotFound);
     }
-    response_headers()->ComputeCaching();
     HeadersComplete();
   }
   HandleDone(success);
@@ -153,7 +151,7 @@ const RequestHeaders* AsyncFetch::request_headers() const {
 
 ResponseHeaders* AsyncFetch::response_headers() {
   if (response_headers_ == NULL) {
-    response_headers_ = new ResponseHeaders(request_ctx_->options());
+    response_headers_ = new ResponseHeaders;
     owns_response_headers_ = true;
   }
   return response_headers_;
@@ -170,7 +168,7 @@ void AsyncFetch::set_response_headers(ResponseHeaders* headers) {
 
 ResponseHeaders* AsyncFetch::extra_response_headers() {
   if (extra_response_headers_ == NULL) {
-    extra_response_headers_ = new ResponseHeaders(request_ctx_->options());
+    extra_response_headers_ = new ResponseHeaders;
     owns_extra_response_headers_ = true;
   }
   return extra_response_headers_;
@@ -193,7 +191,7 @@ GoogleString AsyncFetch::LoggingString() {
   }
 
   int64 latency;
-  const RequestTimingInfo& timing_info = request_ctx_->timing_info();
+  const RequestContext::TimingInfo& timing_info = request_ctx_->timing_info();
   if (timing_info.GetHTTPCacheLatencyMs(&latency)) {
     StrAppend(&logging_info_str, "c1:", Integer64ToString(latency), ";");
   }
@@ -323,7 +321,7 @@ ConditionalSharedAsyncFetch::ConditionalSharedAsyncFetch(
     // conditional.
     if (!request_headers()->Has(HttpAttributes::kIfModifiedSince) &&
         !request_headers()->Has(HttpAttributes::kIfNoneMatch)) {
-      ResponseHeaders cached_response_headers(request_context()->options());
+      ResponseHeaders cached_response_headers;
       cached_value->ExtractHeaders(&cached_response_headers, handler_);
       // Check that the cached response is a 200.
       if (cached_response_headers.status_code() == HttpStatus::kOK) {
