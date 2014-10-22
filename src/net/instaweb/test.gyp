@@ -181,7 +181,8 @@
         'rewriter/mock_critical_images_finder.cc',
         'rewriter/mock_resource_callback.cc',
         'rewriter/mobilize_label_filter_test.cc',
-        'rewriter/mobilize_rewrite_filter_test.cc',
+        # Disable mobilization filters for 1.9.32.2 release.
+        # 'rewriter/mobilize_rewrite_filter_test.cc',
         'rewriter/pedantic_filter_test.cc',
         'rewriter/property_cache_util_test.cc',
         'rewriter/redirect_on_size_limit_filter_test.cc',
