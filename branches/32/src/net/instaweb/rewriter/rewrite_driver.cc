@@ -1208,10 +1208,11 @@ void RewriteDriver::AddPostRenderFilters() {
     // we Must left trim urls BEFORE quote removal.
     AddUnownedPostRenderFilter(url_trim_filter_.get());
   }
-  if (rewrite_options->Enabled(RewriteOptions::kMobilize)) {
-    AddOwnedPostRenderFilter(new MobilizeLabelFilter(this));
-    AddOwnedPostRenderFilter(new MobilizeRewriteFilter(this));
-  }
+  // Disable mobilization filters for 1.9.32.2 release.
+  // if (rewrite_options->Enabled(RewriteOptions::kMobilize)) {
+  //   AddOwnedPostRenderFilter(new MobilizeLabelFilter(this));
+  //   AddOwnedPostRenderFilter(new MobilizeRewriteFilter(this));
+  // }
   if (rewrite_options->Enabled(RewriteOptions::kFlushSubresources) &&
       !options()->pre_connect_url().empty()) {
     AddOwnedPostRenderFilter(new RewrittenContentScanningFilter(this));
