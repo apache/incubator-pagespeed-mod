@@ -160,6 +160,7 @@ const char* kWebpBlacklist[] = {
   "*Opera?10.*",
   "*Opera/9.80*Version/11.0*",
   "*Opera?11.0*",
+  "*Windows Phone*",
 };
 
 const char* kWebpLosslessAlphaWhitelist[] = {
@@ -492,6 +493,10 @@ bool UserAgentMatcher::IsAndroidUserAgent(const StringPiece& user_agent) const {
 bool UserAgentMatcher::IsiOSUserAgent(const StringPiece& user_agent) const {
   return user_agent.find("iPhone") != GoogleString::npos ||
       user_agent.find("iPad") != GoogleString::npos;
+}
+
+bool UserAgentMatcher::IsChromeLike(const StringPiece& user_agent) const {
+  return user_agent.find("Chrome/") != StringPiece::npos;
 }
 
 bool UserAgentMatcher::GetChromeBuildNumber(const StringPiece& user_agent,
