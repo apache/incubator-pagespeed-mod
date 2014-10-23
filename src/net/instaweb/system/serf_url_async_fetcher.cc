@@ -32,25 +32,25 @@
 #include "apr_thread_proc.h"
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/response_headers_parser.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/public/version.h"
 #include "net/instaweb/system/public/apr_thread_compatible_pool.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/condvar.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/pool.h"
-#include "pagespeed/kernel/base/pool_element.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/condvar.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/pool.h"
+#include "net/instaweb/util/public/pool_element.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/response_headers_parser.h"
 #include "third_party/serf/src/serf.h"
 
 // This is an easy way to turn on lots of debug messages. Note that this
@@ -664,34 +664,13 @@ class SerfFetch : public PoolElement<SerfFetch> {
     // by hacking source.  We hacked source.
     //
     // See src/third_party/serf/src/instaweb_context.c
+
     fetch->FixUserAgent();
+
     RequestHeaders* request_headers = fetch->async_fetch_->request_headers();
-
-    // Don't want to forward hop-by-hop stuff.
-    StringPieceVector names_to_sanitize =
-        HttpAttributes::SortedHopByHopHeaders();
-    request_headers->RemoveAllFromSortedArray(&names_to_sanitize[0],
-                                              names_to_sanitize.size());
-
-    // Also leave Content-Length to serf.
-    request_headers->RemoveAll(HttpAttributes::kContentLength);
-
-    serf_bucket_t* body_bkt = NULL;
-    const GoogleString& message_body = request_headers->message_body();
-    bool post_payload =
-        !message_body.empty() &&
-        (request_headers->method() == RequestHeaders::kPost);
-
-    if (post_payload) {
-      body_bkt = serf_bucket_simple_create(
-          message_body.data(), message_body.length(),
-          NULL /* no free function */, NULL /* no free baton*/,
-          serf_request_get_alloc(request));
-    }
-
     *req_bkt = serf_request_bucket_request_create_for_host(
         request, request_headers->method_string(),
-        url_path, body_bkt,
+        url_path, NULL,
         serf_request_get_alloc(request), fetch->host_header_);
     serf_bucket_t* hdrs_bkt = serf_bucket_request_get_headers(*req_bkt);
 
@@ -720,7 +699,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
   bool ParseUrl() {
     apr_status_t status = 0;
     status = apr_uri_parse(pool_, str_url_.c_str(), &url_);
-    if (status != APR_SUCCESS || url_.scheme == NULL) {
+    if (status != APR_SUCCESS) {
       return false;  // Failed to parse URL.
     }
     bool is_https = StringCaseEqual(url_.scheme, "https");

@@ -168,15 +168,15 @@ ScanlineStatus WebpFrameWriter::PrepareImage(const ImageSpec* image_spec) {
   if ((image_spec->height > WEBP_MAX_DIMENSION) ||
       (image_spec->width > WEBP_MAX_DIMENSION)) {
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_UNSUPPORTED_FEATURE,
+                            SCANLINE_STATUS_INVOCATION_ERROR,
                             FRAME_WEBPWRITER,
-                            "each image dimension must be at most %d",
+                            "image dimensions larger than the maximum of %d",
                             WEBP_MAX_DIMENSION);
   }
 
   if ((image_spec->height < 1) || (image_spec->width < 1)) {
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_UNSUPPORTED_FEATURE,
+                            SCANLINE_STATUS_INVOCATION_ERROR,
                             FRAME_WEBPWRITER,
                             "each image dimension must be at least 1");
   }
@@ -258,6 +258,14 @@ ScanlineStatus WebpFrameWriter::CacheCurrentFrame() {
                             "CacheCurrentFrame: not all scanlines written");
   }
 
+  struct WebPMuxFrameInfo webp_frame_info;
+  memset(&webp_frame_info, 0, sizeof(webp_frame_info));
+  webp_frame_info.id = WEBP_CHUNK_ANMF;
+  webp_frame_info.dispose_method =
+      FrameDisposalToWebPDisposal(frame_spec_.disposal);
+  webp_frame_info.blend_method = WEBP_MUX_BLEND;
+  webp_frame_info.duration = frame_spec_.duration_ms;
+
   // We need to pass image to add frame.
   WebPFrameRect frame_rect = {
     static_cast<int>(frame_spec_.left),
@@ -271,13 +279,6 @@ ScanlineStatus WebpFrameWriter::CacheCurrentFrame() {
     CHECK(webp_image_->user_data == this);
   }
 
-  struct WebPMuxFrameInfo webp_frame_info;
-  memset(&webp_frame_info, 0, sizeof(webp_frame_info));
-  webp_frame_info.id = WEBP_CHUNK_ANMF;
-  webp_frame_info.dispose_method =
-      FrameDisposalToWebPDisposal(frame_spec_.disposal);
-  webp_frame_info.blend_method = WEBP_MUX_BLEND;
-  webp_frame_info.duration = frame_spec_.duration_ms;
   if (!WebPFrameCacheAddFrame(webp_frame_cache_, &webp_config_, &frame_rect,
                               webp_image_, &webp_frame_info)) {
     if (webp_image_->error_code == kWebPErrorTimeout) {
@@ -486,8 +487,10 @@ ScanlineStatus WebpFrameWriter::FinalizeWrite() {
   WebPDataClear(&webp_data);
 
   PS_DLOG_INFO(message_handler(), \
-      "Stats: coded_size: %d; lossless_size: %d; alpha size: %d;",
-      stats_.coded_size, stats_.lossless_size, stats_.alpha_data_size);
+      "Stats: coded_size: %d; lossless_size: %d; alpha size: %d;"
+      " layer size: %d",
+      stats_.coded_size, stats_.lossless_size, stats_.alpha_data_size,
+      stats_.layer_data_size);
 
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }

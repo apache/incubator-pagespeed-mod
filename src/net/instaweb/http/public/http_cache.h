@@ -21,17 +21,17 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/atomic_bool.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -146,7 +146,7 @@ class HTTPCache {
     // Called upon completion of a cache lookup trigged by HTTPCache::Find by
     // the HTTPCache code with the latency in milliseconds.  Will invoke
     // ReportLatencyMsImpl for non-background fetches in order for system
-    // implementations, like RequestTimingInfo, to record the cache
+    // implementations, like RequestContext::TimingInfo, to record the cache
     // latency.
     void ReportLatencyMs(int64 latency_ms);
 
@@ -199,7 +199,7 @@ class HTTPCache {
 
    protected:
     // Virtual implementation for subclasses to override.  Default
-    // implementation calls RequestTimingInfo::SetHTTPCacheLatencyMs.
+    // implementation calls RequestContext::TimingInfo::SetHTTPCacheLatencyMs.
     virtual void ReportLatencyMsImpl(int64 latency_ms);
 
    private:

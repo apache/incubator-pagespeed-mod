@@ -25,20 +25,19 @@
 #include <utility>
 #include <vector>
 
-#include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/util/public/atomic_bool.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/util/simple_random.h"
 
 namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
@@ -209,13 +208,6 @@ class ServerContext {
   UrlAsyncFetcher* DefaultDistributedFetcher() {
     return default_distributed_fetcher_;
   }
-
-  // Creates a caching-fetcher based on the specified options.  If you call
-  // this with DefaultSystemFetcher() then it will not include any loopback
-  // fetching installed in the RewriteDriver.
-  CacheUrlAsyncFetcher* CreateCustomCacheFetcher(
-      const RewriteOptions* options, const GoogleString& fragment,
-      CacheUrlAsyncFetcher::AsyncOpHooks* hooks, UrlAsyncFetcher* fetcher);
 
   Timer* timer() const { return timer_; }
 

@@ -30,13 +30,19 @@
 
 #include "base/logging.h"
 #include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_filter.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/critical_css.pb.h"
@@ -48,6 +54,7 @@
 #include "net/instaweb/rewriter/public/base_tag_filter.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/cache_html_filter.h"
+#include "net/instaweb/rewriter/public/collapse_whitespace_filter.h"
 #include "net/instaweb/rewriter/public/collect_flush_early_content_filter.h"
 #include "net/instaweb/rewriter/public/compute_visible_text_filter.h"
 #include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
@@ -74,6 +81,7 @@
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/downstream_cache_purger.h"
+#include "net/instaweb/rewriter/public/elide_attributes_filter.h"
 #include "net/instaweb/rewriter/public/file_input_resource.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/fix_reflow_filter.h"
@@ -82,6 +90,7 @@
 #include "net/instaweb/rewriter/public/google_analytics_filter.h"
 #include "net/instaweb/rewriter/public/google_font_css_inline_filter.h"
 #include "net/instaweb/rewriter/public/handle_noscript_redirect_filter.h"
+#include "net/instaweb/rewriter/public/html_attribute_quote_removal.h"
 #include "net/instaweb/rewriter/public/image_combine_filter.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
@@ -103,6 +112,7 @@
 #include "net/instaweb/rewriter/public/pedantic_filter.h"
 #include "net/instaweb/rewriter/public/property_cache_util.h"
 #include "net/instaweb/rewriter/public/redirect_on_size_limit_filter.h"
+#include "net/instaweb/rewriter/public/remove_comments_filter.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -127,39 +137,30 @@
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/request_trace.h"
+#include "net/instaweb/util/public/scheduler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/statistics_logger.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/request_trace.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/sha1_signature.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/html/collapse_whitespace_filter.h"
-#include "pagespeed/kernel/html/elide_attributes_filter.h"
-#include "pagespeed/kernel/html/html_attribute_quote_removal.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_filter.h"
 #include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_writer_filter.h"
-#include "pagespeed/kernel/html/remove_comments_filter.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/thread/scheduler.h"
-#include "pagespeed/kernel/util/statistics_logger.h"
+#include "pagespeed/kernel/http/http_options.h"
 
 namespace net_instaweb {
 
@@ -1207,10 +1208,11 @@ void RewriteDriver::AddPostRenderFilters() {
     // we Must left trim urls BEFORE quote removal.
     AddUnownedPostRenderFilter(url_trim_filter_.get());
   }
-  if (rewrite_options->Enabled(RewriteOptions::kMobilize)) {
-    AddOwnedPostRenderFilter(new MobilizeLabelFilter(this));
-    AddOwnedPostRenderFilter(new MobilizeRewriteFilter(this));
-  }
+  // Disable mobilization filters for 1.9.32.2 release.
+  // if (rewrite_options->Enabled(RewriteOptions::kMobilize)) {
+  //   AddOwnedPostRenderFilter(new MobilizeLabelFilter(this));
+  //   AddOwnedPostRenderFilter(new MobilizeRewriteFilter(this));
+  // }
   if (rewrite_options->Enabled(RewriteOptions::kFlushSubresources) &&
       !options()->pre_connect_url().empty()) {
     AddOwnedPostRenderFilter(new RewrittenContentScanningFilter(this));
@@ -1412,9 +1414,33 @@ void RewriteDriver::SetSessionFetcher(UrlAsyncFetcher* f) {
 
 CacheUrlAsyncFetcher* RewriteDriver::CreateCustomCacheFetcher(
     UrlAsyncFetcher* base_fetcher) {
-  return server_context()->CreateCustomCacheFetcher(
-      options(), CacheFragment(), cache_url_async_fetcher_async_op_hooks_.get(),
+  CacheUrlAsyncFetcher* cache_fetcher = new CacheUrlAsyncFetcher(
+      server_context()->lock_hasher(),
+      server_context()->lock_manager(),
+      server_context()->http_cache(),
+      CacheFragment(),
+      cache_url_async_fetcher_async_op_hooks_.get(),
       base_fetcher);
+  RewriteStats* stats = server_context_->rewrite_stats();
+  cache_fetcher->set_respect_vary(options()->respect_vary());
+  cache_fetcher->set_default_cache_html(options()->default_cache_html());
+  cache_fetcher->set_backend_first_byte_latency_histogram(
+      stats->backend_latency_histogram());
+  cache_fetcher->set_fallback_responses_served(
+      stats->fallback_responses_served());
+  cache_fetcher->set_fallback_responses_served_while_revalidate(
+      stats->fallback_responses_served_while_revalidate());
+  cache_fetcher->set_num_conditional_refreshes(
+      stats->num_conditional_refreshes());
+  cache_fetcher->set_serve_stale_if_fetch_error(
+      options()->serve_stale_if_fetch_error());
+  cache_fetcher->set_proactively_freshen_user_facing_request(
+      options()->proactively_freshen_user_facing_request());
+  cache_fetcher->set_num_proactively_freshen_user_facing_request(
+      stats->num_proactively_freshen_user_facing_request());
+  cache_fetcher->set_serve_stale_while_revalidate_threshold_sec(
+      options()->serve_stale_while_revalidate_threshold_sec());
+  return cache_fetcher;
 }
 
 CacheUrlAsyncFetcher* RewriteDriver::CreateCacheFetcher() {

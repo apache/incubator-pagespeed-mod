@@ -19,7 +19,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 
-#include <bitset>
 #include <cstddef>                      // for size_t
 #include <map>
 #include <set>
@@ -27,34 +26,33 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/enum_set.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/thread_system.h"
 #include "pagespeed/kernel/base/dense_hash_map.h"
-#include "pagespeed/kernel/base/enum_set.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/rde_hash_map.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/sha1_signature.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/wildcard.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/util/copy_on_write.h"
 
 namespace net_instaweb {
 
+class Hasher;
 class HttpOptions;
 class MessageHandler;
 class PurgeSet;
@@ -319,10 +317,6 @@ class RewriteOptions {
   static const char kMinCacheTtlMs[];
   static const char kMinImageSizeLowResolutionBytes[];
   static const char kMinResourceCacheTimeToRewriteMs[];
-  static const char kMobCxxLayout[];
-  static const char kMobLayout[];
-  static const char kMobLogo[];
-  static const char kMobNav[];
   static const char kModifyCachingHeaders[];
   static const char kNoTransformOptimizedImages[];
   static const char kNonCacheablesForCachePartialHtml[];
@@ -409,7 +403,6 @@ class RewriteOptions {
   static const char kMemcachedServers[];
   static const char kMemcachedThreads[];
   static const char kMemcachedTimeoutUs[];
-  static const char kProxySuffix[];
   static const char kRateLimitBackgroundFetches[];
   static const char kServeWebpToAnyAgent[];
   static const char kSlurpDirectory[];
@@ -723,7 +716,7 @@ class RewriteOptions {
     // If spec doesn't have an id, then id_ will be set to
     // experiment::kExperimentNotSet.  These ExperimentSpecs will then be
     // rejected by AddExperimentSpec().
-    ExperimentSpec(const StringPiece& spec, const RewriteOptions* options,
+    ExperimentSpec(const StringPiece& spec, RewriteOptions* options,
                    MessageHandler* handler);
 
     // Creates a ExperimentSpec with id_=id.  All other variables
@@ -747,7 +740,6 @@ class RewriteOptions {
     FilterSet enabled_filters() const { return enabled_filters_; }
     FilterSet disabled_filters() const { return disabled_filters_; }
     OptionSet filter_options() const { return filter_options_; }
-    bool matches_device_type(UserAgentMatcher::DeviceType type) const;
     bool use_default() const { return use_default_; }
     GoogleString ToString() const;
 
@@ -758,25 +750,13 @@ class RewriteOptions {
     // preserve vs extend_cache, *this will take precedence.
     void Merge(const ExperimentSpec& spec);
 
-    typedef std::bitset<net_instaweb::UserAgentMatcher::kEndOfDeviceType>
-        DeviceTypeBitSet;
-
-    static bool ParseDeviceTypeBitSet(const StringPiece& in,
-                                      DeviceTypeBitSet* out,
-                                      MessageHandler* handler);
-
    private:
     FRIEND_TEST(RewriteOptionsTest, ExperimentMergeTest);
-    FRIEND_TEST(RewriteOptionsTest, DeviceTypeMergeTest);
 
-    // Parse 'spec' and set the FilterSets, rewrite level, inlining thresholds,
-    // and OptionSets accordingly.
+    // Initialize parses spec and sets the FilterSets, rewrite level,
+    // inlining thresholds, and OptionSets accordingly.
     void Initialize(const StringPiece& spec, MessageHandler* handler);
 
-    //
-    // If you add any members to this list, be sure to also add them to the
-    // Merge method.
-    //
     int id_;  // id for this experiment
     GoogleString ga_id_;  // Google Analytics ID for this experiment
     int ga_variable_slot_;
@@ -785,10 +765,6 @@ class RewriteOptions {
     FilterSet enabled_filters_;
     FilterSet disabled_filters_;
     OptionSet filter_options_;
-    // bitset to indicate which device types this ExperimentSpec should apply
-    // to. If NULL, no device type was specified and the experiment applies
-    // to all device types.
-    scoped_ptr<DeviceTypeBitSet> matches_device_types_;
     // Use whatever RewriteOptions' settings are without experiments
     // for this experiment.
     bool use_default_;
@@ -2436,13 +2412,6 @@ class RewriteOptions {
     return option_cookies_duration_ms_.value();
   }
 
-  bool mob_layout() const { return mob_layout_.value(); }
-  bool mob_cxx_layout() const { return mob_cxx_layout_.value(); }
-  void set_mob_cxx_layout(bool x) { set_option(x, &mob_cxx_layout_); }
-  bool mob_logo() const { return mob_logo_.value(); }
-  bool mob_nav() const { return mob_nav_.value(); }
-
-
   // Merge src into 'this'.  Generally, options that are explicitly
   // set in src will override those explicitly set in 'this' (except that
   // filters forbidden in 'this' cannot be enabled by 'src'), although
@@ -3888,11 +3857,6 @@ class RewriteOptions {
   scoped_ptr<std::vector<ElementAttributeCategory> > url_valued_attributes_;
 
   Option<ResourceCategorySet> inline_unauthorized_resource_types_;
-
-  Option<bool> mob_layout_;
-  Option<bool> mob_cxx_layout_;
-  Option<bool> mob_logo_;
-  Option<bool> mob_nav_;
 
   CopyOnWrite<JavascriptLibraryIdentification>
       javascript_library_identification_;

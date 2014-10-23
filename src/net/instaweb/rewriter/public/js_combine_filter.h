@@ -23,25 +23,27 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_COMBINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_COMBINE_FILTER_H_
 
-#include "net/instaweb/rewriter/public/rewrite_context.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/util/url_multipart_encoder.h"
-#include "pagespeed/kernel/util/url_segment_encoder.h"
 
 namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
 
 namespace net_instaweb {
 
+class HtmlCharactersNode;
+class HtmlIEDirectiveNode;
+class RewriteDriver;
+class RewriteContext;
+class ServerContext;
 class Statistics;
+class UrlSegmentEncoder;
 
 // Implements combining of multiple external JS files into one via the
 // following transformation:
@@ -108,7 +110,7 @@ class JsCombineFilter : public RewriteFilter {
                                 HtmlElement::Attribute* src);
 
   // Returns JS variable name where code for given URL should be stored.
-  static GoogleString VarName(const RewriteDriver* rewrite_driver,
+  static GoogleString VarName(const ServerContext* server_context,
                               const GoogleString& url);
 
   void NextCombination();

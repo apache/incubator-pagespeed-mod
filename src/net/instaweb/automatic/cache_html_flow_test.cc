@@ -25,10 +25,17 @@
 #include "net/instaweb/automatic/public/cache_html_flow.h"
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/automatic/public/proxy_interface.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/cache_html_info_finder.h"
@@ -44,38 +51,31 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/cache_property_store.h"
+#include "net/instaweb/util/public/delay_cache.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_property_page.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/null_message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_synchronizer.h"
+#include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/worker_test_base.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/time_util.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/wildcard.h"
-#include "pagespeed/kernel/cache/delay_cache.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
-#include "pagespeed/kernel/thread/thread_synchronizer.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -1598,7 +1598,7 @@ class CacheHtmlPrioritizeCriticalCssTest : public CacheHtmlFlowTest {
         "<html><head>"
         "<title>Flush Subresources Early example</title>",
         "<style>div,*::first-letter{display:block}</style>"  // from a.css
-        "<style>@media screen{*{margin:0}}</style>"  // from b.css
+        "<style>@media screen{*{margin:0px}}</style>"  // from b.css
         "</head>");
     StrAppend(&expected_html,
         "<body>",
@@ -1658,7 +1658,7 @@ TEST_F(CacheHtmlPrioritizeCriticalCssTest, CacheHtmlWithCriticalCss) {
   critical_css_finder->AddCriticalCss(
       "http://test.com/a.css", "div,*::first-letter{display:block}", 100);
   critical_css_finder->AddCriticalCss(
-      "http://test.com/b.css?x=1&y=2", "@media screen{*{margin:0}}", 100);
+      "http://test.com/b.css?x=1&y=2", "@media screen{*{margin:0px}}", 100);
 
   GoogleString full_styles_html = StrCat(
       "<noscript class=\"psa_add_styles\">"
@@ -1669,9 +1669,9 @@ TEST_F(CacheHtmlPrioritizeCriticalCssTest, CacheHtmlWithCriticalCss) {
       CriticalCssFilter::kAddStylesScript,
       "window['pagespeed'] = window['pagespeed'] || {};"
       "window['pagespeed']['criticalCss'] = {"
-      "  'total_critical_inlined_size': 60,"
+      "  'total_critical_inlined_size': 62,"
       "  'total_original_external_size': 200,"
-      "  'total_overhead_size': 60,"
+      "  'total_overhead_size': 62,"
       "  'num_replaced_links': 2,"
       "  'num_unreplaced_links': 0};"
       "</script>");

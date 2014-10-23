@@ -19,17 +19,17 @@
 #ifndef NET_INSTAWEB_SYSTEM_PUBLIC_SYSTEM_MESSAGE_HANDLER_H_
 #define NET_INSTAWEB_SYSTEM_PUBLIC_SYSTEM_MESSAGE_HANDLER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class AbstractMutex;
+class SharedCircularBuffer;
 class Timer;
 class Writer;
 
@@ -42,9 +42,9 @@ class SystemMessageHandler : public GoogleMessageHandler {
   virtual ~SystemMessageHandler();
 
   // When we initialize SystemMessageHandler in the SystemRewriteDriverFactory,
-  // the factory's buffer_ is not initialized yet.  In a live server, we need to
-  // set buffer_ later in RootInit() or ChildInit().
-  void set_buffer(Writer* buff);
+  // the factory's SharedCircularBuffer is not initialized yet.
+  // We need to set buffer_ later in RootInit() or ChildInit().
+  void set_buffer(SharedCircularBuffer* buff);
 
   void SetPidString(const int64 pid) {
     pid_string_ = StrCat("[", Integer64ToString(pid), "]");
@@ -54,26 +54,22 @@ class SystemMessageHandler : public GoogleMessageHandler {
   virtual bool Dump(Writer* writer);
 
  protected:
-  // Add messages to the SharedCircularBuffer.  This is left virtual so that
-  // different servers can choose how to format the message window.
+  // Add messages to the SharedCircularBuffer.
   virtual void AddMessageToBuffer(MessageType type,
-                                  StringPiece formatted_message);
+                                  GoogleString formatted_message);
 
  private:
-  friend class SystemMessageHandlerTest;
-
   // This timer is used to prepend time when writing a message
   // to SharedCircularBuffer.
   Timer* timer_;
   scoped_ptr<AbstractMutex> mutex_;
-  Writer* buffer_;
+  SharedCircularBuffer* buffer_;
   // This handler is for internal use.
   // Some functions of SharedCircularBuffer need MessageHandler as argument,
   // We do not want to pass in another SystemMessageHandler to cause infinite
   // loop.
   GoogleMessageHandler internal_handler_;
   GoogleString pid_string_;  // String "[pid]".
-  NullMessageHandler null_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemMessageHandler);
 };

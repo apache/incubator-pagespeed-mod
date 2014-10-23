@@ -20,17 +20,16 @@
 
 #include "net/instaweb/rewriter/public/experiment_util.h"
 
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/time_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 
 namespace net_instaweb {
 
@@ -103,8 +102,6 @@ TEST_F(ExperimentUtilTest, DetermineExperimentState) {
   RewriteOptions options(thread_system_.get());
   options.set_running_experiment(true);
   NullMessageHandler handler;
-  RequestHeaders headers;
-  UserAgentMatcher ua_matcher;
   ASSERT_TRUE(options.AddExperimentSpec("id=1;percent=35", &handler));
   ASSERT_TRUE(options.AddExperimentSpec("id=2;percent=35", &handler));
   ASSERT_EQ(2, options.num_experiments());
@@ -115,7 +112,7 @@ TEST_F(ExperimentUtilTest, DetermineExperimentState) {
   // In 100000000 runs, with 70% of the traffic in an experiment, we should
   // get some of each.
   for (int i = 0; i < runs; ++i) {
-    int state = DetermineExperimentState(&options, headers, ua_matcher);
+    int state = DetermineExperimentState(&options);
     switch (state) {
       case kNoExperiment:  // explicitly not in experiment
         ++none;

@@ -22,13 +22,12 @@
 
 #include <cstdlib>
 
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/time_util.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/time_util.h"
 
 namespace net_instaweb {
 namespace experiment {
@@ -90,9 +89,7 @@ void SetExperimentCookie(ResponseHeaders* headers,
 // It might be "safer" to do this as a hash of ip so that if one person
 // sent simultaneous requests, they would end up on the same side of the
 // experiment for all requests.
-int DetermineExperimentState(const RewriteOptions* options,
-                             const RequestHeaders& request_headers,
-                             const UserAgentMatcher& agent_matcher) {
+int DetermineExperimentState(const RewriteOptions* options) {
   int ret = kExperimentNotSet;
   int num_experiments = options->num_experiments();
 
@@ -101,10 +98,6 @@ int DetermineExperimentState(const RewriteOptions* options,
   if (num_experiments < 1) {
     return ret;
   }
-
-  const char* user_agent = request_headers.Lookup1(HttpAttributes::kUserAgent);
-  UserAgentMatcher::DeviceType device_type =
-      agent_matcher.GetDeviceTypeForUA(user_agent);
 
   int64 bound = 0;
   int64 index = random();
@@ -119,14 +112,7 @@ int DetermineExperimentState(const RewriteOptions* options,
     // than RAND_MAX.
     bound += (mult * RAND_MAX);
     if (index < bound) {
-      // At this point we have determined the bucket for this request,
-      // however that bucket may have a device type match condition.
-      // In the case where the device type does not match, we still want
-      // to break out of the loop, otherwise we will "overflow" into the
-      // next bucket and mess up all the bucket size percentages.
-      if (spec->matches_device_type(device_type)) {
-        ret = spec->id();
-      }
+      ret = spec->id();
       return ret;
     }
   }

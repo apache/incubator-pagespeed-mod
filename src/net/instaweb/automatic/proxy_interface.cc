@@ -25,10 +25,13 @@
 #include "net/instaweb/automatic/public/proxy_fetch.h"
 #include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/resource_fetch.h"
@@ -36,20 +39,15 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/hostname_util.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/hostname_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/http/query_params.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -65,9 +63,6 @@ const char kPagespeedRequestCount[] = "pagespeed-requests";
 const char kRejectedRequestCount[] = "publisher-rejected-requests";
 const char kRejectedRequestHtmlResponse[] = "Unable to serve "
     "content as the content is blocked by the administrator of the domain.";
-const char kNoDomainConfigRequestCount[] = "without-domain-config-requests";
-const char kNoDomainConfigResourceRequestCount[] =
-    "without-domain-config-resource-requests";
 
 }  // namespace
 
@@ -88,11 +83,7 @@ ProxyInterface::ProxyInterface(const StringPiece& hostname, int port,
       pagespeed_requests_(stats->GetTimedVariable(kPagespeedRequestCount)),
       cache_html_flow_requests_(
           stats->GetTimedVariable(kCacheHtmlRequestCount)),
-      rejected_requests_(stats->GetTimedVariable(kRejectedRequestCount)),
-      requests_without_domain_config_(
-          stats->GetTimedVariable(kNoDomainConfigRequestCount)),
-      resource_requests_without_domain_config_(
-          stats->GetTimedVariable(kNoDomainConfigResourceRequestCount)) {
+      rejected_requests_(stats->GetTimedVariable(kRejectedRequestCount)) {
   proxy_fetch_factory_.reset(new ProxyFetchFactory(server_context));
 }
 
@@ -107,12 +98,6 @@ void ProxyInterface::InitStats(Statistics* statistics) {
   statistics->AddTimedVariable(kCacheHtmlRequestCount,
                                ServerContext::kStatisticsGroup);
   statistics->AddTimedVariable(kRejectedRequestCount,
-                               ServerContext::kStatisticsGroup);
-  statistics->AddTimedVariable(kRejectedRequestCount,
-                               ServerContext::kStatisticsGroup);
-  statistics->AddTimedVariable(kNoDomainConfigRequestCount,
-                               ServerContext::kStatisticsGroup);
-  statistics->AddTimedVariable(kNoDomainConfigResourceRequestCount,
                                ServerContext::kStatisticsGroup);
   CacheHtmlFlow::InitStats(statistics);
   FlushEarlyFlow::InitStats(statistics);
@@ -229,13 +214,6 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
   AsyncFetch* async_fetch = request_data->async_fetch;
   MessageHandler* handler = request_data->handler;
 
-  if (domain_options == NULL) {
-    requests_without_domain_config_->IncBy(1);
-    if (is_resource_fetch) {
-      resource_requests_without_domain_config_->IncBy(1);
-    }
-  }
-
   // Parse the query options, headers, and cookies.
   RewriteQuery query;
   if (!server_context_->GetQueryOptions(async_fetch->request_context(),
@@ -321,10 +299,8 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
     // well.
     bool need_to_store_experiment_data = false;
     if (options != NULL && options->running_experiment()) {
-      need_to_store_experiment_data =
-          server_context_->experiment_matcher()->ClassifyIntoExperiment(
-              *async_fetch->request_headers(),
-              *server_context_->user_agent_matcher(), options);
+      need_to_store_experiment_data = server_context_->experiment_matcher()->
+          ClassifyIntoExperiment(*async_fetch->request_headers(), options);
       options->set_need_to_store_experiment_data(need_to_store_experiment_data);
     }
     const char* user_agent = async_fetch->request_headers()->Lookup1(

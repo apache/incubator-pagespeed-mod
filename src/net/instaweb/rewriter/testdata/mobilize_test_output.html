@@ -61,22 +61,11 @@
 }
 
 /* Some heuristics to make headers display a bit nicer, usually. */
-[data-mobile-role="header"] * {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
-
 [data-mobile-role="header"] div {
   float: none !important;
   display: block !important;
   margin: 0 !important;
   padding: 0 !important;
-}
-
-[data-mobile-role="header"] {
-  height: auto !important;
-  padding-left: 1% !important;
-  padding-right: 1% !important;
 }
 
 /* Navigational sections often have a fixed height. */
@@ -127,17 +116,11 @@
 [data-mobile-role="content"] div, [data-mobile-role="content"] span {
   font-size: medium !important;
 }
-</style><meta name='viewport' content='width=device-width'/></head>
+</style><meta name='viewport' content='width=device-width,user-scalable=no'/></head>
 <body class="custom"><script>
     document.getElementById("stuff00").innerHTML = "JavaScript!";
     alert('00');
-  </script><script>
-      document.getElementById("stuff01").innerHTML = "";
-      alert('01');
-    </script><script>
-        document.getElementById("stuff02").innerHTML = "";
-        alert('02');
-      </script><div id="header_area" class="full_width" data-mobile-role="header">
+  </script><div id="header_area" class="full_width" data-mobile-role="header">
     <div class="page">
       <div id="header">
         <p id="title"><a href="http://test.com/">Mobilize all the Things</a></p>
@@ -147,32 +130,20 @@
         </div>
       </div>
     </div>
-    
-    
-  </div><div class="headline_area" data-mobile-role="header">
+    <script>
+      document.getElementById("stuff01").innerHTML = "";
+      alert('01');
+    </script>
+  </div><nav id="nav_area" class="full_width" data-mobile-role="navigational"><a href="http://test.com">Home</a><a href="http://test.com/about" title="About">About</a><a href="http://test.com/articles" title="Articles">Articles</a><a href="http://test.com/rss" title="RSS Feed" rel="nofollow">RSS</a></nav><div class="page" data-mobile-role="content">
+      <div id="content" class="feed">
+        <div class="post type-post status-publish">
+          <div class="headline_area">
             <h1 class="entry-title">Isn't Mobilization Cool!?</h1>
             <p class="headline_author">
               <span class="author">Foobar</span><br/>
               <abbr class="published" title="2014-01-01">2014-01-01</abbr>
             </p>
-          </div><div id="nav_area" class="full_width" data-mobile-role="navigational">
-    <div class="page">
-      <ul class="nav_menu">
-        <li class="tab"><a href="http://test.com">Home</a></li>
-        <li class="tab"><a href="http://test.com/about" title="About">About</a></li>
-        <li class="tab"><a href="http://test.com/articles" title="Articles">Articles</a></li>
-        <li class="tab"><a href="http://test.com/rss" title="RSS Feed" rel="nofollow">RSS</a></li>
-      </ul>
-    </div>
-  </div><div class="navbar" data-mobile-role="navigational">
-      <a href="http://test.com/way_cool">Way Cool</a>
-      <a href="http://test.com/mondo">Mondo</a>
-      <a href="http://test.com/outrageous">Outrageous</a>
-      <a href="http://test.com/funky">Funky</a>
-    </div><div class="page" data-mobile-role="content">
-      <div id="content" class="feed">
-        <div class="post type-post status-publish">
-          
+          </div>
           <div class="entry-content">
             <div class="empty"></div>
             <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur mi est, pulvinar id euismod non, aliquam non dui.<br/>
@@ -203,7 +174,10 @@ int main()
         </div>
       </div>
     </div><div class="aside" data-mobile-role="marginal">
-      
+      <script>
+        document.getElementById("stuff02").innerHTML = "";
+        alert('02');
+      </script>
       <form action="http://test.com/form/" method="get">
         <ul><li class="widget">
             <h3>Months</h3>

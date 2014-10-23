@@ -30,6 +30,10 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_filter.h"
@@ -37,25 +41,19 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/url_partnership.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/js/js_keywords.h"
 #include "pagespeed/kernel/js/js_tokenizer.h"
 
@@ -377,9 +375,9 @@ class JsCombineFilter::Context : public RewriteContext {
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
   virtual GoogleString CacheKeySuffix() const {
-    // Updated to make sure certain bugfixes actually deploy, and we don't
-    // end up using old broken cached version.
-    return "v4";
+    // Force recompute on update: not critical, but if we don't we may keep
+    // using nested URLs for a while.
+    return "v3";
   }
 
  private:
@@ -428,8 +426,8 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlElement* original = html_slot->element();
     HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
     Driver()->InsertNodeBeforeNode(original, element);
-    GoogleString var_name = filter_->VarName(Driver(),
-                                             html_slot->resource()->url());
+    GoogleString var_name = filter_->VarName(
+        FindServerContext(), html_slot->resource()->url());
     HtmlNode* script_code = Driver()->NewCharactersNode(
         element, StrCat("eval(", var_name, ");"));
     Driver()->AppendChild(element, script_code);
@@ -467,7 +465,7 @@ bool JsCombineFilter::JsCombiner::WritePiece(
   // We write out code of each script into a variable.
   writer->Write(StrCat("var ",
                        JsCombineFilter::VarName(
-                           rewrite_driver_, input->url()),
+                           filter_->server_context(), input->url()),
                        " = "),
                 handler);
 
@@ -672,38 +670,13 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
   context_->AddElement(element, src);
 }
 
-GoogleString JsCombineFilter::VarName(const RewriteDriver* driver,
+GoogleString JsCombineFilter::VarName(const ServerContext* server_context,
                                       const GoogleString& url) {
-  // We want to apply any rewrite mappings, since they can change the directory
-  // and hence affect variable names.
-  GoogleString output_url;
-
-  GoogleString domain_out;  // ignored.
-  GoogleUrl resource_url(url);
-  // We can't generally use the preexisting UrlPartnership in the
-  // ResourceCombiner since during the .pagespeed. resource fetch it's not
-  // filled in.
-  UrlPartnership::FindResourceDomain(driver->base_url(),
-                                     driver->server_context()->url_namer(),
-                                     driver->options(),
-                                     &resource_url,
-                                     &domain_out,
-                                     driver->message_handler());
-  if (resource_url.IsWebValid()) {
-    resource_url.Spec().CopyToString(&output_url);
-  } else {
-    LOG(DFATAL) << "Somehow got invalid URL in JsCombineFilter::VarName:"
-                << resource_url.UncheckedSpec() << " starting from:"
-                << url;
-    output_url = url;
-  }
-
   // We hash the non-host portion of URL to keep it consistent when sharding.
   // This is safe since we never include URLs from different hosts in a single
   // combination.
   GoogleString url_hash =
-      JavascriptCodeBlock::JsUrlHash(output_url,
-                                     driver->server_context()->hasher());
+      JavascriptCodeBlock::JsUrlHash(url, server_context->hasher());
 
   return StrCat("mod_pagespeed_", url_hash);
 }

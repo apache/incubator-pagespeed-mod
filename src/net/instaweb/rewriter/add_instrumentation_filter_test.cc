@@ -18,24 +18,23 @@
 
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace net_instaweb {
 
@@ -175,7 +174,7 @@ TEST_F(AddInstrumentationFilterTest, TestExtendedInstrumentation) {
 
 // Test that headers fetch timing reporting is done correctly.
 TEST_F(AddInstrumentationFilterTest, TestHeadersFetchTimingReporting) {
-  RequestTimingInfo* timing_info = mutable_timing_info();
+  RequestContext::TimingInfo* timing_info = mutable_timing_info();
   timing_info->FetchStarted();
   AdvanceTimeMs(200);
   timing_info->FetchHeaderReceived();

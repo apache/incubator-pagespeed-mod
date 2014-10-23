@@ -21,11 +21,10 @@
 
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
-#include "pagespeed/kernel/html/html_name.h"
 
 namespace net_instaweb {
 
@@ -121,11 +120,6 @@ class MobilizeRewriteFilter : public EmptyHtmlFilter {
   static const char kMarginalBlocks[];
   static const char kDeletedElements[];
 
-  // Static list of tags we keep without traversing.  Public so
-  // MobilizeLabelFilter knows which tags to ignore.
-  static const HtmlName::Keyword kKeeperTags[];
-  static const int kNumKeeperTags;
-
   explicit MobilizeRewriteFilter(RewriteDriver* rewrite_driver);
   virtual ~MobilizeRewriteFilter();
 
@@ -149,7 +143,7 @@ class MobilizeRewriteFilter : public EmptyHtmlFilter {
   MobileRole::Level GetMobileRole(HtmlElement* element);
 
   bool InImportantElement() {
-    return (!element_roles_stack_.empty());
+    return (important_element_depth_ > 0);
   }
 
   bool CheckForKeyword(
@@ -157,22 +151,14 @@ class MobilizeRewriteFilter : public EmptyHtmlFilter {
   void LogMovedBlock(MobileRole::Level level);
 
   RewriteDriver* driver_;
-  std::vector<MobileRole::Level> element_roles_stack_;
   std::vector<HtmlName::Keyword> nav_keyword_stack_;
   std::vector<HtmlElement*> mobile_role_containers_;
+  int important_element_depth_;
   int body_element_depth_;
   int nav_element_depth_;
   bool reached_reorder_containers_;
-  bool found_viewport_;
   bool added_style_;
   bool added_containers_;
-  bool added_mob_js_;
-  bool in_script_;
-  bool use_cxx_layout_;   // Use C++ layout resynthesis (none of below options).
-  bool use_js_layout_;
-  bool use_js_logo_;
-  bool use_js_nav_;
-  GoogleString static_file_prefix_;
 
   // Statistics
   // Number of web pages we have mobilized.

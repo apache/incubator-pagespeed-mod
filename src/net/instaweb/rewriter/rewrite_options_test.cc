@@ -20,17 +20,16 @@
 
 #include <memory>
 
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/message_handler.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/null_thread_system.h"
 #include "pagespeed/kernel/base/message_handler_test_base.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
 #include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/null_thread_system.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
@@ -939,10 +938,6 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kMinCacheTtlMs,
     RewriteOptions::kMinImageSizeLowResolutionBytes,
     RewriteOptions::kMinResourceCacheTimeToRewriteMs,
-    RewriteOptions::kMobCxxLayout,
-    RewriteOptions::kMobLayout,
-    RewriteOptions::kMobLogo,
-    RewriteOptions::kMobNav,
     RewriteOptions::kModifyCachingHeaders,
     RewriteOptions::kNoTransformOptimizedImages,
     RewriteOptions::kNonCacheablesForCachePartialHtml,
@@ -1772,151 +1767,6 @@ TEST_F(RewriteOptionsTest, ExperimentOptionLifetimeTest) {
   options_.SetExperimentState(1);
   // If ExperimentSpec just kept pointers into str_spec then we'll get 109 here.
   EXPECT_EQ(100L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentDeviceTypeParseTest) {
-  NullMessageHandler handler;
-
-  {
-    GoogleString spec_str("id=1;percent=15;"
-                          "matches_device_type=desktop");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_FALSE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_FALSE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-
-  {
-    GoogleString spec_str("id=1;percent=15;"
-                          "matches_device_type=tablet,mobile");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_FALSE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-
-  {
-    GoogleString spec_str("id=1;percent=15;"
-                          "matches_device_type=desktop,tablet,mobile");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-
-  {
-    GoogleString spec_str("id=1;percent=15");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-}
-
-TEST_F(RewriteOptionsTest, ExperimentDeviceTypeRangeUnderflowDeathTest) {
-  RewriteOptions::ExperimentSpec spec(1);
-
-  UserAgentMatcher::DeviceType device_type(
-      static_cast<UserAgentMatcher::DeviceType>(-1));
-
-#ifdef NDEBUG
-  EXPECT_FALSE(spec.matches_device_type(device_type));
-#else
-  EXPECT_DEATH(spec.matches_device_type(device_type),
-               "DeviceType out of range:");
-#endif
-}
-
-TEST_F(RewriteOptionsTest, ExperimentDeviceTypeRangeOverflowDeathTest) {
-  RewriteOptions::ExperimentSpec spec(1);
-
-  UserAgentMatcher::DeviceType device_type(UserAgentMatcher::kEndOfDeviceType);
-
-#ifdef NDEBUG
-  EXPECT_FALSE(spec.matches_device_type(device_type));
-#else
-  EXPECT_DEATH(spec.matches_device_type(device_type),
-               "DeviceType out of range:");
-#endif
-}
-
-TEST_F(RewriteOptionsTest, DeviceTypeMergeTest) {
-  NullMessageHandler handler;
-  {
-    // From a spec with a device_type to one without.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15;matches_device_type=mobile",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;matches_device_type=mobile",
-              spec2.ToString());
-  }
-  {
-    // From a spec without a device_type to one with.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30;matches_device_type=mobile",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;matches_device_type=mobile",
-              spec2.ToString());
-  }
-  {
-    // Two specs, both with a device_type.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15;matches_device_type=tablet",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30;matches_device_type=desktop",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;matches_device_type=tablet",
-              spec2.ToString());
-  }
-  {
-    // Neither spec has a device type.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15", spec2.ToString());
-  }
 }
 
 TEST_F(RewriteOptionsTest, SetOptionsFromName) {

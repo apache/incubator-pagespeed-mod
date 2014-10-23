@@ -21,12 +21,18 @@
 #include "net/instaweb/automatic/public/flush_early_flow.h"
 
 #include "net/instaweb/automatic/public/proxy_interface_test_base.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
@@ -43,24 +49,18 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_property_page.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/time_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 
@@ -836,7 +836,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
   }
 
   void SetHeaderLatencyMs(int64 latency_ms) {
-    RequestTimingInfo* timing_info = mutable_timing_info();
+    RequestContext::TimingInfo* timing_info = mutable_timing_info();
     timing_info->FetchStarted();
     AdvanceTimeMs(latency_ms);
     timing_info->FetchHeaderReceived();
@@ -1679,7 +1679,7 @@ class FlushEarlyPrioritizeCriticalCssTest : public FlushEarlyFlowTest {
         "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
         "<html><head>",
         FlushedCss("div,*::first-letter{display:block}"),  // a.css
-        FlushedCss("@media screen{*{margin:0}}"),  // b.css
+        FlushedCss("@media screen{*{margin:0px}}"),  // b.css
         StringPrintf(FlushEarlyContentWriterFilter::kPrefetchStartTimeScript,
                      2 /* num_resources_flushed */),
         "<title>Flush Subresources Early example</title>");
@@ -1755,7 +1755,7 @@ TEST_F(FlushEarlyPrioritizeCriticalCssTest,
   critical_css_finder->AddCriticalCss(
       "http://test.com/a.css", "div,*::first-letter{display:block}", 100);
   critical_css_finder->AddCriticalCss(
-      "http://test.com/b.css?x=1&y=2", "@media screen{*{margin:0}}", 100);
+      "http://test.com/b.css?x=1&y=2", "@media screen{*{margin:0px}}", 100);
 
   GoogleString full_styles_html = StrCat(
       "<noscript class=\"psa_add_styles\">",
@@ -1766,9 +1766,9 @@ TEST_F(FlushEarlyPrioritizeCriticalCssTest,
       CriticalCssFilter::kAddStylesScript,
       "window['pagespeed'] = window['pagespeed'] || {};"
       "window['pagespeed']['criticalCss'] = {"
-      "  'total_critical_inlined_size': 60,"
+      "  'total_critical_inlined_size': 62,"
       "  'total_original_external_size': 200,"
-      "  'total_overhead_size': 60,"
+      "  'total_overhead_size': 62,"
       "  'num_replaced_links': 2,"
       "  'num_unreplaced_links': 0};"
       "</script>");

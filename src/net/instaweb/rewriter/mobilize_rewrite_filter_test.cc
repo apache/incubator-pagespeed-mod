@@ -22,7 +22,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -59,10 +58,6 @@ class MobilizeRewriteFilterTest : public RewriteTestBase {
 
   virtual void SetUp() {
     RewriteTestBase::SetUp();
-    options()->ClearSignatureForTesting();
-    options()->set_mob_cxx_layout(true);
-    server_context()->ComputeSignature(options());
-
     filter_.reset(new MobilizeRewriteFilter(rewrite_driver()));
     filter_->style_css_ = kAddedStyle;
   }
@@ -79,7 +74,7 @@ class MobilizeRewriteFilterTest : public RewriteTestBase {
     if (var == NULL) {
       CHECK(false) << "Checked for a variable that doesn't exit.";
     } else {
-      EXPECT_EQ(value, var->Get()) << name;
+      EXPECT_EQ(var->Get(), value) << name;
     }
   }
 
@@ -142,7 +137,7 @@ TEST_F(MobilizeRewriteUnitTest, AddStyles) {
   CheckExpected("<head>123</head>");
   FilterAddStyleAndViewport(head);
   CheckExpected("<head>123<style>stylestring</style><meta name='viewport'"
-                " content='width=device-width'/></head>");
+                " content='width=device-width,user-scalable=no'/></head>");
 }
 
 TEST_F(MobilizeRewriteUnitTest, HandleContainers) {
@@ -226,7 +221,7 @@ TEST_F(MobilizeRewriteFunctionalTest, AddStyleAndViewport) {
   ValidateExpected("add_style_and_viewport",
                    "<head></head>",
                    "<head><style>stylestring</style><meta name='viewport'"
-                   " content='width=device-width'/></head>");
+                   " content='width=device-width,user-scalable=no'/></head>");
   CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
   CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
   CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 0);
@@ -240,7 +235,7 @@ TEST_F(MobilizeRewriteFunctionalTest, RemoveExistingViewport) {
   ValidateExpected("remove_existing_viewport",
                    "<head><meta name='viewport' content='value' /></head>",
                    "<head><style>stylestring</style><meta name='viewport'"
-                   " content='width=device-width'/></head>");
+                   " content='width=device-width,user-scalable=no'/></head>");
   CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
   CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
   CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 0);
@@ -256,8 +251,8 @@ TEST_F(MobilizeRewriteFunctionalTest, HeadUnmodified) {
                    "<style>abcd</style></head>",
                    "<head><meta name='keywords' content='cool,stuff'/>"
                    "<style>abcd</style><style>stylestring</style><meta"
-                   " name='viewport' content='width=device-width'/>"
-                   "</head>");
+                   " name='viewport' content='width=device-width,"
+                   "user-scalable=no'/></head>");
   CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
   CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
   CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 0);
@@ -273,8 +268,8 @@ TEST_F(MobilizeRewriteFunctionalTest, HeadLinksUnmodified) {
                    " href='theme.css'></head>",
                    "<head><link rel='stylesheet' type='text/css'"
                    " href='theme.css'><style>stylestring</style>"
-                   "<meta name='viewport' content='width=device-width'/>"
-                   "</head>");
+                   "<meta name='viewport' content='width=device-width,"
+                   "user-scalable=no'/></head>");
   CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
   CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
   CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 0);
@@ -361,22 +356,37 @@ TEST_F(MobilizeRewriteFunctionalTest, RemoveTables) {
   CheckVariable(MobilizeRewriteFilter::kDeletedElements, 4);
 }
 
-TEST_F(MobilizeRewriteFunctionalTest, Nav) {
+TEST_F(MobilizeRewriteFunctionalTest, StripNav) {
+  ValidateExpected("strip_nav",
+                   "<body><div data-mobile-role='navigational'><div>"
+                   "<a href='foo.com'>123</a></div></div></body>",
+                   "<body><div data-mobile-role='navigational'>"
+                   "<a href='foo.com'>123</a></div></body>");
+  CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
+  CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
+  CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 0);
+  CheckVariable(MobilizeRewriteFilter::kNavigationalBlocks, 1);
+  CheckVariable(MobilizeRewriteFilter::kContentBlocks, 0);
+  CheckVariable(MobilizeRewriteFilter::kMarginalBlocks, 0);
+  CheckVariable(MobilizeRewriteFilter::kDeletedElements, 1);
+}
+
+TEST_F(MobilizeRewriteFunctionalTest, StripOnlyNav) {
   ValidateExpected(
       "strip_only_nav",
       "<body><div data-mobile-role='navigational'><div>"
       "<a href='foo.com'>123</a></div></div>"
       "<div data-mobile-role='header'><h1>foobar</h1></div></body>",
-      "<body><div data-mobile-role='header'><h1>foobar</h1></div><div "
-      "data-mobile-role='navigational'><div><a "
-      "href='foo.com'>123</a></div></div></body>");
+      "<body><div data-mobile-role='header'><h1>foobar</h1></div>"
+      "<div data-mobile-role='navigational'><a href='foo.com'>123"
+      "</a></div></body>");
   CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
   CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
   CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 1);
   CheckVariable(MobilizeRewriteFilter::kNavigationalBlocks, 1);
   CheckVariable(MobilizeRewriteFilter::kContentBlocks, 0);
   CheckVariable(MobilizeRewriteFilter::kMarginalBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kDeletedElements, 0);
+  CheckVariable(MobilizeRewriteFilter::kDeletedElements, 1);
 }
 
 TEST_F(MobilizeRewriteFunctionalTest, UnknownMobileRole) {
@@ -400,7 +410,7 @@ TEST_F(MobilizeRewriteFunctionalTest, MultipleHeads) {
   ValidateExpected("multiple_heads",
                    "<head></head><head></head>",
                    "<head><style>stylestring</style><meta name='viewport'"
-                   " content='width=device-width'/></head>"
+                   " content='width=device-width,user-scalable=no'/></head>"
                    "<head></head>");
   CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
   CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
@@ -442,36 +452,6 @@ TEST_F(MobilizeRewriteFunctionalTest, MultipleBodysWithContent) {
   CheckVariable(MobilizeRewriteFilter::kDeletedElements, 1);
 }
 
-TEST_F(MobilizeRewriteFunctionalTest, DifferentRoleWithinRole) {
-  ValidateExpected(
-      "different_role_within_role",
-      "<body><div data-mobile-role='content'>123<div data-mobile-role='header'>"
-      "456</div>789</div></body>",
-      "<body><div data-mobile-role='header'>456</div>"
-      "<div data-mobile-role='content'>123789</div></body>");
-  CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
-  CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 1);
-  CheckVariable(MobilizeRewriteFilter::kNavigationalBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kContentBlocks, 1);
-  CheckVariable(MobilizeRewriteFilter::kMarginalBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kDeletedElements, 0);
-}
-
-TEST_F(MobilizeRewriteFunctionalTest, SameRoleWithinRole) {
-  ValidateNoChanges(
-      "different_role_within_role",
-      "<body><div data-mobile-role='header'>123<div data-mobile-role='header'>"
-      "456</div>789</div></body>");
-  CheckVariable(MobilizeRewriteFilter::kPagesMobilized, 1);
-  CheckVariable(MobilizeRewriteFilter::kKeeperBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kHeaderBlocks, 1);
-  CheckVariable(MobilizeRewriteFilter::kNavigationalBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kContentBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kMarginalBlocks, 0);
-  CheckVariable(MobilizeRewriteFilter::kDeletedElements, 0);
-}
-
 // Check we are called correctly from the driver.
 class MobilizeRewriteEndToEndTest : public RewriteTestBase {
  protected:
@@ -499,7 +479,6 @@ TEST_F(MobilizeRewriteEndToEndTest, FullPage) {
       StrCat(GTestSrcDir(), kTestDataDir, kRewritten);
   ASSERT_TRUE(filesystem_.ReadFile(rewritten_filename.c_str(),
                                    &rewritten_buffer, message_handler()));
-  options()->set_mob_cxx_layout(true);
   AddFilter(RewriteOptions::kMobilize);
   ValidateExpected("full_page", original_buffer, rewritten_buffer);
 }

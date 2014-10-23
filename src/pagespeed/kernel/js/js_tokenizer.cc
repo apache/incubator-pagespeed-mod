@@ -98,27 +98,27 @@
 //
 // The progression of the parse stack would look like this:
 //
-//   if     -> BkKwd               "if" is a block keyword, so it needs (...).
-//   (      -> BkKwd (
-//   [      -> BkKwd ( [
-//   ]      -> BkKwd ( Expr        [] is an expression (array literal).
-//   )      -> BkHdr               Now "if (...)" is a complete block header.
-//   {      -> BkHdr {
-//   foo    -> BkHdr { Expr        An identifier is usually an expression...
-//   :      -> BkHdr {             ...nevermind, a label.  Roll back statement.
-//   while  -> BkHdr { BkKwd       "while" is a block keyword, just like "if".
-//   (true) -> BkHdr { BkHdr       Three more tokens gives us the block header.
-//   break  -> BkHdr { BkHdr Jump  "break" is special, slashes can't follow it.
-//   ;      -> BkHdr {             Semicolon, roll back to start-of-statement.
-//   }      ->                     Block finished.
-//   else   -> BkHdr               "else" is a block header by itself.
-//   /x/    -> BkHdr Expr          A slash after BkHdr is a regex.
-//   .      -> BkHdr Expr Oper     A period is essentially a binary operator.
-//   test   -> BkHdr Expr          "Expr Oper Expr" collapses to "Expr"
-//   (      -> BkHdr Expr (
-//   'y'    -> BkHdr Expr ( Expr
-//   )      -> BkHdr Expr          Method call collapses into a single Expr.
-//   ;      ->                     Semicolon, roll back to start-of-statement.
+//   if       -> BkKwd             "if" is a block keyword, so it needs (...).
+//   (        -> BkKwd (
+//   [        -> BkKwd ( [
+//   ]        -> BkKwd ( Expr      [] is an expression (array literal).
+//   )        -> BkHdr             Now "if (...)" is a complete block header.
+//   {        -> {                 We can forget about the BkHdr now.
+//   foo      -> { Expr            An identifier is usually an expression...
+//   :        -> {                 ...nevermind, a label.  Roll back statement.
+//   while    -> { BkKwd           "while" is a block keyword, just like "if".
+//   ( true ) -> { BkHdr           Three more tokens gives us the block header.
+//   break    -> { BkHdr Jump      "break" is special, slashes can't follow it.
+//   ;        -> {                 Semicolon, roll back to start-of-statement.
+//   }        ->                   Block finished.
+//   else     -> BkHdr             "else" is a block header by itself.
+//   /x/      -> BkHdr Expr        A slash after BkHdr is a regex.
+//   .        -> BkHdr Expr Oper   A period is essentially a binary operator.
+//   test     -> BkHdr Expr        "Expr Oper Expr" collapses to "Expr"
+//   (        -> BkHdr Expr (
+//   'y'      -> BkHdr Expr ( Expr
+//   )        -> BkHdr Expr        Method call collapses into a single Expr.
+//   ;        ->                   Semicolon, roll back to start-of-statement.
 //
 // In general, this class is focused on tokenizing, not actual parsing or
 // detecting syntax errors, so there are many kinds of syntax errors that we
@@ -435,6 +435,8 @@ JsKeywords::Type JsTokenizer::ConsumeOpenBrace(StringPiece* token_out) {
   if (state == kExpression || state == kBlockKeyword ||
       state == kJumpKeyword || state == kOtherKeyword) {
     return Error(token_out);
+  } else if (state == kBlockHeader) {
+    parse_stack_.pop_back();
   }
   parse_stack_.push_back(kOpenBrace);
   Emit(1, true, token_out);
@@ -458,29 +460,13 @@ JsKeywords::Type JsTokenizer::ConsumeCloseBrace(StringPiece* token_out) {
       parse_stack_.pop_back();
     }
   }
-  // If the open brace was preceeded by a BlockHeader, we can pop that off the
-  // stack at this point.  The presense of a BlockHeader means these braces
-  // were a block (rather than an object literal), and usually after popping it
-  // off we'll now be back at a start-of-statement (in which case we'll
-  // correctly deduce below that this was a block).  The one exception is
-  // anonymous function literals, which is the one case where the block header
-  // will (necessarily) be preceeded by an operator, or open paran, or
-  // something else indicating an expression (e.g. foo=function(){};).  In that
-  // case, after popping the BlockHeader, we will correctly conclude below that
-  // we have just created an Expression.
-  //
-  // (If there were no braces after the BlockHeader (e.g. "if (x) return;"),
-  // then that BlockHeader will be popped when we roll back to
-  // start-of-statement for some other reason, such as encountering a
-  // semicolon.)
-  if (parse_stack_.back() == kBlockHeader) {
-    parse_stack_.pop_back();
-  }
   // Depending on the parse state that came before the kOpenBrace, we just
   // closed either an object literal (which is a kExpression), or a block
   // (which isn't).
   DCHECK(!parse_stack_.empty());
-  if (CanPreceedObjectLiteral(parse_stack_.back())) {
+  const ParseState state = parse_stack_.back();
+  if (state == kOperator || state == kQuestionMark || state == kOpenBracket ||
+      state == kOpenParen || state == kReturnThrow) {
     PushExpression();
   }
   // Emit a token for the close brace.
@@ -626,23 +612,8 @@ JsKeywords::Type JsTokenizer::ConsumeColon(StringPiece* token_out) {
       // If we reach the start of the statement without seeing a kQuestionMark,
       // this was a label.  No need to push any new parse state.
       case kStartOfInput:
-      case kBlockHeader:
-        Emit(1, true, token_out);
-        return JsKeywords::kOperator;
-      // If we hit an open brace, check if it's for an object literal or a
-      // block.  If it's an object literal, then this colon was for a property
-      // name; push a kOperator state so that we know that what follows is an
-      // expression (rather than the next property name).  If it's a block,
-      // then we're back to start-of-statement (as above) so there's no need to
-      // push any new parse state.
       case kOpenBrace:
-        // Since the top state is currently kOpenBrace, and the bottom state is
-        // always kStartOfInput, we know that the parse stack has at least two
-        // entries right now.
-        DCHECK_GE(parse_stack_.size(), 2u);
-        if (CanPreceedObjectLiteral(parse_stack_[parse_stack_.size() - 2])) {
-          PushOperator();
-        }
+      case kBlockHeader:
         Emit(1, true, token_out);
         return JsKeywords::kOperator;
       // Skip past anything that could lie between the colon and the question
@@ -670,43 +641,14 @@ JsKeywords::Type JsTokenizer::ConsumeColon(StringPiece* token_out) {
 bool JsTokenizer::TryConsumeIdentifierOrKeyword(
     JsKeywords::Type* type_out, StringPiece* token_out) {
   DCHECK(!input_.empty());
-  // This method gets very hot under load, and regex matching is slow.  We need
-  // RE2 here mainly for the unicode support, but most JS files are plain
-  // ASCII.  So first try to match against ASCII identifiers; only if we run
-  // into a non-ASCII byte will we resort to RE2.
-  int index = 0;
-  {
-    bool use_regex = false;
-    const unsigned char first = input_[0];
-    if (first >= 0x80) {
-      use_regex = true;
-    } else if (('a' <= first && first <= 'z') || first == '_' ||
-               ('A' <= first && first <= 'Z') || first == '$' ||
-               first == '\\') {
-      int size = input_.size();
-      for (index = 1; index < size; ++index) {
-        const unsigned char ch = input_[index];
-        if (ch >= 0x80) {
-          use_regex = true;
-          break;
-        } else if (!net_instaweb::IsAsciiAlphaNumeric(ch) && ch != '_' &&
-                   ch != '$' && ch != '\\') {
-          break;
-        }
-      }
-    } else {
-      return false;
-    }
-    if (use_regex) {
-      Re2StringPiece unconsumed = StringPieceToRe2(input_);
-      if (!RE2::Consume(&unconsumed, patterns_->identifier_pattern)) {
-        return false;
-      }
-      index = input_.size() - unconsumed.size();
-    }
+  // First, check if we're looking at an identifier (or keyword); if not,
+  // return immediately.
+  Re2StringPiece unconsumed = StringPieceToRe2(input_);
+  if (!RE2::Consume(&unconsumed, patterns_->identifier_pattern)) {
+    return false;
   }
-  DCHECK_GT(index, 0);
   // We have a match.  Determine which keyword it is, if any.
+  const int index = input_.size() - unconsumed.size();
   JsKeywords::Flag flag_ignored;
   JsKeywords::Type type =
       JsKeywords::Lookup(input_.substr(0, index), &flag_ignored);
@@ -981,42 +923,17 @@ bool JsTokenizer::TryConsumeWhitespace(
     bool allow_semicolon_insertion,
     JsKeywords::Type* type_out, StringPiece* token_out) {
   DCHECK(!input_.empty());
-  // This method gets very hot under load, and regex matching is slow.  We need
-  // RE2 here mainly for the unicode support, but most JS files are plain
-  // ASCII.  So first try to match against ASCII whitespace; only if we run
-  // into a non-ASCII byte will we resort to RE2.
-  bool has_linebreak = false;
-  bool use_regex = false;
-  int token_size = 0, size = input_.size();
-  for (; token_size < size; ++token_size) {
-    const unsigned char ch = input_[token_size];
-    if (ch >= 0x80) {
-      use_regex = true;
-      break;
-    } else if (ch == '\n' || ch == '\r') {
-      has_linebreak = true;
-    } else if (ch != ' ' && ch != '\t' && ch != '\f' && ch != '\v') {
-      break;
-    }
-  }
-  if (use_regex) {
-    Re2StringPiece unconsumed = StringPieceToRe2(input_);
-    Re2StringPiece linebreak;
-    if (!RE2::Consume(&unconsumed, patterns_->whitespace_pattern, &linebreak)) {
-      return false;
-    }
-    has_linebreak = !linebreak.empty();
-    token_size = input_.size() - unconsumed.size();
-    DCHECK_GT(token_size, 0);
-  }
-  // If we consumed anything, then this was indeed whitespace, so emit a token.
-  if (token_size == 0) {
+  // First, check if we're looking at whitespace; if not, return immediately.
+  Re2StringPiece unconsumed = StringPieceToRe2(input_);
+  Re2StringPiece linebreak;
+  if (!RE2::Consume(&unconsumed, patterns_->whitespace_pattern, &linebreak)) {
     return false;
   }
-  Emit(token_size, false, token_out);
+  // Yep, this was whitespace; emit a token.
+  Emit(input_.size() - unconsumed.size(), false, token_out);
   // Now we have to decide what kind of whitespace this was.  If it contained
   // no linebreaks, it's just regular whitespace.
-  if (!has_linebreak) {
+  if (linebreak.empty()) {
     *type_out = JsKeywords::kWhitespace;
   } else {
     // Otherwise, we have to decide whether or not this linebreak will cause
@@ -1171,12 +1088,6 @@ bool JsTokenizer::TryInsertLinebreakSemicolon() {
     parse_stack_.pop_back();
   }
   return true;
-}
-
-bool JsTokenizer::CanPreceedObjectLiteral(ParseState state) {
-  return (state == kOperator || state == kQuestionMark ||
-          state == kOpenBracket || state == kOpenParen ||
-          state == kReturnThrow);
 }
 
 JsTokenizerPatterns::JsTokenizerPatterns()

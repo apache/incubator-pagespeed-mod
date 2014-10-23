@@ -17,9 +17,9 @@
 #ifndef NET_INSTAWEB_APACHE_APACHE_WRITER_H_
 #define NET_INSTAWEB_APACHE_APACHE_WRITER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/writer.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 #include "httpd.h"  // NOLINT
 
 struct request_rec;

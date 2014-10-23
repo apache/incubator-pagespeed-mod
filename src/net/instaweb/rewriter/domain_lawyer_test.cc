@@ -18,12 +18,12 @@
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/null_mutex.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -1567,83 +1567,6 @@ TEST_F(DomainLawyerTest, AboutBlank) {
   GoogleString host_header;
   bool is_proxy = true;
   EXPECT_FALSE(lawyer.MapOriginUrl(foo, &out, &host_header, &is_proxy));
-}
-
-TEST_F(DomainLawyerTest, StripProxySuffix) {
-  DomainLawyer lawyer;
-  GoogleUrl gurl("http://example.com.suffix/path");
-  GoogleString host, url = gurl.Spec().as_string();
-  EXPECT_FALSE(lawyer.can_rewrite_domains());
-  EXPECT_FALSE(lawyer.StripProxySuffix(gurl, &url, &host));
-  lawyer.set_proxy_suffix(".suffix");
-  EXPECT_TRUE(lawyer.can_rewrite_domains());
-  EXPECT_TRUE(lawyer.StripProxySuffix(gurl, &url, &host));
-  EXPECT_STREQ("http://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-
-  // The ':80' will get removed by GoogleUrl.
-  GoogleUrl http_gurl_80("http://example.com.suffix:80/path");
-  url = http_gurl_80.Spec().as_string();
-  host.clear();
-  url.clear();
-  EXPECT_TRUE(lawyer.StripProxySuffix(http_gurl_80, &url, &host));
-  EXPECT_STREQ("http://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-
-  // However an ':81' makes the proxy-suffix mismatch.
-  GoogleUrl http_gurl_81("http://example.com.suffix:81/path");
-  url.clear();
-  host.clear();
-  EXPECT_FALSE(lawyer.StripProxySuffix(http_gurl_81, &url, &host));
-
-  // 443 on http.  We need to understand why we see this in Apache slurping
-  // with a Firefox proxy, but punt for now.
-  GoogleUrl http_gurl_443("http://example.com.suffix:443/path");
-  url.clear();
-  host.clear();
-  EXPECT_FALSE(lawyer.StripProxySuffix(http_gurl_443, &url, &host));
-
-  // 443 on https -- that should canonicalize out in GoogleUrl.
-  GoogleUrl https_gurl_443("https://example.com.suffix:443/path");
-  url.clear();
-  host.clear();
-  EXPECT_TRUE(lawyer.StripProxySuffix(https_gurl_443, &url, &host));
-  EXPECT_STREQ("https://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-
-  GoogleUrl https_gurl("https://example.com.suffix/path");
-  url.clear();
-  host.clear();
-  EXPECT_TRUE(lawyer.StripProxySuffix(https_gurl, &url, &host));
-  EXPECT_STREQ("https://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-}
-
-TEST_F(DomainLawyerTest, AddProxySuffix) {
-  DomainLawyer lawyer;
-  GoogleUrl base("http://www.example.com.suffix");
-  lawyer.set_proxy_suffix(".suffix");
-  EXPECT_TRUE(lawyer.can_rewrite_domains());
-
-  // No need to change relative URLs.
-  GoogleString url = "relative.html";
-  EXPECT_FALSE(lawyer.AddProxySuffix(base, &url));
-
-  // An absolute reference to a new destination in the origin domain gets
-  // suffixed.
-  url = "http://www.example.com/absolute.html";
-  EXPECT_TRUE(lawyer.AddProxySuffix(base, &url));
-  EXPECT_STREQ("http://www.example.com.suffix/absolute.html", url);
-
-  // It also works even if the reference is a domain that's related to the
-  // base, by consulting the known suffixes list via domain_registry.
-  url = "http://other.example.com/absolute.html";
-  EXPECT_TRUE(lawyer.AddProxySuffix(base, &url));
-  EXPECT_STREQ("http://other.example.com.suffix/absolute.html", url);
-
-  // However a link to a completely unrelated domain is left unchanged.
-  url = "http://other.com/x.html";
-  EXPECT_FALSE(lawyer.AddProxySuffix(base, &url));
 }
 
 }  // namespace net_instaweb

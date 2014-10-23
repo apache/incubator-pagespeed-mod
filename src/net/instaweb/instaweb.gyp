@@ -891,6 +891,19 @@
       ],
     },
     {
+      'target_name': 'instaweb_propcache_pb',
+      'variables': {
+        'instaweb_protoc_subdir': 'net/instaweb/util',
+      },
+      'sources': [
+        'util/property_cache.proto',
+        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/property_cache.pb.cc',
+      ],
+      'includes': [
+        'protoc.gypi',
+      ],
+    },
+    {
       'target_name': 'instaweb_rewriter_html_gperf',
       'variables': {
         'instaweb_gperf_subdir': 'net/instaweb/rewriter',
@@ -925,6 +938,8 @@
       'target_name': 'instaweb_util',
       'type': '<(library)',
       'dependencies': [
+        'instaweb_logging_pb',
+        'instaweb_propcache_pb',
         '<(instaweb_root)/third_party/base64/base64.gyp:base64',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_base_core',
@@ -933,8 +948,6 @@
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_sharedmem',
         '<(DEPTH)/pagespeed/kernel.gyp:util',
         '<(DEPTH)/pagespeed/kernel.gyp:proto_util',
-        '<(DEPTH)/pagespeed/opt.gyp:pagespeed_logging',
-        '<(DEPTH)/pagespeed/opt.gyp:pagespeed_opt_http',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
       'sources': [
@@ -950,14 +963,24 @@
         'http/http_value.cc',
         'http/http_value_writer.cc',
         'http/inflating_fetch.cc',
+        'http/log_record.cc',
         'http/rate_controller.cc',
         'http/rate_controlling_url_async_fetcher.cc',
+        'http/request_context.cc',
         'http/sync_fetcher_adapter_callback.cc',
         'http/url_async_fetcher.cc',
         'http/url_async_fetcher_stats.cc',
         'http/wait_url_async_fetcher.cc',
         'http/wget_url_fetcher.cc',
         'http/write_through_http_cache.cc',
+
+        'util/abstract_property_store_get_callback.cc',
+        'util/cache_property_store.cc',
+        'util/fallback_property_page.cc',
+        'util/mock_property_page.cc',
+        'util/property_cache.cc',
+        'util/property_store.cc',
+        'util/two_level_property_store.cc',
       ],
       'include_dirs': [
         '<(instaweb_root)',
@@ -1268,7 +1291,6 @@
         'instaweb_util',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/pagespeed/kernel.gyp:pagespeed_http',
-        '<(DEPTH)/pagespeed/opt.gyp:pagespeed_ads_util',
         '<(DEPTH)/third_party/css_parser/css_parser.gyp:css_parser',
       ],
       'sources': [
@@ -1282,7 +1304,6 @@
         'rewriter/collect_flush_early_content_filter.cc',
         'rewriter/common_filter.cc',
         'rewriter/compute_visible_text_filter.cc',
-        'rewriter/content_decision_tree.cc',
         'rewriter/critical_css_beacon_filter.cc',
         'rewriter/critical_css_filter.cc',
         'rewriter/critical_css_finder.cc',
@@ -1296,7 +1317,6 @@
         'rewriter/css_tag_scanner.cc',
         'rewriter/data_url_input_resource.cc',
         'rewriter/debug_filter.cc',
-        'rewriter/decision_tree.cc',
         'rewriter/decode_rewritten_urls_filter.cc',
         'rewriter/dedup_inlined_images_filter.cc',
         'rewriter/defer_iframe_filter.cc',
@@ -1317,7 +1337,6 @@
         'rewriter/google_font_css_inline_filter.cc',
         'rewriter/google_font_service_input_resource.cc',
         'rewriter/handle_noscript_redirect_filter.cc',
-        'rewriter/header_decision_tree.cc',
         'rewriter/image_rewrite_filter.cc',
         'rewriter/in_place_rewrite_context.cc',
         'rewriter/inline_rewrite_context.cc',
@@ -1330,11 +1349,9 @@
         'rewriter/js_outline_filter.cc',
         'rewriter/lazyload_images_filter.cc',
         'rewriter/local_storage_cache_filter.cc',
-        'rewriter/make_show_ads_async_filter.cc',
         'rewriter/meta_tag_filter.cc',
         'rewriter/mobilize_label_filter.cc',
         'rewriter/mobilize_rewrite_filter.cc',
-        'rewriter/navigational_decision_tree.cc',
         'rewriter/pedantic_filter.cc',
         'rewriter/property_cache_util.cc',
         'rewriter/redirect_on_size_limit_filter.cc',
@@ -1378,6 +1395,49 @@
           '<(DEPTH)',
         ],
       },
+    },
+    {
+      'target_name': 'instaweb_image_types_pb',
+      'variables': {
+        'instaweb_protoc_subdir': 'net/instaweb/rewriter',
+      },
+      'sources': [
+        'rewriter/image_types.proto',
+        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/image_types.pb.cc',
+      ],
+      'includes': [
+        'protoc.gypi',
+      ],
+    },
+    {
+      'target_name': 'instaweb_util_enums_pb',
+      'variables': {
+        'instaweb_protoc_subdir': 'net/instaweb/util',
+      },
+      'sources': [
+        'util/enums.proto',
+        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/enums.pb.cc',
+      ],
+      'includes': [
+        'protoc.gypi',
+      ],
+    },
+    {
+      'target_name': 'instaweb_logging_pb',
+      'variables': {
+        'instaweb_protoc_subdir': 'net/instaweb/http',
+      },
+      'sources': [
+        'http/logging.proto',
+        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/logging.pb.cc',
+      ],
+      'dependencies': [
+        'instaweb_image_types_pb',
+        'instaweb_util_enums_pb',
+      ],
+      'includes': [
+        'protoc.gypi',
+      ],
     },
     {
       'target_name': 'instaweb_automatic',

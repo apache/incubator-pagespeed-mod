@@ -23,26 +23,25 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/null_rw_lock.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/null_rw_lock.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/rde_hash_map.h"
-#include "pagespeed/kernel/base/stl_util.h"
 #include "pagespeed/kernel/base/time_util.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/purge_set.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 
 namespace net_instaweb {
 
@@ -221,10 +220,6 @@ const char RewriteOptions::kMinImageSizeLowResolutionBytes[] =
     "MinImageSizeLowResolutionBytes";
 const char RewriteOptions::kMinResourceCacheTimeToRewriteMs[] =
     "MinResourceCacheTimeToRewriteMs";
-const char RewriteOptions::kMobCxxLayout[] = "MobCxxLayout";
-const char RewriteOptions::kMobLayout[] = "MobLayout";
-const char RewriteOptions::kMobLogo[] = "MobLogo";
-const char RewriteOptions::kMobNav[] = "MobNav";
 const char RewriteOptions::kModifyCachingHeaders[] = "ModifyCachingHeaders";
 const char RewriteOptions::kNoTransformOptimizedImages[] =
     "NoTransformOptimizedImages";
@@ -329,7 +324,6 @@ const char RewriteOptions::kLruCacheKbPerProcess[] = "LRUCacheKbPerProcess";
 const char RewriteOptions::kMemcachedServers[] = "MemcachedServers";
 const char RewriteOptions::kMemcachedThreads[] = "MemcachedThreads";
 const char RewriteOptions::kMemcachedTimeoutUs[] = "MemcachedTimeoutUs";
-const char RewriteOptions::kProxySuffix[] = "ProxySuffix";
 const char RewriteOptions::kRateLimitBackgroundFetches[] =
     "RateLimitBackgroundFetches";
 const char RewriteOptions::kRequestOptionOverride[] = "RequestOptionOverride";
@@ -2175,24 +2169,6 @@ void RewriteOptions::AddProperties() {
       kDirectoryScope,
       "The max-age in ms of cookies that set PageSpeed options.", true);
 
-  AddBaseProperty(
-      false, &RewriteOptions::mob_cxx_layout_, "mcxxlayout", kMobCxxLayout,
-      kServerScope,
-      "(experimental) whether to run the C++ version of mobilizer", true);
-  AddBaseProperty(
-      false, &RewriteOptions::mob_layout_, "mlayout", kMobLayout,
-      kQueryScope,
-      "(experimental) whether to run layout resynthesis when mobilizing", true);
-  AddBaseProperty(
-      false, &RewriteOptions::mob_logo_, "mlogo", kMobLogo,
-      kQueryScope,
-      "(experimental) whether to run logo resynthesis when mobilizing", true);
-  AddBaseProperty(
-      false, &RewriteOptions::mob_nav_, "mnav", kMobNav,
-      kQueryScope,
-      "(experimental) whether to run navigation resynthesis when mobilizing",
-      true);
-
   // Test-only, so no enum.
   AddRequestProperty(false,
                      &RewriteOptions::test_instant_fetch_rewrite_deadline_,
@@ -3024,8 +3000,6 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName1(
     DistributeFiltersByCommaSeparatedList(arg, handler);
   } else if (StringCaseEqual(name, kDomain)) {
     WriteableDomainLawyer()->AddDomain(arg, handler);
-  } else if (StringCaseEqual(name, kProxySuffix)) {
-    WriteableDomainLawyer()->set_proxy_suffix(arg.as_string());
   } else if (StringCaseEqual(name, kDownstreamCachePurgeLocationPrefix)) {
     GoogleUrl gurl(arg);
     if (gurl.IsWebValid()) {
@@ -4009,23 +3983,6 @@ GoogleString RewriteOptions::ExperimentSpec::ToString() const {
     sep = ",";
   }
 
-  if (matches_device_types_.get() != NULL) {
-    StrAppend(&out, ";matches_device_type=");
-    sep = "";
-    if ((*matches_device_types_)[UserAgentMatcher::kDesktop]) {
-      StrAppend(&out, sep, "desktop");
-      sep = ",";
-    }
-    if ((*matches_device_types_)[UserAgentMatcher::kTablet]) {
-      StrAppend(&out, sep, "tablet");
-      sep = ",";
-    }
-    if ((*matches_device_types_)[UserAgentMatcher::kMobile]) {
-      StrAppend(&out, sep, "mobile");
-      sep = ",";
-    }
-  }
-
   return out;
 }
 
@@ -4187,7 +4144,7 @@ void RewriteOptions::SetRequiredExperimentFilters() {
 }
 
 RewriteOptions::ExperimentSpec::ExperimentSpec(const StringPiece& spec,
-                                               const RewriteOptions* options,
+                                               RewriteOptions* options,
                                                MessageHandler* handler)
     : id_(experiment::kExperimentNotSet),
       ga_id_(options->ga_id()),
@@ -4221,10 +4178,6 @@ void RewriteOptions::ExperimentSpec::Merge(const ExperimentSpec& spec) {
   percent_ = spec.percent_;
   rewrite_level_ = spec.rewrite_level_;
   use_default_ = spec.use_default_;
-  if (spec.matches_device_types_.get() != NULL) {
-    matches_device_types_.reset(
-        new DeviceTypeBitSet(*spec.matches_device_types_));
-  }
 }
 
 RewriteOptions::ExperimentSpec* RewriteOptions::ExperimentSpec::Clone() {
@@ -4291,68 +4244,11 @@ void RewriteOptions::ExperimentSpec::Initialize(const StringPiece& spec,
       if (options.length() > 0) {
         AddCommaSeparatedListToOptionSet(options, &filter_options_, handler);
       }
-    } else if (StringCaseStartsWith(piece, "matches_device_type")) {
-      matches_device_types_.reset(new DeviceTypeBitSet());
-      ParseDeviceTypeBitSet(PieceAfterEquals(piece),
-                            matches_device_types_.get(), handler);
     } else {
       handler->Message(kWarning, "Skipping unknown experiment setting: %s",
                        piece.as_string().c_str());
     }
   }
-}
-
-bool RewriteOptions::ExperimentSpec::ParseDeviceTypeBitSet(
-    const StringPiece& in, ExperimentSpec::DeviceTypeBitSet* out,
-    MessageHandler* handler) {
-  bool success = false;
-
-  StringPieceVector devices;
-  SplitStringPieceToVector(in, ",", &devices, true);
-
-  for (int i = 0, n = devices.size(); i < n; ++i) {
-    StringPiece device = devices[i];
-
-    UserAgentMatcher::DeviceType device_type =
-        UserAgentMatcher::kEndOfDeviceType;
-
-    if (device == "desktop") {
-      device_type = UserAgentMatcher::kDesktop;
-    } else if (device == "mobile") {
-      device_type = UserAgentMatcher::kMobile;
-    } else if (device == "tablet") {
-      device_type = UserAgentMatcher::kTablet;
-    }
-
-    if (device_type != UserAgentMatcher::kEndOfDeviceType) {
-      out->set(device_type, true);
-      success = true;
-    } else {
-      handler->Message(kWarning, "Skipping unknown device type: %s",
-                       device.as_string().c_str());
-    }
-  }
-
-  return success;
-}
-
-bool RewriteOptions::ExperimentSpec::matches_device_type(
-    UserAgentMatcher::DeviceType type) const {
-
-  // It would be nice to use matches_device_types_->size() for the second
-  // if clause. Unfortunately, matches_device_types_ might be NULL and
-  // size is not static, despite it being a template paramater.
-  if (type < 0 || type >= UserAgentMatcher::kEndOfDeviceType) {
-    LOG(DFATAL) << "DeviceType out of range: " << type;
-    return false;
-  }
-
-  // If no device_type filter has been specified, this will match all devices.
-  if (matches_device_types_.get() == NULL) {
-    return true;
-  }
-
-  return (*matches_device_types_)[type];
 }
 
 void RewriteOptions::AddInlineUnauthorizedResourceType(

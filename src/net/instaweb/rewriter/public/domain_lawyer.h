@@ -36,9 +36,9 @@
 #include <map>
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class GoogleUrl;
@@ -257,26 +257,21 @@ class DomainLawyer {
   void Merge(const DomainLawyer& src);
 
   void Clear();
-  bool empty() const { return domain_map_.empty() && proxy_suffix_.empty(); }
+  bool empty() const { return domain_map_.empty(); }
 
   // Determines whether a resource is going to change domains due to
   // RewriteDomain mapping or domain sharding.  Note that this does
   // not account for the actual domain shard selected.
   //
   // The entire URL should be passed in, not just the domain name.
-  //
-  // Note that this is currently oblivious to proxy_suffix, whereas
-  // can_rewrite_domains() takes proxy_suffix into account.
   bool WillDomainChange(const GoogleUrl& url) const;
 
   // Determines whether a URL's domain was proxy-mapped from a different origin.
   bool IsProxyMapped(const GoogleUrl& url) const;
 
   // Determines whether any resources might be domain-mapped, either
-  // via sharding, rewriting, or due to a proxy_suffix
-  bool can_rewrite_domains() const {
-    return can_rewrite_domains_ || !proxy_suffix_.empty();
-  }
+  // via sharding or rewriting.
+  bool can_rewrite_domains() const { return can_rewrite_domains_; }
 
   // Visible for testing.
   int num_wildcarded_domains() const { return wildcarded_domains_.size(); }
@@ -291,42 +286,6 @@ class DomainLawyer {
   void FindDomainsRewrittenTo(
       const GoogleUrl& domain_name,
       ConstStringStarVector* from_domains) const;
-
-  // A proxy suffix provides a mechanism to implement a reverse proxy
-  // of sorts.  With a suffix ".suffix.net", a site foo.com can be
-  // served by foo.com.suffix.net, and the system, when set up as a
-  // proxy, will know how to strip the ".suffix.net" when fetching
-  // from oriign.  It will also know how to re-insert the suffix when
-  // rewriting hyperlinks to try to keep users in the proxied domain
-  // as they navigate within the site.
-  //
-  // As of Oct 1, 2014, resource-mapping is not supported by proxy_suffix,
-  // but it doesn't need to be.  For example, given a reference on
-  // example.com to 'example.com/styles.css', such a reference would not
-  // be remapped when serving HTML from example.com.suffix.net.  Relative
-  // references to 'styles.css' would be absolutified by the browser to
-  // example.com.suffix.net/styles.css, and served by the proxy, which would
-  // strip the '.suffix.net' and fetch the origin content from
-  // example.com/styles.css.
-  //
-  // TODO(jmarantz): In the future we will likely want to map
-  // absolutely referenced resources to from the origin domain to
-  // .suffix.net so we can optimize them.  This can be implemented by
-  // integrating the proxy_suffix into MapRewriteDomain and MapOriginDomain,
-  // as a variation on MapProxyDomain.
-  void set_proxy_suffix(const GoogleString& suffix) { proxy_suffix_ = suffix; }
-  const GoogleString& proxy_suffix() const { return proxy_suffix_; }
-
-  // Writes *url after stripping the proxy suffix from gurl, returing
-  // false if the gurl does not have a Host with the expected suffix.
-  //
-  // Writes the origin host into *host.
-  bool StripProxySuffix(const GoogleUrl& gurl,
-                        GoogleString* url, GoogleString* host) const;
-
-  // Adds a proxy suffix to the Host in *href if it matches the the base URL.
-  // Returns true if the href was modified, false if it wasn't.
-  bool AddProxySuffix(const GoogleUrl& base_url, GoogleString* href) const;
 
   // Computes a signature for the DomainLawyer object including containing
   // classes (Domain).
@@ -394,7 +353,6 @@ class DomainLawyer {
   DomainMap domain_map_;
   typedef std::vector<Domain*> DomainVector;          // see AddDomainHelper
   DomainVector wildcarded_domains_;
-  GoogleString proxy_suffix_;
   bool can_rewrite_domains_;
   // Indicates if all domains are authorized. If set to true, IsDomainAuthorized
   // always returns true.

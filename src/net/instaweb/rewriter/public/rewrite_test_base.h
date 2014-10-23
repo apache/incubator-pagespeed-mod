@@ -24,36 +24,36 @@
 #include <utility>
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 // We need to include rewrite_driver.h due to covariant return of html_parse()
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_distributed_fetcher.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/mem_file_system.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_property_page.h"
-#include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 // We need to include mock_timer.h to allow upcast to Timer*.
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/util/url_segment_encoder.h"
 
 
 namespace net_instaweb {
@@ -70,7 +70,6 @@ class MockLogRecord;
 class MockScheduler;
 class ProcessContext;
 class RequestHeaders;
-class RequestTimingInfo;
 class ResourceNamer;
 class RewriteFilter;
 class Statistics;
@@ -716,8 +715,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   void AdjustTimeUsWithoutWakingAlarms(int64 time_us);
 
   // Accessor for TimingInfo.
-  const RequestTimingInfo& timing_info();
-  RequestTimingInfo* mutable_timing_info();
+  const RequestContext::TimingInfo& timing_info();
+  RequestContext::TimingInfo* mutable_timing_info();
 
   // Convenience method to pull the logging info proto out of the current
   // request context's log record. The request context owns the log record, and
