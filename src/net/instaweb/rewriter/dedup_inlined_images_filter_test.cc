@@ -16,23 +16,20 @@
 
 // Author: matterbury@google.com (Matt Atterbury)
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/dedup_inlined_images_filter.h"
-#include "net/instaweb/rewriter/public/delay_images_filter.h"
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/rewriter/static_asset_config.pb.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/wildcard.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -76,14 +73,6 @@ const char kCuppaPngInlineData[] =
     "Mao2yafwOt6A05wAv+DYCuJsZMMIUOHjwov5cq4DSL5hwoAPZy67/86LDKzMzElV8T5ejV3H"
     "KA9+vXr9MbvQ50qrNnz57RYTmyevPO19bWRo/HmjTwXYs/Q2o2GaWaNxxGCTAGJq070BjgcB"
     "MiwMFN73nXNjAO3vWlG0+BcXDTe961DYyDd33pxtN/Wk9wIrGXNoUAAAAASUVORK5CYII=";
-const char kCuppaPngWildcardData[] = "data:image/png;base64*";
-
-const char kInlinedScriptFormat[] =
-    "<script type=\"text/javascript\""
-    " id=\"pagespeed_script_%d\" pagespeed_no_defer>"
-    "pagespeed.dedupInlinedImages.inlineImg("
-    "'pagespeed_img_0','pagespeed_img_0','pagespeed_script_%d'"
-    ");</script>";
 
 const char kHtmlWrapperFormat[] =
     "<head>\n"
@@ -99,7 +88,13 @@ class DedupInlinedImagesTest : public RewriteTestBase,
  protected:
   virtual void SetUp() {
     RewriteTestBase::SetUp();
-    SetFiltersAndOptions();
+    MySetUp();
+  }
+
+  void MySetUp() {
+    options()->EnableFilter(RewriteOptions::kInlineImages);
+    options()->EnableFilter(RewriteOptions::kDedupInlinedImages);
+    options()->set_image_inline_max_bytes(2000);
     rewrite_driver()->AddFilters();
     rewrite_driver()->SetUserAgent(
         UserAgentMatcherTestBase::kChrome18UserAgent);
@@ -115,15 +110,9 @@ class DedupInlinedImagesTest : public RewriteTestBase,
     dedup_inlined_images_js_ =
         StrCat("<script type=\"text/javascript\" pagespeed_no_defer>",
                static_asset_manager->GetAsset(
-                   StaticAssetEnum::DEDUP_INLINED_IMAGES_JS, options()),
+                   StaticAssetManager::kDedupInlinedImagesJs, options()),
                DedupInlinedImagesFilter::kDiiInitializer,
                "</script>");
-  }
-
-  virtual void SetFiltersAndOptions() {
-    options()->EnableFilter(RewriteOptions::kInlineImages);
-    options()->EnableFilter(RewriteOptions::kDedupInlinedImages);
-    options()->set_image_inline_max_bytes(2000);
   }
 
   void TestDedupImages(const StringPiece& case_id,
@@ -179,29 +168,38 @@ TEST_F(DedupInlinedImagesTest, DontInlineLargeImage) {
 
 TEST_F(DedupInlinedImagesTest, DedupSecondSmallImage) {
   // Add an id to the first occurence and convert the second to JavaScript.
-  TestDedupImages(
-      "dedup_second_small_image", "", "",
-      StrCat("<img src='", kCuppaPngFilename, "'>\n",
-             "<img src='", kCuppaPngFilename, "'>"),
-      StrCat("<img src='", kCuppaPngInlineData,
-             "' id=\"pagespeed_img_0\">\n",
-             InsertScriptBefore(
-                 StrCat("<img id=\"pagespeed_img_0\">",
-                        StringPrintf(kInlinedScriptFormat, 1, 1)))));
+  TestDedupImages("dedup_second_small_image", "", "",
+                  StrCat("<img src='", kCuppaPngFilename, "'>\n",
+                         "<img src='", kCuppaPngFilename, "'>"),
+                  StrCat("<img src='", kCuppaPngInlineData,
+                         "' id=\"pagespeed_img_0\">\n",
+                         InsertScriptBefore(
+                             "<img>"
+                             "<script type=\"text/javascript\""
+                             " id=\"pagespeed_script_1\""
+                             " pagespeed_no_defer>"
+                             "pagespeed.dedupInlinedImages.inlineImg("
+                             "\"pagespeed_img_0\",\"pagespeed_script_1\""
+                             ");</script>")));
 }
 
 TEST_F(DedupInlinedImagesTest, DedupManySmallImages) {
   // Add an id to the first occurence and convert the following to JavaScript.
   GoogleString image = StrCat("<img src='", kCuppaPngFilename, "'>");
-  TestDedupImages(
-      "dedup_many_small_images", "", "",
-      StrCat(image, "\n", image, "\n", image),
-      StrCat("<img src='", kCuppaPngInlineData, "' id=\"pagespeed_img_0\">\n",
-             InsertScriptBefore(
-                 StrCat("<img id=\"pagespeed_img_0\">",
-                        StringPrintf(kInlinedScriptFormat, 1, 1), "\n",
-                        "<img id=\"pagespeed_img_0\">",
-                        StringPrintf(kInlinedScriptFormat, 2, 2)))));
+  const char* inlined_format =
+      "<img>"
+      "<script type=\"text/javascript\""
+      " id=\"pagespeed_script_%d\" pagespeed_no_defer>"
+      "pagespeed.dedupInlinedImages.inlineImg("
+      "\"pagespeed_img_0\",\"pagespeed_script_%d\""
+      ");</script>";
+  TestDedupImages("dedup_many_small_images", "", "",
+                  StrCat(image, "\n", image, "\n", image),
+                  StrCat("<img src='", kCuppaPngInlineData,
+                         "' id=\"pagespeed_img_0\">\n",
+                         InsertScriptBefore(
+                             StrCat(StringPrintf(inlined_format, 1, 1), "\n",
+                                    StringPrintf(inlined_format, 2, 2)))));
 }
 
 TEST_F(DedupInlinedImagesTest, DedupSecondSmallImageWithId) {
@@ -211,35 +209,30 @@ TEST_F(DedupInlinedImagesTest, DedupSecondSmallImageWithId) {
                          "<img src='", kCuppaPngFilename, "'>"),
                   StrCat("<img src='", kCuppaPngInlineData, "' id='xyzzy'>\n",
                          InsertScriptBefore(
-                             "<img id=\"pagespeed_img_0\">"
+                             "<img>"
                              "<script type=\"text/javascript\""
                              " id=\"pagespeed_script_1\""
                              " pagespeed_no_defer>"
                              "pagespeed.dedupInlinedImages.inlineImg("
-                             "'xyzzy',"
-                             "'pagespeed_img_0',"
-                             "'pagespeed_script_1');"
-                             "</script>")));
+                             "\"xyzzy\",\"pagespeed_script_1\""
+                             ");</script>")));
 }
 
 TEST_F(DedupInlinedImagesTest, DedupSecondSmallImageWithAttributes) {
   // Keep all the attributes.
   TestDedupImages("dedup_second_small_image_with_attributes", "", "",
                   StrCat("<img src='", kCuppaPngFilename, "'>\n",
-                         "<img src='", kCuppaPngFilename,
-                         "' alt='xyzzy' id='plugh'>"),
+                         "<img src='", kCuppaPngFilename, "' alt='xyzzy'>"),
                   StrCat("<img src='", kCuppaPngInlineData,
                          "' id=\"pagespeed_img_0\">\n",
                          InsertScriptBefore(
-                             "<img alt='xyzzy' id='plugh'>"
+                             "<img alt='xyzzy'>"
                              "<script type=\"text/javascript\""
                              " id=\"pagespeed_script_1\""
                              " pagespeed_no_defer>"
                              "pagespeed.dedupInlinedImages.inlineImg("
-                             "'pagespeed_img_0',"
-                             "'plugh',"
-                             "'pagespeed_script_1');"
-                             "</script>")));
+                             "\"pagespeed_img_0\",\"pagespeed_script_1\""
+                             ");</script>")));
 }
 
 TEST_F(DedupInlinedImagesTest, DisabledForOldBlackberry) {
@@ -257,78 +250,6 @@ TEST_F(DedupInlinedImagesTest, DisabledForOldBlackberry) {
   GoogleString expected_out = doctype_string_ + AddHtmlBody(html_in_out);
   EXPECT_EQ(expected_out, output_buffer_) << "Test id:" << case_id;
   output_buffer_.clear();
-}
-
-class DedupInlinePreviewImagesTest : public DedupInlinedImagesTest {
- public:
-  DedupInlinePreviewImagesTest() : DedupInlinedImagesTest() {}
-
-  virtual void SetFiltersAndOptions() {
-    options()->EnableFilter(RewriteOptions::kDedupInlinedImages);
-    options()->EnableFilter(RewriteOptions::kDelayImages);
-    options()->set_min_image_size_low_resolution_bytes(1 * 1024);
-    options()->set_max_inlined_preview_images_index(-1);
-  }
-
-  GoogleString GetNoscript() const {
-    return StringPrintf(
-        kNoScriptRedirectFormatter,
-        "http://test.com/dedup_inline_preview_images.html?PageSpeed=noscript",
-        "http://test.com/dedup_inline_preview_images.html?PageSpeed=noscript");
-  }
-
-  GoogleString GetImageOnloadScriptBlock() const {
-    return StrCat("<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
-                  DelayImagesFilter::kImageOnloadJsSnippet,
-                  "</script>");
-  }
-
-  GoogleString GenerateRewrittenImageTag(const GoogleString& url,
-                                         const GoogleString& low_res_src) {
-    return StrCat("<img pagespeed_high_res_src='", url, "'",
-                  " src='", low_res_src, "'"
-                  " onload='", DelayImagesFilter::kImageOnloadCode, "'/>");
-  }
-};
-
-TEST_F(DedupInlinePreviewImagesTest, DedupInlinePreviewImages) {
-  GoogleString image_filename = StrCat(kTestDomain, kCuppaPngFilename);
-  GoogleString input_img = StrCat("<img src='", image_filename, "'/>");
-  GoogleString inlined_img =
-      StrCat("<img pagespeed_high_res_src='", image_filename,
-             "' src=\"", kCuppaPngWildcardData,
-             "\" onload=\"", DelayImagesFilter::kImageOnloadCode,
-             "\" onerror=\"this.onerror=null;",
-             DelayImagesFilter::kImageOnloadCode,
-             "\" id=\"pagespeed_img_0\"/>");
-  GoogleString scripted_img =
-      StrCat("<img pagespeed_high_res_src='", image_filename,
-             "' onload=\"", DelayImagesFilter::kImageOnloadCode,
-             "\" onerror=\"this.onerror=null;",
-             DelayImagesFilter::kImageOnloadCode,
-             "\" id=\"pagespeed_img_0\"/>");
-  GoogleString script_1 = StringPrintf(kInlinedScriptFormat, 1, 1);
-  GoogleString script_2 = StringPrintf(kInlinedScriptFormat, 2, 2);
-  GoogleString input_html = StrCat("<head></head>"
-                                   "<body>",
-                                   input_img, input_img, input_img,
-                                   "</body>");
-  GoogleString output_html = StrCat("<head></head>"
-                                    "<body>",
-                                    GetNoscript(),
-                                    GetImageOnloadScriptBlock(),
-                                    inlined_img,
-                                    InsertScriptBefore(
-                                        StrCat(scripted_img, script_1,
-                                               scripted_img, script_2)),
-                                    "</body>");
-
-  // Since the preview image has been resized use a wildcard to match it.
-  Parse("dedup_inline_preview_images", input_html);
-  GoogleString full_html = StrCat(doctype_string_, AddHtmlBody(output_html));
-  EXPECT_TRUE(Wildcard(full_html).Match(output_buffer_))
-      << "Output_Html:\n" << full_html << "\n"
-      << "Got:\n" << output_buffer_;
 }
 
 }  // namespace

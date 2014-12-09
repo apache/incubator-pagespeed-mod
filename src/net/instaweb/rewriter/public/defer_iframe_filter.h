@@ -54,7 +54,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_DEFER_IFRAME_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
@@ -72,7 +72,7 @@ class DeferIframeFilter : public CommonFilter {
   virtual void StartDocumentImpl();
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   virtual const char* Name() const { return "DeferIframe"; }
 

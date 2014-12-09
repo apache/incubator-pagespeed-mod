@@ -20,7 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_DEFER_DISABLED_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
@@ -37,7 +37,7 @@ class JsDeferDisabledFilter : public CommonFilter {
   explicit JsDeferDisabledFilter(RewriteDriver* driver);
   virtual ~JsDeferDisabledFilter();
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
   virtual const char* Name() const { return "JsDeferDisabledFilter"; }
 
   static void InitStats(Statistics* statistics);

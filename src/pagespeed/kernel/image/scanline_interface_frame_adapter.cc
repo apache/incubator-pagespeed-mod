@@ -28,14 +28,15 @@ namespace image_compression {
 ////////// FrameToScanlineReaderAdapter
 
 FrameToScanlineReaderAdapter::FrameToScanlineReaderAdapter(
-    MultipleFrameReader* frame_reader) : impl_(frame_reader) {
+    MultipleFrameReader* frame_reader) : impl_(frame_reader),
+                                         image_spec_(NULL),
+                                         frame_spec_(NULL) {
   CHECK(frame_reader != NULL);
-  CHECK(Reset());
 }
 
 bool FrameToScanlineReaderAdapter::Reset() {
-  image_spec_.Reset();
-  frame_spec_.Reset();
+  image_spec_ = NULL;
+  frame_spec_ = NULL;
   return impl_->Reset().Success();
 }
 
@@ -47,33 +48,18 @@ bool FrameToScanlineReaderAdapter::HasMoreScanLines() {
   return impl_->HasMoreScanlines();
 }
 
-bool FrameToScanlineReaderAdapter::IsProgressive() {
-  return frame_spec_.hint_progressive;
-}
-
 ScanlineStatus FrameToScanlineReaderAdapter::InitializeWithStatus(
     const void* image_buffer,
     size_t const buffer_length) {
-  ScanlineStatus status;
-  if ((impl_->Initialize(image_buffer, buffer_length, &status) &&
-       impl_->GetImageSpec(&image_spec_, &status) &&
-       impl_->PrepareNextFrame(&status) &&
-       impl_->GetFrameSpec(&frame_spec_, &status))) {
-    if (image_spec_.num_frames > 1) {
-      status = PS_LOGGED_STATUS(
-          PS_DLOG_INFO, impl_->message_handler(),
-          SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-          FRAME_TO_SCANLINE_READER_ADAPTER,
-          "animated images not supported in Scanline interface. %s",
-          image_spec_.ToString().c_str());
-    } else if ((frame_spec_.width != image_spec_.width) ||
-               (frame_spec_.height != image_spec_.height)) {
-      status = PS_LOGGED_STATUS(
-          PS_LOG_INFO, impl_->message_handler(),
-          SCANLINE_STATUS_PARSE_ERROR,
-          FRAME_TO_SCANLINE_READER_ADAPTER,
-          "frame must have same dimensions as image");
-    }
+  ScanlineStatus status = impl_->Initialize(image_buffer, buffer_length);
+  if (status.Success()) {
+    status = impl_->GetImageSpec(&image_spec_);
+  }
+  if (status.Success()) {
+    status = impl_->PrepareNextFrame();
+  }
+  if (status.Success()) {
+    status = impl_->GetFrameSpec(&frame_spec_);
   }
   return status;
 }
@@ -84,15 +70,15 @@ ScanlineStatus FrameToScanlineReaderAdapter::ReadNextScanlineWithStatus(
 }
 
 size_t FrameToScanlineReaderAdapter::GetImageHeight() {
-  return image_spec_.height;
+  return (image_spec_ != NULL) ? image_spec_->height : 0;
 }
 
 size_t FrameToScanlineReaderAdapter::GetImageWidth() {
-  return image_spec_.width;
+  return (image_spec_ != NULL) ? image_spec_->width : 0;
 }
 
 PixelFormat FrameToScanlineReaderAdapter::GetPixelFormat() {
-  return frame_spec_.pixel_format;
+  return (frame_spec_ != NULL) ? frame_spec_->pixel_format : UNSUPPORTED;
 }
 
 
@@ -110,18 +96,7 @@ ScanlineStatus FrameToScanlineWriterAdapter::InitWithStatus(
     const PixelFormat pixel_format) {
   image_spec_.width = width;
   image_spec_.height = height;
-
-  // Non-animated images have only one frame.
-  image_spec_.num_frames = 1;
-
-  frame_spec_.width = image_spec_.width;
-  frame_spec_.height = image_spec_.height;
-  frame_spec_.top = 0;
-  frame_spec_.left = 0;
   frame_spec_.pixel_format = pixel_format;
-  frame_spec_.duration_ms = 0;
-  frame_spec_.disposal = FrameSpec::DISPOSAL_NONE;
-
   init_done_ = true;
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
@@ -130,19 +105,19 @@ ScanlineStatus FrameToScanlineWriterAdapter::InitializeWriteWithStatus(
     const void* const config,
     GoogleString* const out) {
   if (!init_done_) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, impl_->message_handler(),
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, impl_->message_handler(),
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             FRAME_TO_SCANLINE_WRITER_ADAPTER,
                             "Initialize() called before Init()");
   }
 
-  ScanlineStatus status;
-  // We don't actually need a separate success variable, but want to
-  // prevent future steps as soon as we encounter an error.
-  bool success = (impl_->Initialize(config, out, &status) &&
-                  impl_->PrepareImage(&image_spec_, &status) &&
-                  impl_->PrepareNextFrame(&frame_spec_, &status));
-  (void) success;
+  ScanlineStatus status = impl_->Initialize(config, out);
+  if (status.Success()) {
+    status = impl_->PrepareImage(&image_spec_);
+  }
+  if (status.Success()) {
+    status = impl_->PrepareNextFrame(&frame_spec_);
+  }
   return status;
 }
 
@@ -183,15 +158,15 @@ ScanlineStatus ScanlineToFrameReaderAdapter::Reset() {
 ScanlineStatus ScanlineToFrameReaderAdapter::Initialize(
     const void* const image_buffer,
     const size_t buffer_length) {
-  ScanlineStatus status = impl_->InitializeWithStatus(image_buffer,
-                                                      buffer_length);
+  ScanlineStatus status = Reset();
+
+  if (status.Success()) {
+    status = impl_->InitializeWithStatus(image_buffer, buffer_length);
+  }
 
   if (status.Success()) {
     image_spec_.width = impl_->GetImageWidth();
     image_spec_.height = impl_->GetImageHeight();
-
-    // Non-animated images have only one frame.
-    image_spec_.num_frames = 1;
   }
 
   state_ = status.Success() ? INITIALIZED : ERROR;
@@ -199,21 +174,18 @@ ScanlineStatus ScanlineToFrameReaderAdapter::Initialize(
 }
 
 ScanlineStatus ScanlineToFrameReaderAdapter::PrepareNextFrame() {
-  if (!HasMoreFrames()) {
+  if (HasMoreFrames()) {
+    frame_spec_.Reset();
+    // TODO(vchudnov): Populate frame_spec_ fields.
+  } else {
     state_ = ERROR;
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             SCANLINE_TO_FRAME_READER_ADAPTER,
                             "PrepareNextFrame()");
   }
 
-  frame_spec_.Reset();
-  frame_spec_.width = impl_->GetImageWidth();
-  frame_spec_.height = impl_->GetImageHeight();
-  frame_spec_.top = 0;
-  frame_spec_.left = 0;
   frame_spec_.pixel_format = impl_->GetPixelFormat();
-  frame_spec_.hint_progressive = impl_->IsProgressive();
   state_ = FRAME_PREPARED;
 
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
@@ -236,14 +208,14 @@ bool ScanlineToFrameReaderAdapter::HasMoreFrames() const {
 }
 
 ScanlineStatus ScanlineToFrameReaderAdapter::GetImageSpec(
-    ImageSpec* const spec) const {
-  *spec = image_spec_;
+    const ImageSpec** const spec) const {
+  *spec = const_cast<const ImageSpec*>(&image_spec_);
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
 
 ScanlineStatus ScanlineToFrameReaderAdapter::GetFrameSpec(
-    FrameSpec* const spec) const {
-  *spec = frame_spec_;
+    const FrameSpec** const spec) const {
+  *spec = const_cast<const FrameSpec*>(&frame_spec_);
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
 
@@ -272,11 +244,11 @@ ScanlineStatus ScanlineToFrameWriterAdapter::PrepareNextFrame(
     const FrameSpec* const spec) {
   if (state_ != IMAGE_PREPARED) {
     state_ = ERROR;
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
+    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             SCANLINE_TO_FRAME_WRITER_ADAPTER,
-                            "PrepareNextFrame should be called after "
-                            "PrepareImage, and only once");
+                            "prepare next frame should be called after "
+                            "prepare image, and only once");
   }
 
   frame_spec_ = spec;
@@ -302,14 +274,6 @@ ScanlineStatus ScanlineToFrameWriterAdapter::FinalizeWrite() {
 ScanlineStatus ScanlineToFrameWriterAdapter::PrepareImage(
     const ImageSpec* const spec) {
   image_spec_ = spec;
-  if (spec->num_frames > 1) {
-    state_ = ERROR;
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                            SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-                            SCANLINE_TO_FRAME_WRITER_ADAPTER,
-                            "animated images not supported in Scanline"
-                            "interface");
-  }
   state_ = IMAGE_PREPARED;
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }

@@ -22,10 +22,10 @@
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/util/url_multipart_encoder.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
 
 namespace net_instaweb {
 
@@ -56,7 +56,7 @@ class CssCombineFilter : public RewriteFilter {
   virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element) {}
   virtual void Flush();
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
   virtual void IEDirective(HtmlIEDirectiveNode* directive);
   virtual const char* Name() const { return "CssCombine"; }
   virtual const UrlSegmentEncoder* encoder() const {

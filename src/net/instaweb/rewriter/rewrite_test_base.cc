@@ -22,6 +22,11 @@
 
 #include "base/logging.h"
 #include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -30,8 +35,10 @@
 #include "net/instaweb/http/public/log_record_test_helper.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -40,45 +47,45 @@
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 #include "net/instaweb/rewriter/public/process_context.h"
-#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/delay_cache.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mem_file_system.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/mock_time_cache.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stdio_file_system.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "pagespeed/kernel/base/base64_util.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stdio_file_system.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/cache/delay_cache.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/cache/mock_time_cache.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/html/html_writer_filter.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
-#include "pagespeed/kernel/util/simple_stats.h"
-#include "pagespeed/kernel/util/url_multipart_encoder.h"
 
 namespace net_instaweb {
-
-class RequestTimingInfo;
 
 namespace {
 
@@ -125,6 +132,7 @@ const char kMessagePatternShrinkImage[] = "*Shrinking image*";
 
 RewriteTestBase::RewriteTestBase()
     : test_distributed_fetcher_(this),
+      statistics_(new SimpleStats()),
       factory_(new TestRewriteDriverFactory(rewrite_test_base_process_context,
                                             GTestTempDir(),
                                             &mock_url_fetcher_,
@@ -139,7 +147,6 @@ RewriteTestBase::RewriteTestBase()
       other_options_(other_factory_->NewRewriteOptions()),
       kEtag0(HTTPCache::FormatEtag("0")),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
   Init();
 }
 
@@ -166,13 +173,13 @@ RewriteTestBase::RewriteTestBase(Statistics* statistics)
 RewriteTestBase::RewriteTestBase(
     std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*> factories)
     : test_distributed_fetcher_(this),
+      statistics_(new SimpleStats()),
       factory_(factories.first),
       other_factory_(factories.second),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
   Init();
 }
 
@@ -290,12 +297,11 @@ void RewriteTestBase::SetShouldBeaconHeader(StringPiece rebeaconing_key) {
 }
 
 ResourcePtr RewriteTestBase::CreateResource(const StringPiece& base,
-                                            const StringPiece& url) {
+                                                    const StringPiece& url) {
   rewrite_driver_->SetBaseUrlForFetch(base);
   GoogleUrl base_url(base);
   GoogleUrl resource_url(base_url, url);
-  bool unused;
-  return rewrite_driver_->CreateInputResource(resource_url, &unused);
+  return rewrite_driver_->CreateInputResource(resource_url);
 }
 
 void RewriteTestBase::PopulateDefaultHeaders(
@@ -305,7 +311,7 @@ void RewriteTestBase::PopulateDefaultHeaders(
   // Reset mock timer so synthetic headers match original.  This temporarily
   // fakes out the mock_scheduler, but we will repair the damage below.
   AdjustTimeUsWithoutWakingAlarms(start_time_ms() * Timer::kMsUs);
-  SetDefaultLongCacheHeaders(&content_type, headers);
+  server_context_->SetDefaultLongCacheHeaders(&content_type, headers);
   // Then set it back.  Note that no alarms should fire at this point
   // because alarms work on absolute time.
   AdjustTimeUsWithoutWakingAlarms(time);
@@ -364,7 +370,7 @@ void RewriteTestBase::ServeResourceFromNewContext(
     const GoogleString& resource_url,
     const StringPiece& expected_content) {
   // New objects for the new server.
-  SimpleStats stats(factory_->thread_system());
+  SimpleStats stats;
   scoped_ptr<TestRewriteDriverFactory> new_factory(MakeTestFactory());
   TestRewriteDriverFactory::InitStats(&stats);
   new_factory->SetUseTestUrlNamer(factory_->use_test_url_namer());
@@ -560,7 +566,7 @@ void RewriteTestBase::TestServeFiles(
   // When we start, there are no mock fetchers, so we'll need to get it
   // from the cache.
   ResponseHeaders headers;
-  SetDefaultLongCacheHeaders(content_type, &headers);
+  server_context_->SetDefaultLongCacheHeaders(content_type, &headers);
   HTTPCache* http_cache = server_context_->http_cache();
   http_cache->Put(expected_rewritten_path, rewrite_driver_->CacheFragment(),
                   RequestHeaders::Properties(),
@@ -628,7 +634,7 @@ bool RewriteTestBase::CssLink::DecomposeCombinedUrl(
   if (gurl.IsWebValid()) {
     gurl.AllExceptLeaf().CopyToString(base);
     ResourceNamer namer;
-    if (namer.DecodeIgnoreHashAndSignature(gurl.LeafWithQuery()) &&
+    if (namer.Decode(gurl.LeafWithQuery()) &&
         (namer.id() == RewriteOptions::kCssCombinerId)) {
       UrlMultipartEncoder multipart_encoder;
       GoogleString segment;
@@ -783,7 +789,7 @@ GoogleString RewriteTestBase::EncodeWithBase(
 GoogleString RewriteTestBase::AddOptionsToEncodedUrl(
     const StringPiece& url, const StringPiece& options) {
   ResourceNamer namer;
-  CHECK(rewrite_driver()->Decode(url, &namer));
+  CHECK(namer.Decode(url));
   namer.set_options(options);
   return namer.Encode();
 }
@@ -984,17 +990,11 @@ class HttpCallback : public HTTPCache::Callback {
   explicit HttpCallback(const RequestContextPtr& request_context)
       : HTTPCache::Callback(request_context, RequestHeaders::Properties()),
         done_(false),
-        result_(HTTPCache::kNotFound),
-        options_(NULL) {
-  }
+        result_(HTTPCache::kNotFound) {}
   virtual ~HttpCallback() {}
   virtual bool IsCacheValid(const GoogleString& key,
                             const ResponseHeaders& headers) {
-    if (options_ == NULL) {
-      return true;
-    }
-    return OptionsAwareHTTPCacheCallback::IsCacheValid(
-        key, *options_, request_context(), headers);
+    return true;
   }
   virtual void Done(HTTPCache::FindResult find_result) {
     done_ = true;
@@ -1006,12 +1006,10 @@ class HttpCallback : public HTTPCache::Callback {
 
   bool done() const { return done_; }
   HTTPCache::FindResult result() { return result_; }
-  void set_options(const RewriteOptions* options) { options_ = options; }
 
  private:
   bool done_;
   HTTPCache::FindResult result_;
-  const RewriteOptions* options_;
 };
 
 }  // namespace
@@ -1036,26 +1034,16 @@ void RewriteTestBase::InitiateResourceRead(
                       callback);
 }
 
-HTTPCache::FindResult RewriteTestBase::HttpBlockingFindWithOptions(
-    const RewriteOptions* options,
+HTTPCache::FindResult RewriteTestBase::HttpBlockingFind(
     const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
     ResponseHeaders* headers) {
   HttpCallback callback(CreateRequestContext());
-  if (options != NULL) {
-    callback.set_options(options);
-  }
   callback.set_response_headers(headers);
   http_cache->Find(
       key, rewrite_driver_->CacheFragment(), message_handler(), &callback);
   CHECK(callback.done());
   value_out->Link(callback.http_value());
   return callback.result();
-}
-
-HTTPCache::FindResult RewriteTestBase::HttpBlockingFind(
-    const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
-    ResponseHeaders* headers) {
-  return HttpBlockingFindWithOptions(NULL, key, http_cache, value_out, headers);
 }
 
 HTTPCache::FindResult RewriteTestBase::HttpBlockingFindStatus(
@@ -1136,12 +1124,12 @@ void RewriteTestBase::AdjustTimeUsWithoutWakingAlarms(int64 time_us) {
   factory_->mock_timer()->SetTimeUs(time_us);
 }
 
-const RequestTimingInfo& RewriteTestBase::timing_info() {
+const RequestContext::TimingInfo& RewriteTestBase::timing_info() {
   CHECK(rewrite_driver()->request_context().get() != NULL);
   return rewrite_driver()->request_context()->timing_info();
 }
 
-RequestTimingInfo* RewriteTestBase::mutable_timing_info() {
+RequestContext::TimingInfo* RewriteTestBase::mutable_timing_info() {
   CHECK(rewrite_driver()->request_context().get() != NULL);
   return rewrite_driver()->request_context()->mutable_timing_info();
 }
@@ -1250,7 +1238,7 @@ void RewriteTestBase::SetCacheInvalidationTimestamp() {
   // re-fetches resulting in re-inserts rather than inserts.
   AdvanceTimeMs(Timer::kSecondMs);
   int64 now_ms = timer()->NowMs();
-  options()->UpdateCacheInvalidationTimestampMs(now_ms);
+  options()->set_cache_invalidation_timestamp(now_ms);
   options()->ComputeSignature();
   AdvanceTimeMs(Timer::kSecondMs);
 }
@@ -1273,26 +1261,6 @@ void RewriteTestBase::EnableCachePurge() {
   options()->ComputeSignature();
 }
 
-void RewriteTestBase::EnableDebug() {
-  options()->ClearSignatureForTesting();
-  options()->EnableFilter(RewriteOptions::kDebug);
-  options()->ComputeSignature();
-}
-
-GoogleString RewriteTestBase::DebugMessage(StringPiece url) {
-  GoogleString result(debug_message_);
-  GoogleUrl test_domain(kTestDomain);
-  GoogleUrl gurl(test_domain, url);
-  if (gurl.IsAnyValid()) {
-    // Resolves vs test_domain to a valid absolute url.  Use that.
-    GlobalReplaceSubstring("%url%", gurl.Spec(), &result);
-  } else {
-    // Couldn't resolve to a valid url, just use string as passed in.
-    GlobalReplaceSubstring("%url%", url, &result);
-  }
-  return result;
-}
-
 GoogleString RewriteTestBase::ExpectedNonce() {
   GoogleString result;
   StringPiece nonce_piece(reinterpret_cast<char*>(&expected_nonce_),
@@ -1305,10 +1273,6 @@ GoogleString RewriteTestBase::ExpectedNonce() {
 
 const ProcessContext& RewriteTestBase::process_context() {
   return rewrite_test_base_process_context;
-}
-
-int RewriteTestBase::TimedValue(StringPiece name) {
-  return statistics()->GetTimedVariable(name)->Get(TimedVariable::START);
 }
 
 }  // namespace net_instaweb

@@ -1,6 +1,3 @@
-#ifndef NET_INSTAWEB_REWRITER_PUBLIC_DATA_URL_INPUT_RESOURCE_H_
-#define NET_INSTAWEB_REWRITER_PUBLIC_DATA_URL_INPUT_RESOURCE_H_
-
 /*
  * Copyright 2010 Google Inc.
  *
@@ -25,16 +22,19 @@
 
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/data_url.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+
+#ifndef NET_INSTAWEB_REWRITER_PUBLIC_DATA_URL_INPUT_RESOURCE_H_
+#define NET_INSTAWEB_REWRITER_PUBLIC_DATA_URL_INPUT_RESOURCE_H_
 
 namespace net_instaweb {
 
 class InputInfo;
-class RewriteDriver;
+class ServerContext;
 struct ContentType;
 
 enum Encoding;
@@ -42,7 +42,8 @@ enum Encoding;
 class DataUrlInputResource : public Resource {
  public:
   // We expose a factory; parse failure returns NULL.
-  static ResourcePtr Make(const StringPiece& url, const RewriteDriver* driver) {
+  static ResourcePtr Make(const StringPiece& url,
+                          ServerContext* server_context) {
     ResourcePtr resource;
     const ContentType* type;
     Encoding encoding;
@@ -54,7 +55,8 @@ class DataUrlInputResource : public Resource {
     url.CopyToString(url_copy);
     if (ParseDataUrl(*url_copy, &type, &encoding, &encoded_contents)) {
       resource.reset(new DataUrlInputResource(url_copy, encoding, type,
-                                              encoded_contents, driver));
+                                              encoded_contents,
+                                              server_context));
     }
     return resource;
   }
@@ -81,7 +83,7 @@ class DataUrlInputResource : public Resource {
                        Encoding encoding,
                        const ContentType* type,
                        const StringPiece& encoded_contents,
-                       const RewriteDriver* driver);
+                       ServerContext* server_context);
 
   scoped_ptr<const GoogleString> url_;
   const Encoding encoding_;

@@ -29,22 +29,22 @@
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_partnership.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/base/writer.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/url_escaper.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/util/url_escaper.h"
-#include "pagespeed/kernel/util/url_multipart_encoder.h"
 
 namespace net_instaweb {
 
@@ -124,16 +124,9 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
     AccumulateCombinedSize(resource);
 
     resources_.push_back(resource);
-    const char* failure_reason = NULL;
-    if (ContentSizeTooBig()) {
-      failure_reason = "combined contents too big.";
-    } else if (UrlTooBig()) {
-      failure_reason = "combined url too long.";
-    }
-    if (failure_reason != NULL) {
-      handler->Message(
-          kInfo, "Cannot combine %s: %s",
-          resource->url().c_str(), failure_reason);
+    if (ContentSizeTooBig() || UrlTooBig()) {
+      // TODO(ksimbili) : Propagate the correct reason-string to the caller.
+      handler->Message(kInfo, "Cannot combine: contents/url size too big");
       RemoveLastResource();
       added = false;
     }
@@ -226,13 +219,10 @@ OutputResourcePtr ResourceCombiner::Combine(MessageHandler* handler) {
   // not committed to the combination, because the 'write' can fail.
   // TODO(jmaessen, jmarantz): encode based on partnership
   GoogleString resolved_base = ResolvedBase();
-  GoogleString failure_reason;
   combination.reset(rewrite_driver_->CreateOutputResourceWithMappedPath(
       resolved_base, resolved_base, filter_->id(), url_safe_id,
-      kRewrittenResource, &failure_reason));
-  if (combination.get() == NULL) {
-    // TODO(sligocki): Note failure_reason somewhere.
-  } else {
+      kRewrittenResource));
+  if (combination.get() != NULL) {
     if (combination->cached_result() != NULL &&
         combination->cached_result()->optimizable()) {
       // If the combination has a Url set on it we have cached information
@@ -269,9 +259,9 @@ bool ResourceCombiner::WriteCombination(
     DCHECK_EQ(0, output_headers->NumAttributes());
 
     // We don't copy over all the resources from [0] because we don't
-    // want the input cache-control.  The output cache-control is set via
+    // want the input cache-control.  The output cache-control via
     // RewriteDriver::Write when it calls
-    // RewriteDriver::SetDefaultLongCacheHeaders.
+    // ServerContext::SetDefaultLongCacheHeadersWithCharset.
     server_context_->MergeNonCachingResponseHeaders(
         *combine_resources[0]->response_headers(), output_headers);
     for (int i = 1, n = combine_resources.size(); i < n; ++i) {

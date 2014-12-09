@@ -18,15 +18,15 @@
 
 #include "net/instaweb/rewriter/public/simple_text_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/http/content_type.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -73,20 +73,17 @@ void SimpleTextFilter::Context::RewriteSingle(const ResourcePtr& input,
 
 void SimpleTextFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* attr = rewriter_->FindResourceAttribute(element);
-  if (attr == NULL) {
-    return;
-  }
-  ResourcePtr resource(CreateInputResourceOrInsertDebugComment(
-      attr->DecodedValueOrNull(), element));
-  if (resource.get() == NULL) {
-    return;
-  }
+  if (attr != NULL) {
+    ResourcePtr resource = CreateInputResource(attr->DecodedValueOrNull());
+    if (resource.get() != NULL) {
+      ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
 
-  ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
-  // This 'new' is paired with a delete in RewriteContext::FinishFetch()
-  Context* context = new Context(rewriter_, driver(), NULL);
-  context->AddSlot(slot);
-  driver()->InitiateRewrite(context);
+      // This 'new' is paired with a delete in RewriteContext::FinishFetch()
+      Context* context = new Context(rewriter_, driver(), NULL);
+      context->AddSlot(slot);
+      driver()->InitiateRewrite(context);
+    }
+  }
 }
 
 RewriteContext* SimpleTextFilter::MakeRewriteContext() {

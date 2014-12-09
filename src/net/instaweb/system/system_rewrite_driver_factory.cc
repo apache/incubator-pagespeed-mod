@@ -16,7 +16,6 @@
 
 #include "net/instaweb/system/public/system_rewrite_driver_factory.h"
 
-#include <algorithm>  // for min
 #include <cstdlib>
 #include <map>
 #include <set>
@@ -38,24 +37,24 @@
 #include "net/instaweb/system/public/system_rewrite_options.h"
 #include "net/instaweb/system/public/system_server_context.h"
 #include "net/instaweb/system/public/system_thread_system.h"
+#include "net/instaweb/util/public/abstract_shared_mem.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/posix_timer.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/abstract_shared_mem.h"
+#include "net/instaweb/util/public/pthread_shared_mem.h"
+#include "net/instaweb/util/public/shared_circular_buffer.h"
+#include "net/instaweb/util/public/shared_mem_statistics.h"
+#include "net/instaweb/util/public/stdio_file_system.h"
+#include "third_party/domain_registry_provider/src/domain_registry/domain_registry.h"
 #include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/null_shared_mem.h"
-#include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stdio_file_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/sharedmem/shared_circular_buffer.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_statistics.h"
-#include "pagespeed/kernel/thread/pthread_shared_mem.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/util/input_file_nonce_generator.h"
 
 namespace net_instaweb {
@@ -66,18 +65,6 @@ class ProcessContext;
 namespace {
 
 const char kShutdownCount[] = "child_shutdown_count";
-
-const char kStaticAssetPrefix[] = "StaticAssetPrefix";
-const char kUsePerVHostStatistics[] = "UsePerVHostStatistics";
-const char kInstallCrashHandler[] = "InstallCrashHandler";
-const char kNumRewriteThreads[] = "NumRewriteThreads";
-const char kNumExpensiveRewriteThreads[] = "NumExpensiveRewriteThreads";
-const char kForceCaching[] = "ForceCaching";
-const char kListOutstandingUrlsOnError[] = "ListOutstandingUrlsOnError";
-const char kMessageBufferSize[] = "MessageBufferSize";
-const char kTrackOriginalContentLength[] = "TrackOriginalContentLength";
-const char kCreateSharedMemoryMetadataCache[] =
-    "CreateSharedMemoryMetadataCache";
 
 }  // namespace
 
@@ -94,12 +81,7 @@ SystemRewriteDriverFactory::SystemRewriteDriverFactory(
       track_original_content_length_(false),
       list_outstanding_urls_on_error_(false),
       static_asset_prefix_("/pagespeed_static/"),
-      system_thread_system_(thread_system),
-      use_per_vhost_statistics_(true),
-      install_crash_handler_(false),
-      thread_counts_finalized_(false),
-      num_rewrite_threads_(-1),
-      num_expensive_rewrite_threads_(-1) {
+      system_thread_system_(thread_system) {
   if (shared_mem_runtime == NULL) {
 #ifdef PAGESPEED_SUPPORT_POSIX_SHARED_MEM
     shared_mem_runtime = new PthreadSharedMem();
@@ -108,18 +90,9 @@ SystemRewriteDriverFactory::SystemRewriteDriverFactory(
 #endif
   }
   shared_mem_runtime_.reset(shared_mem_runtime);
-}
-
-// We need an Init() method to finish construction because we want to call
-// virtual methods that subclasses can override.
-void SystemRewriteDriverFactory::Init() {
-  // Note: in Apache this must run after mod_pagespeed_register_hooks has
-  // completed.  See http://httpd.apache.org/docs/2.4/developer/new_api_2_4.html
-  // and search for ap_mpm_query.
-  AutoDetectThreadCounts();
-
-  int thread_limit = LookupThreadLimit();
-  thread_limit += num_rewrite_threads() + num_expensive_rewrite_threads();
+  // Some implementations, such as Apache, call caches.set_thread_limit in
+  // their constructors and override this limit.
+  int thread_limit = 1;
   caches_.reset(
       new SystemCaches(this, shared_mem_runtime_.get(), thread_limit));
 }
@@ -215,23 +188,6 @@ void SystemRewriteDriverFactory::InitStaticAssetManager(
   static_asset_manager->set_library_url_prefix(static_asset_prefix_);
 }
 
-QueuedWorkerPool* SystemRewriteDriverFactory::CreateWorkerPool(
-    WorkerPoolCategory pool, StringPiece name) {
-  switch (pool) {
-    case kHtmlWorkers:
-      // In Apache this will effectively be 0, as it doesn't use HTML threads.
-      return new QueuedWorkerPool(1, name, thread_system());
-    case kRewriteWorkers:
-      return new QueuedWorkerPool(num_rewrite_threads_, name, thread_system());
-    case kLowPriorityRewriteWorkers:
-      return new QueuedWorkerPool(num_expensive_rewrite_threads_,
-                                  name,
-                                  thread_system());
-    default:
-      return RewriteDriverFactory::CreateWorkerPool(pool, name);
-  }
-}
-
 void SystemRewriteDriverFactory::ParentOrChildInit() {
   SharedCircularBufferInit(is_root_process_);
 }
@@ -249,6 +205,9 @@ void SystemRewriteDriverFactory::RootInit() {
   }
 
   caches_->RootInit();
+
+  // Required for SystemRequestContext to be able to call GetRegistryLength().
+  InitializeDomainRegistry();
 }
 
 void SystemRewriteDriverFactory::ChildInit() {
@@ -290,115 +249,6 @@ void SystemRewriteDriverFactory::SharedCircularBufferInit(bool is_root) {
       SetCircularBuffer(shared_circular_buffer_.get());
      }
   }
-}
-
-RewriteOptions::OptionSettingResult
-SystemRewriteDriverFactory::ParseAndSetOption1(StringPiece option,
-                                               StringPiece arg,
-                                               bool process_scope,
-                                               GoogleString* msg,
-                                               MessageHandler* handler) {
-  // First check the scope.
-  if (StringCaseEqual(option, kStaticAssetPrefix) ||
-      StringCaseEqual(option, kUsePerVHostStatistics) ||
-      StringCaseEqual(option, kInstallCrashHandler) ||
-      StringCaseEqual(option, kNumRewriteThreads) ||
-      StringCaseEqual(option, kNumExpensiveRewriteThreads)) {
-    if (!process_scope) {
-      *msg = StrCat("'", option, "' is global and can't be set at this scope.");
-      return RewriteOptions::kOptionValueInvalid;
-    }
-  } else if (StringCaseEqual(option, kForceCaching) ||
-             StringCaseEqual(option, kListOutstandingUrlsOnError) ||
-             StringCaseEqual(option, kMessageBufferSize) ||
-             StringCaseEqual(option, kTrackOriginalContentLength)) {
-    if (!process_scope) {
-      // msg is only printed to the user on error, so warnings must be logged.
-      handler->Message(
-          kWarning, "'%s' is global and is ignored at this scope",
-          option.as_string().c_str());
-      // OK here means "move on" not "accepted and applied".
-      return RewriteOptions::kOptionOk;
-    }
-  } else {
-    return RewriteOptions::kOptionNameUnknown;
-  }
-
-  // Scope is ok and option is known.  Parse and apply.
-
-  if (StringCaseEqual(option, kStaticAssetPrefix)) {
-    set_static_asset_prefix(arg);
-    return RewriteOptions::kOptionOk;
-  }
-
-  // Most of our options take booleans, so just parse once.
-  bool is_on = false;
-  RewriteOptions::OptionSettingResult parsed_as_bool =
-      RewriteOptions::ParseFromString(arg, &is_on) ?
-      RewriteOptions::kOptionOk : RewriteOptions::kOptionValueInvalid;
-  if (StringCaseEqual(option, kUsePerVHostStatistics)) {
-    set_use_per_vhost_statistics(is_on);
-    return parsed_as_bool;
-  } else if (StringCaseEqual(option, kForceCaching)) {
-    set_force_caching(is_on);
-    return parsed_as_bool;
-  } else if (StringCaseEqual(option, kInstallCrashHandler)) {
-    set_install_crash_handler(is_on);
-    return parsed_as_bool;
-  } else if (StringCaseEqual(option, kListOutstandingUrlsOnError)) {
-    list_outstanding_urls_on_error(is_on);
-    return parsed_as_bool;
-  } else if (StringCaseEqual(option, kTrackOriginalContentLength)) {
-    set_track_original_content_length(is_on);
-    return parsed_as_bool;
-  }
-
-  // Others take a positive integer.
-  int int_value = 0;
-  RewriteOptions::OptionSettingResult parsed_as_int =
-      (RewriteOptions::ParseFromString(arg, &int_value) && int_value > 0) ?
-      RewriteOptions::kOptionOk : RewriteOptions::kOptionValueInvalid;
-  if (StringCaseEqual(option, kNumRewriteThreads)) {
-    set_num_rewrite_threads(int_value);
-    return parsed_as_int;
-  } else if (StringCaseEqual(option, kNumExpensiveRewriteThreads)) {
-    set_num_expensive_rewrite_threads(int_value);
-    return parsed_as_int;
-  } else if (StringCaseEqual(option, kMessageBufferSize)) {
-    set_message_buffer_size(int_value);
-    return parsed_as_int;
-  }
-
-  LOG(FATAL) << "Unknown options should have been handled in scope checking.";
-  return RewriteOptions::kOptionNameUnknown;
-}
-
-RewriteOptions::OptionSettingResult
-SystemRewriteDriverFactory::ParseAndSetOption2(StringPiece option,
-                                               StringPiece arg1,
-                                               StringPiece arg2,
-                                               bool process_scope,
-                                               GoogleString* msg,
-                                               MessageHandler* handler) {
-  if (StringCaseEqual(option, kCreateSharedMemoryMetadataCache)) {
-    if (!process_scope) {
-      // msg is only printed to the user on error, so warnings must be logged.
-      handler->Message(
-          kWarning, "'%s' is global and is ignored at this scope",
-          option.as_string().c_str());
-      // OK here means "move on" not "accepted and applied".
-      return RewriteOptions::kOptionOk;
-    }
-
-    int64 kb = 0;
-    if (!StringToInt64(arg2, &kb) || kb < 0) {
-      *msg = "size_kb must be a positive 64-bit integer";
-      return RewriteOptions::kOptionValueInvalid;
-    }
-    bool ok = caches()->CreateShmMetadataCache(arg1, kb, msg);
-    return ok ? RewriteOptions::kOptionOk : RewriteOptions::kOptionValueInvalid;
-  }
-  return RewriteOptions::kOptionNameUnknown;
 }
 
 void SystemRewriteDriverFactory::PostConfig(
@@ -621,44 +471,6 @@ NamedLockManager* SystemRewriteDriverFactory::DefaultLockManager() {
 ServerContext* SystemRewriteDriverFactory::NewServerContext() {
   LOG(DFATAL) << "Use implementation-specific MakeXServerXContext() instead";
   return NULL;
-}
-
-int SystemRewriteDriverFactory::requests_per_host() {
-  CHECK(thread_counts_finalized_);
-  return std::min(4, num_rewrite_threads_);
-}
-
-void SystemRewriteDriverFactory::AutoDetectThreadCounts() {
-  if (thread_counts_finalized_) {
-    return;
-  }
-
-  if (IsServerThreaded()) {
-    if (num_rewrite_threads_ <= 0) {
-      num_rewrite_threads_ = 4;
-    }
-    if (num_expensive_rewrite_threads_ <= 0) {
-      num_expensive_rewrite_threads_ = 4;
-    }
-    message_handler()->Message(
-        kInfo, "Detected threaded server."
-        " Own threads: %d Rewrite, %d Expensive Rewrite.",
-        num_rewrite_threads_, num_expensive_rewrite_threads_);
-
-  } else {
-    if (num_rewrite_threads_ <= 0) {
-      num_rewrite_threads_ = 1;
-    }
-    if (num_expensive_rewrite_threads_ <= 0) {
-      num_expensive_rewrite_threads_ = 1;
-    }
-    message_handler()->Message(
-        kInfo, "No threading detected."
-        " Own threads: %d Rewrite, %d Expensive Rewrite.",
-        num_rewrite_threads_, num_expensive_rewrite_threads_);
-  }
-
-  thread_counts_finalized_ = true;
 }
 
 }  // namespace net_instaweb

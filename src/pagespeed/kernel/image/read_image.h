@@ -38,8 +38,6 @@ class ScanlineReaderInterface;
 class ScanlineWriterInterface;
 
 using net_instaweb::MessageHandler;
-using pagespeed::image_compression::QuirksMode;
-using pagespeed::image_compression::QUIRKS_CHROME;
 
 ////////// Scanline API
 
@@ -101,21 +99,8 @@ MultipleFrameReader* CreateImageFrameReader(
     ImageFormat image_type,
     const void* image_buffer,
     size_t buffer_length,
-    QuirksMode quirks_mode,
     MessageHandler* handler,
     ScanlineStatus* status);
-
-// This overloaded form is like the one above but defaults quirks_mode
-// to be QUIRKS_CHROME.
-inline MultipleFrameReader* CreateImageFrameReader(
-    ImageFormat image_type,
-    const void* image_buffer,
-    size_t buffer_length,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
-  return CreateImageFrameReader(image_type, image_buffer, buffer_length,
-                                QUIRKS_CHROME, handler, status);
-}
 
 // Returns a new MultipleFrameWriter after calling its Initialize()
 // method. The following formats are supported: IMAGE_PNG,

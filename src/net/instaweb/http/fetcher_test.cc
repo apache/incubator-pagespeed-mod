@@ -20,15 +20,16 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/util/platform.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/null_mutex.h"
+#include "net/instaweb/util/public/platform.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -41,12 +42,12 @@ const char FetcherTest::kBadUrl[] = "http://this_url_will_fail.com";
 const char FetcherTest::kHeaderName[] = "header-name";
 const char FetcherTest::kHeaderValue[] = "header value";
 
+SimpleStats* FetcherTest::statistics_ = NULL;
+
 FetcherTest::FetcherTest()
     : wait_url_async_fetcher_(&mock_fetcher_, new NullMutex),
       counting_fetcher_(&wait_url_async_fetcher_),
-      thread_system_(Platform::CreateThreadSystem()),
-      statistics_(thread_system_.get()) {
-  HTTPCache::InitStats(&statistics_);
+      thread_system_(Platform::CreateThreadSystem()) {
   mock_fetcher_.set_fail_on_unexpected(false);
   mock_fetcher_.set_error_message(kErrorMessage);
 
@@ -125,6 +126,16 @@ void FetcherTest::Populate(const char* cache_control,
   response_headers->Add(kHeaderName, kHeaderValue);
   response_headers->ComputeCaching();
   *content = kHtmlContent;
+}
+
+void FetcherTest::SetUpTestCase() {
+  statistics_ = new SimpleStats;
+  HTTPCache::InitStats(statistics_);
+}
+
+void FetcherTest::TearDownTestCase() {
+  delete statistics_;
+  statistics_ = NULL;
 }
 
 }  // namespace net_instaweb

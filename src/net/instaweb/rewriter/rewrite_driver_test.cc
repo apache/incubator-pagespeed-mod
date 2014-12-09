@@ -18,11 +18,17 @@
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
@@ -37,28 +43,20 @@
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/worker_test_base.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/sha1_signature.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -203,64 +201,20 @@ TEST_F(RewriteDriverTest, CloneMarksNested) {
 }
 
 TEST_F(RewriteDriverTest, TestLegacyUrl) {
-  GoogleString hash(32, '0');
   rewrite_driver()->AddFilters();
-  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm." + hash + ".orig"))
+  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm.0.orig"))
       << "not enough dots";
-  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm.0.orig.js"))
-      << "hash too short";
-  EXPECT_TRUE(CanDecodeUrl("http://example.com/dir/123/jm."+hash+".orig.js"));
+  EXPECT_TRUE(CanDecodeUrl("http://example.com/dir/123/jm.0.orig.js"));
   EXPECT_TRUE(CanDecodeUrl(
       "http://x.com/dir/123/jm.0123456789abcdef0123456789ABCDEF.orig.js"));
-  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/xx."+hash+".orig.js"))
+  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/xx.0.orig.js"))
       << "invalid filter xx";
-  GoogleString bad_hash(32, 'z');
-  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm." + bad_hash +
-                            ".orig.js"))
+  ASSERT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm.z.orig.js"))
       << "invalid hash code -- not hex";
-  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm.ab.orig.js"))
-      << "invalid hash code -- not 32 chars";
-  EXPECT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm."
-                            + hash + ".orig.x"))
+  ASSERT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm.ab.orig.js"))
+      << "invalid hash code -- not 1 or 32 chars";
+  ASSERT_FALSE(CanDecodeUrl("http://example.com/dir/123/jm.0.orig.x"))
       << "invalid extension";
-}
-
-TEST_F(RewriteDriverTest, TestValidUrlSignatures) {
-  StringPiece key("helloworld");
-  options()->set_url_signing_key(key);
-  EXPECT_EQ(10, options()->sha1signature()->SignatureSizeInChars());
-  rewrite_driver()->AddFilters();
-  EXPECT_TRUE(CanDecodeUrl(
-      "http://signed-urls.example.com/mod_pagespeed_example/styles/"
-      "A.all_styles.css.pagespeed.cf.UQ_aP9rObnq.css"))
-      << "valid signature";
-  EXPECT_FALSE(CanDecodeUrl(
-      "http://signed-urls.example.com/mod_pagespeed_example/styles/"
-      "A.all_styles.css.pagespeed.cf.UAAAAAAAAAA.css"))
-      << "invalid signature";
-  EXPECT_FALSE(CanDecodeUrl(
-      "http://signed-urls.example.com/mod_pagespeed_example/styles/"
-      "A.all_styles.css.pagespeed.cf.U.css"))
-      << "no signature";
-}
-
-TEST_F(RewriteDriverTest, TestIgnoringUrlSignatures) {
-  options()->set_url_signing_key("helloworld");
-  options()->set_accept_invalid_signatures(true);
-  EXPECT_EQ(10, options()->sha1signature()->SignatureSizeInChars());
-  rewrite_driver()->AddFilters();
-  EXPECT_TRUE(CanDecodeUrl(
-      "http://signed-urls.example.com/mod_pagespeed_example/styles/"
-      "A.all_styles.css.pagespeed.cf.UQ_aP9rObnq.css"))
-      << "valid signature, ignored";
-  EXPECT_TRUE(CanDecodeUrl(
-      "http://signed-urls.example.com/mod_pagespeed_example/styles/"
-      "A.all_styles.css.pagespeed.cf.UAAAAAAAAAA.css"))
-      << "invalid signature, ignored";
-  EXPECT_TRUE(CanDecodeUrl(
-      "http://signed-urls.example.com/mod_pagespeed_example/styles/"
-      "A.all_styles.css.pagespeed.cf.U.css"))
-      << "no signature, ignored";
 }
 
 TEST_F(RewriteDriverTest, PagespeedObliviousPositiveTest) {
@@ -464,7 +418,7 @@ TEST_F(RewriteDriverTest, TestCacheUseWithInvalidation) {
   ClearStats();
   int64 now_ms = timer()->NowMs();
   options()->ClearSignatureForTesting();
-  options()->UpdateCacheInvalidationTimestampMs(now_ms);
+  options()->set_cache_invalidation_timestamp(now_ms);
   options()->ComputeSignature();
   EXPECT_TRUE(TryFetchResource(css_minified_url));
   // We expect: identical input a new rname entry (its version # changed),
@@ -774,7 +728,7 @@ TEST_F(RewriteDriverTest, TestCacheUseOnTheFlyWithInvalidation) {
   ClearStats();
   int64 now_ms = timer()->NowMs();
   options()->ClearSignatureForTesting();
-  options()->UpdateCacheInvalidationTimestampMs(now_ms);
+  options()->set_cache_invalidation_timestamp(now_ms);
   options()->ComputeSignature();
   EXPECT_TRUE(TryFetchResource(cache_extended_url));
   // We expect: input re-insert, new metadata key
@@ -844,7 +798,6 @@ TEST_F(RewriteDriverTest, InvalidBaseTag) {
 TEST_F(RewriteDriverTest, CreateOutputResourceTooLongSeparateBase) {
   SetUseTestUrlNamer(true);
   OutputResourcePtr resource;
-  GoogleString failure_reason;
 
   options()->set_max_url_size(94);
   resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
@@ -853,14 +806,9 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLongSeparateBase) {
       "http://base.example.com/dir/",
       "xy",
       "test.jpg",
-      kRewrittenResource,
-      &failure_reason));
+      kRewrittenResource));
   EXPECT_TRUE(NULL == resource.get());
-  EXPECT_EQ("Rewritten URL too long: http://cdn.com/http/base.example.com/"
-            "http/unmapped.example.com/dir/test.jpg.pagespeed.xy.#.",
-            failure_reason);
 
-  failure_reason = "";
   options()->set_max_url_size(95);
   resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
       "http://mapped.example.com/dir/",
@@ -868,10 +816,8 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLongSeparateBase) {
       "http://base.example.com/dir/",
       "xy",
       "test.jpg",
-      kRewrittenResource,
-      &failure_reason));
+      kRewrittenResource));
   EXPECT_TRUE(NULL != resource.get());
-  EXPECT_EQ("", failure_reason);
 }
 
 TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
@@ -889,41 +835,29 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
   }
 
   // short_name.size() < options()->max_url_segment_size() < long_name.size()
-  GoogleString short_name = "foo.css";
+  GoogleString short_name = "foo.html";
   GoogleString long_name =
-      StrCat("foo.css?",
+      StrCat("foo.html?",
              GoogleString(options()->max_url_segment_size() + 1, 'z'));
 
   GoogleString dummy_filter_id = "xy";
 
   OutputResourcePtr resource;
-  GoogleString failure_reason;
   for (int k = 0; k < arraysize(resource_kinds); ++k) {
-    failure_reason = "";
     // Short name should always succeed at creating new resource.
     resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-        short_path, dummy_filter_id, short_name, resource_kinds[k],
-        &failure_reason));
+        short_path, dummy_filter_id, short_name, resource_kinds[k]));
     EXPECT_TRUE(NULL != resource.get());
-    EXPECT_EQ("", failure_reason);
 
-    failure_reason = "";
     // Long leaf-name should always fail at creating new resource.
     resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-        short_path, dummy_filter_id, long_name, resource_kinds[k],
-        &failure_reason));
+        short_path, dummy_filter_id, long_name, resource_kinds[k]));
     EXPECT_TRUE(NULL == resource.get());
-    EXPECT_EQ("Rewritten URL segment too long.", failure_reason);
 
-    failure_reason = "";
     // Long total URL length should always fail at creating new resource.
     resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
-        long_path, dummy_filter_id, short_name, resource_kinds[k],
-        &failure_reason));
+        long_path, dummy_filter_id, short_name, resource_kinds[k]));
     EXPECT_TRUE(NULL == resource.get());
-    EXPECT_EQ(StrCat("Rewritten URL too long: ", long_path, short_name,
-                     ".pagespeed.xy.#."),
-              failure_reason);
   }
 }
 
@@ -967,8 +901,7 @@ TEST_F(RewriteDriverTest, ResourceCharset) {
   // We do this twice to make sure the cached version is OK, too.
   for (int round = 0; round < 2; ++round) {
     ResourcePtr resource(
-        rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-            kUrl));
+        rewrite_driver()->CreateInputResourceAbsoluteUnchecked(kUrl));
     MockResourceCallback mock_callback(resource, factory()->thread_system());
     ASSERT_TRUE(resource.get() != NULL);
     resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1007,8 +940,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
   // Make sure file can be loaded. Note this cannot be loaded through the
   // mock_url_fetcher, because it has not been set in that fetcher.
   ResourcePtr resource(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          resource_url));
+      rewrite_driver()->CreateInputResourceAbsoluteUnchecked(resource_url));
   MockResourceCallback mock_callback(resource, factory()->thread_system());
   ASSERT_TRUE(resource.get() != NULL);
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1023,8 +955,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
   SetFetchResponse(resource_url, resource_headers, kResourceContents2);
   // Check that the resource loads cached.
   ResourcePtr resource2(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          resource_url));
+      rewrite_driver()->CreateInputResourceAbsoluteUnchecked(resource_url));
   MockResourceCallback mock_callback2(resource2, factory()->thread_system());
   ASSERT_TRUE(resource2.get() != NULL);
   resource2->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1039,8 +970,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
 
   // Check that the resource loads updated.
   ResourcePtr resource3(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          resource_url));
+      rewrite_driver()->CreateInputResourceAbsoluteUnchecked(resource_url));
   MockResourceCallback mock_callback3(resource3, factory()->thread_system());
   ASSERT_TRUE(resource3.get() != NULL);
   resource3->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1073,8 +1003,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromFiles) {
   // Make sure file can be loaded. Note this cannot be loaded through the
   // mock_url_fetcher, because it has not been set in that fetcher.
   ResourcePtr resource(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          resource_url));
+      rewrite_driver()->CreateInputResourceAbsoluteUnchecked(resource_url));
   ASSERT_TRUE(resource.get() != NULL);
   EXPECT_EQ(&kContentTypeCss, resource->type());
   MockResourceCallback mock_callback(resource, factory()->thread_system());
@@ -1090,8 +1019,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromFiles) {
   WriteFile(resource_filename.c_str(), kResourceContents2);
   // Make sure the resource loads updated.
   ResourcePtr resource2(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          resource_url));
+      rewrite_driver()->CreateInputResourceAbsoluteUnchecked(resource_url));
   ASSERT_TRUE(resource2.get() != NULL);
   EXPECT_EQ(&kContentTypeCss, resource2->type());
   MockResourceCallback mock_callback2(resource2, factory()->thread_system());
@@ -1116,18 +1044,16 @@ TEST_F(RewriteDriverTest, LoadResourcesContentType) {
   WriteFile("/htmlcontent/foo.js", "");
   // Load the file with a query param (add .css at the end of the param just
   // for optimal trickyness).
-  ResourcePtr resource(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "http://www.example.com/static/foo.js?version=2.css"));
+  ResourcePtr resource(rewrite_driver()->CreateInputResourceAbsoluteUnchecked(
+      "http://www.example.com/static/foo.js?version=2.css"));
   EXPECT_TRUE(resource.get() != NULL);
   EXPECT_EQ(&kContentTypeJavascript, resource->type());
 
   // Write file with bogus extension.
   WriteFile("/htmlcontent/bar.bogus", "");
   // Load it normally.
-  ResourcePtr resource2(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "http://www.example.com/static/bar.bogus"));
+  ResourcePtr resource2(rewrite_driver()->CreateInputResourceAbsoluteUnchecked(
+      "http://www.example.com/static/bar.bogus"));
   EXPECT_TRUE(resource2.get() != NULL);
   EXPECT_TRUE(NULL == resource2->type());
 }
@@ -1160,9 +1086,8 @@ TEST_F(RewriteDriverTest, DiagnosticsWithPercent) {
   logging::SetMinLogLevel(logging::LOG_INFO);
   rewrite_driver()->AddFilters();
   MockRewriteContext context(rewrite_driver());
-  ResourcePtr resource(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "http://www.example.com/%s%s%s%d%f"));
+  ResourcePtr resource(rewrite_driver()->CreateInputResourceAbsoluteUnchecked(
+      "http://www.example.com/%s%s%s%d%f"));
   ResourceSlotPtr slot(new FetchResourceSlot(resource));
   context.AddSlot(slot);
   rewrite_driver()->InfoAt(&context, "Just a test");
@@ -1174,7 +1099,7 @@ TEST_F(RewriteDriverTest, RejectHttpsQuickly) {
   // Need to expressly authorize https even though we don't support it.
   options()->WriteableDomainLawyer()->AddDomain("https://*/",
                                                 message_handler());
-  AddFilter(RewriteOptions::kRewriteJavascriptExternal);
+  AddFilter(RewriteOptions::kRewriteJavascript);
 
   // When we don't support https then we fail quickly and cleanly.
   factory()->mock_url_async_fetcher()->set_fetcher_supports_https(false);
@@ -1196,11 +1121,8 @@ TEST_F(RewriteDriverTest, RejectHttpsQuickly) {
 TEST_F(RewriteDriverTest, RejectDataResourceGracefully) {
   MockRewriteContext context(rewrite_driver());
   GoogleUrl dataUrl("data:");
-  bool is_authorized;
-  ResourcePtr resource(rewrite_driver()->CreateInputResource(dataUrl,
-                                                             &is_authorized));
+  ResourcePtr resource(rewrite_driver()->CreateInputResource(dataUrl));
   EXPECT_TRUE(resource.get() == NULL);
-  EXPECT_TRUE(is_authorized);
 }
 
 // Test that when inline_unauthorized_resources is set to false (the default
@@ -1213,11 +1135,8 @@ TEST_F(RewriteDriverTest, NoCreateInputResourceUnauthorized) {
 
   // Test that an unauthorized resource is not allowed to be created.
   GoogleUrl unauthorized_url("http://unauthorized.domain.com/a.js");
-  bool is_authorized;
-  ResourcePtr resource(rewrite_driver()->CreateInputResource(unauthorized_url,
-                                                             &is_authorized));
+  ResourcePtr resource(rewrite_driver()->CreateInputResource(unauthorized_url));
   EXPECT_TRUE(resource.get() == NULL);
-  EXPECT_FALSE(is_authorized);
 
   // Test that an authorized resource is created with the right cache key even
   // if the filter allows unauthorized domains.
@@ -1225,10 +1144,8 @@ TEST_F(RewriteDriverTest, NoCreateInputResourceUnauthorized) {
   ResourcePtr resource2(rewrite_driver()->CreateInputResource(
       authorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
-      RewriteDriver::kIntendedForGeneral,
-      &is_authorized));
+      RewriteDriver::kIntendedForGeneral));
   EXPECT_TRUE(resource2.get() != NULL);
-  EXPECT_TRUE(is_authorized);
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->url());
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->cache_key());
 }
@@ -1245,14 +1162,11 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
 
   // Test that an unauthorized resource is created with the right cache key.
   GoogleUrl unauthorized_url("http://unauthorized.domain.com/a.js");
-  bool is_authorized;
   ResourcePtr resource(rewrite_driver()->CreateInputResource(
       unauthorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
-      RewriteDriver::kIntendedForGeneral,
-      &is_authorized));
+      RewriteDriver::kIntendedForGeneral));
   EXPECT_TRUE(resource.get() != NULL);
-  EXPECT_FALSE(is_authorized);
   EXPECT_STREQ(unauthorized_url.spec_c_str(), resource->url());
   EXPECT_STREQ("unauth://unauthorized.domain.com/a.js", resource->cache_key());
 
@@ -1262,10 +1176,8 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
   ResourcePtr resource2(rewrite_driver()->CreateInputResource(
       authorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
-      RewriteDriver::kIntendedForGeneral,
-      &is_authorized));
+      RewriteDriver::kIntendedForGeneral));
   EXPECT_TRUE(resource2.get() != NULL);
-  EXPECT_TRUE(is_authorized);
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->url());
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->cache_key());
 
@@ -1274,17 +1186,14 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
   ResourcePtr resource3(rewrite_driver()->CreateInputResource(
       unauthorized_url,
       RewriteDriver::kInlineOnlyAuthorizedResources,
-      RewriteDriver::kIntendedForGeneral,
-      &is_authorized));
+      RewriteDriver::kIntendedForGeneral));
   EXPECT_TRUE(resource3.get() == NULL);
-  EXPECT_FALSE(is_authorized);
 
   // Test that an unauthorized resource is not created with the default
   // CreateInputResource call.
   ResourcePtr resource4(
-      rewrite_driver()->CreateInputResource(unauthorized_url, &is_authorized));
+      rewrite_driver()->CreateInputResource(unauthorized_url));
   EXPECT_TRUE(resource4.get() == NULL);
-  EXPECT_FALSE(is_authorized);
 }
 
 // Test that when inline_unauthorized_resources is set to true, unauthorized
@@ -1299,14 +1208,11 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorizedWithDisallow) {
 
   // Test that an unauthorized resource is not created when it is disallowed.
   GoogleUrl unauthorized_url("http://unauthorized.domain.com/a.js");
-  bool is_authorized;
   ResourcePtr resource(rewrite_driver()->CreateInputResource(
       unauthorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
-      RewriteDriver::kIntendedForGeneral,
-      &is_authorized));
+      RewriteDriver::kIntendedForGeneral));
   EXPECT_TRUE(resource.get() == NULL);
-  EXPECT_FALSE(is_authorized);
 }
 
 // Test AllowWhenInlining overrides Disallow when inlining.
@@ -1320,14 +1226,11 @@ TEST_F(RewriteDriverTest, AllowWhenInliningOverridesDisallow) {
   // This resource would normally not be created because it is disallowed,
   // except that we explicitly allowed it with AllowWhenInlining.
   GoogleUrl js_url("http://example.com/a.js");
-  bool is_authorized;
   ResourcePtr resource(rewrite_driver()->CreateInputResource(
       js_url,
       RewriteDriver::kInlineUnauthorizedResources,
-      RewriteDriver::kIntendedForInlining,
-      &is_authorized));
+      RewriteDriver::kIntendedForInlining));
   EXPECT_FALSE(resource.get() == NULL);
-  EXPECT_TRUE(is_authorized);
 }
 
 // Test AllowWhenInlining fails to overrides Disallow when not inlining.
@@ -1341,14 +1244,11 @@ TEST_F(RewriteDriverTest, AllowWhenInliningDoesntOverrideDisallow) {
   // This resource would normally not be created because it is disallowed, and
   // AllowWhenInlining doesn't apply because we're not inlining.
   GoogleUrl js_url("http://example.com/a.js");
-  bool is_authorized;
   ResourcePtr resource(rewrite_driver()->CreateInputResource(
       js_url,
       RewriteDriver::kInlineUnauthorizedResources,
-      RewriteDriver::kIntendedForGeneral,
-      &is_authorized));
+      RewriteDriver::kIntendedForGeneral));
   EXPECT_TRUE(resource.get() == NULL);
-  EXPECT_FALSE(is_authorized);
 }
 
 class ResponseHeadersCheckingFilter : public EmptyHtmlFilter {
@@ -1399,7 +1299,7 @@ class DetermineEnabledCheckingFilter : public EmptyHtmlFilter {
     start_document_called_ = true;
   }
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  virtual void DetermineEnabled() {
     set_is_enabled(enabled_value_);
   }
 
@@ -1621,18 +1521,6 @@ TEST_F(InPlaceTest, InPlaceCssDebug) {
                                 100);
 
   EXPECT_TRUE(TryFetchInPlaceResource(url, true /* proxy_mode */));
-}
-
-TEST_F(RewriteDriverTest, DebugModeTest) {
-  // Verify that DebugMode() corresponds to RewriteOptions::kDebug as expected
-
-  EXPECT_FALSE(rewrite_driver()->DebugMode());
-
-  options()->EnableFilter(RewriteOptions::kDebug);
-  EXPECT_TRUE(rewrite_driver()->DebugMode());
-
-  options()->DisableFilter(RewriteOptions::kDebug);
-  EXPECT_FALSE(rewrite_driver()->DebugMode());
 }
 
 TEST_F(RewriteDriverTest, CachePollutionWithWrongEncodingCharacter) {
@@ -1939,8 +1827,7 @@ TEST_F(RewriteDriverTest, PendingAsyncEventsTest) {
 
 TEST_F(RewriteDriverTest, ValidateCacheResponseRewrittenWebp) {
   const StringPiece kWebpMimeType = kContentTypeWebp.mime_type();
-  RequestContextPtr request_context(new RequestContext(
-      kDefaultHttpOptionsForTests, new NullMutex, timer()));
+  RequestContextPtr request_context(new RequestContext(new NullMutex, timer()));
   options()->ClearSignatureForTesting();
   ResponseHeaders response_headers;
   response_headers.Add(HttpAttributes::kContentType, kWebpMimeType);

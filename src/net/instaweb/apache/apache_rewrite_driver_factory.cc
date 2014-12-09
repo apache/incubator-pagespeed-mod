@@ -19,6 +19,8 @@
 
 #include <unistd.h>
 
+#include <algorithm>
+
 #include "apr_pools.h"
 #include "httpd.h"
 #include "ap_mpm.h"
@@ -30,20 +32,22 @@
 #include "net/instaweb/apache/apache_thread_system.h"
 #include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/mod_spdy_fetch_controller.h"
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/null_shared_mem.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/sharedmem/shared_circular_buffer.h"
-#include "pagespeed/kernel/thread/pthread_shared_mem.h"
-#include "pagespeed/kernel/thread/slow_worker.h"
+#include "net/instaweb/system/public/system_caches.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/null_shared_mem.h"
+#include "net/instaweb/util/public/pthread_shared_mem.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/slow_worker.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
 class ProcessContext;
+class SharedCircularBuffer;
 
 ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     const ProcessContext& process_context,
@@ -60,12 +64,14 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
           server_rec_, version_, timer(), thread_system()->NewMutex())),
       apache_html_parse_message_handler_(new ApacheMessageHandler(
           server_rec_, version_, timer(), thread_system()->NewMutex())),
-      inherit_vhost_config_(false) {
+      use_per_vhost_statistics_(false),
+      enable_property_cache_(true),
+      inherit_vhost_config_(false),
+      install_crash_handler_(false),
+      thread_counts_finalized_(false),
+      num_rewrite_threads_(-1),
+      num_expensive_rewrite_threads_(-1) {
   apr_pool_create(&pool_, NULL);
-
-  // Apache defaults UsePerVhostStatistics to false for historical reasons, but
-  // more recent implementations default it to true.
-  set_use_per_vhost_statistics(false);
 
   // Make sure the ownership of apache_message_handler_ and
   // apache_html_parse_message_handler_ is given to scoped pointer.
@@ -73,6 +79,16 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
   message_handler();
   html_parse_message_handler();
   InitializeDefaultOptions();
+
+  // Note: this must run after mod_pagespeed_register_hooks has completed.
+  // See http://httpd.apache.org/docs/2.4/developer/new_api_2_4.html and
+  // search for ap_mpm_query.
+  AutoDetectThreadCounts();
+
+  int thread_limit = 0;
+  ap_mpm_query(AP_MPMQ_HARD_LIMIT_THREADS, &thread_limit);
+  thread_limit += num_rewrite_threads() + num_expensive_rewrite_threads();
+  caches()->set_thread_limit(thread_limit);
 }
 
 ApacheRewriteDriverFactory::~ApacheRewriteDriverFactory() {
@@ -113,48 +129,79 @@ void ApacheRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
   apache_server_context->InitProxyFetchFactory();
 }
 
-bool ApacheRewriteDriverFactory::IsServerThreaded() {
+QueuedWorkerPool* ApacheRewriteDriverFactory::CreateWorkerPool(
+    WorkerPoolCategory pool, StringPiece name) {
+  switch (pool) {
+    case kHtmlWorkers:
+      // In practice this is 0, as we don't use HTML threads in Apache.
+      return new QueuedWorkerPool(1, name, thread_system());
+    case kRewriteWorkers:
+      return new QueuedWorkerPool(num_rewrite_threads_, name, thread_system());
+    case kLowPriorityRewriteWorkers:
+      return new QueuedWorkerPool(num_expensive_rewrite_threads_,
+                                  name,
+                                  thread_system());
+    default:
+      return RewriteDriverFactory::CreateWorkerPool(pool, name);
+  }
+}
+
+void ApacheRewriteDriverFactory::AutoDetectThreadCounts() {
+  if (thread_counts_finalized_) {
+    return;
+  }
+
   // Detect whether we're using a threaded MPM.
   apr_status_t status;
   int result = 0, threads = 1;
   status = ap_mpm_query(AP_MPMQ_IS_THREADED, &result);
   if (status == APR_SUCCESS &&
       (result == AP_MPMQ_STATIC || result == AP_MPMQ_DYNAMIC)) {
-    // Number of configured threads.
     status = ap_mpm_query(AP_MPMQ_MAX_THREADS, &threads);
     if (status != APR_SUCCESS) {
-      return false;  // Assume non-thready by default.
+      threads = 0;
     }
   }
 
-  return threads > 1;
-}
+  threads = std::max(1, threads);
 
-int ApacheRewriteDriverFactory::LookupThreadLimit() {
-  int thread_limit = 0;
-  // The compiled maximum number of threads.
-  ap_mpm_query(AP_MPMQ_HARD_LIMIT_THREADS, &thread_limit);
-  return thread_limit;
-}
-
-void ApacheRewriteDriverFactory::AutoDetectThreadCounts() {
-  if (thread_counts_finalized()) {
-    return;
-  }
-
-  // If using mod_spdy_fetcher we roughly want one thread for non-background
-  // fetches, one for background ones.
-  if (IsServerThreaded()) {
+  if (threads > 1) {
+    // Apply defaults for threaded.
     max_mod_spdy_fetch_threads_ = 8;  // TODO(morlovich): Base on MPM's count?
+    if (num_rewrite_threads_ <= 0) {
+      num_rewrite_threads_ = 4;
+    }
+    if (num_expensive_rewrite_threads_ <= 0) {
+      num_expensive_rewrite_threads_ = 4;
+    }
+    message_handler()->Message(
+        kInfo, "Detected threaded MPM with up to %d threads."
+        " Own threads: %d Rewrite, %d Expensive Rewrite.",
+        threads, num_rewrite_threads_, num_expensive_rewrite_threads_);
+
   } else {
+    // Apply defaults for non-threaded.
+
+    // If using mod_spdy_fetcher we roughly want one thread for non-background,
+    // fetches one for background ones.
     max_mod_spdy_fetch_threads_ = 2;
+    if (num_rewrite_threads_ <= 0) {
+      num_rewrite_threads_ = 1;
+    }
+    if (num_expensive_rewrite_threads_ <= 0) {
+      num_expensive_rewrite_threads_ = 1;
+    }
+    message_handler()->Message(
+        kInfo, "No threading detected in MPM."
+        " Own threads: %d Rewrite, %d Expensive Rewrite.",
+        num_rewrite_threads_, num_expensive_rewrite_threads_);
   }
 
-  SystemRewriteDriverFactory::AutoDetectThreadCounts();
+  thread_counts_finalized_ = true;
 }
 
 void ApacheRewriteDriverFactory::ParentOrChildInit() {
-  if (install_crash_handler()) {
+  if (install_crash_handler_) {
     ApacheMessageHandler::InstallCrashHandler(server_rec_);
   }
   SystemRewriteDriverFactory::ParentOrChildInit();
@@ -256,6 +303,11 @@ ApacheConfig* ApacheRewriteDriverFactory::NewRewriteOptions() {
 
 ApacheConfig* ApacheRewriteDriverFactory::NewRewriteOptionsForQuery() {
   return new ApacheConfig("query", thread_system());
+}
+
+int ApacheRewriteDriverFactory::requests_per_host() {
+  CHECK(thread_counts_finalized_);
+  return std::min(4, num_rewrite_threads_);
 }
 
 }  // namespace net_instaweb

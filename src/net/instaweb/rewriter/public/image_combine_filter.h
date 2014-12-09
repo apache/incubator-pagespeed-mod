@@ -20,12 +20,12 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_COMBINE_FILTER_H_
 
 #include "net/instaweb/rewriter/public/css_filter.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/util/url_multipart_encoder.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_multipart_encoder.h"
 
 namespace Css {
 
@@ -68,17 +68,13 @@ class ImageCombineFilter : public RewriteFilter {
   // new width and height values; url_value must point to the URL value to be
   // replaced. Will not actually change anything until you call Realize().
   // This will succeed even in cases when it turns out (later) the image
-  // can not be sprited. Fails and returns false if:
-  // * We cannot get the declaration dimensions from 'decls'.
-  // * original_url is not on an authorized domain.
-  // * There is already a slot for original_url.
-  bool AddCssBackgroundContext(const GoogleUrl& original_url,
+  // can not be sprited.
+  void AddCssBackgroundContext(const GoogleUrl& original_url,
                                const GoogleUrl& base_url,
                                Css::Values* values,
                                int value_index,
                                CssFilter::Context* parent,
                                Css::Declarations* decls,
-                               bool* is_authorized,
                                MessageHandler* handler);
 
   // Create the combination with the current combiner.

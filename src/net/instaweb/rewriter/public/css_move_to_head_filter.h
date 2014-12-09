@@ -21,8 +21,7 @@
 
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace net_instaweb {
 
@@ -45,7 +44,7 @@ class CssMoveToHeadFilter : public CommonFilter {
   virtual void EndElementImpl(HtmlElement* element);
 
   virtual const char* Name() const { return "CssMoveToHead"; }
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
  private:
   CssTagScanner css_tag_scanner_;

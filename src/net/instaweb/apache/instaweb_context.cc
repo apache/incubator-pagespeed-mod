@@ -19,27 +19,25 @@
 
 #include "base/logging.h"
 #include "net/instaweb/apache/apache_server_context.h"
+#include "net/instaweb/apache/apr_timer.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/mod_instaweb.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/gzip_inflater.h"
 #include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/stack_buffer.h"
 #include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/stack_buffer.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/query_params.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/util/gzip_inflater.h"
 
 #include "apr_strings.h"
 #include "http_config.h"
@@ -93,8 +91,6 @@ InstawebContext::InstawebContext(request_rec* request,
                                  ApacheServerContext* server_context,
                                  const GoogleString& absolute_url,
                                  const RequestContextPtr& request_context,
-                                 const QueryParams& pagespeed_query_params,
-                                 const QueryParams& pagespeed_option_cookies,
                                  bool use_custom_options,
                                  const RewriteOptions& options)
     : content_encoding_(kNone),
@@ -131,23 +127,6 @@ InstawebContext::InstawebContext(request_rec* request,
     rewrite_driver_ = server_context_->NewRewriteDriver(request_context);
   }
 
-  // Set or clear sticky option cookies as appropriate.
-  rewrite_driver_->set_pagespeed_query_params(
-      pagespeed_query_params.ToEscapedString());
-  rewrite_driver_->set_pagespeed_option_cookies(
-      pagespeed_option_cookies.ToEscapedString());
-  GoogleUrl gurl(absolute_url_);
-  // Temporary headers for our cookies.
-  ResponseHeaders resp_headers(
-      rewrite_driver_->options()->ComputeHttpOptions());
-  if (rewrite_driver_->SetOrClearPageSpeedOptionCookies(gurl, &resp_headers)) {
-    // TODO(matterbury): Rationalize how we add/update response headers.
-    // This context has a response_headers_ member that's barely used, although
-    // it is used by the related RewriteDriver; should we just add these to that
-    // and rely on them being converted to Apache headers later?
-    ResponseHeadersToApacheRequest(resp_headers, request);
-  }
-
   const char* user_agent = apr_table_get(request->headers_in,
                                          HttpAttributes::kUserAgent);
   rewrite_driver_->SetUserAgent(user_agent);
@@ -177,9 +156,8 @@ InstawebContext::InstawebContext(request_rec* request,
   // Make the entire request headers available to filters.
   rewrite_driver_->SetRequestHeaders(*request_headers_.get());
 
-  response_headers_.reset(
-      new ResponseHeaders(rewrite_driver_->options()->ComputeHttpOptions()));
-  rewrite_driver_->set_response_headers_ptr(response_headers_.get());
+  response_headers_.Clear();
+  rewrite_driver_->set_response_headers_ptr(&response_headers_);
   // TODO(lsong): Bypass the string buffer, write data directly to the next
   // apache bucket.
   rewrite_driver_->SetWriter(&string_writer_);
@@ -229,7 +207,7 @@ void InstawebContext::Finish() {
 
 void InstawebContext::PopulateHeaders(request_rec* request) {
   if (!populated_headers_) {
-    ApacheRequestToResponseHeaders(*request, response_headers_.get(), NULL);
+    ApacheRequestToResponseHeaders(*request, &response_headers_, NULL);
     populated_headers_ = true;
   }
 }
@@ -415,17 +393,16 @@ void InstawebContext::SetExperimentStateAndCookie(request_rec* request,
   // If we didn't get a valid (i.e. currently-running experiment) value from
   // the cookie, determine which experiment this request should end up in
   // and set the cookie accordingly.
-  bool need_cookie =
-      server_context_->experiment_matcher()->ClassifyIntoExperiment(
-          *request_headers_, *server_context_->user_agent_matcher(), options);
+  bool need_cookie = server_context_->experiment_matcher()->
+      ClassifyIntoExperiment(*request_headers_, options);
   if (need_cookie) {
-    ResponseHeaders resp_headers(options->ComputeHttpOptions());
+    ResponseHeaders resp_headers;
+    AprTimer timer;
     const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
     int experiment_value = options->experiment_id();
     server_context_->experiment_matcher()->StoreExperimentData(
         experiment_value, url,
-        (server_context_->timer()->NowMs() +
-         options->experiment_cookie_duration_ms()),
+        timer.NowMs() + options->experiment_cookie_duration_ms(),
         &resp_headers);
     ResponseHeadersToApacheRequest(resp_headers, request);
   }

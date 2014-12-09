@@ -16,27 +16,27 @@
 
 // Author: huibao@google.com (Huibao Lin)
 //
-// CPU: Intel Sandybridge with HyperThreading (16 cores) dL1:32KB dL2:256KB
+// CPU: Intel Nehalem with HyperThreading (4 cores) dL1:32KB dL2:256KB
 // Benchmark              Time(ns)    CPU(ns) Iterations
 // -----------------------------------------------------
-// BM_ConvertJpegToJpeg   13468318   13264241        100
-// BM_ConvertJpegToWebp   85506401   85104136        100
-// BM_ConvertPngToPng      2541468    2533139        275
-// BM_ConvertPngToWebp     1013797    1010651        693
-// BM_ConvertGifToPng     42850766   42661702        100
-// BM_ConvertGifToWebp    31759667   31657212        100
-// BM_ConvertWebpToWebp   31727731   31491286        100
+// BM_ConvertJpegToJpeg   15885596   15900000        100
+// BM_ConvertJpegToWebp  117559345  117700000        100
+// BM_ConvertPngToPng      2641828    2625483        259
+// BM_ConvertPngToWebp     1850260    1847826        368
+// BM_ConvertGifToPng     46872103   46900000        100
+// BM_ConvertGifToWebp    88707819   88800000        100
+// BM_ConvertWebpToWebp   43523271   43600000        100
 
+#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/image.h"
-#include "pagespeed/kernel/base/benchmark.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/stdio_file_system.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/image_types.pb.h"
+#include "net/instaweb/util/public/benchmark.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/null_mutex.h"
+#include "net/instaweb/util/public/stdio_file_system.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 

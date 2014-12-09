@@ -93,21 +93,6 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
 
   Properties GetProperties() const;
 
-  // Return a const reference to the multimap of cookies. The mapping is:
-  //   cookie name -> (cookie value, empty StringPiece)
-  // [the empty StringPiece is for cookie attributes; since Cookie headers
-  //  don't have attributes it's empty; it's really for SetCookie headers]
-  // It's a multimap to cater for the same cookie being set multiple times;
-  // how this is handled is up to the caller.
-  const CookieMultimap& GetAllCookies() const;
-
-  // Determines whether the specified Cookie is present in the request.
-  bool HasCookie(StringPiece cookie_name) const;
-
-  // Determines whether the specified Cookie and value are present in the
-  // request.
-  bool HasCookieValue(StringPiece cookie_name, StringPiece cookie_value) const;
-
  private:
   DISALLOW_COPY_AND_ASSIGN(RequestHeaders);
 };

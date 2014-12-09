@@ -19,15 +19,14 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_EXPERIMENT_MATCHER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_EXPERIMENT_MATCHER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteOptions;
-class UserAgentMatcher;
 
 // Provides a way to replace the mapping of clients/sessions to experiments.
 //
@@ -43,7 +42,6 @@ class ExperimentMatcher {
   // Decides which experiment to place the current client/session into.
   // Returns true if the mapping needs to be stored.
   virtual bool ClassifyIntoExperiment(const RequestHeaders& headers,
-                                      const UserAgentMatcher& matcher,
                                       RewriteOptions* options);
 
   // Stores the client/session -> experiment mapping for the domain indicated

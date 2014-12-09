@@ -21,8 +21,9 @@
 // For now this just makes sure that some things are constants so they can be
 // used in initializers safely.
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/timer.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 namespace {
@@ -47,7 +48,8 @@ enum MustBeConstants {
   kDayMs    = Timer::kDayMs,
   kWeekMs   = Timer::kWeekMs,
   kMonthMs  = Timer::kMonthMs,
-  kYearMs   = Timer::kYearMs
+  kYearMs   = Timer::kYearMs,
+  kImplicitCacheTtlMs = ResponseHeaders::kDefaultImplicitCacheTtlMs
 };
 
 }  // namespace

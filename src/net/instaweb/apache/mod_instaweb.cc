@@ -39,25 +39,28 @@
 #include "net/instaweb/apache/interface_mod_spdy.h"
 #include "net/instaweb/apache/mod_instaweb.h"
 #include "net/instaweb/apache/mod_spdy_fetcher.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/public/version.h"
 #include "net/instaweb/rewriter/public/process_context.h"
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/system/public/in_place_resource_recorder.h"
 #include "net/instaweb/system/public/loopback_route_fetcher.h"
+#include "net/instaweb/system/public/system_caches.h"
+#include "net/instaweb/system/public/system_rewrite_driver_factory.h"
 #include "net/instaweb/system/public/system_rewrite_options.h"
 #include "net/instaweb/system/public/system_server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 #include "util_filter.h"                                             // NOLINT
 // Note: a very useful reference is this file, which demos many Apache module
@@ -160,7 +163,6 @@ const char kModPagespeedNumExpensiveRewriteThreads[] =
     "ModPagespeedNumExpensiveRewriteThreads";
 const char kModPagespeedNumRewriteThreads[] = "ModPagespeedNumRewriteThreads";
 const char kModPagespeedNumShards[] = "ModPagespeedNumShards";
-const char kModPagespeedProxySuffix[] = "ModPagespeedProxySuffix";
 const char kModPagespeedRetainComment[] = "ModPagespeedRetainComment";
 const char kModPagespeedRunExperiment[] = "ModPagespeedRunExperiment";
 const char kModPagespeedShardDomain[] = "ModPagespeedShardDomain";
@@ -319,7 +321,6 @@ class ApacheProcessContext {
     if (factory_.get() == NULL) {
       factory_.reset(new ApacheRewriteDriverFactory(
           process_context_, server, kModPagespeedVersion));
-      factory_->Init();
     }
     return factory_.get();
   }
@@ -468,7 +469,7 @@ InstawebContext* build_context_for_request(request_rec* request) {
     return NULL;
   }
 
-  instaweb_handler.RemoveStrippedResponseHeadersFromApacheRequest();
+  instaweb_handler.RemoveStrippedResponseHeadersFromApacheReequest();
   ServerContext::ScanSplitHtmlRequest(instaweb_handler.request_context(),
                                       options, &final_url);
 
@@ -477,8 +478,6 @@ InstawebContext* build_context_for_request(request_rec* request) {
       instaweb_handler.ReleaseRequestHeaders(),
       *content_type, server_context,
       final_url, instaweb_handler.request_context(),
-      instaweb_handler.pagespeed_query_params(),
-      instaweb_handler.pagespeed_option_cookies(),
       instaweb_handler.use_custom_options(),
       *options);
 
@@ -726,7 +725,7 @@ apr_status_t instaweb_in_place_filter(ap_filter_t* filter,
     if (!APR_BUCKET_IS_METADATA(bucket)) {
       if (first) {
         first = false;
-        ResponseHeaders response_headers(recorder->http_options());
+        ResponseHeaders response_headers;
         ApacheRequestToResponseHeaders(*request, &response_headers, NULL);
         recorder->ConsiderResponseHeaders(
             InPlaceResourceRecorder::kPreliminaryHeaders, &response_headers);
@@ -800,7 +799,9 @@ apr_status_t instaweb_in_place_check_headers_filter(ap_filter_t* filter,
        bucket != APR_BRIGADE_SENTINEL(bb);
        bucket = APR_BUCKET_NEXT(bucket)) {
     if (APR_BUCKET_IS_EOS(bucket)) {
-      ResponseHeaders response_headers(recorder->http_options());
+      ResponseHeaders response_headers;
+      response_headers.set_implicit_cache_ttl_ms(
+          recorder->implicit_cache_ttl_ms());
 
       // Note: Since we're post-AP_FTYPE_PROTOCOL the error headers and regular
       // headers have already been merged in Apache, so no need to gather
@@ -1355,19 +1356,12 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     directive = kModPagespeedImageMaxRewritesAtOnce;
   }
 
+  // See whether generic RewriteOptions name handling can figure this one out.
   if (directive.starts_with(prefix)) {
-    StringPiece option = directive.substr(prefix.size());
     GoogleString msg;
-    // See whether generic RewriteOptions name handling can figure this one out.
     RewriteOptions::OptionSettingResult result =
-        config->ParseAndSetOptionFromName1(option, arg, &msg, handler);
-    if (result == RewriteOptions::kOptionNameUnknown) {
-      // RewriteOptions didn't know; try the driver factory.
-      result = factory->ParseAndSetOption1(
-          option, arg,
-          !cmd->server->is_virtual,  // is_process_scope
-          &msg, handler);
-    }
+        config->ParseAndSetOptionFromName1(
+            directive.substr(prefix.size()), arg, &msg, handler);
     if (StandardParsingHandled(cmd, result, msg, &ret)) {
       if (ret == NULL) {
         ret = apache_process_context.CheckCommandForVhost(cmd);
@@ -1381,6 +1375,13 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
     ret = ParseOption<RewriteOptions::EnabledEnum>(
         static_cast<RewriteOptions*>(config), cmd, &RewriteOptions::set_enabled,
         arg);
+  } else if (StringCaseEqual(directive, kModPagespeedForceCaching)) {
+    ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseOption<bool>(
+          static_cast<RewriteDriverFactory*>(factory), cmd,
+          &RewriteDriverFactory::set_force_caching, arg);
+    }
   } else if (StringCaseEqual(directive, kModPagespeedInheritVHostConfig)) {
     ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
     if (ret == NULL) {
@@ -1388,6 +1389,48 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
           factory, cmd,
           &ApacheRewriteDriverFactory::set_inherit_vhost_config, arg);
     }
+  } else if (StringCaseEqual(directive, kModPagespeedInstallCrashHandler)) {
+    ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseOption<bool>(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::set_install_crash_handler, arg);
+    }
+  } else if (StringCaseEqual(directive,
+                             kModPagespeedListOutstandingUrlsOnError)) {
+    ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseOption<bool>(
+          static_cast<SystemRewriteDriverFactory*>(factory), cmd,
+          &SystemRewriteDriverFactory::list_outstanding_urls_on_error, arg);
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedMessageBufferSize)) {
+    ret = CheckGlobalOption(cmd, kTolerateInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseOption<int>(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::set_message_buffer_size, arg);
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedNumRewriteThreads)) {
+    ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseOption<int>(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::set_num_rewrite_threads, arg);
+    }
+  } else if (StringCaseEqual(directive,
+                             kModPagespeedNumExpensiveRewriteThreads)) {
+    ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseOption<int>(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::set_num_expensive_rewrite_threads, arg);
+    }
+  } else if (StringCaseEqual(directive,
+                             kModPagespeedTrackOriginalContentLength)) {
+    ret = ParseOption<bool>(
+        static_cast<SystemRewriteDriverFactory*>(factory), cmd,
+        &SystemRewriteDriverFactory::set_track_original_content_length, arg);
   } else if (StringCaseEqual(directive,
                              kModPagespeedCollectRefererStatistics) ||
              StringCaseEqual(directive, kModPagespeedDisableForBots) ||
@@ -1399,6 +1442,18 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
                              kModPagespeedRefererStatisticsOutputLevel) ||
              StringCaseEqual(directive, kModPagespeedUrlPrefix)) {
     warn_deprecated(cmd, "Please remove it from your configuration.");
+  } else if (StringCaseEqual(directive, kModPagespeedUsePerVHostStatistics)) {
+    ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
+    if (ret == NULL) {
+      ret = ParseOption<bool>(
+          factory, cmd,
+          &ApacheRewriteDriverFactory::set_use_per_vhost_statistics, arg);
+    }
+  } else if (StringCaseEqual(directive, kModPagespeedStaticAssetPrefix)) {
+    ret = CheckGlobalOption(cmd, kErrorInVHost, handler);
+    if (ret == NULL) {
+      factory->set_static_asset_prefix(arg);
+    }
   } else {
     ret = apr_pstrcat(cmd->pool, "Unknown directive ",
                       directive.as_string().c_str(), NULL);
@@ -1512,22 +1567,30 @@ static const char* ParseDirective2(cmd_parms* cmd, void* data,
   // Go through generic path first.
   if (directive.starts_with(prefix)) {
     GoogleString msg;
-    StringPiece option = directive.substr(prefix.size());
     RewriteOptions::OptionSettingResult result =
-        config->ParseAndSetOptionFromName2(option, arg1, arg2, &msg, handler);
-    if (result == RewriteOptions::kOptionNameUnknown) {
-      // RewriteOptions didn't know; try the driver factory.
-      result = factory->ParseAndSetOption2(
-          option, arg1, arg2,
-          !cmd->server->is_virtual,  // is_process_scope
-          &msg, handler);
-    }
+        config->ParseAndSetOptionFromName2(
+            directive.substr(prefix.size()), arg1, arg2, &msg, handler);
     if (StandardParsingHandled(cmd, result, msg, &ret)) {
       return ret;
     }
   }
 
-  return "Unknown directive.";
+  if (StringCaseEqual(directive,
+                      kModPagespeedCreateSharedMemoryMetadataCache)) {
+    int64 kb = 0;
+    if (!StringToInt64(arg2, &kb) || kb < 0) {
+      return apr_pstrcat(cmd->pool, cmd->directive->directive,
+                         " size_kb must be a positive 64-bit integer", NULL);
+    }
+    GoogleString message;
+    bool ok = factory->caches()->CreateShmMetadataCache(arg1, kb, &message);
+    if (!ok) {
+      return apr_pstrdup(cmd->pool, message.c_str());
+    }
+  } else {
+    return "Unknown directive.";
+  }
+  return ret;
 }
 
 // Callback function that parses a three-argument directive.  This is called
@@ -1652,8 +1715,6 @@ static const command_rec mod_pagespeed_filter_cmds[] = {
         "Adds an error message into the log for every URL fetch in "
         "flight when the HTTP stack encounters a system error, e.g. "
         "Connection Refused"),
-  APACHE_CONFIG_DIR_OPTION(kModPagespeedProxySuffix,
-        "Sets up a proxy suffix to be used when slurping."),
   APACHE_CONFIG_DIR_OPTION(kModPagespeedRetainComment,
         "Retain HTML comments matching wildcard, even with remove_comments "
         "enabled"),

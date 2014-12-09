@@ -56,6 +56,7 @@ class PixelFormatOptimizerTest : public testing::Test {
   PixelFormatOptimizerTest() :
       message_handler_(new NullMutex),
       optimizer_(&message_handler_),
+      input_reader_(&message_handler_),
       gold_reader_(&message_handler_) {
   }
 
@@ -63,15 +64,11 @@ class PixelFormatOptimizerTest : public testing::Test {
     if (!ReadTestFileWithExt(kWebpTestDir, file_name, &input_image_)) {
       return false;
     }
-
-    scoped_ptr<PngScanlineReaderRaw> input_reader(
-        new PngScanlineReaderRaw(&message_handler_));
-
-    if (!input_reader->Initialize(input_image_.data(),
+    if (!input_reader_.Initialize(input_image_.data(),
                                   input_image_.length())) {
       return false;
     }
-    return optimizer_.Initialize(input_reader.release()).Success();
+    return optimizer_.Initialize(&input_reader_).Success();
   }
 
   bool InitializeGoldReader(const char* file_name) {
@@ -84,6 +81,7 @@ class PixelFormatOptimizerTest : public testing::Test {
  protected:
   MockMessageHandler message_handler_;
   PixelFormatOptimizer optimizer_;
+  PngScanlineReaderRaw input_reader_;
   PngScanlineReaderRaw gold_reader_;
   GoogleString input_image_;
   GoogleString gold_image_;
@@ -154,12 +152,9 @@ TEST_F(PixelFormatOptimizerTest, TruncatedImage) {
   ASSERT_TRUE(ReadTestFileWithExt(kWebpTestDir, kOpaqueAlphaImage,
                                   &input_image_));
   int truncated_length = input_image_.length() * 0.8;
-
-  scoped_ptr<PngScanlineReaderRaw> input_reader(
-      new PngScanlineReaderRaw(&message_handler_));
-  ASSERT_TRUE(input_reader->Initialize(input_image_.data(),
+  ASSERT_TRUE(input_reader_.Initialize(input_image_.data(),
                                        truncated_length));
-  ASSERT_FALSE(optimizer_.Initialize(input_reader.release()).Success());
+  ASSERT_FALSE(optimizer_.Initialize(&input_reader_).Success());
 }
 
 }  // namespace

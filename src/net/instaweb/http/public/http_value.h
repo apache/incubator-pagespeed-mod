@@ -20,10 +20,10 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_VALUE_H_
 
 #include <cstddef>                     // for size_t
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/shared_string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/writer.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 
 namespace net_instaweb {
 

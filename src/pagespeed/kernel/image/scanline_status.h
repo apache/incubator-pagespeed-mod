@@ -68,9 +68,6 @@ namespace image_compression {
     _X(FRAME_TO_SCANLINE_WRITER_ADAPTER),       \
     _X(SCANLINE_TO_FRAME_READER_ADAPTER),       \
     _X(SCANLINE_TO_FRAME_WRITER_ADAPTER),       \
-    _X(FRAME_GIFREADER),                        \
-    _X(FRAME_WEBPWRITER),                       \
-    _X(FRAME_PADDING_READER),                   \
                                                 \
     _X(NUM_SCANLINE_SOURCE)
 
@@ -131,14 +128,14 @@ class ScanlineStatus {
   const GoogleString& details() const { return details_; }
 
   const char* TypeStr() const {
-    static const char* const kScanlineStatusTypeNames[] = {
+    static const char* kScanlineStatusTypeNames[] = {
       PAGESPEED_SCANLINE_STATUS(PAGESPEED_SCANLINE_STATUS_ENUM_STRING)
     };
     return kScanlineStatusTypeNames[type_];
   }
 
   const char* SourceStr() const {
-    static const char* const kScanlineStatusSourceNames[] = {
+    static const char* kScanlineStatusSourceNames[] = {
       PAGESPEED_SCANLINE_STATUS_SOURCE(PAGESPEED_SCANLINE_STATUS_ENUM_STRING)
     };
     return kScanlineStatusSourceNames[source_];
@@ -160,8 +157,6 @@ class ScanlineStatus {
       case SCANLINE_WEBPREADER:
       case FRAME_TO_SCANLINE_READER_ADAPTER:
       case SCANLINE_TO_FRAME_READER_ADAPTER:
-      case FRAME_GIFREADER:
-      case FRAME_PADDING_READER:
         return true;
       default:
         return false;

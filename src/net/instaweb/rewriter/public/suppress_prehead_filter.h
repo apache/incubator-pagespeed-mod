@@ -18,13 +18,13 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SUPPRESS_PREHEAD_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SUPPRESS_PREHEAD_FILTER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/split_writer.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/html/html_writer_filter.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/split_writer.h"
 
 namespace net_instaweb {
 
@@ -80,7 +80,7 @@ class SuppressPreheadFilter : public HtmlWriterFilter {
   StringWriter pre_head_writer_;  // Writer to write the pre_head_.
   // Writer to write both the pre_head string and to the response buffer.
   scoped_ptr<SplitWriter> pre_head_and_response_writer_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  ResponseHeaders response_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(SuppressPreheadFilter);
 };

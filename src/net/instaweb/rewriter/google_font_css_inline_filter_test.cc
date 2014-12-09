@@ -17,18 +17,18 @@
 // Author: morlovich@google.com (Maksim Orlovich)
 // Unit tests for GoogleFontCssInlineFilter
 
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/ua_sensitive_test_fetcher.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -137,11 +137,7 @@ class GoogleFontCssInlineFilterSizeLimitTest
 
 TEST_F(GoogleFontCssInlineFilterSizeLimitTest, SizeLimit) {
   rewrite_driver()->SetUserAgent("Chromezilla");
-  ValidateExpected(
-      "slightly_long",
-      CssLinkHref(kRoboto),
-      StrCat(CssLinkHref(kRoboto),
-             "<!--CSS not inlined since it&#39;s bigger than 12 bytes-->"));
+  ValidateNoChanges("slightly_long", CssLinkHref(kRoboto));
 
   rewrite_driver()->SetUserAgent("Safieri");
   ValidateExpected("short",
@@ -208,15 +204,10 @@ class NoGoogleFontCssInlineFilterAndWidePermissionsTest
 
 TEST_F(NoGoogleFontCssInlineFilterAndWidePermissionsTest,
        WithWideAuthorization) {
-  // Since font inlining isn't on, the regular inliner complains. This isn't
-  // ideal, but doing otherwise requires inline_css to know about
-  // inline_google_font_css, which aslso seems suboptimal.
   rewrite_driver()->SetUserAgent("Chromezilla");
-  ValidateExpected("with_domain_*_without_font_filter", CssLinkHref(kRoboto),
-                   StrCat(CssLinkHref(kRoboto),
-                          "<!--Can&#39;t inline since resource not "
-                               "fetchable or cacheable-->"));
+  ValidateNoChanges("with_domain_*_without_font_filter", CssLinkHref(kRoboto));
 }
+
 
 }  // namespace
 

@@ -17,12 +17,12 @@
 
 #include <vector>
 
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/device_properties.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "pagespeed/kernel/base/scoped_ptr.h"            // for scoped_ptr
 
 namespace net_instaweb {
 
@@ -65,7 +65,6 @@ class RequestProperties {
   bool GetScreenResolution(int* width, int* height) const;
   UserAgentMatcher::DeviceType GetDeviceType() const;
   bool IsMobile() const;
-  bool ForbidWebpInlining() const;
 
   // Does not own the vectors. Callers must ensure the lifetime of vectors
   // exceeds that of the RequestProperties.

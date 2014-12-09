@@ -21,11 +21,10 @@
 #include "net/instaweb/rewriter/public/file_load_mapping.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/file_load_rule.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/util/re2.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/re2.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -42,10 +41,8 @@ FileLoadPolicy::~FileLoadPolicy() {
   }
 }
 
-// Figure out whether our rules say to load this url from file, ignoring content
-// type restrictions for the moment.
-bool FileLoadPolicy::ShouldLoadFromFileHelper(const GoogleUrl& url,
-                                              GoogleString* filename) const {
+bool FileLoadPolicy::ShouldLoadFromFile(const GoogleUrl& url,
+                                        GoogleString* filename) const {
   if (!url.IsWebValid()) {
     return false;
   }
@@ -83,21 +80,6 @@ bool FileLoadPolicy::ShouldLoadFromFileHelper(const GoogleUrl& url,
     }
   }
   return false;  // No mapping found, no file to load from.
-}
-
-bool FileLoadPolicy::ShouldLoadFromFile(const GoogleUrl& url,
-                                        GoogleString* filename) const {
-  bool should_load = ShouldLoadFromFileHelper(url, filename);
-  if (!should_load) {
-    return false;
-  }
-
-  // We could now load it from file, but if the extension is unrecognized we
-  // won't have a content type.  We want to always serve with content type, so
-  // filter those out.  This also lets us limit to static resources, which are
-  // the only content types we want to handle.
-  const ContentType* content_type = NameExtensionToContentType(*filename);
-  return content_type != NULL && content_type->IsLikelyStaticResource();
 }
 
 bool FileLoadPolicy::AddRule(const GoogleString& rule_str, bool is_regexp,

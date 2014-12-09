@@ -22,29 +22,31 @@
 #include <memory>
 #include <utility>
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/doctype.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/doctype.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
+extern const char* CSS_console_css;
 extern const char* JS_add_instrumentation;
 extern const char* JS_add_instrumentation_opt;
 extern const char* JS_client_domain_rewriter;
 extern const char* JS_client_domain_rewriter_opt;
+extern const char* JS_console_js;
+extern const char* JS_console_js_opt;
 extern const char* JS_critical_css_beacon;
 extern const char* JS_critical_css_beacon_opt;
 extern const char* JS_critical_css_loader;
@@ -70,15 +72,12 @@ extern const char* JS_lazyload_images;
 extern const char* JS_lazyload_images_opt;
 extern const char* JS_local_storage_cache;
 extern const char* JS_local_storage_cache_opt;
-extern const char* JS_mobilize_nav;
-extern const char* JS_mobilize_nav_opt;
 extern const char* JS_panel_loader_opt;
 extern const char* JS_split_html_beacon;
 extern const char* JS_split_html_beacon_opt;
 
 // TODO(jud): use the data2c build flow to create this data.
-const unsigned char GIF_blank[] = {
-  0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x1, 0x0, 0x1,
+const char GIF_blank[] = { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x1, 0x0, 0x1,
   0x0, 0x80, 0x0, 0x0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x21, 0xfe, 0x6,
   0x70, 0x73, 0x61, 0x5f, 0x6c, 0x6c, 0x0, 0x21, 0xf9, 0x4, 0x1, 0xa, 0x0, 0x1,
   0x0, 0x2c, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x2, 0x2, 0x4c, 0x1,
@@ -103,27 +102,24 @@ struct StaticAssetManager::Asset {
   GoogleString js_debug_hash;
   GoogleString opt_url;
   GoogleString debug_url;
-  GoogleString release_label;
   ContentType content_type;
 };
 
 StaticAssetManager::StaticAssetManager(
     const GoogleString& static_asset_base,
-    ThreadSystem* threads,
     Hasher* hasher,
     MessageHandler* message_handler)
     : static_asset_base_(static_asset_base),
       hasher_(hasher),
       message_handler_(message_handler),
-      lock_(threads->NewRWLock()),
       serve_asset_from_gstatic_(false),
       library_url_prefix_(kDefaultLibraryUrlPrefix) {
   InitializeAssetStrings();
 
-  // Note: We use these default options because the actual options will
-  // not affect what we are computing here.
-  ResponseHeaders header(kDeprecatedDefaultHttpOptions);
-  header.SetDateAndCaching(0, ServerContext::kCacheTtlForMismatchedContentMs);
+  ResponseHeaders header;
+  // TODO(ksimbili): Define a new constant kShortCacheTtlForMismatchedContentMs
+  // in ServerContext for 5min.
+  header.SetDateAndCaching(0, ResponseHeaders::kDefaultImplicitCacheTtlMs);
   cache_header_with_private_ttl_ = StrCat(
       header.Lookup1(HttpAttributes::kCacheControl),
       ",private");
@@ -138,61 +134,25 @@ StaticAssetManager::~StaticAssetManager() {
 }
 
 const GoogleString& StaticAssetManager::GetAssetUrl(
-    StaticAssetEnum::StaticAsset module, const RewriteOptions* options) const {
-  ThreadSystem::ScopedReader read_lock(lock_.get());
+    const StaticAsset& module, const RewriteOptions* options) const {
   return options->Enabled(RewriteOptions::kDebug) ?
       assets_[module]->debug_url :
       assets_[module]->opt_url;
 }
 
-void StaticAssetManager::SetGStaticHashForTest(
-    StaticAssetEnum::StaticAsset module, const GoogleString& gstatic_base,
-    const GoogleString& hash) {
-  CHECK(!hash.empty());
-  StaticAssetConfig config;
-  StaticAssetConfig::Asset* asset_conf = config.add_asset();
-  asset_conf->set_role(module);
-  {
-    ThreadSystem::ScopedReader read_lock(lock_.get());  // read from assets_
-    asset_conf->set_name(
-        StrCat(assets_[module]->file_name,
-               assets_[module]->content_type.file_extension()));
-  }
-  asset_conf->set_debug_hash(hash);
-  asset_conf->set_opt_hash(hash);
-  ApplyGStaticConfiguration(gstatic_base, config, kInitialConfiguration);
-}
-
-void StaticAssetManager::ApplyGStaticConfiguration(
-    const GoogleString& gstatic_base, const StaticAssetConfig& config,
-    ConfigurationMode mode) {
-  ScopedMutex write_lock(lock_.get());
-  if (!serve_asset_from_gstatic_) {
-    return;
-  }
-
-  for (int i = 0; i < config.asset_size(); ++i) {
-    const StaticAssetConfig::Asset& asset_conf = config.asset(i);
-    if (!StaticAssetEnum::StaticAsset_IsValid(asset_conf.role())) {
-      LOG(DFATAL) << "Invalid asset role: " << asset_conf.role();
-      return;
-    }
-    Asset* asset = assets_[asset_conf.role()];
-    bool should_update = (mode == kInitialConfiguration) ||
-                         (asset->release_label == config.release_label());
-    if (should_update) {
-      asset->opt_url = StrCat(gstatic_base, asset_conf.opt_hash(), "-",
-                              asset_conf.name());
-      asset->debug_url = StrCat(gstatic_base, asset_conf.debug_hash(), "-",
-                                asset_conf.name());
-      asset->release_label = config.release_label();
-    }
+void StaticAssetManager::set_gstatic_hash(const StaticAsset& module,
+                                          const GoogleString& gstatic_base,
+                                          const GoogleString& hash) {
+  if (serve_asset_from_gstatic_) {
+    CHECK(!hash.empty());
+    assets_[module]->opt_url =
+        StrCat(gstatic_base, hash, "-", assets_[module]->file_name,
+               assets_[module]->content_type.file_extension());
   }
 }
 
 void StaticAssetManager::InitializeAssetStrings() {
-  ScopedMutex write_lock(lock_.get());
-  assets_.resize(StaticAssetEnum::StaticAsset_ARRAYSIZE);
+  assets_.resize(kEndOfModules);
   for (std::vector<Asset*>::iterator it = assets_.begin();
        it != assets_.end(); ++it) {
     *it = new Asset;
@@ -200,116 +160,85 @@ void StaticAssetManager::InitializeAssetStrings() {
   }
   // Initialize JS
   // Initialize file names.
-  assets_[StaticAssetEnum::ADD_INSTRUMENTATION_JS]->file_name =
-      "add_instrumentation";
-  assets_[StaticAssetEnum::EXTENDED_INSTRUMENTATION_JS]->file_name =
-      "extended_instrumentation";
+  assets_[kAddInstrumentationJs]->file_name = "add_instrumentation";
+  assets_[kExtendedInstrumentationJs]->file_name = "extended_instrumentation";
   GoogleString blink_js_string =
       StrCat(JS_js_defer_opt, "\n", JS_panel_loader_opt);
-  assets_[StaticAssetEnum::BLINK_JS]->file_name = "blink";
-  assets_[StaticAssetEnum::CLIENT_DOMAIN_REWRITER]->file_name =
-      "client_domain_rewriter";
-  assets_[StaticAssetEnum::CRITICAL_CSS_BEACON_JS]->file_name =
-      "critical_css_beacon";
-  assets_[StaticAssetEnum::CRITICAL_CSS_LOADER_JS]->file_name =
-      "critical_css_loader";
-  assets_[StaticAssetEnum::CRITICAL_IMAGES_BEACON_JS]->file_name =
-      "critical_images_beacon";
-  assets_[StaticAssetEnum::DEDUP_INLINED_IMAGES_JS]->file_name =
-      "dedup_inlined_images";
-  assets_[StaticAssetEnum::DEFER_IFRAME]->file_name = "defer_iframe";
-  assets_[StaticAssetEnum::DEFER_JS]->file_name = "js_defer";
-  assets_[StaticAssetEnum::DELAY_IMAGES_JS]->file_name = "delay_images";
-  assets_[StaticAssetEnum::DELAY_IMAGES_INLINE_JS]->file_name =
-      "delay_images_inline";
-  assets_[StaticAssetEnum::LAZYLOAD_IMAGES_JS]->file_name = "lazyload_images";
-  assets_[StaticAssetEnum::DETERMINISTIC_JS]->file_name = "deterministic";
-  assets_[StaticAssetEnum::GHOST_CLICK_BUSTER_JS]->file_name =
-      "ghost_click_buster";
-  assets_[StaticAssetEnum::LOCAL_STORAGE_CACHE_JS]->file_name =
-      "local_storage_cache";
-  assets_[StaticAssetEnum::MOBILIZE_NAV_JS]->file_name = "mobilize_nav";
-  assets_[StaticAssetEnum::SPLIT_HTML_BEACON_JS]->file_name =
-      "split_html_beacon";
+  assets_[kBlinkJs]->file_name = "blink";
+  assets_[kClientDomainRewriter]->file_name = "client_domain_rewriter";
+  assets_[kConsoleJs]->file_name = "console_js";
+  assets_[kCriticalCssBeaconJs]->file_name = "critical_css_beacon";
+  assets_[kCriticalCssLoaderJs]->file_name = "critical_css_loader";
+  assets_[kCriticalImagesBeaconJs]->file_name = "critical_images_beacon";
+  assets_[kDedupInlinedImagesJs]->file_name = "dedup_inlined_images";
+  assets_[kDeferIframe]->file_name = "defer_iframe";
+  assets_[kDeferJs]->file_name = "js_defer";
+  assets_[kDelayImagesJs]->file_name = "delay_images";
+  assets_[kDelayImagesInlineJs]->file_name = "delay_images_inline";
+  assets_[kLazyloadImagesJs]->file_name = "lazyload_images";
+  assets_[kDeterministicJs]->file_name = "deterministic";
+  assets_[kGhostClickBusterJs]->file_name = "ghost_click_buster";
+  assets_[kLocalStorageCacheJs]->file_name = "local_storage_cache";
+  assets_[kSplitHtmlBeaconJs]->file_name = "split_html_beacon";
 
   // Initialize compiled javascript strings->
-  assets_[StaticAssetEnum::ADD_INSTRUMENTATION_JS]->js_optimized =
-      JS_add_instrumentation_opt;
-  assets_[StaticAssetEnum::EXTENDED_INSTRUMENTATION_JS]->js_optimized =
+  assets_[kAddInstrumentationJs]->js_optimized = JS_add_instrumentation_opt;
+  assets_[kExtendedInstrumentationJs]->js_optimized =
       JS_extended_instrumentation_opt;
-  assets_[StaticAssetEnum::BLINK_JS]->js_optimized = blink_js_string;
-  assets_[StaticAssetEnum::CLIENT_DOMAIN_REWRITER]->js_optimized =
+  assets_[kBlinkJs]->js_optimized = blink_js_string.c_str();
+  assets_[kClientDomainRewriter]->js_optimized =
       JS_client_domain_rewriter_opt;
-  assets_[StaticAssetEnum::CRITICAL_CSS_BEACON_JS]->js_optimized =
-      JS_critical_css_beacon_opt;
-  assets_[StaticAssetEnum::CRITICAL_CSS_LOADER_JS]->js_optimized =
-      JS_critical_css_loader_opt;
-  assets_[StaticAssetEnum::CRITICAL_IMAGES_BEACON_JS]->js_optimized =
+  assets_[kConsoleJs]->js_optimized = JS_console_js_opt;
+  assets_[kCriticalCssBeaconJs]->js_optimized = JS_critical_css_beacon_opt;
+  assets_[kCriticalCssLoaderJs]->js_optimized = JS_critical_css_loader_opt;
+  assets_[kCriticalImagesBeaconJs]->js_optimized =
       JS_critical_images_beacon_opt;
-  assets_[StaticAssetEnum::DEDUP_INLINED_IMAGES_JS]->js_optimized =
-      JS_dedup_inlined_images_opt;
-  assets_[StaticAssetEnum::DEFER_IFRAME]->js_optimized =
-      JS_defer_iframe_opt;
-  assets_[StaticAssetEnum::DEFER_JS]->js_optimized =
-      JS_js_defer_opt;
-  assets_[StaticAssetEnum::DELAY_IMAGES_JS]->js_optimized =
-      JS_delay_images_opt;
-  assets_[StaticAssetEnum::DELAY_IMAGES_INLINE_JS]->js_optimized =
-      JS_delay_images_inline_opt;
-  assets_[StaticAssetEnum::LAZYLOAD_IMAGES_JS]->js_optimized =
-      JS_lazyload_images_opt;
-  assets_[StaticAssetEnum::DETERMINISTIC_JS]->js_optimized =
-      JS_deterministic_opt;
-  assets_[StaticAssetEnum::GHOST_CLICK_BUSTER_JS]->js_optimized =
-      JS_ghost_click_buster_opt;
-  assets_[StaticAssetEnum::LOCAL_STORAGE_CACHE_JS]->js_optimized =
-      JS_local_storage_cache_opt;
-  assets_[StaticAssetEnum::MOBILIZE_NAV_JS]->js_optimized = JS_mobilize_nav_opt;
-  assets_[StaticAssetEnum::SPLIT_HTML_BEACON_JS]->js_optimized =
-      JS_split_html_beacon_opt;
+  assets_[kDedupInlinedImagesJs]->js_optimized = JS_dedup_inlined_images_opt;
+  assets_[kDeferIframe]->js_optimized = JS_defer_iframe_opt;
+  assets_[kDeferJs]->js_optimized = JS_js_defer_opt;
+  assets_[kDelayImagesJs]->js_optimized = JS_delay_images_opt;
+  assets_[kDelayImagesInlineJs]->js_optimized = JS_delay_images_inline_opt;
+  assets_[kLazyloadImagesJs]->js_optimized = JS_lazyload_images_opt;
+  assets_[kDeterministicJs]->js_optimized = JS_deterministic_opt;
+  assets_[kGhostClickBusterJs]->js_optimized = JS_ghost_click_buster_opt;
+  assets_[kLocalStorageCacheJs]->js_optimized = JS_local_storage_cache_opt;
+  assets_[kSplitHtmlBeaconJs]->js_optimized = JS_split_html_beacon_opt;
 
   // Initialize cleartext javascript strings->
-  assets_[StaticAssetEnum::ADD_INSTRUMENTATION_JS]->js_debug =
-      JS_add_instrumentation;
-  assets_[StaticAssetEnum::EXTENDED_INSTRUMENTATION_JS]->js_debug =
-      JS_extended_instrumentation;
+  assets_[kAddInstrumentationJs]->js_debug = JS_add_instrumentation;
+  assets_[kExtendedInstrumentationJs]->js_debug = JS_extended_instrumentation;
   // Fetching the blink JS is not currently supported-> Add a comment in as the
   // unit test expects debug code to include comments->
-  assets_[StaticAssetEnum::BLINK_JS]->js_debug = blink_js_string;
-  assets_[StaticAssetEnum::CLIENT_DOMAIN_REWRITER]->js_debug =
-      JS_client_domain_rewriter;
-  assets_[StaticAssetEnum::CRITICAL_CSS_BEACON_JS]->js_debug =
-      JS_critical_css_beacon;
-  assets_[StaticAssetEnum::CRITICAL_CSS_LOADER_JS]->js_debug =
-      JS_critical_css_loader;
-  assets_[StaticAssetEnum::CRITICAL_IMAGES_BEACON_JS]->js_debug =
-      JS_critical_images_beacon;
-  assets_[StaticAssetEnum::DEDUP_INLINED_IMAGES_JS]->js_debug =
-      JS_dedup_inlined_images;
-  assets_[StaticAssetEnum::DEFER_IFRAME]->js_debug = JS_defer_iframe;
-  assets_[StaticAssetEnum::DEFER_JS]->js_debug = JS_js_defer;
-  assets_[StaticAssetEnum::DELAY_IMAGES_JS]->js_debug = JS_delay_images;
-  assets_[StaticAssetEnum::DELAY_IMAGES_INLINE_JS]->js_debug =
-      JS_delay_images_inline;
-  assets_[StaticAssetEnum::LAZYLOAD_IMAGES_JS]->js_debug = JS_lazyload_images;
-  assets_[StaticAssetEnum::DETERMINISTIC_JS]->js_debug = JS_deterministic;
+  assets_[kBlinkJs]->js_debug = blink_js_string.c_str();
+  assets_[kClientDomainRewriter]->js_debug = JS_client_domain_rewriter;
+  assets_[kConsoleJs]->js_debug = JS_console_js;
+  assets_[kCriticalCssBeaconJs]->js_debug = JS_critical_css_beacon;
+  assets_[kCriticalCssLoaderJs]->js_debug = JS_critical_css_loader;
+  assets_[kCriticalImagesBeaconJs]->js_debug = JS_critical_images_beacon;
+  assets_[kDedupInlinedImagesJs]->js_debug = JS_dedup_inlined_images;
+  assets_[kDeferIframe]->js_debug = JS_defer_iframe;
+  assets_[kDeferJs]->js_debug = JS_js_defer;
+  assets_[kDelayImagesJs]->js_debug = JS_delay_images;
+  assets_[kDelayImagesInlineJs]->js_debug = JS_delay_images_inline;
+  assets_[kLazyloadImagesJs]->js_debug = JS_lazyload_images;
+  assets_[kDeterministicJs]->js_debug = JS_deterministic;
   // GhostClickBuster uses goog.require, which needs to be minifed always.
-  assets_[StaticAssetEnum::GHOST_CLICK_BUSTER_JS]->js_debug =
-      JS_ghost_click_buster_opt;
-  assets_[StaticAssetEnum::LOCAL_STORAGE_CACHE_JS]->js_debug =
-      JS_local_storage_cache;
-  assets_[StaticAssetEnum::MOBILIZE_NAV_JS]->js_debug = JS_mobilize_nav;
-  assets_[StaticAssetEnum::SPLIT_HTML_BEACON_JS]->js_debug =
-      JS_split_html_beacon;
+  assets_[kGhostClickBusterJs]->js_debug = JS_ghost_click_buster_opt;
+  assets_[kLocalStorageCacheJs]->js_debug = JS_local_storage_cache;
+  assets_[kSplitHtmlBeaconJs]->js_debug = JS_split_html_beacon;
 
   // Initialize non-JS assets
 
-  assets_[StaticAssetEnum::BLANK_GIF]->file_name = "1";
-  assets_[StaticAssetEnum::BLANK_GIF]->js_optimized.append(
-      reinterpret_cast<const char*>(GIF_blank), GIF_blank_len);
-  assets_[StaticAssetEnum::BLANK_GIF]->js_debug.append(
-      reinterpret_cast<const char*>(GIF_blank), GIF_blank_len);
-  assets_[StaticAssetEnum::BLANK_GIF]->content_type = kContentTypeGif;
+  assets_[kBlankGif]->file_name = "1";
+  assets_[kBlankGif]->js_optimized.append(GIF_blank, GIF_blank_len);
+  assets_[kBlankGif]->js_debug.append(GIF_blank, GIF_blank_len);
+  assets_[kBlankGif]->content_type = kContentTypeGif;
+
+  assets_[kConsoleCss]->file_name = "console_css";
+  // TODO(sligocki): Do we want to have a minified version of console CSS?
+  assets_[kConsoleCss]->js_optimized = CSS_console_css;
+  assets_[kConsoleCss]->js_debug = CSS_console_css;
+  assets_[kConsoleCss]->content_type = kContentTypeCss;
 
   for (std::vector<Asset*>::iterator it = assets_.begin();
        it != assets_.end(); ++it) {
@@ -323,7 +252,7 @@ void StaticAssetManager::InitializeAssetStrings() {
     // Setup a map of file name to the corresponding index in assets_ to
     // allow easier lookup in GetAsset.
     file_name_to_module_map_[asset->file_name] =
-        static_cast<StaticAssetEnum::StaticAsset>(it - assets_.begin());
+        static_cast<StaticAsset>(it - assets_.begin());
   }
   InitializeAssetUrls();
 }
@@ -350,9 +279,8 @@ void StaticAssetManager::InitializeAssetUrls() {
 }
 
 const char* StaticAssetManager::GetAsset(
-    StaticAssetEnum::StaticAsset module, const RewriteOptions* options) const {
-  ThreadSystem::ScopedReader read_lock(lock_.get());
-  CHECK(StaticAssetEnum::StaticAsset_IsValid(module));
+    const StaticAsset& module, const RewriteOptions* options) const {
+  CHECK(module != kEndOfModules);
   return options->Enabled(RewriteOptions::kDebug) ?
       assets_[module]->js_debug.c_str() :
       assets_[module]->js_optimized.c_str();
@@ -405,7 +333,6 @@ bool StaticAssetManager::GetAsset(StringPiece file_name,
                                              strlen("_debug"));
   }
 
-  ThreadSystem::ScopedReader read_lock(lock_.get());
   FileNameToModuleMap::const_iterator p =
       file_name_to_module_map_.find(plain_file_name);
   if (p != file_name_to_module_map_.end()) {

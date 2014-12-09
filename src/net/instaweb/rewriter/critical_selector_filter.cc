@@ -25,6 +25,11 @@
 #include <set>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
@@ -36,20 +41,15 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "webutil/css/media.h"
 #include "webutil/css/parser.h"
 #include "webutil/css/selector.h"
@@ -265,12 +265,6 @@ void CriticalSelectorFilter::RenderSummary(
   // Update the DOM --- either an existing style element, or replace link
   // with style.
   if (char_node != NULL) {
-    // Note: This depends upon all previous filters also mutating the contents
-    // of the original Characters Node. If any previous filters replaces the
-    // Characters Node with another one or makes some other change, this node
-    // will be out of date and the update will not do anything.
-    // TODO(sligocki): We should use a non-trivial ResourceSlot to update this
-    // instead so that it is not so delicate.
     *char_node->mutable_contents() = *css_to_use;
   } else {
     HtmlElement* style_element = driver()->NewElement(NULL, HtmlName::kStyle);
@@ -416,7 +410,7 @@ void CriticalSelectorFilter::RenderDone() {
     InsertNodeAtBodyEnd(script);
     GoogleString js =
         driver()->server_context()->static_asset_manager()->GetAsset(
-            StaticAssetEnum::CRITICAL_CSS_LOADER_JS, driver()->options());
+            StaticAssetManager::kCriticalCssLoaderJs, driver()->options());
     if (!driver()->options()
              ->test_only_prioritize_critical_css_dont_apply_original_css()) {
       StrAppend(&js, "pagespeed.CriticalCssLoader.Run();");
@@ -428,7 +422,7 @@ void CriticalSelectorFilter::RenderDone() {
   STLDeleteElements(&css_elements_);
 }
 
-void CriticalSelectorFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void CriticalSelectorFilter::DetermineEnabled() {
   // We shouldn't do anything if there is no information on critical selectors
   // in the property cache. Unfortunately, we also cannot run safely in case of
   // IE, since we do not understand IE conditional comments well enough to
@@ -444,15 +438,6 @@ void CriticalSelectorFilter::DetermineEnabled(GoogleString* disabled_reason) {
                : (ua_supports_critical_css
                       ? RewriterHtmlApplication::PROPERTY_CACHE_MISS
                       : RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED)));
-
-  if (!can_run) {
-    if (!ua_supports_critical_css) {
-      *disabled_reason = "User agent not supported";
-    } else {
-      *disabled_reason = "No critical selector info in cache";
-    }
-  }
-
   set_is_enabled(can_run);
 }
 

@@ -23,9 +23,9 @@
 
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -33,14 +33,14 @@ struct ContentType;
 class InputInfo;
 class MessageHandler;
 class ResponseHeaders;
-class RewriteDriver;
+class ServerContext;
 
 class FileInputResource : public Resource {
  public:
-  FileInputResource(const RewriteDriver* driver,
+  FileInputResource(ServerContext* server_context,
                     const ContentType* type,
-                    StringPiece url,
-                    StringPiece filename);
+                    const StringPiece& url,
+                    const StringPiece& filename);
   virtual ~FileInputResource();
 
   // Uses default no-op Freshen implementation because file-based resources
@@ -68,8 +68,6 @@ class FileInputResource : public Resource {
   GoogleString url_;
   GoogleString filename_;
   int64 last_modified_time_sec_;  // Loaded from file mtime.
-  int64 load_from_file_cache_ttl_ms_;
-  bool load_from_file_ttl_set_;
 
   DISALLOW_COPY_AND_ASSIGN(FileInputResource);
 };

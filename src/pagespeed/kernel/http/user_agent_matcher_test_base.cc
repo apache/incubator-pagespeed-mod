@@ -71,9 +71,6 @@ const char UserAgentMatcherTestBase::kChrome18UserAgent[] =  // webp capable
 const char UserAgentMatcherTestBase::kChrome9UserAgent[] =  // Not webp capable
     "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) "
     "AppleWebKit/534.13 (KHTML, like Gecko) Chrome/9.0.597.19 Safari/534.13";
-const char UserAgentMatcherTestBase::kChrome37UserAgent[] =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.122 Safari/537.36";
 const char UserAgentMatcherTestBase::kChromeUserAgent[] =
     "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US) "
     "AppleWebKit/525.13 (KHTML, like Gecko) Chrome/0.A.B.C Safari/525.13";
@@ -117,8 +114,6 @@ const char UserAgentMatcherTestBase::kIe8UserAgent[] =
     " .NET4.0C; .NET4.0E; FDM)";
 const char UserAgentMatcherTestBase::kIe9UserAgent[] =
     "Mozilla/5.0 (Windows; U; MSIE 9.0; WIndows NT 9.0; en-US))";
-const char UserAgentMatcherTestBase::kIe10UserAgent[] =
-    "Mozilla/5.0 (Windows; U; MSIE 10.0; WIndows NT 9.0; en-US))";
 const char UserAgentMatcherTestBase::kIPadTabletUserAgent[] =
     "Mozilla/5.0 (iPad; CPU OS 6_1_3 like Mac OS X) AppleWebKit/536.26 (KHTML, "
     "like Gecko) Version/6.0 Mobile/10B329 Safari/8536.25";
@@ -126,15 +121,6 @@ const char UserAgentMatcherTestBase::kIPadUserAgent[] =
     "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) "
     "AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 "
     "Mobile/7B334b Safari/531.21.10";
-const char UserAgentMatcherTestBase::kIPadChrome28UserAgent[] =
-    "Mozilla/5.0 (iPad; CPU OS 613 like Mac OS X) AppleWebKit/536.26 (KHTML "
-    "like Gecko) CriOS/28.0.1500.12 Mobile/10B329 Safari/8536.25";
-const char UserAgentMatcherTestBase::kIPadChrome29UserAgent[] =
-    "Mozilla/5.0 (iPad; CPU OS 613 like Mac OS X) AppleWebKit/536.26 (KHTML "
-    "like Gecko) CriOS/29.0.1547.11 Mobile/10B329 Safari/8536.25";
-const char UserAgentMatcherTestBase::kIPadChrome36UserAgent[] =
-    "Mozilla/5.0 (iPad; CPU OS 7_1_1 like Mac OS X) AppleWebKit/537.51.2 "
-    "(KHTML, like Gecko) CriOS/36.0.1985.49 Mobile/11D201 Safari/9537.53";
 const char UserAgentMatcherTestBase::kIPhone4Safari[] =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 5_0_1 like Mac OS X) AppleWebKit/534.46"
     " (KHTML, like Gecko) Version/5.1 Mobile/9A405 Safari/7534.48.3";
@@ -143,10 +129,6 @@ const char UserAgentMatcherTestBase::kIPhoneChrome21UserAgent[] =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0_1 like Mac OS X; en-us) "
     "AppleWebKit/534.46.0 (KHTML, like Gecko) CriOS/21.0.1180.82 "
     "Mobile/10A523 Safari/7534.48.3";
-const char UserAgentMatcherTestBase::kIPhoneChrome36UserAgent[] =
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 7_1_2 like Mac OS X) "
-    "AppleWebKit/537.51.2 (KHTML, like Gecko) CriOS/36.0.1985.49 "
-    "Mobile/11D257 Safari/9537.53";
 const char UserAgentMatcherTestBase::kIPhoneUserAgent[] =
     "Apple iPhone OS v2.1.1 CoreMedia v1.0.0.5F138";
 const char UserAgentMatcherTestBase::kIPodSafari[] =
@@ -273,11 +255,6 @@ const char UserAgentMatcherTestBase::kVodafoneMobileUserAgent[] =
     "Vodafone/1.0/0Vodafone710/B616 Browser/Obigo-Browser/Q04A "
     "MMS/Obigo-MMS/Q04A SyncML/HW-SyncML/1.0 Java/QVM/4.1 Profile/MIDP-2.0 "
     "Configuration/CLDC-1.1";
-// http://msdn.microsoft.com/en-us/library/ie/hh869301(v=vs.85).aspx
-const char UserAgentMatcherTestBase::kWindowsPhoneUserAgent[] =
-    "Mozilla/5.0 (Mobile; Windows Phone 8.1; Android 4.0; ARM; Trident/7.0; "
-    "Touch; rv:11.0; IEMobile/11.0; NOKIA; Lumia 928) like iPhone OS 7_0_3 "
-    "Mac OS X AppleWebKit/537 (KHTML, like Gecko) Mobile Safari/537";
 const char UserAgentMatcherTestBase::kWinWAPUserAgent[] =
     "WinWAP/1.3 (1.3.0.0;WinCE;PPC2003)";
 const char UserAgentMatcherTestBase::kXWapProfileHeaderValue[] =
@@ -302,8 +279,7 @@ const char* const
 UserAgentMatcherTestBase::kIe11UserAgents[] = {
   "Windows-RSS-Platform/2.0 (IE 11.0; Windows NT 6.1)",
   "Mozilla/5.0 (compatible; IE 11.0; Win32; Trident/7.0)",
-  "Mozilla/5.0 (Windows NT 6.1; WOW64; ***********; rv:11.0) like Gecko",
-  "Mozilla/5.0 (Windows NT 6.1; Win64; x64; Trident/7.0; rv:11.0) like Gecko",
+  "Mozilla/5.0 (Windows NT 6.1; WOW64; ***********; rv:11.0) like Gecko"
 };
 
 const char* const UserAgentMatcherTestBase::kMobileUserAgents[] = {
@@ -390,21 +366,22 @@ UserAgentMatcherTestBase::kImageInliningSupportedUserAgents[] = {
   UserAgentMatcherTestBase::kChromeUserAgent,
   UserAgentMatcherTestBase::kFirefoxUserAgent,
   UserAgentMatcherTestBase::kIe9UserAgent,
-  UserAgentMatcherTestBase::kIe10UserAgent,
   UserAgentMatcherTestBase::kIPhoneUserAgent,
   UserAgentMatcherTestBase::kOpera8UserAgent,
   UserAgentMatcherTestBase::kSafariUserAgent,
   UserAgentMatcherTestBase::kIe11UserAgents[0],
   UserAgentMatcherTestBase::kIe11UserAgents[1],
   UserAgentMatcherTestBase::kIe11UserAgents[2],
-  UserAgentMatcherTestBase::kIe11UserAgents[3],
 };
 
 const char* const UserAgentMatcherTestBase::kSplitHtmlSupportedUserAgents[] = {
   UserAgentMatcherTestBase::kChromeUserAgent,
   UserAgentMatcherTestBase::kFirefoxUserAgent,
-  UserAgentMatcherTestBase::kIe10UserAgent,
+  UserAgentMatcherTestBase::kIe9UserAgent,
   UserAgentMatcherTestBase::kSafariUserAgent,
+  UserAgentMatcherTestBase::kIe11UserAgents[0],
+  UserAgentMatcherTestBase::kIe11UserAgents[1],
+  UserAgentMatcherTestBase::kIe11UserAgents[2],
 };
 
 const char* const
@@ -414,11 +391,6 @@ UserAgentMatcherTestBase::kSplitHtmlUnSupportedUserAgents[] = {
   UserAgentMatcherTestBase::kFirefox3UserAgent,
   UserAgentMatcherTestBase::kIe6UserAgent,
   UserAgentMatcherTestBase::kIe8UserAgent,
-  UserAgentMatcherTestBase::kIe9UserAgent,
-  UserAgentMatcherTestBase::kIe11UserAgents[0],
-  UserAgentMatcherTestBase::kIe11UserAgents[1],
-  UserAgentMatcherTestBase::kIe11UserAgents[2],
-  UserAgentMatcherTestBase::kIe11UserAgents[3],
   UserAgentMatcherTestBase::kNokiaUserAgent,
   UserAgentMatcherTestBase::kOpera5UserAgent,
   UserAgentMatcherTestBase::kPSPUserAgent,

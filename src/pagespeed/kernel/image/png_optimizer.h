@@ -32,7 +32,6 @@ extern "C" {
 
 #include <setjmp.h>
 #include <cstddef>
-#include "third_party/optipng/src/opngreduc/opngreduc.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -53,8 +52,7 @@ using net_instaweb::MessageHandler;
 class ScanlineStreamInput;
 
 struct PngCompressParams {
-  PngCompressParams(int level, int strategy, bool is_progressive);
-  PngCompressParams(bool try_best_compression, bool is_progressive);
+  PngCompressParams(int level, int strategy);
 
   // Indicates what png filter type to be used while compressing the image.
   // Valid values for this are
@@ -73,11 +71,6 @@ struct PngCompressParams {
   //   Z_FIXED
   //   Z_DEFAULT_STRATEGY
   int compression_strategy;
-  // Indicates whether to search for the smallest output by using Opti-PNG and
-  // multiple runs of compression. This mode will use more computation.
-  bool try_best_compression;
-  // Indicates whether to encode the image in progressive / interlacing format.
-  bool is_progressive;
 };
 
 // Helper that manages the lifetime of the png_ptr and info_ptr.
@@ -201,7 +194,6 @@ class PngScanlineReader : public ScanlineReaderInterface {
   virtual size_t GetImageHeight();
   virtual size_t GetImageWidth();
   virtual PixelFormat GetPixelFormat();
-  virtual bool IsProgressive();
 
   void set_transform(int transform);
   void set_require_opaque(bool require_opaque);
@@ -235,8 +227,6 @@ class PngOptimizer {
                                          GoogleString* out,
                                          MessageHandler* handler);
 
-  static bool CopyPngStructs(const ScopedPngStruct& from, ScopedPngStruct* to);
-
  private:
   explicit PngOptimizer(MessageHandler* handler);
   ~PngOptimizer();
@@ -255,6 +245,9 @@ class PngOptimizer {
 
   bool WritePng(ScopedPngStruct* write, GoogleString* buffer);
   bool CopyReadToWrite();
+  // The 'from' object is conceptually const, but libpng doesn't accept const
+  // pointers in the read functions.
+  bool CopyPngStructs(ScopedPngStruct* from, ScopedPngStruct* to);
   bool CreateBestOptimizedPngForParams(const PngCompressParams* param_list,
                                        size_t param_list_size,
                                        GoogleString* out);
@@ -334,7 +327,6 @@ class PngScanlineReaderRaw : public ScanlineReaderInterface {
   virtual PixelFormat GetPixelFormat() { return pixel_format_; }
   virtual size_t GetImageHeight() { return height_; }
   virtual size_t GetImageWidth() {  return width_; }
-  virtual bool IsProgressive() { return is_progressive_; }
 
  private:
   PixelFormat pixel_format_;
@@ -346,7 +338,7 @@ class PngScanlineReaderRaw : public ScanlineReaderInterface {
   bool was_initialized_;
   net_instaweb::scoped_array<png_byte> image_buffer_;
   net_instaweb::scoped_array<png_bytep> row_pointers_;
-  scoped_ptr<ScopedPngStruct> png_struct_;
+  ScopedPngStruct png_struct_;
   // png_input_ stores a pointer to the input image stream. It also keeps
   // tracking the length of data that libpng has read. It is initialized
   // in Initialize() and is updated in ReadNextScanline().
@@ -391,18 +383,13 @@ class PngScanlineWriter : public ScanlineWriterInterface {
   bool Validate(const PngCompressParams* params,
                 GoogleString* png_image);
 
-  bool DoBestCompression();
-
  private:
   size_t width_;
   size_t height_;
-  size_t bytes_per_row_;
   size_t row_;
   PixelFormat pixel_format_;
-  scoped_ptr<ScopedPngStruct> png_struct_;
+  ScopedPngStruct png_struct_;
   bool was_initialized_;
-  bool try_best_compression_;
-  net_instaweb::scoped_array<unsigned char> pixel_buffer_;
   MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(PngScanlineWriter);

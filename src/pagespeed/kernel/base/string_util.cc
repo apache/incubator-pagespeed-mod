@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdlib>
 #include <vector>
 
 #include "pagespeed/kernel/base/string.h"
@@ -354,7 +353,8 @@ GoogleString CEscape(const StringPiece& src) {
 // but we don't need any other aspect of protobufs so we don't want to
 // incur the link cost.
 bool HasPrefixString(const StringPiece& str, const StringPiece& prefix) {
-  return str.starts_with(prefix);
+  return ((str.size() >= prefix.size()) &&
+          (str.substr(0, prefix.size()) == prefix));
 }
 
 // From src/third_party/protobuf/src/google/protobuf/stubs/strutil.h
@@ -407,36 +407,6 @@ int GlobalReplaceSubstring(const StringPiece& substring,
     s->swap(tmp);
   }
   return num_replacements;
-}
-
-// Erase shortest substrings in string bracketed by left and right.
-int GlobalEraseBracketedSubstring(StringPiece left, StringPiece right,
-                                  GoogleString* string) {
-  int deletions = 0;
-  size_t keep_start = 0;
-  size_t keep_end = string->find(left.data(), keep_start, left.size());
-  if (keep_end == GoogleString::npos) {
-    // Fast path without allocation for no occurrences of left.
-    return 0;
-  }
-  GoogleString result;
-  result.reserve(string->size());
-  while (keep_end != GoogleString::npos) {
-    result.append(*string, keep_start, keep_end - keep_start);
-    keep_start =
-        string->find(right.data(), keep_end + left.size(), right.size());
-    if (keep_start == GoogleString::npos) {
-      keep_start = keep_end;
-      break;
-    }
-    keep_start += right.size();
-    ++deletions;
-    keep_end = string->find(left.data(), keep_start, left.size());
-  }
-  result.append(*string, keep_start, string->size() - keep_start);
-  string->swap(result);
-  string->reserve(string->size());  // shrink_to_fit, C++99-style
-  return deletions;
 }
 
 GoogleString JoinStringStar(const ConstStringStarVector& vector,
@@ -492,16 +462,6 @@ StringPiece PieceAfterEquals(const StringPiece& piece) {
     return ret;
   }
   return StringPiece(piece.data(), 0);
-}
-
-int CountCharacterMismatches(StringPiece s1, StringPiece s2) {
-  int s1_length = s1.size();
-  int s2_length = s2.size();
-  int mismatches = 0;
-  for (int i = 0, n = std::min(s1_length, s2_length); i < n; ++i) {
-    mismatches += s1[i] != s2[i];
-  }
-  return mismatches + std::abs(s1_length - s2_length);
 }
 
 void ParseShellLikeString(const StringPiece& input,

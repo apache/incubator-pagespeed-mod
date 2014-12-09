@@ -800,15 +800,10 @@ void HtmlKeywords::InitOptionallyClosedKeywords() {
   PrepareForBinarySearch(&optionally_closed_);
 }
 
-bool HtmlKeywords::WritePre(StringPiece str, StringPiece style,
-                            Writer* writer, MessageHandler* handler) {
-  GoogleString tag, escaped;
-  if (style.empty()) {
-    tag = "<pre>";
-  } else {
-    tag = StrCat("<pre style=\"", style, "\">");
-  }
-  bool ret = writer->Write(tag, handler);
+bool HtmlKeywords::WritePre(StringPiece str, Writer* writer,
+                            MessageHandler* handler) {
+  bool ret = writer->Write("<pre>\n", handler);
+  GoogleString escaped;
   ret &= writer->Write(HtmlKeywords::Escape(str, &escaped), handler);
   ret &= writer->Write("</pre>\n", handler);
   return ret;

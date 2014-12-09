@@ -18,24 +18,23 @@
 
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/rewriter/static_asset_config.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/data_url.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -68,7 +67,7 @@ LazyloadImagesFilter::LazyloadImagesFilter(RewriteDriver* driver)
 }
 LazyloadImagesFilter::~LazyloadImagesFilter() {}
 
-void LazyloadImagesFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void LazyloadImagesFilter::DetermineEnabled() {
   RewriterHtmlApplication::Status should_apply = ShouldApply(driver());
   set_is_enabled(should_apply == RewriterHtmlApplication::ACTIVE);
   if (!driver()->flushing_early()) {
@@ -254,7 +253,7 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
   if (finder->Available(driver()) == CriticalImagesFinder::kAvailable) {
     // Decode the url since the critical images in the finder are not
     // rewritten.
-    if (finder->IsHtmlCriticalImage(full_url, driver())) {
+    if (finder->IsHtmlCriticalImage(full_url.data(), driver())) {
       log_record->LogLazyloadFilter(
           RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
           RewriterApplication::NOT_APPLIED, false, true);
@@ -276,15 +275,8 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
   // before coming here, the only onload handler that we would delete would
   // be the one added by our very own beaconing code. We re-introduce this
   // beaconing onload logic via kImageOnloadCode.
-  // TODO(jud): Add these with addEventListener rather than with the attributes.
   element->DeleteAttribute(HtmlName::kOnload);
   driver()->AddAttribute(element, HtmlName::kOnload, kImageOnloadCode);
-  // Add onerror handler just in case the temporary pixel doesn't load.
-  element->DeleteAttribute(HtmlName::kOnerror);
-  // Note: this.onerror=null to avoid infinitely repeating on failure:
-  //   See: http://stackoverflow.com/questions/3984287
-  driver()->AddAttribute(element, HtmlName::kOnerror,
-                         StrCat("this.onerror=null;", kImageOnloadCode));
   ++num_images_lazily_loaded_;
 }
 
@@ -325,7 +317,7 @@ GoogleString LazyloadImagesFilter::GetBlankImageSrc(
     const StaticAssetManager* static_asset_manager) {
   const GoogleString& options_url = options->lazyload_images_blank_url();
   if (options_url.empty()) {
-    return static_asset_manager->GetAssetUrl(StaticAssetEnum::BLANK_GIF,
+    return static_asset_manager->GetAssetUrl(StaticAssetManager::kBlankGif,
                                              options);
   } else {
     return options_url;
@@ -339,7 +331,7 @@ GoogleString LazyloadImagesFilter::GetLazyloadJsSnippet(
       options->lazyload_images_after_onload() ? kTrue : kFalse;
   StringPiece lazyload_images_js =
       static_asset_manager->GetAsset(
-          StaticAssetEnum::LAZYLOAD_IMAGES_JS, options);
+          StaticAssetManager::kLazyloadImagesJs, options);
   const GoogleString& blank_image_url =
       GetBlankImageSrc(options, static_asset_manager);
   GoogleString lazyload_js =

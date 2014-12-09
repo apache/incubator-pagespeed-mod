@@ -18,16 +18,14 @@
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/js/js_tokenizer.h"
-#include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/util/simple_stats.h"
 
 namespace net_instaweb {
 
@@ -136,52 +134,13 @@ const char kBogusLibraryMD5[] = "ltVVzzYxo0";
 const char kBogusLibraryUrl[] =
     "//www.example.com/js/bogus_library.js";
 
-// Sample JSON code from http://json.org/example with tons of whitespace.
-// Modified to include even more whitespace between special characters and
-// in string values/keys.
-const char kJsonBeforeCompilation[] =
-    "\n\n{\n"
-    "    \"glossary    \": {\n"
-    "        \"title\": 'example glossary',\n"
-    "\t\t \"GlossDiv\": {\n"
-    "            \"title\": \"S\",\n"
-    "\t\t\t\"GlossList\"  : {\n"
-    "                \"GlossEntry\": {\n"
-    "                    \"ID\": \"SGML\"   ,\t\n"
-    "\t\t\t\t\t\t\"SortAs\": \"SGML\",\n"
-    "\t\t\t\t\t\t\t\t\"GlossTerm\": \"Standard Generalized Markup Language\",\n"
-    "\t\t\t\t\t\t\t\t\t\t\t     \t       \t\t   \t  \"Acronym\": \"SGML\",\n"
-    "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t  \t        \"Abbrev\": \"ISO 8879:1986\",\n"
-    "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t         \"GlossDef\": {\n"
-    "                        \"para\": \"A meta-markup language, used to create"
-    " markup languages such as DocBook.\",\n"
-    "\t\t\t\t   \t       \t\t      \"GlossSeeAlso\": [\"GML\", \"XML\"]\n"
-    "                    },\n"
-    "\t\t\t\t\t\t\"GlossSee\": \"markup\"\n"
-    "                }\n"
-    "            }\n"
-    "        }\n"
-    "    }\n"
-    "}\n\n\n";
-
-const char kJsonAfterCompilation[] =
-    "{\"glossary    \":{\"title\":'example glossary',\"GlossDiv\":{\"title\":"
-    "\"S\",\"GlossList\":{\"GlossEntry\":{\"ID\":\"SGML\",\"SortAs\":\"SGML\","
-    "\"GlossTerm\":\"Standard Generalized Markup Language\",\"Acronym\":"
-    "\"SGML\",\"Abbrev\":\"ISO 8879:1986\",\"GlossDef\":{\"para\":\"A "
-    "meta-markup language, used to create markup languages such as DocBook.\","
-    "\"GlossSeeAlso\":[\"GML\",\"XML\"]},\"GlossSee\":\"markup\"}}}}}";
-
 class JsCodeBlockTest : public ::testing::Test,
                         public ::testing::WithParamInterface<bool> {
  protected:
   JsCodeBlockTest()
-      : thread_system_(Platform::CreateThreadSystem()),
-        stats_(thread_system_.get()),
-        use_experimental_minifier_(GetParam()),
-        after_compilation_(use_experimental_minifier_
-                           ? kAfterCompilationNew
-                           : kAfterCompilationOld) {
+      : use_experimental_minifier_(GetParam()),
+        after_compilation_(use_experimental_minifier_ ? kAfterCompilationNew
+                                                      : kAfterCompilationOld) {
     JavascriptRewriteConfig::InitStats(&stats_);
     config_.reset(new JavascriptRewriteConfig(
         &stats_, true, use_experimental_minifier_, &libraries_,
@@ -235,19 +194,18 @@ class JsCodeBlockTest : public ::testing::Test,
     return new JavascriptCodeBlock(code, config_.get(), "Test", &handler_);
   }
 
-  void SingleBlockRewriteTest(const char* before_compilation,
-                              const char* after_compilation) {
-    scoped_ptr<JavascriptCodeBlock> block(TestBlock(before_compilation));
+  void SimpleRewriteTest() {
+    scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
     EXPECT_TRUE(block->Rewrite());
     EXPECT_TRUE(block->successfully_rewritten());
-    EXPECT_EQ(after_compilation, block->rewritten_code());
+    EXPECT_EQ(after_compilation_, block->rewritten_code());
     ExpectStats(1, 0,
-                strlen(before_compilation) - strlen(after_compilation),
-                strlen(before_compilation), 1);
+                STATIC_STRLEN(kBeforeCompilation) -
+                strlen(after_compilation_),
+                STATIC_STRLEN(kBeforeCompilation), 1);
   }
 
   GoogleMessageHandler handler_;
-  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   JavascriptLibraryIdentification libraries_;
   const pagespeed::js::JsTokenizerPatterns js_tokenizer_patterns_;
@@ -266,13 +224,13 @@ TEST_P(JsCodeBlockTest, Config) {
 }
 
 TEST_P(JsCodeBlockTest, Rewrite) {
-  SingleBlockRewriteTest(kBeforeCompilation, after_compilation_);
+  SimpleRewriteTest();
 }
 
 TEST_P(JsCodeBlockTest, RewriteNoIdentification) {
   // Make sure library identification setting doesn't change minification.
   DisableLibraryIdentification();
-  SingleBlockRewriteTest(kBeforeCompilation, after_compilation_);
+  SimpleRewriteTest();
 }
 
 TEST_P(JsCodeBlockTest, UnsafeToRename) {
@@ -390,24 +348,12 @@ TEST_P(JsCodeBlockTest, LibrarySignature) {
   EXPECT_EQ(expected_signature, signature);
 }
 
-TEST_P(JsCodeBlockTest, RewriteJson) {
-  SingleBlockRewriteTest(kJsonBeforeCompilation, kJsonAfterCompilation);
-}
-
-TEST_P(JsCodeBlockTest, InvalidJsonValidJs) {
-  // The JS minifier cannot detect invalid JSON which is also valid JS, so we
-  // expect this to work.
-  SingleBlockRewriteTest(
-      "{'foo': bar, baz :}",
-      "{'foo':bar,baz:}");
-}
-
 TEST_P(JsCodeBlockTest, BogusLibraryRegistration) {
   RegisterLibraries();
-  // Try to register a library with a bad md5 string.
+  // Try to register a library with a bad md5 string
   EXPECT_FALSE(libraries_.RegisterLibrary(73, "@$%@^#&#$^!%@#$",
                                           "//www.example.com/test.js"));
-  // Try to register a library with a bad url.
+  // Try to register a library with a bad url
   EXPECT_FALSE(libraries_.RegisterLibrary(47, kBogusLibraryMD5,
                                           "totally://bogus.protocol/"));
   EXPECT_FALSE(libraries_.RegisterLibrary(74, kBogusLibraryMD5,

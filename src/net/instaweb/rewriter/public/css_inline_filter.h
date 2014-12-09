@@ -21,15 +21,15 @@
 
 #include <cstddef>
 
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/semantic_type.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -73,15 +73,14 @@ class CssInlineFilter : public CommonFilter {
 
   // Delegated from InlineRewriteContext::CreateResource --- see there
   // for semantics.
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
+  virtual ResourcePtr CreateResource(const char* url);
 
  private:
   class Context;
   friend class Context;
 
   bool ShouldInline(const ResourcePtr& resource,
-                    const StringPiece& attrs_attribute,
-                    GoogleString* reason) const;
+                    const StringPiece& attrs_attribute) const;
   void RenderInline(const ResourcePtr& resource, const CachedResult& cached,
                     const GoogleUrl& base_url, const StringPiece& text,
                     HtmlElement* element);

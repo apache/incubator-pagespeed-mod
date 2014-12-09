@@ -20,7 +20,7 @@
 
 #include <cstddef>
 #include <map>
-#include <utility>
+#include <set>
 #include <vector>
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -31,12 +31,10 @@
 namespace net_instaweb {
 
 class MessageHandler;
-class MutexedScalar;
+class MutexedVariable;
 class Statistics;
 class StatisticsLogfileReader;
 class Timer;
-class UpDownCounter;
-class Variable;
 class Writer;
 
 class StatisticsLogger {
@@ -44,7 +42,7 @@ class StatisticsLogger {
   // Does not take ownership of any objects passed in.
   StatisticsLogger(
       int64 update_interval_ms, int64 max_logfile_size_kb,
-      const StringPiece& log_file, MutexedScalar* last_dump_timestamp,
+      const StringPiece& log_file, MutexedVariable* last_dump_timestamp,
       MessageHandler* message_handler, Statistics* stats,
       FileSystem* file_system, Timer* timer);
   ~StatisticsLogger();
@@ -53,7 +51,7 @@ class StatisticsLogger {
   // Variable data is a time series collected from with data points from
   // start_time to end_time. Granularity is the minimum time difference
   // between each successive data point.
-  void DumpJSON(bool dump_for_graphs, const StringSet& var_titles,
+  void DumpJSON(const std::set<GoogleString>& var_titles,
                 int64 start_time, int64 end_time, int64 granularity_ms,
                 Writer* writer, MessageHandler* message_handler) const;
 
@@ -64,37 +62,19 @@ class StatisticsLogger {
   // Trim file down if it gets above max_logfile_size_kb.
   void TrimLogfileIfNeeded();
 
-  // Preload all the variables required for statistics logging.  This
-  // must be called after statistics have been established, and
-  // before any logging is done.
-  //
-  // It is OK to call this multiple times (e.g. before & after a fork).
-  void Init();
-
  private:
   friend class StatisticsLoggerTest;
 
   typedef std::vector<GoogleString> VariableInfo;
   typedef std::map<GoogleString, VariableInfo> VarMap;
 
-  // Note that exactly one of these will be non-null; this is really
-  // a union, but I'm too lazy to make the enum tag, and there's no
-  // space advantage to doing so when there are only two choices.
-  typedef std::pair<Variable*, UpDownCounter*> VariableOrCounter;
-  typedef std::map<StringPiece, VariableOrCounter> VariableMap;
-
   // Export statistics to a writer. Only export stats needed for console.
   // current_time_ms: The time at which the dump was triggered.
   void DumpConsoleVarsToWriter(int64 current_time_ms, Writer* writer);
-  // Save the variables listed in var_titles to the map.
-  void ParseDataFromReader(const StringSet& var_titles,
+  void ParseDataFromReader(const std::set<GoogleString>& var_titles,
                            StatisticsLogfileReader* reader,
                            std::vector<int64>* list_of_timestamps,
                            VarMap* parsed_var_data) const;
-  // Save the variables needed by graphs page to the map.
-  void ParseDataForGraphs(StatisticsLogfileReader* reader,
-                          std::vector<int64>* list_of_timestamps,
-                          VarMap* parsed_var_data) const;
   // Parse a string into a map of variable name -> value.
   // Note: parsed_var_data StringPieces point into logfile_var_data and thus
   // have same lifetime as it.
@@ -109,15 +89,13 @@ class StatisticsLogger {
   void PrintJSON(const std::vector<int64>& list_of_timestamps,
                  const VarMap& parsed_var_data,
                  Writer* writer, MessageHandler* message_handler) const;
-  void AddVariable(StringPiece var_name);
-
   // Initializes all stats that will be needed for logging. Only call this in
   // tests to make sure getting those stats will work.
   void InitStatsForTest();
 
   // The last_dump_timestamp not only contains the time of the last dump,
   // it also controls locking so that multiple threads can't dump at once.
-  MutexedScalar* last_dump_timestamp_;
+  MutexedVariable* last_dump_timestamp_;
   MessageHandler* message_handler_;
   Statistics* statistics_;  // Needed so we can dump the stats contained here.
   // file_system_ and timer_ are owned by someone who called the constructor
@@ -127,7 +105,7 @@ class StatisticsLogger {
   const int64 update_interval_ms_;
   const int64 max_logfile_size_kb_;
   GoogleString logfile_name_;
-  VariableMap variables_to_log_;
+  std::set<GoogleString> variables_to_log_;
 
   DISALLOW_COPY_AND_ASSIGN(StatisticsLogger);
 };

@@ -20,24 +20,25 @@
 
 #include <algorithm>
 
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/null_mutex.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/response_headers.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 namespace {
 
@@ -51,7 +52,7 @@ static const char kTestDomain[] = "http://test.com/";
 //      +- TopChild2Child1
 static const char kTopCss[] =
     ".background_red{background-color:red}"
-    "@foobar { font-family: 'Magellan'; font-style: normal }"
+    "@font-face { font-family: 'Magellan'; font-style: normal }"
     ".foreground_yellow{color:#ff0}";
 static const char kTopChild1Css[] =
     ".background_blue{background-color:#00f}"
@@ -61,7 +62,7 @@ static const char kTopChild1Child1Css[] =
     ".foreground_pink{color:#ffc0cb}";
 static const char kTopChild2Css[] =
     ".background_white{background-color:#fff}"
-    "@foobar { font-family: 'Cook'; font-style: normal }"
+    "@font-face { font-family: 'Cook'; font-style: normal }"
     ".foreground_black{color:#000}";
 static const char kTopChild2Child1Css[] =
     ".background_green{background-color:#0f0}"
@@ -135,11 +136,7 @@ class CssHierarchyTest : public RewriteTestBase {
   bool AreEquivalent(const CssHierarchy& one, const CssHierarchy& two);
 
   GoogleString MakeAtImport(StringPiece url, StringPiece media) {
-    if (media.empty()) {
-      return StrCat("@import url(", url, ");");
-    } else {
-      return StrCat("@import url(", url, ") ", media, ";");
-    }
+    return StrCat("@import url(", url, ") ", media, ";");
   }
 
   MessageHandler* message_handler() { return &handler_; }
@@ -493,7 +490,9 @@ TEST_F(CssHierarchyTest, FailOnIndirectRecursion) {
 TEST_F(CssHierarchyTest, UnparseableSection) {
   InitializeCss("", "");  // to initialize top_url().
 
-  GoogleString unparseable_css = StrCat("@foobar { background: "
+  // NOTE: this syntax is valid in CSS3 so if we enhance our CSS parsing this
+  // test will fail.
+  GoogleString unparseable_css = StrCat("body { background: "
                                         "url(", top_url().Spec(), "), ",
                                         "url(", top_url().Spec(), ") }");
   CssHierarchy top(NULL);
@@ -547,7 +546,7 @@ TEST_F(CssHierarchyTest, CompatibleCharset) {
 
   // Construct a resource without a charset.
   ResourcePtr resource(
-      DataUrlInputResource::Make("data:text/css,test", rewrite_driver()));
+      DataUrlInputResource::Make("data:text/css,test", server_context()));
   ResponseHeaders* response_headers = resource->response_headers();
 
   // First check that with no charsets anywhere we match.
@@ -574,7 +573,7 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
 
   // Construct a resource with an incompatible charset.
   ResourcePtr resource(
-      DataUrlInputResource::Make("data:text/css,test", rewrite_driver()));
+      DataUrlInputResource::Make("data:text/css,test", server_context()));
   ResponseHeaders* response_headers = resource->response_headers();
   response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
                                             "; charset=utf-8"));
@@ -728,43 +727,6 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedAfterRollUpContents) {
   StringWriter writer(&out_text);
   CssMinify::Stylesheet(*top.stylesheet(), &writer, message_handler());
   EXPECT_EQ(flattened_css(), out_text);
-}
-
-TEST_F(CssHierarchyTest, RollUpContentsKeepsDebugMessages) {
-  CssHierarchy top(NULL);
-  InitializeNestedRoot(&top);
-  ExpandHierarchy(&top);
-
-  // Inject a log message into one of the to-be-rolled-up descendents.
-  CssHierarchy* grandchild = top.children()[0]->children()[0];
-  grandchild->AddFlatteningFailureReason("Nothing to see here!");
-
-  // Take this opportunity to also test that we don't add a new reason if
-  // its text is already in the failure reason.
-  grandchild->AddFlatteningFailureReason("But there is here!");    // Added.
-  grandchild->AddFlatteningFailureReason("Nothing to see here!");  // Ignored.
-  grandchild->AddFlatteningFailureReason("But there is here!");    // Ignored.
-  grandchild->AddFlatteningFailureReason("Nothing");               // Ignored.
-  grandchild->AddFlatteningFailureReason("here!");                 // Ignored.
-
-  top.RollUpContents();
-  EXPECT_TRUE(top.flattening_succeeded());
-  EXPECT_STREQ("Nothing to see here! AND But there is here!",
-               top.flattening_failure_reason());
-}
-
-TEST_F(CssHierarchyTest, RollUpStylesheetsKeepsDebugMessages) {
-  CssHierarchy top(NULL);
-  InitializeNestedRoot(&top);
-  ExpandHierarchy(&top);
-
-  // Inject a log message into one of the to-be-rolled-up descendents.
-  CssHierarchy* grandchild = top.children()[0]->children()[0];
-  grandchild->AddFlatteningFailureReason("Nothing to see here!");
-
-  top.RollUpStylesheets();
-  EXPECT_TRUE(top.flattening_succeeded());
-  EXPECT_STREQ("Nothing to see here!", top.flattening_failure_reason());
 }
 
 }  // namespace net_instaweb

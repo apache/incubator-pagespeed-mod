@@ -20,7 +20,12 @@
 
 #include <memory>
 
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
@@ -30,7 +35,10 @@
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/wait_url_async_fetcher.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/image_testing_peer.h"
 #include "net/instaweb/rewriter/public/dom_stats_filter.h"
@@ -47,44 +55,33 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/rendered_image.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/md5_hasher.h"  // for MD5Hasher
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_property_page.h"
+#include "net/instaweb/util/public/null_thread_system.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/md5_hasher.h"  // for MD5Hasher
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_thread_system.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"  // for Timer, etc
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"  // for Timer, etc
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/kernel/image/test_utils.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace net_instaweb {
+
+class AbstractMutex;
 
 using pagespeed::image_compression::kMessagePatternPixelFormat;
 using pagespeed::image_compression::kMessagePatternStats;
 using pagespeed::image_compression::kMessagePatternWritingToWebp;
-using ::testing::HasSubstr;
 
 namespace {
 
@@ -164,7 +161,7 @@ class TestRequestContext : public RequestContext {
  public:
   TestRequestContext(LoggingInfo* logging_info,
                      AbstractMutex* mutex)
-      : RequestContext(kDefaultHttpOptionsForTests, mutex, NULL),
+      : RequestContext(mutex, NULL),
         logging_info_copy_(logging_info) {
   }
 
@@ -318,31 +315,6 @@ class ImageRewriteTest : public RewriteTestBase {
     EXPECT_STREQ("ic", AppliedRewriterStringFromLog());
   }
 
-  void TestInlining(bool convert_to_webp, const char* user_agent,
-                    const StringPiece& file_name, const ContentType& input_type,
-                    const ContentType& output_type, bool expect_inline) {
-    rewrite_driver()->SetUserAgent(user_agent);
-    options()->set_image_inline_max_bytes(1000000);
-    options()->EnableFilter(RewriteOptions::kInlineImages);
-    options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-    options()->EnableFilter(RewriteOptions::kConvertPngToJpeg);
-    options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-    options()->EnableFilter(RewriteOptions::kRecompressPng);
-
-    if (convert_to_webp) {
-      options()->EnableFilter(RewriteOptions::kConvertJpegToWebp);
-      options()->EnableFilter(RewriteOptions::kConvertToWebpLossless);
-
-      RequestHeaders request_headers;
-      request_headers.Add(HttpAttributes::kAccept, "image/webp");
-      rewrite_driver()->SetRequestHeaders(request_headers);
-    }
-
-    rewrite_driver()->AddFilters();
-    TestSingleRewrite(file_name, input_type, output_type, "", "",
-                      true /*expect_rewritten*/, expect_inline);
-  }
-
   // Helper class to collect image srcs.
   class ImageCollector : public EmptyHtmlFilter {
    public:
@@ -402,8 +374,7 @@ class ImageRewriteTest : public RewriteTestBase {
         "kEenp/8oyIBf2ZEWaEfyv8BsICdAZ/XeTCAAAAAElFTkSuQmCC";
     GoogleString cuppa_string(kCuppaData);
     ResourcePtr cuppa_resource(
-        rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-            cuppa_string));
+        rewrite_driver()->CreateInputResourceAbsoluteUnchecked(cuppa_string));
     ASSERT_TRUE(cuppa_resource.get() != NULL);
     EXPECT_TRUE(ReadIfCached(cuppa_resource));
     GoogleString cuppa_contents;
@@ -411,8 +382,7 @@ class ImageRewriteTest : public RewriteTestBase {
     // Now make sure axing the original cuppa_string doesn't affect the
     // internals of the cuppa_resource.
     ResourcePtr other_resource(
-        rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-            cuppa_string));
+        rewrite_driver()->CreateInputResourceAbsoluteUnchecked(cuppa_string));
     ASSERT_TRUE(other_resource.get() != NULL);
     cuppa_string.clear();
     EXPECT_TRUE(ReadIfCached(other_resource));
@@ -1892,38 +1862,6 @@ TEST_F(ImageRewriteTest, NullResizeTest) {
                     " style", " style", false, false);
 }
 
-TEST_F(ImageRewriteTest, DebugResizeTest) {
-  options()->EnableFilter(RewriteOptions::kDebug);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  rewrite_driver()->AddFilters();
-  const char kResizedDims[] = " width=\"256\" height=\"192\"";
-  GoogleString initial_url = StrCat(kTestDomain, kPuzzleJpgFile);
-  GoogleString page_url = StrCat(kTestDomain, "test.html");
-  AddFileToMockFetcher(initial_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
-  const char html_boilerplate[] = "<img src='%s'%s>";
-  GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), kResizedDims);
-  ParseUrl(page_url, html_input);
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr("<!--Resized image from 1023x766 to 256x192-->"));
-}
-
-TEST_F(ImageRewriteTest, DebugNoResizeTest) {
-  options()->EnableFilter(RewriteOptions::kDebug);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  rewrite_driver()->AddFilters();
-  GoogleString initial_url = StrCat(kTestDomain, kPuzzleJpgFile);
-  GoogleString page_url = StrCat(kTestDomain, "test.html");
-  AddFileToMockFetcher(initial_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
-  const char html_boilerplate[] = "<img src='%s'>";
-  GoogleString html_input = StringPrintf(html_boilerplate, initial_url.c_str());
-  ParseUrl(page_url, html_input);
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr("<!--Image does not appear to need resizing.-->"));
-}
-
 TEST_F(ImageRewriteTest, TestLoggingWithoutOptimize) {
   // Make sure we don't resize, if we don't optimize.
   options()->EnableFilter(RewriteOptions::kResizeImages);
@@ -2054,38 +1992,6 @@ TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
       false, /* is_resized_using_rendered_dimensions */
       48, /* resized_width */
       64 /* resized_height */);
-}
-
-TEST_F(ImageRewriteTest, InlineTestWithResizeKeepDims) {
-  // their dimensions when we inline.
-  options()->set_image_inline_max_bytes(10000);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->EnableFilter(RewriteOptions::kDebug);
-  rewrite_driver()->AddFilters();
-
-  GoogleString initial_url = StrCat(kTestDomain, kChefGifFile);
-  GoogleString page_url = StrCat(kTestDomain, "test.html");
-  AddFileToMockFetcher(initial_url, kChefGifFile, kContentTypeGif, 100);
-  const char kResizedDims[] = " width=48 height=64";
-  const char html_boilerplate[] = "<td background='%s'%s></td>";
-  GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), kResizedDims);
-  ParseUrl(page_url, html_input);
-  // Image should have been resized
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr("<!--Resized image from 192x256 to 48x64-->"));
-  // And inlined
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr("<td background='data:"));
-  // But dimensions should still be there.
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr(kResizedDims));
 }
 
 TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimizeAndUrlLogging) {
@@ -2325,35 +2231,25 @@ TEST_F(ImageRewriteTest, Rewrite404) {
   // Make sure we don't fail when rewriting with invalid input.
   SetFetchResponse404("404.jpg");
   AddFilter(RewriteOptions::kRecompressJpeg);
-  DebugWithMessage("<!--4xx status code, preventing rewriting of %url%-->");
-  for (int i = 0; i < 2; ++i) {
-    // Try twice to exercise the cached case.
-    ValidateExpected(
-        "404",
-        "<img src='404.jpg'>",
-        StrCat("<img src='404.jpg'>", DebugMessage("404.jpg")));
-  }
+  ValidateNoChanges("404", "<img src='404.jpg'>");
+
+  // Try again to exercise cached case.
+  ValidateNoChanges("404", "<img src='404.jpg'>");
 }
 
 TEST_F(ImageRewriteTest, HonorNoTransform) {
   // If cache-control: no-transform then we should serve the original URL
   options()->EnableFilter(RewriteOptions::kRecompressPng);
   rewrite_driver()->AddFilters();
-  DebugWithMessage(
-      "<!--Cache-control: no-transform, preventing rewriting of %url%-->");
 
   GoogleString url = StrCat(kTestDomain, "notransform.png");
   AddFileToMockFetcher(url, kBikePngFile, kContentTypePng, 100);
   AddToResponse(url, HttpAttributes::kCacheControl, "no-transform");
 
-  for (int i = 0; i < 2; ++i) {
-    // Validate twice in case changes in cache from the first request alter the
-    // second.
-    ValidateExpected(
-        "NoTransform",
-        StrCat("<img src=", url, ">"),
-        StrCat("<img src=", url, ">", DebugMessage(url)));
-  }
+  ValidateNoChanges("NoTransform1", StrCat("<img src=", url, ">"));
+  // Validate twice in case changes in cache from the first request alter the
+  // second.
+  ValidateNoChanges("NoTransform2", StrCat("<img src=", url, ">"));
 }
 
 TEST_F(ImageRewriteTest, YesTransform) {
@@ -2484,8 +2380,8 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
 
   // Set the current # of rewrites very high, so we stop doing more
   // due to "load".
-  UpDownCounter* ongoing_rewrites =
-      statistics()->GetUpDownCounter(ImageRewriteFilter::kImageOngoingRewrites);
+  Variable* ongoing_rewrites =
+      statistics()->GetVariable(ImageRewriteFilter::kImageOngoingRewrites);
   ongoing_rewrites->Set(100);
 
   // If the nested context is too busy, we don't want the parent to partially
@@ -2736,9 +2632,8 @@ TEST_F(ImageRewriteTest, JpegQualityForSmallScreens) {
   ImageRewriteFilter image_rewrite_filter(rewrite_driver());
   ResourceContext ctx;
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  const ResourcePtr res_ptr(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "data:image/png;base64,test"));
+  const ResourcePtr res_ptr(rewrite_driver()->
+      CreateInputResourceAbsoluteUnchecked("data:image/png;base64,test"));
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
@@ -2861,9 +2756,8 @@ TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
   ImageRewriteFilter image_rewrite_filter(rewrite_driver());
   ResourceContext ctx;
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  const ResourcePtr res_ptr(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "data:image/png;base64,test"));
+  const ResourcePtr res_ptr(rewrite_driver()->
+      CreateInputResourceAbsoluteUnchecked("data:image/png;base64,test"));
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
@@ -3008,9 +2902,8 @@ TEST_F(ImageRewriteTest, JpegProgressiveScansForSmallScreens) {
   ImageRewriteFilter image_rewrite_filter(rewrite_driver());
   ResourceContext ctx;
   image_rewrite_filter.EncodeUserAgentIntoResourceContext(&ctx);
-  const ResourcePtr res_ptr(
-      rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
-          "data:image/png;base64,test"));
+  const ResourcePtr res_ptr(rewrite_driver()->
+      CreateInputResourceAbsoluteUnchecked("data:image/png;base64,test"));
   scoped_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr, false));
 
@@ -3201,7 +3094,7 @@ TEST_F(ImageRewriteTest, RewriteImagesAddingOptionsToUrl) {
   GoogleUrl img_gurl(html_gurl(), img_src);
   EXPECT_STREQ("", img_gurl.Query());
   ResourceNamer namer;
-  EXPECT_TRUE(rewrite_driver()->Decode(img_gurl.LeafSansQuery(), &namer));
+  EXPECT_TRUE(namer.Decode(img_gurl.LeafSansQuery()));
   EXPECT_STREQ("gp+jw+pj+rj+rp+rw+iq=73", namer.options());
 
   // Serve this from rewrite_driver(), which has the same cache & the
@@ -3336,8 +3229,8 @@ TEST_F(ImageRewriteTest, TooBusyReturnsOriginalResource) {
 
   // Set the current # of rewrites very high, so we stop doing more rewrites
   // due to "load".
-  UpDownCounter* ongoing_rewrites =
-      statistics()->GetUpDownCounter(ImageRewriteFilter::kImageOngoingRewrites);
+  Variable* ongoing_rewrites =
+      statistics()->GetVariable(ImageRewriteFilter::kImageOngoingRewrites);
   ongoing_rewrites->Set(100);
 
   TestSingleRewrite(kBikePngFile, kContentTypePng, kContentTypePng, "", "",
@@ -3528,234 +3421,6 @@ TEST_F(ImageRewriteTest, IproCorrectVaryHeaders) {
       response_headers.DetermineContentType()->mime_type();
   EXPECT_FALSE(response_headers.Has(HttpAttributes::kVary)) <<
       response_headers.Lookup1(HttpAttributes::kVary);
-}
-
-TEST_F(ImageRewriteTest, NoTransformOptimized) {
-  options()->set_no_transform_optimized_images(true);
-  AddRecompressImageFilters();
-  rewrite_driver()->AddFilters();
-  GoogleString initial_url = StrCat(kTestDomain, kBikePngFile);
-  AddFileToMockFetcher(initial_url, kBikePngFile, kContentTypePng, 100);
-  GoogleString out_jpg_url(Encode(kTestDomain, "ic", "0", kBikePngFile, "jpg"));
-  GoogleString out_jpg;
-  ResponseHeaders response_headers;
-  EXPECT_TRUE(FetchResourceUrl(out_jpg_url, &out_jpg, &response_headers));
-  ConstStringStarVector values;
-  ASSERT_TRUE(response_headers.Lookup(HttpAttributes::kCacheControl, &values));
-  bool found = false;
-  for (int i = 0, n = values.size(); i < n; ++i) {
-    found |= *(values[i]) == "no-transform";
-  }
-  EXPECT_TRUE(found);
-}
-
-TEST_F(ImageRewriteTest, ReportDimensionsToJs) {
-  options()->EnableFilter(RewriteOptions::kExperimentCollectMobImageInfo);
-  AddRecompressImageFilters();
-  rewrite_driver()->AddFilters();
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  AddFileToMockFetcher(StrCat(kTestDomain, "b.jpeg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-
-  SetupWriter();
-  rewrite_driver()->StartParse(StrCat(kTestDomain, "dims.html"));
-  rewrite_driver()->ParseText(StrCat("<img src=\"", kTestDomain, "a.png\">"));
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText(StrCat("<img src=\"", kTestDomain, "b.jpeg\">"));
-  rewrite_driver()->FinishParse();
-
-  GoogleString out_png_url(Encode(kTestDomain, "ic", "0", "a.png", "jpg"));
-  GoogleString out_jpeg_url(Encode(kTestDomain, "ic", "0", "b.jpeg", "jpg"));
-  GoogleString js = StrCat(
-      "psMobStaticImageInfo = {"
-      "\"", out_png_url, "\":{w:100,h:100},"
-      "\"", out_jpeg_url, "\":{w:1023,h:766},"
-      "}");
-  EXPECT_EQ(StrCat(StrCat("<img src=\"", out_png_url, "\">"),
-                   StrCat("<img src=\"", out_jpeg_url, "\">"),
-                          "<script>", js, "</script>"),
-            output_buffer_);
-}
-
-TEST_F(ImageRewriteTest, ReportDimensionsToJsPartial) {
-  // Test where one image isn't loaded in time. We report partial info.
-  SetupWaitFetcher();
-  options()->EnableFilter(RewriteOptions::kExperimentCollectMobImageInfo);
-  AddRecompressImageFilters();
-  rewrite_driver()->AddFilters();
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  AddFileToMockFetcher(StrCat(kTestDomain, "b.jpeg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  factory()->wait_url_async_fetcher()->DoNotDelay(StrCat(kTestDomain, "a.png"));
-
-  SetupWriter();
-  rewrite_driver()->StartParse(StrCat(kTestDomain, "dims.html"));
-  rewrite_driver()->ParseText("<img src=\"a.png\"><img src=\"b.jpeg\">");
-  rewrite_driver()->FinishParse();
-
-  GoogleString out_png_url(Encode("", "ic", "0", "a.png", "jpg"));
-  GoogleString out_jpeg_url(Encode("", "ic", "0", "b.jpeg", "jpg"));
-  GoogleString js1 = StrCat(
-      "psMobStaticImageInfo = {"
-      "\"", kTestDomain, out_png_url, "\":{w:100,h:100},"
-      "}");
-  GoogleString js2 = StrCat(
-      "psMobStaticImageInfo = {"
-      "\"", kTestDomain, out_png_url, "\":{w:100,h:100},"
-      "\"", kTestDomain, out_jpeg_url, "\":{w:1023,h:766},"
-      "}");
-  EXPECT_EQ(StrCat(StrCat("<img src=\"", out_png_url, "\">"),
-                   "<img src=\"b.jpeg\">",
-                   "<script>", js1, "</script>"),
-            output_buffer_);
-
-  CallFetcherCallbacks();
-
-  // Next time all is available.
-  output_buffer_.clear();
-  SetupWriter();
-  rewrite_driver()->StartParse(StrCat(kTestDomain, "dims2.html"));
-  rewrite_driver()->ParseText("<img src=\"a.png\"><img src=\"b.jpeg\">");
-  rewrite_driver()->FinishParse();
-  EXPECT_EQ(StrCat(StrCat("<img src=\"", out_png_url, "\">"),
-                   StrCat("<img src=\"", out_jpeg_url, "\">"),
-                   "<script>", js2, "</script>"),
-            output_buffer_);
-}
-
-TEST_F(ImageRewriteTest, DebugMessageImageInfo) {
-  options()->EnableFilter(RewriteOptions::kDebug);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->EnableFilter(RewriteOptions::kRecompressPng);
-  rewrite_driver()->AddFilters();
-  AddFileToMockFetcher("photo_opaque.gif", kChefGifFile, kContentTypeGif,
-                       100);
-  AddFileToMockFetcher("graphic_transparent.png", kCuppaTPngFile,
-                       kContentTypePng, 100);
-
-  Parse("single_attribute",
-        "<img src=photo_opaque.gif><img src=graphic_transparent.png>");
-
-  const GoogleString expected = StrCat(
-      "<img src=", Encode("", "ic", "0", "photo_opaque.gif", "png"), ">"
-      "<!--Image does not appear to need resizing.-->"
-      "<!--Image has no transparent pixels and is not sensitive "
-      "to compression noise.-->"
-      "<img src=graphic_transparent.png>"
-      "<!--Image does not appear to need resizing.-->"
-      "<!--Image has transparent pixels and is sensitive to "
-      "compression noise.-->"
-      );
-
-  EXPECT_THAT(output_buffer_, HasSubstr(expected));
-}
-
-TEST_F(ImageRewriteTest, DebugMessageInline) {
-  options()->set_image_inline_max_bytes(100);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->EnableFilter(RewriteOptions::kDebug);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  rewrite_driver()->AddFilters();
-
-  GoogleString initial_url = StrCat(kTestDomain, kChefGifFile);
-  GoogleString page_url = StrCat(kTestDomain, "test.html");
-  AddFileToMockFetcher(initial_url, kChefGifFile, kContentTypeGif, 100);
-  const char html_boilerplate[] = "<img src='%s' width='10' height='12'>";
-  GoogleString html_input = StringPrintf(html_boilerplate, initial_url.c_str());
-
-  ParseUrl(page_url, html_input);
-
-  const char kInlineMessage[] =
-      "The image was not inlined because it has too many bytes.";
-  EXPECT_THAT(output_buffer_, HasSubstr(kInlineMessage));
-}
-
-TEST_F(ImageRewriteTest, DebugMessageUnauthorized) {
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kDebug);
-  rewrite_driver()->AddFilters();
-  const char kAuthorizedPath[] = "http://test.com/photo_opaque.gif";
-  const char kUnauthorizedPath[] = "http://unauth.com/photo_opaque.gif";
-  AddFileToMockFetcher(kAuthorizedPath, kChefGifFile, kContentTypeGif, 100);
-  AddFileToMockFetcher(kUnauthorizedPath, kChefGifFile, kContentTypeGif, 100);
-
-  Parse("unauthorized_domain", StrCat("<img src=", kAuthorizedPath, ">"
-                                      "<img src=", kUnauthorizedPath, ">"));
-
-  GoogleUrl unauth_gurl(kUnauthorizedPath);
-  const GoogleString expected = StrCat(
-      "<img src=", Encode(kTestDomain, "ic", "0", "photo_opaque.gif", "png"),
-      ">"
-      "<!--Image does not appear to need resizing.-->"
-      "<!--Image has no transparent pixels and is not sensitive "
-      "to compression noise.-->"
-      "<img src=", kUnauthorizedPath, ">",
-      "<!--",
-      RewriteDriver::GenerateUnauthorizedDomainDebugComment(unauth_gurl),
-      "-->");
-
-  EXPECT_THAT(output_buffer_, HasSubstr(expected));
-}
-
-// Chrome on iPhone rewrites a photo-like GIF to lossy WebP but cannot inline
-// it.
-TEST_F(ImageRewriteTest, ChromeIphoneOutlinesWebP) {
-  TestInlining(true, UserAgentMatcherTestBase::kIPhoneChrome36UserAgent,
-               kChefGifFile, kContentTypeGif, kContentTypeWebp, false);
-}
-
-// Chrome on iPad rewrites a graphics-like PNG to lossless WebP but cannot
-// inline it.
-TEST_F(ImageRewriteTest, ChromeIpadInlinesPng) {
-  TestInlining(true, UserAgentMatcherTestBase::kIPadChrome36UserAgent,
-               kCuppaTPngFile, kContentTypePng, kContentTypeWebp, false);
-}
-
-// Chrome on iPad rewrites a JPEG to lossy WebP but cannot inline it.
-TEST_F(ImageRewriteTest, ChromeIpadOutlinesWebp) {
-  TestInlining(true, UserAgentMatcherTestBase::kIPadChrome36UserAgent,
-               kPuzzleJpgFile, kContentTypeJpeg, kContentTypeWebp, false);
-}
-
-// Chrome on iPhone rewrites a graphics-like PNG to another PNG and inlines it.
-TEST_F(ImageRewriteTest, ChromeIphoneInlinesPng) {
-  TestInlining(false, UserAgentMatcherTestBase::kIPhoneChrome36UserAgent,
-               kCuppaPngFile, kContentTypePng, kContentTypePng, true);
-}
-
-// Chrome on iPad rewrites a JPEG to another JPEG and inlines it.
-TEST_F(ImageRewriteTest, ChromeIpadInlinesJpeg) {
-  TestInlining(false, UserAgentMatcherTestBase::kIPadChrome36UserAgent,
-               kPuzzleJpgFile, kContentTypeJpeg, kContentTypeJpeg, true);
-}
-
-// Safari on iPhone rewrites a photo-like GIF to JPEG and inlines it.
-TEST_F(ImageRewriteTest, SafariIphoneInlinesJpeg) {
-  TestInlining(false, UserAgentMatcherTestBase::kIPhone4Safari,
-               kChefGifFile, kContentTypeGif, kContentTypeJpeg, true);
-}
-
-// Chrome on Android rewrites a photo-like PNG to lossy WebP and inlines it.
-TEST_F(ImageRewriteTest, ChromeAndroidInlinesWebP) {
-  TestInlining(true, UserAgentMatcherTestBase::kAndroidChrome21UserAgent,
-               kChefGifFile, kContentTypeGif, kContentTypeWebp, true);
-}
-
-// Chrome on desktop rewrites a JPEG to lossy WebP and inlines it.
-TEST_F(ImageRewriteTest, ChromeDesktopInlinesWebp) {
-  TestInlining(true, UserAgentMatcherTestBase::kChrome18UserAgent,
-               kPuzzleJpgFile, kContentTypeJpeg, kContentTypeWebp, true);
-}
-
-// Chrome on Android rewrites a graphics-like PNG to lossless WebP and
-// inlines it.
-TEST_F(ImageRewriteTest, ChromeAndroidInlinesLosslessWebp) {
-  TestInlining(true, UserAgentMatcherTestBase::kNexus10ChromeUserAgent,
-               kCuppaTPngFile, kContentTypePng, kContentTypeWebp, true);
 }
 
 }  // namespace net_instaweb

@@ -19,11 +19,11 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_DISABLE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_DISABLE_FILTER_H_
 
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -45,7 +45,7 @@ class JsDisableFilter : public CommonFilter {
   static const char kEnableJsExperimental[];
   static const char kElementOnloadCode[];
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   virtual const char* Name() const {
     return "JsDisableFilter";

@@ -19,10 +19,10 @@
 
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -73,18 +73,6 @@ class UrlPartnership {
   // in this partnership.
   int NumCommonComponents() const { return common_components_.size(); }
 
-  // Based on the UrlNamer and DomainLawyer, find the domain associated with a
-  // request, removing any proxy prefix that may have been added by the
-  // UrlNamer. The meaning of "associated" is defined by the UrlNamer
-  // implementation. *resource is also adjusted to the version that will be
-  // written out to the page.
-  static bool FindResourceDomain(const GoogleUrl& base_url,
-                                 const UrlNamer* url_namer,
-                                 const RewriteOptions* rewrite_options,
-                                 GoogleUrl* resource,
-                                 GoogleString* domain,
-                                 MessageHandler* handler);
-
  protected:
   const RewriteOptions* rewrite_options() const { return rewrite_options_; }
 
@@ -93,6 +81,14 @@ class UrlPartnership {
   // the common_components which helps us track how long the combined URL
   // will be and avoid exceeding URL limits.
   void IncrementalResolve(int index);
+
+  // Based on the UrlNamer and DomainLawyer, find the domain associated with a
+  // request, removing any proxy prefix that may have been added by the
+  // UrlNamer. The meaning of "associated" is defined by the UrlNamer
+  // implementation.
+  bool FindResourceDomain(GoogleUrl* resource,
+                          GoogleString* domain,
+                          MessageHandler* handler) const;
 
   typedef std::vector<GoogleUrl*> GurlVector;
   GurlVector url_vector_;

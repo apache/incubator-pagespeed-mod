@@ -23,11 +23,11 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/util/url_escaper.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/url_escaper.h"
 
 namespace net_instaweb {
 
@@ -70,18 +70,9 @@ static const char kSeparatorChar = kSeparatorString[0];
 
 const int ResourceNamer::kOverhead = 4 + STATIC_STRLEN(kSystemId);
 
-bool ResourceNamer::DecodeIgnoreHashAndSignature(StringPiece encoded_string) {
-  // Decode only takes into consideration signatures if the provided signature
-  // length is greater than 0. Providing -1 for signature_length will cause the
-  // hash_length to be ignored. Hash and signature outputs from this function
-  // must not be used.
-  return Decode(encoded_string, -1, -1);
-}
-
-bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
-                           int signature_length) {
+bool ResourceNamer::Decode(const StringPiece& encoded_string) {
   // Expected syntax:
-  //   name.pagespeed[.experiment|.options].id.hash[signature].ext
+  //   name.pagespeed[.experiment|.options].id.hash.ext
   // Note that 'name' and 'options' may have arbitrary numbers of dots, so
   // we parse by anchoring at the 'pagespeed', beginning, and end of the
   // StringPiece vector.
@@ -105,29 +96,16 @@ bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
   // preceding the system-ID are part of the name.  Extra segments after the
   // system-ID are the options or experiments.  Options always are more than
   // one character, experiments always have 1 character.
-  // If the url is to be signed, the signature is one or more characters, and
-  // the signature is placed between the hash and the extension.
   if ((system_id_index >= 1) &&      // at least 1 segment before the system ID.
       (n - system_id_index >= 4)) {  // at least 3 segments after the system ID.
     name_.clear();
     AppendJoinIterator(&name_,
                        segments.begin(), segments.begin() + system_id_index,
                        kSeparatorString);
-    // Looking from the right, we should see ext, hash[signature], id
-    // If the hash/signature segment is not of the exact length specified, we
-    // take the entire segment as the hash and set the signature to an empty
-    // string.
-    bool is_signed =
-        (signature_length > 0) &&
-        (segments[n - 2].size() ==
-         static_cast<unsigned int>(hash_length + signature_length));
+
+    // Looking from the right, we should always see ext, hash, id
     segments[--n].CopyToString(&ext_);
-    if (is_signed) {
-      segments[--n].substr(0, hash_length).CopyToString(&hash_);
-      segments[n].substr(hash_length).CopyToString(&signature_);
-    } else {
-      segments[--n].CopyToString(&hash_);
-    }
+    segments[--n].CopyToString(&hash_);
     segments[--n].CopyToString(&id_);
 
     // Now between system_id_index and n, we have the experiment or options.
@@ -171,10 +149,8 @@ bool ResourceNamer::LegacyDecode(const StringPiece& encoded_string) {
       names[1].CopyToString(&hash_);
 
       // The legacy hash codes were all either 1-character (for tests) or
-      // 32 characters, all in hex. There is no point in being backwards
-      // compatible with tests, however, and it can occasionally cause us to
-      // log spam (issue 688), so we only accept the production one.
-      if (hash_.size() != 32) {
+      // 32 characters, all in hex.
+      if ((hash_.size() != 1) && (hash_.size() != 32)) {
         return false;
       }
       for (int i = 0, n = hash_.size(); i < n; ++i) {
@@ -211,8 +187,7 @@ GoogleString ResourceNamer::InternalEncode() const {
     parts.push_back(encoded_options);
   }
   parts.push_back(id_);
-  GoogleString hash_signature = StrCat(hash_, signature_);
-  parts.push_back(hash_signature);
+  parts.push_back(hash_);
   parts.push_back(ext_);
   return JoinCollection(parts, kSeparatorString);
 }
@@ -229,7 +204,6 @@ GoogleString ResourceNamer::Encode() const {
   DCHECK(StringPiece::npos == hash_.find(kSeparatorChar));
   DCHECK(StringPiece::npos == ext_.find(kSeparatorChar));
   DCHECK(StringPiece::npos == experiment_.find(kSeparatorChar));
-  DCHECK(StringPiece::npos == signature_.find(kSeparatorChar));
   DCHECK(!has_experiment() || experiment_.length());
   DCHECK(!(has_experiment() && has_options()));
   return InternalEncode();
@@ -246,23 +220,20 @@ void ResourceNamer::CopyFrom(const ResourceNamer& other) {
   other.options().CopyToString(&options_);
   other.hash().CopyToString(&hash_);
   other.ext().CopyToString(&ext_);
-  other.signature().CopyToString(&signature_);
   other.experiment().CopyToString(&experiment_);
 }
 
-int ResourceNamer::EventualSize(const Hasher& hasher,
-                                int signature_length) const {
-  int eventual_size = name_.size() + id_.size() + ext_.size() + kOverhead +
-                      hasher.HashSizeInChars() + signature_length;
+int ResourceNamer::EventualSize(const Hasher& hasher) const {
+  int e = name_.size() + id_.size() + ext_.size() + kOverhead +
+      hasher.HashSizeInChars();
   if (has_experiment()) {
-    // Experiment is one character, plus one for the separator.
-    eventual_size += 2;
+    e += 2;  // Experiment is one character, plus one for the separator.
   } else if (has_options()) {
     GoogleString encoded_options;
     UrlEscaper::EncodeToUrlSegment(options_, &encoded_options);
-    eventual_size += 1 + encoded_options.size();  // add one for the separator.
+    e += 1 + encoded_options.size();  // add one for the separator.
   }
-  return eventual_size;
+  return e;
 }
 
 }  // namespace net_instaweb

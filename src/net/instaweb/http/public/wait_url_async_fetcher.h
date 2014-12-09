@@ -19,13 +19,12 @@
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_WAIT_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_WAIT_URL_ASYNC_FETCHER_H_
 
-#include <set>
 #include <vector>
 
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -58,16 +57,12 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
   // any pending callbacks are called.
   bool SetPassThroughMode(bool pass_through_mode);
 
-  // Makes the given URL be fetched immediately.
-  void DoNotDelay(const GoogleString& url);
-
  private:
   class DelayedFetch;
 
   bool CallCallbacksAndSwitchModesHelper(bool new_mode);
 
   UrlAsyncFetcher* url_fetcher_;
-  std::set<GoogleString> do_not_delay_urls_;
   std::vector<DelayedFetch*> delayed_fetches_;
   bool pass_through_mode_;
   scoped_ptr<AbstractMutex> mutex_;

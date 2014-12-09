@@ -64,10 +64,6 @@ class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
   virtual bool Reset();
   virtual size_t GetBytesPerScanline();
   virtual bool HasMoreScanLines();
-  virtual bool IsProgressive();
-
-  // Will return an error status if the underlying MultipleFrameReader
-  // is processing an animated image.
   virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
                                               size_t buffer_length);
   virtual ScanlineStatus ReadNextScanlineWithStatus(
@@ -79,8 +75,8 @@ class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
  private:
   scoped_ptr<MultipleFrameReader> impl_;
 
-  ImageSpec image_spec_;
-  FrameSpec frame_spec_;
+  const ImageSpec* image_spec_;
+  const FrameSpec* frame_spec_;
 
   DISALLOW_COPY_AND_ASSIGN(FrameToScanlineReaderAdapter);
 };
@@ -128,8 +124,8 @@ class ScanlineToFrameReaderAdapter : public MultipleFrameReader {
   virtual bool HasMoreScanlines() const;
   virtual ScanlineStatus PrepareNextFrame();
   virtual ScanlineStatus ReadNextScanline(const void** out_scanline_bytes);
-  virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const;
-  virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const;
+  virtual ScanlineStatus GetFrameSpec(const FrameSpec** frame_spec) const;
+  virtual ScanlineStatus GetImageSpec(const ImageSpec** image_spec) const;
 
  private:
   enum {

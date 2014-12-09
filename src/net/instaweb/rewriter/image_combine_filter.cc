@@ -26,35 +26,35 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/css_resource_slot.h"
+#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/css_util.h"
+#include "net/instaweb/rewriter/public/css_resource_slot.h"
 #include "net/instaweb/rewriter/public/image.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/spriter/image_library_interface.h"
 #include "net/instaweb/spriter/public/image_spriter.h"
 #include "net/instaweb/spriter/public/image_spriter.pb.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/image_types.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/identifier.h"
 #include "webutil/css/parser.h"
@@ -1161,40 +1161,36 @@ bool ImageCombineFilter::GetDeclarationDimensions(
 
 // Must initialize context_ with appropriate parent before hand.
 // parent passed here because it's private.
-bool ImageCombineFilter::AddCssBackgroundContext(
+void ImageCombineFilter::AddCssBackgroundContext(
     const GoogleUrl& original_url, const GoogleUrl& base_url,
     Css::Values* values, int value_index,
     CssFilter::Context* parent, Css::Declarations* decls,
-    bool* is_authorized, MessageHandler* handler) {
+    MessageHandler* handler) {
   CHECK(context_ != NULL);
-  *is_authorized = true;  // Only false if original_url isn't authorized.
   int width, height;
   if (!GetDeclarationDimensions(decls, &width, &height)) {
-    return false;
+    return;
   }
   StringPiece url_piece(original_url.Spec());
-  scoped_ptr<SpriteFuture> future(new SpriteFuture(url_piece, width, height,
-                                                   decls));
+  SpriteFuture* future = new SpriteFuture(url_piece, width, height, decls);
+
   future->Initialize(values->at(value_index));
 
-  ResourcePtr resource = CreateInputResource(url_piece, is_authorized);
-  if (resource.get() == NULL) {
-    return false;
+  ResourcePtr resource = CreateInputResource(url_piece);
+  if (resource.get() != NULL) {
+    // transfers ownership of future to slot_obj
+    SpriteFutureSlot* slot_obj = new SpriteFutureSlot(
+        resource, base_url, driver()->options(), values, value_index, future);
+    CssResourceSlotPtr slot(slot_obj);
+    parent->slot_factory()->UniquifySlot(slot);
+    // Spriting must run before all other filters so that the slot for the
+    // resource a SpriteFutureSlot
+    if (slot.get() != slot_obj) {
+      return;
+    }
+    context_->AddFuture(slot);
   }
-
-  // transfers ownership of future to slot_obj
-  SpriteFutureSlot* slot_obj = new SpriteFutureSlot(
-      resource, base_url, driver()->options(), values, value_index,
-      future.release());
-  CssResourceSlotPtr slot(slot_obj);
-  parent->slot_factory()->UniquifySlot(slot);
-  // Spriting must run before all other filters so that the slot for the
-  // resource a SpriteFutureSlot
-  if (slot.get() != slot_obj) {
-    return false;
-  }
-  context_->AddFuture(slot);
-  return true;
+  return;
 }
 
 void ImageCombineFilter::Reset(RewriteContext* parent,

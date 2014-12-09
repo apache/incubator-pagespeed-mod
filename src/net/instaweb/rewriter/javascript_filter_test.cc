@@ -20,33 +20,29 @@
 
 #include "net/instaweb/rewriter/public/javascript_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/rewriter/public/debug_filter.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/support_noscript_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/semantic_type.h"
 
 namespace {
 
@@ -75,13 +71,6 @@ const char kOrigJsNameRegexp[] = "*hello.js*";
 const char kUnauthorizedJs[] = "http://other.domain.com/hello.js";
 const char kRewrittenJsName[] = "hello.js";
 const char kLibraryUrl[] = "https://www.example.com/hello/1.0/hello.js";
-const char kIntrospectiveJS[] =
-    "<script type='text/javascript' src='introspective.js'></script>";
-
-const char kJsonData[] = "  {  'foo' :  [ 'bar' , 'baz' ]  }  ";
-const char kJsonMinData[] = "{'foo':['bar','baz']}";
-const char kOrigJsonName[] = "hello.json";
-const char kRewrittenJsonName[] = "hello.json";
 
 }  // namespace
 
@@ -113,8 +102,7 @@ class JavascriptFilterTest : public RewriteTestBase,
   }
 
   void InitFilters() {
-    options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
-    options()->EnableFilter(RewriteOptions::kRewriteJavascriptInline);
+    options()->EnableFilter(RewriteOptions::kRewriteJavascript);
     options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
     rewrite_driver_->AddFilters();
   }
@@ -211,31 +199,6 @@ TEST_P(JavascriptFilterTest, DoRewrite) {
 TEST_P(JavascriptFilterTest, DontRewriteUnauthorizedDomain) {
   InitFiltersAndTest(100);
   ValidateNoChanges("dont_rewrite", GenerateHtml(kUnauthorizedJs));
-}
-
-TEST_P(JavascriptFilterTest, DebugForUnauthorizedDomain) {
-  StringVector expected_disabled_filters;
-  SupportNoscriptFilter tmp(rewrite_driver());
-  expected_disabled_filters.push_back(tmp.Name());
-  const char kCaseId[] = "debug_unauthorized_domain";
-  const GoogleString html_input = GenerateHtml(kUnauthorizedJs);
-  // Remove the trailing newline as it's in the way :-(
-  GoogleString html_output = html_input.substr(0, html_input.length() - 1);
-  GoogleUrl gurl(kUnauthorizedJs);
-  StrAppend(&html_output,
-            "<!--",
-            RewriteDriver::GenerateUnauthorizedDomainDebugComment(gurl),
-            "-->"
-            "\n");
-  html_output = AddHtmlBody(html_output);
-  GoogleString end_document_message = DebugFilter::FormatEndDocumentMessage(
-      0, 0, 0, 0, 0, false, StringSet(), expected_disabled_filters);
-  options()->EnableFilter(RewriteOptions::kDebug);
-  InitFiltersAndTest(100);
-  Parse(kCaseId, html_input);
-  EXPECT_HAS_SUBSTR(html_output, output_buffer_) << "Test id:" << kCaseId;
-  EXPECT_HAS_SUBSTR(end_document_message, output_buffer_)
-      << "Test id:" << kCaseId;
 }
 
 TEST_P(JavascriptFilterTest, DontRewriteUnauthorizedDomainWithUnauthOptionSet) {
@@ -336,13 +299,12 @@ TEST_P(JavascriptFilterTest, IdentifyLibraryTwice) {
 TEST_P(JavascriptFilterTest, JsPreserveURLsOnTest) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
-  options()->SoftEnableFilterForTesting(
-      RewriteOptions::kRewriteJavascriptExternal);
+  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteJavascript);
   options()->SoftEnableFilterForTesting(
       RewriteOptions::kCanonicalizeJavascriptLibraries);
   options()->set_js_preserve_urls(true);
   rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascriptExternal));
+  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
   // Verify that preserve had a chance to forbid some filters.
   EXPECT_FALSE(options()->Enabled(
       RewriteOptions::kCanonicalizeJavascriptLibraries));
@@ -377,8 +339,7 @@ TEST_P(JavascriptFilterTest, JsPreserveOverridingExtend) {
   global_options->EnableFilter(RewriteOptions::kExtendCacheCss);
 
   scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
-  vhost_options->SoftEnableFilterForTesting(
-      RewriteOptions::kRewriteJavascriptExternal);
+  vhost_options->SoftEnableFilterForTesting(RewriteOptions::kRewriteJavascript);
   vhost_options->SoftEnableFilterForTesting(
       RewriteOptions::kCanonicalizeJavascriptLibraries);
   vhost_options->set_js_preserve_urls(true);
@@ -386,7 +347,7 @@ TEST_P(JavascriptFilterTest, JsPreserveOverridingExtend) {
   options()->Merge(*vhost_options);
 
   rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascriptExternal));
+  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
   InitTest(100);
 
   // Make sure the URL doesn't change.
@@ -417,14 +378,14 @@ TEST_P(JavascriptFilterTest, JsExtendOverridingPreserve) {
 
   scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
   global_options->set_js_preserve_urls(true);
-  global_options->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
+  global_options->EnableFilter(RewriteOptions::kRewriteJavascript);
 
   scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
   vhost_options->EnableFilter(RewriteOptions::kExtendCacheScripts);
   options()->Merge(*global_options);
   options()->Merge(*vhost_options);
   rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascriptExternal));
+  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
   InitTest(100);
 
   // Make sure the URL is updated.
@@ -452,13 +413,11 @@ TEST_P(JavascriptFilterTest, JsExtendOverridingPreserve) {
 TEST_P(JavascriptFilterTest, JsPreserveURLsNoPreemptiveRewriteTest) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
-  options()->SoftEnableFilterForTesting(
-      RewriteOptions::kRewriteJavascriptExternal);
+  options()->SoftEnableFilterForTesting(RewriteOptions::kRewriteJavascript);
   options()->set_js_preserve_urls(true);
   options()->set_in_place_preemptive_rewrite_javascript(false);
   rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(
-      RewriteOptions::kRewriteJavascriptExternal));
+  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascript));
   InitTest(100);
   // Make sure the URL doesn't change.
   ValidateExpected("js_urls_preserved_no_preemptive",
@@ -550,7 +509,7 @@ TEST_P(JavascriptFilterTest, IdentifyFailureNoMinification) {
 TEST_P(JavascriptFilterTest, IgnoreLibraryNoIdentification) {
   RegisterLibrary();
   // We register the library but don't enable library redirection.
-  options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
+  options()->EnableFilter(RewriteOptions::kRewriteJavascript);
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("ignore_library",
@@ -634,25 +593,6 @@ TEST_P(JavascriptFilterTest, ServeRewrittenLibrary) {
   ValidateExpected("identify_library",
                    GenerateHtml(kOrigJsName),
                    GenerateHtml(kLibraryUrl));
-}
-
-TEST_P(JavascriptFilterTest, ServeJsonFile) {
-  InitFilters();
-  // Set content type extension to "js" because filter is caching it with js
-  // extension, but the in-place lookup will still cache and serve with original
-  // content type. Tests for this in in_place_rewrite_context_test.
-  TestServeFiles(&kContentTypeJson, kFilterId, "js",
-                 kOrigJsonName, kJsonData,
-                 kRewrittenJsonName, kJsonMinData);
-
-  EXPECT_EQ(1, blocks_minified_->Get());
-  EXPECT_EQ(0, minification_failures_->Get());
-  EXPECT_EQ(STATIC_STRLEN(kJsonData) - STATIC_STRLEN(kJsonMinData),
-            total_bytes_saved_->Get());
-  EXPECT_EQ(STATIC_STRLEN(kJsonData), total_original_bytes_->Get());
-  // Note: We do not count any uses, because we did not write the URL into
-  // an HTML file, just served it on request.
-  EXPECT_EQ(0, num_uses_->Get());
 }
 
 TEST_P(JavascriptFilterTest, IdentifyAjaxLibrary) {
@@ -1039,7 +979,6 @@ TEST_P(JavascriptFilterTest, StripInlineWhitespaceFlush) {
 }
 
 TEST_P(JavascriptFilterTest, Aris) {
-  options()->EnableFilter(RewriteOptions::kDebug);
   InitFilters();
 
   const char introspective_js[] =
@@ -1047,16 +986,11 @@ TEST_P(JavascriptFilterTest, Aris) {
   SetResponseWithDefaultHeaders("introspective.js", kContentTypeJavascript,
                                 introspective_js, 100);
 
-  Parse("introspective", GenerateHtml("introspective.js"));
-  const GoogleString kInsertComment =
-      StrCat(kIntrospectiveJS, "<!--",
-             JavascriptCodeBlock::kIntrospectionComment, "-->");
-  EXPECT_THAT(output_buffer_, ::testing::HasSubstr(kInsertComment));
+  ValidateNoChanges("introspective", GenerateHtml("introspective.js"));
 }
 
 TEST_P(JavascriptFilterTest, ArisSourceMaps) {
   options()->EnableFilter(RewriteOptions::kIncludeJsSourceMaps);
-  options()->EnableFilter(RewriteOptions::kDebug);
   InitFilters();
 
   const char introspective_js[] =
@@ -1064,16 +998,11 @@ TEST_P(JavascriptFilterTest, ArisSourceMaps) {
   SetResponseWithDefaultHeaders("introspective.js", kContentTypeJavascript,
                                 introspective_js, 100);
 
-  Parse("introspective", GenerateHtml("introspective.js"));
-  const GoogleString kInsertComment =
-      StrCat(kIntrospectiveJS, "<!--",
-             JavascriptCodeBlock::kIntrospectionComment, "-->");
-  EXPECT_THAT(output_buffer_, ::testing::HasSubstr(kInsertComment));
+  ValidateNoChanges("introspective", GenerateHtml("introspective.js"));
 }
 
 TEST_P(JavascriptFilterTest, ArisCombineJs) {
   options()->EnableFilter(RewriteOptions::kCombineJavascript);
-  options()->EnableFilter(RewriteOptions::kDebug);
   InitFilters();
 
   const char introspective_js[] =
@@ -1085,17 +1014,16 @@ TEST_P(JavascriptFilterTest, ArisCombineJs) {
   SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript,
                                 kJsData, 100);
 
-  static const char kHtmlBefore[] =
+  const char html_before[] =
       "<script type='text/javascript' src='introspective.js'></script>\n"
       "<script type='text/javascript' src='a.js'></script>\n"
       "<script type='text/javascript' src='b.js'></script>\n";
-  const GoogleString kHtmlAfter = StrCat(
-      kIntrospectiveJS, "<!--", JavascriptCodeBlock::kIntrospectionComment,
-      "-->\n", "<script src=\"a.js+b.js.pagespeed.jc.0.js\"></script>",
-      "<script>eval(mod_pagespeed_0);</script>\n",
-      "<script>eval(mod_pagespeed_0);</script>\n");
-  Parse("introspective", kHtmlBefore);
-  EXPECT_THAT(output_buffer_, ::testing::HasSubstr(kHtmlAfter));
+  const char html_after[] =
+      "<script type='text/javascript' src='introspective.js'></script>\n"
+      "<script src=\"a.js+b.js.pagespeed.jc.0.js\"></script>"
+      "<script>eval(mod_pagespeed_0);</script>\n"
+      "<script>eval(mod_pagespeed_0);</script>\n";
+  ValidateExpected("introspective", html_before, html_after);
 }
 
 void JavascriptFilterTest::SourceMapTest(StringPiece input_js,
@@ -1161,8 +1089,9 @@ TEST_P(JavascriptFilterTest, SourceMapsSimple) {
   const char expected_output_js[] = "foo bar";
   const char vlq[] =
       // Comment format: (gen_line, gen_col, src_file, src_line, src_col) token
-      "AAAE,"  // (0,  0,  0,  0,  2)  foo [space]
-      "IAAK";  // (0, +4, +0, +0, +5)  bar
+      "AAAE,"  // (0,  0,  0,  0,  2)  foo
+      "GAAG,"  // (0, +3, +0, +0, +3)  [space]
+      "CAAE";  // (0, +1, +0, +0, +2)  bar
   SourceMapTest(input_js, expected_output_js, vlq);
 }
 
@@ -1177,13 +1106,18 @@ TEST_P(JavascriptFilterTest, SourceMapsMedium) {
       "document.write(\"<!-- comment -->\");";
   const char vlq[] =
       // Comment format: (gen_line, gen_col, src_file, src_line, src_col) token
-      "AAAA,"    // (0,   0,  0,  0,   0)  alert
-      "KAAU,"    // (0,  +5, +0, +0, +10)  (
-      "CAAK,"    // (0,  +1, +0, +0,  +5)  'hello, world!'
-      "eAAmB;"   // (0, +15, +0, +0, +19)  )
-      "AAGlC,"   // (1,   0, +0, +3, -34)  document.write(
-      "eAAgB,"   // (1, +15, +0, +0, +16)  "<!-- comment -->"
-      "kBAAmB";  // (1, +18, +0, +0, +19)  );
+      "AAAA,"   // (0,   0,  0,  0,   0)  alert
+      "KAAU,"   // (0,  +5, +0, +0, +10)  (
+      "CAAK,"   // (0,  +1, +0, +0,  +5)  'hello, world!'
+      "eAAmB,"  // (0, +15, +0, +0, +19)  )
+      "CAAC;"   // (0,  +1, +0, +0,  +1)  [newline]
+      "AAGnC,"  // (1,   0, +0, +3, -35)  document
+      "QAAQ,"   // (1,  +8, +0, +0,  +8)  .
+      "CAAC,"   // (1,  +1, +0, +0,  +1)  write
+      "KAAK,"   // (1,  +5, +0, +0,  +5)  (
+      "CAAE,"   // (1,  +1, +0, +0,  +2)  "<!-- comment -->"
+      "kBAAmB," // (1, +18, +0, +0, +19)  )
+      "CAAC";   // (1,  +1, +0, +0,  +1)  ;
   SourceMapTest(input_js, expected_output_js, vlq);
 }
 
@@ -1199,14 +1133,14 @@ TEST_P(JavascriptFilterTest, NoSourceMapJsCombine) {
 
   const char combined_name[] = "a.js+b.js.pagespeed.jc.0.js";
 
-  static const char kHtmlBefore[] =
+  const char html_before[] =
       "<script type='text/javascript' src='a.js'></script>\n"
       "<script type='text/javascript' src='b.js'></script>\n";
-  GoogleString kHtmlAfter = StrCat(
+  GoogleString html_after = StrCat(
       "<script src=\"", combined_name, "\"></script>"
       "<script>eval(mod_pagespeed_0);</script>\n"
       "<script>eval(mod_pagespeed_0);</script>\n");
-  ValidateExpected("introspective", kHtmlBefore, kHtmlAfter);
+  ValidateExpected("introspective", html_before, html_after);
 
   // Note: There is no //# ScriptSourceMap in combine output.
   GoogleString expected_output = StrCat(
@@ -1239,59 +1173,6 @@ TEST_P(JavascriptFilterTest, SourceMapUnsanitaryUrl) {
       kJsMinData, "\n//# sourceMappingURL="
       "http://test.com/input.js,qevil=.pagespeed.sm.0.map\n");
   EXPECT_EQ(expected_output_js, output_js);
-}
-
-TEST_P(JavascriptFilterTest, InlineAndNotExternal) {
-  options()->EnableFilter(RewriteOptions::kRewriteJavascriptInline);
-  options()->DisableFilter(RewriteOptions::kRewriteJavascriptExternal);
-  rewrite_driver_->AddFilters();
-  InitTest(100);
-  ValidateExpected("inline_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
-}
-
-TEST_P(JavascriptFilterTest, InlineAndNotExternalPreserve) {
-  // js_preserve_urls should not affect minification of inline JS.
-  options()->set_js_preserve_urls(true);
-  options()->set_in_place_preemptive_rewrite_javascript(false);
-  options()->EnableFilter(RewriteOptions::kRewriteJavascriptInline);
-  options()->DisableFilter(RewriteOptions::kRewriteJavascriptExternal);
-  rewrite_driver_->AddFilters();
-  InitTest(100);
-  ValidateExpected("inline_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
-}
-
-TEST_P(JavascriptFilterTest, InlineAndCanonicalNotExternal) {
-  options()->EnableFilter(RewriteOptions::kRewriteJavascriptInline);
-  options()->EnableFilter(RewriteOptions::kCanonicalizeJavascriptLibraries);
-  options()->DisableFilter(RewriteOptions::kRewriteJavascriptExternal);
-  rewrite_driver_->AddFilters();
-  InitTest(100);
-  ValidateExpected("inline_and_canonical_and_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
-}
-
-TEST_P(JavascriptFilterTest, ExternalAndNotInline) {
-  options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
-  options()->DisableFilter(RewriteOptions::kRewriteJavascriptInline);
-  rewrite_driver_->AddFilters();
-  InitTest(100);
-  ValidateExpected("external_not_inline",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat,
-                                       expected_rewritten_path_.c_str())));
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.

@@ -19,8 +19,6 @@
 #ifndef PAGESPEED_KERNEL_IMAGE_IMAGE_CONVERTER_H_
 #define PAGESPEED_KERNEL_IMAGE_IMAGE_CONVERTER_H_
 
-#include <cstddef>
-#include "third_party/optipng/src/opngreduc/opngreduc.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
@@ -96,16 +94,17 @@ class ImageConverter {
   // this function will fail when attempting to convert an image with
   // transparent pixels. Returns is_opaque set to true iff the 'in'
   // image was opaque. On entry, '*webp_writer' must be NULL; on exit,
-  // it contains the webp writer that was used to write the WebP, and
-  // the caller is responsible for deleting it. Most clients will
-  // prefer to use the other form ConvertPngToWebp.
+  // it contains the WebpScanlineWriter instance that was used to
+  // write the WebP, and the caller is responsible for deleting
+  // it. Most clients will prefer to use the other form
+  // ConvertPngToWebp.
   static bool ConvertPngToWebp(
       const PngReaderInterface& png_struct_reader,
       const GoogleString& in,
       const WebpConfiguration& config,
       GoogleString* out,
       bool* is_opaque,
-      ScanlineWriterInterface** webp_writer,
+      WebpScanlineWriter** webp_writer,
       MessageHandler* handler);
 
   // Optimizes the given png image, also converts to jpeg and take the
@@ -146,15 +145,6 @@ class ImageConverter {
 
   DISALLOW_COPY_AND_ASSIGN(ImageConverter);
 };
-
-// Returns a blank PNG image with specified size and transparency.
-bool GenerateBlankImage(size_t width, size_t height, bool has_transparency,
-                        GoogleString* output, MessageHandler* handler);
-
-// Returns whether progressive format will result in a smaller JPEG image.
-bool ShouldConvertToProgressive(int64 quality, int threshold,
-                                int num_bytes, int desired_width,
-                                int desired_height);
 
 }  // namespace image_compression
 

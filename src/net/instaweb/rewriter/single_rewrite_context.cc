@@ -24,7 +24,6 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -43,24 +42,18 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
   if (num_slots() == 1) {
     ret = true;
     ResourcePtr resource(slot(0)->resource());
-    GoogleString unsafe_reason;
-    if (resource->IsSafeToRewrite(rewrite_uncacheable(), &unsafe_reason)) {
-      GoogleString failure_reason;
+    if (resource->IsSafeToRewrite(rewrite_uncacheable())) {
       OutputResourcePtr output_resource(
           Driver()->CreateOutputResourceFromResource(
               id(), encoder(), resource_context(),
-              resource, kind(), &failure_reason));
-      if (output_resource.get() == NULL) {
-        partitions->add_debug_message(failure_reason);
-      } else {
+              resource, kind()));
+      if (output_resource.get() != NULL) {
         CachedResult* partition = partitions->add_partition();
         resource->AddInputInfoToPartition(Resource::kIncludeInputHash, 0,
                                           partition);
         output_resource->set_cached_result(partition);
         outputs->push_back(output_resource);
       }
-    } else {
-      partitions->add_debug_message(unsafe_reason);
     }
   }
   return ret;

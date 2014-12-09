@@ -21,7 +21,7 @@
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
@@ -77,7 +77,7 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
                                                  bool beaconing);
 
  private:
-  virtual GoogleString GetKeyForUrl(StringPiece url);
+  virtual GoogleString GetKeyForUrl(const GoogleString& url);
 
   // 80% is a guess at a reasonable value for this param.
   static const int kBeaconPercentSeenForCritical = 80;

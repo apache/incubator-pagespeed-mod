@@ -18,22 +18,17 @@
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/system/public/system_rewrite_options.h"
-#include "net/instaweb/system/public/system_server_context.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/cache_stats.h"
+#include "net/instaweb/util/public/file_cache.h"
+#include "net/instaweb/util/public/file_system_lock_manager.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/shared_mem_lock_manager.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/threadsafe_cache.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/cache/cache_stats.h"
-#include "pagespeed/kernel/cache/file_cache.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/cache/purge_context.h"
-#include "pagespeed/kernel/cache/threadsafe_cache.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_lock_manager.h"
-#include "pagespeed/kernel/util/file_system_lock_manager.h"
 
 namespace net_instaweb {
 
@@ -58,9 +53,7 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
           config->has_file_cache_clean_interval_ms()),
       clean_size_explicitly_set_(config->has_file_cache_clean_size_kb()),
       clean_inode_limit_explicitly_set_(
-          config->has_file_cache_clean_inode_limit()),
-      options_(config),
-      mutex_(factory->thread_system()->NewMutex()) {
+          config->has_file_cache_clean_inode_limit()) {
   if (config->use_shared_mem_locking()) {
     shared_mem_lock_manager_.reset(new SharedMemLockManager(
         shm_runtime, LockManagerSegmentName(),
@@ -180,9 +173,6 @@ void SystemCachePath::RootInit() {
 }
 
 void SystemCachePath::ChildInit(SlowWorker* cache_clean_worker) {
-  if (options_->unplugged()) {
-    return;
-  }
   factory_->message_handler()->Message(
       kInfo, "Reusing shared memory for path: %s.", path_.c_str());
   if ((shared_mem_lock_manager_.get() != NULL) &&
@@ -192,39 +182,6 @@ void SystemCachePath::ChildInit(SlowWorker* cache_clean_worker) {
   if (file_cache_backend_ != NULL) {
     file_cache_backend_->set_worker(cache_clean_worker);
   }
-
-  GoogleString cache_flush_filename = options_->cache_flush_filename();
-  if (cache_flush_filename.empty()) {
-    if (options_->enable_cache_purge()) {
-      cache_flush_filename = "cache.purge";
-    } else {
-      cache_flush_filename = "cache.flush";
-    }
-  }
-  if (cache_flush_filename[0] != '/') {
-    // Implementations must ensure the file cache path is an absolute path.
-    // mod_pagespeed checks in mod_instaweb.cc:pagespeed_post_config while
-    // ngx_pagespeed checks in ngx_pagespeed.cc:ps_merge_srv_conf.
-    StringPiece path(options_->file_cache_path());
-    DCHECK(path.starts_with("/"));
-    cache_flush_filename = StrCat(
-        path,
-        path.ends_with("/") ? "" : "/",
-        cache_flush_filename);
-  }
-
-  purge_context_.reset(new PurgeContext(cache_flush_filename,
-                                        factory_->file_system(),
-                                        factory_->timer(),
-                                        RewriteOptions::kCachePurgeBytes,
-                                        factory_->thread_system(),
-                                        lock_manager_,
-                                        factory_->scheduler(),
-                                        factory_->statistics(),
-                                        factory_->message_handler()));
-  purge_context_->set_enable_purge(options_->enable_cache_purge());
-  purge_context_->SetUpdateCallback(NewPermanentCallback(
-      this, &SystemCachePath::UpdateCachePurgeSet));
 }
 
 void SystemCachePath::GlobalCleanup(MessageHandler* handler) {
@@ -246,32 +203,6 @@ void SystemCachePath::FallBackToFileBasedLocking() {
 
 GoogleString SystemCachePath::LockManagerSegmentName() const {
   return StrCat(path_, "/named_locks");
-}
-
-void SystemCachePath::FlushCacheIfNecessary() {
-  if (options_->enabled()) {
-    purge_context_->PollFileSystem();
-  }
-}
-
-void SystemCachePath::AddServerContext(SystemServerContext* server_context) {
-  ScopedMutex lock(mutex_.get());
-  server_context_set_.insert(server_context);
-}
-
-void SystemCachePath::RemoveServerContext(SystemServerContext* server_context) {
-  ScopedMutex lock(mutex_.get());
-  server_context_set_.erase(server_context);
-}
-
-void SystemCachePath::UpdateCachePurgeSet(
-    const CopyOnWrite<PurgeSet>& purge_set) {
-  ScopedMutex lock(mutex_.get());
-  for (ServerContextSet::iterator p = server_context_set_.begin(),
-           e = server_context_set_.end(); p != e; ++p) {
-    SystemServerContext* server_context = *p;
-    server_context->UpdateCachePurgeSet(purge_set);
-  }
 }
 
 }  // namespace net_instaweb

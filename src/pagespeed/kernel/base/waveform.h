@@ -31,7 +31,7 @@ class AbstractMutex;
 class MessageHandler;
 class ThreadSystem;
 class Timer;
-class UpDownCounter;
+class Variable;
 class Writer;
 
 // Displays a waveform of values over time.  This can run
@@ -45,7 +45,7 @@ class Writer;
 class Waveform {
  public:
   Waveform(ThreadSystem* thread_system, Timer* timer, int capacity,
-           UpDownCounter* metric);
+           Variable* metric);
 
   void Clear();
   double Average();
@@ -89,7 +89,7 @@ class Waveform {
 
   // Un-owned pointer to a variable to export current waveform values.
   // May be NULL.
-  UpDownCounter* metric_;
+  Variable* metric_;
 
   DISALLOW_COPY_AND_ASSIGN(Waveform);
 };

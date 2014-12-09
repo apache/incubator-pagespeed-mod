@@ -26,8 +26,8 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_hash.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_hash.h"
 #include "pagespeed/kernel/base/timer.h"
 
 namespace net_instaweb {
@@ -69,9 +69,9 @@ bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
       kBeaconImageSupportInterval, cohort, page, &critical_images);
 }
 
-GoogleString BeaconCriticalImagesFinder::GetKeyForUrl(StringPiece url) {
-  unsigned int hash_val =
-      HashString<CasePreserve, unsigned int>(url.data(), url.size());
+GoogleString BeaconCriticalImagesFinder::GetKeyForUrl(const GoogleString& url) {
+  unsigned int hash_val = HashString<CasePreserve, unsigned int>(
+      url.c_str(), url.size());
   return UintToString(hash_val);
 }
 

@@ -19,23 +19,20 @@
 
 #include "net/instaweb/rewriter/public/resource.h"
 
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"  // for HttpAttributes, etc
-#include "pagespeed/kernel/http/http_options.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -48,10 +45,9 @@ const int64 kNotCacheable = 0;
 
 }  // namespace
 
-Resource::Resource(const RewriteDriver* driver, const ContentType* type)
-    : server_context_(driver->server_context()),
+Resource::Resource(ServerContext* server_context, const ContentType* type)
+    : server_context_(server_context),
       type_(type),
-      response_headers_(driver->options()->ComputeHttpOptions()),
       fetch_response_status_(kFetchStatusNotSet),
       is_background_fetch_(true),
       enable_cache_purge_(false),
@@ -61,17 +57,6 @@ Resource::Resource(const RewriteDriver* driver, const ContentType* type)
       respect_vary_(ResponseHeaders::kRespectVaryOnResources) {
 }
 
-Resource::Resource() : server_context_(NULL), type_(NULL),
-                       response_headers_(kDefaultHttpOptionsForTests),
-                       fetch_response_status_(kFetchStatusNotSet),
-                       is_background_fetch_(true),
-                       enable_cache_purge_(false),
-                       proactive_resource_freshening_(false),
-                       disable_rewrite_on_no_transform_(true),
-                       is_authorized_domain_(true),
-                       respect_vary_(ResponseHeaders::kRespectVaryOnResources) {
-}
-
 Resource::~Resource() {
 }
 
@@ -79,64 +64,29 @@ bool Resource::IsValidAndCacheable() const {
   // We don't have to worry about request_headers here since
   // if we have some we should be using UrlInputResource's implementation
   // of this method.
-  return (HttpStatusOk() &&
+  return ((response_headers_.status_code() == HttpStatus::kOK) &&
           !server_context_->http_cache()->IsExpired(response_headers_) &&
           response_headers_.IsProxyCacheable(RequestHeaders::Properties(),
                                              respect_vary_,
                                              ResponseHeaders::kNoValidator));
 }
 
-bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
-                               GoogleString* reason) const {
+bool Resource::IsSafeToRewrite(bool rewrite_uncacheable) const {
+  rewrite_uncacheable &= HttpStatusOk();
   RewriteStats* stats = server_context_->rewrite_stats();
-  if (!HttpStatusOk()) {
-    // Frustratingly, we have thrown away the headers of a CacheableResource at
-    // this point, so we need to give feedback based upon the
-    // fetch_response_status_.
-    switch (fetch_response_status_) {
-      case kFetchStatusDropped:
-        StrAppend(reason, "Fetch was dropped due to load, ");
-        break;
-      case kFetchStatus4xxError:
-        StrAppend(reason, "4xx status code, ");
-        break;
-      case kFetchStatusUncacheable:
-        StrAppend(reason, "Uncacheable content, ");
-        break;
-      case kFetchStatusOther:
-        StrAppend(reason, "Fetch failure, ");
-        break;
-      case kFetchStatusNotSet:
-        StrAppend(reason,
-                  "Fetch status not set when IsSafeToRewrite was called, ");
-        break;
-      case kFetchStatusOK:
-        LOG(WARNING) << "Fetch status OK but !HttpStatusOk in IsSafeToRewrite!";
-        StrAppend(reason,
-                  "Fetch status OK but !HttpStatusOk in IsSafeToRewrite!  ");
-        break;
-    }
-  } else if (!rewrite_uncacheable && !IsValidAndCacheable()) {
-    StrAppend(reason,
-              (server_context_->http_cache()->IsExpired(response_headers_) ?
-               "Cached content expired, " :
-               "Invalid or uncacheable content, "));
-  } else if (disable_rewrite_on_no_transform_ &&
-             response_headers_.HasValue(HttpAttributes::kCacheControl,
-                                        "no-transform")) {
-    StrAppend(reason, "Cache-control: no-transform, ");
-  } else {
-    // Safe.
+  if ((IsValidAndCacheable() || rewrite_uncacheable) &&
+      !(disable_rewrite_on_no_transform_ &&
+        response_headers_.HasValue(HttpAttributes::kCacheControl,
+                                   "no-transform"))) {
     stats->num_cache_control_rewritable_resources()->Add(1);
     return true;
+  } else {
+    // TODO(sligocki): Are we over-counting this because uncacheable
+    // resources will hit this stat for every filter, but cacheable ones
+    // will only hit the above stat once?
+    stats->num_cache_control_not_rewritable_resources()->Add(1);
+    return false;
   }
-  // If we get here, we're unsafe for the reason given.
-  StrAppend(reason, "preventing rewriting of ", url());
-  // TODO(sligocki): Are we over-counting this because uncacheable
-  // resources will hit this stat for every filter, but cacheable ones
-  // will only hit the above stat once?
-  stats->num_cache_control_not_rewritable_resources()->Add(1);
-  return false;
 }
 
 void Resource::LoadAsync(

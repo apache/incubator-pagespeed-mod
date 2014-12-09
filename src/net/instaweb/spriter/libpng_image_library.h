@@ -32,7 +32,7 @@ extern "C" {
 }  // extern "C"
 
 #include "net/instaweb/spriter/image_library_interface.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 namespace spriter {

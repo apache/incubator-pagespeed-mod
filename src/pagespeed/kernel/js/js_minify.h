@@ -15,6 +15,8 @@
 #ifndef PAGESPEED_KERNEL_JS_JS_MINIFY_H_
 #define PAGESPEED_KERNEL_JS_JS_MINIFY_H_
 
+#include <vector>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/source_map.h"
 #include "pagespeed/kernel/base/string.h"
@@ -50,7 +52,7 @@ class JsMinifyingTokenizer {
   // TODO(sligocki): Fix this.
   JsMinifyingTokenizer(
       const JsTokenizerPatterns* patterns, StringPiece input,
-      net_instaweb::source_map::MappingVector* mappings);
+      std::vector<net_instaweb::source_map::Mapping>* mappings);
 
   ~JsMinifyingTokenizer();
 
@@ -76,7 +78,7 @@ class JsMinifyingTokenizer {
   StringPiece prev_token_;
   JsKeywords::Type next_type_;
   StringPiece next_token_;
-  net_instaweb::source_map::MappingVector* mappings_;
+  std::vector<net_instaweb::source_map::Mapping>* mappings_;
   net_instaweb::source_map::Mapping current_position_;
   net_instaweb::source_map::Mapping next_position_;
 
@@ -89,21 +91,14 @@ class JsMinifyingTokenizer {
 // still be fully populated from the input; the portion of the input up to the
 // parse error will be minified, and the remainder will be passed through
 // unmodified.
-//
-// The input should be UTF8-encoded (or plain ASCII); the minifier does have
-// some limited capability to tolerate invalid UTF8 bytes, so Latin1-encoded
-// input will often work, but no guarantees are made.
 bool MinifyUtf8Js(const JsTokenizerPatterns* patterns,
                   StringPiece input, GoogleString* output);
 
-// Minify JS and returns a source mapping.  The input should be UTF8-encoded
-// (or plain ASCII); the minifier does have some limited capability to tolerate
-// invalid UTF8 bytes, so Latin1-encoded input will often work, but no
-// guarantees are made.
+// Minify JS and returns a source mapping.
 bool MinifyUtf8JsWithSourceMap(
     const JsTokenizerPatterns* patterns,
     StringPiece input, GoogleString* output,
-    net_instaweb::source_map::MappingVector* mappings);
+    std::vector<net_instaweb::source_map::Mapping>* mappings);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Below is the old JsMinify implementation.  It has several known issues that

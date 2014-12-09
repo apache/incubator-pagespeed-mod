@@ -42,26 +42,19 @@ BUILDTYPE = Release
 BASE_LIBS = \
   base/libbase.a \
   base/libbase_static.a \
-  build/libwebp_dec.a \
-  build/libwebp_dsp.a \
-  build/libwebp_enc.a \
-  build/libwebp_enc_mux.a \
-  build/libwebp_mux.a \
-  build/libwebp_utils.a \
   net/instaweb/libautomatic_util.a \
   net/instaweb/libinstaweb_add_instrumentation_data2c.a \
   net/instaweb/libinstaweb_add_instrumentation_opt_data2c.a \
-  net/instaweb/libinstaweb_admin_site_css_data2c.a \
   net/instaweb/libinstaweb_apr.a \
   net/instaweb/libinstaweb_automatic.a \
   net/instaweb/libinstaweb_cache_html_info_pb.a \
-  net/instaweb/libinstaweb_caches_css_data2c.a \
-  net/instaweb/libinstaweb_caches_js_data2c.a \
-  net/instaweb/libinstaweb_caches_js_opt_data2c.a \
   net/instaweb/libinstaweb_client_domain_rewriter_data2c.a \
   net/instaweb/libinstaweb_client_domain_rewriter_opt_data2c.a \
+  net/instaweb/libinstaweb_console_body_data2c.a \
   net/instaweb/libinstaweb_console_css_data2c.a \
+  net/instaweb/libinstaweb_console_css_old_data2c.a \
   net/instaweb/libinstaweb_console_js_data2c.a \
+  net/instaweb/libinstaweb_console_js_old_data2c.a \
   net/instaweb/libinstaweb_console_js_opt_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_data2c.a \
   net/instaweb/libinstaweb_critical_css_beacon_opt_data2c.a \
@@ -87,18 +80,16 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_extended_instrumentation_opt_data2c.a \
   net/instaweb/libinstaweb_flush_early_pb.a \
   net/instaweb/libinstaweb_ghost_click_buster_opt_data2c.a \
-  net/instaweb/libinstaweb_graphs_css_data2c.a \
-  net/instaweb/libinstaweb_graphs_js_data2c.a \
-  net/instaweb/libinstaweb_graphs_js_opt_data2c.a \
+  net/instaweb/libinstaweb_image_types_pb.a \
   net/instaweb/libinstaweb_js_defer_data2c.a \
   net/instaweb/libinstaweb_js_defer_opt_data2c.a \
   net/instaweb/libinstaweb_lazyload_images_data2c.a \
   net/instaweb/libinstaweb_lazyload_images_opt_data2c.a \
   net/instaweb/libinstaweb_local_storage_cache_data2c.a \
   net/instaweb/libinstaweb_local_storage_cache_opt_data2c.a \
-  net/instaweb/libinstaweb_messages_js_data2c.a \
-  net/instaweb/libinstaweb_messages_js_opt_data2c.a \
+  net/instaweb/libinstaweb_logging_pb.a \
   net/instaweb/libinstaweb_panel_loader_opt_data2c.a \
+  net/instaweb/libinstaweb_propcache_pb.a \
   net/instaweb/libinstaweb_rendered_image_pb.a \
   net/instaweb/libinstaweb_rewriter.a \
   net/instaweb/libinstaweb_rewriter_base.a \
@@ -112,16 +103,11 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_split_html_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_spriter.a \
   net/instaweb/libinstaweb_spriter_pb.a \
-  net/instaweb/libinstaweb_static_asset_config_pb.a \
-  net/instaweb/libinstaweb_statistics_css_data2c.a \
-  net/instaweb/libinstaweb_statistics_js_data2c.a \
-  net/instaweb/libinstaweb_statistics_js_opt_data2c.a \
   net/instaweb/libinstaweb_system.a \
   net/instaweb/libinstaweb_util.a \
+  net/instaweb/libinstaweb_util_enums_pb.a \
   net/instaweb/libprocess_context.a \
   net/instaweb/libtest_infrastructure.a \
-  pagespeed/libinstaweb_mobilize_nav_data2c.a \
-  pagespeed/libinstaweb_mobilize_nav_opt_data2c.a \
   pagespeed/libjs_tokenizer.a \
   pagespeed/libjsminify.a \
   pagespeed/libpagespeed_base.a \
@@ -135,13 +121,7 @@ BASE_LIBS = \
   pagespeed/libpagespeed_http_gperf.a \
   pagespeed/libpagespeed_http_pb.a \
   pagespeed/libpagespeed_image_processing.a \
-  pagespeed/libpagespeed_image_types_pb.a \
   pagespeed/libpagespeed_javascript_gperf.a \
-  pagespeed/libpagespeed_logging.a \
-  pagespeed/libpagespeed_logging_enums_pb.a \
-  pagespeed/libpagespeed_logging_pb.a \
-  pagespeed/libpagespeed_opt_http.a \
-  pagespeed/libpagespeed_property_cache_pb.a \
   pagespeed/libpagespeed_sharedmem.a \
   pagespeed/libpagespeed_sharedmem_pb.a \
   pagespeed/libpagespeed_thread.a \
@@ -165,10 +145,14 @@ BASE_LIBS = \
   third_party/libjpeg_turbo/libjpeg.a \
   third_party/libjpeg_turbo/src/libjpeg_turbo.a \
   third_party/libpng/libpng.a \
+  third_party/libwebp/libwebp_dec.a \
+  third_party/libwebp/libwebp_dsp.a \
+  third_party/libwebp/libwebp_enc.a \
+  third_party/libwebp/libwebp_utils.a \
+  third_party/serf/libopenssl.a \
   third_party/optipng/libopngreduc.a \
   third_party/protobuf/libprotobuf_full_do_not_use.a \
   third_party/re2/libre2.a \
-  third_party/serf/libopenssl.a \
   third_party/serf/libserf.a \
   third_party/zlib/libzlib.a \
   url/liburl_lib.a
@@ -212,7 +196,7 @@ CXX = /usr/bin/g++
 TESTBENCH_LIB = $(MOD_PAGESPEED_ROOT)/out/$(BUILDTYPE)/obj.target/third_party/re2/libre2_bench_util.a
 
 build_libraries :
-	cd $(MOD_PAGESPEED_ROOT) && make $(CXXFLAGS_ARG) BUILDTYPE=$(BUILDTYPE)
+	cd $(MOD_PAGESPEED_ROOT) && make CXXFLAGS="$(CXXFLAGS)" BUILDTYPE=$(BUILDTYPE)
 
 endif
 
@@ -225,23 +209,18 @@ INCLUDE_PATH = \
     -I$(MOD_PAGESPEED_ROOT)/third_party/google-sparsehash/gen/$(INCLUDE_ARCH)/include \
     -I$(MOD_PAGESPEED_ROOT)/third_party/protobuf/src \
     -I$(MOD_PAGESPEED_ROOT)/third_party/re2/src
-PSOL = $(OUTPUT_DIR)/pagespeed_automatic.a
 OBJS          = $(OUTPUT_DIR)/static_rewriter_main.o \
 		$(OUTPUT_DIR)/static_rewriter.o \
-		$(PSOL)
+		$(OUTPUT_DIR)/pagespeed_automatic.a
 SPEED_TEST_OBJS = $(TESTBENCH_LIB) \
 		$(OUTPUT_DIR)/rewriter_speed_test.o \
 		$(OUTPUT_DIR)/static_rewriter.o \
-		$(PSOL)
+		$(OUTPUT_DIR)/pagespeed_automatic.a
 EXE           = $(OUTPUT_DIR)/static_rewriter
 SPEED_TEST    = $(OUTPUT_DIR)/rewriter_speed_test
 EXAMPLE_ROOT  = $(MOD_PAGESPEED_ROOT)/install/mod_pagespeed_example
 EXAMPLES      = $(OUTPUT_DIR)/collapse_whitespace.html
-MERGE_LOG     = $(OUTPUT_DIR)/merge.log
-RENAME_LOG    = $(OUTPUT_DIR)/rename.log
-LOGS          = $(MERGE_LOG) $(RENAME_LOG)
 
-MAKE := $(MAKE) --no-print-directory
 exe : $(EXE)
 speed_test : $(SPEED_TEST)
 
@@ -257,23 +236,15 @@ all : build_libraries
 # with either BUILDTYPE=Release or BUILDTYPE=Debug
 CXXFLAGS = -g
 
-$(PSOL) : $(LIBS)
-	@echo Merging libraries, logs in $(MERGE_LOG) ...
-	@./merge_libraries.sh $@.dirty $(LIBS) > $(MERGE_LOG)
-	@echo Cleaning namespace, logs in $(RENAME_LOG) ...
-	@./rename_c_symbols.sh $@.dirty $@ > $(RENAME_LOG)
+$(OUTPUT_DIR)/pagespeed_automatic.a : $(LIBS)
+	@echo Merging libraries ...
+	@./merge_libraries.sh $@.dirty $(LIBS)
+	@echo Cleaning namespace
+	@./rename_c_symbols.sh $@.dirty $@
 	rm $@.dirty
 
-.PHONY : psol
-psol : build_libraries
-	$(MAKE) $(PSOL)
 
-# Ideally we want the main .o files to depend on all the headers in PSOL,
-# but that's not easy to keep up-to-date.  As a proxy for those, recompile
-# .o files whenever the library changes.  This is a little conservative
-# because the library might change without any header changes, but recompiling
-# the .o files is cheap.
-$(OUTPUT_DIR)/%.o : %.cc $(PSOL)
+$(OUTPUT_DIR)/%.o : %.cc
 	$(CXX) $(INCLUDE_PATH) $(CXXFLAGS) $(MOD_PAGESPEED_INCLUDE) -c $< -o $@
 
 $(EXE) : $(OBJS)
@@ -289,7 +260,7 @@ $(SPEED_TEST) : $(SPEED_TEST_OBJS)
 examples : $(EXAMPLES)
 
 clean :
-	rm -f $(OUTPUT_DIR)/static_rewriter $(EXE) $(OBJS) $(EXAMPLES) $(LOGS)
+	rm -f $(OUTPUT_DIR)/static_rewriter $(EXE) $(OBJS) $(EXAMPLES)
 
 echo_libs :
 	echo LIBS = $(LIBS)

@@ -21,17 +21,15 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/atomic_bool.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -97,8 +95,7 @@ class HTTPCache {
         : response_headers_(NULL),
           owns_response_headers_(false),
           request_ctx_(request_ctx),
-          is_background_(false),
-          update_stats_on_failure_(true) {
+          is_background_(false) {
     }
 
     // The 2-arg constructor can be used in situations where we are confident
@@ -109,8 +106,7 @@ class HTTPCache {
           req_properties_(req_properties),
           owns_response_headers_(false),
           request_ctx_(request_ctx),
-          is_background_(false),
-          update_stats_on_failure_(true) {
+          is_background_(false) {
     }
 
     virtual ~Callback();
@@ -146,7 +142,7 @@ class HTTPCache {
     // Called upon completion of a cache lookup trigged by HTTPCache::Find by
     // the HTTPCache code with the latency in milliseconds.  Will invoke
     // ReportLatencyMsImpl for non-background fetches in order for system
-    // implementations, like RequestTimingInfo, to record the cache
+    // implementations, like RequestContext::TimingInfo, to record the cache
     // latency.
     void ReportLatencyMs(int64 latency_ms);
 
@@ -165,7 +161,7 @@ class HTTPCache {
     HTTPValue* http_value() { return &http_value_; }
     ResponseHeaders* response_headers() {
       if (response_headers_ == NULL) {
-        response_headers_ = new ResponseHeaders(request_ctx_->options());
+        response_headers_ = new ResponseHeaders;
         owns_response_headers_ = true;
       }
       return response_headers_;
@@ -192,14 +188,9 @@ class HTTPCache {
       return req_properties_;
     }
 
-    // Indicates whether the HTTP Cache stats be updated when the lookup fails.
-    // Normally we would, except In the case of an L1 of a write-through cache.
-    bool update_stats_on_failure() const { return update_stats_on_failure_; }
-    void set_update_stats_on_failure(bool x) { update_stats_on_failure_ = x; }
-
    protected:
     // Virtual implementation for subclasses to override.  Default
-    // implementation calls RequestTimingInfo::SetHTTPCacheLatencyMs.
+    // implementation calls RequestContext::TimingInfo::SetHTTPCacheLatencyMs.
     virtual void ReportLatencyMsImpl(int64 latency_ms);
 
    private:
@@ -212,7 +203,6 @@ class HTTPCache {
     bool owns_response_headers_;
     RequestContextPtr request_ctx_;
     bool is_background_;
-    bool update_stats_on_failure_;
 
     DISALLOW_COPY_AND_ASSIGN(Callback);
   };
@@ -232,7 +222,7 @@ class HTTPCache {
   void Put(const GoogleString& key,
            const GoogleString& fragment,
            RequestHeaders::Properties req_properties,
-           const HttpOptions& http_options,
+           ResponseHeaders::VaryOption respect_vary_on_resources,
            HTTPValue* value,
            MessageHandler* handler);
 
@@ -243,7 +233,6 @@ class HTTPCache {
   void Put(const GoogleString& key,
            const GoogleString& fragment,
            RequestHeaders::Properties req_properties,
-           // TODO(sligocki): Remove this arg and use headers->http_options().
            ResponseHeaders::VaryOption respect_vary_on_resources,
            ResponseHeaders* headers,
            const StringPiece& content, MessageHandler* handler);
@@ -311,7 +300,6 @@ class HTTPCache {
   bool IsExpired(const ResponseHeaders& headers);
   bool IsExpired(const ResponseHeaders& headers, int64 now_ms);
 
-  // Stats for the HTTP cache.
   Variable* cache_time_us()     { return cache_time_us_; }
   Variable* cache_hits()        { return cache_hits_; }
   Variable* cache_misses()      { return cache_misses_; }
@@ -374,7 +362,6 @@ class HTTPCache {
                            const GoogleString& fragment,
                            int64 start_us,
                            HTTPValue* value);
-  virtual void DeleteInternal(const GoogleString& key_fragment);
 
  private:
   friend class HTTPCacheCallback;
@@ -390,7 +377,8 @@ class HTTPCache {
       HTTPValue* value, MessageHandler* handler);
   void UpdateStats(const GoogleString& key, const GoogleString& fragment,
                    CacheInterface::KeyState backend_state, FindResult result,
-                   bool has_fallback, bool is_expired, MessageHandler* handler);
+                   bool has_fallback, bool is_expired, int64 delta_us,
+                   MessageHandler* handler);
   void RememberFetchFailedorNotCacheableHelper(
       const GoogleString& key, const GoogleString& fragment,
       MessageHandler* handler, HttpStatus::Code code, int64 ttl_sec);

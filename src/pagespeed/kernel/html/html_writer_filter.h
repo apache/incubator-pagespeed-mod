@@ -54,7 +54,7 @@ class HtmlWriterFilter : public HtmlFilter {
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void Directive(HtmlDirectiveNode* directive);
   virtual void Flush();
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   void set_max_column(int max_column) { max_column_ = max_column; }
   void set_case_fold(bool case_fold) { case_fold_ = case_fold; }
@@ -77,7 +77,7 @@ class HtmlWriterFilter : public HtmlFilter {
   // caller-specified option.
   void EmitName(const HtmlName& name);
 
-  HtmlElement::Style GetElementStyle(HtmlElement* element);
+  HtmlElement::CloseStyle GetCloseStyle(HtmlElement* element);
 
   // Escapes arbitrary text as HTML, e.g. turning & into &amp;.  If quoteChar
   // is non-zero, e.g. '"', then it would escape " as well.

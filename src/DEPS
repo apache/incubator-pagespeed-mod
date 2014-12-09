@@ -27,37 +27,30 @@ vars = {
   "libpagespeed_trunk": "https://page-speed.googlecode.com/svn/lib/trunk/",
   "libpagespeed_revision": "@2439",
 
-  # Import libwebp 0.4.1 from the official repo.
-  "libwebp_src": "https://chromium.googlesource.com/webm/libwebp.git",
-  "libwebp_revision": "@8af2771813632e2007988c8df6ad7e68b28ad121",
-
   "modspdy_src": "https://mod-spdy.googlecode.com/svn/trunk/src/",
   "modspdy_revision": "@387",
 
   "serf_src": "https://serf.googlecode.com/svn/tags/1.1.0/",
   "serf_revision": "@head",
 
-  "apr_src": "https://svn.apache.org/repos/asf/apr/apr/tags/1.5.1/",
+  "apr_src": "https://svn.apache.org/repos/asf/apr/apr/tags/1.4.2/",
   "apr_revision": "@head",
 
-  "aprutil_src": "https://svn.apache.org/repos/asf/apr/apr-util/tags/1.5.4/",
+  "aprutil_src": "https://svn.apache.org/repos/asf/apr/apr-util/tags/1.3.9/",
   "aprutil_revision": "@head",
 
   "apache_httpd_src":
-    "https://svn.apache.org/repos/asf/httpd/httpd/tags/2.2.29/",
+    "https://svn.apache.org/repos/asf/httpd/httpd/tags/2.2.15/",
   "apache_httpd_revision": "@head",
 
+  # TODO(morlovich) We can't actually run with 2.4.1; but 2.4.2 isn't tagged yet
+  # and the headers are certainly good enough.
   "apache_httpd24_src":
-    "https://svn.apache.org/repos/asf/httpd/httpd/tags/2.4.10/",
+    "https://svn.apache.org/repos/asf/httpd/httpd/tags/2.4.1/",
   "apache_httpd24_revision": "@head",
 
-  # The closure library doesn't have versioned releases so using head from
-  # 2014-11-11.
-  "closure_library": "https://github.com/google/closure-library.git",
-  "closure_library_revision": "@555e0138c83ed54d25a3e1cd82a7e789e88335a7",
-
-  "jsoncpp_src": "https://github.com/open-source-parsers/jsoncpp.git",
-  "jsoncpp_revision": "@7165f6ac4c482e68475c9e1dac086f9e12fff0d0",
+  "jsoncpp_src": "https://svn.code.sf.net/p/jsoncpp/code/trunk/",
+  "jsoncpp_revision": "@247",
 
   "gflags_root":
     "https://gflags.googlecode.com/svn/tags/gflags-1.5/src/",
@@ -67,26 +60,18 @@ vars = {
     "https://sparsehash.googlecode.com/svn/tags/sparsehash-1.8.1/src/",
   "google_sparsehash_revision": "@head",
 
-  "gtest_src": "https://googletest.googlecode.com/svn/tags/release-1.7.0/",
-  "gtest_revision": "@head",
-
-  "gmock_src": "https://googlemock.googlecode.com/svn/tags/release-1.7.0/",
-  "gmock_revision": "@head",
-
   # Comment this out to disable HTTPS fetching via serf.  See also the
   # references in src/third_party/serf/serf.gyp.
   #
   # TODO(jmarantz): create an easy way to choose this option from the
   # 'gclient' command, without having to edit the gyp & DEPS files.
   #
-  # BoringSSL chosen at 10.13.2014 commit.
-  # BoringSSL is not vulnerable to POODLE.
-  # See http://blog.cloudflare.com/sslv3-support-disabled-by-default-due-to-vulnerability/
-  # We pull boringssl from the git, and the build system from Chromium svn.
-  "boringssl_src": "https://boringssl.googlesource.com/boringssl.git",
-  "boringssl_git_revision": "@02488899507d895c5635e01ed3036f8aa43cea83",
-  "boringssl_revision": "292488",
-
+  # The revision we are picking here is to a specific commit found on
+  # https://git.chromium.org/gitweb/?p=chromium/deps/openssl.git;a=summary :
+  # 2014-06-05 agl@chromium.org  OpenSSL: fix copy of ssl3.h
+  # This point includes all CVE fixes in 1.0.1h, including the CCS fix.
+  "openssl_src": "https://git.chromium.org/chromium/deps/openssl.git",
+  "openssl_revision": "@91df33371f74906f255df571daa236be67565c4f",
 
   "domain_registry_provider_src":
      "https://domain-registry-provider.googlecode.com/svn/trunk/",
@@ -103,7 +88,7 @@ deps = {
   # Other dependencies.
   "src/build/temp_gyp":
     Var("libpagespeed_trunk") + "src/build/temp_gyp/" +
-        Var("libpagespeed_revision"),
+      Var("libpagespeed_revision"),
 
   # We check 'build/android' out of Chromium repo to get
   # 'android/cpufeatures.gypi', which is needed to compile libwebp.
@@ -114,7 +99,7 @@ deps = {
     Var("chromium_trunk") + "src/build/ios/@" + Var("chromium_revision_num"),
   "src/build/internal":
     Var("chromium_trunk") + "src/build/internal/@" +
-        Var("chromium_revision_num"),
+      Var("chromium_revision_num"),
   "src/build/linux":
     Var("chromium_trunk") + "src/build/linux/@" + Var("chromium_revision_num"),
   "src/build/mac":
@@ -145,9 +130,8 @@ deps = {
 
   "src/testing":
     Var("chromium_trunk") + "src/testing/@" + Var("chromium_revision_num"),
-  "src/testing/gtest": Var("gtest_src") + Var("gtest_revision"),
-  "src/testing/gmock": Var("gmock_src") + Var("gmock_revision"),
-
+  "src/testing/gtest": From(Var("chromium_deps_root")),
+  "src/testing/gmock": From(Var("chromium_deps_root")),
 
   "src/third_party/apr/src":
     Var("apr_src") + Var("apr_revision"),
@@ -179,36 +163,40 @@ deps = {
   "src/third_party/chromium/src/url":
     Var("chromium_trunk") + "src/url@" + Var("chromium_revision_num"),
 
-  "src/third_party/closure_library":
-    Var("closure_library") + Var("closure_library_revision"),
-
   "src/third_party/gflags/src": Var("gflags_root") + Var("gflags_revision"),
   "src/third_party/google-sparsehash/src":
     Var("google_sparsehash_root") + Var("google_sparsehash_revision"),
 
   "src/third_party/protobuf":
-    Var("chromium_trunk") + "src/third_party/protobuf/@" +
-        Var("chromium_revision_num"),
+    (Var("chromium_trunk") + "src/third_party/protobuf/@" +
+      Var("chromium_revision_num")),
 
   # Json cpp.
   "src/third_party/jsoncpp/src":
-    Var("jsoncpp_src") + Var("jsoncpp_revision"),
+    Var("jsoncpp_src") + "jsoncpp/src/" + Var("jsoncpp_revision"),
+
+  "src/third_party/jsoncpp/include":
+    Var("jsoncpp_src") + "jsoncpp/include/" + Var("jsoncpp_revision"),
 
   # Serf
   "src/third_party/serf/src": Var("serf_src") + Var("serf_revision"),
 
   "src/third_party/mod_spdy/src": Var("modspdy_src") + Var("modspdy_revision"),
 
-  "src/third_party/libwebp": Var("libwebp_src") + Var("libwebp_revision"),
+  # We check libwebp out of Chromium repo to get the .gyp file.
+  "src/third_party/libwebp":
+     Var("chromium_trunk") + "src/third_party/libwebp/@" +
+         Var("chromium_revision_num"),
 
   "src/tools/clang":
-    Var("chromium_trunk") + "src/tools/clang/@" + Var("chromium_revision_num"),
+    (Var("chromium_trunk") + "src/tools/clang/@" +
+      Var("chromium_revision_num")),
 
   "src/tools/gyp": From(Var("chromium_deps_root")),
 
   "src/third_party/modp_b64":
     Var("chromium_trunk") + "src/third_party/modp_b64/@" +
-        Var("chromium_revision_num"),
+    Var("chromium_revision_num"),
 
   # RE2.
   "src/third_party/re2/src":
@@ -217,25 +205,20 @@ deps = {
 
   # Comment to disable HTTPS fetching via serf.  See also the
   # references in src/third_party/serf/serf.gyp.
-  "src/third_party/boringssl":
-    Var("chromium_trunk") + "src/third_party/boringssl/@" +
-        Var("boringssl_revision"),
-  "src/third_party/boringssl/src":
-    Var("boringssl_src") + Var("boringssl_git_revision"),
+  #
+  "src/third_party/openssl": Var("openssl_src") + Var("openssl_revision"),
 
   # Domain Registry Provider gives us the Public Suffix List.
   "src/third_party/domain_registry_provider":
     Var("domain_registry_provider_src") +
-        Var("domain_registry_provider_revision")
+    Var("domain_registry_provider_revision")
 }
 
 
 deps_os = {
   "win": {
     "src/third_party/cygwin": From(Var("chromium_deps_root")),
-    "src/third_party/python_26":
-      Var("chromium_trunk") + "tools/third_party/python_26/@" +
-          Var("chromium_revision_num"),
+    "src/third_party/python_26": From(Var("chromium_deps_root")),
   },
   "mac": {
   },
@@ -258,7 +241,7 @@ skip_child_includes = [
 
 
 hooks = [
-  {
+   {
     # Pull clang on mac. If nothing changed, or on non-mac platforms, this takes
     # zero seconds to run. If something changed, it downloads a prebuilt clang,
     # which takes ~20s, but clang speeds up builds by more than 20s.
@@ -270,9 +253,5 @@ hooks = [
     "pattern": ".",
     "action": ["python", "src/build/gyp_chromium",
                "-Dchromium_revision=" + Var("chromium_revision_num")],
-  },
-  {
-    "pattern": ".",
-    "action": ["src/third_party/closure/download.sh"],
   },
 ]

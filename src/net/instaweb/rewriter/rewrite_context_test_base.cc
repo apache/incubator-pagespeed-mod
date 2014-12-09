@@ -24,17 +24,17 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_scheduler.h"
+#include "net/instaweb/util/public/stl_util.h"
 
 namespace net_instaweb {
 
@@ -105,8 +105,7 @@ void NestedFilter::Context::RewriteSingle(
     for (int i = 0, n = pieces.size(); i < n; ++i) {
       GoogleUrl url(base, pieces[i]);
       if (url.IsWebValid()) {
-        bool unused;
-        ResourcePtr resource(Driver()->CreateInputResource(url, &unused));
+        ResourcePtr resource(Driver()->CreateInputResource(url));
         if (resource.get() != NULL) {
           ResourceSlotPtr slot(new NestedSlot(resource));
           RewriteContext* nested_context =
@@ -165,9 +164,7 @@ void NestedFilter::Context::Harvest() {
 void NestedFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kHref);
   if (attr != NULL) {
-    bool unused;
-    ResourcePtr resource = CreateInputResource(attr->DecodedValueOrNull(),
-                                               &unused);
+    ResourcePtr resource = CreateInputResource(attr->DecodedValueOrNull());
     if (resource.get() != NULL) {
       ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
 
@@ -314,9 +311,7 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kLink) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
     if (href != NULL) {
-      bool unused;
-      ResourcePtr resource(CreateInputResource(href->DecodedValueOrNull(),
-                                               &unused));
+      ResourcePtr resource(CreateInputResource(href->DecodedValueOrNull()));
       if (resource.get() != NULL) {
         if (context_.get() == NULL) {
           context_.reset(new Context(driver(), this, scheduler_));
@@ -380,8 +375,8 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
 
   // trimmable, with charset.
   ResponseHeaders encoded_css_header;
-  server_context()->SetDefaultLongCacheHeaders(
-      &kContentTypeCss, "koi8-r", StringPiece(), &encoded_css_header);
+  server_context()->SetDefaultLongCacheHeadersWithCharset(
+      &kContentTypeCss, "koi8-r", &encoded_css_header);
   SetFetchResponse(StrCat(domain, "a_ru.css"), encoded_css_header,
                    " a = \xc1 ");
 

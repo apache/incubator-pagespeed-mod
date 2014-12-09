@@ -24,16 +24,15 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_EXPERIMENT_UTIL_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_EXPERIMENT_UTIL_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class RequestHeaders;
 class ResponseHeaders;
 class RewriteOptions;
-class UserAgentMatcher;
 
 namespace experiment {
 
@@ -75,9 +74,7 @@ void SetExperimentCookie(ResponseHeaders* headers, int state,
                          const StringPiece& url, int64 expiration_time_ms);
 
 // Determines which side of the experiment this request should end up on.
-int DetermineExperimentState(const RewriteOptions* options,
-                             const RequestHeaders& headers,
-                             const UserAgentMatcher& matcher);
+int DetermineExperimentState(const RewriteOptions* options);
 
 // Are there any experiments defined with percent > 0?
 bool AnyActiveExperiments(const RewriteOptions* options);

@@ -22,12 +22,12 @@
 #include <cstddef>
 #include <vector>
 
-#include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
+#include "net/instaweb/util/public/atomic_bool.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
 
 struct apr_memcache2_t;
 struct apr_memcache2_server_t;
@@ -39,7 +39,6 @@ class Hasher;
 class MessageHandler;
 class SharedString;
 class Statistics;
-class UpDownCounter;
 class Variable;
 
 // Interface to memcached via the apr_memcache2*, as documented in
@@ -147,8 +146,8 @@ class AprMemCache : public CacheInterface {
   AtomicBool shutdown_;
 
   Variable* timeouts_;
-  UpDownCounter* last_error_checkpoint_ms_;
-  UpDownCounter* error_burst_size_;
+  Variable* last_error_checkpoint_ms_;
+  Variable* error_burst_size_;
 
   bool is_machine_local_;
   MessageHandler* message_handler_;

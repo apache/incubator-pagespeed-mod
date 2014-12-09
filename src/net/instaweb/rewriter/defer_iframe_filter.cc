@@ -18,16 +18,16 @@
 
 #include "net/instaweb/rewriter/public/defer_iframe_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -45,7 +45,7 @@ DeferIframeFilter::DeferIframeFilter(RewriteDriver* driver)
 DeferIframeFilter::~DeferIframeFilter() {
 }
 
-void DeferIframeFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void DeferIframeFilter::DetermineEnabled() {
   set_is_enabled(driver()->request_properties()->SupportsJsDefer(
       driver()->options()->enable_aggressive_rewriters_for_mobile()));
 }
@@ -66,7 +66,7 @@ void DeferIframeFilter::StartElementImpl(HtmlElement* element) {
 
       GoogleString js = StrCat(
           static_asset_manager_->GetAsset(
-              StaticAssetEnum::DEFER_IFRAME, driver()->options()),
+              StaticAssetManager::kDeferIframe, driver()->options()),
               kDeferIframeInit);
       static_asset_manager_->AddJsToElement(js, script, driver());
       script_inserted_ = true;

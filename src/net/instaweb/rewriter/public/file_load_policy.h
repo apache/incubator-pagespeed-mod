@@ -20,10 +20,10 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_FILE_LOAD_POLICY_H_
 
 #include <list>
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -35,9 +35,6 @@ class FileLoadRule;
 //
 // Currently, you must explicitly set which directories to load directly
 // from filesystem.
-//
-// Files with unknown extensions are never loaded from file because we wouldn't
-// be able to set a content type.
 class FileLoadPolicy {
  public:
   FileLoadPolicy() {}
@@ -111,10 +108,6 @@ class FileLoadPolicy {
 
   // Merge in other policies (needed for rewrite_options).
   virtual void Merge(const FileLoadPolicy& other);
-
- protected:
-  virtual bool ShouldLoadFromFileHelper(const GoogleUrl& url,
-                                        GoogleString* filename) const;
 
  private:
   typedef std::list<FileLoadMapping*> FileLoadMappings;

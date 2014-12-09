@@ -26,32 +26,32 @@
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/queued_alarm.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/request_trace.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/thread_synchronizer.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/request_trace.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/thread/queued_alarm.h"
-#include "pagespeed/kernel/thread/thread_synchronizer.h"
 
 namespace net_instaweb {
 
@@ -61,8 +61,6 @@ const char ProxyFetch::kCollectorDetachFinish[] = "CollectorDetachFinish";
 const char ProxyFetch::kCollectorDoneFinish[] = "CollectorDoneFinish";
 const char ProxyFetch::kCollectorFinish[] = "CollectorFinish";
 const char ProxyFetch::kCollectorDetachStart[] = "CollectorDetachStart";
-const char ProxyFetch::kCollectorRequestHeadersCompleteFinish[] =
-    "kCollectorRequestHeadersCompleteFinish";
 
 const char ProxyFetch::kHeadersSetupRaceAlarmQueued[] =
     "HeadersSetupRace:AlarmQueued";
@@ -106,8 +104,7 @@ ProxyFetch* ProxyFetchFactory::CreateNewProxyFetch(
 
   bool cross_domain = false;
   if (gurl.IsWebValid()) {
-    if (namer->Decode(gurl, driver->options(), &request_origin,
-                      &decoded_resource)) {
+    if (namer->Decode(gurl, &request_origin, &decoded_resource)) {
       const RewriteOptions* options = driver->options();
       if (namer->IsAuthorized(gurl, *options)) {
         // The URL is proxied, but is not rewritten as a pagespeed resource,
@@ -226,7 +223,6 @@ ProxyFetchPropertyCallbackCollector::ProxyFetchPropertyCallbackCollector(
       is_options_valid_(true),
       detached_(false),
       done_(false),
-      request_headers_ok_(false),
       proxy_fetch_(NULL),
       options_(options),
       status_code_(HttpStatus::kUnknownStatusCode) {
@@ -271,20 +267,19 @@ bool ProxyFetchPropertyCallbackCollector::IsCacheValid(
   ScopedMutex lock(mutex_.get());
   // Since PropertyPage::CallDone is not yet called, we know that
   // ProxyFetchPropertyCallbackCollector::Done is not called and hence done_ is
-  // false and hence this has not yet been deleted. We can't DCHECK this though
-  // since we're not on sequence_.
+  // false and hence this has not yet been deleted.
+  DCHECK(!done_);
   // But Detach might have been called already and then options_ is not valid.
   if (!is_options_valid_) {
     return false;
   }
   return (options_ == NULL ||
-          options_->IsUrlCacheValid(url_, write_timestamp_ms,
-                                    true /* search_wildcards */));
+          options_->IsUrlCacheValid(url_, write_timestamp_ms));
 }
 
-// Calls to Done(), RequestHeadersComplete(), ConnectProxyFetch(), and Detach()
-// may occur on different threads.  But they are scheduled on a sequence to
-// avoid races across these functions.
+// Calls to Done(), ConnectProxyFetch(), and Detach() may occur on
+// different threads.  But they are scheduled on a sequence to avoid races
+// across these functions.
 void ProxyFetchPropertyCallbackCollector::Done(
     ProxyFetchPropertyCallback* callback) {
   ThreadSynchronizer* sync = server_context_->thread_synchronizer();
@@ -318,55 +313,26 @@ void ProxyFetchPropertyCallbackCollector::ExecuteDone(
           new FallbackPropertyPage(actual_page, fallback_page));
     }
 
-    done_ = true;
-
     // This should be called only after fallback property page is set because
     // there can be post lookup task which requires fallback_property_page.
-    RunPostLookupsAndCleanupIfSafe();
+    for (int i = 0, n = post_lookup_task_vector_.size(); i < n; ++i) {
+      post_lookup_task_vector_[i]->CallRun();
+    }
+    post_lookup_task_vector_.clear();
+
+    done_ = true;
+    if (proxy_fetch_ != NULL) {
+      // ConnectProxyFetch() is already called.
+      proxy_fetch_->PropertyCacheComplete(this);  // deletes this.
+    } else if (detached_) {
+      // Detach() is already called.
+      UpdateStatusCodeInPropertyCache();
+      delete this;
+    }
   }
 
   // No class variable is safe to use beyond this point.
   sync->Signal(ProxyFetch::kCollectorDoneFinish);
-}
-
-void ProxyFetchPropertyCallbackCollector::RunPostLookupsAndCleanupIfSafe() {
-  if (!done_ || !request_headers_ok_) {
-    return;
-  }
-
-  for (int i = 0, n = post_lookup_task_vector_.size(); i < n; ++i) {
-    post_lookup_task_vector_[i]->CallRun();
-  }
-  post_lookup_task_vector_.clear();
-
-  if (proxy_fetch_ != NULL) {
-    // ConnectProxyFetch() is already called.
-    proxy_fetch_->PropertyCacheComplete(this);  // deletes this.
-  } else if (detached_) {
-    // Detach() is already called.
-    UpdateStatusCodeInPropertyCache();
-    delete this;
-  }
-}
-
-void ProxyFetchPropertyCallbackCollector::RequestHeadersComplete() {
-  ThreadSynchronizer* sync = server_context_->thread_synchronizer();
-  sequence_->Add(MakeFunction(
-      this,
-      &ProxyFetchPropertyCallbackCollector::ExecuteRequestHeadersComplete));
-
-  // No class variable is safe to use beyond this point.
-  // Simulate this method being synchronous in unit tests
-  sync->Wait(ProxyFetch::kCollectorRequestHeadersCompleteFinish);
-}
-
-void ProxyFetchPropertyCallbackCollector::ExecuteRequestHeadersComplete() {
-  ThreadSynchronizer* sync = server_context_->thread_synchronizer();
-  request_headers_ok_ = true;
-  RunPostLookupsAndCleanupIfSafe();
-
-  // No class variable is safe to use beyond this point.
-  sync->Signal(ProxyFetch::kCollectorRequestHeadersCompleteFinish);
 }
 
 void ProxyFetchPropertyCallbackCollector::ConnectProxyFetch(
@@ -393,7 +359,7 @@ void ProxyFetchPropertyCallbackCollector::ExecuteConnectProxyFetch(
   if (!options->await_pcache_lookup()) {
     std::set<ProxyFetchPropertyCallback*>::iterator iter;
     for (iter = pending_callbacks_.begin(); iter != pending_callbacks_.end();
-         ++iter) {
+        ++iter) {
       // Finish all the PropertyCache lookups as soon as possible as origin
       // starts sending content.
       (*iter)->FastFinishLookup();
@@ -469,7 +435,7 @@ void ProxyFetchPropertyCallbackCollector::AddPostLookupTask(Function* func) {
 void ProxyFetchPropertyCallbackCollector::ExecuteAddPostLookupTask(
     Function* func) {
   DCHECK(!detached_);
-  if (done_ && request_headers_ok_) {
+  if (done_) {
     // Already done is called, run the task immediately.
     func->CallRun();
     return;
@@ -625,12 +591,6 @@ void ProxyFetch::HandleHeadersComplete() {
     }
   }
 
-  // Set or clear sticky option cookies as appropriate.
-  if (response_headers() != NULL) {
-    GoogleUrl gurl(url_);
-    driver_->SetOrClearPageSpeedOptionCookies(gurl, response_headers());
-  }
-
   // Figure out semantic info from response_headers_
   claims_html_ = response_headers()->IsHtmlLike();
   if (original_content_fetch_ != NULL) {
@@ -639,7 +599,7 @@ void ProxyFetch::HandleHeadersComplete() {
 
     if (!server_context_->ProxiesHtml() && claims_html_) {
       LOG(DFATAL) << "Investigate how servers that don't proxy HTML can be "
-                     "initiated with original_content_fetch_ non-null";
+          "initiated with original_content_fetch_ non-null";
       headers->SetStatusAndReason(HttpStatus::kForbidden);
     }
     original_content_fetch_->HeadersComplete();
@@ -751,10 +711,6 @@ void ProxyFetch::StartFetch() {
 }
 
 void ProxyFetch::DoFetch(bool prepare_success) {
-  if (property_cache_callback_ != NULL) {
-    property_cache_callback_->RequestHeadersComplete();
-  }
-
   if (!prepare_success) {
     Done(false);
     return;
@@ -1112,6 +1068,7 @@ void ProxyFetch::ExecuteQueued() {
   }
 }
 
+
 void ProxyFetch::Finish(bool success) {
   ProxyFetchPropertyCallbackCollector* detach_callback = NULL;
   {
@@ -1145,7 +1102,7 @@ void ProxyFetch::Finish(bool success) {
   if (driver_ != NULL) {
     if (started_parse_) {
       driver_->FinishParseAsync(
-          MakeFunction(this, &ProxyFetch::CompleteFinishParse, success));
+        MakeFunction(this, &ProxyFetch::CompleteFinishParse, success));
       return;
 
     } else {

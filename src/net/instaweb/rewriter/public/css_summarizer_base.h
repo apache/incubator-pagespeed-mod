@@ -21,13 +21,13 @@
 
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace Css {
 
@@ -44,11 +44,10 @@ class RewriteDriver;
 class Statistics;
 class Variable;
 
-// This class helps implement filters that try to compute some properties of all
-// the screen-affecting CSS in the page except for scoped <style> blocks (which
-// are left untouched). They are expected to override Summarize() to perform the
-// per-CSS computation; then at SummariesDone() they can lookup summaries via
-// NumStyles/GetSummaryForStyle.
+// This class helps implement filters that try to compute some properties of
+// all the screen-affecting CSS in the page. They are expected to override
+// Summarize() to perform the per-CSS computation; then at SummariesDone() they
+// can lookup summaries via NumStyles/GetSummaryForStyle.
 class CssSummarizerBase : public RewriteFilter {
  public:
   static const char kNumCssUsedForCriticalCssComputation[];
@@ -243,8 +242,7 @@ class CssSummarizerBase : public RewriteFilter {
                                        StringPiece base_for_resources,
                                        StringPiece rel);
 
-  ResourceSlotPtr MakeSlotForInlineCss(HtmlElement* parent,
-                                       const StringPiece& content);
+  ResourceSlot* MakeSlotForInlineCss(const StringPiece& content);
 
   // Stores all the computed summaries.
   std::vector<SummaryInfo> summaries_;

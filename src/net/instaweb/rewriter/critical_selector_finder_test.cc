@@ -26,11 +26,11 @@
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
+#include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "net/instaweb/util/public/statistics.h"
 #include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/timer.h"
 
 namespace net_instaweb {
@@ -85,17 +85,13 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
     SetDummyRequestHeaders();
   }
 
-  int TimedValue(StringPiece name) {
-    return statistics()->GetTimedVariable(name)->Get(TimedVariable::START);
-  }
-
   void CheckCriticalSelectorFinderStats(int hits, int expiries, int not_found) {
-    EXPECT_EQ(hits, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsValidCount));
-    EXPECT_EQ(expiries, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsExpiredCount));
-    EXPECT_EQ(not_found, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsNotFoundCount));
+    EXPECT_EQ(hits, statistics()->GetVariable(
+        CriticalSelectorFinder::kCriticalSelectorsValidCount)->Get());
+    EXPECT_EQ(expiries, statistics()->GetVariable(
+        CriticalSelectorFinder::kCriticalSelectorsExpiredCount)->Get());
+    EXPECT_EQ(not_found, statistics()->GetVariable(
+        CriticalSelectorFinder::kCriticalSelectorsNotFoundCount)->Get());
   }
 
   GoogleString CriticalSelectorsString() {

@@ -19,12 +19,13 @@
 #define NET_INSTAWEB_APACHE_INSTAWEB_CONTEXT_H_
 
 #include "net/instaweb/automatic/public/html_detector.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/http/content_type.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_writer.h"
 
 // The httpd header must be after the
 // apache_rewrite_driver_factory.h. Otherwise, the compiler will
@@ -40,9 +41,7 @@ namespace net_instaweb {
 
 class ApacheServerContext;
 class GzipInflater;
-class QueryParams;
 class RequestHeaders;
-class ResponseHeaders;
 class RewriteDriver;
 class RewriteOptions;
 
@@ -78,8 +77,6 @@ class InstawebContext {
                   ApacheServerContext* server_context,
                   const GoogleString& base_url,
                   const RequestContextPtr& request_context,
-                  const QueryParams& pagespeed_query_params,
-                  const QueryParams& pagespeed_option_cookies,
                   bool use_custom_options,
                   const RewriteOptions& options);
   ~InstawebContext();
@@ -96,7 +93,7 @@ class InstawebContext {
   void clear() { output_.clear(); }  // TODO(jmarantz): needed?
 
   ResponseHeaders* response_headers() {
-    return response_headers_.get();
+    return &response_headers_;
   }
 
   bool sent_headers() { return sent_headers_; }
@@ -138,7 +135,7 @@ class InstawebContext {
   HtmlDetector html_detector_;
   GoogleString absolute_url_;
   scoped_ptr<RequestHeaders> request_headers_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  ResponseHeaders response_headers_;
   bool started_parse_;
   bool sent_headers_;
   bool populated_headers_;

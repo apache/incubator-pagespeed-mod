@@ -19,12 +19,12 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 class GoogleUrl;
@@ -91,21 +91,10 @@ class CommonFilter : public EmptyHtmlFilter {
   virtual void Characters(HtmlCharactersNode* characters);
 
   // Creates an input resource with the url evaluated based on input_url
-  // which may need to be absolutified relative to base_url(). Returns NULL
-  // if input resource url isn't valid, or can't legally be rewritten in the
-  // context of this page. *is_authorized will be set to false if the domain
-  // of input_url is not authorized, which could true of false regardless of
-  // the return value: for example if we are allowing inlining of resources
-  // from unauthorized domains we will return non-NULL but *is_authorized will
-  // be false; converse cases are possible too (e.g. input_url is a data URI).
-  ResourcePtr CreateInputResource(StringPiece input_url, bool* is_authorized);
-
-  // Similar to CreateInputResource except that if the input_url is not
-  // authorized we insert a debug comment after the given element if possible
-  // (debug is enabled and the element is writable). The returned ResourcePtr
-  // is guaranteed to be non-NULL iff the input_url is authorized.
-  ResourcePtr CreateInputResourceOrInsertDebugComment(StringPiece input_url,
-                                                      HtmlElement* element);
+  // which may need to be absolutified relative to base_url().  Returns NULL if
+  // the input resource url isn't valid, or can't legally be rewritten in the
+  // context of this page.
+  ResourcePtr CreateInputResource(const StringPiece& input_url);
 
   // Resolves input_url based on the driver's location and any base tag into
   // out_url. If resolution fails, the resulting URL may be invalid.

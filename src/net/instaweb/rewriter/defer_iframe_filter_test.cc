@@ -17,12 +17,12 @@
 // Author: pulkitg@google.com (Pulkit Goyal)
 
 #include "net/instaweb/rewriter/public/defer_iframe_filter.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 #include "testing/base/public/gunit.h"
 
@@ -48,7 +48,7 @@ class DeferIframeFilterTest : public RewriteTestBase {
 TEST_F(DeferIframeFilterTest, TestDeferIframe) {
   StringPiece defer_iframe_js_code =
       server_context()->static_asset_manager()->GetAsset(
-          StaticAssetEnum::DEFER_IFRAME, options());
+          StaticAssetManager::kDeferIframe, options());
   GoogleString input_html = "<head></head>"
       "<body>"
       "<iframe src=\"http://test.com/1.html\"/>"
@@ -81,7 +81,7 @@ TEST_F(DeferIframeFilterTest, TestIframeInNoscript) {
 TEST_F(DeferIframeFilterTest, TestMultipleIframePresent) {
   StringPiece defer_iframe_js_code =
       server_context()->static_asset_manager()->GetAsset(
-          StaticAssetEnum::DEFER_IFRAME, options());
+          StaticAssetManager::kDeferIframe, options());
   GoogleString input_html = "<head></head>"
       "<body>"
       "<iframe src=\"http://test.com/1.html\"/>"

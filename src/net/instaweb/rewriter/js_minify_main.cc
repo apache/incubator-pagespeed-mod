@@ -19,24 +19,23 @@
 #include <cstdlib>
 
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/file_message_handler.h"
-#include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/stdio_file_system.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/file_message_handler.h"
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/gflags.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/stdio_file_system.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/js/js_minify.h"
-#include "pagespeed/kernel/util/gflags.h"
 
 // Command-line javascript minifier and metadata printer.  Takes a single
 // javascript file as either standard input or a command-line argument, and by
 // default prints the minified code for that file to stdout.  If
 // --print_size_and_hash is specified, it instead prints the size of the
 // minified file (in bytes) and its minified md5 sum, suitable for configuring
-// library recognition in mod_pagespeed. If --use_experimental_minifier is
-// specified, use the new JS minifier.
+// library recognition in mod_pagespeed.
 
 namespace net_instaweb {
 
@@ -46,22 +45,16 @@ DEFINE_bool(print_size_and_hash, false,
             "This yields results suitable for a "
             "ModPagespeedLibrary directive.");
 
-DEFINE_bool(use_experimental_minifier, false,
-            "Use the new experimental JS minifier to minify the input instead "
-            "of the old one.");
-
 namespace {
 
 bool JSMinifyMain(int argc, char** argv) {
   net_instaweb::FileMessageHandler handler(stderr);
   net_instaweb::StdioFileSystem file_system;
-  if (argc >= 4) {
+  if (argc >= 3) {
     handler.Message(kError,
                     "Usage: \n"
-                    "  js_minify [--print_size_and_hash] "
-                    "[--use_experimental_minifier] foo.js\n"
-                    "  js_minify [--print_size_and_hash] "
-                    "[--use_experimental_minifier] < foo.js\n"
+                    "  js_minify [--print_size_and_hash] foo.js\n"
+                    "  js_minify [--print_size_and_hash] < foo.js\n"
                     "Without --print_size_and_hash prints minified foo.js\n"
                     "With --print_size_and_hash instead prints minified "
                     "size and content hash suitable for ModPagespeedLibrary\n");
@@ -79,16 +72,8 @@ bool JSMinifyMain(int argc, char** argv) {
   if (!file_system.ReadFile(input, &original, &handler)) {
     return false;
   }
-  // Decide which minifier we are using.
   GoogleString stripped;
-  bool result;
-  if (FLAGS_use_experimental_minifier) {
-    pagespeed::js::JsTokenizerPatterns patterns;
-    result = pagespeed::js::MinifyUtf8Js(&patterns, original, &stripped);
-  } else {
-    result = pagespeed::js::MinifyJs(original, &stripped);
-  }
-  if (!result) {
+  if (!pagespeed::js::MinifyJs(original, &stripped)) {
     handler.Message(kError,
                     "%s: Couldn't minify; "
                     "stripping leading and trailing whitespace.\n",

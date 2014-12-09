@@ -20,20 +20,20 @@
 
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -66,10 +66,10 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
       const StringPiece& additional_attributes) {
     return StrCat("<", tag, " pagespeed_lazy_src=\"", url, "\" ",
                   additional_attributes,
-                  "src=\"", blank_image_src_,
-                  StrCat("\" onload=\"", LazyloadImagesFilter::kImageOnloadCode,
-                         "\" onerror=\"this.onerror=null;",
-                         LazyloadImagesFilter::kImageOnloadCode, "\"/>"));
+                  StrCat("src=\"",
+                         blank_image_src_,
+                         "\" onload=\"", LazyloadImagesFilter::kImageOnloadCode,
+                         "\"/>"));
   }
 
   void ExpectLogRecord(int index, int status, bool is_blacklisted,

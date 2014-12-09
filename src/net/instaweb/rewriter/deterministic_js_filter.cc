@@ -18,12 +18,12 @@
 
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
 
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -47,7 +47,7 @@ void DeterministicJsFilter::StartElement(HtmlElement* element) {
         driver_->server_context()->static_asset_manager();
     StringPiece deterministic_js =
         static_asset_manager->GetAsset(
-            StaticAssetEnum::DETERMINISTIC_JS, driver_->options());
+            StaticAssetManager::kDeterministicJs, driver_->options());
     static_asset_manager->AddJsToElement(deterministic_js, script, driver_);
     script->AddAttribute(
         driver_->MakeName(HtmlName::kPagespeedNoDefer), NULL,

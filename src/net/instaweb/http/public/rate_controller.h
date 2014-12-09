@@ -21,11 +21,11 @@
 
 #include <map>
 
-#include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/atomic_bool.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -35,8 +35,8 @@ class MessageHandler;
 class Statistics;
 class ThreadSystem;
 class TimedVariable;
-class UpDownCounter;
 class UrlAsyncFetcher;
+class Variable;
 
 // Controller which limits the number of outgoing fetches per domain. If the
 // fetch is for a user-facing request, this sends the request out anyway and
@@ -106,7 +106,7 @@ class RateController {
   TimedVariable* dropped_fetch_count_;
   // Using a variable here, since we want to be able to track this in the server
   // statistics.
-  UpDownCounter* current_global_fetch_queue_size_;
+  Variable* current_global_fetch_queue_size_;
 
   AtomicBool shutdown_;
 

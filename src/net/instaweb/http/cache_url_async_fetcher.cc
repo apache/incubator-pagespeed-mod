@@ -22,21 +22,20 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/async_fetch_with_lock.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/http_value_writer.h"
+#include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"  // for AbstractLogRecord
 #include "net/instaweb/http/public/logging_proto.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/timer.h"
 
 
 namespace net_instaweb {
@@ -57,7 +56,6 @@ class CachePutFetch : public SharedAsyncFetch {
       : SharedAsyncFetch(base_fetch),
         url_(url),
         fragment_(fragment),
-        http_options_(request_context()->options()),
         respect_vary_(respect_vary),
         default_cache_html_(default_cache_html),
         cache_(cache),
@@ -65,7 +63,6 @@ class CachePutFetch : public SharedAsyncFetch {
         handler_(handler),
         cacheable_(false),
         cache_value_writer_(&cache_value_, cache_),
-        saved_headers_(http_options_),
         req_properties_(base_fetch->request_headers()->GetProperties()) {
     if (backend_first_byte_latency_ != NULL) {
       start_time_ms_ = cache_->timer()->NowMs();
@@ -147,22 +144,18 @@ class CachePutFetch : public SharedAsyncFetch {
 
     // Finish fetch.
     SharedAsyncFetch::HandleDone(success);
-    // Note: SharedAsyncFetch::base_fetch_ and other things that refer to that,
-    // like request_context() cannot be accessed or used any more.
-
     // Add result to cache.
     if (insert_into_cache) {
-      cache_->Put(url_, fragment_, req_properties_, http_options_,
+      cache_->Put(url_, fragment_, req_properties_, respect_vary_,
                   &cache_value_, handler_);
     }
     delete this;
   }
 
  private:
+  AsyncFetch* base_fetch_;
   const GoogleString url_;
   const GoogleString fragment_;
-  const HttpOptions http_options_;
-  // TODO(sligocki): Remove and use http_options_.respect_vary instead.
   ResponseHeaders::VaryOption respect_vary_;
   bool default_cache_html_;
   HTTPCache* cache_;
@@ -250,7 +243,6 @@ class CacheFindCallback : public HTTPCache::Callback {
         num_proactively_freshen_user_facing_request_(
             owner->num_proactively_freshen_user_facing_request()),
         handler_(handler),
-        http_options_(base_fetch->request_context()->options()),
         respect_vary_(ResponseHeaders::GetVaryOption(owner->respect_vary())),
         ignore_recent_fetch_failed_(owner->ignore_recent_fetch_failed()),
         serve_stale_if_fetch_error_(owner->serve_stale_if_fetch_error()),
@@ -272,16 +264,15 @@ class CacheFindCallback : public HTTPCache::Callback {
       case HTTPCache::kFound: {
         VLOG(1) << "Found in cache: " << url_ << " (" << fragment_ << ")";
         http_value()->ExtractHeaders(response_headers(), handler_);
-
-        bool is_imminently_expiring = false;
+        response_headers()->ComputeCaching();
+        bool is_imminently_expiring =
+            IsImminentlyExpiring(*response_headers());
 
         // Respond with a 304 if the If-Modified-Since / If-None-Match values
         // are equal to those in the request.
         if (ShouldReturn304()) {
           response_headers()->Clear();
           response_headers()->SetStatusAndReason(HttpStatus::kNotModified);
-          response_headers()->ComputeCaching();
-          is_imminently_expiring = IsImminentlyExpiring(*response_headers());
           base_fetch_->HeadersComplete();
         } else if (base_fetch_->request_headers()->method() !=
                    RequestHeaders::kHead) {
@@ -295,8 +286,6 @@ class CacheFindCallback : public HTTPCache::Callback {
           StringPiece contents;
           http_value()->ExtractContents(&contents);
           base_fetch_->set_content_length(contents.size());
-          response_headers()->ComputeCaching();
-          is_imminently_expiring = IsImminentlyExpiring(*response_headers());
           base_fetch_->HeadersComplete();
 
           // TODO(sligocki): We are writing all the content in one shot, this
@@ -304,9 +293,6 @@ class CacheFindCallback : public HTTPCache::Callback {
           // we should add an API for conveying that information, which can
           // be detected via AsyncFetch::content_length_known().
           base_fetch_->Write(contents, handler_);
-        } else {
-          response_headers()->ComputeCaching();
-          is_imminently_expiring = IsImminentlyExpiring(*response_headers());
         }
 
         if (fetcher_ != NULL &&
@@ -497,8 +483,7 @@ class CacheFindCallback : public HTTPCache::Callback {
     return ResponseHeaders::IsImminentlyExpiring(
         headers.date_ms(),
         headers.CacheExpirationTimeMs(),
-        cache_->timer()->NowMs(),
-        headers.http_options());
+        cache_->timer()->NowMs());
   }
 
   AsyncFetch* WrapCachePutFetchAndConditionalFetch(AsyncFetch* base_fetch) {
@@ -542,8 +527,6 @@ class CacheFindCallback : public HTTPCache::Callback {
   Variable* num_proactively_freshen_user_facing_request_;
   MessageHandler* handler_;
 
-  const HttpOptions http_options_;
-  // TODO(sligocki): Remove and use http_options_.respect_vary instead.
   ResponseHeaders::VaryOption respect_vary_;
   bool ignore_recent_fetch_failed_;
   bool serve_stale_if_fetch_error_;

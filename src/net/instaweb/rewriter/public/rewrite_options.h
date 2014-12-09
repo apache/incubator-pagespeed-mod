@@ -19,7 +19,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 
-#include <bitset>
 #include <cstddef>                      // for size_t
 #include <map>
 #include <set>
@@ -27,37 +26,33 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/enum_set.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/thread_system.h"
 #include "pagespeed/kernel/base/dense_hash_map.h"
-#include "pagespeed/kernel/base/enum_set.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/rde_hash_map.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/sha1_signature.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/wildcard.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/util/copy_on_write.h"
 
 namespace net_instaweb {
 
-class HttpOptions;
+class Hasher;
 class MessageHandler;
-class PurgeSet;
 class RequestHeaders;
 
 // Defines a set of customizations that can be applied to any Rewrite.  There
@@ -133,7 +128,6 @@ class RewriteOptions {
     kDisableJavascript,
     kDivStructure,
     kElideAttributes,
-    kExperimentCollectMobImageInfo,
     kExperimentSpdy,  // Temporary and will be removed soon.
     kExplicitCloseTags,
     kExtendCacheCss,
@@ -161,7 +155,6 @@ class RewriteOptions {
     kLeftTrimUrls,
     kLocalStorageCache,
     kMakeGoogleAnalyticsAsync,
-    kMobilize,
     kMoveCssAboveScripts,
     kMoveCssToHead,
     kOutlineCss,
@@ -178,8 +171,7 @@ class RewriteOptions {
     kResizeToRenderedImageDimensions,
     kRewriteCss,
     kRewriteDomains,
-    kRewriteJavascriptExternal,
-    kRewriteJavascriptInline,
+    kRewriteJavascript,
     kRewriteStyleAttributes,
     kRewriteStyleAttributesWithUrl,
     kSplitHtml,
@@ -210,12 +202,9 @@ class RewriteOptions {
   // you add an image-related option or css-related option you must also add
   // it to the kRelatedOptions array in image_rewrite_filter.cc and/or
   // css_filter.cc.
-  static const char kAcceptInvalidSignatures[];
   static const char kAccessControlAllowOrigins[];
   static const char kAddOptionsToUrls[];
   static const char kAllowLoggingUrlsInLogRecord[];
-  static const char kAllowOptionsToBeSetByCookies[];
-  static const char kAlwaysMobilize[];
   static const char kAlwaysRewriteCss[];
   static const char kAnalyticsID[];
   static const char kAvoidRenamingIntrospectiveJavascript[];
@@ -224,6 +213,7 @@ class RewriteOptions {
   static const char kBeaconUrl[];
   static const char kBlinkMaxHtmlSizeRewritable[];
   static const char kCacheFragment[];
+  static const char kCacheInvalidationTimestamp[];
   static const char kCacheSmallImagesUnrewritten[];
   static const char kClientDomainRewrite[];
   static const char kCombineAcrossPaths[];
@@ -298,9 +288,7 @@ class RewriteOptions {
   static const char kJsPreserveURLs[];
   static const char kLazyloadImagesAfterOnload[];
   static const char kLazyloadImagesBlankUrl[];
-  static const char kLoadFromFileCacheTtlMs[];
   static const char kLogBackgroundRewrite[];
-  static const char kLogMobilizationSamples[];
   static const char kLogRewriteTiming[];
   static const char kLogUrlIndices[];
   static const char kLowercaseHtmlNames[];
@@ -322,26 +310,19 @@ class RewriteOptions {
   static const char kMinCacheTtlMs[];
   static const char kMinImageSizeLowResolutionBytes[];
   static const char kMinResourceCacheTimeToRewriteMs[];
-  static const char kMobLayout[];
-  static const char kMobLogo[];
-  static const char kMobNav[];
   static const char kModifyCachingHeaders[];
-  static const char kNoTransformOptimizedImages[];
   static const char kNonCacheablesForCachePartialHtml[];
   static const char kObliviousPagespeedUrls[];
-  static const char kOptionCookiesDurationMs[];
   static const char kOverrideCachingTtlMs[];
   static const char kPersistBlinkBlacklist[];
   static const char kPreserveUrlRelativity[];
   static const char kPrivateNotVaryForIE[];
-  static const char kPubliclyCacheMismatchedHashesExperimental[];
   static const char kProactivelyFreshenUserFacingRequest[];
   static const char kProactiveResourceFreshening[];
   static const char kProgressiveJpegMinBytes[];
   static const char kRejectBlacklisted[];
   static const char kRejectBlacklistedStatusCode[];
   static const char kReportUnloadTime[];
-  static const char kRequestOptionOverride[];
   static const char kRespectVary[];
   static const char kRespectXForwardedProto[];
   static const char kRewriteDeadlineMs[];
@@ -354,10 +335,8 @@ class RewriteOptions {
   static const char kServeStaleIfFetchError[];
   static const char kServeStaleWhileRevalidateThresholdSec[];
   static const char kServeXhrAccessControlHeaders[];
-  static const char kStickyQueryParameters[];
   static const char kSupportNoScriptEnabled[];
   static const char kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss[];
-  static const char kUrlSigningKey[];
   static const char kUseBlankImageForInlinePreview[];
   static const char kUseExperimentalJsMinifier[];
   static const char kUseFallbackPropertyCacheValues[];
@@ -411,7 +390,6 @@ class RewriteOptions {
   static const char kMemcachedServers[];
   static const char kMemcachedThreads[];
   static const char kMemcachedTimeoutUs[];
-  static const char kProxySuffix[];
   static const char kRateLimitBackgroundFetches[];
   static const char kServeWebpToAnyAgent[];
   static const char kSlurpDirectory[];
@@ -473,9 +451,6 @@ class RewriteOptions {
 
   // Number of bytes used for signature hashing.
   static const int kHashBytes = 20;
-
-  // Number of bytes capacity in the URL invalidation set.
-  static const int kCachePurgeBytes = 25000;
 
   // Determines the scope at which an option is evaluated.  In Apache,
   // for example, kDirectoryScope indicates it can be changed via .htaccess
@@ -632,6 +607,7 @@ class RewriteOptions {
   static const int64 kDefaultMinResourceCacheTimeToRewriteMs;
   static const char kDefaultDownstreamCachePurgeMethod[];
   static const int64 kDefaultDownstreamCacheRewrittenPercentageThreshold;
+  static const int64 kDefaultCacheInvalidationTimestamp;
   static const int64 kDefaultIdleFlushTimeMs;
   static const int64 kDefaultFlushBufferLimitBytes;
   static const int64 kDefaultImplicitCacheTtlMs;
@@ -652,8 +628,6 @@ class RewriteOptions {
   static const int kDefaultDomainShardCount;
   static const int64 kDefaultBlinkHtmlChangeDetectionTimeMs;
   static const int kDefaultMaxPrefetchJsElements;
-  static const int64 kDefaultOptionCookiesDurationMs;
-  static const int64 kDefaultLoadFromFileCacheTtlMs;
 
   // IE limits URL size overall to about 2k characters.  See
   // http://support.microsoft.com/kb/208427/EN-US
@@ -725,7 +699,7 @@ class RewriteOptions {
     // If spec doesn't have an id, then id_ will be set to
     // experiment::kExperimentNotSet.  These ExperimentSpecs will then be
     // rejected by AddExperimentSpec().
-    ExperimentSpec(const StringPiece& spec, const RewriteOptions* options,
+    ExperimentSpec(const StringPiece& spec, RewriteOptions* options,
                    MessageHandler* handler);
 
     // Creates a ExperimentSpec with id_=id.  All other variables
@@ -749,13 +723,8 @@ class RewriteOptions {
     FilterSet enabled_filters() const { return enabled_filters_; }
     FilterSet disabled_filters() const { return disabled_filters_; }
     OptionSet filter_options() const { return filter_options_; }
-    bool matches_device_type(UserAgentMatcher::DeviceType type) const;
     bool use_default() const { return use_default_; }
     GoogleString ToString() const;
-
-    // Mutate the origin domains in DomainLawyer with alternate_origin_domains_.
-    void ApplyAlternateOriginsToDomainLawyer(DomainLawyer* domain_lawyer,
-                                             MessageHandler* handler) const;
 
    protected:
     // Merges a spec into this. This follows the same semantics as
@@ -764,58 +733,13 @@ class RewriteOptions {
     // preserve vs extend_cache, *this will take precedence.
     void Merge(const ExperimentSpec& spec);
 
-    typedef std::bitset<net_instaweb::UserAgentMatcher::kEndOfDeviceType>
-        DeviceTypeBitSet;
-
-    static bool ParseDeviceTypeBitSet(const StringPiece& in,
-                                      DeviceTypeBitSet* out,
-                                      MessageHandler* handler);
-
-    struct AlternateOriginDomainSpec {
-      StringVector serving_domains;
-      GoogleString origin_domain;
-      GoogleString host_header;
-    };
-
-    // Simple check that 's' is not obviously an invalid host. Used to avoid
-    // problems when a port number is accidentally placed in a host field.
-    static bool LooksLikeValidHost(const StringPiece& s);
-
-    // Parses the string after an 'alternate_origin_domain' experiment
-    // option, returning if it was successfull. If it returns false, the spec is
-    // invalid and should be discarded.
-    static bool ParseAlternateOriginDomain(const StringPiece& in,
-                                           AlternateOriginDomainSpec* out,
-                                           MessageHandler* handler);
-
-    // Combine consecutive entries in a StringPieceVector such that
-    // [ a, b, "host, port" ] can be turned into [ a, b, host:port ].
-    // Inspects vec[first_pos] and vec[first_pos + 1]. If they appear to be a
-    // quoted tuple, will replace vec[first_pos] with a combined value and
-    // vec[first_pos + 1] will be removed, ie: vec will reduce in size by 1.
-    // combined_container is used as the underlying storage for the combined
-    // string, if necessary.
-    static void CombineQuotedHostPort(StringPieceVector* vec, size_t first_pos,
-                                      GoogleString* combined_container);
-
-    // Returns a copy of the input string that will be surrounded by double
-    // quotes if the input string contains a colon. This is used to turn
-    // host:port into "host:port" when printing an ExperimentSpec.
-    static GoogleString QuoteHostPort(const GoogleString& in);
-
    private:
     FRIEND_TEST(RewriteOptionsTest, ExperimentMergeTest);
-    FRIEND_TEST(RewriteOptionsTest, DeviceTypeMergeTest);
-    FRIEND_TEST(RewriteOptionsTest, AlternateOriginDomainMergeTest);
 
-    // Parse 'spec' and set the FilterSets, rewrite level, inlining thresholds,
-    // and OptionSets accordingly.
+    // Initialize parses spec and sets the FilterSets, rewrite level,
+    // inlining thresholds, and OptionSets accordingly.
     void Initialize(const StringPiece& spec, MessageHandler* handler);
 
-    //
-    // If you add any members to this list, be sure to also add them to the
-    // Merge method.
-    //
     int id_;  // id for this experiment
     GoogleString ga_id_;  // Google Analytics ID for this experiment
     int ga_variable_slot_;
@@ -824,18 +748,9 @@ class RewriteOptions {
     FilterSet enabled_filters_;
     FilterSet disabled_filters_;
     OptionSet filter_options_;
-    // bitset to indicate which device types this ExperimentSpec should apply
-    // to. If NULL, no device type was specified and the experiment applies
-    // to all device types.
-    scoped_ptr<DeviceTypeBitSet> matches_device_types_;
     // Use whatever RewriteOptions' settings are without experiments
     // for this experiment.
     bool use_default_;
-    // vector of parsed alternate_origin_domain options. These mutations will
-    // be applied to a DomainLawyer when passed to MutateDomainLawer.
-    typedef std::vector<AlternateOriginDomainSpec> AlternateOriginDomains;
-    AlternateOriginDomains alternate_origin_domains_;
-
     DISALLOW_COPY_AND_ASSIGN(ExperimentSpec);
   };
 
@@ -1420,24 +1335,19 @@ class RewriteOptions {
     set_option(x, &preserve_url_relativity_);
   }
 
-  // Returns whether the given URL is valid for use in the cache, given the
-  // timestamp stored in the cache.
-  //
-  // It first checks time_ms against the global cache invalidation timestamp.
-  //
-  // It next checks if PurgeCacheUrl has been called on url with a timestamp
-  // earlier than time_ms.  Note: this is not a wildcard check but an
-  // exact lookup.
-  //
-  // Finally, if search_wildcards is true, it scans
-  // url_cache_invalidation_entries_ for entries with timestamp_ms > time_ms and
-  // url matching the url_pattern.
+  // Returns false if there is an entry in url_cache_invalidation_entries_ with
+  // its timestamp_ms > time_ms and url matches the url_pattern.  Else, return
+  // true.
   //
   // In most contexts where you'd call this you should consider instead
   // calling OptionsAwareHTTPCacheCallback::IsCacheValid instead, which takes
   // into account request-headers.
-  bool IsUrlCacheValid(StringPiece url, int64 time_ms,
-                       bool search_wildcards) const;
+  bool IsUrlCacheValid(StringPiece url, int64 time_ms) const;
+
+  // Returns true if PurgeCacheUrl has been called on url with a timestamp
+  // earlier than time_ms.  Note: this is not a wildcard check but an
+  // exact lookup.
+  bool IsUrlPurged(StringPiece url, int64 time_ms) const;
 
   // If timestamp_ms greater than or equal to the last timestamp in
   // url_cache_invalidation_entries_, then appends an UrlCacheInvalidationEntry
@@ -1469,40 +1379,35 @@ class RewriteOptions {
   // Supply optional mutex for setting a global cache invalidation
   // timestamp.  Ownership of 'lock' is transfered to this.
   void set_cache_invalidation_timestamp_mutex(ThreadSystem::RWLock* lock) {
-    cache_purge_mutex_.reset(lock);
+    cache_invalidation_timestamp_.set_mutex(lock);
   }
 
-  // Cache invalidation timestamp is in milliseconds since 1970.  It is used
-  // for invalidating everything in the cache written prior to the timestamp.
-  //
-  // TODO(jmarantz): rename to cache_invalidation_timestamp_ms().
-  int64 cache_invalidation_timestamp() const;
-
-  // Determines whether there is a valid cache_invalidation_timestamp.  It
-  // is invalid to call cache_invalidation_timestamp() if
-  // has_cache_invalidation_timestamp_ms() is false.
-  bool has_cache_invalidation_timestamp_ms() const;
+  // Cache invalidation timestamp is in milliseconds since 1970.
+  int64 cache_invalidation_timestamp() const {
+    ThreadSystem::ScopedReader lock(cache_invalidation_timestamp_.mutex());
+    return cache_invalidation_timestamp_.value();
+  }
 
   // Sets the cache invalidation timestamp -- in milliseconds since
   // 1970.  This function is meant to be called on a RewriteOptions*
-  // immediately after instantiation.
+  // immediately after instantiation.  It cannot be used to mutate the
+  // value of one already in use in a RewriteDriver.
   //
-  // It can also be used to mutate the invalidation timestamp of a
-  // RewriteOptions instance that is used as a base for cloning/merging,
-  // in which case you should make sure to establish a real mutex with
-  // set_cache_invalidation_timestamp_mutex for such instances.
+  // See also UpdateCacheInvalidationTimestampMs.
+  void set_cache_invalidation_timestamp(int64 timestamp_ms) {
+    cache_invalidation_timestamp_.mutex()->DCheckLocked();
+    DCHECK_LT(0, timestamp_ms);
+    set_option(timestamp_ms, &cache_invalidation_timestamp_);
+  }
+
+  // Updates the cache invalidation timestamp of a mutexed RewriteOptions
+  // instance.  Currently this only occurs in Apache global_options,
+  // and is used for purging cache by touching a file in the cache directory.
+  //
+  // This function ignores requests to move the invalidation timestamp
+  // backwards.  It returns true if the timestamp was actually changed.
   bool UpdateCacheInvalidationTimestampMs(int64 timestamp_ms)
-      LOCKS_EXCLUDED(cache_purge_mutex_.get());
-
-  // Mutates the options PurgeSet by copying the contents from purge_set.
-  // Returns true if the contents actually changed, false if the incoming
-  // purge_set was identical to purge_set already in this.
-  bool UpdateCachePurgeSet(const CopyOnWrite<PurgeSet>& purge_set)
-      LOCKS_EXCLUDED(cache_purge_mutex_.get());
-
-  // Generates a human-readable view of the PurgeSet, including timestamps
-  // in GMT.
-  GoogleString PurgeSetString() const;
+      LOCKS_EXCLUDED(cache_invalidation_timestamp_.mutex());
 
   // How much inactivity of HTML input will result in PSA introducing a flush.
   // Values <= 0 disable the feature.
@@ -1587,14 +1492,6 @@ class RewriteOptions {
     return add_options_to_urls_.value();
   }
 
-  void set_publicly_cache_mismatched_hashes_experimental(bool x) {
-    set_option(x, &publicly_cache_mismatched_hashes_experimental_);
-  }
-
-  bool publicly_cache_mismatched_hashes_experimental() const {
-    return publicly_cache_mismatched_hashes_experimental_.value();
-  }
-
   void set_oblivious_pagespeed_urls(bool x) {
     set_option(x, &oblivious_pagespeed_urls_);
   }
@@ -1673,13 +1570,6 @@ class RewriteOptions {
   }
   bool log_background_rewrites() const {
     return log_background_rewrites_.value();
-  }
-
-  void set_log_mobilization_samples(bool x) {
-    set_option(x, &log_mobilization_samples_);
-  }
-  bool log_mobilization_samples() const {
-    return log_mobilization_samples_.value();
   }
 
   void set_log_rewrite_timing(bool x) {
@@ -1802,27 +1692,6 @@ class RewriteOptions {
   }
   int beacon_reinstrument_time_sec() const {
     return beacon_reinstrument_time_sec_.value();
-  }
-
-  void set_accept_invalid_signatures(bool x) {
-    set_option(x, &accept_invalid_signatures_);
-  }
-  bool accept_invalid_signatures() const {
-    return accept_invalid_signatures_.value();
-  }
-
-  void set_request_option_override(StringPiece p) {
-    set_option(GoogleString(p.data(), p.size()), &request_option_override_);
-  }
-  const GoogleString& request_option_override() const {
-    return request_option_override_.value();
-  }
-
-  void set_url_signing_key(StringPiece p) {
-    set_option(GoogleString(p.data(), p.size()), &url_signing_key_);
-  }
-  const GoogleString& url_signing_key() const {
-    return url_signing_key_.value();
   }
 
   void set_lazyload_images_after_onload(bool x) {
@@ -2255,16 +2124,6 @@ class RewriteOptions {
     return implicit_cache_ttl_ms_.value();
   }
 
-  void set_load_from_file_cache_ttl_ms(int64 x) {
-    set_option(x, &load_from_file_cache_ttl_ms_);
-  }
-  int64 load_from_file_cache_ttl_ms() const {
-    return load_from_file_cache_ttl_ms_.value();
-  }
-  bool load_from_file_cache_ttl_ms_was_set() const {
-    return load_from_file_cache_ttl_ms_.was_set();
-  }
-
   void set_x_header_value(const StringPiece& p) {
     set_option(p.as_string(), &x_header_value_);
   }
@@ -2410,25 +2269,11 @@ class RewriteOptions {
     return allow_logging_urls_in_log_record_.value();
   }
 
-  void set_allow_options_to_be_set_by_cookies(bool x) {
-    set_option(x, &allow_options_to_be_set_by_cookies_);
-  }
-  bool allow_options_to_be_set_by_cookies() const {
-    return allow_options_to_be_set_by_cookies_.value();
-  }
-
   void set_non_cacheables_for_cache_partial_html(const StringPiece& p) {
     set_option(p.as_string(), &non_cacheables_for_cache_partial_html_);
   }
   const GoogleString& non_cacheables_for_cache_partial_html() const {
     return non_cacheables_for_cache_partial_html_.value();
-  }
-
-  void set_no_transform_optimized_images(bool x) {
-    set_option(x, &no_transform_optimized_images_);
-  }
-  bool no_transform_optimized_images() const {
-    return no_transform_optimized_images_.value();
   }
 
   void set_access_control_allow_origins(const StringPiece& p) {
@@ -2472,30 +2317,6 @@ class RewriteOptions {
   const GoogleString& cache_fragment() const {
     return cache_fragment_.value();
   }
-
-  void set_sticky_query_parameters(StringPiece p) {
-    set_option(p.as_string(), &sticky_query_parameters_);
-  }
-  const GoogleString& sticky_query_parameters() const {
-    return sticky_query_parameters_.value();
-  }
-
-  void set_option_cookies_duration_ms(int64 x) {
-    set_option(x, &option_cookies_duration_ms_);
-  }
-  int64 option_cookies_duration_ms() const {
-    return option_cookies_duration_ms_.value();
-  }
-
-  bool mob_always() const { return mob_always_.value(); }
-  void set_mob_always(bool x) { set_option(x, &mob_always_); }
-  bool mob_layout() const { return mob_layout_.value(); }
-  void set_mob_layout(bool x) { set_option(x, &mob_layout_); }
-  bool mob_logo() const { return mob_logo_.value(); }
-  void set_mob_logo(bool x) { set_option(x, &mob_logo_); }
-  bool mob_nav() const { return mob_nav_.value(); }
-  void set_mob_nav(bool x) { set_option(x, &mob_nav_); }
-
 
   // Merge src into 'this'.  Generally, options that are explicitly
   // set in src will override those explicitly set in 'this' (except that
@@ -2688,8 +2509,7 @@ class RewriteOptions {
   //
   // Computing a signature "freezes" the class instance.  Attempting
   // to modify a RewriteOptions after freezing will DCHECK.
-  void ComputeSignature() LOCKS_EXCLUDED(cache_purge_mutex_.get());
-  void ComputeSignatureLockHeld() SHARED_LOCKS_REQUIRED(cache_purge_mutex_);
+  void ComputeSignature();
 
   // Freeze a RewriteOptions so we can't modify it anymore and thus
   // know that it's safe to read it from multiple threads, but don't
@@ -2703,10 +2523,7 @@ class RewriteOptions {
   // discuss this with your team-mates and ensure that you clearly understand
   // its implications. Also, please do repeat this warning at every place you
   // use this method.
-  //
-  // Returns true if the signature was previously computed, and thus should
-  // be recomputed after modification.
-  bool ClearSignatureWithCaution();
+  void ClearSignatureWithCaution();
 
   bool frozen() const { return frozen_; }
 
@@ -2728,7 +2545,7 @@ class RewriteOptions {
     // Apache global_options() object do we create a real mutex.  We
     // don't expect contention here because we take a reader-lock and the
     // only time we Write is if someone flushes the cache.
-    ThreadSystem::ScopedReader lock(cache_purge_mutex_.get());
+    ThreadSystem::ScopedReader lock(cache_invalidation_timestamp_.mutex());
     DCHECK(frozen_);
     DCHECK(!signature_.empty());
     return signature_;
@@ -2736,10 +2553,6 @@ class RewriteOptions {
 
   virtual GoogleString OptionsToString() const;
   GoogleString FilterSetToString(const FilterSet& filter_set) const;
-  GoogleString EnabledFiltersToString() const;
-  // Returns a string containing the enabled options which do not leak sensitive
-  // information about the server state.
-  GoogleString SafeEnabledOptionsToString() const;
 
   // Returns a string identifying the currently running experiment to be used in
   // tagging Google Analytics data.
@@ -2783,14 +2596,7 @@ class RewriteOptions {
   // Returns the hasher used for signatures and URLs to purge.
   const Hasher* hasher() const { return &hasher_; }
 
-  const SHA1Signature* sha1signature() const { return &sha1signature_; }
-
   ThreadSystem* thread_system() const { return thread_system_; }
-
-  // Produces a new HttpOptions each time this is called, shouldn't be a big
-  // deal since we don't call it very often and HttpOptions are pretty light,
-  // but we might want to reconsider if those assumptions change.
-  HttpOptions ComputeHttpOptions() const;
 
  protected:
   // Helper class to represent an Option, whose value is held in some class T.
@@ -2920,6 +2726,77 @@ class RewriteOptions {
     DISALLOW_COPY_AND_ASSIGN(Option);
   };
 
+  // Like Option<int64>, but merge by taking the Max of the two values.  Note
+  // that this could be templatized on type in which case we'd need to inline
+  // the implementation of Merge.
+  //
+  // This class has an optional mutex for allowing Apache to flush cache by
+  // mutating its global_options().  Note that global_options() is never used
+  // directly in a rewrite_driver, but is cloned with this optional Mutex held.
+  //
+  // The "optional" mutex is always present, but it defaults to a
+  // NullRWLock, which has empty implementations of all
+  // locking/unlocking functions.  Only in Apache (currently) do we
+  // override that with a real RWLock from the thread system.
+  class MutexedOptionInt64MergeWithMax : public Option<int64> {
+   public:
+    MutexedOptionInt64MergeWithMax();
+    virtual ~MutexedOptionInt64MergeWithMax();
+
+    // Merges src_base into this by taking the maximum of the two values.
+    //
+    // We expect to have exclusive access to 'this' and don't need to lock it,
+    // but we use locked access to src_base->value().
+    virtual void Merge(const OptionBase* src_base);
+
+    // We provide a more specific Merge here so that we can use an unaliased
+    // name for src to provide lock annotation.
+    void Merge(const MutexedOptionInt64MergeWithMax* src)
+        LOCKS_EXCLUDED(src->mutex());
+
+    // The value() must only be taken when the mutex is held.  This is
+    // only called by RewriteOptions::UpdateCacheInvalidationTimestampMs
+    // and MutexedOptionInt64MergeWithMax::Merge, which are holding
+    // locks when calling value().
+    //
+    // Note that we don't require or take the lock for set(), so we
+    // don't override set.  When updating or merging, we already have
+    // a lock and can't take it again.  When writing the invalidation
+    // timestamp at initial configuration time, we don't need the
+    // lock.
+    void checked_set(const int64& value) EXCLUSIVE_LOCKS_REQUIRED(mutex()) {
+      mutex_->DCheckLocked();
+      Option<int64>::set(value);
+    }
+
+    // Returns the mutex for this object.  When this class is
+    // constructed it gets a NullRWLock which doesn't actually lock
+    // anything.  This is because we generally initialize
+    // RewriteOptions from only one thread, and thereafter do only
+    // reads.  However, one exception is the cache-invalidation
+    // timestamp in the global_options for Apache ServerContexts,
+    // which can be written from any thread handling a request,
+    // particularly with the Worker MPM.  So we install a real RWLock*
+    // for Apache's global_options.
+    //
+    // Also note that this mutex, when installed, is also used to
+    // lock access to RewriteOptions::signature(), which depends on
+    // the cache invalidation timestamp.
+    ThreadSystem::RWLock* mutex() const LOCK_RETURNED(mutex_) {
+      return mutex_.get();
+    }
+
+    // Takes ownership of mutex.  Note that by default, mutex()
+    // has a NullRWLock.  Only by calling set_mutex do we add locking
+    // semantics for the invalidation timestamp & signature.  If
+    // we allow other settings to be spontaneously changed we will
+    // have to add further locking.
+    void set_mutex(ThreadSystem::RWLock* lock) { mutex_.reset(lock); }
+
+   private:
+    scoped_ptr<ThreadSystem::RWLock> mutex_;
+  };
+
  protected:
   // Adds a new Property to 'properties' (the last argument).
   template<class RewriteOptionsSubclass, class OptionClass>
@@ -2930,14 +2807,12 @@ class RewriteOptions {
       StringPiece option_name,
       OptionScope scope,
       const char* help_text,
-      bool safe_to_print,
       Properties* properties) {
     PropertyBase* property =
         new PropertyLeaf<RewriteOptionsSubclass, OptionClass>(
             default_value, offset, id, option_name);
     property->set_scope(scope);
     property->set_help_text(help_text);
-    property->set_safe_to_print(safe_to_print);
     properties->push_back(property);
   }
 
@@ -3059,18 +2934,12 @@ class RewriteOptions {
     StringPiece option_name() const { return option_name_; }
     int index() const { return index_; }
 
-    bool safe_to_print() const { return safe_to_print_; }
-    void set_safe_to_print(bool safe_to_print) {
-      safe_to_print_ = safe_to_print;
-    }
-
    private:
     const char* id_;
     const char* help_text_;
     StringPiece option_name_;  // Key into all_options_.
     OptionScope scope_;
     bool do_not_use_for_signature_computation_;  // Default is false.
-    bool safe_to_print_;  // Safe to print in debug filter output.
     int index_;
 
     DISALLOW_COPY_AND_ASSIGN(PropertyBase);
@@ -3272,9 +3141,9 @@ class RewriteOptions {
   template<class OptionClass>
   static void AddRequestProperty(typename OptionClass::ValueType default_value,
                                  OptionClass RewriteOptions::*offset,
-                                 const char* id, bool safe_to_print) {
+                                 const char* id) {
     AddProperty(default_value, offset, id, kNullOption, kProcessScope,
-                NULL, safe_to_print, properties_);
+                NULL, properties_);
   }
 
   // Adds a property with a unique option_name_ field, allowing use of
@@ -3285,10 +3154,9 @@ class RewriteOptions {
                               const char* id,
                               StringPiece option_name,
                               OptionScope scope,
-                              const char* help,
-                              bool safe_to_print) {
+                              const char* help) {
     AddProperty(default_value, offset, id, option_name, scope, help,
-                safe_to_print, properties_);
+                properties_);
   }
 
   static void AddProperties();
@@ -3432,19 +3300,12 @@ class RewriteOptions {
   // invalidated.  In increasing order of timestamp.
   UrlCacheInvalidationEntryVector url_cache_invalidation_entries_;
 
-  // Map of exact URLs to be invalidated; no wildcards.  Note that the
-  // cache_purge_mutex_ is, by default, a NullRWLock.  You must call
-  // set_cache_invalidation_timestamp_mutex to make it be a real mutex.
-  // This is generally done only for the global context for each server,
-  // so that we can atomically propagate cache flush updates into it while
-  // it's running.
-  CopyOnWrite<PurgeSet> purge_set_ GUARDED_BY(cache_purge_mutex_);
+  // Map of exact URLs to be invalidated; no wildcards.
+  UrlCacheInvalidationMap url_cache_invalidation_map_;
 
-  scoped_ptr<ThreadSystem::RWLock> cache_purge_mutex_;
+  MutexedOptionInt64MergeWithMax cache_invalidation_timestamp_;
   Option<int64> css_flatten_max_bytes_;
   Option<bool> cache_small_images_unrewritten_;
-  Option<bool> no_transform_optimized_images_;
-
   // Sets limit for image optimization
   Option<int64> image_resolution_limit_bytes_;
   Option<int64> css_image_inline_max_bytes_;
@@ -3514,13 +3375,6 @@ class RewriteOptions {
   // can be reconstructed on servers without the same configuration file.
   Option<bool> add_options_to_urls_;
 
-  // If this option is enabled, serves .pagespeed. resource URLs with
-  // mismatching hashes with the same cache expiration as the inputs.
-  // By default, we convert resources requests with the wrong hash to
-  // Cache-Control:private,max-age=300 to avoid caching stale content
-  // in proxies.
-  Option<bool> publicly_cache_mismatched_hashes_experimental_;
-
   // Should in-place-resource-optimization(IPRO) be enabled?
   Option<bool> in_place_rewriting_enabled_;
   // Optimize before responding in in-place flow?
@@ -3547,7 +3401,6 @@ class RewriteOptions {
   Option<bool> private_not_vary_for_ie_;
   Option<bool> combine_across_paths_;
   Option<bool> log_background_rewrites_;
-  Option<bool> log_mobilization_samples_;
   Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
   Option<bool> log_url_indices_;
   Option<bool> lowercase_html_names_;
@@ -3751,12 +3604,6 @@ class RewriteOptions {
   // explicit cache ttl or expiration date.
   Option<int64> implicit_cache_ttl_ms_;
 
-  // The number of miliseconds of cache TTL we assign to resources that are
-  // loaded from file and "likely cacheable" and have no explicit cache ttl or
-  // expiration date. If this option is not set explicitly, fall back to using
-  // implicit_cache_ttl_ms for load from file cache ttl.
-  Option<int64> load_from_file_cache_ttl_ms_;
-
   // Maximum length (in bytes) of response content.
   Option<int64> max_cacheable_response_content_length_;
 
@@ -3865,9 +3712,6 @@ class RewriteOptions {
   // Whether to allow logging urls as part of LogRecord.
   Option<bool> allow_logging_urls_in_log_record_;
 
-  // Whether to allow options to be set by cookies.
-  Option<bool> allow_options_to_be_set_by_cookies_;
-
   // Non cacheables used when partial HTML is cached.
   Option<GoogleString> non_cacheables_for_cache_partial_html_;
 
@@ -3885,22 +3729,6 @@ class RewriteOptions {
   // b. low-res image is not small enough compared to the full-res version.
   Option<int64> max_low_res_image_size_bytes_;
   Option<int> max_low_res_to_full_res_image_size_percentage_;
-
-  // Pass this string in url to allow for pagespeed options.
-  Option<GoogleString> request_option_override_;
-
-  // The key used to sign .pagespeed resources if URL signing is enabled.
-  Option<GoogleString> url_signing_key_;
-
-  // If set to true, accepts urls with invalid signatures.
-  Option<bool> accept_invalid_signatures_;
-
-  // sticky_query_parameters_ is the token specified in the configuration that
-  // must be specified in a request's query parameters/headers for the other
-  // options in the request to be converted to cookies.
-  // option_cookies_duration_ms_ is how long the cookie will live for when set.
-  Option<GoogleString> sticky_query_parameters_;
-  Option<int64> option_cookies_duration_ms_;
 
   // If set, how to fragment the http cache.  Otherwise the server's hostname,
   // from the Host header, is used.
@@ -3944,11 +3772,6 @@ class RewriteOptions {
 
   Option<ResourceCategorySet> inline_unauthorized_resource_types_;
 
-  Option<bool> mob_always_;
-  Option<bool> mob_layout_;
-  Option<bool> mob_logo_;
-  Option<bool> mob_nav_;
-
   CopyOnWrite<JavascriptLibraryIdentification>
       javascript_library_identification_;
 
@@ -3971,7 +3794,6 @@ class RewriteOptions {
 
   GoogleString signature_;
   MD5Hasher hasher_;  // Used to compute named signatures.
-  SHA1Signature sha1signature_;
 
   ThreadSystem* thread_system_;
 

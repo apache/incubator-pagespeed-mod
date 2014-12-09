@@ -23,18 +23,18 @@
 #include <set>
 #include <utility>  // for std::pair
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"               // for StrCat
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_writer_filter.h"
-#include "pagespeed/kernel/http/content_type.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"               // for StrCat
 
 namespace {
 
@@ -46,6 +46,8 @@ namespace net_instaweb {
 
 class ResourceSlotTest : public RewriteTestBase {
  protected:
+  typedef std::set<HtmlResourceSlotPtr, HtmlResourceSlotComparator> SlotSet;
+
   virtual bool AddBody() const { return false; }
 
   virtual void SetUp() {
@@ -138,7 +140,7 @@ TEST_F(ResourceSlotTest, Accessors) {
 
   const char kDataUrl[] = "data:text/plain,Huh";
   ResourcePtr resource =
-      DataUrlInputResource::Make(kDataUrl, rewrite_driver());
+      DataUrlInputResource::Make(kDataUrl, server_context());
   ResourceSlotPtr fetch_slot(new FetchResourceSlot(resource));
   EXPECT_EQ(StrCat("Fetch of ", kDataUrl), fetch_slot->LocationString());
 }
@@ -167,8 +169,7 @@ TEST_F(ResourceSlotTest, RenderUpdate) {
             GetHtmlDomAsString());
 
   GoogleUrl gurl("http://html.parse.test/new_css.css");
-  bool unused;
-  ResourcePtr updated(rewrite_driver()->CreateInputResource(gurl, &unused));
+  ResourcePtr updated(rewrite_driver()->CreateInputResource(gurl));
   slot(0)->SetResource(updated);
   slot(0)->Render();
 

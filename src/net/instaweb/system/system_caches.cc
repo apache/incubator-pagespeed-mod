@@ -24,33 +24,32 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/write_through_http_cache.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/system/public/apr_mem_cache.h"
 #include "net/instaweb/system/public/system_cache_path.h"
 #include "net/instaweb/system/public/system_rewrite_options.h"
-#include "net/instaweb/system/public/system_server_context.h"
+#include "net/instaweb/util/public/async_cache.h"
+#include "net/instaweb/util/public/cache_batcher.h"
+#include "net/instaweb/util/public/cache_interface.h"
+#include "net/instaweb/util/public/cache_stats.h"
+#include "net/instaweb/util/public/compressed_cache.h"
+#include "net/instaweb/util/public/fallback_cache.h"
+#include "net/instaweb/util/public/file_cache.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/md5_hasher.h"
 #include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/slow_worker.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/write_through_cache.h"
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/cache/async_cache.h"
-#include "pagespeed/kernel/cache/cache_batcher.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/cache/cache_stats.h"
-#include "pagespeed/kernel/cache/compressed_cache.h"
-#include "pagespeed/kernel/cache/fallback_cache.h"
-#include "pagespeed/kernel/cache/file_cache.h"
-#include "pagespeed/kernel/cache/purge_context.h"
-#include "pagespeed/kernel/cache/write_through_cache.h"
 #include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
-#include "pagespeed/kernel/thread/slow_worker.h"
 
 namespace net_instaweb {
 
@@ -120,16 +119,14 @@ void SystemCaches::ShutDown(MessageHandler* message_handler) {
 }
 
 SystemCachePath* SystemCaches::GetCache(SystemRewriteOptions* config) {
-  GoogleString key = config->unplugged()
-      ? "<unplugged>"
-      : config->file_cache_path();
+  const GoogleString& path = config->file_cache_path();
   SystemCachePath* system_cache_path = NULL;
   std::pair<PathCacheMap::iterator, bool> result = path_cache_map_.insert(
-      PathCacheMap::value_type(key, system_cache_path));
+      PathCacheMap::value_type(path, system_cache_path));
   PathCacheMap::iterator iter = result.first;
   if (result.second) {
     iter->second = system_cache_path =
-        new SystemCachePath(key, config, factory_, shared_mem_runtime_);
+        new SystemCachePath(path, config, factory_, shared_mem_runtime_);
     factory_->TakeOwnership(system_cache_path);
   } else {
     system_cache_path = iter->second;
@@ -222,11 +219,11 @@ SystemCaches::MemcachedInterfaces SystemCaches::GetMemcached(
 }
 
 bool SystemCaches::CreateShmMetadataCache(
-    StringPiece name, int64 size_kb, GoogleString* error_msg) {
+    const GoogleString& name, int64 size_kb, GoogleString* error_msg) {
   MetadataShmCacheInfo* cache_info = NULL;
   std::pair<MetadataShmCacheMap::iterator, bool> result =
       metadata_shm_caches_.insert(
-          MetadataShmCacheMap::value_type(name.as_string(), cache_info));
+          MetadataShmCacheMap::value_type(name, cache_info));
   if (result.second) {
     int entries, blocks;
     int64 size_cap;
@@ -511,9 +508,6 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
       server_context->CreatePropertyStore(property_store_cache));
   server_context->set_metadata_cache(metadata_cache);
   SetupPcacheCohorts(server_context, enable_property_cache);
-  SystemServerContext* system_server_context =
-    dynamic_cast<SystemServerContext*>(server_context);
-  system_server_context->SetCachePath(caches_for_path);
 }
 
 void SystemCaches::RegisterConfig(SystemRewriteOptions* config) {
@@ -618,7 +612,6 @@ void SystemCaches::InitStats(Statistics* statistics) {
   CacheStats::InitStats(kMemcachedAsync, statistics);
   CacheStats::InitStats(kMemcachedBlocking, statistics);
   CompressedCache::InitStats(statistics);
-  PurgeContext::InitStats(statistics);
 }
 
 void SystemCaches::PrintCacheStats(StatFlags flags, GoogleString* out) {
@@ -629,11 +622,11 @@ void SystemCaches::PrintCacheStats(StatFlags flags, GoogleString* out) {
              e = metadata_shm_caches_.end(); p != e; ++p) {
       MetadataShmCacheInfo* cache_info = p->second;
       if (cache_info->cache_backend != NULL) {
-        StrAppend(out, "\nShared memory metadata cache '", p->first,
-                  "' statistics:\n");
+        StrAppend(out, "Shared memory metadata cache '", p->first,
+                  "' statistics:<br>");
         StringWriter writer(out);
-        writer.Write(cache_info->cache_backend->DumpStats(),
-                     factory_->message_handler());
+        HtmlKeywords::WritePre(cache_info->cache_backend->DumpStats(),
+                               &writer, factory_->message_handler());
       }
     }
   }

@@ -39,7 +39,6 @@ namespace Css {
 class Declaration;
 class Declarations;
 class Import;
-class FontFace;
 class Stylesheet;
 class Ruleset;
 
@@ -145,8 +144,6 @@ class Parser {
   // Parse the next @import statement from the document. If it's not an @import
   // or if there's a syntax error, NULL is returned. Added for mod_pagespeed's
   // conversion to a link of @imports inside a style element.
-  // If the next statement is not an @import rule, in_ is left at the
-  // beginning of that statement.
   Import* ParseNextImport();
 
   // Parse the document as a single @import statement. If it's not exactly
@@ -162,9 +159,6 @@ class Parser {
 
   // current position in the parse.
   const char* getpos() const { return in_; }
-
-  // Current position in document (bytes from beginning).
-  int CurrentOffset() const { return in_ - begin_; }
 
   // Done with the parse?
   bool Done() const {
@@ -194,23 +188,22 @@ class Parser {
 
   // This is a bitmask of errors seen during the parse.  This is decidedly
   // incomplete --- there are definitely many errors that are not reported here.
-  static const uint64 kNoError           = 0;
-  static const uint64 kUtf8Error         = 1ULL << 0;   // 1
-  static const uint64 kDeclarationError  = 1ULL << 1;   // 2
-  static const uint64 kSelectorError     = 1ULL << 2;   // 4
-  static const uint64 kFunctionError     = 1ULL << 3;   // 8
-  static const uint64 kMediaError        = 1ULL << 4;   // 16
-  static const uint64 kCounterError      = 1ULL << 5;   // 32
-  static const uint64 kHtmlCommentError  = 1ULL << 6;   // 64
-  static const uint64 kValueError        = 1ULL << 7;   // 128
-  static const uint64 kRulesetError      = 1ULL << 8;   // 256
-  static const uint64 kSkippedTokenError = 1ULL << 9;   // 512
-  static const uint64 kCharsetError      = 1ULL << 10;  // 1024
-  static const uint64 kBlockError        = 1ULL << 11;  // 2048
-  static const uint64 kNumberError       = 1ULL << 12;  // 4096
-  static const uint64 kImportError       = 1ULL << 13;  // 8192
-  static const uint64 kAtRuleError       = 1ULL << 14;  // 16384
-  static const uint64 kCssCommentError   = 1ULL << 15;  // 32768
+  static const uint64 kNoError          = 0;
+  static const uint64 kUtf8Error        = 1ULL << 0; // 1
+  static const uint64 kDeclarationError = 1ULL << 1; // 2
+  static const uint64 kSelectorError    = 1ULL << 2; // 4
+  static const uint64 kFunctionError    = 1ULL << 3; // 8
+  static const uint64 kMediaError       = 1ULL << 4; // 16
+  static const uint64 kCounterError     = 1ULL << 5; // 32
+  static const uint64 kHtmlCommentError = 1ULL << 6; // 64
+  static const uint64 kValueError       = 1ULL << 7; // 128
+  static const uint64 kRulesetError     = 1ULL << 8; // 256
+  static const uint64 kSkippedTokenError = 1ULL << 9; // 512
+  static const uint64 kCharsetError     = 1ULL << 10; // 1024
+  static const uint64 kBlockError       = 1ULL << 11; // 2048
+  static const uint64 kNumberError      = 1ULL << 12; // 4096
+  static const uint64 kImportError      = 1ULL << 13; // 8192
+  static const uint64 kAtRuleError      = 1ULL << 14; // 16384
   uint64 errors_seen_mask() const { return errors_seen_mask_; }
   uint64 unparseable_sections_seen_mask() const {
     return unparseable_sections_seen_mask_;
@@ -244,19 +237,7 @@ class Parser {
   // the end of the document.
   void SkipComment();
 
-  // Helper method for the other Skip* methods. Skips over the next bit of text.
-  // Note: It does not yet lex all tokens, only strings, comments and escape
-  // sequences. These are specifically lexed to avoid naively interpreting:
-  // "}", /*]*/ or identifier\)foo as closing brackets.
-  // Note: We do not use ParseAny() for this to avoid excessive recursion.
-  void SkipNextToken();
-
-  // Starting at '{', '[' or '(', SkipMatching consumes to the closing '}',
-  // ']' or ')' respecting nested blocks.  We discard the result.
-  // Returns true if matching '}' was found, false if EOF was reached first.
-  bool SkipMatching();
-
-  // Skips following tokens until delimiter delim or end is seen, delim is
+  // Skips following characters until delimiter delim or end is seen, delim is
   // consumed if found. Smart enough to skip over matches inside comments,
   // quoted strings or balanced parentheses ()[]{}.
   // For example, if in_ = "foo(a, b), 1, bar"
@@ -271,27 +252,7 @@ class Parser {
   // ending delimiter ([;}!]).
   bool SkipToNextAny();
 
-  // Skip past the end of the at-rule. Used for at-rules that we do not
-  // recognize. Return value is whether or not the at-rule was closed correctly.
-  // Returns true if at-rule is correctly closed (by ; or end of block),
-  // false if EOF was reached first.
-  // Ending ; or {}-block are consumed. However, closing } are not consumed.
   //
-  // From http://www.w3.org/TR/CSS2/syndata.html#parsing-errors:
-  //
-  //   At-rules with unknown at-keywords. User agents must ignore an invalid
-  //   at-keyword together with everything following it, up to the end of the
-  //   block that contains the invalid at-keyword, or up to and including the
-  //   next semicolon (;), or up to and including the next block ({...}),
-  //   whichever comes first.
-  bool SkipToAtRuleEnd();
-
-  // Skip until the end of a single media query. @media statements may have
-  // multiple comma-separated media queries. If one cannot be parsed, the others
-  // are still valid, so we need to skip just the one.
-  // Does not consume the tokens marking the end of the media query.
-  void SkipToMediaQueryEnd();
-
   // Parse functions.
   //
   // When the comment reads 'starting at foo', it's a dchecked runtime
@@ -550,17 +511,6 @@ class Parser {
   // ones.
   SimpleSelectors* ParseSimpleSelectors(bool expecting_combinator);
 
-  // Parse an at-rule or ruleset.
-  //
-  // This may be nested inside of an @media rule if media_queries != NULL.
-  // If media_queries == NULL, this is not nested.
-  //
-  // Although @media rules are allowed to be nested inside other @media rules
-  // in CSS3, we do not parse such nested rules, and therefore avoid unbounded
-  // recursive depth.
-  void ParseStatement(const MediaQueries* media_queries,
-                      Stylesheet* stylesheet);
-
   // ParseRuleset() starts from the first character of the first
   // selector (note: it does not skip whitespace) and consumes the
   // ruleset, including the closing '}'. Return NULL if the parsing fails.
@@ -576,19 +526,50 @@ class Parser {
   //
 
   // Starting at whitespace or the start of a media query, parses and returns
-  // the entire query. Returns NULL if the media query is invalid.
+  // the entire query. Returns NULL if the media query is empty.
   MediaQuery* ParseMediaQuery();
 
   // ParseImport starts just after @import and consumes the import
-  // declaration, but not the closing ;.  It returns a Import*
+  // declaration, including the closing ;.  It returns a Import*
   // containing the imported name and the media.
   Import* ParseImport();
+
+  // Starting at @, ParseAtRule parses @import, @charset, and @medium
+  // declarations and adds the information to the stylesheet.
+  //
+  // For other (unsupported) at-keywords (like @font-face or @keyframes),
+  // we set an error and skip over and ignore the entire at-rule.
+  // TODO(sligocki): In preservation mode, we should save a dummy at-rule
+  // type for passing through verbatim bytes.
+  //
+  // Consumes the @-rule, including the closing ';' or '}'.  Does not
+  // consume trailing whitespace.
+  void ParseAtRule(Stylesheet* stylesheet);  // parse @ rules.
 
   // Parse the charset after an @charset rule.
   UnicodeText ParseCharset();
 
-  // Parse an @font-face statement.
-  FontFace* ParseFontFace();
+  // Skip until the end of the at-rule. Used for at-rules that we do not
+  // recognize. Return value is whether or not the at-rule was closed correctly.
+  // Returns true if at-rule is correctly closed (by ; or end of block),
+  // false if EOF was reached first.
+  //
+  // From http://www.w3.org/TR/CSS2/syndata.html#parsing-errors:
+  //
+  //   At-rules with unknown at-keywords. User agents must ignore an invalid
+  //   at-keyword together with everything following it, up to the end of the
+  //   block that contains the invalid at-keyword, or up to and including the
+  //   next semicolon (;), or up to and including the next block ({...}),
+  //   whichever comes first.
+  bool SkipToAtRuleEnd();
+
+  // Starting at '{', SkipBlock consumes to the matching '}', respecting
+  // nested blocks.  We discard the result. Returns true if matching '}' was
+  // found, false if EOF was reached first.
+  bool SkipBlock();
+
+  // Current position in document (bytes from beginning).
+  int CurrentOffset() const { return in_ - begin_; }
 
   static const int kErrorContext;
 
@@ -638,11 +619,9 @@ class Parser {
   FRIEND_TEST(ParserTest, ruleset_starts_with_combinator);
   FRIEND_TEST(ParserTest, atrules);
   FRIEND_TEST(ParserTest, percentage_colors);
-  FRIEND_TEST(ParserTest, SkipCornerCases);
-  FRIEND_TEST(ParserTest, SkipMatching);
+  FRIEND_TEST(ParserTest, SkipBlock);
   FRIEND_TEST(ParserTest, SkippedTokenError);
   FRIEND_TEST(ParserTest, ValueError);
-  FRIEND_TEST(ParserTest, ParseAnyParens);
   friend void ParseFontFamily(Parser* parser);
   friend class MediaAppliesToScreenTest;
 
@@ -766,7 +745,7 @@ class UnparsedRegion {
 // that we don't parse, they are stored in dummy Rulesets.
 class Ruleset {
  public:
-  // TODO(sligocki): Allow other parsed at-rules, like @page.
+  // TODO(sligocki): Allow other parsed at-rules, like @font-family.
   enum Type { RULESET, UNPARSED_REGION, };
 
   Ruleset() : type_(RULESET), media_queries_(new MediaQueries),
@@ -904,40 +883,6 @@ class Imports : public std::vector<Css::Import*> {
   ~Imports();
 };
 
-class FontFace {
- public:
-  FontFace() {}
-  ~FontFace() {}
-
-  const MediaQueries& media_queries() const { return *media_queries_; }
-  // Stores all font-face properties as Declarations.
-  // TODO(sligocki): Provide accessors for individual properties, like src?
-  const Declarations& declarations() const { return *declarations_; }
-
-  void set_media_queries(MediaQueries* media_queries) {
-    media_queries_.reset(media_queries);
-  }
-  void set_declarations(Declarations* declarations) {
-    declarations_.reset(declarations);
-  }
-
-  MediaQueries& mutable_media_queries() { return *media_queries_; }
-  Declarations& mutable_declarations() { return *declarations_; }
-
-  string ToString() const;
- private:
-  scoped_ptr<MediaQueries> media_queries_;
-  scoped_ptr<Declarations> declarations_;
-
-  DISALLOW_COPY_AND_ASSIGN(FontFace);
-};
-
-class FontFaces : public std::vector<Css::FontFace*> {
- public:
-  FontFaces() : std::vector<Css::FontFace*>() { }
-  ~FontFaces();
-};
-
 // A stylesheet consists of a list of import information and a list of
 // rulesets.
 class Stylesheet {
@@ -949,20 +894,15 @@ class Stylesheet {
   StylesheetType type() const { return type_; }
   const Charsets& charsets() const { return charsets_; }
   const Imports& imports() const { return imports_; }
-  const FontFaces& font_faces() const { return font_faces_; }
   const Rulesets& rulesets() const { return rulesets_; }
 
   const UnicodeText& charset(int i) const { return charsets_[i]; }
   const Import& import(int i) const { return *imports_[i]; }
-  const FontFace& font_face(int i) const { return *font_faces_[i]; }
   const Ruleset& ruleset(int i) const { return *rulesets_[i]; }
 
   void set_type(StylesheetType type) { type_ = type; }
-  // TODO(sligocki): Return pointer instead of ref as per Google-style for
-  // non-const return values.
   Charsets& mutable_charsets() { return charsets_; }
   Imports& mutable_imports() { return imports_; }
-  FontFaces& mutable_font_faces() { return font_faces_; }
   Rulesets& mutable_rulesets() { return rulesets_; }
 
   string ToString() const;
@@ -970,12 +910,10 @@ class Stylesheet {
   StylesheetType type_;
   Charsets charsets_;
   Imports imports_;
-  FontFaces font_faces_;
-
   // Note: CSS spec specifies that a stylesheet is a list of statements each
   // of which is either a ruleset or at-rule. Since we want to support the
-  // legacy rulesets() interface and most at-rules are not parsed, unparsed
-  // at-rules are currently being stored as dummy rulesets.
+  // legacy rulesets() interface and most at-rules are not parsed, at-rules
+  // are currently being stored as dummy rulesets.
   Rulesets rulesets_;
 
   DISALLOW_COPY_AND_ASSIGN(Stylesheet);

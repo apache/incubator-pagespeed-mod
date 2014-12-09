@@ -17,11 +17,11 @@
 
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -85,7 +85,6 @@ class DeviceProperties {
   bool GetPreferredImageQualities(
       ImageQualityPreference preference, int* webp, int* jpeg) const;
   static int GetPreferredImageQualityCount();
-  bool ForbidWebpInlining() const;
 
  private:
   friend class ImageRewriteTest;
@@ -99,7 +98,6 @@ class DeviceProperties {
   void SetScreenResolution(int width, int height) const;
   // Returns true if there are valid preferred image qualities.
   bool HasPreferredImageQualities() const;
-  bool PossiblyMasqueradingAsChrome() const;
 
   GoogleString user_agent_;
   GoogleString accept_header_;

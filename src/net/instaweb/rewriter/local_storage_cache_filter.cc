@@ -21,20 +21,20 @@
 #include <set>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/time_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/time_util.h"
 
 namespace net_instaweb {
 
@@ -162,7 +162,7 @@ void LocalStorageCacheFilter::InsertOurScriptElement(HtmlElement* before) {
       driver()->server_context()->static_asset_manager();
   StringPiece local_storage_cache_js =
       static_asset_manager->GetAsset(
-          StaticAssetEnum::LOCAL_STORAGE_CACHE_JS, driver()->options());
+          StaticAssetManager::kLocalStorageCacheJs, driver()->options());
   const GoogleString& initialized_js = StrCat(local_storage_cache_js,
                                               kLscInitializer);
   HtmlElement* script_element = driver()->NewElement(before->parent(),

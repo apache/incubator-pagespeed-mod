@@ -21,33 +21,33 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/rewriter/public/javascript_code_block.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
+#include "net/instaweb/util/public/timer.h"
 
 namespace net_instaweb {
 class MessageHandler;
@@ -97,8 +97,7 @@ void CacheExtender::InitStats(Statistics* statistics) {
 
 bool CacheExtender::ShouldRewriteResource(
     const ResponseHeaders* headers, int64 now_ms,
-    const ResourcePtr& input_resource, const StringPiece& url,
-    CachedResult* result) const {
+    const ResourcePtr& input_resource, const StringPiece& url) const {
   const ContentType* input_resource_type = input_resource->type();
   if (input_resource_type == NULL) {
     return false;
@@ -106,8 +105,6 @@ bool CacheExtender::ShouldRewriteResource(
   if (input_resource_type->type() == ContentType::kJavascript &&
       driver()->options()->avoid_renaming_introspective_javascript() &&
       JavascriptCodeBlock::UnsafeToRename(input_resource->contents())) {
-    CHECK(result != NULL);
-    result->add_debug_message(JavascriptCodeBlock::kIntrospectionComment);
     return false;
   }
   if ((headers->CacheExpirationTimeMs() - now_ms) < kMinThresholdMs) {
@@ -176,8 +173,8 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
     // TODO(jmarantz): We ought to be able to domain-shard even if the
     // resources are non-cacheable or privately cacheable.
     if (driver()->IsRewritable(element)) {
-      ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
-          attributes[i].url->DecodedValueOrNull(), element));
+      ResourcePtr input_resource(CreateInputResource(
+          attributes[i].url->DecodedValueOrNull()));
       if (input_resource.get() == NULL) {
         continue;
       }
@@ -204,8 +201,7 @@ void CacheExtender::Context::RewriteSingle(
     const ResourcePtr& input_resource,
     const OutputResourcePtr& output_resource) {
   RewriteDone(
-      extender_->RewriteLoadedResource(
-          input_resource, output_resource, output_partition(0)), 0);
+      extender_->RewriteLoadedResource(input_resource, output_resource), 0);
 }
 
 void CacheExtender::Context::Render() {
@@ -215,11 +211,10 @@ void CacheExtender::Context::Render() {
     // cache extensions, and that too, those occurring in synchronous
     // flows only.
     if (Driver() != NULL) {
-      ResourceSlotPtr the_slot = slot(0);
-      if (the_slot->resource().get() != NULL &&
-          the_slot->resource()->type() != NULL) {
+      if (slot(0)->resource().get() != NULL &&
+          slot(0)->resource()->type() != NULL) {
         const char* filter_id = id();
-        const ContentType* type = the_slot->resource()->type();
+        const ContentType* type = slot(0)->resource()->type();
         if (type->type() == ContentType::kCss) {
           filter_id = RewriteOptions::FilterId(
               RewriteOptions::kExtendCacheCss);
@@ -233,7 +228,7 @@ void CacheExtender::Context::Render() {
         // TODO(anupama): Log cache extension for pdfs etc.
         Driver()->log_record()->SetRewriterLoggingStatus(
             filter_id,
-            the_slot->resource()->url(),
+            slot(0)->resource()->url(),
             RewriterApplication::APPLIED_OK);
       }
     }
@@ -242,10 +237,7 @@ void CacheExtender::Context::Render() {
 
 RewriteResult CacheExtender::RewriteLoadedResource(
     const ResourcePtr& input_resource,
-    const OutputResourcePtr& output_resource,
-    // TODO(jmaessen): does this belong in CacheExtender::Context? to this
-    // method and ShouldRewriteResource.
-    CachedResult* result) {
+    const OutputResourcePtr& output_resource) {
   CHECK(input_resource->loaded());
 
   MessageHandler* message_handler = driver()->message_handler();
@@ -264,8 +256,7 @@ RewriteResult CacheExtender::RewriteLoadedResource(
     // If you change this behavior that test MUST be updated as it covers
     // security.
     not_cacheable_count_->Add(1);
-  } else if (ShouldRewriteResource(
-                 headers, now_ms, input_resource,url, result)) {
+  } else if (ShouldRewriteResource(headers, now_ms, input_resource, url)) {
     // We must be careful what Content-Types we allow to be cache extended.
     // Specifically, we do not want to cache extend any Content-Types that
     // could execute scripts when loaded in a browser because that could

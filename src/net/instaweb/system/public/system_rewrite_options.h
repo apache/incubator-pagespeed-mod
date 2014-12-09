@@ -18,9 +18,9 @@
 #define NET_INSTAWEB_SYSTEM_PUBLIC_SYSTEM_REWRITE_OPTIONS_H_
 
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -215,10 +215,6 @@ class SystemRewriteOptions : public RewriteOptions {
   void set_default_shared_memory_cache_kb(int64 x) {
     set_option(x, &default_shared_memory_cache_kb_);
   }
-  void set_purge_method(const GoogleString& x) {
-    set_option(x, &purge_method_);
-  }
-  const GoogleString& purge_method() const { return purge_method_.value(); }
 
   // If this is set to true, we'll turn on our fallback proxy-like behavior
   // on non-.pagespeed. URLs without changing the main fetcher from Serf
@@ -284,10 +280,9 @@ class SystemRewriteOptions : public RewriteOptions {
                                 OptionClass SystemRewriteOptions::*offset,
                                 const char* id,
                                 StringPiece option_name,
-                                const char* help,
-                                bool safe_to_print) {
+                                const char* help) {
     AddProperty(default_value, offset, id, option_name, kServerScope, help,
-                safe_to_print, system_properties_);
+                system_properties_);
   }
 
   template<class OptionClass>
@@ -296,10 +291,9 @@ class SystemRewriteOptions : public RewriteOptions {
                                 const char* id,
                                 StringPiece option_name,
                                 OptionScope scope,
-                                const char* help,
-                                bool safe_to_print) {
+                                const char* help) {
     AddProperty(default_value, offset, id, option_name, scope, help,
-                safe_to_print, system_properties_);
+                system_properties_);
   }
 
   static void AddProperties();
@@ -359,7 +353,6 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<int64> ipro_max_response_bytes_;
   Option<int64> ipro_max_concurrent_recordings_;
   Option<int64> default_shared_memory_cache_kb_;
-  Option<GoogleString> purge_method_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemRewriteOptions);
 };

@@ -21,19 +21,18 @@
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/inflating_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/atomic_int32.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/http/request_headers.h"
+#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
 class HTTPCache;
 class MessageHandler;
-class ResponseHeaders;
 class Statistics;
 class Variable;
 
@@ -57,9 +56,10 @@ class InPlaceResourceRecorder : public Writer {
   InPlaceResourceRecorder(
       const RequestContextPtr& request_context,
       StringPiece url, StringPiece fragment,
-      const RequestHeaders::Properties& request_properties,
-      int max_response_bytes, int max_concurrent_recordings,
-      HTTPCache* cache, Statistics* statistics, MessageHandler* handler);
+      RequestHeaders::Properties request_properties,
+      bool respect_vary, int max_response_bytes, int max_concurrent_recordings,
+      int64 implicit_cache_ttl_ms, HTTPCache* cache, Statistics* statistics,
+      MessageHandler* handler);
 
   // Normally you should use DoneAndSetHeaders rather than deleting this
   // directly.
@@ -120,7 +120,7 @@ class InPlaceResourceRecorder : public Writer {
   bool failed() { return failure_; }
   bool limit_active_recordings() { return max_concurrent_recordings_ != 0; }
 
-  const HttpOptions& http_options() const { return http_options_; }
+  int64 implicit_cache_ttl_ms() { return implicit_cache_ttl_ms_; }
 
  private:
   class HTTPValueFetch : public AsyncFetchUsingWriter {
@@ -138,10 +138,10 @@ class InPlaceResourceRecorder : public Writer {
   const GoogleString url_;
   const GoogleString fragment_;
   const RequestHeaders::Properties request_properties_;
-  const HttpOptions http_options_;
-
-  int64 max_response_bytes_;
+  const ResponseHeaders::VaryOption respect_vary_;
+  const unsigned int max_response_bytes_;
   const int max_concurrent_recordings_;
+  const int64 implicit_cache_ttl_ms_;
 
   HTTPValue resource_value_;
   HTTPValueFetch write_to_resource_value_;

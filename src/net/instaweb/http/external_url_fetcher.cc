@@ -25,12 +25,12 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_response_parser.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -95,7 +95,7 @@ void ExternalUrlFetcher::Fetch(
 
 
   handler->Message(kInfo, "%s --... %s\n", GetFetchLabel(), url.c_str());
-  VLOG(2) << "Running: " << cmd;
+  VLOG(2) << "Running: " << cmd.c_str();
   FILE* cmd_stdout = popen(cmd.c_str(), "r");
 
   bool ret = false;

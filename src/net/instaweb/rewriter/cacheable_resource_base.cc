@@ -25,6 +25,8 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/http_value_writer.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
@@ -32,17 +34,14 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "pagespeed/kernel/base/basictypes.h"        // for int64
+#include "net/instaweb/util/public/basictypes.h"        // for int64
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -50,8 +49,10 @@ namespace {
 
 const char kHitSuffix[] = "_hit";
 const char kRecentFetchFailureSuffix[] = "_recent_fetch_failure";
-const char kRecentUncacheableMiss[] = "_recent_uncacheable_miss";
-const char kRecentUncacheableFailure[] = "_recent_uncacheable_failure";
+const char kRecentUncacheableTreatedAsMiss[] =
+    "_recent_uncacheable_treated_as_miss";
+const char kRecentUncacheableTreatedAsFailure[] =
+    "_recent_uncacheable_treated_as_failure";
 const char kMissSuffix[] = "_miss";
 
 }  // namespace
@@ -228,8 +229,7 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
         // Cookie.  For now we don't implement this.
         http_cache()->Put(resource_->cache_key(), driver_->CacheFragment(),
                           RequestHeaders::Properties(),
-                          request_context()->options(),
-                          value, message_handler_);
+                          resource_->respect_vary(), value, message_handler_);
         return true;
       } else {
         http_cache()->RememberNotCacheable(
@@ -311,8 +311,6 @@ class CacheableResourceBase::FreshenFetchCallback : public FetchCallbackBase {
     // TODO(morlovich): This is duplicated a few times, clean this up.
     response_headers()->set_implicit_cache_ttl_ms(
         rewrite_options->implicit_cache_ttl_ms());
-    response_headers()->set_min_cache_ttl_ms(
-        rewrite_options->min_cache_ttl_ms());
   }
 
   virtual void Finalize(bool lock_failure, bool resource_ok) {
@@ -370,8 +368,6 @@ class CacheableResourceBase::LoadFetchCallback
     set_response_headers(&resource_->response_headers_);
     response_headers()->set_implicit_cache_ttl_ms(
         resource->rewrite_options()->implicit_cache_ttl_ms());
-    response_headers()->set_min_cache_ttl_ms(
-        resource->rewrite_options()->min_cache_ttl_ms());
   }
 
   virtual void Finalize(bool lock_failure, bool resource_ok) {
@@ -512,11 +508,11 @@ void CacheableResourceBase::LoadHttpCacheCallback::Done(
     case HTTPCache::kRecentFetchNotCacheable:
       switch (not_cacheable_policy_) {
         case Resource::kLoadEvenIfNotCacheable:
-          resource_->recent_uncacheables_miss_->Add(1);
+          resource_->recent_uncacheables_treated_as_miss_->Add(1);
           LoadAndSaveToCache();
           break;
         case Resource::kReportFailureIfNotCacheable:
-          resource_->recent_uncacheables_failure_->Add(1);
+          resource_->recent_uncacheables_treated_as_failure_->Add(1);
           resource_callback_->Done(false /* lock_failure */,
                                    false /* resource_ok */);
           break;
@@ -613,8 +609,7 @@ class CacheableResourceBase::FreshenHttpCacheCallback
     int64 date_ms = headers.date_ms();
     int64 expiry_ms = headers.CacheExpirationTimeMs();
     return !ResponseHeaders::IsImminentlyExpiring(
-        date_ms, expiry_ms, server_context_->timer()->NowMs(),
-        options_->ComputeHttpOptions());
+        date_ms, expiry_ms, server_context_->timer()->NowMs());
   }
 
  private:
@@ -636,7 +631,7 @@ CacheableResourceBase::CacheableResourceBase(
     StringPiece cache_key,
     const ContentType* type,
     RewriteDriver* rewrite_driver)
-    : Resource(rewrite_driver, type),
+    : Resource(rewrite_driver->server_context(), type),
       url_(url.data(), url.size()),
       cache_key_(cache_key.data(), cache_key.size()),
       rewrite_driver_(rewrite_driver) {
@@ -650,10 +645,11 @@ CacheableResourceBase::CacheableResourceBase(
   hits_ = stats->GetVariable(StrCat(stat_prefix, kHitSuffix));
   recent_fetch_failures_ =
       stats->GetVariable(StrCat(stat_prefix, kRecentFetchFailureSuffix));
-  recent_uncacheables_miss_ =
-      stats->GetVariable(StrCat(stat_prefix, kRecentUncacheableMiss));
-  recent_uncacheables_failure_ =
-      stats->GetVariable(StrCat(stat_prefix, kRecentUncacheableFailure));
+  recent_uncacheables_treated_as_miss_ =
+      stats->GetVariable(StrCat(stat_prefix, kRecentUncacheableTreatedAsMiss));
+  recent_uncacheables_treated_as_failure_ =
+      stats->GetVariable(StrCat(stat_prefix,
+                                kRecentUncacheableTreatedAsFailure));
   misses_ = stats->GetVariable(StrCat(stat_prefix, kMissSuffix));
 }
 
@@ -697,8 +693,9 @@ void CacheableResourceBase::InitStats(StringPiece stat_prefix,
                                       Statistics* stats) {
   stats->AddVariable(StrCat(stat_prefix, kHitSuffix));
   stats->AddVariable(StrCat(stat_prefix, kRecentFetchFailureSuffix));
-  stats->AddVariable(StrCat(stat_prefix, kRecentUncacheableMiss));
-  stats->AddVariable(StrCat(stat_prefix, kRecentUncacheableFailure));
+  stats->AddVariable(StrCat(stat_prefix, kRecentUncacheableTreatedAsMiss));
+  stats->AddVariable(StrCat(stat_prefix,
+                            kRecentUncacheableTreatedAsFailure));
   stats->AddVariable(StrCat(stat_prefix, kMissSuffix));
 }
 
@@ -708,8 +705,7 @@ void CacheableResourceBase::RefreshIfImminentlyExpiring() {
     int64 start_date_ms = headers->date_ms();
     int64 expire_ms = headers->CacheExpirationTimeMs();
     if (ResponseHeaders::IsImminentlyExpiring(
-            start_date_ms, expire_ms, timer()->NowMs(),
-            rewrite_options()->ComputeHttpOptions())) {
+        start_date_ms, expire_ms, timer()->NowMs())) {
       Freshen(NULL, server_context()->message_handler());
     }
   }

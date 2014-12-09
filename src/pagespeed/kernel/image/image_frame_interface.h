@@ -38,74 +38,19 @@ namespace image_compression {
 
 using net_instaweb::MessageHandler;
 
-struct FrameSpec;
-
 struct ImageSpec {
   ImageSpec();
   void Reset();
 
-  size_px width;
-  size_px height;
-  size_px num_frames;
-
-  // This is the total number of times to loop through all the frames
-  // (NOT the *repeat* number).
-  unsigned int loop_count;
-
-  PixelRgbaChannels bg_color;
-  bool use_bg_color;
-
-  // Whether the image size was adjusted (as can happen when
-  // implementing some quirks modes).
-  bool image_size_adjusted;
-
-  // Returns x truncated to a valid column index in [0, width]. Note
-  // that a value of 'width' denotes the first invalid index.
-  size_px TruncateXIndex(size_px x) const;
-
-  // Returns y truncated to a valid row index in [0, height]. Note
-  // that a value of 'height' denotes the first invalid index.
-  size_px TruncateYIndex(size_px y) const;
-
-  // Returns true iff frame_spec fits entirely within this ImageSpec.
-  bool CanContainFrame(const FrameSpec& frame_spec) const;
-
-  GoogleString ToString() const;
-  bool Equals(const ImageSpec& other) const;
+  size_t width;
+  size_t height;
 };
 
-// FrameSpec must fit entirely within its image; in other words
-// ImageSpec::CanContainFrame(frame_spec) should return true.
 struct FrameSpec {
-  enum DisposalMethod {
-    DISPOSAL_UNKNOWN = 0,
-    DISPOSAL_NONE,
-    DISPOSAL_BACKGROUND,
-
-    // TODO(vchudnov): May not be supported by WebP. If that's the
-    // case, treat as DISPOSAL_BACKGROUND instead.
-    DISPOSAL_RESTORE
-  };
-
   FrameSpec();
   void Reset();
 
-  size_px width;
-  size_px height;
-  size_px top;
-  size_px left;
   PixelFormat pixel_format;
-  size_t duration_ms;
-  DisposalMethod disposal;
-
-  // Whether this frame was progressively encoded by the origin site, so that
-  // it could begin to be rendered even before the entire image was
-  // transferred. This does not affect the data format passed in or out of
-  // this API, but provides a hint that API clients may choose to take.
-  bool hint_progressive;
-
-  GoogleString ToString() const;
-  bool Equals(const FrameSpec& other) const;
 };
 
 #if defined(IF_OK_RUN)
@@ -177,33 +122,23 @@ class MultipleFrameReader {
   // necessarily the width of the whole image.
   virtual ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) = 0;
 
-  // Assigns to '*frame_spec' the FrameSpec describing
-  // the current frame.
-  //
-  // TODO(vchudnov): Consider simplifying this method to return
-  // frame_spec rather than the ScanlineStatus.
-  virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const = 0;
+  // Assigns to '*frame_spec' a pointer to the FrameSpec describing
+  // the current frame. The caller DOES NOT acquire ownership of
+  // '**frame_spec'.
+  virtual ScanlineStatus GetFrameSpec(const FrameSpec** frame_spec) const = 0;
 
-  // Copies into '*image_spec' the ImageSpec describing
-  // the image.
-  virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const = 0;
+  // Copies into '*image_spec' a pointer to the ImageSpec describing
+  // the image. The caller DOES NOT acquire ownership of
+  // '**image_spec'.
+  virtual ScanlineStatus GetImageSpec(const ImageSpec** image_spec) const = 0;
 
   // The message handler used by this class. Neither the caller nor
   // this class have ownership.
-  MessageHandler* message_handler() const {
+  MessageHandler* message_handler() {
     return message_handler_;
   }
 
-  virtual ScanlineStatus set_quirks_mode(QuirksMode quirks_mode) {
-    quirks_mode_ = quirks_mode;
-    return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
-  }
-
-  virtual QuirksMode quirks_mode() const {
-    return quirks_mode_;
-  }
-
-  // Convenience forms of the methods above. If 'status' indicates an
+  // Convenience forms for the methods above. If 'status' indicates an
   // error on entry, each of these methods does nothing and returns
   // false. Otherwise, it calls the corresponding method above,
   // updates 'status', and returns true iff the call succeeded.
@@ -222,26 +157,18 @@ class MultipleFrameReader {
                         ScanlineStatus* status) {
     IF_OK_RUN(status, ReadNextScanline(out_scanline_bytes));
   }
-  bool GetFrameSpec(FrameSpec* frame_spec,
-                    ScanlineStatus* status) {
+  bool GetFrameSpec(const FrameSpec** frame_spec,
+                    ScanlineStatus* status) const {
     IF_OK_RUN(status, GetFrameSpec(frame_spec));
   }
-  bool GetImageSpec(ImageSpec* image_spec,
-                    ScanlineStatus* status) {
+  bool GetImageSpec(const ImageSpec** image_spec,
+                    ScanlineStatus* status) const {
     IF_OK_RUN(status, GetImageSpec(image_spec));
-  }
-
-  bool set_quirks_mode(QuirksMode quirks_mode,
-                       ScanlineStatus* status) {
-    IF_OK_RUN(status, set_quirks_mode(quirks_mode));
   }
 
  private:
   // Handles logging info, warning, and error messages.
   MessageHandler* message_handler_;
-
-  // The browser quirks mode to implement, if any.
-  QuirksMode quirks_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(MultipleFrameReader);
 };
@@ -292,29 +219,29 @@ class MultipleFrameWriter {
 
   // The message handler used by this class. Neither the caller nor
   // this class have ownership.
-  MessageHandler* message_handler() const {
+  MessageHandler* message_handler() {
     return message_handler_;
   }
 
-  // Convenience forms of the methods above. If 'status' indicates an
+  // Convenience forms for the methods above. If 'status' indicates an
   // error on entry, each of these methods does nothing and returns
   // false. Otherwise, it calls the corresponding method above,
   // updates 'status', and returns true iff the call succeeded.
 
   bool Initialize(const void* config, GoogleString* out,
-                  ScanlineStatus* status) {
+                  ScanlineStatus*status) {
     IF_OK_RUN(status, Initialize(config, out));
   }
-  bool PrepareImage(const ImageSpec* image_spec, ScanlineStatus* status) {
+  bool PrepareImage(const ImageSpec* image_spec, ScanlineStatus*status) {
     IF_OK_RUN(status, PrepareImage(image_spec));
   }
-  bool PrepareNextFrame(const FrameSpec* frame_spec, ScanlineStatus* status) {
+  bool PrepareNextFrame(const FrameSpec* frame_spec, ScanlineStatus*status) {
     IF_OK_RUN(status, PrepareNextFrame(frame_spec));
   }
-  bool WriteNextScanline(const void* scanline_bytes, ScanlineStatus* status) {
+  bool WriteNextScanline(const void *scanline_bytes, ScanlineStatus*status) {
     IF_OK_RUN(status, WriteNextScanline(scanline_bytes));
   }
-  bool FinalizeWrite(ScanlineStatus* status) {
+  bool FinalizeWrite(ScanlineStatus*status) {
     IF_OK_RUN(status, FinalizeWrite());
   }
 

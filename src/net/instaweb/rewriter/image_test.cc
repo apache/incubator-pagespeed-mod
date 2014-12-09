@@ -22,33 +22,30 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/image_testing_peer.h"
 #include "net/instaweb/rewriter/public/image_data_lookup.h"
 #include "net/instaweb/rewriter/public/image_test_base.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
-#include "pagespeed/kernel/base/base64_util.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "net/instaweb/util/public/base64_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/simple_stats.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/statistics_template.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 #include "pagespeed/kernel/image/read_image.h"
+#include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/test_utils.h"
-#include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/util/simple_stats.h"
 
 using pagespeed_testing::image_compression::GetColorProfileMarker;
 using pagespeed_testing::image_compression::GetExifDataMarker;
@@ -77,9 +74,7 @@ const char kMessagePatternFailedToDecoode[] = "*failed to decode the image*";
 
 class ConversionVarChecker {
  public:
-  explicit ConversionVarChecker(Image::CompressionOptions* options)
-      : thread_system_(Platform::CreateThreadSystem()),
-        simple_stats_(thread_system_.get()) {
+  explicit ConversionVarChecker(Image::CompressionOptions* options) {
     webp_conversion_variables_.Get(
         Image::ConversionVariables::FROM_GIF)->timeout_count =
         simple_stats_.AddVariable("gif_webp_timeout");
@@ -213,7 +208,6 @@ class ConversionVarChecker {
   }
 
  private:
-  scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats simple_stats_;
   Image::ConversionVariables webp_conversion_variables_;
 };
@@ -1042,8 +1036,7 @@ TEST_F(ImageTest, JpegToWebpTimesOutTest) {
   options->preferred_webp = Image::WEBP_LOSSY;
   options->webp_quality = 75;
   options->webp_conversion_timeout_ms = 1;
-  timer_.SetTimeDeltaUs(1);  // 1st increment of time, used for setting deadline
-  timer_.SetTimeDeltaUs(1);  // 2nd increment of time, used for setting deadline
+  timer_.SetTimeDeltaUs(1);  // When setting deadline
   timer_.SetTimeDeltaUs(     // During conversion
       1000 * options->webp_conversion_timeout_ms + 1);
 

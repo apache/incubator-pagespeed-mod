@@ -25,11 +25,12 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
+#include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -88,11 +89,12 @@ class CriticalCssFinderTest : public RewriteTestBase {
   }
 
   void CheckCriticalCssFinderStats(int hits, int expiries, int not_found) {
-    EXPECT_EQ(hits, TimedValue(CriticalCssFinder::kCriticalCssValidCount));
-    EXPECT_EQ(expiries,
-              TimedValue(CriticalCssFinder::kCriticalCssExpiredCount));
-    EXPECT_EQ(not_found,
-              TimedValue(CriticalCssFinder::kCriticalCssNotFoundCount));
+    EXPECT_EQ(hits, statistics()->GetVariable(
+        CriticalCssFinder::kCriticalCssValidCount)->Get());
+    EXPECT_EQ(expiries, statistics()->GetVariable(
+        CriticalCssFinder::kCriticalCssExpiredCount)->Get());
+    EXPECT_EQ(not_found, statistics()->GetVariable(
+        CriticalCssFinder::kCriticalCssNotFoundCount)->Get());
   }
 
  protected:

@@ -20,7 +20,12 @@
 
 #include <cstddef>
 
+#include <vector>
+
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -35,21 +40,18 @@
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/charset_util.h"
-#include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/source_map.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace net_instaweb {
 
@@ -106,36 +108,16 @@ class JavascriptFilter::Context : public SingleRewriteContext {
   RewriteResult RewriteJavascript(
       const ResourcePtr& input, const OutputResourcePtr& output) {
     OutputResourcePtr rewritten, source_map;
-    GoogleString failure_reason;
     if (output_source_map_) {
-      // Source map pagespeed resource flow.
       rewritten = Driver()->CreateOutputResourceFromResource(
-          id(), encoder(), resource_context(), input, kind(), &failure_reason);
+          id(), encoder(), resource_context(), input, kind());
       source_map = output;
-
-      if (rewritten.get() == NULL) {
-        // We do not expect this to happen. This situation would only come up
-        // if we successfully created the source map OutputResource, but
-        // failed to create the rewritten JS OutputResource.
-        // This is in the resource flow, so failure_reason cannot be reported.
-        return kRewriteFailed;
-      }
     } else {
-      // HTML or rewritten JS resource flow.
       rewritten = output;
       source_map = Driver()->CreateOutputResourceFromResource(
           RewriteOptions::kJavascriptMinSourceMapId, encoder(),
-          resource_context(), input, kRewrittenResource, &failure_reason);
-
-      if (source_map.get() == NULL) {
-        // We do not expect this to happen. This situation would only come up
-        // if we successfully created the rewritten JS OutputResource, but
-        // failed to create the source map OutputResource.
-        // Since this is unlikely, we don't report failure_reason.
-        return kRewriteFailed;
-      }
+          resource_context(), input, kRewrittenResource);
     }
-    DCHECK(failure_reason.empty());
 
     ServerContext* server_context = FindServerContext();
     MessageHandler* message_handler = server_context->message_handler();
@@ -150,7 +132,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
       // PossiblyRewriteToLibrary, so there's no specific failure metric here.
       return kRewriteFailed;
     }
-    if (!Options()->Enabled(RewriteOptions::kRewriteJavascriptExternal)) {
+    if (!config_->minify()) {
       config_->minification_disabled()->Add(1);
       return kRewriteFailed;
     }
@@ -233,11 +215,6 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     }
     CachedResult* result = output_partition(0);
     ResourceSlot* output_slot = slot(0).get();
-    if (!result->url_relocatable()) {
-      Driver()->InsertDebugComment(
-          JavascriptCodeBlock::kIntrospectionComment, output_slot->element());
-      return;
-    }
     if (!result->optimizable()) {
       if (result->canonicalize_url() && output_slot->CanDirectSetUrl()) {
         // Use the canonical library url and disable the later render step.
@@ -359,22 +336,18 @@ class JavascriptFilter::Context : public SingleRewriteContext {
 void JavascriptFilter::StartElementImpl(HtmlElement* element) {
   DCHECK_EQ(kNoScript, script_type_);
   HtmlElement::Attribute* script_src;
-  const RewriteOptions* options = driver()->options();
   switch (script_tag_scanner_.ParseScriptElement(element, &script_src)) {
     case ScriptTagScanner::kJavaScript:
       if (script_src != NULL) {
-        if (options->Enabled(RewriteOptions::kRewriteJavascriptExternal) ||
-            options->Enabled(
-                RewriteOptions::kCanonicalizeJavascriptLibraries)) {
-          script_type_ = kExternalScript;
-          RewriteExternalScript(element, script_src);
-        }
-      } else if (options->Enabled(RewriteOptions::kRewriteJavascriptInline)) {
+        script_type_ = kExternalScript;
+        RewriteExternalScript(element, script_src);
+      } else {
         script_type_ = kInlineScript;
       }
       break;
     case ScriptTagScanner::kUnknownScript: {
-      GoogleString script_dump = element->ToString();
+      GoogleString script_dump;
+      element->ToString(&script_dump);
       driver()->InfoHere("Unrecognized script:'%s'", script_dump.c_str());
       break;
     }
@@ -398,14 +371,11 @@ void JavascriptFilter::Characters(HtmlCharactersNode* characters) {
 
 JavascriptRewriteConfig* JavascriptFilter::InitializeConfig(
     RewriteDriver* driver) {
-  const RewriteOptions* options = driver->options();
-  bool minify = options->Enabled(RewriteOptions::kRewriteJavascriptExternal) ||
-      options->Enabled(RewriteOptions::kRewriteJavascriptInline);
   return new JavascriptRewriteConfig(
                  driver->server_context()->statistics(),
-                 minify,
-                 options->use_experimental_js_minifier(),
-                 options->javascript_library_identification(),
+                 driver->options()->Enabled(RewriteOptions::kRewriteJavascript),
+                 driver->options()->use_experimental_js_minifier(),
+                 driver->options()->javascript_library_identification(),
                  driver->server_context()->js_tokenizer_patterns());
 }
 
@@ -457,21 +427,18 @@ void JavascriptFilter::RewriteInlineScript(HtmlCharactersNode* body_node) {
 void JavascriptFilter::RewriteExternalScript(
     HtmlElement* script_in_progress, HtmlElement::Attribute* script_src) {
   const StringPiece script_url(script_src->DecodedValueOrNull());
-  ResourcePtr resource(CreateInputResourceOrInsertDebugComment(
-      script_url, script_in_progress));
-  if (resource.get() == NULL) {
-    return;
+  ResourcePtr resource = CreateInputResource(script_url);
+  if (resource.get() != NULL) {
+    ResourceSlotPtr slot(
+        driver()->GetSlot(resource, script_in_progress, script_src));
+    if (driver()->options()->js_preserve_urls()) {
+      slot->set_disable_rendering(true);
+    }
+    Context* jrc = new Context(driver(), NULL, config_.get(),
+                               false /* output_source_map */);
+    jrc->AddSlot(slot);
+    driver()->InitiateRewrite(jrc);
   }
-
-  ResourceSlotPtr slot(
-      driver()->GetSlot(resource, script_in_progress, script_src));
-  if (driver()->options()->js_preserve_urls()) {
-    slot->set_disable_rendering(true);
-  }
-  Context* jrc = new Context(driver(), NULL, config_.get(),
-                             false /* output_source_map */);
-  jrc->AddSlot(slot);
-  driver()->InitiateRewrite(jrc);
 }
 
 void JavascriptFilter::EndElementImpl(HtmlElement* element) {

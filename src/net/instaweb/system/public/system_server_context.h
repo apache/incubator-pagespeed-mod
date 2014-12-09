@@ -20,12 +20,10 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/system/public/admin_site.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/util/copy_on_write.h"
+#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -34,18 +32,15 @@ class AsyncFetch;
 class GoogleUrl;
 class Histogram;
 class QueryParams;
-class PurgeSet;
 class RewriteDriver;
 class RewriteDriverFactory;
 class RewriteOptions;
 class RewriteStats;
 class SharedMemStatistics;
 class Statistics;
-class SystemCachePath;
 class SystemCaches;
 class SystemRewriteDriverFactory;
 class SystemRewriteOptions;
-class UpDownCounter;
 class UrlAsyncFetcherStats;
 class Variable;
 class Writer;
@@ -59,12 +54,11 @@ class SystemServerContext : public ServerContext {
   // future grant more privileges than the statistics site did, such as flushing
   // cache.  But it also affects the syntax of the links created to sub-pages
   // in the top navigation bar.
+  enum AdminSource { kPageSpeedAdmin, kStatistics, kOther };
 
   SystemServerContext(RewriteDriverFactory* factory,
                       StringPiece hostname, int port);
   virtual ~SystemServerContext();
-
-  void SetCachePath(SystemCachePath* cache_path);
 
   // Implementations should call this method on every request, both for html and
   // resources, to avoid serving stale resources.
@@ -78,13 +72,6 @@ class SystemServerContext : public ServerContext {
 
   SystemRewriteOptions* global_system_rewrite_options();
   GoogleString hostname_identifier() { return hostname_identifier_; }
-
-  // Updates the PurgeSet with a new version.  This is called when the system
-  // picks up (by polling or API) a new version of the cache.purge file.
-  void UpdateCachePurgeSet(const CopyOnWrite<PurgeSet>& purge_set);
-
-  // Initialize this SystemServerContext to set up its admin site.
-  virtual void PostInitHook();
 
   static void InitStats(Statistics* statistics);
 
@@ -119,8 +106,6 @@ class SystemServerContext : public ServerContext {
   // TODO(sligocki): Remove in favor of RewriteStats::rewrite_latency_histogram.
   void AddHtmlRewriteTimeUs(int64 rewrite_time_us);
 
-  SystemCachePath* cache_path() { return cache_path_; }
-
   // Hook called after all configuration parsing is done to support implementers
   // like ApacheServerContext that need to collapse configuration inside the
   // config overlays into actual RewriteOptions objects.  It will also compute
@@ -133,14 +118,11 @@ class SystemServerContext : public ServerContext {
 
   // Handler which serves PSOL console.
   // Note: ConsoleHandler always succeeds.
-  void ConsoleHandler(const SystemRewriteOptions& options,
-                      AdminSite::AdminSource source,
+  void ConsoleHandler(const SystemRewriteOptions& options, AdminSource source,
                       const QueryParams& query_params, AsyncFetch* fetch);
 
   // Displays recent Info/Warning/Error messages.
-  void MessageHistoryHandler(const RewriteOptions& options,
-                             AdminSite::AdminSource source,
-                             AsyncFetch* fetch);
+  void MessageHistoryHandler(AdminSource source, AsyncFetch* fetch);
 
   // Deprecated handler for graphs in the PSOL console.
   void StatisticsGraphsHandler(Writer* writer);
@@ -160,8 +142,6 @@ class SystemServerContext : public ServerContext {
   void StatisticsPage(bool is_global, const QueryParams& query_params,
                       const RewriteOptions* options,
                       AsyncFetch* fetch);
-
-  AdminSite* admin_site() { return admin_site_.get(); }
 
  protected:
   // Flush the cache by updating the cache flush timestamp in the global
@@ -196,44 +176,29 @@ class SystemServerContext : public ServerContext {
   //
   // In systems without a spdy-specific config, spdy_config should be
   // null.
-  void StatisticsHandler(const RewriteOptions& options, bool is_global_request,
-                         AdminSite::AdminSource source, AsyncFetch* fetch);
+  void StatisticsHandler(bool is_global_request, AdminSource source,
+                         AsyncFetch* fetch);
 
   // Print details fo the SPDY configuration.
-  void PrintSpdyConfig(AdminSite::AdminSource source, AsyncFetch* fetch);
+  void PrintSpdyConfig(AdminSource source, AsyncFetch* fetch);
 
   // Print details fo the non-SPDY configuration.
-  void PrintNormalConfig(AdminSite::AdminSource source, AsyncFetch* fetch);
+  void PrintNormalConfig(AdminSource source, AsyncFetch* fetch);
 
   // Print statistics about the caches.  In the future this will also
   // be a launching point for examining cache entries and purging them.
-  void PrintCaches(bool is_global, AdminSite::AdminSource source,
-                   const GoogleUrl& stripped_gurl,
+  void PrintCaches(bool is_global, AdminSource source,
                    const QueryParams& query_params,
                    const RewriteOptions* options,
                    AsyncFetch* fetch);
 
   // Print histograms showing the dynamics of server activity.
-  void PrintHistograms(bool is_global_request,
-                       AdminSite::AdminSource source,
+  void PrintHistograms(bool is_global_request, AdminSource source,
                        AsyncFetch* fetch);
 
   Variable* statistics_404_count();
 
  private:
-  // Checks the timestamp of cache.flush, updating the purge context as
-  // needed.
-  //
-  // TODO(jmarantz): Consider removing this if we decide to turn
-  // enable_cache_purge always-on.  If we do that, "touch cache.flush"
-  // will no longer work, and that will force users to use the new purge API
-  // instead.  We could consider checking both cache.flush and cache.purge,
-  // but it would be confusing what our semantics should be if both are
-  // present.
-  void CheckLegacyGlobalCacheFlushFile();
-
-  scoped_ptr<AdminSite> admin_site_;
-
   bool initialized_;
   bool use_per_vhost_statistics_;
 
@@ -244,7 +209,7 @@ class SystemServerContext : public ServerContext {
   int64 last_cache_flush_check_sec_;  // seconds since 1970
 
   Variable* cache_flush_count_;
-  UpDownCounter* cache_flush_timestamp_ms_;
+  Variable* cache_flush_timestamp_ms_;
 
   Histogram* html_rewrite_time_us_histogram_;
 
@@ -264,8 +229,6 @@ class SystemServerContext : public ServerContext {
   GoogleString hostname_identifier_;
 
   SystemCaches* system_caches_;
-
-  SystemCachePath* cache_path_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemServerContext);
 };

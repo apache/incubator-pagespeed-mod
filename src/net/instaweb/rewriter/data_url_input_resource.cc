@@ -18,14 +18,13 @@
 
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/data_url.h"
 
 namespace net_instaweb {
 
@@ -33,15 +32,15 @@ DataUrlInputResource::DataUrlInputResource(const GoogleString* url,
                                            Encoding encoding,
                                            const ContentType* type,
                                            const StringPiece& encoded_contents,
-                                           const RewriteDriver* driver)
-    : Resource(driver, type),
+                                           ServerContext* server_context)
+    : Resource(server_context, type),
       url_(url),
       encoding_(encoding),
       encoded_contents_(encoded_contents) {
   // Make sure we auto-load.
-  if (DecodeDataUrlContent(encoding_, encoded_contents_, &decoded_contents_) &&
-      value_.Write(decoded_contents_,
-                   driver->server_context()->message_handler())) {
+  if (DecodeDataUrlContent(encoding_, encoded_contents_,
+                           &decoded_contents_) &&
+      value_.Write(decoded_contents_, server_context->message_handler())) {
     // Note that we do not set caching headers here.
     // This is because they are expensive to compute; and should not be used
     // for this resource anyway, as it has UseHttpCache() false, and provides

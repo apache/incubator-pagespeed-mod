@@ -16,20 +16,20 @@
 
 // Author: matterbury@google.com (Matt Atterbury)
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/local_storage_cache_filter.h"
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -135,7 +135,7 @@ class LocalStorageCacheTest : public RewriteTestBase,
         StrCat("<script type=\"text/javascript\" pagespeed_no_defer>"
                "//<![CDATA[\n",
                static_asset_manager->GetAsset(
-                   StaticAssetEnum::LOCAL_STORAGE_CACHE_JS, options()),
+                   StaticAssetManager::kLocalStorageCacheJs, options()),
                LocalStorageCacheFilter::kLscInitializer,
                "\n//]]></script>");
   }

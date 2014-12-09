@@ -38,16 +38,16 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/rewriter/google_analytics_snippet.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -354,8 +354,7 @@ bool GoogleAnalyticsFilter::MatchSyncInit(StringPiece contents,
     tracker_method_pos = contents.find(tracker_method, start_pos);
   }
   if (tracker_method_pos != GoogleString::npos) {
-    html_parse_->InfoHere("Found ga.js init: %s",
-                          tracker_method.as_string().c_str());
+    html_parse_->InfoHere("Found ga.js init: %s", tracker_method.data());
     *pos = tracker_method_pos;
     *len = tracker_method.size();
     return true;
@@ -378,8 +377,7 @@ bool GoogleAnalyticsFilter::MatchUnhandledCalls(
         for (int j = method.size(), nj = contents.size(); j < nj; ++j) {
           char c = contents[j];
           if (c == '(') {
-            html_parse_->InfoHere("Matched unhandled call: %s",
-                                  method.as_string().c_str());
+            html_parse_->InfoHere("Matched unhandled call: %s", method.data());
             return true;
           } else if (!IsHtmlSpace(c)) {
             break;

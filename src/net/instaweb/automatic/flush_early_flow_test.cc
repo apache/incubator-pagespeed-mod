@@ -21,12 +21,18 @@
 #include "net/instaweb/automatic/public/flush_early_flow.h"
 
 #include "net/instaweb/automatic/public/proxy_interface_test_base.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_filter.h"
@@ -43,26 +49,19 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
-#include "net/instaweb/rewriter/static_asset_config.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
 #include "net/instaweb/util/public/mock_property_page.h"
+#include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/time_util.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/time_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace net_instaweb {
 
@@ -350,7 +349,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
   GoogleString GetDeferJsCode() {
     return StrCat("<script type=\"text/javascript\" src=\"",
                   server_context()->static_asset_manager()->GetAssetUrl(
-                      StaticAssetEnum::DEFER_JS, options_),
+                      StaticAssetManager::kDeferJs, options_),
                   "\"></script>");
   }
 
@@ -391,19 +390,21 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
 
     return StringPrintf(
         kRewrittenHtmlWithDeferJs, (is_ie ? kCompatibleMetaTag : ""),
-        rewritten_css_url_1_.c_str(), rewritten_css_url_2_.c_str(),
-        rewritten_js_url_1_.c_str(), rewritten_js_url_2_.c_str(),
-        image_tag.c_str(), NoScriptRedirectHtml().c_str(),
-        rewritten_css_url_3_.c_str(), defer_js_injected_html2.c_str(),
+        rewritten_css_url_1_.data(), rewritten_css_url_2_.data(),
+        rewritten_js_url_1_.data(), rewritten_js_url_2_.data(),
+        image_tag.data(),
+        NoScriptRedirectHtml().c_str(), rewritten_css_url_3_.data(),
+        defer_js_injected_html2.c_str(),
         defer_js_injected_html3.c_str());
   }
 
   GoogleString RewrittenHtml(const GoogleString& noscript_redirect) {
     return StringPrintf(
-        kRewrittenHtml, rewritten_css_url_1_.c_str(),
-        rewritten_css_url_2_.c_str(), rewritten_js_url_1_.c_str(),
-        rewritten_js_url_2_.c_str(), rewritten_img_url_1_.c_str(),
-        noscript_redirect.c_str(), rewritten_css_url_3_.c_str());
+        kRewrittenHtml, rewritten_css_url_1_.data(),
+        rewritten_css_url_2_.data(), rewritten_js_url_1_.data(),
+        rewritten_js_url_2_.data(), rewritten_img_url_1_.data(),
+        noscript_redirect.c_str(),
+        rewritten_css_url_3_.data());
   }
 
   GoogleString RewrittenHtmlForRedirect() {
@@ -437,20 +438,18 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
     if (defer_js_enabled && !ua_only_for_flush_early_html) {
       if (lazyload_enabled) {
         rewritten_html = RewrittenHtmlWithDeferJs(
-            split_html_enabled,
-            StrCat("<img pagespeed_lazy_src=\"", rewritten_img_url_1_,
-                   "\" src=\"/psajs/1.0.gif\" onload=\"",
-                   LazyloadImagesFilter::kImageOnloadCode,
-                   "\" onerror=\"this.onerror=null;",
-                   LazyloadImagesFilter::kImageOnloadCode, "\"/>"
-                   "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
-                   "pagespeed.lazyLoadImages.overrideAttributeFunctions();"
-                   "</script>"),
-            is_ie);
+            split_html_enabled, StrCat(
+                "<img pagespeed_lazy_src=\"", rewritten_img_url_1_.data(),
+                "\" src=\"/psajs/1.0.gif\"",
+                " onload=\"", LazyloadImagesFilter::kImageOnloadCode, "\"/>",
+                "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
+                "pagespeed.lazyLoadImages.overrideAttributeFunctions();",
+                "</script>"), is_ie);
       } else {
         rewritten_html = RewrittenHtmlWithDeferJs(
             split_html_enabled,
-            StrCat("<img src=\"", rewritten_img_url_1_, "\"/>"), is_ie);
+            StrCat("<img src=\"", rewritten_img_url_1_.data(), "\"/>"),
+            is_ie);
       }
     } else {
       if (redirect_psa_off) {
@@ -469,8 +468,8 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         if (defer_js_enabled) {
           flush_early_html = StringPrintf(
               kFlushEarlyRewrittenHtmlWithLazyloadDeferJsScript,
-              rewritten_css_url_1_.c_str(), rewritten_css_url_2_.c_str(),
-              rewritten_css_url_3_.c_str(),
+              rewritten_css_url_1_.data(), rewritten_css_url_2_.data(),
+              rewritten_css_url_3_.data(),
               StrCat("<script type=\"psa_prefetch\" src=\"",
                      expected_deferjs_url, "\"></script>\n",
                      FlushEarlyContentWriterFilter::kDisableLinkTag).c_str(),
@@ -485,9 +484,10 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
           }
         } else {
           flush_early_html = StringPrintf(
-              kFlushEarlyRewrittenHtmlLinkScript, rewritten_css_url_1_.c_str(),
-              rewritten_css_url_2_.c_str(), rewritten_js_url_1_.c_str(),
-              rewritten_js_url_2_.c_str(), rewritten_css_url_3_.c_str(),
+              kFlushEarlyRewrittenHtmlLinkScript,
+              rewritten_css_url_1_.data(), rewritten_css_url_2_.data(),
+              rewritten_js_url_1_.data(), rewritten_js_url_2_.data(),
+              rewritten_css_url_3_.data(),
               FlushEarlyContentWriterFilter::kDisableLinkTag);
         }
         break;
@@ -495,8 +495,8 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         if (defer_js_enabled) {
           flush_early_html = StringPrintf(
               kFlushEarlyRewrittenHtmlWithLazyloadDeferJsScript,
-              rewritten_css_url_1_.c_str(), rewritten_css_url_2_.c_str(),
-              rewritten_css_url_3_.c_str(),
+              rewritten_css_url_1_.data(),
+              rewritten_css_url_2_.data(), rewritten_css_url_3_.data(),
               FlushEarlyContentWriterFilter::kDisableLinkTag, 3);
         } else {
           GoogleString output_format;
@@ -506,9 +506,10 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
             output_format = kFlushEarlyRewrittenHtmlImageTag;
           }
           flush_early_html = StringPrintf(
-              output_format.c_str(), rewritten_js_url_1_.c_str(),
-              rewritten_js_url_2_.c_str(), rewritten_css_url_1_.c_str(),
-              rewritten_css_url_2_.c_str(), rewritten_css_url_3_.c_str(),
+              output_format.c_str(),
+              rewritten_js_url_1_.data(), rewritten_js_url_2_.data(),
+              rewritten_css_url_1_.data(), rewritten_css_url_2_.data(),
+              rewritten_css_url_3_.data(),
               FlushEarlyContentWriterFilter::kDisableLinkTag);
         }
         break;
@@ -639,12 +640,11 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
         "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
         " src=\"/psajs/1.0.gif\""
-        " onload=\"%s\" onerror=\"this.onerror=null;%s\"/>"
+        " onload=\"%s\"/>"
         "Hello, mod_pagespeed!"
         "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
         "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
         "</body></html>", rewritten_css_url_1_.c_str(), kMockHashValue,
-        LazyloadImagesFilter::kImageOnloadCode,
         LazyloadImagesFilter::kImageOnloadCode));
 
     GoogleString kMobileOutputHtml = StrCat(
@@ -674,12 +674,11 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         "</script>"
         "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
         " src=\"/psajs/1.0.gif\""
-        " onload=\"%s\" onerror=\"this.onerror=null;%s\"/>"
+        " onload=\"%s\"/>"
         "Hello, mod_pagespeed!"
         "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
         "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
         "</body></html>", kMockHashValue,
-        LazyloadImagesFilter::kImageOnloadCode,
         LazyloadImagesFilter::kImageOnloadCode));
 
     ResponseHeaders headers;
@@ -842,7 +841,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
   }
 
   void SetHeaderLatencyMs(int64 latency_ms) {
-    RequestTimingInfo* timing_info = mutable_timing_info();
+    RequestContext::TimingInfo* timing_info = mutable_timing_info();
     timing_info->FetchStarted();
     AdvanceTimeMs(latency_ms);
     timing_info->FetchHeaderReceived();
@@ -976,14 +975,15 @@ TEST_F(FlushEarlyFlowTest, FallBackWithNonHtmlResourceIsRedirected) {
   mock_url_fetcher_.SetResponse(url, response_headers, kFlushEarlyPdf);
 
   noscript_redirect_url_ = StrCat(fallback_url, "&amp;PageSpeed=noscript");
-  GoogleString kOutputHtml = StrCat(
-      kPreHeadHtml,
-      StringPrintf(kFlushEarlyRewrittenHtmlLinkScript,
-                   rewritten_css_url_1_.c_str(), rewritten_css_url_2_.c_str(),
-                   rewritten_js_url_1_.c_str(), rewritten_js_url_2_.c_str(),
-                   rewritten_css_url_3_.c_str(),
-                   FlushEarlyContentWriterFilter::kDisableLinkTag),
-      RewrittenHtml(NoScriptRedirectHtml()));
+  GoogleString kOutputHtml =
+      StrCat(kPreHeadHtml,
+             StringPrintf(
+                 kFlushEarlyRewrittenHtmlLinkScript,
+                 rewritten_css_url_1_.data(), rewritten_css_url_2_.data(),
+                 rewritten_js_url_1_.data(), rewritten_js_url_2_.data(),
+                 rewritten_css_url_3_.data(),
+                 FlushEarlyContentWriterFilter::kDisableLinkTag),
+             RewrittenHtml(NoScriptRedirectHtml()));
 
   GoogleString text;
   RequestHeaders request_headers;
@@ -997,8 +997,8 @@ TEST_F(FlushEarlyFlowTest, FallBackWithNonHtmlResourceIsRedirected) {
   FetchFromProxy(fallback_url, request_headers, true, &text, &headers);
   EXPECT_STREQ(kOutputHtml, text);
 
-  EXPECT_EQ(0, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   // Request another url with different query params so that fallback values
   // will be used. Since the content type is different here, this request
@@ -1009,8 +1009,8 @@ TEST_F(FlushEarlyFlowTest, FallBackWithNonHtmlResourceIsRedirected) {
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
 
-  EXPECT_EQ(1, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowTestDisabled) {
@@ -1106,8 +1106,8 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, true),
       text);
-  EXPECT_EQ(0, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(0, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   SetFetchResponse404(request_url_);
   // Fetch again so that 404 is populated in response headers.
@@ -1116,8 +1116,8 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
-  EXPECT_EQ(1, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(1, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 
   // Fetch the url again. This time FlushEarlyFlow should not be triggered as
   // the status code is not stable.
@@ -1150,8 +1150,8 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowStatusCodeUnstable) {
   EXPECT_EQ(FlushEarlyRewrittenHtml(
       UserAgentMatcher::kPrefetchLinkScriptTag, false, false, false,
       true, false, true, false), text);
-  EXPECT_EQ(2, TimedValue(
-      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected));
+  EXPECT_EQ(2, statistics()->FindVariable(
+      FlushEarlyFlow::kNumFlushEarlyRequestsRedirected)->Get());
 }
 
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowTestMobile) {
@@ -1484,12 +1484,11 @@ TEST_F(FlushEarlyFlowTest, InsertLazyloadJsOnlyIfResourceHtmlNotEmpty) {
       "</script>"
       "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
       " src=\"/psajs/1.0.gif\""
-      " onload=\"%s\" onerror=\"this.onerror=null;%s\"/>"
+      " onload=\"%s\"/>"
       "Hello, mod_pagespeed!"
       "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
       "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
       "</body></html>", kMockHashValue,
-      LazyloadImagesFilter::kImageOnloadCode,
       LazyloadImagesFilter::kImageOnloadCode));
 
   ResponseHeaders headers;
@@ -1571,10 +1570,10 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowTestWithLocalStorageDoesNotCrash) {
 TEST_F(FlushEarlyFlowTest, FlushEarlyFlowWithIEAddUACompatibilityHeader) {
   SetupForFlushEarlyFlow();
   RequestHeaders request_headers;
-  // Useragent is set to "MSIE 10." because we need to check if appropriate
+  // Useragent is set to "MSIE 9." because we need to check if appropriate
   // HttpAttributes::kXUACompatible header is added, which happens only with
-  // MSIE 9 and above, but IE9 is now blacklisted from defer_js.
-  request_headers.Replace(HttpAttributes::kUserAgent, " MSIE 10.");
+  // MSIE 9 and above.
+  request_headers.Replace(HttpAttributes::kUserAgent, " MSIE 9.");
   scoped_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
   custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
@@ -1611,7 +1610,7 @@ TEST_F(FlushEarlyFlowTest, FlushEarlyFlowWithDeferJsAndSplitEnabled) {
   SetupForFlushEarlyFlow();
   RequestHeaders request_headers;
   request_headers.Replace(HttpAttributes::kUserAgent,
-                          " MSIE 10.");
+                          " MSIE 9.");
   scoped_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
   custom_options->EnableFilter(RewriteOptions::kDeferJavascript);
@@ -1649,8 +1648,7 @@ class FlushEarlyPrioritizeCriticalCssTest : public FlushEarlyFlowTest {
     // Disabling the inline filters so that the resources get flushed early
     // else our dummy resources are too small and always get inlined.
     rewrite_options->DisableFilter(RewriteOptions::kInlineCss);
-    rewrite_options->DisableFilter(RewriteOptions::kRewriteJavascriptExternal);
-    rewrite_options->DisableFilter(RewriteOptions::kRewriteJavascriptInline);
+    rewrite_options->DisableFilter(RewriteOptions::kRewriteJavascript);
 
     rewrite_options->set_enable_flush_early_critical_css(true);
     rewrite_options->set_use_selectors_for_critical_css(false);
@@ -1686,7 +1684,7 @@ class FlushEarlyPrioritizeCriticalCssTest : public FlushEarlyFlowTest {
         "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
         "<html><head>",
         FlushedCss("div,*::first-letter{display:block}"),  // a.css
-        FlushedCss("@media screen{*{margin:0}}"),  // b.css
+        FlushedCss("@media screen{*{margin:0px}}"),  // b.css
         StringPrintf(FlushEarlyContentWriterFilter::kPrefetchStartTimeScript,
                      2 /* num_resources_flushed */),
         "<title>Flush Subresources Early example</title>");
@@ -1762,7 +1760,7 @@ TEST_F(FlushEarlyPrioritizeCriticalCssTest,
   critical_css_finder->AddCriticalCss(
       "http://test.com/a.css", "div,*::first-letter{display:block}", 100);
   critical_css_finder->AddCriticalCss(
-      "http://test.com/b.css?x=1&y=2", "@media screen{*{margin:0}}", 100);
+      "http://test.com/b.css?x=1&y=2", "@media screen{*{margin:0px}}", 100);
 
   GoogleString full_styles_html = StrCat(
       "<noscript class=\"psa_add_styles\">",
@@ -1773,9 +1771,9 @@ TEST_F(FlushEarlyPrioritizeCriticalCssTest,
       CriticalCssFilter::kAddStylesScript,
       "window['pagespeed'] = window['pagespeed'] || {};"
       "window['pagespeed']['criticalCss'] = {"
-      "  'total_critical_inlined_size': 60,"
+      "  'total_critical_inlined_size': 62,"
       "  'total_original_external_size': 200,"
-      "  'total_overhead_size': 60,"
+      "  'total_overhead_size': 62,"
       "  'num_replaced_links': 2,"
       "  'num_unreplaced_links': 0};"
       "</script>");
@@ -1843,7 +1841,7 @@ TEST_F(FlushEarlyPrioritizeCriticalCssTest,
       "</noscript>"
       "<script pagespeed_no_defer=\"\" type=\"text/javascript\">",
       rewrite_driver()->server_context()->static_asset_manager()->GetAsset(
-          StaticAssetEnum::CRITICAL_CSS_LOADER_JS,
+          StaticAssetManager::kCriticalCssLoaderJs,
           rewrite_driver()->options()),
       "pagespeed.CriticalCssLoader.Run();</script>");
   ValidateFlushEarly(

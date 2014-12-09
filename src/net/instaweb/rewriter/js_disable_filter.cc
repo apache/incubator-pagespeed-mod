@@ -18,19 +18,19 @@
 
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/flush_early_content_writer_filter.h"
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -53,7 +53,7 @@ JsDisableFilter::JsDisableFilter(RewriteDriver* driver)
 JsDisableFilter::~JsDisableFilter() {
 }
 
-void JsDisableFilter::DetermineEnabled(GoogleString* disabled_reason) {
+void JsDisableFilter::DetermineEnabled() {
   bool should_apply = JsDeferDisabledFilter::ShouldApply(driver());
   set_is_enabled(should_apply);
   AbstractLogRecord* log_record = driver()->log_record();
@@ -219,7 +219,6 @@ void JsDisableFilter::StartElementImpl(HtmlElement* element) {
     onload->set_name(driver()->MakeName("data-pagespeed-onload"));
     driver()->AddEscapedAttribute(element, HtmlName::kOnload,
                                   kElementOnloadCode);
-    // TODO(sligocki): Should we add onerror handler here too?
   }
 }
 

@@ -19,8 +19,8 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_URL_NAMER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_URL_NAMER_H_
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -62,9 +62,7 @@ class UrlNamer {
   // Returns 'false' if request_url was not encoded via this namer.
   //
   // Note: the default implementation always returns false.
-  // Note: rewrite_options may be NULL.
   virtual bool Decode(const GoogleUrl& request_url,
-                      const RewriteOptions* rewrite_options,
                       GoogleUrl* owner_domain,
                       GoogleString* decoded) const;
 

@@ -18,12 +18,12 @@
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/null_mutex.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -71,15 +71,6 @@ class DomainLawyerTest : public testing::Test {
     out->clear();
     GoogleString host_header;
     return domain_lawyer_.MapOrigin(in, out, &host_header,
-                                    &is_proxy) && !is_proxy;
-  }
-
-  bool MapOriginAndHost(const StringPiece& in, GoogleString* origin,
-                        GoogleString* host_header) {
-    bool is_proxy = true;
-    origin->clear();
-    host_header->clear();
-    return domain_lawyer_.MapOrigin(in, origin, host_header,
                                     &is_proxy) && !is_proxy;
   }
 
@@ -369,96 +360,16 @@ TEST_F(DomainLawyerTest, MapHttpsAcrossSchemesAndPorts) {
 
 TEST_F(DomainLawyerTest, AddTwoProtocolDomainMapping) {
   ASSERT_TRUE(domain_lawyer_.AddTwoProtocolOriginDomainMapping(
-      "ref.nytimes.com", "www.nytimes.com", "", &message_handler_));
+      "ref.nytimes.com", "www.nytimes.com", &message_handler_));
   // This will rewrite domains of fetches, but not change urls in page:
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
   GoogleString mapped;
-  GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOrigin(
+      "http://www.nytimes.com/index.html", &mapped));
   EXPECT_STREQ("http://ref.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOrigin(
+      "https://www.nytimes.com/index.html", &mapped));
   EXPECT_STREQ("https://ref.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com", host_header);
-}
-
-TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithRefPort) {
-  ASSERT_TRUE(domain_lawyer_.AddTwoProtocolOriginDomainMapping(
-      "ref.nytimes.com:8089", "www.nytimes.com", "", &message_handler_));
-  // This will rewrite domains of fetches, but not change urls in page:
-  EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
-  GoogleString mapped;
-  GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
-  EXPECT_STREQ("http://ref.nytimes.com:8089/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
-  EXPECT_STREQ("https://ref.nytimes.com:8089/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com", host_header);
-}
-
-TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithServingPort) {
-  ASSERT_TRUE(domain_lawyer_.AddTwoProtocolOriginDomainMapping(
-      "ref.nytimes.com", "www.nytimes.com:8080", "", &message_handler_));
-  // This will rewrite domains of fetches, but not change urls in page:
-  EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
-  GoogleString mapped;
-  GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com:8080/index.html", &mapped, &host_header));
-  EXPECT_STREQ("http://ref.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com:8080", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
-  EXPECT_STREQ("http://www.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com:8080/index.html", &mapped, &host_header));
-  EXPECT_STREQ("https://ref.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com:8080", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
-  EXPECT_STREQ("https://www.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com", host_header);
-}
-
-TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithBothPorts) {
-  ASSERT_TRUE(domain_lawyer_.AddTwoProtocolOriginDomainMapping(
-      "ref.nytimes.com:9999", "www.nytimes.com:8080", "", &message_handler_));
-  // This will rewrite domains of fetches, but not change urls in page:
-  EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
-  GoogleString mapped;
-  GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com:8080/index.html", &mapped, &host_header));
-  EXPECT_STREQ("http://ref.nytimes.com:9999/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com:8080", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com:8080/index.html", &mapped, &host_header));
-  EXPECT_STREQ("https://ref.nytimes.com:9999/index.html", mapped);
-  EXPECT_STREQ("www.nytimes.com:8080", host_header);
-}
-
-TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithHostHeader) {
-  ASSERT_TRUE(domain_lawyer_.AddTwoProtocolOriginDomainMapping(
-      "ref.nytimes.com", "www.nytimes.com", "host.nytimes.com",
-      &message_handler_));
-  // This will rewrite domains of fetches, but not change urls in page:
-  EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
-  GoogleString mapped;
-  GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
-  EXPECT_STREQ("http://ref.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("host.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
-  EXPECT_STREQ("https://ref.nytimes.com/index.html", mapped);
-  EXPECT_STREQ("host.nytimes.com", host_header);
 }
 
 TEST_F(DomainLawyerTest, MapOriginExplicitHost) {
@@ -1656,88 +1567,6 @@ TEST_F(DomainLawyerTest, AboutBlank) {
   GoogleString host_header;
   bool is_proxy = true;
   EXPECT_FALSE(lawyer.MapOriginUrl(foo, &out, &host_header, &is_proxy));
-}
-
-TEST_F(DomainLawyerTest, StripProxySuffix) {
-  DomainLawyer lawyer;
-  GoogleUrl gurl("http://example.com.suffix/path");
-  GoogleString host, url = gurl.Spec().as_string();
-  EXPECT_FALSE(lawyer.can_rewrite_domains());
-  EXPECT_FALSE(lawyer.StripProxySuffix(gurl, &url, &host));
-  lawyer.set_proxy_suffix(".suffix");
-  EXPECT_TRUE(lawyer.can_rewrite_domains());
-  EXPECT_TRUE(lawyer.StripProxySuffix(gurl, &url, &host));
-  EXPECT_STREQ("http://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-
-  // The ':80' will get removed by GoogleUrl.
-  GoogleUrl http_gurl_80("http://example.com.suffix:80/path");
-  url = http_gurl_80.Spec().as_string();
-  host.clear();
-  url.clear();
-  EXPECT_TRUE(lawyer.StripProxySuffix(http_gurl_80, &url, &host));
-  EXPECT_STREQ("http://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-
-  // However an ':81' makes the proxy-suffix mismatch.
-  GoogleUrl http_gurl_81("http://example.com.suffix:81/path");
-  url.clear();
-  host.clear();
-  EXPECT_FALSE(lawyer.StripProxySuffix(http_gurl_81, &url, &host));
-
-  // 443 on http.  We need to understand why we see this in Apache slurping
-  // with a Firefox proxy, but punt for now.
-  GoogleUrl http_gurl_443("http://example.com.suffix:443/path");
-  url.clear();
-  host.clear();
-  EXPECT_FALSE(lawyer.StripProxySuffix(http_gurl_443, &url, &host));
-
-  // 443 on https -- that should canonicalize out in GoogleUrl.
-  GoogleUrl https_gurl_443("https://example.com.suffix:443/path");
-  url.clear();
-  host.clear();
-  EXPECT_TRUE(lawyer.StripProxySuffix(https_gurl_443, &url, &host));
-  EXPECT_STREQ("https://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-
-  GoogleUrl https_gurl("https://example.com.suffix/path");
-  url.clear();
-  host.clear();
-  EXPECT_TRUE(lawyer.StripProxySuffix(https_gurl, &url, &host));
-  EXPECT_STREQ("https://example.com/path", url);
-  EXPECT_STREQ("example.com", host);
-}
-
-TEST_F(DomainLawyerTest, AddProxySuffix) {
-  DomainLawyer lawyer;
-  GoogleUrl base("http://www.example.com.suffix");
-  lawyer.set_proxy_suffix(".suffix");
-  EXPECT_TRUE(lawyer.can_rewrite_domains());
-
-  // No need to change relative URLs.
-  GoogleString url = "relative.html";
-  EXPECT_FALSE(lawyer.AddProxySuffix(base, &url));
-
-  // An absolute reference to a new destination in the origin domain gets
-  // suffixed.
-  url = "http://www.example.com/absolute.html";
-  EXPECT_TRUE(lawyer.AddProxySuffix(base, &url));
-  EXPECT_STREQ("http://www.example.com.suffix/absolute.html", url);
-
-  // It also works even if the reference is a domain that's related to the
-  // base, by consulting the known suffixes list via domain_registry.
-  url = "http://other.example.com/absolute.html";
-  EXPECT_TRUE(lawyer.AddProxySuffix(base, &url));
-  EXPECT_STREQ("http://other.example.com.suffix/absolute.html", url);
-
-  // However a link to a completely unrelated domain is left unchanged.
-  url = "http://other.com/x.html";
-  EXPECT_FALSE(lawyer.AddProxySuffix(base, &url));
-
-  // Link to same domain on HTTPS is also OK.
-  url = "https://www.example.com/absolute.html";
-  EXPECT_TRUE(lawyer.AddProxySuffix(base, &url));
-  EXPECT_STREQ("https://www.example.com.suffix/absolute.html", url);
 }
 
 }  // namespace net_instaweb

@@ -22,22 +22,21 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_OUTPUT_RESOURCE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_OUTPUT_RESOURCE_H_
 
-#include "base/logging.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 class CachedResult;
 class MessageHandler;
-class RewriteDriver;
 class RewriteOptions;
+class ServerContext;
 class Writer;
 struct ContentType;
 
@@ -51,11 +50,12 @@ class OutputResource : public Resource {
   // The 'options' argument can be NULL.  This is done in the Fetch path because
   // that field is only used for domain sharding, and during the fetch, further
   // domain makes no sense.
-  OutputResource(const RewriteDriver* driver,
-                 StringPiece resolved_base,
-                 StringPiece unmapped_base, /* aka source domain */
-                 StringPiece original_base, /* aka cnamed domain */
+  OutputResource(ServerContext* server_context,
+                 const StringPiece& resolved_base,
+                 const StringPiece& unmapped_base, /* aka source domain */
+                 const StringPiece& original_base, /* aka cnamed domain */
                  const ResourceNamer& resource_id,
+                 const RewriteOptions* options,
                  OutputResourceKind kind);
 
   virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
@@ -120,7 +120,6 @@ class OutputResource : public Resource {
   StringPiece suffix() const;
   StringPiece filter_prefix() const { return full_name_.id(); }
   StringPiece hash() const { return full_name_.hash(); }
-  StringPiece signature() const { return full_name_.signature(); }
   bool has_hash() const { return !hash().empty(); }
   void clear_hash() {
     full_name_.ClearHash();
@@ -199,17 +198,6 @@ class OutputResource : public Resource {
 
   virtual bool UseHttpCache() const { return true; }
 
-  // Extra suffix to be added to Cache-Control in the response headers
-  // when serving the response.  E.g. a filter might want to set
-  // no-transform on its output.
-  const GoogleString& cache_control_suffix() const {
-    return cache_control_suffix_;
-  }
-  void set_cache_control_suffix(const GoogleString& x) {
-    DCHECK(cache_control_suffix_.empty());
-    cache_control_suffix_ = x;
-  }
-
  protected:
   virtual ~OutputResource();
   REFCOUNT_FRIEND_DECLARATION(OutputResource);
@@ -219,10 +207,8 @@ class OutputResource : public Resource {
   friend class ServerContext;
   friend class ServerContextTest;
 
-  void SetHash(StringPiece hash);
+  void SetHash(const StringPiece& hash);
   StringPiece extension() const { return full_name_.ext(); }
-  GoogleString ComputeSignature();
-  bool CheckSignature();
 
   // Name of the file used by DumpToDisk.
   GoogleString DumpFileName() const;
@@ -259,8 +245,6 @@ class OutputResource : public Resource {
   GoogleString resolved_base_;
   GoogleString unmapped_base_;
   GoogleString original_base_;
-
-  GoogleString cache_control_suffix_;
 
   ResourceNamer full_name_;
 

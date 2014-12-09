@@ -21,11 +21,11 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 
@@ -58,18 +58,15 @@ void WaitUrlAsyncFetcher::Fetch(const GoogleString& url,
                                 AsyncFetch* base_fetch) {
   DelayedFetch* delayed_fetch =
       new DelayedFetch(url_fetcher_, url, handler, base_fetch);
-  bool bypass_delay =
-      (do_not_delay_urls_.find(url) != do_not_delay_urls_.end());
-
   {
     ScopedMutex lock(mutex_.get());
-    if (!pass_through_mode_ && !bypass_delay) {
+    if (!pass_through_mode_) {
       // Don't call the blocking fetcher until CallCallbacks.
       delayed_fetches_.push_back(delayed_fetch);
       return;
     }
   }
-  // pass_through_mode_ == true || bypass_delay
+  // pass_through_mode_ == true
   delayed_fetch->FetchNow();
   delete delayed_fetch;
 }
@@ -111,8 +108,5 @@ bool WaitUrlAsyncFetcher::SetPassThroughMode(bool new_mode) {
   return old_mode;
 }
 
-void WaitUrlAsyncFetcher::DoNotDelay(const GoogleString& url) {
-  do_not_delay_urls_.insert(url);
-}
 
 }  // namespace net_instaweb

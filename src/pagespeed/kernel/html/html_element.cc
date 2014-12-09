@@ -45,7 +45,7 @@ HtmlElement::Data::Data(const HtmlName& name,
     : begin_line_number_(0),
       live_(1),
       end_line_number_(0),
-      style_(AUTO_CLOSE),
+      close_style_(AUTO_CLOSE),
       name_(name),
       begin_(begin),
       end_(end) {
@@ -120,51 +120,50 @@ const HtmlElement::Attribute* HtmlElement::FindAttribute(
   return NULL;
 }
 
-GoogleString HtmlElement::ToString() const {
-  GoogleString buf;
-  StrAppend(&buf, "<", data_->name_.value());
+void HtmlElement::ToString(GoogleString* buf) const {
+  StrAppend(buf, "<", data_->name_.value());
 
   for (AttributeConstIterator iter = attributes().begin();
        iter != attributes().end(); ++iter) {
     const Attribute& attribute = *iter;
-    StrAppend(&buf, " ", attribute.name_str());
+    StrAppend(buf, " ", attribute.name_str());
     const char* value = attribute.DecodedValueOrNull();
     if (attribute.decoding_error()) {
       // This is a debug method; not used in serialization.
-      buf += "<DECODING ERROR>";
+      *buf += "<DECODING ERROR>";
     } else if (value != NULL) {
-      buf += "=";
+      *buf += "=";
       const char* quote = attribute.quote_str();
-      buf += quote;
-      buf += value;
-      buf += quote;
+      *buf += quote;
+      *buf += value;
+      *buf += quote;
     }
   }
-  switch (data_->style_) {
-    case AUTO_CLOSE:       buf += "> (not yet closed)"; break;
-    case IMPLICIT_CLOSE:   buf += ">";  break;
-    case EXPLICIT_CLOSE:   StrAppend(&buf, "></", data_->name_.value(), ">");
+  switch (data_->close_style_) {
+    case AUTO_CLOSE:       *buf += "> (not yet closed)"; break;
+    case IMPLICIT_CLOSE:   *buf += ">";  break;
+    case EXPLICIT_CLOSE:   StrAppend(buf, "></", data_->name_.value(), ">");
                            break;
-    case BRIEF_CLOSE:      buf += "/>"; break;
-    case UNCLOSED:         buf += "> (unclosed)"; break;
-    case INVISIBLE:        buf += "> (invisible)"; break;
+    case BRIEF_CLOSE:      *buf += "/>"; break;
+    case UNCLOSED:         *buf += "> (unclosed)"; break;
   }
   if ((data_->begin_line_number_ != Data::kMaxLineNumber) ||
       (data_->end_line_number_ != Data::kMaxLineNumber)) {
-    buf += " ";
+    *buf += " ";
     if (data_->begin_line_number_ != Data::kMaxLineNumber) {
-      buf += IntegerToString(data_->begin_line_number_);
+      *buf += IntegerToString(data_->begin_line_number_);
     }
-    buf += "...";
+    *buf += "...";
     if (data_->end_line_number_ != Data::kMaxLineNumber) {
-      buf += IntegerToString(data_->end_line_number_);
+      *buf += IntegerToString(data_->end_line_number_);
     }
   }
-  return buf;
 }
 
 void HtmlElement::DebugPrint() const {
-  fprintf(stdout, "%s\n", ToString().c_str());
+  GoogleString buf;
+  ToString(&buf);
+  fprintf(stdout, "%s\n", buf.c_str());
 }
 
 void HtmlElement::AddAttribute(const Attribute& src_attr) {

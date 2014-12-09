@@ -23,55 +23,52 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/write_through_http_cache.h"
 #include "net/instaweb/rewriter/public/custom_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "net/instaweb/system/public/admin_site.h"
 #include "net/instaweb/system/public/apr_mem_cache.h"
-#include "net/instaweb/system/public/system_cache_path.h"
 #include "net/instaweb/system/public/system_rewrite_options.h"
+#include "net/instaweb/system/public/system_cache_path.h"
 #include "net/instaweb/system/public/system_server_context.h"
+#include "net/instaweb/util/public/abstract_shared_mem.h"
+#include "net/instaweb/util/public/async_cache.h"
+#include "net/instaweb/util/public/cache_batcher.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/cache_property_store.h"
+#include "net/instaweb/util/public/cache_stats.h"
+#include "net/instaweb/util/public/fallback_cache.h"
+#include "net/instaweb/util/public/file_cache.h"
+#include "net/instaweb/util/public/file_system_lock_manager.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/inprocess_shared_mem.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
+#include "net/instaweb/util/public/null_shared_mem.h"
+#include "net/instaweb/util/public/platform.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/property_store.h"
-#include "pagespeed/kernel/base/abstract_shared_mem.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/shared_mem_lock_manager.h"
+#include "net/instaweb/util/public/shared_string.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/threadsafe_cache.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/write_through_cache.h"
+#include "net/instaweb/util/worker_test_base.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/null_shared_mem.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/shared_string.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/async_cache.h"
-#include "pagespeed/kernel/cache/cache_batcher.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/cache/cache_stats.h"
-#include "pagespeed/kernel/cache/compressed_cache.h"
-#include "pagespeed/kernel/cache/fallback_cache.h"
-#include "pagespeed/kernel/cache/file_cache.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/cache/threadsafe_cache.h"
-#include "pagespeed/kernel/cache/write_through_cache.h"
-#include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/sharedmem/inprocess_shared_mem.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_lock_manager.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
-#include "pagespeed/kernel/util/file_system_lock_manager.h"
-#include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
 
@@ -80,8 +77,6 @@ namespace {
 const char kCachePath[] = "/mem/path/";
 const char kAltCachePath[] = "/mem/path_alt/";
 const char kAltCachePath2[] = "/mem/path_alt2/";
-const char kUrl1[] = "http://example.com/a.css";
-const char kUrl2[] = "http://example.com/b.css";
 
 class SystemServerContextNoProxyHtml : public SystemServerContext {
  public:
@@ -96,12 +91,6 @@ class SystemServerContextNoProxyHtml : public SystemServerContext {
 };
 
 class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
- public:
-  void PurgeDone(bool success) {
-    purge_done_ = true;
-    purge_success_ = success;
-  }
-
  protected:
   static const int kThreadLimit = 3;
   static const int kUsableMetadataCacheSize = 8 * 1024;
@@ -176,14 +165,11 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
 
   SystemCachesTest()
       : thread_system_(Platform::CreateThreadSystem()),
-        options_(new SystemRewriteOptions(thread_system_.get())),
-        purge_done_(false),
-        purge_success_(false) {
+        options_(new SystemRewriteOptions(thread_system_.get())) {
     shared_mem_.reset(new InProcessSharedMem(thread_system_.get()));
     factory_->set_hasher(new MD5Hasher());
     Statistics* stats = factory()->statistics();
     SystemCaches::InitStats(stats);
-    SystemServerContext::InitStats(stats);
     CacheStats::InitStats(
         PropertyCache::GetStatsPrefix(RewriteDriver::kBeaconCohort),
         stats);
@@ -212,12 +198,11 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
   }
 
   // Takes ownership of config.
-  SystemServerContext* SetupServerContext(SystemRewriteOptions* config) {
-    scoped_ptr<SystemServerContext> server_context(
+  ServerContext* SetupServerContext(SystemRewriteOptions* config) {
+    scoped_ptr<ServerContext> server_context(
         new SystemServerContextNoProxyHtml(factory()));
     server_context->reset_global_options(config);
     server_context->set_statistics(factory()->statistics());
-    server_context->set_timer(factory()->timer());
     system_caches_->SetupCaches(server_context.get(),
                                 true /* enable_property_cache */);
 
@@ -326,7 +311,7 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
     }
 
     EXPECT_STREQ(
-        Compressed(Fallback(mem_cache, Stats("file_cache", FileCacheName()))),
+        Fallback(mem_cache, Stats("file_cache", FileCacheName())),
         server_context->metadata_cache()->Name());
     EXPECT_STREQ(
         HttpCache(
@@ -398,47 +383,11 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
               cache));
   }
 
-  GoogleString Compressed(StringPiece cache) {
-    return CompressedCache::FormatName(cache);
-  }
-
-  SystemServerContext* PopulateCacheForPurgeTest() {
-    options_->set_file_cache_path(kCachePath);
-    SystemRewriteOptions* options = options_.get();
-    PrepareWithConfig(options);
-    system_server_context_.reset(SetupServerContext(options_.release()));
-    HTTPCache* http_cache = system_server_context_->http_cache();
-    MessageHandler* handler = message_handler();
-    system_server_context_->set_message_handler(handler);
-    ResponseHeaders headers;
-    SetDefaultLongCacheHeaders(&kContentTypeText, &headers);
-    headers.ComputeCaching();
-    RequestHeaders::Properties req_properties;
-    http_cache->Put(kUrl1, rewrite_driver_->CacheFragment(), req_properties,
-                    ResponseHeaders::kRespectVaryOnResources,
-                    &headers, "a value", handler);
-    http_cache->Put(kUrl2, rewrite_driver_->CacheFragment(), req_properties,
-                    ResponseHeaders::kRespectVaryOnResources,
-                    &headers, "b value", handler);
-    AdvanceTimeMs(1000);
-    HTTPValue value;
-
-    // As expected, both kUrl1 and kUrl2 are valid after Put.
-    EXPECT_EQ(HTTPCache::kFound, HttpBlockingFindWithOptions(
-        options, kUrl1, http_cache, &value, &headers));
-    EXPECT_EQ(HTTPCache::kFound, HttpBlockingFindWithOptions(
-        options, kUrl2, http_cache, &value, &headers));
-    AdvanceTimeMs(1000);
-    return system_server_context_.get();
-  }
 
   scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<AbstractSharedMem> shared_mem_;
   scoped_ptr<SystemCaches> system_caches_;
   scoped_ptr<SystemRewriteOptions> options_;
-  scoped_ptr<SystemServerContext> system_server_context_;
-  bool purge_done_;
-  bool purge_success_;
 
  private:
   GoogleString server_spec_;  // Set lazily by MemCachedServerSpec()
@@ -453,8 +402,8 @@ TEST_F(SystemCachesTest, BasicFileAndLruCache) {
 
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
-  EXPECT_STREQ(Compressed(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
-                                       FileCacheWithStats())),
+  EXPECT_STREQ(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
+                            FileCacheWithStats()),
                server_context->metadata_cache()->Name());
   EXPECT_STREQ(
       WriteThroughHTTP(
@@ -473,7 +422,7 @@ TEST_F(SystemCachesTest, BasicFileOnlyCache) {
 
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
-  EXPECT_STREQ(Compressed(FileCacheWithStats()),
+  EXPECT_STREQ(FileCacheWithStats(),
                server_context->metadata_cache()->Name());
   EXPECT_STREQ(HttpCache(FileCacheWithStats()),
                server_context->http_cache()->Name());
@@ -496,8 +445,8 @@ TEST_F(SystemCachesTest, UnusableShmAndLru) {
 
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
-  EXPECT_STREQ(Compressed(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
-                                       FileCacheWithStats())),
+  EXPECT_STREQ(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
+                            FileCacheWithStats()),
                server_context->metadata_cache()->Name());
   EXPECT_STREQ(
       WriteThroughHTTP(
@@ -520,8 +469,8 @@ TEST_F(SystemCachesTest, BasicShmAndLru) {
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
-  EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
-                                   FileCacheWithStats())),
+  EXPECT_STREQ(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
+                        FileCacheWithStats()),
                server_context->metadata_cache()->Name());
   // HTTP cache is unaffected.
   EXPECT_STREQ(
@@ -544,8 +493,8 @@ TEST_F(SystemCachesTest, BasicShmAndNoLru) {
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
-  EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
-                                   FileCacheWithStats())),
+  EXPECT_STREQ(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
+                        FileCacheWithStats()),
                server_context->metadata_cache()->Name());
   // HTTP cache is unaffected.
   EXPECT_STREQ(HttpCache(FileCacheWithStats()),
@@ -575,8 +524,8 @@ TEST_F(SystemCachesTest, DoubleShmCreate) {
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
-  EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
-                                   FileCacheWithStats())),
+  EXPECT_STREQ(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
+                        FileCacheWithStats()),
                server_context->metadata_cache()->Name());
   // HTTP cache is unaffected.
   EXPECT_STREQ(
@@ -601,10 +550,9 @@ TEST_F(SystemCachesTest, BasicMemCachedAndLru) {
 
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
-  EXPECT_STREQ(Compressed(
-      WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
-                   Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
-                            FileCacheWithStats()))),
+  EXPECT_STREQ(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
+                            Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
+                                     FileCacheWithStats())),
                server_context->metadata_cache()->Name());
   EXPECT_STREQ(
       WriteThroughHTTP(
@@ -650,10 +598,9 @@ TEST_F(SystemCachesTest, BasicMemCachedLruShm) {
       SetupServerContext(options_.release()));
   // For metadata, we fallback to memcached behind shmcache.
   EXPECT_STREQ(
-      Compressed(WriteThrough(
-          Stats("shm_cache", SharedMemCache<64>::FormatName()),
-          Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
-                   FileCacheWithStats()))),
+      WriteThrough(Stats("shm_cache", SharedMemCache<64>::FormatName()),
+                   Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
+                            FileCacheWithStats())),
       server_context->metadata_cache()->Name());
   EXPECT_STREQ(
       WriteThroughHTTP(
@@ -681,11 +628,10 @@ TEST_F(SystemCachesTest, BasicMemCachedShmNoLru) {
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(
-      Compressed(
-          WriteThrough(
-              Stats("shm_cache", "SharedMemCache<64>"),
-              Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
-                       FileCacheWithStats()))),
+      WriteThrough(
+          Stats("shm_cache", "SharedMemCache<64>"),
+          Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
+                   FileCacheWithStats())),
       server_context->metadata_cache()->Name());
   EXPECT_STREQ(
       HttpCache(
@@ -796,8 +742,8 @@ TEST_F(SystemCachesTest, ShmShare) {
   std::vector<ServerContext*> servers;
   for (int i = 0; i < 3; ++i) {
     servers.push_back(SetupServerContext(configs[i]));
-    EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
-                                     FileCacheWithStats())),
+    EXPECT_STREQ(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
+                          FileCacheWithStats()),
                  servers[i]->metadata_cache()->Name());
   }
 
@@ -845,14 +791,14 @@ TEST_F(SystemCachesTest, ShmDefault) {
   for (int i = 0; i < 3; ++i) {
     servers.push_back(SetupServerContext(configs[i]));
   }
-  EXPECT_STREQ(Compressed(WriteThrough(Stats("shm_cache", "SharedMemCache<64>"),
-                                       FileCacheWithStats())),
+  EXPECT_STREQ(WriteThrough(Stats("shm_cache", "SharedMemCache<64>"),
+                            FileCacheWithStats()),
                servers[0]->metadata_cache()->Name());
-  EXPECT_STREQ(Compressed(WriteThrough(Stats("shm_cache", "SharedMemCache<64>"),
-                                       FileCacheWithStats())),
+  EXPECT_STREQ(WriteThrough(Stats("shm_cache", "SharedMemCache<64>"),
+                            FileCacheWithStats()),
                servers[1]->metadata_cache()->Name());
-  EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
-                                   FileCacheWithStats())),
+  EXPECT_STREQ(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
+                        FileCacheWithStats()),
                servers[2]->metadata_cache()->Name());
 
 
@@ -893,12 +839,12 @@ TEST_F(SystemCachesTest, MemCachedShare) {
   for (int i = 0; i < 3; ++i) {
     servers.push_back(SetupServerContext(configs[i]));
     EXPECT_STREQ(
-        Compressed(Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
-                            FileCacheWithStats())),
+        Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
+                 FileCacheWithStats()),
         servers[i]->metadata_cache()->Name());
 
-    EXPECT_STREQ(Pcache(Compressed(Fallback(BlockingMemCacheWithStats(),
-                                            FileCacheWithStats()))),
+    EXPECT_STREQ(Pcache(Fallback(BlockingMemCacheWithStats(),
+                                 FileCacheWithStats())),
                  servers[i]->page_property_cache()->property_store()->Name());
   }
 
@@ -935,11 +881,11 @@ TEST_F(SystemCachesTest, FileCacheSettings) {
 
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
-  EXPECT_STREQ(Compressed(FileCacheWithStats()),
+  EXPECT_STREQ(FileCacheWithStats(),
                server_context->metadata_cache()->Name());
   EXPECT_STREQ(HttpCache(FileCacheWithStats()),
                server_context->http_cache()->Name());
-  EXPECT_STREQ(Pcache(Compressed(FileCacheWithStats())),
+  EXPECT_STREQ(Pcache(FileCacheWithStats()),
                server_context->page_property_cache()->property_store()->Name());
 
   FileCache* file_cache = dynamic_cast<FileCache*>(
@@ -1056,64 +1002,6 @@ TEST_F(SystemCachesTest, FileCacheNoConflictOnDefaults) {
   EXPECT_EQ(0, message_handler()->MessagesOfType(kWarning));
 }
 
-TEST_F(SystemCachesTest, PurgeUrl) {
-  options_->set_enable_cache_purge(true);
-  SystemServerContext* server_context = PopulateCacheForPurgeTest();
-  server_context->PostInitHook();
-  SystemRewriteOptions* options =
-      server_context->global_system_rewrite_options();
-  RequestContextPtr request_context(
-      RequestContext::NewTestRequestContext(thread_system_.get()));
-  StringAsyncFetch fetch(request_context);
-
-  // Invalidate kUrl1 but leave kUrl2 intact.
-  AdminSite* admin_site = server_context->admin_site();
-  admin_site->PurgeHandler(kUrl1, server_context->cache_path(), &fetch);
-  ASSERT_TRUE(fetch.done());
-  ASSERT_TRUE(fetch.success());
-  server_context->FlushCacheIfNecessary();
-
-  // Make sure we can no longer fetch kUrl1, but we can still fetch kUrl2.
-  ResponseHeaders headers;
-  HTTPValue value;
-  EXPECT_EQ(HTTPCache::kNotFound, HttpBlockingFindWithOptions(
-      options, kUrl1, server_context->http_cache(), &value, &headers));
-  EXPECT_EQ(HTTPCache::kFound, HttpBlockingFindWithOptions(
-      options, kUrl2, server_context->http_cache(), &value, &headers));
-
-  // Now set the global invalidation timestamp, and kUrl2 will now be invalid
-  // as well.
-  AdvanceTimeMs(1);
-  fetch.Reset();
-  admin_site->PurgeHandler("http://example.com/*", server_context->cache_path(),
-                           &fetch);
-  server_context->FlushCacheIfNecessary();
-  AdvanceTimeMs(1);
-  EXPECT_EQ(HTTPCache::kNotFound, HttpBlockingFindWithOptions(
-      options, kUrl2, server_context->http_cache(), &value, &headers));
-}
-
-TEST_F(SystemCachesTest, InvalidateWithPurgeDisabled) {
-  options_->set_enable_cache_purge(false);
-  SystemServerContext* server_context = PopulateCacheForPurgeTest();
-  SystemRewriteOptions* options =
-      server_context->global_system_rewrite_options();
-
-  // touch cache.flush
-  file_system()->WriteFile(StrCat(kCachePath, "/cache.flush").c_str(),
-                           "", message_handler());
-  AdvanceTimeMs(1000);
-  server_context->FlushCacheIfNecessary();
-
-  // Make sure both kUrl1 and kUrl2 are invalidated from touching the file.
-  ResponseHeaders headers;
-  HTTPValue value;
-  EXPECT_EQ(HTTPCache::kNotFound, HttpBlockingFindWithOptions(
-      options, kUrl1, server_context->http_cache(), &value, &headers));
-  EXPECT_EQ(HTTPCache::kNotFound, HttpBlockingFindWithOptions(
-      options, kUrl2, server_context->http_cache(), &value, &headers));
-}
-
 // Tests for how we fallback when SHM setup ops fail.
 class BrokenShmSystemCachesTest : public SystemCachesTest {
  protected:
@@ -1148,8 +1036,8 @@ TEST_F(BrokenShmSystemCachesTest, FallbackShmAndLru) {
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
-  EXPECT_STREQ(Compressed(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
-                                       FileCacheWithStats())),
+  EXPECT_STREQ(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
+                            FileCacheWithStats()),
                server_context->metadata_cache()->Name());
   // HTTP cache is unaffected.
   EXPECT_STREQ(
@@ -1172,7 +1060,7 @@ TEST_F(BrokenShmSystemCachesTest, FallbackShmAndNoLru) {
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
-  EXPECT_STREQ(Compressed(FileCacheWithStats()),
+  EXPECT_STREQ(FileCacheWithStats(),
                server_context->metadata_cache()->Name());
   // HTTP cache is unaffected.
   EXPECT_STREQ(HttpCache(FileCacheWithStats()),
@@ -1198,11 +1086,10 @@ TEST_F(BrokenShmSystemCachesTest, FallbackMemCachedLruShm) {
       SetupServerContext(options_.release()));
   // For metadata, we fallback to memcached behind shmcache.
   EXPECT_STREQ(
-      Compressed(
-          WriteThrough(
-              Stats("lru_cache", ThreadsafeLRU()),
-              Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
-                       FileCacheWithStats()))),
+      WriteThrough(
+          Stats("lru_cache", ThreadsafeLRU()),
+          Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
+                   FileCacheWithStats())),
       server_context->metadata_cache()->Name());
   EXPECT_STREQ(
       WriteThroughHTTP(
@@ -1210,8 +1097,8 @@ TEST_F(BrokenShmSystemCachesTest, FallbackMemCachedLruShm) {
           HttpCache(Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
                              FileCacheWithStats()))),
       server_context->http_cache()->Name());
-  EXPECT_STREQ(Pcache(Compressed(Fallback(BlockingMemCacheWithStats(),
-                                          FileCacheWithStats()))),
+  EXPECT_STREQ(Pcache(Fallback(BlockingMemCacheWithStats(),
+                               FileCacheWithStats())),
                server_context->page_property_cache()->property_store()->Name());
 }
 
@@ -1233,8 +1120,8 @@ TEST_F(BrokenShmSystemCachesTest, FallbackMemCachedShmNoLru) {
   scoped_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(
-      Compressed(Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
-                          FileCacheWithStats())),
+      Fallback(Batcher(AsyncMemCacheWithStats(), 1, 1000),
+               FileCacheWithStats()),
       server_context->metadata_cache()->Name());
   EXPECT_STREQ(
       HttpCache(

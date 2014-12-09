@@ -22,9 +22,9 @@
 #include "net/instaweb/rewriter/public/common_filter.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -47,7 +47,7 @@ class RewriteFilter : public CommonFilter {
   // property cache can enable writing of it in the RewriterDriver. Filters
   // inheriting from RewriteDriver that use the DOM cohort should override
   // UsePropertyCacheDomCohort to return true.
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  virtual void DetermineEnabled();
 
   // All RewriteFilters define how they encode URLs and other
   // associated information needed for a rewrite into a URL.

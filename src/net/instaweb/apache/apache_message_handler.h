@@ -19,22 +19,25 @@
 
 #include <cstdarg>
 
-#include "net/instaweb/system/public/system_message_handler.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 struct server_rec;
 
 namespace net_instaweb {
 
 class AbstractMutex;
+class SharedCircularBuffer;
 class Timer;
+class Writer;
 
 // Implementation of an HTML parser message handler that uses Apache
 // logging to emit messsages.
-class ApacheMessageHandler : public SystemMessageHandler {
+class ApacheMessageHandler : public MessageHandler {
  public:
   // version is a string added to each message.
   // Timer is used to generate timestamp for messages in shared memory.
@@ -44,6 +47,16 @@ class ApacheMessageHandler : public SystemMessageHandler {
   // Installs a signal handler for common crash signals that tries to print
   // out a backtrace.
   static void InstallCrashHandler(server_rec* global_server);
+
+  // When we initialize ApacheMessageHandler in ApacheRewriteDriverFactory,
+  // SharedCircularBuffer of ApacheRewriteDriverFactory is not initialized yet.
+  // We need to set buffer_ later in RootInit() or ChildInit().
+  void set_buffer(SharedCircularBuffer* buff);
+  void SetPidString(const int64 pid) {
+    pid_string_ = StrCat("[", Integer64ToString(pid), "]");
+  }
+  // Dump contents of SharedCircularBuffer.
+  virtual bool Dump(Writer* writer);
 
  protected:
   virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
@@ -56,6 +69,18 @@ class ApacheMessageHandler : public SystemMessageHandler {
 
   const server_rec* server_rec_;
   const GoogleString version_;
+  // This timer is used to prepend time when writing a message
+  // to SharedCircularBuffer.
+  Timer* timer_;
+  scoped_ptr<AbstractMutex> mutex_;
+  // String "[pid]".
+  GoogleString pid_string_;
+  // This handler is for internal use.
+  // Some functions of SharedCircularBuffer need MessageHandler as argument,
+  // We do not want to pass in another ApacheMessageHandler to cause infinite
+  // loop.
+  GoogleMessageHandler handler_;
+  SharedCircularBuffer* buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheMessageHandler);
 };

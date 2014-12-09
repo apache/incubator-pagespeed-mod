@@ -20,8 +20,8 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_ADD_INSTRUMENTATION_FILTER_H_
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
@@ -54,8 +54,6 @@ class AddInstrumentationFilter : public CommonFilter {
   virtual const char* Name() const { return "AddInstrumentation"; }
 
  protected:
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-
   // The total number of times instrumentation script is added.
   Variable* instrumentation_script_added_count_;
 

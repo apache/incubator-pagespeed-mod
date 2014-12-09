@@ -19,8 +19,6 @@
 #ifndef PAGESPEED_KERNEL_HTML_HTML_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_HTML_FILTER_H_
 
-#include "pagespeed/kernel/base/string.h"
-
 namespace net_instaweb {
 
 class HtmlCdataNode;
@@ -40,10 +38,7 @@ class HtmlFilter {
   // Starts a new document.  Filters should clear their state in this function,
   // as the same Filter instance may be used for multiple HTML documents.
   virtual void StartDocument() = 0;
-
-  // Note: EndDocument will be called immediately before the last Flush call.
-  // (which also means that in the RewriteDriver use it is called before
-  //  rendering for the last flush window).
+  // Note: EndDocument will be called imediately before the last Flush call.
   virtual void EndDocument() = 0;
 
   // When an HTML element is encountered during parsing, each filter's
@@ -94,10 +89,8 @@ class HtmlFilter {
   virtual void RenderDone();
 
   // Invoked by rewrite driver where all filters should determine whether
-  // they are enabled for this request. The re-writer my optionally set
-  // disabled_reason to explain why it disabled itself, which will appear
-  // in the debug output.
-  virtual void DetermineEnabled(GoogleString* disabled_reason) = 0;
+  // they are enabled for this request.
+  virtual void DetermineEnabled() = 0;
 
   // Intended to be called from DetermineEnabled implementations in filters.
   // Returns whether a filter is enabled.

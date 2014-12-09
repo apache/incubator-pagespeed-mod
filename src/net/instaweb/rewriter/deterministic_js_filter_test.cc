@@ -17,14 +17,14 @@
 
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
 
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -48,7 +48,7 @@ class DeterministicJsFilterTest : public RewriteTestBase {
 TEST_F(DeterministicJsFilterTest, DeterministicJsInjection) {
   StringPiece deterministic_js_code =
       server_context()->static_asset_manager()->GetAsset(
-          StaticAssetEnum::DETERMINISTIC_JS, options());
+          StaticAssetManager::kDeterministicJs, options());
   GoogleString expected_str = StrCat("<head><script type=\"text/javascript\" "
                                      "pagespeed_no_defer>",
                                      deterministic_js_code,
@@ -66,7 +66,7 @@ TEST_F(DeterministicJsFilterTest, DeterministicJsInjection) {
 TEST_F(DeterministicJsFilterTest, DeterministicJsInjectionWithSomeHeadContent) {
   StringPiece deterministic_js_code =
       server_context()->static_asset_manager()->GetAsset(
-          StaticAssetEnum::DETERMINISTIC_JS, options());
+          StaticAssetManager::kDeterministicJs, options());
   GoogleString expected_str = StrCat("<head><script type=\"text/javascript\" "
                                      "pagespeed_no_defer>",
                                      deterministic_js_code,

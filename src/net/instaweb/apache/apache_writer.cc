@@ -18,9 +18,9 @@
 #include "net/instaweb/apache/apache_writer.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/string_util.h"
 
 #include "apr_strings.h"  // for apr_pstrdup    // NOLINT
 #include "httpd.h"                              // NOLINT
@@ -33,7 +33,6 @@ ApacheWriter::ApacheWriter(request_rec* r)
       headers_out_(false),
       disable_downstream_header_filters_(false),
       strip_cookies_(false),
-      squelch_output_(false),
       content_length_(AsyncFetch::kContentLengthUnknown) {
 }
 
@@ -42,9 +41,7 @@ ApacheWriter::~ApacheWriter() {
 
 bool ApacheWriter::Write(const StringPiece& str, MessageHandler* handler) {
   DCHECK(headers_out_);
-  if (!squelch_output_) {
-    ap_rwrite(str.data(), str.size(), request_);
-  }
+  ap_rwrite(str.data(), str.size(), request_);
   return true;
 }
 

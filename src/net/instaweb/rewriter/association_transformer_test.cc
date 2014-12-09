@@ -23,22 +23,23 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
 
-// Outside of anonymous namespace to support friend declaration.
+namespace {
+
 class DummyResource : public Resource {
  public:
-  DummyResource() : Resource() {}
+  DummyResource() : Resource(NULL, NULL) {}
   virtual ~DummyResource() {}
 
   void set_url(const StringPiece& url) {
@@ -46,6 +47,7 @@ class DummyResource : public Resource {
   }
   virtual GoogleString url() const { return url_; }
 
+  virtual const RewriteOptions* rewrite_options() const { return NULL; }
   virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                const RequestContextPtr& request_context,
                                AsyncCallback* callback) {
@@ -59,8 +61,6 @@ class DummyResource : public Resource {
 
   DISALLOW_COPY_AND_ASSIGN(DummyResource);
 };
-
-namespace {
 
 class DummyTransformer : public CssTagScanner::Transformer {
  public:
@@ -84,7 +84,6 @@ class AssociationTransformerTest : public ::testing::Test {
       : thread_system_(Platform::CreateThreadSystem()) {
     RewriteOptions::Initialize();
     options_.reset(new RewriteOptions(thread_system_.get()));
-    options_->ComputeSignature();
   }
 
   ~AssociationTransformerTest() {

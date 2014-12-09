@@ -30,14 +30,14 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -47,7 +47,6 @@ class GoogleUrl;
 class InputInfo;
 class MessageHandler;
 class Resource;
-class RewriteDriver;
 class ServerContext;
 
 typedef RefCountedPtr<Resource> ResourcePtr;
@@ -79,7 +78,7 @@ class Resource : public RefCounted<Resource> {
     kFetchStatusOther,
   };
 
-  Resource(const RewriteDriver* driver, const ContentType* type);
+  Resource(ServerContext* server_context, const ContentType* type);
 
   // Common methods across all deriviations
   ServerContext* server_context() const { return server_context_; }
@@ -99,14 +98,8 @@ class Resource : public RefCounted<Resource> {
   // Answers question: Are we allowed to rewrite the contents now?
   // Checks if valid and cacheable and if it has a no-transform header.
   // rewrite_uncacheable is used to answer question whether the resource can be
-  // optimized even if it is not cacheable.
-  // If a resource cannot be rewritten, the reason is appended to *reason.
-  bool IsSafeToRewrite(bool rewrite_uncacheable, GoogleString* reason) const;
-  bool IsSafeToRewrite(bool rewrite_uncacheable) const {
-    // TODO(jmaessen): Convert all remaining call sites to use a reason.
-    GoogleString reason_ignored;
-    return IsSafeToRewrite(rewrite_uncacheable, &reason_ignored);
-  }
+  // optimizaed even if it is not cacheable.
+  bool IsSafeToRewrite(bool rewrite_uncacheable) const;
 
   // TODO(sligocki): Do we need these or can we just use IsValidAndCacheable
   // everywhere?
@@ -310,11 +303,6 @@ class Resource : public RefCounted<Resource> {
   HTTPValue fallback_value_;
 
  private:
-  // Minimalist constructor for DummyResource with server_context_ == NULL
-  // used in association_transformer_test.cc
-  Resource();
-  friend class DummyResource;
-
   // The status of the fetched response.
   FetchResponseStatus fetch_response_status_;
 

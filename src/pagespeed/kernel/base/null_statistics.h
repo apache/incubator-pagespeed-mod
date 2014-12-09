@@ -20,24 +20,20 @@
 #define PAGESPEED_KERNEL_BASE_NULL_STATISTICS_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/statistics_template.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
-class AbstractMutex;
-class CountHistogram;
-class Statistics;
-
-class NullStatisticsVariable {
+class NullStatisticsVariable : public Variable {
  public:
-  NullStatisticsVariable(StringPiece name, Statistics* statistics) {}
-  ~NullStatisticsVariable() {}
-  void Set(int64 value) { }
-  int64 Get() const { return 0; }
-  int64 AddHelper(int delta) const { return 0; }
-  StringPiece GetName() const { return StringPiece(NULL); }
+  NullStatisticsVariable() {}
+  virtual ~NullStatisticsVariable();
+  virtual void Set(int64 value) { }
+  virtual int64 Get() const { return 0; }
+  virtual StringPiece GetName() const { return StringPiece(NULL); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullStatisticsVariable);
@@ -46,10 +42,14 @@ class NullStatisticsVariable {
 // Simple name/value pair statistics implementation.
 class NullStatistics : public ScalarStatisticsTemplate<NullStatisticsVariable> {
  public:
-  NullStatistics();
+  static const int kNotFound;
+
+  NullStatistics() { }
   virtual ~NullStatistics();
 
-  virtual CountHistogram* NewHistogram(StringPiece name);
+ protected:
+  virtual NullStatisticsVariable* NewVariable(const StringPiece& name,
+                                              int index);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullStatistics);

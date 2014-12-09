@@ -22,12 +22,8 @@
 #include <cstddef>
 
 #include "net/instaweb/rewriter/public/css_filter.h"
-#include "net/instaweb/rewriter/public/css_hierarchy.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_context.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/basictypes.h"
 
 namespace Css {
 
@@ -38,9 +34,13 @@ class Values;
 namespace net_instaweb {
 
 class CacheExtender;
+class CssHierarchy;
+class GoogleUrl;
 class ImageCombineFilter;
 class ImageRewriteFilter;
 class MessageHandler;
+class RewriteContext;
+class RewriteDriver;
 class Statistics;
 
 class CssImageRewriter {
@@ -75,20 +75,18 @@ class CssImageRewriter {
                    int64 image_inline_max_bytes,
                    RewriteContext* parent);
 
-  // Propagates image information in child rewrites of context into it.
-  // Expected to be called from context->Harvest().
-  static void InheritChildImageInfo(RewriteContext* context);
-
  private:
   RewriteDriver* driver() const {
     return filter_->driver();
   }
-  bool RewriteImport(RewriteContext* parent, CssHierarchy* hierarchy,
-                     bool* is_authorized);
-  bool RewriteImage(int64 image_inline_max_bytes, const GoogleUrl& trim_url,
-                    const GoogleUrl& original_url, RewriteContext* parent,
-                    Css::Values* values, size_t value_index,
-                    bool* is_authorized);
+  bool RewriteImport(RewriteContext* parent,
+                     CssHierarchy* hierarchy);
+
+  void RewriteImage(int64 image_inline_max_bytes,
+                    const GoogleUrl& trim_url,
+                    const GoogleUrl& original_url,
+                    RewriteContext* parent,
+                    Css::Values* values, size_t value_index);
 
   // Needed for import flattening.
   CssFilter* filter_;

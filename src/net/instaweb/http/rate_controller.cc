@@ -24,17 +24,17 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
@@ -232,7 +232,7 @@ RateController::RateController(
   CHECK_GE(max_global_queue_size, per_host_queued_request_threshold);
   queued_fetch_count_ = statistics->GetTimedVariable(kQueuedFetchCount);
   dropped_fetch_count_ = statistics->GetTimedVariable(kDroppedFetchCount);
-  current_global_fetch_queue_size_ = statistics->GetUpDownCounter(
+  current_global_fetch_queue_size_ = statistics->GetVariable(
       kCurrentGlobalFetchQueueSize);
 }
 
@@ -319,7 +319,7 @@ void RateController::Fetch(UrlAsyncFetcher* fetcher,
 }
 
 void RateController::InitStats(Statistics* statistics) {
-  statistics->AddUpDownCounter(kCurrentGlobalFetchQueueSize);
+  statistics->AddVariable(kCurrentGlobalFetchQueueSize);
   statistics->AddTimedVariable(kQueuedFetchCount,
                                UrlAsyncFetcher::kStatisticsGroup);
   statistics->AddTimedVariable(kDroppedFetchCount,

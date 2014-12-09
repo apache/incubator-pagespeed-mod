@@ -22,8 +22,8 @@
 #define NET_INSTAWEB_SYSTEM_PUBLIC_ADD_HEADERS_FETCHER_H_
 
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
 
 namespace net_instaweb {
 

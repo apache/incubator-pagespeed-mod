@@ -24,13 +24,15 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/downstream_cache_purger.h"
-#include "net/instaweb/rewriter/public/inline_resource_slot.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -38,25 +40,21 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/scan_filter.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/printf_format.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/scheduler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/url_segment_encoder.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/printf_format.h"
-#include "pagespeed/kernel/base/proto_util.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
-#include "pagespeed/kernel/thread/scheduler.h"
 #include "pagespeed/kernel/util/categorized_refcount.h"
-#include "pagespeed/kernel/util/url_segment_encoder.h"
 
 namespace net_instaweb {
 
@@ -186,9 +184,6 @@ class RewriteDriver : public HtmlParse {
   // Initialize statics.  Initialize/Terminate calls must be paired.
   static void Initialize();
   static void Terminate();
-
-  // Formats a "deadline exceeded" message for a given filter.
-  static GoogleString DeadlineExceededMessage(StringPiece filter_name);
 
   // Sets a server context enabling the rewriting of
   // resources. This will replace any previous server context.
@@ -519,8 +514,7 @@ class RewriteDriver : public HtmlParse {
       const UrlSegmentEncoder* encoder,
       const ResourceContext* data,
       const ResourcePtr& input_resource,
-      OutputResourceKind kind,
-      GoogleString* failure_reason);
+      OutputResourceKind kind);
 
   // Creates an output resource where the name is provided.  The intent is to
   // be able to derive the content from the name, for example, by encoding
@@ -541,8 +535,7 @@ class RewriteDriver : public HtmlParse {
   OutputResourcePtr CreateOutputResourceWithPath(
       const StringPiece& mapped_path, const StringPiece& unmapped_path,
       const StringPiece& base_url, const StringPiece& filter_id,
-      const StringPiece& name, OutputResourceKind kind,
-      GoogleString* failure_reason);
+      const StringPiece& name, OutputResourceKind kind);
 
   // Fills in the resource namer based on the give filter_id, name and options
   // stored in the driver.
@@ -556,47 +549,41 @@ class RewriteDriver : public HtmlParse {
   // and the base_url is this driver's base_url.
   OutputResourcePtr CreateOutputResourceWithUnmappedUrl(
       const GoogleUrl& unmapped_gurl, const StringPiece& filter_id,
-      const StringPiece& name, OutputResourceKind kind,
-      GoogleString* failure_reason);
+      const StringPiece& name, OutputResourceKind kind);
 
   // Version of CreateOutputResourceWithPath where the unmapped and mapped
   // paths are different and the base_url is this driver's base_url.
   OutputResourcePtr CreateOutputResourceWithMappedPath(
       const StringPiece& mapped_path, const StringPiece& unmapped_path,
       const StringPiece& filter_id, const StringPiece& name,
-      OutputResourceKind kind, GoogleString* failure_reason) {
+      OutputResourceKind kind) {
     return CreateOutputResourceWithPath(mapped_path, unmapped_path,
                                         decoded_base_url_.AllExceptLeaf(),
-                                        filter_id, name, kind, failure_reason);
+                                        filter_id, name, kind);
   }
 
   // Version of CreateOutputResourceWithPath where the unmapped and mapped
   // paths and the base url are all the same. FOR TESTS ONLY.
   OutputResourcePtr CreateOutputResourceWithPath(
       const StringPiece& path, const StringPiece& filter_id,
-      const StringPiece& name, OutputResourceKind kind,
-      GoogleString* failure_reason) {
+      const StringPiece& name, OutputResourceKind kind) {
     return CreateOutputResourceWithPath(path, path, path, filter_id, name,
-                                        kind, failure_reason);
+                                        kind);
   }
 
-  // Creates an input resource based on input_url.  Returns NULL if the input
-  // resource url isn't valid or is a data url, or can't legally be rewritten
-  // in the context of this page, in which case *is_authorized will be false.
-  // Assumes that resources from unauthorized domains may not be rewritten and
-  // that the resource is not intended exclusively for inlining.
-  ResourcePtr CreateInputResource(const GoogleUrl& input_url,
-                                  bool* is_authorized);
+  // Creates an input resource based on input_url.  Returns NULL if
+  // the input resource url isn't valid, or can't legally be rewritten in the
+  // context of this page.  Assumes resources from unauthorized domains may not
+  // be rewritten and the resource is not intended exclusively for inlining.
+  ResourcePtr CreateInputResource(const GoogleUrl& input_url);
 
   // Creates an input resource.  Returns NULL if the input resource url isn't
-  // valid or is a data url, or can't legally be rewritten in the context of
-  // this page (which could mean that it was a resource from an unauthorized
-  // domain being processed by a filter that does not allow unauthorized
-  // resources, in which case *is_authorized will be false).
+  // valid, or can't legally be rewritten in the context of this page (which
+  // could mean that it was a resource from an unauthorized domain being
+  // processed by a filter that does not allow unauthorized resources).
   //
-  // There are two "special" options, and if you don't care about them you
-  // should just call CreateInputResource(input_url, is_authorized) to use
-  // their defaults:
+  // There are two options, and if you don't care about them you should just
+  // call CreateInputResource(input_url) to use its defaults:
   // * If resources from unauthorized domains may be inlined, set
   //   inline_authorization_policy to kInlineUnauthorizedResources, otherwise
   //   set it to kInlineOnlyAuthorizedResources.
@@ -606,13 +593,12 @@ class RewriteDriver : public HtmlParse {
   ResourcePtr CreateInputResource(
       const GoogleUrl& input_url,
       InlineAuthorizationPolicy inline_authorization_policy,
-      IntendedFor intended_for,
-      bool* is_authorized);
+      IntendedFor intended_for);
 
   // Creates an input resource from the given absolute url.  Requires that the
   // provided url has been checked, and can legally be rewritten in the current
-  // page context. Only for use by unit tests.
-  ResourcePtr CreateInputResourceAbsoluteUncheckedForTestsOnly(
+  // page context.
+  ResourcePtr CreateInputResourceAbsoluteUnchecked(
       const StringPiece& absolute_url);
 
   // Returns true if some ResourceUrlClaimant has staked a claim on given URL.
@@ -677,20 +663,10 @@ class RewriteDriver : public HtmlParse {
     charset.CopyToString(&containing_charset_);
   }
 
-  // Creates and registers a HtmlElement slot for rewriting.
-  // If this is the first time called for this position, a new slot will be
-  // returned. On subsequent calls, the original slot will be returned so
-  // that rewrites are propagated between filters.
+  // Establishes a HtmlElement slot for rewriting.
   HtmlResourceSlotPtr GetSlot(const ResourcePtr& resource,
                               HtmlElement* elt,
                               HtmlElement::Attribute* attr);
-
-  // Creates and registers an inline ressource slot for rewriting.
-  // If this is the first time called for this position, a new slot will be
-  // returned. On subsequent calls, the original slot will be returned so
-  // that rewrites are propagated between filters.
-  InlineResourceSlotPtr GetInlineSlot(const ResourcePtr& resource,
-                                      HtmlElement* parent);
 
   // Method to start a resource rewrite.  This is called by a filter during
   // parsing, although the Rewrite might continue after deadlines expire
@@ -970,12 +946,6 @@ class RewriteDriver : public HtmlParse {
   // the rules stays with the driver.
   void set_critical_css_result(CriticalCssResult* critical_css_rules);
 
-  // The JS to detect above-the-fold images should only be enabled if one of the
-  // filters that uses critical image information is enabled, the property cache
-  // is enabled (since the critical image information is stored in the property
-  // cache), and it is not explicitly disabled through options.
-  bool is_critical_images_beacon_enabled();
-
   // Used by ImageRewriteFilter for identifying critical images.
   CriticalImagesInfo* critical_images_info() const {
     return critical_images_info_.get();
@@ -1080,22 +1050,6 @@ class RewriteDriver : public HtmlParse {
   // site owner or user has enabled filter kDebug.
   bool DebugMode() const { return options()->Enabled(RewriteOptions::kDebug); }
 
-  // Log the given debug message(s) as HTML comments after the given element,
-  // if not NULL, it has not been flushed, and if debug is enabled. The form
-  // that takes a repeated field is intended for use by CachedResult, e.g:
-  //   InsertDebugComment(cached_result.debug_message(), element);
-  // Messages are HTML-escaped before being written out to the DOM.
-  void InsertDebugComment(StringPiece unescaped_message, HtmlNode* node);
-  void InsertDebugComments(
-      const protobuf::RepeatedPtrField<GoogleString>& unescaped_messages,
-      HtmlElement* element);
-  void InsertUnauthorizedDomainDebugComment(StringPiece url,
-                                            HtmlElement* element);
-
-  // Generates an unauthorized domain debug comment. Public for unit tests.
-  static GoogleString GenerateUnauthorizedDomainDebugComment(
-      const GoogleUrl& gurl);
-
   // Saves the origin headers for a request in flush_early_info so that it can
   // be used in subsequent request.
   void SaveOriginalHeaders(const ResponseHeaders& response_headers);
@@ -1175,29 +1129,9 @@ class RewriteDriver : public HtmlParse {
     return pagespeed_query_params_;
   }
 
-  void set_pagespeed_option_cookies(StringPiece x) {
-    x.CopyToString(&pagespeed_option_cookies_);
-  }
-  StringPiece pagespeed_option_cookies() const {
-    return pagespeed_option_cookies_;
-  }
-
   // We fragment the cache based on the hostname we got from the request, unless
   // that was overridden in the options with a cache_fragment.
   const GoogleString& CacheFragment() const;
-
-  // Utility function to set/clear cookies for PageSpeed options. gurl is the
-  // URL of the request from which the host is extracted for a cookie attribute.
-  // TODO(matterbury): Get the URL from 'this' which we can't do now because it
-  // isn't set until we've decided that the content of requested URL is HTML.
-  // Returns true if any Set-Cookie headers are added, in which case
-  // ComputeCaching has been called on response_headers.
-  bool SetOrClearPageSpeedOptionCookies(const GoogleUrl& gurl,
-                                        ResponseHeaders* response_headers);
-
-  // Calls the provided ResourceNamer's Decode() function, passing the hash and
-  // signature lengths from this RewriteDriver.
-  bool Decode(StringPiece leaf, ResourceNamer* resource_namer) const;
 
  protected:
   virtual void DetermineEnabledFiltersImpl();
@@ -1297,9 +1231,6 @@ class RewriteDriver : public HtmlParse {
 
   // Indicates whether we should skip parsing for the given request.
   bool ShouldSkipParsing();
-
-  // Returns the length of the signature on a signed resource URL.
-  int SignatureLength() const;
 
   friend class ScanFilter;
 
@@ -1625,7 +1556,6 @@ class RewriteDriver : public HtmlParse {
   PrimaryRewriteContextMap primary_rewrite_context_map_;
 
   HtmlResourceSlotSet slots_;
-  InlineResourceSlotSet inline_slots_;
 
   scoped_ptr<RewriteOptions> options_;
 
@@ -1728,9 +1658,6 @@ class RewriteDriver : public HtmlParse {
 
   // Any PageSpeed options stripped from the original URL.
   GoogleString pagespeed_query_params_;
-
-  // Any PageSpeed option cookies from the original request.
-  GoogleString pagespeed_option_cookies_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriver);
 };

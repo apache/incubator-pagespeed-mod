@@ -19,9 +19,9 @@
 
 #include "net/instaweb/rewriter/public/webp_optimizer.h"
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/string_util.h"  // for StrCat
 #include "pagespeed/kernel/image/test_utils.h"
 
@@ -29,7 +29,7 @@
 #include "webp/encode.h"
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "third_party/libwebp/webp/decode.h"
 #endif
 
 namespace net_instaweb {

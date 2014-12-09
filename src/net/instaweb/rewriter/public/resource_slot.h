@@ -22,13 +22,14 @@
 #include <set>
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/vector_deque.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/vector_deque.h"
-#include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
@@ -60,8 +61,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   }
 
   ResourcePtr resource() const { return resource_; }
-  // Return HTML element associated with slot, or NULL if none (CSS, IPRO)
-  virtual HtmlElement* element() const = 0;
 
   // Note that while slots can be mutated by multiple threads; they are
   // implemented with thread-safety in mind -- only mainline render their
@@ -163,7 +162,7 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
 
   // Returns a human-readable description of where this slot occurs, for use
   // in log messages.
-  virtual GoogleString LocationString() const = 0;
+  virtual GoogleString LocationString() = 0;
 
   // Either relativize the URL or pass it through depending on options set.
   // PRECONDITION: url must parse as a valid GoogleUrl.
@@ -191,25 +190,6 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
   DISALLOW_COPY_AND_ASSIGN(ResourceSlot);
 };
 
-// A dummy slot used in various cases where Rendering will be performed in
-// RewriteContext::Render() instead of ResourceSlot::Render().
-class NullResourceSlot : public ResourceSlot {
- public:
-  NullResourceSlot(const ResourcePtr& resource, StringPiece location);
-  virtual HtmlElement* element() const { return NULL; }
-  virtual void Render() {}
-  virtual GoogleString LocationString() const { return location_; }
-
- protected:
-  REFCOUNT_FRIEND_DECLARATION(NullResourceSlot);
-  virtual ~NullResourceSlot();
-
- private:
-  GoogleString location_;
-
-  DISALLOW_COPY_AND_ASSIGN(NullResourceSlot);
-};
-
 // A resource-slot created for a Fetch has an empty Render method -- Render
 // should never be called.
 class FetchResourceSlot : public ResourceSlot {
@@ -217,9 +197,9 @@ class FetchResourceSlot : public ResourceSlot {
   explicit FetchResourceSlot(const ResourcePtr& resource)
       : ResourceSlot(resource) {
   }
-  virtual HtmlElement* element() const { return NULL; }
+
   virtual void Render();
-  virtual GoogleString LocationString() const;
+  virtual GoogleString LocationString();
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(FetchResourceSlot);
@@ -236,11 +216,11 @@ class HtmlResourceSlot : public ResourceSlot {
                    HtmlElement::Attribute* attribute,
                    RewriteDriver* driver);
 
-  virtual HtmlElement* element() const { return element_; }
-  HtmlElement::Attribute* attribute() const { return attribute_; }
+  HtmlElement* element() { return element_; }
+  HtmlElement::Attribute* attribute() { return attribute_; }
 
   virtual void Render();
-  virtual GoogleString LocationString() const;
+  virtual GoogleString LocationString();
   virtual bool DirectSetUrl(const StringPiece& url);
   virtual bool CanDirectSetUrl() { return true; }
 
