@@ -246,7 +246,6 @@ pagespeed.statistics.percent_total = function(badStat, goodStat) {
  * displays a fixed set of graphs ordered by level of importance.
  *
  * @return {pagespeed.Console}  The initialized console object.
- * @export
  */
 pagespeed.startConsole = function() {
   var mpsConsole = new pagespeed.Console();
