@@ -55,17 +55,13 @@ struct ImageSpec {
   PixelRgbaChannels bg_color;
   bool use_bg_color;
 
-  // Whether the image size was adjusted (as can happen when
-  // implementing some quirks modes).
-  bool image_size_adjusted;
-
   // Returns x truncated to a valid column index in [0, width]. Note
   // that a value of 'width' denotes the first invalid index.
-  size_px TruncateXIndex(size_px x) const;
+  size_px TruncateXIndex(size_px x);
 
   // Returns y truncated to a valid row index in [0, height]. Note
   // that a value of 'height' denotes the first invalid index.
-  size_px TruncateYIndex(size_px y) const;
+  size_px TruncateYIndex(size_px y);
 
   // Returns true iff frame_spec fits entirely within this ImageSpec.
   bool CanContainFrame(const FrameSpec& frame_spec) const;
@@ -106,6 +102,17 @@ struct FrameSpec {
 
   GoogleString ToString() const;
   bool Equals(const FrameSpec& other) const;
+};
+
+// Sometimes the readers or writers may need to tweak their behavior
+// away from what is in the spec to emulate or adapt to the
+// idiosyncratic behavior of real renderers in the wild. This enum and
+// the associated methods in the classes below allow us to parametrize
+// this.
+enum QuirksMode {
+  QUIRKS_NONE = 0,
+  QUIRKS_CHROME,
+  QUIRKS_FIREFOX
 };
 
 #if defined(IF_OK_RUN)
@@ -179,9 +186,6 @@ class MultipleFrameReader {
 
   // Assigns to '*frame_spec' the FrameSpec describing
   // the current frame.
-  //
-  // TODO(vchudnov): Consider simplifying this method to return
-  // frame_spec rather than the ScanlineStatus.
   virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const = 0;
 
   // Copies into '*image_spec' the ImageSpec describing

@@ -21,25 +21,26 @@
 #include "net/instaweb/apache/apache_server_context.h"
 #include "net/instaweb/apache/header_util.h"
 #include "net/instaweb/apache/mod_instaweb.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/util/public/gzip_inflater.h"
 #include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/stack_buffer.h"
 #include "pagespeed/kernel/base/atomic_bool.h"
-#include "pagespeed/kernel/base/stack_buffer.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
+#include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/http/query_params.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/util/gzip_inflater.h"
 
 #include "apr_strings.h"
 #include "http_config.h"
@@ -415,9 +416,8 @@ void InstawebContext::SetExperimentStateAndCookie(request_rec* request,
   // If we didn't get a valid (i.e. currently-running experiment) value from
   // the cookie, determine which experiment this request should end up in
   // and set the cookie accordingly.
-  bool need_cookie =
-      server_context_->experiment_matcher()->ClassifyIntoExperiment(
-          *request_headers_, *server_context_->user_agent_matcher(), options);
+  bool need_cookie = server_context_->experiment_matcher()->
+      ClassifyIntoExperiment(*request_headers_, options);
   if (need_cookie) {
     ResponseHeaders resp_headers(options->ComputeHttpOptions());
     const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);

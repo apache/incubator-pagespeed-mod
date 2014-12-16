@@ -22,7 +22,6 @@
  */
 
 goog.require('pagespeedutils');
-goog.require('pagespeedutils.generateXPath');
 
 // Exporting functions using quoted attributes to prevent js compiler from
 // renaming them.

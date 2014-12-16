@@ -18,13 +18,13 @@
 
 #include "net/instaweb/rewriter/public/strip_non_cacheable_filter.h"
 
-#include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/gtest.h"
 
 namespace net_instaweb {
 
@@ -125,10 +125,11 @@ TEST_F(StripNonCacheableFilterTest, StripNonCacheable) {
 
 TEST_F(StripNonCacheableFilterTest, TestGstatic) {
   StaticAssetManager static_asset_manager(
-      "", server_context()->thread_system(), server_context()->hasher(),
+      "", server_context()->hasher(),
       server_context()->message_handler());
-  static_asset_manager.ServeAssetsFromGStatic(StaticAssetManager::kGStaticBase);
-  static_asset_manager.SetGStaticHashForTest(StaticAssetEnum::BLINK_JS, "1");
+  static_asset_manager.set_serve_asset_from_gstatic(true);
+  static_asset_manager.set_gstatic_hash(
+      StaticAssetManager::kBlinkJs, StaticAssetManager::kGStaticBase, "1");
   server_context()->set_static_asset_manager(&static_asset_manager);
   ValidateExpectedUrl(kRequestUrl, kHtmlInput,
                       GetExpectedOutput(kBlinkUrlGstatic));

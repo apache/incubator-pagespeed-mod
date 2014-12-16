@@ -20,19 +20,16 @@
 
 #include <memory>
 
-#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/message_handler.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_hasher.h"
+#include "net/instaweb/util/public/null_message_handler.h"
+#include "net/instaweb/util/public/null_thread_system.h"
 #include "pagespeed/kernel/base/message_handler_test_base.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
 #include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/null_thread_system.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
 
@@ -169,31 +166,6 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
         "id=6;percent=15;enable=defer_javascript;"
         "options=JsOutlineMinBytes=4096,JpegRecompresssionQuality=50,"
         "CssInlineMaxBytes=100,JsInlineMaxBytes=123"));
-  }
-
-  void VerifyMapOrigin(const DomainLawyer& lawyer,
-                       const GoogleString& serving_url,
-                       const GoogleString& expected_origin_domain,
-                       const GoogleString& expected_host_header,
-                       bool expected_is_proxy) {
-    GoogleString actual_origin_domain;
-    GoogleString actual_host_header;
-    bool actual_is_proxy;
-
-    EXPECT_TRUE(lawyer.MapOrigin(serving_url, &actual_origin_domain,
-                                 &actual_host_header, &actual_is_proxy));
-
-    EXPECT_EQ(expected_origin_domain, actual_origin_domain);
-    EXPECT_EQ(expected_host_header, actual_host_header);
-    EXPECT_EQ(expected_is_proxy, actual_is_proxy);
-  }
-
-  void VerifyNoMapOrigin(const DomainLawyer& lawyer,
-                         const GoogleString& serving_domain) {
-    GoogleUrl url(serving_domain);
-
-    ASSERT_TRUE(url.IsWebValid());
-    EXPECT_FALSE(lawyer.IsOriginKnown(url));
   }
 
   void TestSetOptionFromName(bool test_log_variant);
@@ -735,7 +707,7 @@ TEST_F(RewriteOptionsTest, CoreByNameNotLevel) {
 
 TEST_F(RewriteOptionsTest, PlusAndMinus) {
   static const char kList[] =
-      "core,+div_structure, -inline_css,+extend_cache_css";
+      "core,+div_structure,-inline_css,+extend_cache_css";
   NullMessageHandler handler;
   options_.SetRewriteLevel(RewriteOptions::kPassThrough);
   ASSERT_TRUE(options_.AdjustFiltersByCommaSeparatedList(kList, &handler));
@@ -860,7 +832,6 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kAddOptionsToUrls,
     RewriteOptions::kAllowLoggingUrlsInLogRecord,
     RewriteOptions::kAllowOptionsToBeSetByCookies,
-    RewriteOptions::kAlwaysMobilize,
     RewriteOptions::kAlwaysRewriteCss,
     RewriteOptions::kAnalyticsID,
     RewriteOptions::kAvoidRenamingIntrospectiveJavascript,
@@ -946,7 +917,6 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kLazyloadImagesBlankUrl,
     RewriteOptions::kLoadFromFileCacheTtlMs,
     RewriteOptions::kLogBackgroundRewrite,
-    RewriteOptions::kLogMobilizationSamples,
     RewriteOptions::kLogRewriteTiming,
     RewriteOptions::kLogUrlIndices,
     RewriteOptions::kLowercaseHtmlNames,
@@ -968,8 +938,6 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kMinCacheTtlMs,
     RewriteOptions::kMinImageSizeLowResolutionBytes,
     RewriteOptions::kMinResourceCacheTimeToRewriteMs,
-    RewriteOptions::kMobLayout,
-    RewriteOptions::kMobNav,
     RewriteOptions::kModifyCachingHeaders,
     RewriteOptions::kNoTransformOptimizedImages,
     RewriteOptions::kNonCacheablesForCachePartialHtml,
@@ -1799,399 +1767,6 @@ TEST_F(RewriteOptionsTest, ExperimentOptionLifetimeTest) {
   options_.SetExperimentState(1);
   // If ExperimentSpec just kept pointers into str_spec then we'll get 109 here.
   EXPECT_EQ(100L, options_.css_inline_max_bytes());
-}
-
-TEST_F(RewriteOptionsTest, ExperimentDeviceTypeParseTest) {
-  NullMessageHandler handler;
-
-  {
-    GoogleString spec_str("id=1;percent=15;"
-                          "matches_device_type=desktop");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_FALSE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_FALSE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-
-  {
-    GoogleString spec_str("id=1;percent=15;"
-                          "matches_device_type=tablet,mobile");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_FALSE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-
-  {
-    GoogleString spec_str("id=1;percent=15;"
-                          "matches_device_type=desktop,tablet,mobile");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-
-  {
-    GoogleString spec_str("id=1;percent=15");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kDesktop));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kTablet));
-    EXPECT_TRUE(spec.matches_device_type(UserAgentMatcher::kMobile));
-  }
-}
-
-TEST_F(RewriteOptionsTest, ExperimentDeviceTypeRangeUnderflowDeathTest) {
-  RewriteOptions::ExperimentSpec spec(1);
-
-  UserAgentMatcher::DeviceType device_type(
-      static_cast<UserAgentMatcher::DeviceType>(-1));
-
-#ifdef NDEBUG
-  EXPECT_FALSE(spec.matches_device_type(device_type));
-#else
-  EXPECT_DEATH(spec.matches_device_type(device_type),
-               "DeviceType out of range:");
-#endif
-}
-
-TEST_F(RewriteOptionsTest, ExperimentDeviceTypeRangeOverflowDeathTest) {
-  RewriteOptions::ExperimentSpec spec(1);
-
-  UserAgentMatcher::DeviceType device_type(UserAgentMatcher::kEndOfDeviceType);
-
-#ifdef NDEBUG
-  EXPECT_FALSE(spec.matches_device_type(device_type));
-#else
-  EXPECT_DEATH(spec.matches_device_type(device_type),
-               "DeviceType out of range:");
-#endif
-}
-
-TEST_F(RewriteOptionsTest, DeviceTypeMergeTest) {
-  NullMessageHandler handler;
-  {
-    // From a spec with a device_type to one without.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15;matches_device_type=mobile",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;matches_device_type=mobile",
-              spec2.ToString());
-  }
-  {
-    // From a spec without a device_type to one with.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30;matches_device_type=mobile",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;matches_device_type=mobile",
-              spec2.ToString());
-  }
-  {
-    // Two specs, both with a device_type.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15;matches_device_type=tablet",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30;matches_device_type=desktop",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;matches_device_type=tablet",
-              spec2.ToString());
-  }
-  {
-    // Neither spec has a device type.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15", spec2.ToString());
-  }
-}
-
-TEST_F(RewriteOptionsTest, AlternateOriginDomainMergeTest) {
-  GoogleMessageHandler handler;
-  {
-    // From a spec with an alternate_origin_domain to one without.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15;alternate_origin_domain=foo.com:bar.com", &options_,
-        &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30",
-        &options_, &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;alternate_origin_domain=foo.com:bar.com",
-              spec2.ToString());
-  }
-  {
-    // From a spec without an alternate_origin_domain to one with.
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15",
-        &options_, &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30;alternate_origin_domain=foo.com:bar.com", &options_,
-        &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;alternate_origin_domain=foo.com:bar.com",
-              spec2.ToString());
-  }
-  {
-    // Two specs, both with alternate_origin_domains
-    RewriteOptions::ExperimentSpec spec1(
-        "id=1;percent=15;alternate_origin_domain=foo.com:bar.com", &options_,
-        &handler);
-
-    RewriteOptions::ExperimentSpec spec2(
-        "id=2;percent=30;alternate_origin_domain=baz.com:qux.com", &options_,
-        &handler);
-
-    spec2.Merge(spec1);
-
-    EXPECT_EQ("id=2;percent=15;alternate_origin_domain=foo.com:bar.com",
-              spec2.ToString());
-  }
-}
-
-TEST_F(RewriteOptionsTest, AlternateOriginDomainParseTest) {
-  GoogleMessageHandler handler;
-  {
-    // Single domain, no host header.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=example.com:ref.example.com");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyMapOrigin(lawyer, "http://example.com", "http://ref.example.com/",
-                    "example.com", false);
-    VerifyMapOrigin(lawyer, "https://example.com", "https://ref.example.com/",
-                    "example.com", false);
-  }
-  {
-    // Single domain, port, no host header.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=example.com:\"ref.example.com:99\"");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyMapOrigin(lawyer, "http://example.com",
-                    "http://ref.example.com:99/", "example.com", false);
-    VerifyMapOrigin(lawyer, "https://example.com",
-                    "https://ref.example.com:99/", "example.com", false);
-  }
-  {
-    // Single domain with host header.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=example.com:ref.example.com:exh.com");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyMapOrigin(lawyer, "http://example.com", "http://ref.example.com/",
-                    "exh.com", false);
-    VerifyMapOrigin(lawyer, "https://example.com", "https://ref.example.com/",
-                    "exh.com", false);
-  }
-  {
-    // Single domain with host header and port on both.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=ex.com:\"ref.ex.com:88\":\"exh.com:42\"");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyMapOrigin(lawyer, "http://ex.com", "http://ref.ex.com:88/",
-                    "exh.com:42", false);
-    VerifyMapOrigin(lawyer, "https://ex.com", "https://ref.ex.com:88/",
-                    "exh.com:42", false);
-  }
-  {
-    // Multiple domains with a host header
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=foo.com,bar.com:ref.com:host.com");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyMapOrigin(lawyer, "http://foo.com", "http://ref.com/", "host.com",
-                    false);
-    VerifyMapOrigin(lawyer, "https://foo.com", "https://ref.com/", "host.com",
-                    false);
-    VerifyMapOrigin(lawyer, "http://bar.com", "http://ref.com/", "host.com",
-                    false);
-    VerifyMapOrigin(lawyer, "https://bar.com", "https://ref.com/", "host.com",
-                    false);
-  }
-}
-
-TEST_F(RewriteOptionsTest, AlternateOriginDomainNegativeParseTest) {
-  GoogleMessageHandler handler;
-  {
-    // Empty alternate_origin_domain spec.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ("id=1;percent=15", spec.ToString());
-  }
-  {
-    // Missing origin domain.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=bad.com");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ("id=1;percent=15", spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyNoMapOrigin(lawyer, "http://bad.com");
-    VerifyNoMapOrigin(lawyer, "https://bad.com");
-  }
-  {
-    // Trailing colon with missing origin domain.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=baz.com:");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ("id=1;percent=15", spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyNoMapOrigin(lawyer, "http://baz.com");
-    VerifyNoMapOrigin(lawyer, "https://baz.com");
-  }
-  {
-    // Unqoted port
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=baz.com:456");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ("id=1;percent=15", spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyNoMapOrigin(lawyer, "http://baz.com");
-    VerifyNoMapOrigin(lawyer, "https://baz.com");
-  }
-  {
-    // Trailing comma in serving domain.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=joe.com,:ref.com");
-
-    RewriteOptions::ExperimentSpec spec(spec_str, &options_, &handler);
-
-    EXPECT_EQ("id=1;percent=15;alternate_origin_domain=joe.com:ref.com",
-              spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyMapOrigin(lawyer, "http://joe.com", "http://ref.com/", "joe.com",
-                    false);
-    VerifyMapOrigin(lawyer, "https://joe.com", "https://ref.com/", "joe.com",
-                    false);
-  }
-  {
-    // Trailing colon for empty host header.
-    GoogleString spec_str(
-        "id=1;percent=15;"
-        "alternate_origin_domain=jim.com:ref.com");
-    GoogleString spec_str_plus_colon = spec_str + ":";
-
-    RewriteOptions::ExperimentSpec spec(spec_str_plus_colon, &options_,
-                                        &handler);
-
-    EXPECT_EQ(spec_str, spec.ToString());
-
-    DomainLawyer lawyer;
-    spec.ApplyAlternateOriginsToDomainLawyer(&lawyer, &handler);
-
-    VerifyMapOrigin(lawyer, "http://jim.com", "http://ref.com/", "jim.com",
-                    false);
-    VerifyMapOrigin(lawyer, "https://jim.com", "https://ref.com/", "jim.com",
-                    false);
-  }
 }
 
 TEST_F(RewriteOptionsTest, SetOptionsFromName) {

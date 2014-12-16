@@ -29,8 +29,14 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_keywords.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/critical_css.pb.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
@@ -38,19 +44,14 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -252,7 +253,8 @@ void CriticalCssFilter::EndDocument() {
                      total_overhead_size,
                      num_replaced_links_,
                      num_unreplaced_links_));
-    AddJsToElement(critical_css_script, script);
+    driver()->server_context()->static_asset_manager()->AddJsToElement(
+        critical_css_script, script, driver());
 
     driver()->log_record()->SetCriticalCssInfo(
         total_critical_size_, total_original_size_, total_overhead_size);
@@ -367,8 +369,8 @@ void CriticalCssFilter::EndElementImpl(HtmlElement* element) {
                              CriticalSelectorFilter::kMoveScriptId);
       driver()->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
       driver()->InsertNodeBeforeNode(element, script);
-      AddJsToElement(
-          CriticalSelectorFilter::kApplyFlushEarlyCss, script);
+      driver()->server_context()->static_asset_manager()->AddJsToElement(
+          CriticalSelectorFilter::kApplyFlushEarlyCss, script, driver());
     }
 
     HtmlElement* script_element =
@@ -382,7 +384,8 @@ void CriticalCssFilter::EndElementImpl(HtmlElement* element) {
         CriticalSelectorFilter::kInvokeFlushEarlyCssTemplate,
         style_id.c_str(), media);
 
-    AddJsToElement(js_data, script_element);
+    driver()->server_context()->static_asset_manager()->AddJsToElement(
+        js_data, script_element, driver());
   } else {
     // Replace link with critical CSS rules.
     HtmlElement* style_element =

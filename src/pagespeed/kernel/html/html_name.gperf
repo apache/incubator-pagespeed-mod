@@ -29,7 +29,7 @@ struct KeywordMap {const char* name; net_instaweb::HtmlName::Keyword keyword;};
 "a",                          HtmlName::kA
 "abbr",                       HtmlName::kAbbr
 "action",                     HtmlName::kAction
-"address",                    HtmlName::kAddress
+"address",                    HtmlName::kAddress,
 "alt",                        HtmlName::kAlt
 "area",                       HtmlName::kArea
 "article",                    HtmlName::kArticle
@@ -61,7 +61,6 @@ struct KeywordMap {const char* name; net_instaweb::HtmlName::Keyword keyword;};
 "content",                    HtmlName::kContent
 "controls",                   HtmlName::kControls
 "data",                       HtmlName::kData
-"datalist",                   HtmlName::kDatalist
 "data-mobile-role",           HtmlName::kDataMobileRole
 "data-pagespeed-flush-style", HtmlName::kDataPagespeedFlushStyle
 "data-pagespeed-href",        HtmlName::kDataPagespeedHref
@@ -122,7 +121,6 @@ struct KeywordMap {const char* name; net_instaweb::HtmlName::Keyword keyword;};
 "keytype",                    HtmlName::kKeytype
 "lang",                       HtmlName::kLang
 "language",                   HtmlName::kLanguage
-"legend",                     HtmlName::kLegend
 "li",                         HtmlName::kLi
 "link",                       HtmlName::kLink
 "longdesc",                   HtmlName::kLongdesc
@@ -149,7 +147,6 @@ struct KeywordMap {const char* name; net_instaweb::HtmlName::Keyword keyword;};
 "object",                     HtmlName::kObject
 "ol",                         HtmlName::kOl
 "onclick",                    HtmlName::kOnclick
-"onerror",                    HtmlName::kOnerror
 "onload",                     HtmlName::kOnload
 "open",                       HtmlName::kOpen
 "optgroup",                   HtmlName::kOptgroup
@@ -180,7 +177,6 @@ struct KeywordMap {const char* name; net_instaweb::HtmlName::Keyword keyword;};
 "rel",                        HtmlName::kRel
 "required",                   HtmlName::kRequired
 "reversed",                   HtmlName::kReversed
-"role",                       HtmlName::kRole
 "rowspan",                    HtmlName::kRowspan
 "rp",                         HtmlName::kRp
 "rt",                         HtmlName::kRt

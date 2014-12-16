@@ -17,8 +17,12 @@
 // Author: sligocki@google.com (Shawn Ligocki)
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
@@ -28,22 +32,18 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stdio_file_system.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stdio_file_system.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 
 using net_instaweb::MockMessageHandler;
@@ -965,7 +965,7 @@ TEST_F(CssImageRewriterTest, DummyRuleset) {
       "}\n"
       "@to-infinity and beyond;\n";
   const GoogleString css_after =
-      StrCat("@font-face{font-family:'Robotnik';font-style:normal}"
+      StrCat("@font-face { font-family: 'Robotnik'; font-style: normal }"
              "body{background-image:url(",
              Encode("", "ce", "0", "foo.png", "png"),
              ")}@to-infinity and beyond;");
@@ -1206,55 +1206,6 @@ TEST_F(CssImageRewriterTest, DebugMessage) {
       "<!--The image was not inlined because it has too many bytes.-->";
   ValidateRewriteInlineCss("recompress_css_images", kCss, kCssAfter,
                            kNoStatCheck | kExpectCached);
-}
-
-// This inherits off CssRewriteTestBase and not CssImageRewriterTest to
-// skip the weird filter twiddling that does to test preserve_urls(),
-// which doesn't really work for an experimental flag.
-class CssImageRewriterMetricsTest : public CssRewriteTestBase {
- public:
-  virtual void SetUp() {
-    options()->EnableFilter(RewriteOptions::kExperimentCollectMobImageInfo);
-    options()->EnableFilter(RewriteOptions::kRecompressPng);
-    options()->EnableFilter(RewriteOptions::kRecompressJpeg);
-    // Recursively process other CSS but not actually flatten.
-    options()->EnableFilter(RewriteOptions::kFlattenCssImports);
-    options()->set_css_flatten_max_bytes(1);
-    CssRewriteTestBase::SetUp();
-  }
-};
-
-TEST_F(CssImageRewriterMetricsTest, ReportDimensionsToJs) {
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  AddFileToMockFetcher(StrCat(kTestDomain, "b.jpg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-
-  const char kOuterCss[] =
-      "@import url(inner.css); * { background-image: url(a.png) }";
-  const char kInnerCss[] =
-      "* { background-image: url(b.jpg) }";
-  SetResponseWithDefaultHeaders(
-      "outer.css", kContentTypeCss, kOuterCss, 100);
-  SetResponseWithDefaultHeaders(
-      "inner.css", kContentTypeCss, kInnerCss, 100);
-  GoogleString css_out_url(Encode("", "cf", "0", "outer.css", "css"));
-  GoogleString a_out_url(Encode(kTestDomain, "ic", "0", "a.png", "png"));
-  GoogleString b_out_url(Encode(kTestDomain, "ic", "0", "b.jpg", "jpg"));
-  GoogleString js = StrCat(
-      "psMobStaticImageInfo = {"
-      "\"", a_out_url, "\":{w:100,h:100},"
-      "\"", b_out_url, "\":{w:1023,h:766},}");
-
-  // We write directly since default framework makes assumptions involving
-  // newlines it appends that don't work with things inserted at body end.
-  SetupWriter();
-  rewrite_driver()->StartParse(StrCat(kTestDomain, "dims.html"));
-  rewrite_driver()->ParseText(CssLinkHref("outer.css"));
-  rewrite_driver()->FinishParse();
-
-  EXPECT_EQ(StrCat(CssLinkHref(css_out_url), "<script>", js, "</script>"),
-            output_buffer_);
 }
 
 }  // namespace

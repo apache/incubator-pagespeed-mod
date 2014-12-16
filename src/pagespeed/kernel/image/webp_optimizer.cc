@@ -125,15 +125,15 @@ ScanlineStatus WebpFrameWriter::Initialize(const void* config,
   const WebpConfiguration* webp_config =
       static_cast<const WebpConfiguration*>(config);
 
-  if (!WebPConfigInit(&libwebp_config_)) {
+  if (!WebPConfigInit(&webp_config_)) {
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                             SCANLINE_STATUS_INTERNAL_ERROR,
                             FRAME_WEBPWRITER, "WebPConfigInit()");
   }
 
-  webp_config->CopyTo(&libwebp_config_);
+  webp_config->CopyTo(&webp_config_);
 
-  if (!WebPValidateConfig(&libwebp_config_)) {
+  if (!WebPValidateConfig(&webp_config_)) {
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                             SCANLINE_STATUS_INTERNAL_ERROR,
                             FRAME_WEBPWRITER, "WebPValidateConfig()");
@@ -143,9 +143,6 @@ ScanlineStatus WebpFrameWriter::Initialize(const void* config,
     progress_hook_ = webp_config->progress_hook;
     progress_hook_data_ = webp_config->user_data;
   }
-
-  kmin_ = webp_config->kmin;
-  kmax_ = webp_config->kmax;
 
   output_image_ = out;
 
@@ -171,15 +168,15 @@ ScanlineStatus WebpFrameWriter::PrepareImage(const ImageSpec* image_spec) {
   if ((image_spec->height > WEBP_MAX_DIMENSION) ||
       (image_spec->width > WEBP_MAX_DIMENSION)) {
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_UNSUPPORTED_FEATURE,
+                            SCANLINE_STATUS_INVOCATION_ERROR,
                             FRAME_WEBPWRITER,
-                            "each image dimension must be at most %d",
+                            "image dimensions larger than the maximum of %d",
                             WEBP_MAX_DIMENSION);
   }
 
   if ((image_spec->height < 1) || (image_spec->width < 1)) {
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_UNSUPPORTED_FEATURE,
+                            SCANLINE_STATUS_INVOCATION_ERROR,
                             FRAME_WEBPWRITER,
                             "each image dimension must be at least 1");
   }
@@ -215,40 +212,12 @@ ScanlineStatus WebpFrameWriter::PrepareImage(const ImageSpec* image_spec) {
   next_frame_ = 0;
   image_prepared_ = true;
 
-  // Key frame parameters.
-  static size_t kMax;
-  static size_t kMin;
-  if (kmin_ > 0) {
-    if (kmin_ >= kmax_) {
-      return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                        SCANLINE_STATUS_INVOCATION_ERROR,
-                        FRAME_WEBPWRITER,
-                        "Keyframe parameters error: kmin >= kmax");
-    } else if (kmin_ < (kmax_ / 2 + 1)) {
-      return PS_LOGGED_STATUS(
-                        PS_LOG_DFATAL,
-                        message_handler(),
-                        SCANLINE_STATUS_INVOCATION_ERROR,
-                        FRAME_WEBPWRITER,
-                        "Keyframe parameters error: kmin < (kmax / 2 + 1)");
-    } else {
-      kMax = kmax_;
-      kMin = kmin_;
-    }
-  } else {
-    kMax = ~0;
-    kMin = kMax - 1;
-  }
-
+  // Key frame parameters: do not insert unnecessary key frames.
+  static const size_t kMax = ~0;
+  static const size_t kMin = kMax -1;
   webp_frame_cache_ = WebPFrameCacheNew(
       image_spec->width, image_spec->height, kMin, kMax,
       false /* don't allow mixing lossy and lossless frames */);
-
-  if (webp_frame_cache_ == NULL) {
-    return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_MEMORY_ERROR,
-                            FRAME_WEBPWRITER, "WebPFrameCacheNew()");
-  }
 
   frame_position_px_ = NULL;
   frame_stride_px_ = 0;
@@ -289,6 +258,14 @@ ScanlineStatus WebpFrameWriter::CacheCurrentFrame() {
                             "CacheCurrentFrame: not all scanlines written");
   }
 
+  struct WebPMuxFrameInfo webp_frame_info;
+  memset(&webp_frame_info, 0, sizeof(webp_frame_info));
+  webp_frame_info.id = WEBP_CHUNK_ANMF;
+  webp_frame_info.dispose_method =
+      FrameDisposalToWebPDisposal(frame_spec_.disposal);
+  webp_frame_info.blend_method = WEBP_MUX_BLEND;
+  webp_frame_info.duration = frame_spec_.duration_ms;
+
   // We need to pass image to add frame.
   WebPFrameRect frame_rect = {
     static_cast<int>(frame_spec_.left),
@@ -302,14 +279,7 @@ ScanlineStatus WebpFrameWriter::CacheCurrentFrame() {
     CHECK(webp_image_->user_data == this);
   }
 
-  struct WebPMuxFrameInfo webp_frame_info;
-  memset(&webp_frame_info, 0, sizeof(webp_frame_info));
-  webp_frame_info.id = WEBP_CHUNK_ANMF;
-  webp_frame_info.dispose_method =
-      FrameDisposalToWebPDisposal(frame_spec_.disposal);
-  webp_frame_info.blend_method = WEBP_MUX_BLEND;
-  webp_frame_info.duration = frame_spec_.duration_ms;
-  if (!WebPFrameCacheAddFrame(webp_frame_cache_, &libwebp_config_, &frame_rect,
+  if (!WebPFrameCacheAddFrame(webp_frame_cache_, &webp_config_, &frame_rect,
                               webp_image_, &webp_frame_info)) {
     if (webp_image_->error_code == kWebPErrorTimeout) {
       return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
@@ -517,8 +487,10 @@ ScanlineStatus WebpFrameWriter::FinalizeWrite() {
   WebPDataClear(&webp_data);
 
   PS_DLOG_INFO(message_handler(), \
-      "Stats: coded_size: %d; lossless_size: %d; alpha size: %d;",
-      stats_.coded_size, stats_.lossless_size, stats_.alpha_data_size);
+      "Stats: coded_size: %d; lossless_size: %d; alpha size: %d;"
+      " layer size: %d",
+      stats_.coded_size, stats_.lossless_size, stats_.alpha_data_size,
+      stats_.layer_data_size);
 
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }

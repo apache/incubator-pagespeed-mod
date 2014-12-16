@@ -23,9 +23,9 @@
 #define NET_INSTAWEB_SYSTEM_PUBLIC_SYSTEM_REQUEST_CONTEXT_H_
 
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -53,6 +53,14 @@ class SystemRequestContext : public RequestContext {
   int local_port() const { return local_port_; }
   const GoogleString& local_ip() const { return local_ip_; }
   StringPiece url() const { return url_; }
+
+  // The public suffix of a hostname is the bit shared between multiple
+  // organizations.  For example, anyone can register under ".com", ".co.uk", or
+  // ".appspot.com".  The minimal private suffix goes one dotted section
+  // further, and is the name you would register when getting a domain:
+  // "google.com", "google.co.uk", "mysite.appspot.com".  See
+  // system_request_context_test for more examples.
+  static StringPiece MinimalPrivateSuffix(StringPiece hostname);
 
  protected:
   virtual ~SystemRequestContext() {}

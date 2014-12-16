@@ -18,8 +18,13 @@
 
 #include "net/instaweb/rewriter/public/split_html_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/critical_line_info.pb.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
@@ -30,17 +35,12 @@
 #include "net/instaweb/rewriter/public/split_html_helper_filter.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_timer.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_timer.h"
+#include "net/instaweb/util/public/string_writer.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_writer_filter.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace net_instaweb {
 
@@ -170,7 +170,7 @@ class SplitHtmlFilterTest : public RewriteTestBase {
     StaticAssetManager* static_asset_manager =
         rewrite_driver()->server_context()->static_asset_manager();
     blink_js_url_ = static_asset_manager->GetAssetUrl(
-        StaticAssetEnum::BLINK_JS, options_).c_str();
+        StaticAssetManager::kBlinkJs, options_).c_str();
     nodefer_str_ = HtmlKeywords::KeywordToString(HtmlName::kPagespeedNoDefer);
   }
 
@@ -898,7 +898,7 @@ TEST_F(SplitHtmlFilterTest, SplitHtmlWithGhostClickBuster) {
   EXPECT_EQ(StringPrintf(kHtmlExpectedOutputForIgnoreScript1,
                          StrCat("<script type=\"text/javascript\">",
                                 static_asset_manager->GetAsset(
-                                    StaticAssetEnum::GHOST_CLICK_BUSTER_JS,
+                                    StaticAssetManager::kGhostClickBusterJs,
                                     options_), "</script>").c_str(),
                          "", "",
                          expected_output_suffix.c_str()).c_str(), output_);

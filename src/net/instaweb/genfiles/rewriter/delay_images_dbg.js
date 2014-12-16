@@ -1,54 +1,51 @@
-(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(a, b, c) {
-  var d;
+(function(){var pagespeedutils = {MAX_POST_SIZE:131072, sendBeacon:function(beaconUrl, htmlUrl, data) {
+  var httpRequest;
   if (window.XMLHttpRequest) {
-    d = new XMLHttpRequest;
+    httpRequest = new XMLHttpRequest;
   } else {
     if (window.ActiveXObject) {
       try {
-        d = new ActiveXObject("Msxml2.XMLHTTP");
-      } catch (f) {
+        httpRequest = new ActiveXObject("Msxml2.XMLHTTP");
+      } catch (e) {
         try {
-          d = new ActiveXObject("Microsoft.XMLHTTP");
-        } catch (g) {
+          httpRequest = new ActiveXObject("Microsoft.XMLHTTP");
+        } catch (e2) {
         }
       }
     }
   }
-  if (!d) {
+  if (!httpRequest) {
     return!1;
   }
-  var e = -1 == a.indexOf("?") ? "?" : "&";
-  a = a + e + "url=" + encodeURIComponent(b);
-  d.open("POST", a);
-  d.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-  d.send(c);
+  httpRequest.open("POST", beaconUrl + (-1 == beaconUrl.indexOf("?") ? "?" : "&") + "url=" + encodeURIComponent(htmlUrl));
+  httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+  httpRequest.send(data);
   return!0;
-}, addHandler:function(a, b, c) {
-  if (a.addEventListener) {
-    a.addEventListener(b, c, !1);
+}, addHandler:function(elem, eventName, func) {
+  if (elem.addEventListener) {
+    elem.addEventListener(eventName, func, !1);
   } else {
-    if (a.attachEvent) {
-      a.attachEvent("on" + b, c);
+    if (elem.attachEvent) {
+      elem.attachEvent("on" + eventName, func);
     } else {
-      var d = a["on" + b];
-      a["on" + b] = function() {
-        c.call(this);
-        d && d.call(this);
+      var oldHandler = elem["on" + eventName];
+      elem["on" + eventName] = function() {
+        func.call(this);
+        oldHandler && oldHandler.call(this);
       };
     }
   }
-}, getPosition:function(a) {
-  for (var b = a.offsetTop, c = a.offsetLeft;a.offsetParent;) {
-    a = a.offsetParent, b += a.offsetTop, c += a.offsetLeft;
+}, getPosition:function(element) {
+  for (var top = element.offsetTop, left = element.offsetLeft;element.offsetParent;) {
+    element = element.offsetParent, top += element.offsetTop, left += element.offsetLeft;
   }
-  return{top:b, left:c};
+  return{top:top, left:left};
 }, getWindowSize:function() {
   return{height:window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight, width:window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth};
-}, inViewport:function(a, b) {
-  var c = pagespeedutils.getPosition(a);
-  return pagespeedutils.positionInViewport(c, b);
-}, positionInViewport:function(a, b) {
-  return a.top < b.height && a.left < b.width;
+}, inViewport:function(element, windowSize) {
+  return pagespeedutils.positionInViewport(pagespeedutils.getPosition(element), windowSize);
+}, positionInViewport:function(pos, windowSize) {
+  return pos.top < windowSize.height && pos.left < windowSize.width;
 }, getRequestAnimationFrame:function() {
   return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
 }};
@@ -57,10 +54,10 @@ var pagespeed = window.pagespeed;
 pagespeed.DelayImages = function() {
   this.highResReplaced_ = this.lazyLoadHighResHandlersRegistered_ = !1;
 };
-pagespeed.DelayImages.prototype.replaceElementSrc = function(a) {
-  for (var b = 0;b < a.length;++b) {
-    var c = a[b].getAttribute("pagespeed_high_res_src");
-    c && a[b].setAttribute("src", c);
+pagespeed.DelayImages.prototype.replaceElementSrc = function(elements) {
+  for (var i = 0;i < elements.length;++i) {
+    var src = elements[i].getAttribute("pagespeed_high_res_src");
+    src && elements[i].setAttribute("src", src);
   }
 };
 pagespeed.DelayImages.prototype.replaceElementSrc = pagespeed.DelayImages.prototype.replaceElementSrc;
@@ -68,18 +65,17 @@ pagespeed.DelayImages.prototype.registerLazyLoadHighRes = function() {
   if (this.lazyLoadHighResHandlersRegistered_) {
     this.highResReplaced_ = !1;
   } else {
-    var a = document.body, b, c = 0, d = this;
-    this.highResReplaced = !1;
-    "ontouchstart" in a ? (pagespeedutils.addHandler(a, "touchstart", function(a) {
-      b = Date.now();
-    }), pagespeedutils.addHandler(a, "touchend", function(a) {
-      c = Date.now();
-      (null != a.changedTouches && 2 == a.changedTouches.length || null != a.touches && 2 == a.touches.length || 500 > c - b) && d.loadHighRes();
-    })) : pagespeedutils.addHandler(window, "click", function(a) {
-      d.loadHighRes();
+    var elem = document.body, tapStart, tapEnd = 0, me = this;
+    "ontouchstart" in elem ? (pagespeedutils.addHandler(elem, "touchstart", function() {
+      tapStart = Date.now();
+    }), pagespeedutils.addHandler(elem, "touchend", function(e) {
+      tapEnd = Date.now();
+      (null != e.changedTouches && 2 == e.changedTouches.length || null != e.touches && 2 == e.touches.length || 500 > tapEnd - tapStart) && me.loadHighRes();
+    })) : pagespeedutils.addHandler(window, "click", function() {
+      me.loadHighRes();
     });
-    pagespeedutils.addHandler(window, "load", function(a) {
-      d.loadHighRes();
+    pagespeedutils.addHandler(window, "load", function() {
+      me.loadHighRes();
     });
     this.lazyLoadHighResHandlersRegistered_ = !0;
   }
@@ -94,8 +90,7 @@ pagespeed.DelayImages.prototype.replaceWithHighRes = function() {
 };
 pagespeed.DelayImages.prototype.replaceWithHighRes = pagespeed.DelayImages.prototype.replaceWithHighRes;
 pagespeed.delayImagesInit = function() {
-  var a = new pagespeed.DelayImages;
-  pagespeed.delayImages = a;
+  pagespeed.delayImages = new pagespeed.DelayImages;
 };
 pagespeed.delayImagesInit = pagespeed.delayImagesInit;
 })();

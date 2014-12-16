@@ -19,34 +19,57 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_MOBILIZE_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_MOBILIZE_REWRITE_FILTER_H_
 
-#include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/mobilize_decision_trees.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
+#include <vector>
+
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/util/public/basictypes.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
 
 namespace net_instaweb {
 
-// A mobile role and its associated HTML attribute value.
-struct MobileRoleData {
-  static const MobileRoleData kMobileRoles[MobileRole::kInvalid];
+class HtmlCharactersNode;
+class HtmlElement;
+class RewriteDriver;
+class Statistics;
+class Variable;
 
-  MobileRoleData(MobileRole::Level level, const char* value)
+// A mobile role and its associated HTML attribute value.
+struct MobileRole {
+  enum Level {
+    // Tags which aren't explicitly tagged with a data-mobile-role attribute,
+    // but we want to keep anyway, such as <style> or <script> tags in the body.
+    kKeeper = 0,
+    // The page header, such as <h1> or logos.
+    kHeader,
+    // Nav sections of the page. The HTML of nav blocks will be completely
+    // rewritten to be mobile friendly by deleting unwanted elements in the
+    // block.
+    kNavigational,
+    // Main content of the page.
+    kContent,
+    // Any block that isn't one of the above. Marginal content is put at the end
+    // and remains pretty much untouched with respect to modifying HTML or
+    // styling.
+    kMarginal,
+    // Elements without a data-mobile-role attribute, or with an unknown
+    // attribute value, will be kInvalid.
+    kInvalid
+  };
+
+  static const MobileRole kMobileRoles[kInvalid];
+
+  MobileRole(Level level, const char* value)
       : level(level),
         value(value) { }
 
-  static const MobileRoleData* FromString(const StringPiece& mobile_role);
-  static MobileRole::Level LevelFromString(const StringPiece& mobile_role);
-  static const char* StringFromLevel(MobileRole::Level level) {
-    return (level < MobileRole::kInvalid) ? kMobileRoles[level].value : NULL;
+  static const MobileRole* FromString(const StringPiece& mobile_role);
+  static Level LevelFromString(const StringPiece& mobile_role);
+  static const char* StringFromLevel(Level level) {
+    return (level < kInvalid) ? kMobileRoles[level].value : NULL;
   }
 
-  const MobileRole::Level level;
+  const Level level;
   const char* const value;  // Set to a static string in cc.
 };
 
@@ -87,7 +110,7 @@ struct MobileRoleData {
 //    one that might be extra finicky (e.g. don't touch my admin pages).
 //  - TODO (stevensr): Turn on css_move_to_head_filter.cc to reorder elements
 //    we inject into the head.
-class MobilizeRewriteFilter : public CommonFilter {
+class MobilizeRewriteFilter : public EmptyHtmlFilter {
  public:
   static const char kPagesMobilized[];
   static const char kKeeperBlocks[];
@@ -97,48 +120,45 @@ class MobilizeRewriteFilter : public CommonFilter {
   static const char kMarginalBlocks[];
   static const char kDeletedElements[];
 
-  // Static list of tags we keep without traversing.  Public so
-  // MobilizeLabelFilter knows which tags to ignore.
-  static const HtmlName::Keyword kKeeperTags[];
-  static const int kNumKeeperTags;
-
   explicit MobilizeRewriteFilter(RewriteDriver* rewrite_driver);
   virtual ~MobilizeRewriteFilter();
 
   static void InitStats(Statistics* statistics);
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-  virtual void StartDocumentImpl();
+  virtual void StartDocument();
   virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  virtual void StartElement(HtmlElement* element);
+  virtual void EndElement(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
   virtual const char* Name() const { return "MobilizeRewrite"; }
 
  private:
-  void AppendStylesheet(const StringPiece& css_file_name, HtmlElement* element);
-  void AddStyle(HtmlElement* element);
+  void HandleStartTagInBody(HtmlElement* element);
+  void HandleEndTagInBody(HtmlElement* element);
+  void AddStyleAndViewport(HtmlElement* element);
+  void AddReorderContainers(HtmlElement* element);
+  void RemoveReorderContainers();
+  bool IsReorderContainer(HtmlElement* element);
+  HtmlElement* MobileRoleToContainer(MobileRole::Level level);
   MobileRole::Level GetMobileRole(HtmlElement* element);
-  void AddStaticScript(StringPiece script);
+
+  bool InImportantElement() {
+    return (important_element_depth_ > 0);
+  }
 
   bool CheckForKeyword(
       const HtmlName::Keyword* sorted_list, int len, HtmlName::Keyword keyword);
-  void LogEncounteredBlock(MobileRole::Level level);
+  void LogMovedBlock(MobileRole::Level level);
 
+  RewriteDriver* driver_;
+  std::vector<HtmlName::Keyword> nav_keyword_stack_;
+  std::vector<HtmlElement*> mobile_role_containers_;
+  int important_element_depth_;
   int body_element_depth_;
-  int keeper_element_depth_;
+  int nav_element_depth_;
   bool reached_reorder_containers_;
-  bool added_viewport_;
   bool added_style_;
   bool added_containers_;
-  bool added_mob_js_;
-  bool added_progress_;
-  bool in_script_;
-  bool use_js_layout_;
-  bool use_js_logo_;
-  bool use_js_nav_;
-  bool rewrite_js_;
-  GoogleString static_file_prefix_;
 
   // Statistics
   // Number of web pages we have mobilized.
@@ -154,6 +174,10 @@ class MobilizeRewriteFilter : public CommonFilter {
 
   // Used for overriding default behavior in testing.
   friend class MobilizeRewriteFilterTest;
+  // Style content we are injecting into the page. Usually points to a static
+  // asset, but MobilizeRewriteFilterTest will override this with something
+  // small to simplify testing.
+  const char* style_css_;
 
   DISALLOW_COPY_AND_ASSIGN(MobilizeRewriteFilter);
 };

@@ -19,35 +19,35 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
 
-#include <map>
-
-#include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/rewriter/image_types.pb.h"
 #include "net/instaweb/rewriter/public/image.h"
 #include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "net/instaweb/rewriter/public/rewrite_context.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/image_types.pb.h"
-#include "pagespeed/kernel/util/url_segment_encoder.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
+class CachedResult;
+class ImageDim;
 class Histogram;
+class ResourceContext;
+class RewriteContext;
+class RewriteDriver;
 class Statistics;
 class TimedVariable;
+class UrlSegmentEncoder;
 class Variable;
 class WorkBound;
+struct ContentType;
 
 enum InlineResult {
   INLINE_SUCCESS,
@@ -64,8 +64,6 @@ enum InlineResult {
 //     rewritten urls, when in general those urls will be in a different domain.
 class ImageRewriteFilter : public RewriteFilter {
  public:
-  typedef std::map<GoogleString, AssociatedImageInfo> AssociatedImageInfoMap;
-
   // Statistic names:
   static const char kImageNoRewritesHighResolution[];
   static const char kImageOngoingRewrites[];
@@ -113,24 +111,12 @@ class ImageRewriteFilter : public RewriteFilter {
   static void Terminate();
   static void AddRelatedOptions(StringPieceVector* target);
   virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void RenderDone();
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "ImageRewrite"; }
   virtual const char* id() const { return RewriteOptions::kImageCompressionId; }
   virtual void EncodeUserAgentIntoResourceContext(
       ResourceContext* context) const;
-
-  // Registers image information associated with a URL, for use by
-  // experiment_collect_mob_image_info. Should be called from DOM-safe
-  // context: the parser thread or a Render() method.
-  void RegisterImageInfo(const AssociatedImageInfo& image_info);
-
-  // Tries to extract information stored by the image rewrite filter
-  // in *in, and to store it in *out. Returns whether successful.
-  static bool ExtractAssociatedImageInfo(const CachedResult* in,
-                                         AssociatedImageInfo* out);
 
   // Can we inline resource?  If so, encode its contents into the data_url,
   // otherwise leave data_url alone.
@@ -349,10 +335,6 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // The options related to this filter.
   static StringPieceVector* related_options_;
-
-  std::map<GoogleString, AssociatedImageInfo> image_info_;
-  // Used to figure out which RenderDone() call is the last one.
-  bool saw_end_document_;
 
   DISALLOW_COPY_AND_ASSIGN(ImageRewriteFilter);
 };

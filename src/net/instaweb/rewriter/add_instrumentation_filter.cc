@@ -19,25 +19,24 @@
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/escaping.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
@@ -123,7 +122,8 @@ void AddInstrumentationFilter::EndElementImpl(HtmlElement* element) {
         driver()->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
       }
       driver()->InsertNodeBeforeCurrent(script);
-      AddJsToElement(js, script);
+      driver()->server_context()->static_asset_manager()->AddJsToElement(
+          js, script, driver());
       added_unload_script_ = true;
     }
   }
@@ -142,7 +142,8 @@ void AddInstrumentationFilter::EndDocument() {
     driver()->AddAttribute(script, HtmlName::kPagespeedNoDefer, "");
   }
   InsertNodeAtBodyEnd(script);
-  AddJsToElement(js, script);
+  driver()->server_context()->static_asset_manager()->AddJsToElement(js, script,
+                                                                     driver());
 }
 
 GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
@@ -153,10 +154,10 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
   if (!added_unload_script_) {
     if (driver()->options()->enable_extended_instrumentation()) {
       js = static_asset_manager->GetAsset(
-          StaticAssetEnum::EXTENDED_INSTRUMENTATION_JS, driver()->options());
+          StaticAssetManager::kExtendedInstrumentationJs, driver()->options());
     }
     StrAppend(&js, static_asset_manager->GetAsset(
-        StaticAssetEnum::ADD_INSTRUMENTATION_JS, driver()->options()));
+        StaticAssetManager::kAddInstrumentationJs, driver()->options()));
   }
 
   GoogleString js_event = (event == kLoadTag) ? "load" : "beforeunload";
@@ -174,7 +175,7 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
     }
   }
 
-  const RequestTimingInfo& timing_info =
+  const RequestContext::TimingInfo& timing_info =
       driver()->request_context()->timing_info();
   int64 header_fetch_ms;
   if (timing_info.GetFetchHeaderLatencyMs(&header_fetch_ms)) {

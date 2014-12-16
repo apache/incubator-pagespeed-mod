@@ -19,14 +19,15 @@
 #include "net/instaweb/rewriter/public/resource_slot.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/resource.h"
-#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
+
+class RewriteContext;
 
 ResourceSlot::~ResourceSlot() {
 }
@@ -54,7 +55,7 @@ void ResourceSlot::DetachContext(RewriteContext* context) {
   } else if (contexts_.back() == context) {
     contexts_.pop_back();
   } else {
-    LOG(DFATAL) << "Can only detach first or last context";
+    DLOG(FATAL) << "Can only detach first or last context";
   }
 }
 
@@ -77,23 +78,14 @@ GoogleString ResourceSlot::RelativizeOrPassthrough(
   }
 }
 
-NullResourceSlot::NullResourceSlot(const ResourcePtr& resource,
-                                   StringPiece location)
-    : ResourceSlot(resource),
-      location_(location.data(), location.size()) {
-}
-
-NullResourceSlot::~NullResourceSlot() {
-}
-
 FetchResourceSlot::~FetchResourceSlot() {
 }
 
 void FetchResourceSlot::Render() {
-  LOG(DFATAL) << "FetchResourceSlot::Render should never be called";
+  DLOG(FATAL) << "FetchResourceSlot::Render should never be called";
 }
 
-GoogleString FetchResourceSlot::LocationString() const {
+GoogleString FetchResourceSlot::LocationString() {
   return StrCat("Fetch of ", resource()->url());
 }
 
@@ -133,7 +125,7 @@ void HtmlResourceSlot::Render() {
   }
 }
 
-GoogleString HtmlResourceSlot::LocationString() const {
+GoogleString HtmlResourceSlot::LocationString() {
   if (begin_line_number_ == end_line_number_) {
     return StrCat(driver_->id(), ":", IntegerToString(begin_line_number_));
   } else {
@@ -165,7 +157,10 @@ bool HtmlResourceSlotComparator::operator()(const HtmlResourceSlotPtr& p,
   } else if (p->element() > q->element()) {
     return false;
   }
-  return (p->attribute() < q->attribute());
+  if (p->attribute() < q->attribute()) {
+    return true;
+  }
+  return false;
 }
 
 }  // namespace net_instaweb

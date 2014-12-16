@@ -22,9 +22,16 @@
 #include <utility>
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/critical_line_info.pb.h"
 #include "net/instaweb/rewriter/public/blink_util.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
@@ -33,24 +40,17 @@
 #include "net/instaweb/rewriter/public/split_html_beacon_filter.h"
 #include "net/instaweb/rewriter/public/split_html_config.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/escaping.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/escaping.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/json_writer.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
-#include "pagespeed/kernel/base/json_writer.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_writer_filter.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace net_instaweb {
 
@@ -403,7 +403,7 @@ void SplitHtmlFilter::InsertSplitInitScripts(HtmlElement* element) {
     StrAppend(&defer_js_with_blink, "<script type=\"text/javascript\">");
     StringPiece ghost_click_buster_js =
         static_asset_manager()->GetAsset(
-            StaticAssetEnum::GHOST_CLICK_BUSTER_JS, options_);
+            StaticAssetManager::kGhostClickBusterJs, options_);
     StrAppend(&defer_js_with_blink, ghost_click_buster_js);
     StrAppend(&defer_js_with_blink, "</script>");
   }
@@ -571,7 +571,7 @@ GoogleString SplitHtmlFilter::GetPanelIdForInstance(HtmlElement* element) {
 const GoogleString& SplitHtmlFilter::GetBlinkJsUrl(
       const RewriteOptions* options,
       const StaticAssetManager* static_asset_manager) {
-  return static_asset_manager->GetAssetUrl(StaticAssetEnum::BLINK_JS,
+  return static_asset_manager->GetAssetUrl(StaticAssetManager::kBlinkJs,
                                            options);
 }
 

@@ -184,6 +184,14 @@ ModPagespeedLoadFromFile "http://@@APACHE_DOMAIN@@/mod_pagespeed_test/ipro/insta
     AddOutputFilterByType DEFLATE text/css
 </Directory>
 
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/vary/" >
+  ModPagespeedRespectVary on
+
+  <FilesMatch "\.(js|css)$">
+    Header append Vary User-Agent
+  </FilesMatch>
+</Directory>
+
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/vary/no_respect/" >
   ModPagespeedDisableFilters add_instrumentation,inline_css
   ModPagespeedRespectVary off
@@ -223,10 +231,6 @@ ModPagespeedLoadFromFile "http://@@APACHE_DOMAIN@@/mod_pagespeed_test/ipro/insta
         Header append 'Cache-Control' 'no-transform'
      </FilesMatch>
   </IfModule>
-</Directory>
-
-<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/no_transform" >
-  Header append 'Cache-Control' 'no-transform'
 </Directory>
 
 # This Directory does not even exist, but by setting some options in that
@@ -310,6 +314,26 @@ Header append 'X-Extra-Header' '1'
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/nostore" >
   Header append 'Cache-Control' 'no-store'
+</Directory>
+
+# Build a configuration hierarchy where at the root we have turned on
+# OptimizeForBandwidth, and in various subdirectories we override settings
+# to make them more aggressive.
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth" >
+  ModPagespeedRewriteLevel OptimizeForBandwidth
+  ModPagespeedDisableFilters add_instrumentation
+</Directory>
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/inline_css" >
+  ModPagespeedEnableFilters inline_css
+</Directory>
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/css_urls" >
+  ModPagespeedCssPreserveURLs off
+</Directory>
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/image_urls" >
+  ModPagespeedImagePreserveURLs off
+</Directory>
+<Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/core_filters" >
+  ModPagespeedRewriteLevel CoreFilters
 </Directory>
 
 # Build a configuration hierarchy where at the root we have turned on a few
@@ -408,8 +432,7 @@ ModPagespeedCompressMetadataCache true
 # purposes of mobilization.
 <Directory "@@APACHE_DOC_ROOT@@/mobilization/" >
   ModPagespeedRewriteLevel PassThrough
-  ModPagespeedEnableFilters mobilize
-  ModPagespeedLogMobilizationSamples true
+  ModPagespeedEnableFilters mobilize,debug
 </Directory>
 
 # Another VirtualHost can be enabled by default as it does no harm.  This can
@@ -958,8 +981,8 @@ ModPagespeedUsePerVHostStatistics on
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@"
   ModPagespeedRewriteLevel PassThrough
   ModPagespeedDisableFilters add_instrumentation,remove_comments
-  # Note that we don't enable remove_comments here; that setting comes from
-  # the response headers from origin.rmcomments.example.com
+  # Note that we don't enable remove_comments here; that setting
+  # comes from the response headers from origin.rmcomments.example.com
   ProxyRemote * http://localhost:@@APACHE_SECONDARY_PORT@@
   ProxyPass / http://origin.rmcomments.example.com/
   ProxyPassReverse / http://origin.rmcomments.example.com/
@@ -1074,42 +1097,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
   ModPagespeedEnableFilters rewrite_images,combine_css
   ModPagespeedCriticalImagesBeaconEnabled false
   ModPagespeedModifyCachingHeaders on
-</VirtualHost>
-
-# Build a configuration hierarchy where at the root we have turned on
-# OptimizeForBandwidth, and in various subdirectories we override settings
-# to make them more aggressive.
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName optimizeforbandwidth.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-
-  ModPagespeedRewriteLevel OptimizeForBandwidth
-  ModPagespeedDisableFilters add_instrumentation
-
-  ModPagespeedBlockingRewriteKey psatest
-
-  <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/inline_css" >
-    ModPagespeedEnableFilters inline_css
-  </Directory>
-  <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/css_urls" >
-    ModPagespeedCssPreserveURLs off
-  </Directory>
-  <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/image_urls" >
-    ModPagespeedImagePreserveURLs off
-  </Directory>
-  <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/optimize_for_bandwidth/core_filters" >
-    ModPagespeedRewriteLevel CoreFilters
-  </Directory>
-</VirtualHost>
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName respectvary.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-
-  ModPagespeedRespectVary on
-  Header append Vary User-Agent
 </VirtualHost>
 
 #PER_VHOST_STATS ModPagespeedUsePerVHostStatistics on
@@ -1388,17 +1375,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_noned_shmm"
 #EXPERIMENT_NO_GA ModPagespeedExperimentSpec "id=7;enable=recompress_images,rewrite_javascript;disable=convert_jpeg_to_progressive;percent=50;options=AvoidRenamingIntrospectiveJavascript=off,JsInlineMaxBytes=4;invalid=this-should-print-a-warning"
 #EXPERIMENT_NO_GA ModPagespeedExperimentSpec "id=2;enable=recompress_images,rewrite_javascript;percent=50;options=AvoidRenamingIntrospectiveJavascript=on"
 #EXPERIMENT_NO_GA ModPagespeedExperimentSpec "id=3;default;percent=0"
-
-<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName experiment.devicematch.example.com
-  DocumentRoot "@@APACHE_DOC_ROOT@@"
-  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
-
-  ModPagespeedRewriteLevel PassThrough
-
-  ModPagespeedRunExperiment on
-  ModPagespeedExperimentSpec "id=1;percent=100;matches_device_type=mobile;enable=recompress_images"
-</VirtualHost>
 
 # Support for embedded configurations, where image flags in the
 # VirtualHost serving HTML is not the same as the one serving resources,

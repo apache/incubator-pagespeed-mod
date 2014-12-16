@@ -90,15 +90,19 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_graphs_css_data2c.a \
   net/instaweb/libinstaweb_graphs_js_data2c.a \
   net/instaweb/libinstaweb_graphs_js_opt_data2c.a \
+  net/instaweb/libinstaweb_image_types_pb.a \
   net/instaweb/libinstaweb_js_defer_data2c.a \
   net/instaweb/libinstaweb_js_defer_opt_data2c.a \
   net/instaweb/libinstaweb_lazyload_images_data2c.a \
   net/instaweb/libinstaweb_lazyload_images_opt_data2c.a \
   net/instaweb/libinstaweb_local_storage_cache_data2c.a \
   net/instaweb/libinstaweb_local_storage_cache_opt_data2c.a \
+  net/instaweb/libinstaweb_logging_pb.a \
   net/instaweb/libinstaweb_messages_js_data2c.a \
   net/instaweb/libinstaweb_messages_js_opt_data2c.a \
+  net/instaweb/libinstaweb_mobilize_css_data2c.a \
   net/instaweb/libinstaweb_panel_loader_opt_data2c.a \
+  net/instaweb/libinstaweb_propcache_pb.a \
   net/instaweb/libinstaweb_rendered_image_pb.a \
   net/instaweb/libinstaweb_rewriter.a \
   net/instaweb/libinstaweb_rewriter_base.a \
@@ -112,18 +116,14 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_split_html_beacon_opt_data2c.a \
   net/instaweb/libinstaweb_spriter.a \
   net/instaweb/libinstaweb_spriter_pb.a \
-  net/instaweb/libinstaweb_static_asset_config_pb.a \
   net/instaweb/libinstaweb_statistics_css_data2c.a \
   net/instaweb/libinstaweb_statistics_js_data2c.a \
   net/instaweb/libinstaweb_statistics_js_opt_data2c.a \
   net/instaweb/libinstaweb_system.a \
   net/instaweb/libinstaweb_util.a \
+  net/instaweb/libinstaweb_util_enums_pb.a \
   net/instaweb/libprocess_context.a \
   net/instaweb/libtest_infrastructure.a \
-  pagespeed/libinstaweb_mobilize_data2c.a \
-  pagespeed/libinstaweb_mobilize_opt_data2c.a \
-  pagespeed/libinstaweb_mobilize_xhr_data2c.a \
-  pagespeed/libinstaweb_mobilize_xhr_opt_data2c.a \
   pagespeed/libjs_tokenizer.a \
   pagespeed/libjsminify.a \
   pagespeed/libpagespeed_base.a \
@@ -137,13 +137,7 @@ BASE_LIBS = \
   pagespeed/libpagespeed_http_gperf.a \
   pagespeed/libpagespeed_http_pb.a \
   pagespeed/libpagespeed_image_processing.a \
-  pagespeed/libpagespeed_image_types_pb.a \
   pagespeed/libpagespeed_javascript_gperf.a \
-  pagespeed/libpagespeed_logging.a \
-  pagespeed/libpagespeed_logging_enums_pb.a \
-  pagespeed/libpagespeed_logging_pb.a \
-  pagespeed/libpagespeed_opt_http.a \
-  pagespeed/libpagespeed_property_cache_pb.a \
   pagespeed/libpagespeed_sharedmem.a \
   pagespeed/libpagespeed_sharedmem_pb.a \
   pagespeed/libpagespeed_thread.a \

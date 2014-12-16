@@ -24,10 +24,10 @@
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -126,7 +126,7 @@ class AssociationSlot : public ResourceSlot {
     return true;
   }
 
-  virtual GoogleString LocationString() const {
+  virtual GoogleString LocationString() {
     // TODO(sligocki): Improve quality of this diagnostic.
     // Also improve CssResourceSlot::LocationString() which is identical.
     return "Inside CSS";

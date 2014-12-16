@@ -20,22 +20,19 @@
 
 #include <memory>
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
-#include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/charset_util.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/charset_util.h"
+#include "net/instaweb/util/public/statistics.h"
 
 namespace net_instaweb {
 
@@ -103,10 +100,7 @@ void ScanFilter::StartElement(HtmlElement* element) {
     if ((href != NULL) && (href->DecodedValueOrNull() != NULL)) {
       // TODO(jmarantz): consider having rewrite_driver access the url in this
       // class, rather than poking it into rewrite_driver.
-      GoogleString new_base = href->DecodedValueOrNull();
-      driver_->options()->domain_lawyer()->AddProxySuffix(driver_->google_url(),
-                                                          &new_base);
-      driver_->SetBaseUrlIfUnset(new_base);
+      driver_->SetBaseUrlIfUnset(href->DecodedValueOrNull());
       seen_base_ = true;
       if (seen_refs_) {
         driver_->set_refs_before_base();
@@ -152,16 +146,6 @@ void ScanFilter::StartElement(HtmlElement* element) {
         driver_->set_containing_charset(charset);
         seen_meta_tag_charset_ = true;
       }
-    }
-  }
-}
-
-void ScanFilter::EndElement(HtmlElement* element) {
-  if (element->keyword() == HtmlName::kBase &&
-      !driver_->options()->domain_lawyer()->proxy_suffix().empty()) {
-    HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
-      href->SetValue(driver_->base_url().AllExceptQuery());
     }
   }
 }

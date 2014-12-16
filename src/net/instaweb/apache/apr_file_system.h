@@ -19,10 +19,10 @@
 
 #include "apr.h"
 
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string_util.h"
 
 struct apr_finfo_t;
 struct apr_pool_t;

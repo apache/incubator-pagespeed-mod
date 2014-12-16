@@ -31,7 +31,6 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/symbol_table.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/doctype.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_event.h"
 #include "pagespeed/kernel/html/html_filter.h"
@@ -42,6 +41,7 @@
 #include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
+class DocType;
 
 HtmlParse::HtmlParse(MessageHandler* message_handler)
     : lexer_(NULL),  // Can't initialize here, since "this" should not be used
@@ -172,38 +172,6 @@ HtmlDirectiveNode* HtmlParse::NewDirectiveNode(HtmlElement* parent,
   HtmlDirectiveNode* directive =
       new (&nodes_) HtmlDirectiveNode(parent, contents, queue_.end());
   return directive;
-}
-
-HtmlElement* HtmlParse::AppendAnchor(StringPiece link, StringPiece text,
-                                     HtmlElement* parent) {
-  HtmlElement* a_tag = NewElement(parent, HtmlName::kA);
-  AppendChild(parent, a_tag);
-  AddAttribute(a_tag, HtmlName::kHref, link);
-  HtmlNode* text_node = NewCharactersNode(a_tag, text);
-  AppendChild(a_tag, text_node);
-  return a_tag;
-}
-
-void HtmlParse::SetupScript(StringPiece text, bool external,
-                            HtmlElement* script) {
-  if (external) {
-    AddAttribute(script, HtmlName::kSrc, text);
-  } else {
-    HtmlNode* text_node = NewCharactersNode(script, text);
-    AppendChild(script, text_node);
-  }
-}
-
-void HtmlParse::InsertScriptBeforeCurrent(StringPiece text, bool external) {
-  HtmlElement* script = NewElement(NULL, HtmlName::kScript);
-  InsertNodeBeforeCurrent(script);
-  SetupScript(text, external, script);
-}
-
-void HtmlParse::InsertScriptAfterCurrent(StringPiece text, bool external) {
-  HtmlElement* script = NewElement(NULL, HtmlName::kScript);
-  InsertNodeAfterCurrent(script);
-  SetupScript(text, external, script);
 }
 
 HtmlElement* HtmlParse::NewElement(HtmlElement* parent, const HtmlName& name) {
@@ -605,14 +573,10 @@ void HtmlParse::PrependChild(const HtmlElement* existing_parent,
 
 void HtmlParse::AppendChild(const HtmlElement* existing_parent,
                             HtmlNode* new_child) {
-  if (existing_parent != NULL) {
-    message_handler_->Check(existing_parent->end() != queue_.end(),
-                            "AppendChild: existing_parent invalid");
-    new_child->set_parent(const_cast<HtmlElement*>(existing_parent));
-    InsertNodeBeforeEvent(existing_parent->end(), new_child);
-  } else {
-    InsertNodeBeforeEvent(queue_.end(), new_child);
-  }
+  message_handler_->Check(existing_parent->end() != queue_.end(),
+                          "AppendChild: existing_parent invalid");
+  new_child->set_parent(const_cast<HtmlElement*>(existing_parent));
+  InsertNodeBeforeEvent(existing_parent->end(), new_child);
 }
 
 void HtmlParse::InsertNodeBeforeCurrent(HtmlNode* new_node) {
@@ -666,18 +630,6 @@ void HtmlParse::InsertNodeAfterCurrent(HtmlNode* new_node) {
   }
   if (current_ == queue_.end()) {
     FatalErrorHere("InsertNodeAfterCurrent called with queue at end.");
-  }
-  if ((new_node->parent() == NULL) && (current_ != queue_.end())) {
-    HtmlElement* parent = (*current_)->GetElementIfEndEvent();
-    if (parent != NULL) {
-      parent = parent->parent();
-    } else {
-      parent = (*current_)->GetElementIfStartEvent();
-      if (parent == NULL) {
-        parent = (*current_)->GetNode()->parent();
-      }
-    }
-    new_node->set_parent(parent);
   }
   ++current_;
   InsertNodeBeforeEvent(current_, new_node);

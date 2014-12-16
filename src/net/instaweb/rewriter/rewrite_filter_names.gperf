@@ -5,7 +5,7 @@
 
 #include "base/basictypes.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 %}
@@ -29,7 +29,6 @@ struct FilterMap {
 # from e.g. query params!) here.
 "add_base_tag",                      RewriteOptions::kAddBaseTag
 "add_head",                          RewriteOptions::kAddHead
-"add_ids",                           RewriteOptions::kAddIds
 "add_instrumentation",               RewriteOptions::kAddInstrumentation
 "cache_partial_html",                RewriteOptions::kCachePartialHtml
 "canonicalize_javascript_libraries", RewriteOptions::kCanonicalizeJavascriptLibraries
@@ -54,7 +53,6 @@ struct FilterMap {
 "disable_javascript",                RewriteOptions::kDisableJavascript
 "div_structure",                     RewriteOptions::kDivStructure
 "elide_attributes",                  RewriteOptions::kElideAttributes
-"experiment_collect_mob_image_info", RewriteOptions::kExperimentCollectMobImageInfo
 "experiment_spdy",                   RewriteOptions::kExperimentSpdy
 "explicit_close_tags",               RewriteOptions::kExplicitCloseTags
 "extend_cache_css",                  RewriteOptions::kExtendCacheCss

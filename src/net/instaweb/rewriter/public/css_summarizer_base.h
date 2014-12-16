@@ -21,13 +21,13 @@
 
 #include <vector>
 
+#include "net/instaweb/htmlparse/public/html_element.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace Css {
 
@@ -243,8 +243,8 @@ class CssSummarizerBase : public RewriteFilter {
                                        StringPiece base_for_resources,
                                        StringPiece rel);
 
-  ResourceSlotPtr MakeSlotForInlineCss(HtmlElement* parent,
-                                       const StringPiece& content);
+  ResourceSlot* MakeSlotForInlineCss(HtmlElement* element,
+                                     const StringPiece& content);
 
   // Stores all the computed summaries.
   std::vector<SummaryInfo> summaries_;

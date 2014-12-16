@@ -30,13 +30,19 @@
 
 #include "base/logging.h"
 #include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_filter.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_writer_filter.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/critical_css.pb.h"
@@ -44,11 +50,11 @@
 #include "net/instaweb/rewriter/critical_line_info.pb.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/add_head_filter.h"
-#include "net/instaweb/rewriter/public/add_ids_filter.h"
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 #include "net/instaweb/rewriter/public/base_tag_filter.h"
 #include "net/instaweb/rewriter/public/cache_extender.h"
 #include "net/instaweb/rewriter/public/cache_html_filter.h"
+#include "net/instaweb/rewriter/public/collapse_whitespace_filter.h"
 #include "net/instaweb/rewriter/public/collect_flush_early_content_filter.h"
 #include "net/instaweb/rewriter/public/compute_visible_text_filter.h"
 #include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
@@ -75,6 +81,7 @@
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/downstream_cache_purger.h"
+#include "net/instaweb/rewriter/public/elide_attributes_filter.h"
 #include "net/instaweb/rewriter/public/file_input_resource.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/fix_reflow_filter.h"
@@ -83,6 +90,7 @@
 #include "net/instaweb/rewriter/public/google_analytics_filter.h"
 #include "net/instaweb/rewriter/public/google_font_css_inline_filter.h"
 #include "net/instaweb/rewriter/public/handle_noscript_redirect_filter.h"
+#include "net/instaweb/rewriter/public/html_attribute_quote_removal.h"
 #include "net/instaweb/rewriter/public/image_combine_filter.h"
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 #include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
@@ -104,6 +112,7 @@
 #include "net/instaweb/rewriter/public/pedantic_filter.h"
 #include "net/instaweb/rewriter/public/property_cache_util.h"
 #include "net/instaweb/rewriter/public/redirect_on_size_limit_filter.h"
+#include "net/instaweb/rewriter/public/remove_comments_filter.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -128,39 +137,30 @@
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/fallback_property_page.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/property_cache.h"
+#include "net/instaweb/util/public/request_trace.h"
+#include "net/instaweb/util/public/scheduler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/statistics_logger.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/writer.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/request_trace.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/sha1_signature.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/base/writer.h"
-#include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/html/collapse_whitespace_filter.h"
-#include "pagespeed/kernel/html/elide_attributes_filter.h"
-#include "pagespeed/kernel/html/html_attribute_quote_removal.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_filter.h"
 #include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_writer_filter.h"
-#include "pagespeed/kernel/html/remove_comments_filter.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/thread/scheduler.h"
-#include "pagespeed/kernel/util/statistics_logger.h"
+#include "pagespeed/kernel/http/http_options.h"
 
 namespace net_instaweb {
 
@@ -225,6 +225,8 @@ class RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks
 };
 
 }  // namespace
+
+class FileSystem;
 
 const char RewriteDriver::kDomCohort[] = "dom";
 const char RewriteDriver::kBeaconCohort[] = "beacon_cohort";
@@ -787,7 +789,6 @@ void RewriteDriver::FlushAsyncDone(int num_rewrites, Function* callback) {
     initiated_rewrites_.clear();
 
     slots_.clear();
-    inline_slots_.clear();
   }
 
   // Notify all enabled pre-render filters that rendering is done.
@@ -1002,10 +1003,6 @@ void RewriteDriver::AddPreRenderFilters() {
   if (rewrite_options->Enabled(RewriteOptions::kAddBaseTag)) {
     AddOwnedEarlyPreRenderFilter(new BaseTagFilter(this));
   }
-  if (rewrite_options->Enabled(RewriteOptions::kAddIds) ||
-      rewrite_options->Enabled(RewriteOptions::kMobilize)) {
-    AddOwnedEarlyPreRenderFilter(new AddIdsFilter(this));
-  }
   if (rewrite_options->Enabled(RewriteOptions::kStripScripts)) {
     // Experimental filter that blindly strips all scripts from a page.
     AppendOwnedPreRenderFilter(new StripScriptsFilter(this));
@@ -1211,10 +1208,11 @@ void RewriteDriver::AddPostRenderFilters() {
     // we Must left trim urls BEFORE quote removal.
     AddUnownedPostRenderFilter(url_trim_filter_.get());
   }
-  if (rewrite_options->Enabled(RewriteOptions::kMobilize)) {
-    AddOwnedPostRenderFilter(new MobilizeLabelFilter(this));
-    AddOwnedPostRenderFilter(new MobilizeRewriteFilter(this));
-  }
+  // Disable mobilization filters for 1.9.32.2 release.
+  // if (rewrite_options->Enabled(RewriteOptions::kMobilize)) {
+  //   AddOwnedPostRenderFilter(new MobilizeLabelFilter(this));
+  //   AddOwnedPostRenderFilter(new MobilizeRewriteFilter(this));
+  // }
   if (rewrite_options->Enabled(RewriteOptions::kFlushSubresources) &&
       !options()->pre_connect_url().empty()) {
     AddOwnedPostRenderFilter(new RewrittenContentScanningFilter(this));
@@ -1416,9 +1414,33 @@ void RewriteDriver::SetSessionFetcher(UrlAsyncFetcher* f) {
 
 CacheUrlAsyncFetcher* RewriteDriver::CreateCustomCacheFetcher(
     UrlAsyncFetcher* base_fetcher) {
-  return server_context()->CreateCustomCacheFetcher(
-      options(), CacheFragment(), cache_url_async_fetcher_async_op_hooks_.get(),
+  CacheUrlAsyncFetcher* cache_fetcher = new CacheUrlAsyncFetcher(
+      server_context()->lock_hasher(),
+      server_context()->lock_manager(),
+      server_context()->http_cache(),
+      CacheFragment(),
+      cache_url_async_fetcher_async_op_hooks_.get(),
       base_fetcher);
+  RewriteStats* stats = server_context_->rewrite_stats();
+  cache_fetcher->set_respect_vary(options()->respect_vary());
+  cache_fetcher->set_default_cache_html(options()->default_cache_html());
+  cache_fetcher->set_backend_first_byte_latency_histogram(
+      stats->backend_latency_histogram());
+  cache_fetcher->set_fallback_responses_served(
+      stats->fallback_responses_served());
+  cache_fetcher->set_fallback_responses_served_while_revalidate(
+      stats->fallback_responses_served_while_revalidate());
+  cache_fetcher->set_num_conditional_refreshes(
+      stats->num_conditional_refreshes());
+  cache_fetcher->set_serve_stale_if_fetch_error(
+      options()->serve_stale_if_fetch_error());
+  cache_fetcher->set_proactively_freshen_user_facing_request(
+      options()->proactively_freshen_user_facing_request());
+  cache_fetcher->set_num_proactively_freshen_user_facing_request(
+      stats->num_proactively_freshen_user_facing_request());
+  cache_fetcher->set_serve_stale_while_revalidate_threshold_sec(
+      options()->serve_stale_while_revalidate_threshold_sec());
+  return cache_fetcher;
 }
 
 CacheUrlAsyncFetcher* RewriteDriver::CreateCacheFetcher() {
@@ -2200,7 +2222,7 @@ ResourcePtr RewriteDriver::CreateInputResource(
     // Shouldn't happen?
     message_handler()->Message(
         kFatal, "invalid decoded_base_url_ for '%s'", input_url.spec_c_str());
-    LOG(DFATAL);
+    DLOG(FATAL);
   }
   RewriteStats* stats = server_context_->rewrite_stats();
   if (may_rewrite) {
@@ -2904,28 +2926,14 @@ RewriteFilter* RewriteDriver::FindFilter(const StringPiece& id) const {
 HtmlResourceSlotPtr RewriteDriver::GetSlot(
     const ResourcePtr& resource, HtmlElement* elt,
     HtmlElement::Attribute* attr) {
-  HtmlResourceSlotPtr slot(new HtmlResourceSlot(resource, elt, attr, this));
-  std::pair<HtmlResourceSlotSet::iterator, bool> iter_inserted =
+  HtmlResourceSlot* slot_obj = new HtmlResourceSlot(resource, elt, attr, this);
+  HtmlResourceSlotPtr slot(slot_obj);
+  std::pair<HtmlResourceSlotSet::iterator, bool> iter_found =
       slots_.insert(slot);
-  if (!iter_inserted.second) {
+  if (!iter_found.second) {
     // The slot was already in the set.  Release the one we just
     // allocated and use the one already in.
-    HtmlResourceSlotSet::iterator iter = iter_inserted.first;
-    slot.reset(*iter);
-  }
-  return slot;
-}
-
-InlineResourceSlotPtr RewriteDriver::GetInlineSlot(
-    const ResourcePtr& resource, HtmlElement* parent) {
-  InlineResourceSlotPtr slot(
-      new InlineResourceSlot(resource, parent, UrlLine()));
-  std::pair<InlineResourceSlotSet::iterator, bool> iter_inserted =
-      inline_slots_.insert(slot);
-  if (!iter_inserted.second) {
-    // The slot was already in the set.  Release the one we just
-    // allocated and use the one already in.
-    InlineResourceSlotSet::iterator iter = iter_inserted.first;
+    HtmlResourceSlotSet::iterator iter = iter_found.first;
     slot.reset(*iter);
   }
   return slot;
@@ -3437,7 +3445,6 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
 
     HTTPCache* http_cache = server_context_->http_cache();
     if (output->kind() != kOnTheFlyResource &&
-        output->kind() != kInlineResource &&
         (http_cache->force_caching() || meta_data->IsProxyCacheable())) {
       // This URL should already be mapped to the canonical rewrite domain,
       // But we should store its unsharded form in the cache.
@@ -3455,8 +3462,7 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
     // If our URL is derived from some pre-existing URL (and not invented by
     // us due to something like outlining), cache the mapping from original URL
     // to the constructed one.
-    if (output->kind() == kRewrittenResource ||
-        output->kind() == kOnTheFlyResource) {
+    if (output->kind() != kOutlinedResource) {
       CachedResult* cached = output->EnsureCachedResultCreated();
       cached->set_optimizable(true);
       cached->set_url(output->url());  // Note: output->url() will be sharded.

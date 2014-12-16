@@ -21,21 +21,19 @@
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/util/platform.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/google_message_handler.h"
+#include "net/instaweb/util/public/platform.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/thread_system.h"
 
 namespace net_instaweb {
 
 namespace {
 
 const char kUrl[] = "http://www.example.com/";
-const char kUrl2[] = "http://www.example.com/2";
 const char kBody[] = "Contents.";
-const char kBody2[] = "Contents.";
 
 class WaitUrlAsyncFetcherTest : public ::testing::Test {
  protected:
@@ -47,7 +45,6 @@ class WaitUrlAsyncFetcherTest : public ::testing::Test {
     ResponseHeaders header;
     header.set_first_line(1, 1, 200, "OK");
     base_fetcher_.SetResponse(kUrl, header, kBody);
-    base_fetcher_.SetResponse(kUrl2, header, kBody2);
   }
 
   WaitUrlAsyncFetcher* wait_fetcher() { return wait_fetcher_.get(); }
@@ -99,32 +96,6 @@ TEST_F(WaitUrlAsyncFetcherTest, PassThrough) {
   wait_fetcher()->Fetch(kUrl, &handler, &callback2);
   EXPECT_TRUE(callback2.done());
   EXPECT_EQ(kBody, callback2.buffer());
-}
-
-TEST_F(WaitUrlAsyncFetcherTest, Exclusion) {
-  GoogleMessageHandler handler;
-  ExpectStringAsyncFetch callback1(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
-  ExpectStringAsyncFetch callback2(
-      true, RequestContext::NewTestRequestContext(thread_system_.get()));
-
-  wait_fetcher()->DoNotDelay(kUrl2);
-
-  wait_fetcher()->Fetch(kUrl, &handler, &callback1);
-  wait_fetcher()->Fetch(kUrl2, &handler, &callback2);
-
-  // kUrl is delayed.
-  EXPECT_FALSE(callback1.done());
-  EXPECT_EQ("", callback1.buffer());
-
-  // kUrl2 isn't.
-  EXPECT_TRUE(callback2.done());
-  EXPECT_EQ(kBody2, callback2.buffer());
-
-  // Now unblock kUrl
-  wait_fetcher()->CallCallbacks();
-  EXPECT_TRUE(callback1.done());
-  EXPECT_EQ(kBody, callback1.buffer());
 }
 
 }  // namespace

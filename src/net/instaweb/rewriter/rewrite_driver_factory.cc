@@ -25,11 +25,11 @@
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_css_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
-#include "net/instaweb/rewriter/public/critical_line_info_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
@@ -41,30 +41,28 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/public/usage_data_reporter.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/cache_batcher.h"
+#include "net/instaweb/util/public/checking_thread_system.h"
+#include "net/instaweb/util/public/file_system.h"
+#include "net/instaweb/util/public/file_system_lock_manager.h"
+#include "net/instaweb/util/public/function.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/hostname_util.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/property_store.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/checking_thread_system.h"
-#include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/hostname_util.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
+#include "net/instaweb/util/public/queued_worker_pool.h"
+#include "net/instaweb/util/public/scheduler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/stl_util.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/sha1_signature.h"
-#include "pagespeed/kernel/base/stl_util.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/cache/cache_batcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/http/user_agent_normalizer.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
-#include "pagespeed/kernel/thread/scheduler.h"
-#include "pagespeed/kernel/util/file_system_lock_manager.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
-#include "pagespeed/opt/http/property_cache.h"
 
 namespace net_instaweb {
 
@@ -75,6 +73,8 @@ const int kWebpQualityArray[] = {20, 35, 50, 70, 85};
 const int kJpegQualityArray[] = {30, 50, 65, 80, 90};
 
 }  // namespace
+
+class Statistics;
 
 RewriteDriverFactory::RewriteDriverFactory(
     const ProcessContext& process_context, ThreadSystem* thread_system)
@@ -368,7 +368,6 @@ UserAgentMatcher* RewriteDriverFactory::DefaultUserAgentMatcher() {
 
 StaticAssetManager* RewriteDriverFactory::DefaultStaticAssetManager() {
   return new StaticAssetManager(url_namer()->proxy_domain(),
-                                thread_system(),
                                 hasher(),
                                 message_handler());
 }

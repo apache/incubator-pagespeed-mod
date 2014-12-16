@@ -19,28 +19,28 @@
 
 #include "net/instaweb/rewriter/public/resource.h"
 
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"  // for HttpAttributes, etc
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/shared_string.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"  // for HttpAttributes, etc
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
 class MessageHandler;
+class SharedString;
 
 namespace {
 
@@ -111,9 +111,7 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
                   "Fetch status not set when IsSafeToRewrite was called, ");
         break;
       case kFetchStatusOK:
-        LOG(WARNING) << "Fetch status OK but !HttpStatusOk in IsSafeToRewrite!";
-        StrAppend(reason,
-                  "Fetch status OK but !HttpStatusOk in IsSafeToRewrite!  ");
+        CHECK(false) << "Fetch status OK but !HttpStatusOk in IsSafeToRewrite!";
         break;
     }
   } else if (!rewrite_uncacheable && !IsValidAndCacheable()) {
@@ -131,7 +129,7 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
     return true;
   }
   // If we get here, we're unsafe for the reason given.
-  StrAppend(reason, "preventing rewriting of ", UrlForDebug());
+  StrAppend(reason, "preventing rewriting of ", url());
   // TODO(sligocki): Are we over-counting this because uncacheable
   // resources will hit this stat for every filter, but cacheable ones
   // will only hit the above stat once?
@@ -183,7 +181,7 @@ void Resource::FillInPartitionInputInfo(HashHint include_content_hash,
 
   // TODO(jmarantz):  Implement this correctly for OutputResource which we also
   // have to purge if one of its inputs has been purged.
-  if ((enable_cache_purge_ || proactive_resource_freshening_) && has_url()) {
+  if (enable_cache_purge_ || proactive_resource_freshening_) {
     input->set_url(url());
   }
 }
@@ -218,7 +216,7 @@ void Resource::DetermineContentType() {
   const ContentType* content_type;
   response_headers()->DetermineContentTypeAndCharset(&content_type, &charset_);
   // If there is no content type in headers, then guess from extension.
-  if (content_type == NULL && has_url()) {
+  if (content_type == NULL) {
     GoogleString trimmed_url;
     TrimWhitespace(url(), &trimmed_url);
     content_type = NameExtensionToContentType(trimmed_url);

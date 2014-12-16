@@ -50,7 +50,7 @@ struct WebpConfiguration {
   WebpConfiguration()
       : lossless(true), quality(75), method(3), target_size(0),
         alpha_compression(1), alpha_filtering(1), alpha_quality(100),
-        kmin(0), kmax(0), progress_hook(NULL), user_data(NULL) {}
+        progress_hook(NULL), user_data(NULL) {}
   void CopyTo(WebPConfig* webp_config) const;
 
   int lossless;           // Lossless encoding (0=lossy(default), 1=lossless).
@@ -66,15 +66,6 @@ struct WebpConfiguration {
                           //  0: none, 1: fast, 2: best. Default is 1.
   int alpha_quality;      // Between 0 (smallest size) and 100 (lossless).
                           // Default is 100.
-
-  // Parameters related to animated WebP:
-  size_px kmin;           // Minimum keyframe interval, i.e., number of
-                          // non-keyframes between consecutive keyframes. If
-                          // kmin == 0, keyframes are not used. Libwebp
-                          // requires kmax > kmin >= (kmax / 2) + 1. Reasonable
-                          // choices are (3,5) for lossy encoding and (9,17)
-                          // for lossless encoding.
-  size_px kmax;           // Maximum keyframe interval.
 
   WebpProgressHook progress_hook;   // If non-NULL, called during encoding.
 
@@ -155,7 +146,7 @@ class WebpFrameWriter : public MultipleFrameWriter {
   WebPPicture webp_frame_;
   WebPFrameCache* webp_frame_cache_;
   WebPMux* webp_mux_;
-  WebPConfig libwebp_config_;
+  WebPConfig webp_config_;
 
 #ifndef NDEBUG
   WebPAuxStats stats_;
@@ -182,10 +173,6 @@ class WebpFrameWriter : public MultipleFrameWriter {
   // is to replicate the luminance to RGB; then WebP can compress the expanded
   // images efficiently.
   bool should_expand_gray_to_rgb_;
-
-  // Min and max keyframe interval values. Only applicable for animated webp.
-  size_px kmin_;
-  size_px kmax_;
 
   DISALLOW_COPY_AND_ASSIGN(WebpFrameWriter);
 };

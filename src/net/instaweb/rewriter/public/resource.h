@@ -30,19 +30,19 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "net/instaweb/http/public/meta_data.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
 
 class CachedResult;
+struct ContentType;
 class GoogleUrl;
 class InputInfo;
 class MessageHandler;
@@ -171,8 +171,7 @@ class Resource : public RefCounted<Resource> {
   StringPiece contents() const {
     StringPiece val;
     bool got_contents = value_.ExtractContents(&val);
-    CHECK(got_contents) << "Resource contents read before loading: "
-                        << UrlForDebug();
+    CHECK(got_contents) << "Resource contents read before loading: " << url();
     return val;
   }
   ResponseHeaders* response_headers() { return &response_headers_; }
@@ -184,13 +183,8 @@ class Resource : public RefCounted<Resource> {
   StringPiece charset() const { return charset_; }
   void set_charset(StringPiece c) { c.CopyToString(&charset_); }
 
-  // Gets the absolute URL of the resource.
+  // Gets the absolute URL of the resource
   virtual GoogleString url() const = 0;
-  // Most resources should have URLs, but inline resources will not and should
-  // override this function.
-  virtual bool has_url() const { return true; }
-  // Override if resource does not have a URL.
-  virtual GoogleString UrlForDebug() const { return url(); }
 
   // Gets the cache key for resource. This may be different from URL
   // if the resource is e.g. UA-dependent.

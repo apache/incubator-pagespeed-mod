@@ -16,22 +16,19 @@
 
 // Author: jmarantz@google.com (Joshua Marantz)
 
-#include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
-
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -64,7 +61,6 @@ class DomainRewriteFilterTest : public RewriteTestBase {
     AddFilter(RewriteOptions::kRewriteDomains);
     domain_rewrites_ = statistics()->GetVariable("domain_rewrites");
     prev_num_rewrites_ = 0;
-    add_html_tags_ = true;
   }
 
   void ExpectNoChange(const char* tag, const StringPiece& url) {
@@ -91,10 +87,6 @@ class DomainRewriteFilterTest : public RewriteTestBase {
   }
 
   virtual bool AddBody() const { return false; }
-  virtual bool AddHtmlTags() const { return add_html_tags_; }
-
- protected:
-  bool add_html_tags_;
 
  private:
   Variable* domain_rewrites_;
@@ -205,7 +197,7 @@ TEST_F(DomainRewriteFilterTest, ClientDomainRewrite) {
   options()->set_client_domain_rewrite(true);
   StringPiece client_domain_rewriter_code =
       server_context_->static_asset_manager()->GetAsset(
-          StaticAssetEnum::CLIENT_DOMAIN_REWRITER, options());
+          StaticAssetManager::kClientDomainRewriter, options());
 
   SetupWriter();
   html_parse()->StartParse("http://test.com/");
@@ -221,85 +213,6 @@ TEST_F(DomainRewriteFilterTest, ClientDomainRewrite) {
                    "[\"http://clientrewrite.com/\"]);</script>",
                    "</body></html>"),
             output_buffer_);
-}
-
-TEST_F(DomainRewriteFilterTest, ProxySuffix) {
-  options()->ClearSignatureForTesting();
-  options()->set_domain_rewrite_hyperlinks(true);
-  static const char kSuffix[] = ".suffix";
-  static const char kOriginalHost[] = "www.example.com";
-  GoogleString url(StrCat("http://", kOriginalHost, kSuffix, "/index.html"));
-  GoogleUrl gurl(url);
-  options()->WriteableDomainLawyer()->set_proxy_suffix(kSuffix);
-  EXPECT_TRUE(options()->domain_lawyer()->can_rewrite_domains());
-
-  // No need to change relative URLs -- they will be relative to the suffixed
-  // domain as far as the browser is concerned.
-  ValidateNoChanges("unchanged", "<a href='relative.html'>r</a>");
-
-  // An absolute reference to a new destination in the origin domain gets
-  // suffixed.
-  ValidateExpectedUrl(url,
-                      StrCat("<a href='http://", kOriginalHost,
-                             "/absolute.html'>r</a>"),
-                      StrCat("<a href='http://", kOriginalHost, kSuffix,
-                             "/absolute.html'>r</a>"));
-
-  // It also works even if the reference is a domain that's related to the
-  // base, by consulting the known suffixes list via domain_registry.
-  ValidateExpectedUrl(url,
-                      "<a href='http://other.example.com/x.html'>r</a>",
-                      "<a href='http://other.example.com.suffix/x.html'>r</a>");
-
-  // However a link to a completely unrelated domain is left unchanged.
-  ValidateNoChanges(url, "<a href='http://other.com/x.html'>r</a>");
-
-  ValidateExpectedUrl(url,
-                      StrCat("<img src='http://", kOriginalHost,
-                             "/image.png'>"),
-                      StrCat("<img src='http://", kOriginalHost, kSuffix,
-                             "/image.png'>"));
-
-  ValidateNoChanges(url, "<img src='http://other.example/image.png'>");
-
-  // Also test that we can fix up location: headers.
-  ResponseHeaders headers;
-  headers.Add(HttpAttributes::kLocation, "https://sub.example.com/a.html");
-  DomainRewriteFilter::UpdateLocationHeader(gurl, server_context(),
-                                            options(), &headers);
-  EXPECT_STREQ("https://sub.example.com.suffix/a.html",
-               headers.Lookup1(HttpAttributes::kLocation));
-}
-
-TEST_F(DomainRewriteFilterTest, ProxyBaseUrl) {
-  options()->ClearSignatureForTesting();
-  options()->set_domain_rewrite_hyperlinks(true);
-  static const char kSuffix[] = ".suffix";
-  static const char kOriginalHost[] = "www.example.com";
-  GoogleString origin_no_suffix(StrCat("http://", kOriginalHost));
-  GoogleString origin_with_suffix(StrCat(origin_no_suffix, kSuffix));
-  GoogleString url(StrCat(origin_with_suffix, "/index.html"));
-  GoogleUrl gurl(url);
-  options()->WriteableDomainLawyer()->set_proxy_suffix(kSuffix);
-  EXPECT_TRUE(options()->domain_lawyer()->can_rewrite_domains());
-
-  add_html_tags_ = false;
-  ValidateExpectedUrl(url,
-                      StrCat("<html><head><base href='",
-                             origin_no_suffix,
-                             "'/></head></html>"),
-                      StrCat("<html><head><base href='",
-                             origin_with_suffix,
-                             "/'/></head></html>"));
-
-  ValidateNoChanges(url,
-                    "<html><head><base href='http://other.example.com/'/>"
-                    "</head></html>");
-
-  ValidateNoChanges(url,
-                    StrCat("<html><head><base href='",
-                           origin_with_suffix,
-                           "/'/></head></html>"));
 }
 
 }  // namespace net_instaweb

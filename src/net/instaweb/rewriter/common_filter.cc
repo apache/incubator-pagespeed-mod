@@ -19,20 +19,19 @@
 #include "net/instaweb/rewriter/public/common_filter.h"
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/htmlparse/public/html_node.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/doctype.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/opt/logging/enums.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -279,27 +278,6 @@ bool CommonFilter::CanAddPagespeedOnloadToImage(const HtmlElement& element) {
 void CommonFilter::LogFilterModifiedContent() {
   driver()->log_record()->SetRewriterLoggingStatus(
       LoggingId(), RewriterApplication::APPLIED_OK);
-}
-
-void CommonFilter::AddJsToElement(StringPiece js, HtmlElement* script) {
-  DCHECK(script->keyword() == HtmlName::kScript);
-  // CDATA tags are required for inlined JS in XHTML pages to prevent
-  // interpretation of certain characters (like &). In apache, something
-  // downstream of mod_pagespeed could modify the content type of the response.
-  // So CDATA tags are added conservatively if we are not sure that it is safe
-  // to exclude them.
-  GoogleString js_str;
-
-  if (!(driver_->MimeTypeXhtmlStatus() == RewriteDriver::kIsNotXhtml)) {
-    StrAppend(&js_str, "//<![CDATA[\n", js, "\n//]]>");
-    js = js_str;
-  }
-
-  if (!driver_->doctype().IsVersion5()) {
-    driver_->AddAttribute(script, HtmlName::kType, "text/javascript");
-  }
-  HtmlCharactersNode* script_content = driver_->NewCharactersNode(script, js);
-  driver_->AppendChild(script, script_content);
 }
 
 }  // namespace net_instaweb

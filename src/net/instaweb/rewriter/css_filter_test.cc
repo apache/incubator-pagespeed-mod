@@ -19,7 +19,9 @@
 
 #include "net/instaweb/rewriter/public/css_filter.h"
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
@@ -32,24 +34,23 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/test_url_namer.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"  // for ScopedMutex
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/cache/delay_cache.h"
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
+#include "net/instaweb/util/public/abstract_mutex.h"  // for ScopedMutex
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/delay_cache.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/mock_message_handler.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
+
+class MessageHandler;
 
 namespace {
 
@@ -599,17 +600,16 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // http://code.google.com/p/modpagespeed/issues/detail?id=121
     "a{color:inherit}",
     // Added for code coverage.
-    "@import url(http://www.example.com);",
+    // TODO(sligocki): Get rid of the space at end?
+    // ";" may be needed for some browsers.
+    "@import url(http://www.example.com) ;",
     "@media a,b{a{color:red}}",
     "@charset \"foobar\";",
-    // Invalid charset (string should be quoted).
-    "@charset utf-8;",
-    "@font-face{font-family:'Ubuntu';font-style:normal}",
     // Unescaped string: Odd chars: \(\)\,\"\'
     "a{content:\"Odd chars: \\(\\)\\,\\\"\\\'\"}",
     // Unescaped string: Unicode: \A0\A0
     "a{content:\"Unicode: \\A0\\A0\"}",
-    "img{clip:rect(0,60px,200px,0)}",
+    "img{clip:rect(0px,60px,200px,0px)}",
     // CSS3-style pseudo-elements.
     "p.normal::selection{background:#c00;color:#fff}",
     "::-moz-focus-inner{border:0}",
@@ -647,8 +647,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // http://code.google.com/p/modpagespeed/issues/detail?id=220
     // See https://developer.mozilla.org/en/CSS/-moz-transition-property
     // and http://www.webkit.org/blog/138/css-animation/
-    // TODO(sligocki): rm spaces around COMMA token.
-    "a{-webkit-transition-property:opacity , -webkit-transform}",
+    "a{-webkit-transition-property:opacity,-webkit-transform }",
 
     // Parameterized pseudo-selector.
     "div:nth-child(1n) {color:red}",
@@ -657,39 +656,24 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // See http://dimox.net/personal-css-hacks-for-ie6-ie7-ie8/
     "a{color: red\\0/ ;background-color:green}",
     "a{font-family: font\\0  ;color:red}",
+    "@media screen and (min-width:0 \\0){.foo{color:red}}",
     "@media screen and (min-width:0 \\\\0){.foo{color:red}}",
 
     "a{font:bold verdana 10px }",
     "a{foo: +bar }",
     "a{color: rgb(foo,+,) }",
 
-    // Malformed @import statements.
-    "@import styles.css;a{color:red}",
-    "@import \"styles.css\", \"other.css\";a{color:red}",
-    "@import url(styles.css), url(other.css);a{color:red}",
-    "@import \"styles.css\"...;a{color:red}",
-
     // CSS3 media queries.
     // http://code.google.com/p/modpagespeed/issues/detail?id=50
     "@media screen and (max-width:290px){a{color:red}}",
     "@media only print and (color){a{color:red}}",
-
-    // Malformed @media statements.
-    // Important: Don't "fix" by adding space between 'and' and '('.
-    "@media only screen and(min-resolution:240dpi){ .bar{ background: red; }}",
-    // Unexpected space in media feature name.
-    "@media (max-de vice-width: 850px) { .pm-thumb-106 { width: 80px; } }",
-    // Unexpected \0 in various places. Common browser hack.
-    "@media screen\\0{ .select:before { width: 18px; } }",
-    "@media screen and (min-width:0 \\0) { .foo { color: red; } }",
     // Nonsensical, but syntactic, media query.
     "@media not (-moz-dimension-constraints:20 < width < 300 and 45 < height "
     "< 1000){a{color:red}}",
-    // Empty media queries.
-    "@media , { a { color: red; } }",
 
     // Unexpected @-statements
     "@keyframes wiggle { 0% { transform: rotate(6deg); } }",
+    "@font-face { font-family: 'Ubuntu'; font-style: normal }",
 
     // Invalid font declaration.
     "a{font: menu foobar }",
@@ -708,7 +692,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
 
     // kDeclarationError from Alexa-100
     // Comma in values
-    "a{webkit-transition-property:color , background-color}",
+    "a{webkit-transition-property: color, background-color }",
     // Special chars in property
     "a{//display: inline-block }",
     ".ad_300x250{/margin-top:-120px }",
@@ -719,7 +703,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     "a{z-i ndex:19 }",
     "a{width:352px;height62px ;display:block}",
     "a{color: #5552 }",
-    "a{1font-family:Tahoma , Arial , sans-serif}",
+    "a{1font-family:Tahoma, Arial, sans-serif }",
     "a{text align:center }",
 
     // kSelectorError from Alexa-100
@@ -766,36 +750,23 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
   }
 
   const char* fail_examples[] = {
-    // Unclosed at-rules.
-    // These are technically valid, but we consider them a parsing errors
-    // because combining is invalid for them.
-    "@import url(styles.css)",
-    "@import url(styles.css) screen",
-    "@charset 'utf-8'",
-    "@media print",
-    "@media print ",
-    "@media print {",
-    "@media print { .a { color: red",
-    "@media print { .a { color: red; }",
-    "@font-face",
-    "@font-face ",
-    "@font-face {",
-    "@media screen { @font-face",
-    "@media screen { @font-face {",
-    "@media screen { @font-face { src: url(foo.woff)",
-    "@media screen { @font-face {}",
-    "@media screen { @font-face { src: url(foo.woff); }",
-    "@foobar",
-    "@foobar ",
-    // Mismatch in unparseable at-rule.
-    "@foobar {",
-    "@foobar }",
+    // Malformed @import statements.
+    "@import styles.css; a { color: red; }",
+    "@import \"styles.css\", \"other.css\"; a { color: red; }",
+    "@import url(styles.css), url(other.css); a { color: red; }",
+    "@import \"styles.css\"...; a { color: red; }",
 
     // Should fail, mismatched {}s.
     "{",
     "}",
     "}{",
     "a { color: red; }}}",
+    // Mismatch in unparseable at-rule.
+    "@foobar {",
+    "@foobar }",
+    // Unclosed at-rule that will break the first statement in the next CSS
+    // file if combined.
+    "@foobar ",
     // Mismatch in unparseable selector.
     "a[{] { color: red; }",
     "a {",
@@ -809,13 +780,15 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     "a { color: red",
     "a { color: red;\n .foo { margin: 10px; }",
     "a { color: red;\n h1 { margin: 10px; }",
-    // Unclosed comment.
-    "/*",
-    "a { color: red; }/*",
-    "a { color/*: red; }",
-    "a { color: /*red; }",
 
     // Parsing failures from Alexa-1000.
+
+    // Malformed @media statements.
+    // TODO(sligocki):  We should pass these through as unparsed regions.
+    // Important: Don't "fix" by adding space between 'and' and '('.
+    "@media only screen and(min-resolution:240dpi){ .bar{ background: red; }}",
+    "@media (max-de vice-width: 850px) {.pm-thumb-106{width:80px}}",
+    "@media screen\\0{.select:before{width:18px}}",
 
     // UTF-16
     "\xFF\xFE"   // UTF-16 byte-order marker.
@@ -860,11 +833,8 @@ TEST_F(CssFilterTest, ToOptimize) {
   const char* examples[][2] = {
     // Noticed from YUI minification.
     { ".gb1, .gb3 {}",
-      // Could be: "" (Completely removed since it's empty).
+      // Could be: ""
       ".gb1,.gb3{}", },
-    { "@media screen and (color) { .foo {} .bar {} }",
-      // Could be: "" (Completely removed since it's empty).
-      "@media screen and (color){.foo{}.bar{}}", },
     { ".lst:focus { outline:none; }",
       // Could be: ".lst:focus{outline:0}"
       ".lst:focus{outline:none}", },
@@ -1029,7 +999,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "}\n"
       ".foo { color: rgba(1, 2, 3, 0.4); }\n",
 
-      "body{background-image:-webkit-gradient(linear,50% 0,50% 100%,"
+      "body{background-image:-webkit-gradient(linear,50% 0%,50% 100%,"
       "from(#e8edf0),to(#fcfcfd));color:red}.foo{color:rgba(1,2,3,.4)}" },
 
     // Counters
@@ -1124,7 +1094,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
       ".mui-navbar-wrap,.mui-navbar-clone{"
       "opacity:1;-webkit-transform:translateX(0);"
-      "-webkit-transition-property:opacity , -webkit-transform;"
+      "-webkit-transition-property:opacity,-webkit-transform;"
       "-webkit-transition-duration:400ms}" },
 
     // IE 8 hack \0/.
@@ -1144,6 +1114,14 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "-ms-filter:\"progid:DXImageTransform.Microsoft.Blur(pixelradius=5)\";"
       "opacity:1\\0/;top:-4px\\0/;left:-6px\\0/;right:5px\\0/;bottom:4px\\0/}"},
 
+    { "@media screen and (min-width: 0 \\0){.ending-actions li a .icon-top,.en"
+      "ding-actions li a .icon-feed{vertical-align:text-bottom}.nav-previous{m"
+      "argin:20px auto 0}}",
+
+      "@media screen and (min-width:0 \\0){.ending-actions li a .icon-top,.en"
+      "ding-actions li a .icon-feed{vertical-align:text-bottom}.nav-previous{m"
+      "argin:20px auto 0}}" },
+
     // Alexa-100 with parse errors (illegal syntax or CSS3).
     // Comma in values
     { ".cnn_html_slideshow_controls > .cnn_html_slideshow_pager_container >"
@@ -1156,7 +1134,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
       ".cnn_html_slideshow_controls>.cnn_html_slideshow_pager_container>"
       ".cnn_html_slideshow_pager>li{"
-      "font-size:16px;-webkit-transition-property:color , background-color;"
+      "font-size:16px;-webkit-transition-property: color, background-color;"
       "-webkit-transition-duration:.5s}" },
 
     { "a.login,a.home{position:absolute;right:15px;top:15px;display:block;"
@@ -1180,11 +1158,11 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "text-shadow:0 -1px 0 rgba(0,0,0,.2);background:#607890;padding:0 12px;"
       "opacity:.9;text-decoration:none;border:1px solid #2e4459;"
       "-moz-border-radius:6px;-webkit-border-radius:6px;border-radius:6px;"
-      "-moz-box-shadow:0 1px 0 rgba(255,255,255,.15) , 0 1px 0"
-      " rgba(255,255,255,.15) inset;-webkit-box-shadow:0 1px 0 "
-      "rgba(255,255,255,.15) , 0 1px 0 rgba(255,255,255,.15) inset;"
-      "box-shadow:0 1px 0 rgba(255,255,255,.15) , 0 1px 0 "
-      "rgba(255,255,255,.15) inset}" },
+      "-moz-box-shadow:0 1px 0 rgba(255,255,255,0.15),0 1px 0"
+      " rgba(255,255,255,0.15) inset;-webkit-box-shadow:0 1px 0 "
+      "rgba(255,255,255,0.15),0 1px 0 rgba(255,255,255,0.15) inset;"
+      "box-shadow:0 1px 0 rgba(255,255,255,0.15),0 1px 0 "
+      "rgba(255,255,255,0.15) inset}" },
 
     // Special chars in property
     { ".authorization .mail .login input, .authorization .pswd input {"
@@ -1316,11 +1294,11 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "}\n",
 
       ".ciuNoteEditBox .topLeft{background-position:left top;"
-      "background-repeat:no-repeat;font-size:4px;padding:0 0 0 1px;"
+      "background-repeat:no-repeat;font-size:4px;padding:0px 0px 0px 1px;"
       "width:7px}// css hack to make font-size 0px in only ff2.0 and older "
       "(http://pornel.net/firefoxhack)\n"
       ".ciuNoteBox .topLeft,\n"
-      ".ciuNoteEditBox .topLeft, x:-moz-any-link {font-size:0}" },
+      ".ciuNoteEditBox .topLeft, x:-moz-any-link {font-size:0px}" },
 
     // Parameters for pseudoclass
     { "/* Opera（＋Firefox、Safari） */\n"
@@ -1405,9 +1383,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "  100% {transform:rotate(6deg);}\n"
       "}" },
 
-    // @font-face
-    // TODO(sligocki): src: attributes with multiple attributes are not parsed.
-    { "@font-face {font-family:'Ubuntu';font-style:normal;font-weight:normal;"
+    { "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:normal;"
       "src:local('Ubuntu'), url('http://themes.googleusercontent.com/static/"
       "fonts/ubuntu/v2/2Q-AW1e_taO6pHwMXcXW5w.ttf') format('truetype')}"
       "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:bold;"
@@ -1416,56 +1392,12 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "ynf_cDxXwCLxiixG1c.ttf') format('truetype')}",
 
       "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:normal;"
-      "src:local('Ubuntu') , url(http://themes.googleusercontent.com/static/"
-      "fonts/ubuntu/v2/2Q-AW1e_taO6pHwMXcXW5w.ttf) format('truetype')}"
+      "src:local('Ubuntu'), url('http://themes.googleusercontent.com/static/"
+      "fonts/ubuntu/v2/2Q-AW1e_taO6pHwMXcXW5w.ttf') format('truetype')}"
       "@font-face{font-family:'Ubuntu';font-style:normal;font-weight:bold;"
-      "src:local('Ubuntu Bold') , local('Ubuntu-Bold') , url(http://themes."
+      "src:local('Ubuntu Bold'), local('Ubuntu-Bold'), url('http://themes."
       "googleusercontent.com/static/fonts/ubuntu/v2/0ihfXUL2emPh0ROJezvraKCWc"
-      "ynf_cDxXwCLxiixG1c.ttf) format('truetype')}" },
-
-    { "@font-face { font-family: 'Roboto Condensed'; font-style: normal; "
-      "font-weight: 400; src: local('Roboto Condensed Regular'), "
-      "local('RobotoCondensed-Regular'), url(http://stc.v3.news.zing.vn/css/"
-      "fonts/Roboto-Condensed.woff) format('woff'); }\n",
-
-      "@font-face{font-family:'Roboto Condensed';font-style:normal;"
-      "font-weight:400;src:local('Roboto Condensed Regular') , "
-      "local('RobotoCondensed-Regular') , url(http://stc.v3.news.zing.vn/css/"
-      "fonts/Roboto-Condensed.woff) format('woff')}" },
-
-    // Multiple src properties.
-    { "@font-face {\n"
-      "  font-family: 'BebasNeueRegular';\n"
-      "  src: url('fonts/BebasNeue-webfont.eot');\n"
-      "  src: url('fonts/BebasNeue-webfont.eot?#iefix') "
-      "format('embedded-opentype'),\n"
-      "    url('fonts/BebasNeue-webfont.woff') format('woff'),\n"
-      "    url('fonts/BebasNeue-webfont.ttf') format('truetype'),\n"
-      "    url('fonts/BebasNeue-webfont.svg#BebasNeueRegular') format('svg');\n"
-      "  font-weight: normal;\n"
-      "  font-style: normal;\n"
-      "}\n",
-
-      "@font-face{font-family:'BebasNeueRegular';"
-      "src:url(fonts/BebasNeue-webfont.eot);"
-      "src:url(fonts/BebasNeue-webfont.eot?#iefix) "
-      "format('embedded-opentype') , "
-      "url(fonts/BebasNeue-webfont.woff) format('woff') , "
-      "url(fonts/BebasNeue-webfont.ttf) format('truetype') , "
-      "url(fonts/BebasNeue-webfont.svg#BebasNeueRegular) format('svg');"
-      "font-weight:normal;font-style:normal}" },
-
-    // @font-face inside @media
-    { "@media screen and (-webkit-min-device-pixel-ratio:0) {\n"
-      "  @font-face {\n"
-      "    font-family: 'tiefontello';\n"
-      "    src: url('fonts/tiefontello.svg?88026028#fontello') format('svg');\n"
-      "  }\n"
-      "}\n",
-
-      "@media screen and (-webkit-min-device-pixel-ratio:0){"
-      "@font-face{font-family:'tiefontello';"
-      "src:url(fonts/tiefontello.svg?88026028#fontello) format('svg')}}" },
+      "ynf_cDxXwCLxiixG1c.ttf') format('truetype')}" },
 
     // CSS3 media queries.
     // http://code.google.com/p/modpagespeed/issues/detail?id=50
@@ -1598,87 +1530,6 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "0 100%,from(rgba(192,192,192,.6)),to(rgba(49,49,49,.3)));"
       "background:-o-linear-gradient(top,(rgba(192,192,192,.6)),"
       "(rgba(49,49,49,.3)))}" },
-
-    // Malformed: media type, "screen", must be first.
-    { "@media (color) and screen { .a { color: red; } }",
-
-      "@media (color) and screen { .a { color: red; } }" },
-
-    // Do not "fix" by putting a space between 'and' and '('.
-    { "@media only screen and(-webkit-min-device-pixel-ratio:1.5),"
-      "only screen and(min--moz-device-pixel-ratio:1.5),"
-      "only screen and(min-resolution:240dpi){"
-      ".ui-icon-plus,.ui-icon-minus,.ui-icon-delete,.ui-icon-arrow-r,"
-      ".ui-icon-arrow-l,.ui-icon-arrow-u,.ui-icon-arrow-d,.ui-icon-check,"
-      ".ui-icon-gear,.ui-icon-refresh,.ui-icon-forward,.ui-icon-back,"
-      ".ui-icon-grid,.ui-icon-star,.ui-icon-alert,.ui-icon-info,.ui-icon-home,"
-      ".ui-icon-search,.ui-icon-searchfield:after,.ui-icon-checkbox-off,"
-      ".ui-icon-checkbox-on,.ui-icon-radio-off,.ui-icon-radio-on{"
-      "background-image:url(images/icons-36-white.png);"
-      "-moz-background-size:776px 18px;-o-background-size:776px 18px;"
-      "-webkit-background-size:776px 18px;background-size:776px 18px;}"
-      ".ui-icon-alt{background-image:url(images/icons-36-black.png);}}",
-
-      "@media only screen and(-webkit-min-device-pixel-ratio:1.5),"
-      "only screen and(min--moz-device-pixel-ratio:1.5),"
-      "only screen and(min-resolution:240dpi){"
-      ".ui-icon-plus,.ui-icon-minus,.ui-icon-delete,.ui-icon-arrow-r,"
-      ".ui-icon-arrow-l,.ui-icon-arrow-u,.ui-icon-arrow-d,.ui-icon-check,"
-      ".ui-icon-gear,.ui-icon-refresh,.ui-icon-forward,.ui-icon-back,"
-      ".ui-icon-grid,.ui-icon-star,.ui-icon-alert,.ui-icon-info,.ui-icon-home,"
-      ".ui-icon-search,.ui-icon-searchfield:after,.ui-icon-checkbox-off,"
-      ".ui-icon-checkbox-on,.ui-icon-radio-off,.ui-icon-radio-on{"
-      "background-image:url(images/icons-36-white.png);"
-      "-moz-background-size:776px 18px;-o-background-size:776px 18px;"
-      "-webkit-background-size:776px 18px;background-size:776px 18px;}"
-      ".ui-icon-alt{background-image:url(images/icons-36-black.png);}}" },
-
-    // No space between "and" and "(".
-    { "@media all and(-webkit-max-device-pixel-ratio:10000),\n"
-      "   not all and(-webkit-min-device-pixel-ratio:0) {\n"
-      "\n"
-      "\t:root .RadTreeView_rtl .rtPlus,\n"
-      "\t:root .RadTreeView_rtl .rtMinus\n"
-      "\t{\n"
-      "\t\tposition: relative;\n"
-      "\t\tmargin-left: 2px;\n"
-      "\t\tmargin-right: -13px;\n"
-      "\t\tright: -15px;\n"
-      "\t}\n"
-      "}\n",
-
-      "@media all and(-webkit-max-device-pixel-ratio:10000),\n"
-      "   not all and(-webkit-min-device-pixel-ratio:0) {\n"
-      "\n"
-      "\t:root .RadTreeView_rtl .rtPlus,\n"
-      "\t:root .RadTreeView_rtl .rtMinus\n"
-      "\t{\n"
-      "\t\tposition: relative;\n"
-      "\t\tmargin-left: 2px;\n"
-      "\t\tmargin-right: -13px;\n"
-      "\t\tright: -15px;\n"
-      "\t}\n"
-      "}" },
-
-    { "@media screen and (min-width: 0 \\0){.ending-actions li a .icon-top,.en"
-      "ding-actions li a .icon-feed{vertical-align:text-bottom}.nav-previous{m"
-      "argin:20px auto 0}}",
-
-      "@media screen and (min-width: 0 \\0){.ending-actions li a .icon-top,.en"
-      "ding-actions li a .icon-feed{vertical-align:text-bottom}.nav-previous{m"
-      "argin:20px auto 0}}" },
-
-    { "@media screen {\n"
-      "  .foo { color: red; }\n"
-      "  @font-face { font-family: 'Cibric'; }\n"
-      "}\n",
-
-      // Note: It is safe to pull @font-face above Rulesets:
-      //   http://lists.w3.org/Archives/Public/www-style/2014Sep/0272.html
-      // Note: We could combine these both into the same @media block, but
-      // I (sligocki) am not convinced it's worth the effort.
-      "@media screen{@font-face{font-family:'Cibric'}}"
-      "@media screen{.foo{color:red}}" },
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
@@ -1690,15 +1541,38 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // Bad syntax
     "}}",
     "@foobar this is totally wrong CSS syntax }",
+    "@media (color) and screen { .a { color: red; } }",
 
-    // Unclosed @media block.
-    "@media screen and (max-width: 478px) {\n"
-    "  .main-header h2 {\n"
-    "    height: auto;\n"
-    "    margin-top: 2px;\n"
-    "    width: 70px;\n",
+    // Do not "fix" by putting a space between 'and' and '('.
+    "@media only screen and(-webkit-min-device-pixel-ratio:1.5),"
+    "only screen and(min--moz-device-pixel-ratio:1.5),"
+    "only screen and(min-resolution:240dpi){"
+    ".ui-icon-plus,.ui-icon-minus,.ui-icon-delete,.ui-icon-arrow-r,"
+    ".ui-icon-arrow-l,.ui-icon-arrow-u,.ui-icon-arrow-d,.ui-icon-check,"
+    ".ui-icon-gear,.ui-icon-refresh,.ui-icon-forward,.ui-icon-back,"
+    ".ui-icon-grid,.ui-icon-star,.ui-icon-alert,.ui-icon-info,.ui-icon-home,"
+    ".ui-icon-search,.ui-icon-searchfield:after,.ui-icon-checkbox-off,"
+    ".ui-icon-checkbox-on,.ui-icon-radio-off,.ui-icon-radio-on{"
+    "background-image:url(images/icons-36-white.png);"
+    "-moz-background-size:776px 18px;-o-background-size:776px 18px;"
+    "-webkit-background-size:776px 18px;background-size:776px 18px;}"
+    ".ui-icon-alt{background-image:url(images/icons-36-black.png);}}",
 
     // Things discovered in the wild by shanemc:
+
+    // No space between "and" and "(".
+    "@media all and(-webkit-max-device-pixel-ratio:10000),\n"
+    "   not all and(-webkit-min-device-pixel-ratio:0) {\n"
+    "\n"
+    "\t:root .RadTreeView_rtl .rtPlus,\n"
+    "\t:root .RadTreeView_rtl .rtMinus\n"
+    "\t{\n"
+    "\t\tposition: relative;\n"
+    "\t\tmargin-left: 2px;\n"
+    "\t\tmargin-right: -13px;\n"
+    "\t\tright: -15px;\n"
+    "\t}\n"
+    "}\n",
 
     // Zero width space <U+200B> = \xE2\x80\x8B
     // http://zenpencils.com/wp-content/plugins/zpcustomselectmenu/ddSlick.css
@@ -1735,8 +1609,8 @@ TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
   DebugWithMessage("");
   server_context()->ComputeSignature(options());
   ValidateRewrite("expanding_example",
-                  "@import 'http://www.example.com';",
-                  "@import url(http://www.example.com);",
+                  "@import url(http://www.example.com)",
+                  "@import url(http://www.example.com) ;",
                   kExpectSuccess);
 
   // With it set false, we do not expand CSS (as long as we didn't do anything
@@ -1746,8 +1620,8 @@ TEST_F(CssFilterTest, NoAlwaysRewriteCss) {
   DebugWithMessage("<!--CSS rewrite failed: Cannot improve %url%-->");
   server_context()->ComputeSignature(options());
   ValidateRewrite("non_expanding_example",
-                  "@import 'http://www.example.com';",
-                  "@import 'http://www.example.com';",
+                  "@import url(http://www.example.com)",
+                  "@import url(http://www.example.com)",
                   kExpectNoChange);
 
   // When we force always_rewrite_css, we allow rewriting something to nothing.
@@ -1944,7 +1818,7 @@ TEST_F(CssFilterTest, DontAbsolutifyEmptyUrl) {
                   kExpectSuccess);
 
   const char kEmptyUrlImport[] = "@import url('');";
-  const char kNoUrlImport[] = "@import url();";
+  const char kNoUrlImport[] = "@import url() ;";
   ValidateRewrite("empty_url_in_import", kEmptyUrlImport, kNoUrlImport,
                   kExpectSuccess);
 }
@@ -2132,9 +2006,10 @@ TEST_F(CssFilterTest, NoWebpLaRewritingFromPngIfDisabled) {
 TEST_F(CssFilterTest, DontAbsolutifyUrlsIfNoDomainMapping) {
   // We are not using a proxy URL namer (TestUrlNamer) nor any domain
   // rewriting/sharding, so relative URLs can stay relative.
+  // Note: the CSS with multiple urls is valid CSS3 but not valid CSS2.1.
   const char css_input[] =
       "body{background:url(a.png)}"
-      "@foobar {background: url(a.png), url( http://test.com/b.png ), "
+      "body{background: url(a.png), url( http://test.com/b.png ), "
       "url('sub/c.png'), url( \"/sub/d.png\"  )}";
   // with image rewriting
   TestUrlAbsolutification("dont_absolutify_unparseable_urls_etc_with",
@@ -2155,13 +2030,14 @@ TEST_F(CssFilterTest, DontAbsolutifyUrlsIfNoDomainMapping) {
 TEST_F(CssFilterTest, AbsolutifyUnparseableUrlsWithDomainMapping) {
   // We are not using a proxy URL namer (TestUrlNamer) but we ARE mapping and
   // sharding domains, so we expect the relative URLs to be absolutified.
+  // Note: the CSS with multiple urls is valid CSS3 but not valid CSS2.1.
   const char css_input[] =
       "body{background:url(a.png)}"
-      "@foobar {background: url(a.png), url( http://test.com/b.png ), "
+      "body{background: url(a.png), url( http://test.com/b.png ), "
       "url('sub/c.png'), url( \"/sub/d.png\"  )}";
   const char css_output[] =
       "body{background:url(http://cdn2.com/a.png)}"
-      "@foobar {background: url(http://cdn2.com/a.png), "
+      "body{background: url(http://cdn2.com/a.png), "
       "url(http://cdn1.com/b.png), "
       "url('http://cdn1.com/sub/c.png'), "
       "url(\"http://cdn2.com/sub/d.png\")}";
@@ -2382,7 +2258,7 @@ TEST_F(CssFilterTest, AbsolutifyServingFallback) {
       "@import url(x.ss);\n"
       "body { background: url(a.png); }\n";
   const char expected_output[] =
-      "@import url(http://cdn.example.com/x.ss);"
+      "@import url(http://cdn.example.com/x.ss) ;"
       "body{background:url(http://cdn.example.com/a.png)}";
 
   UseMd5Hasher();
@@ -2417,15 +2293,16 @@ class CssFilterTestUrlNamer : public CssFilterTest {
 TEST_F(CssFilterTestUrlNamer, AbsolutifyUnparseableUrls) {
   // Here we ARE using a proxy URL namer (TestUrlNamer) so the URLs in
   // unparseable CSS must be absolutified.
+  // This CSS is valid CSS3 but not valid CSS2.1 because of the multiple urls.
   const char css_input[] =
-      "@foobar { background: url(a.png), url( http://test.com/b.png ), "
+      "body { background: url(a.png), url( http://test.com/b.png ), "
       "url('sub/c.png'), url( \"/sub/d.png\"  ); }\n";
   const char expected_output[] =
-      "@foobar { background: "
+      "body{background: "
       "url(http://test.com/a.png), "
       "url( http://test.com/b.png ), "  // already absolute means no change
       "url('http://test.com/sub/c.png'), "
-      "url(\"http://test.com/sub/d.png\"); }";
+      "url(\"http://test.com/sub/d.png\")}";
   // with image rewriting
   TestUrlAbsolutification("absolutify_unparseable_urls_with",
                           css_input, expected_output,
@@ -2492,7 +2369,7 @@ TEST_F(CssFilterTestUrlNamer, AbsolutifyWithBom) {
       "body { background: url(a.png); }\n";
   const char expected_output[] =
       "\xEF\xBB\xBF"
-      "@import url(http://test.com/x.ss);"
+      "@import url(http://test.com/x.ss) ;"
       "body{background:url(http://test.com/a.png)}";
   // with image rewriting
   TestUrlAbsolutification("absolutify_with_bom_with",

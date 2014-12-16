@@ -216,8 +216,9 @@ static string StylesheetTypeString(Stylesheet::StylesheetType type) {
     case Stylesheet::AUTHOR: return string("AUTHOR");
     case Stylesheet::USER:   return string("USER");
     case Stylesheet::SYSTEM: return string("SYSTEM");
+    default:
+      LOG(FATAL) << "Invalid type";
   }
-  LOG(FATAL) << "Invalid type";
 }
 
 string Value::ToString() const {
@@ -246,14 +247,13 @@ string Value::ToString() const {
                           Css::EscapeString(GetStringValue()).c_str());
     case IDENT:
       return Css::EscapeIdentifier(GetIdentifierText());
-    case COMMA:
-      return ",";
     case UNKNOWN:
       return "UNKNOWN";
     case DEFAULT:
       return "";
+    default:
+      LOG(FATAL) << "Invalid type";
   }
-  LOG(FATAL) << "Invalid type";
 }
 
 string Values::ToString() const {
@@ -331,8 +331,9 @@ string SimpleSelector::ToString() const {
     case LANG:
       return StringPrintf(":lang(%s)",
                           Css::EscapeIdentifier(lang()).c_str());
+    default:
+      LOG(FATAL) << "Invalid type";
   }
-  LOG(FATAL) << "Invalid type";
 }
 
 string SimpleSelectors::ToString() const {
@@ -344,8 +345,7 @@ string SimpleSelectors::ToString() const {
     case SIBLING:
       prefix = "+ ";
       break;
-    case NONE:
-    case DESCENDANT:
+    default:
       break;
   }
   return prefix + JoinElementStrings(*this, "");
@@ -486,22 +486,11 @@ string Import::ToString() const {
                       media_queries().ToString().c_str());
 }
 
-string FontFace::ToString() const {
-  string result;
-  if (!media_queries().empty())
-    result += StringPrintf("@media %s { ", media_queries().ToString().c_str());
-  result += "@font-face { " + declarations().ToString() + " }";
-  if (!media_queries().empty())
-    result += " }";
-  return result;
-}
-
 string Stylesheet::ToString() const {
   string result;
   result += "/* " + StylesheetTypeString(type()) + " */\n";
   result += charsets().ToString() + "\n";
   result += JoinElementStrings(imports(), "\n") + "\n";
-  result += JoinElementStrings(font_faces(), "\n") + "\n";
   result += JoinElementStrings(rulesets(), "\n") + "\n";
   return result;
 }

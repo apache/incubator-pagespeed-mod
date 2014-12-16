@@ -45,7 +45,6 @@
         '<(DEPTH)',
       ],
       'sources': [
-        'apache/apache_config.cc',
         'apache/apache_thread_system.cc',
         'apache/apr_file_system.cc',
         'apache/apr_timer.cc',

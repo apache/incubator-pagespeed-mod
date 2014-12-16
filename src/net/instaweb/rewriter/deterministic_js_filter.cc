@@ -18,39 +18,39 @@
 
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
 
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
 DeterministicJsFilter::DeterministicJsFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
+    : driver_(driver),
       found_head_(false) {
 }
 
 DeterministicJsFilter::~DeterministicJsFilter() {}
 
-void DeterministicJsFilter::StartDocumentImpl() {
+void DeterministicJsFilter::StartDocument() {
   found_head_ = false;
 }
 
-void DeterministicJsFilter::StartElementImpl(HtmlElement* element) {
+void DeterministicJsFilter::StartElement(HtmlElement* element) {
   if (!found_head_ && element->keyword() == HtmlName::kHead) {
     found_head_ = true;
-    HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
-    driver()->InsertNodeAfterCurrent(script);
+    HtmlElement* script = driver_->NewElement(element, HtmlName::kScript);
+    driver_->InsertNodeAfterCurrent(script);
     StaticAssetManager* static_asset_manager =
-        driver()->server_context()->static_asset_manager();
+        driver_->server_context()->static_asset_manager();
     StringPiece deterministic_js =
         static_asset_manager->GetAsset(
-            StaticAssetEnum::DETERMINISTIC_JS, driver()->options());
-    AddJsToElement(deterministic_js, script);
+            StaticAssetManager::kDeterministicJs, driver_->options());
+    static_asset_manager->AddJsToElement(deterministic_js, script, driver_);
     script->AddAttribute(
-        driver()->MakeName(HtmlName::kPagespeedNoDefer), NULL,
+        driver_->MakeName(HtmlName::kPagespeedNoDefer), NULL,
         HtmlElement::NO_QUOTE);
   }
 }

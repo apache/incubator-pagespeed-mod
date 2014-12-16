@@ -1,134 +1,141 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# This version is a snapshot of the Chromium version as there are build problems
+# with openSSL on 64-bit systems with gcc versions before 4.6.
+
 {
   'targets': [
-      # Patch out the ifdef checking for x86_64 in poly1305.c
-      # Old versions of GCC can't use _int128, so we need this.
-      {
-        'target_name': 'patch_openssl',
-        'type': 'none',
-        'actions': [
-          {
-            'action_name': 'remove_ifdefs',
-                'variables': {
-                  'openssl_parent': '<(DEPTH)/third_party/boringssl',
-                  'openssl_root': '<(openssl_parent)/src',
-                },
-            'inputs': [
-                  '<(openssl_root)/crypto/poly1305/poly1305.c',
-            ],
-            'outputs': [
-                  '<(DEPTH)/net/instaweb/genfiles/openssl/poly1305.patch.c',
-            ],
-            'action': [
-              # The guard lines on this file are
-              # #if defined(OPENSSL_WINDOWS) || !defined(OPENSSL_X86_64)
-              # #endif  /* OPENSSL_WINDOWS || !OPENSSL_X86_64 */
-              # These are the only locations where OPENSSL_WINDOWS is used in
-              # the file.
-              'bash',
-              '-c',
-              'cat <(openssl_root)/crypto/poly1305/poly1305.c'
-              '| sed /OPENSSL_WINDOWS/d > '
-              '<(DEPTH)/net/instaweb/genfiles/openssl/poly1305.patch.c',
-            ],
-            'message': 'Patching for use with gcc 4.6 or lower',
-          },
-        ]
-    },
     {
       'target_name': 'openssl',
       'type': '<(component)',
       'includes': [
-        'openssl.gypi',
+        # Include the auto-generated gypi file.
+        '../../third_party/serf/openssl.gypi'
       ],
-       'variables': {
-        'openssl_parent': '<(DEPTH)/third_party/boringssl',
-        'openssl_root': '<(openssl_parent)/src',
+      'variables': {
+        'openssl_parent': '<(DEPTH)/third_party/openssl',
+        'openssl_root': '<(openssl_parent)/openssl',
         'openssl_include_dirs': [
           '<(openssl_parent)',
           '<(openssl_root)',
-          '<(openssl_root)/include/openssl',
           '<(openssl_root)/crypto',
           '<(openssl_root)/crypto/asn1',
           '<(openssl_root)/crypto/evp',
           '<(openssl_root)/crypto/modes',
+          '<(openssl_root)/include',
+        ],
+        'openssl_public_include_dirs': [
+          '<(openssl_root)/include',
         ],
       },
       'sources': [
-        '<@(boringssl_lib_sources)',
+        '<@(openssl_common_sources)',
       ],
-      'defines': [ 'BORINGSSL_IMPLEMENTATION' ],
+      'defines': [
+        '<@(openssl_common_defines)',
+        'PURIFY',
+        'MONOLITH',
+        'OPENSSL_NO_ASM',
+      ],
+      'defines!': [
+        'TERMIO',
+      ],
       'conditions': [
-        ['component == "shared_library"', {
+        ['os_posix==1 and OS!="android"', {
           'defines': [
-            'BORINGSSL_SHARED_LIBRARY',
+            # ENGINESDIR must be defined if OPENSSLDIR is.
+            'ENGINESDIR="/dev/null"',
+            # Set to ubuntu default path for convenience. If necessary, override
+            # this at runtime with the SSL_CERT_DIR environment variable.
+            'OPENSSLDIR="/etc/ssl"',
           ],
         }],
         ['target_arch == "arm"', {
-          'sources': [ '<@(boringssl_linux_arm_sources)' ],
+          'sources': [ '<@(openssl_arm_sources)' ],
+          'sources!': [ '<@(openssl_arm_source_excludes)' ],
+          'defines': [ '<@(openssl_arm_defines)' ],
+          'defines!': [ 'OPENSSL_NO_ASM' ],
         }],
-        ['target_arch == "ia32"', {
-          'conditions': [
-            ['OS == "mac"', {
-              'sources': [ '<@(boringssl_mac_x86_sources)' ],
-            }],
-            ['OS == "linux" or OS == "android"', {
-              'sources': [ '<@(boringssl_linux_x86_sources)' ],
-            }],
-            ['OS != "mac" and OS != "linux" and OS != "android"', {
-              'defines': [ 'OPENSSL_NO_ASM' ],
-            }],
-          ]
+        ['target_arch == "mipsel"', {
+          'sources': [ '<@(openssl_mips_sources)' ],
+          'sources!': [ '<@(openssl_mips_source_excludes)' ],
+          'defines': [ '<@(openssl_mips_defines)' ],
+          'defines!': [ 'OPENSSL_NO_ASM' ],
+        }],
+        ['target_arch == "ia32" and OS !="mac"', {
+          'sources': [ '<@(openssl_x86_sources)' ],
+          'sources!': [ '<@(openssl_x86_source_excludes)' ],
+          'defines': [ '<@(openssl_x86_defines)' ],
+          'defines!': [ 'OPENSSL_NO_ASM' ],
+        }],
+        ['target_arch == "ia32" and OS == "mac"', {
+          'sources': [ '<@(openssl_mac_ia32_sources)' ],
+          'sources!': [ '<@(openssl_mac_ia32_source_excludes)' ],
+          'defines': [ '<@(openssl_mac_ia32_defines)' ],
+          'defines!': [ 'OPENSSL_NO_ASM' ],
+          'variables': {
+            # Ensure the 32-bit opensslconf.h header for OS X is used.
+            'openssl_include_dirs+': [ '<(openssl_parent)/config/mac/ia32' ],
+            'openssl_public_include_dirs+': [ '<(openssl_parent)/config/mac/ia32' ],
+          },
+          'xcode_settings': {
+            # Clang needs this to understand the inline assembly keyword 'asm'.
+            'GCC_C_LANGUAGE_STANDARD': 'gnu99',
+          },
         }],
         ['target_arch == "x64"', {
+          'sources': [ '<@(openssl_x86_64_sources)' ],
+          'sources!': [ '<@(openssl_x86_64_source_excludes)' ],
           'conditions': [
-            ['OS == "mac"', {
-              'sources': [ '<@(boringssl_mac_x86_64_sources)' ],
-            }],
-            ['OS == "linux" or OS == "android"', {
-              'sources': [ '<@(boringssl_linux_x86_64_sources)' ],
-            }],
-            ['OS == "win"', {
-              'sources': [ '<@(boringssl_win_x86_64_sources)' ],
-            }],
-            ['OS != "mac" and OS != "linux" and OS != "win" and OS != "android"', {
-              'defines': [ 'OPENSSL_NO_ASM' ],
-            }],
             ['<(gcc_version) < 46', {
-              'dependencies': ['patch_openssl',],
               # Older versions of gcc don't recognize __int128 type.
-              'sources': ['<(DEPTH)/net/instaweb/genfiles/openssl/poly1305.patch.c'],
-              'sources!': ['<(openssl_root)/crypto/poly1305/poly1305_vec.c'],
+              'sources/': [
+                ['exclude', '<(openssl_root)/crypto/poly1305/poly1305_vec.c' ],
+                ['include', '<(openssl_root)/crypto/poly1305/poly1305.c' ],
+              ],
             }],
-          ]
+          ],
+          'defines': [ '<@(openssl_x86_64_defines)' ],
+          'defines!': [ 'OPENSSL_NO_ASM' ],
+          'variables': {
+            # Ensure the 64-bit opensslconf.h header is used.
+            'openssl_include_dirs+': [ '<(openssl_parent)/config/x64' ],
+            'openssl_public_include_dirs+': [ '<(openssl_parent)/config/x64' ],
+          },
         }],
-        ['target_arch != "arm" and target_arch != "ia32" and target_arch != "x64"', {
-          'defines': [ 'OPENSSL_NO_ASM' ],
+        ['component == "shared_library"', {
+          'cflags!': ['-fvisibility=hidden'],
         }],
+        ['clang==1', {
+          'cflags': [
+            # OpenSSL has a few |if ((foo == NULL))| checks.
+            '-Wno-parentheses-equality',
+            # OpenSSL uses several function-style macros and then ignores the
+            # returned value.
+            '-Wno-unused-value',
+          ],
+        }, { # Not clang. Disable all warnings.
+          'cflags': [
+            '-w',
+          ],
+        }]
       ],
       'include_dirs': [
-        '<(DEPTH)/third_party/boringssl/src/include',
-        # This is for arm_arch.h, which is needed by some asm files. Since the
-        # asm files are generated and kept in a different directory, they
-        # cannot use relative paths to find this file.
-        '<(DEPTH)/third_party/boringssl/src/crypto',
+        '<@(openssl_include_dirs)',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(DEPTH)/third_party/boringssl/src/include',
-        ],
-        'conditions': [
-          ['component == "shared_library"', {
-            'defines': [
-              'BORINGSSL_SHARED_LIBRARY',
-            ],
-          }],
+          '<@(openssl_public_include_dirs)',
         ],
       },
     },
   ],
 }
 
+# Local Variables:
+# tab-width:2
+# indent-tabs-mode:nil
+# End:
+# vim: set expandtab tabstop=2 shiftwidth=2:

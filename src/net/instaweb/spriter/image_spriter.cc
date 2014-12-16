@@ -21,8 +21,8 @@
 #include "net/instaweb/spriter/image_library_interface.h"
 #include "net/instaweb/spriter/public/image_spriter.h"
 #include "net/instaweb/spriter/public/image_spriter.pb.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/stl_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/stl_util.h"
 
 namespace net_instaweb {
 namespace spriter {
@@ -46,7 +46,7 @@ SpriterResult* ImageSpriter::Sprite(
     } break;
 
     default: {
-      LOG(DFATAL) << "Unhandled case.";
+      DLOG(FATAL) << "Unhandled case.";
       return NULL;  // TODO(skerner): Error call to delegate.
     }
   }

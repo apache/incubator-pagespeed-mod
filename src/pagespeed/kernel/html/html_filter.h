@@ -40,10 +40,7 @@ class HtmlFilter {
   // Starts a new document.  Filters should clear their state in this function,
   // as the same Filter instance may be used for multiple HTML documents.
   virtual void StartDocument() = 0;
-
-  // Note: EndDocument will be called immediately before the last Flush call.
-  // (which also means that in the RewriteDriver use it is called before
-  //  rendering for the last flush window).
+  // Note: EndDocument will be called imediately before the last Flush call.
   virtual void EndDocument() = 0;
 
   // When an HTML element is encountered during parsing, each filter's

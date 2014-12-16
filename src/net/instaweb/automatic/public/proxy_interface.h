@@ -28,10 +28,10 @@
 #define NET_INSTAWEB_AUTOMATIC_PUBLIC_PROXY_INTERFACE_H_
 
 #include "net/instaweb/http/public/url_async_fetcher.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -116,10 +116,6 @@ class ProxyInterface : public UrlAsyncFetcher {
   TimedVariable* cache_html_flow_requests_;
   // Rejected requests counter.
   TimedVariable* rejected_requests_;
-  // Number of requests without domain-specific config.
-  TimedVariable* requests_without_domain_config_;
-  // Number of resource requests without domain-specific config.
-  TimedVariable* resource_requests_without_domain_config_;
 
   scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
 

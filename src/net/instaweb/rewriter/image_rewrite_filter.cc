@@ -28,13 +28,17 @@
 #include <vector>
 
 #include "base/logging.h"               // for CHECK, etc
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
+#include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/css_util.h"
 #include "net/instaweb/rewriter/public/image.h"
@@ -43,35 +47,31 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/data_url.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/semantic_type.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/statistics_work_bound.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/timer.h"
+#include "net/instaweb/util/public/work_bound.h"
 #include "pagespeed/kernel/util/simple_random.h"
-#include "pagespeed/kernel/util/statistics_work_bound.h"
-#include "pagespeed/kernel/util/work_bound.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace net_instaweb {
+
+class UrlSegmentEncoder;
 
 namespace {
 
@@ -456,17 +456,6 @@ void ImageRewriteFilter::Context::Render() {
       rewrote_url = filter_->FinishRewriteImageUrl(
           result, resource_context(), html_slot->element(),
           html_slot->attribute(), html_index_, html_slot, &inline_result);
-
-      // Register image metrics for images inside HTML here. We don't deal with
-      // images inside CSS here since we might not even run --- our work may get
-      // cached at CSS filter level.
-      if (Driver()->options()->Enabled(
-              RewriteOptions::kExperimentCollectMobImageInfo)) {
-        AssociatedImageInfo aii;
-        if (ExtractAssociatedImageInfo(result, &aii)) {
-          filter_->RegisterImageInfo(aii);
-        }
-      }
     }
 
     if (Driver()->options()->Enabled(RewriteOptions::kInlineImages)) {
@@ -504,8 +493,7 @@ void ImageRewriteFilter::Context::EncodeUserAgentIntoResourceContext(
 
 ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
-      image_counter_(0),
-      saw_end_document_(false) {
+      image_counter_(0) {
   Statistics* stats = server_context()->statistics();
   image_rewrites_ = stats->GetVariable(kImageRewrites);
   image_resized_using_rendered_dimensions_ =
@@ -676,46 +664,9 @@ void ImageRewriteFilter::AddRelatedOptions(StringPieceVector* target) {
 
 void ImageRewriteFilter::StartDocumentImpl() {
   image_counter_ = 0;
-  saw_end_document_ = false;
   inlinable_urls_.clear();
   driver()->log_record()->LogRewriterHtmlStatus(
       RewriteOptions::kImageCompressionId, RewriterHtmlApplication::ACTIVE);
-}
-
-void ImageRewriteFilter::EndDocument() {
-  saw_end_document_  = true;
-}
-
-void ImageRewriteFilter::RenderDone() {
-  // Only care about the very end, not every flush window; framework orders
-  // EndDocument before the last RenderDone (and after previous ones) so we
-  // use EndDocument() having been called to distinguish the last flush window
-  // from previous ones.
-  if (!saw_end_document_) {
-    return;
-  }
-  if (!image_info_.empty()) {
-    GoogleString code =
-        "psMobStaticImageInfo = {";
-    for (AssociatedImageInfoMap::iterator i = image_info_.begin(),
-                                          e = image_info_.end();
-         i != e; ++i) {
-      const AssociatedImageInfo& image_info = i->second;
-      EscapeToJsStringLiteral(image_info.url(), true /* want quotes */,
-                              &code);
-      StrAppend(&code, ":{");
-      StrAppend(&code, "w:",
-                IntegerToString(image_info.dimensions().width()), ",");
-      StrAppend(&code, "h:",
-                IntegerToString(image_info.dimensions().height()), "},");
-    }
-    StrAppend(&code, "}");
-    HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
-    HtmlCharactersNode* chars = driver()->NewCharactersNode(script, code);
-    InsertNodeAtBodyEnd(script);
-    driver()->AppendChild(script, chars);
-  }
-  image_info_.clear();
 }
 
 // Allocate and initialize CompressionOptions object based on RewriteOptions and
@@ -1419,10 +1370,6 @@ void SetHeightFromAttribute(const HtmlElement* element, ImageDim* page_dim) {
 
 void DeleteMatchingImageDimsAfterInline(
     const CachedResult* cached, HtmlElement* element) {
-  // Never strip width= or height= attributes from non-img elements.
-  if (element->keyword() != HtmlName::kImg) {
-    return;
-  }
   // We used to take the absence of desired_image_dims here as license to delete
   // dimensions.  That was incorrect, as sometimes there were dimensions in the
   // page but the image was being enlarged on page and we can't strip the
@@ -2013,26 +1960,6 @@ void ImageRewriteFilter::DisableRelatedFilters(RewriteOptions* options) {
   for (int i = 0; i < kRelatedFiltersSize; ++i) {
     options->DisableFilter(kRelatedFilters[i]);
   }
-}
-
-void ImageRewriteFilter::RegisterImageInfo(
-    const AssociatedImageInfo& image_info) {
-  if (!driver()->options()->Enabled(
-          RewriteOptions::kExperimentCollectMobImageInfo)) {
-    return;
-  }
-
-  image_info_[image_info.url()] = image_info;
-}
-
-bool ImageRewriteFilter::ExtractAssociatedImageInfo(
-    const CachedResult* result, AssociatedImageInfo* out) {
-  if (result->has_image_file_dims()) {
-    out->set_url(result->url());
-    *out->mutable_dimensions() = result->image_file_dims();
-    return true;
-  }
-  return false;
 }
 
 }  // namespace net_instaweb

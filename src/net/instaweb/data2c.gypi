@@ -29,7 +29,7 @@
       ],
       'action': [
         '<(data2c_exe)',
-        '--data_file=<(instaweb_js_subdir)/<(RULE_INPUT_NAME)',
+        '--data_file=<(instaweb_root)/<(instaweb_js_subdir)/<(RULE_INPUT_NAME)',
         '--c_file=<(data2c_out_dir)/<(instaweb_data2c_subdir)/<(RULE_INPUT_ROOT)_out.cc',
         '--varname=JS_<(var_name)',
       ],
@@ -47,7 +47,7 @@
       ],
       'action': [
         '<(data2c_exe)',
-        '--data_file=<(instaweb_js_subdir)/<(RULE_INPUT_NAME)',
+        '--data_file=<(instaweb_root)/<(instaweb_js_subdir)/<(RULE_INPUT_NAME)',
         '--c_file=<(data2c_out_dir)/<(instaweb_data2c_subdir)/<(RULE_INPUT_ROOT)_css_out.cc',
         '--varname=CSS_<(var_name)',
       ],
@@ -65,14 +65,16 @@
       ],
       'action': [
         '<(data2c_exe)',
-        '--data_file=<(instaweb_js_subdir)/<(RULE_INPUT_NAME)',
+        '--data_file=<(instaweb_root)/<(instaweb_js_subdir)/<(RULE_INPUT_NAME)',
         '--c_file=<(data2c_out_dir)/<(instaweb_data2c_subdir)/<(RULE_INPUT_ROOT)_html_out.cc',
         '--varname=HTML_<(var_name)',
       ],
       'process_outputs_as_sources': 1,
     },
   ],
-  'dependencies': ['<(DEPTH)/net/instaweb/instaweb.gyp:instaweb_data2c'],
+  'dependencies': [
+    'instaweb_data2c',
+  ],
   'hard_dependency': 1,
   'all_dependent_settings': {
     'hard_dependency': 1,

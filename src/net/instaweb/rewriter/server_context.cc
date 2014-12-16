@@ -25,7 +25,12 @@
 #include "base/logging.h"               // for operator<<, etc
 #include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/beacon_critical_line_info_finder.h"
@@ -49,34 +54,29 @@
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "net/instaweb/rewriter/rendered_image.pb.h"
+#include "net/instaweb/util/public/abstract_mutex.h"
+#include "net/instaweb/util/public/basictypes.h"        // for int64
+#include "net/instaweb/util/public/cache_interface.h"
 #include "net/instaweb/util/public/cache_property_store.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/message_handler.h"
+#include "net/instaweb/util/public/named_lock_manager.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/query_params.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/stl_util.h"          // for STLDeleteElements
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_synchronizer.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"
 #include "pagespeed/kernel/base/escaping.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"          // for STLDeleteElements
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/query_params.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/thread/thread_synchronizer.h"
-#include "pagespeed/opt/http/property_store.h"
 
 namespace net_instaweb {
 
@@ -503,7 +503,7 @@ void ServerContext::AddOriginalContentLengthHeader(
   }
 }
 
-bool ServerContext::IsPagespeedResource(const GoogleUrl& url) const {
+bool ServerContext::IsPagespeedResource(const GoogleUrl& url) {
   ResourceNamer namer;
   OutputResourceKind kind;
   RewriteFilter* filter;
@@ -820,7 +820,8 @@ void ServerContext::ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver) {
 
   int count = active_rewrite_drivers_.erase(rewrite_driver);
   if (count != 1) {
-    LOG(DFATAL) << "ReleaseRewriteDriver called with driver not in active set.";
+    LOG(ERROR) << "ReleaseRewriteDriver called with driver not in active set.";
+    DLOG(FATAL);
   } else {
     RewriteDriverPool* pool = rewrite_driver->controlling_pool();
     if (pool == NULL) {
@@ -1276,38 +1277,6 @@ GoogleString ServerContext::ShowCacheForm(StringPiece user_agent) {
 GoogleString ServerContext::FormatOption(StringPiece option_name,
                                          StringPiece args) {
   return StrCat(option_name, " ", args);
-}
-
-CacheUrlAsyncFetcher* ServerContext::CreateCustomCacheFetcher(
-    const RewriteOptions* options, const GoogleString& fragment,
-    CacheUrlAsyncFetcher::AsyncOpHooks* hooks, UrlAsyncFetcher* fetcher) {
-  CacheUrlAsyncFetcher* cache_fetcher = new CacheUrlAsyncFetcher(
-      lock_hasher(),
-      lock_manager(),
-      http_cache(),
-      fragment,
-      hooks,
-      fetcher);
-  RewriteStats* stats = rewrite_stats();
-  cache_fetcher->set_respect_vary(options->respect_vary());
-  cache_fetcher->set_default_cache_html(options->default_cache_html());
-  cache_fetcher->set_backend_first_byte_latency_histogram(
-      stats->backend_latency_histogram());
-  cache_fetcher->set_fallback_responses_served(
-      stats->fallback_responses_served());
-  cache_fetcher->set_fallback_responses_served_while_revalidate(
-      stats->fallback_responses_served_while_revalidate());
-  cache_fetcher->set_num_conditional_refreshes(
-      stats->num_conditional_refreshes());
-  cache_fetcher->set_serve_stale_if_fetch_error(
-      options->serve_stale_if_fetch_error());
-  cache_fetcher->set_proactively_freshen_user_facing_request(
-      options->proactively_freshen_user_facing_request());
-  cache_fetcher->set_num_proactively_freshen_user_facing_request(
-      stats->num_proactively_freshen_user_facing_request());
-  cache_fetcher->set_serve_stale_while_revalidate_threshold_sec(
-      options->serve_stale_while_revalidate_threshold_sec());
-  return cache_fetcher;
 }
 
 }  // namespace net_instaweb

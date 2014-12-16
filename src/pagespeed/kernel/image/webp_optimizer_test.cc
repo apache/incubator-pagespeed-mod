@@ -52,7 +52,6 @@ using pagespeed::image_compression::kWebpTestDir;
 using pagespeed::image_compression::size_px;
 using pagespeed::image_compression::PixelFormat;
 using pagespeed::image_compression::PngScanlineReaderRaw;
-using pagespeed::image_compression::QUIRKS_CHROME;
 using pagespeed::image_compression::ReadFile;
 using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::RGB_888;
@@ -266,25 +265,22 @@ class AnimatedWebpTest : public testing::Test {
  public:
   AnimatedWebpTest() : message_handler_(new NullMutex) {}
 
-  void ConvertGifToWebp(const char* filename,
-                        const GoogleString& input_image,
+  void ConvertGifToWebp(const GoogleString& input_image,
                         WebpConfiguration* webp_config,
                         GoogleString* webp_image) {
     ScanlineStatus status;
     reader_.reset(
         CreateImageFrameReader(IMAGE_GIF,
                                input_image.c_str(), input_image.length(),
-                               QUIRKS_CHROME, &message_handler_, &status));
+                               &message_handler_, &status));
     ASSERT_TRUE(status.Success());
-
     writer_.reset(CreateImageFrameWriter(IMAGE_WEBP, webp_config, webp_image,
                                          &message_handler_, &status));
     ASSERT_TRUE(status.Success());
 
     EXPECT_TRUE(
         ImageConverter::ConvertMultipleFrameImage(reader_.get(),
-                                                  writer_.get()).Success())
-        << " for '" << filename << "'";
+                                                  writer_.get()).Success());
   }
 
   bool PicturesEqual(const GoogleString& compare,
@@ -304,7 +300,7 @@ class AnimatedWebpTest : public testing::Test {
     DVLOG(1) << "Read image: " << input_path;
 
     GoogleString output_image;
-    ConvertGifToWebp(filename, input_image, webp_config, &output_image);
+    ConvertGifToWebp(input_image, webp_config, &output_image);
 
     GoogleString output_path =
         net_instaweb::StrCat(net_instaweb::GTestTempDir(),

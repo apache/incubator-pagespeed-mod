@@ -20,23 +20,23 @@
 
 #include <memory>
 
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_hash.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_hash.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace {
 
@@ -58,8 +58,7 @@ void DomainRewriteFilter::StartDocumentImpl() {
   if (rewrite_hyperlinks) {
     // TODO(nikhilmadan): Rewrite the domain for cookies.
     // Rewrite the Location header for redirects.
-    UpdateLocationHeader(driver()->base_url(), driver()->server_context(),
-                         driver()->options(),
+    UpdateLocationHeader(driver()->base_url(), driver(),
                          driver()->mutable_response_headers());
   }
 }
@@ -70,16 +69,15 @@ void DomainRewriteFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kDomainRewrites);
 }
 
-void DomainRewriteFilter::UpdateLocationHeader(
-    const GoogleUrl& base_url, const ServerContext* server_context,
-    const RewriteOptions* options, ResponseHeaders* headers) {
+void DomainRewriteFilter::UpdateLocationHeader(const GoogleUrl& base_url,
+                                               RewriteDriver* driver,
+                                               ResponseHeaders* headers) const {
   if (headers != NULL) {
     const char* location = headers->Lookup1(HttpAttributes::kLocation);
     if (location != NULL) {
       GoogleString new_location;
       DomainRewriteFilter::RewriteResult status = Rewrite(
-          location, base_url, server_context, options,
-          false /* !apply_sharding */, true /* apply_domain_suffix*/,
+          location, base_url, driver, false /* !apply_sharding */,
           &new_location);
       if (status == kRewroteDomain) {
         headers->Replace(HttpAttributes::kLocation, new_location);
@@ -89,50 +87,41 @@ void DomainRewriteFilter::UpdateLocationHeader(
 }
 
 void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
-  // The base URL is used to rewrite the attribute URL, which is all this
-  // method does; if it isn't valid we can't so there's no point in going on.
   if (!BaseUrlIsValid()) {
     // The base URL is used to rewrite the attribute URL, which is all this
     // method does; if it isn't valid we can't so there's no point in going on.
-    //
-    // Note that this will be the case for any HTML elements that
-    // preceed a meta tag, as the HTML spec is ambiguous whether the
-    // base tag applies for that set of elements.
     return;
   }
   resource_tag_scanner::UrlCategoryVector attributes;
-  const RewriteOptions* options = driver()->options();
-  resource_tag_scanner::ScanElement(element, options, &attributes);
+  resource_tag_scanner::ScanElement(element, driver()->options(), &attributes);
   bool element_is_embed_or_frame_or_iframe = (
       element->keyword() == HtmlName::kEmbed ||
       element->keyword() == HtmlName::kFrame ||
       element->keyword() == HtmlName::kIframe);
   for (int i = 0, n = attributes.size(); i < n; ++i) {
-    // Only rewrite attributes that are resource-tags.  If hyperlinks
-    // is on that's fine too.
-    if (options->domain_rewrite_hyperlinks() ||
-        attributes[i].category == semantic_type::kImage ||
-        attributes[i].category == semantic_type::kScript ||
-        attributes[i].category == semantic_type::kStylesheet) {
-      StringPiece val(attributes[i].url->DecodedValueOrNull());
-      if (!val.empty()) {
-        GoogleString rewritten_val;
-        // Don't shard hyperlinks, prefetch, embeds, frames, or iframes.
-        bool apply_sharding = (
-            !element_is_embed_or_frame_or_iframe &&
-            attributes[i].category != semantic_type::kHyperlink &&
-            attributes[i].category != semantic_type::kPrefetch);
-        bool apply_domain_suffix =
-              (attributes[i].category == semantic_type::kHyperlink ||
-               attributes[i].category == semantic_type::kImage);
-        const GoogleUrl& base_url = driver()->base_url();
-        if (Rewrite(val, base_url, driver()->server_context(),
-                    driver()->options(), apply_sharding, apply_domain_suffix,
-                    &rewritten_val) == kRewroteDomain) {
-          attributes[i].url->SetValue(rewritten_val);
-          rewrite_count_->Add(1);
-        }
-      }
+    // Disable domain_rewrite for non-image, non-script, non-stylesheet urls
+    // unless ModPagespeedDomainRewriteHyperlinks is on
+    if (attributes[i].category != semantic_type::kImage &&
+        attributes[i].category != semantic_type::kScript &&
+        attributes[i].category != semantic_type::kStylesheet &&
+        !driver()->options()->domain_rewrite_hyperlinks()) {
+      continue;
+    }
+    StringPiece val(attributes[i].url->DecodedValueOrNull());
+    if (val.empty()) {
+      // We don't rewrite empty URLs so bail early in that case.
+      continue;
+    }
+    GoogleString rewritten_val;
+    // Don't shard hyperlinks, prefetch, embeds, frames, or iframes.
+    bool apply_sharding = (
+        !element_is_embed_or_frame_or_iframe &&
+        attributes[i].category != semantic_type::kHyperlink &&
+        attributes[i].category != semantic_type::kPrefetch);
+    if (Rewrite(val, driver()->base_url(), driver(),
+                apply_sharding, &rewritten_val) == kRewroteDomain) {
+      attributes[i].url->SetValue(rewritten_val);
+      rewrite_count_->Add(1);
     }
   }
 }
@@ -140,9 +129,8 @@ void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
 // Resolve the url we want to rewrite, and then shard as appropriate.
 DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
     const StringPiece& url_to_rewrite, const GoogleUrl& base_url,
-    const ServerContext* server_context, const RewriteOptions* options,
-    bool apply_sharding, bool apply_domain_suffix,
-    GoogleString* rewritten_url) {
+    const RewriteDriver* driver,
+    bool apply_sharding, GoogleString* rewritten_url) const {
   if (url_to_rewrite.empty()) {
     rewritten_url->clear();
     return kDomainUnchanged;
@@ -159,19 +147,11 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
   }
 
   StringPiece orig_spec = orig_url.Spec();
-  const DomainLawyer* lawyer = options->domain_lawyer();
-
-  // For now, we have a proxy suffix override all other mappings.
-  if (apply_domain_suffix) {
-    url_to_rewrite.CopyToString(rewritten_url);
-    if (lawyer->AddProxySuffix(base_url, rewritten_url)) {
-      return kRewroteDomain;
-    }
-  }
+  const RewriteOptions* options = driver->options();
 
   if (!options->IsAllowed(orig_spec) ||
       // Don't rewrite a domain from an already-rewritten resource.
-      server_context->IsPagespeedResource(orig_url)) {
+      server_context()->IsPagespeedResource(orig_url)) {
     // Even though domain is unchanged, we need to store absolute URL in
     // rewritten_url.
     orig_url.Spec().CopyToString(rewritten_url);
@@ -185,11 +165,12 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
   // so they are distinct and (b) only do the resolution once, as it
   // is expensive.  I think the ResourceSlot system offers a good
   // framework to do this.
+  const DomainLawyer* lawyer = options->domain_lawyer();
   GoogleString mapped_domain_name;
   GoogleUrl resolved_request;
   if (!lawyer->MapRequestToDomain(base_url, url_to_rewrite,
                                   &mapped_domain_name, &resolved_request,
-                                  server_context->message_handler())) {
+                                  driver->message_handler())) {
     // Even though domain is unchanged, we need to store absolute URL in
     // rewritten_url.
     orig_url.Spec().CopyToString(rewritten_url);
@@ -242,11 +223,11 @@ void DomainRewriteFilter::EndDocument() {
       driver()->server_context()->static_asset_manager();
   GoogleString js =
       StrCat(static_asset_manager->GetAsset(
-                 StaticAssetEnum::CLIENT_DOMAIN_REWRITER,
+                 StaticAssetManager::kClientDomainRewriter,
                  driver()->options()),
              "pagespeed.clientDomainRewriterInit([",
              comma_separated_from_domains, "]);");
-  AddJsToElement(js, script_node);
+  static_asset_manager->AddJsToElement(js, script_node, driver());
 }
 
 }  // namespace net_instaweb

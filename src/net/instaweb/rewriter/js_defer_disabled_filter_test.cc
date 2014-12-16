@@ -18,16 +18,16 @@
 
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 
 namespace net_instaweb {
 
@@ -181,11 +181,11 @@ TEST_F(JsDeferDisabledFilterTest, DisAllowMobileUserAgent) {
 
 TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromGStatic) {
   StaticAssetManager static_asset_manager("",
-                                          server_context()->thread_system(),
                                           server_context()->hasher(),
                                           server_context()->message_handler());
-  static_asset_manager.ServeAssetsFromGStatic(StaticAssetManager::kGStaticBase);
-  static_asset_manager.SetGStaticHashForTest(StaticAssetEnum::DEFER_JS, "1");
+  static_asset_manager.set_serve_asset_from_gstatic(true);
+  static_asset_manager.set_gstatic_hash(
+      StaticAssetManager::kDeferJs, StaticAssetManager::kGStaticBase, "1");
 
   server_context()->set_static_asset_manager(&static_asset_manager);
 

@@ -21,12 +21,11 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/request_timing_info.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/util/public/ref_counted_ptr.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/util/public/statistics.h"
 
 namespace net_instaweb {
 
@@ -193,7 +192,7 @@ GoogleString AsyncFetch::LoggingString() {
   }
 
   int64 latency;
-  const RequestTimingInfo& timing_info = request_ctx_->timing_info();
+  const RequestContext::TimingInfo& timing_info = request_ctx_->timing_info();
   if (timing_info.GetHTTPCacheLatencyMs(&latency)) {
     StrAppend(&logging_info_str, "c1:", Integer64ToString(latency), ";");
   }

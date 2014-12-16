@@ -20,7 +20,12 @@
 
 #include <memory>
 
+#include "net/instaweb/htmlparse/public/empty_html_filter.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_parse.h"
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
 #include "net/instaweb/http/public/async_fetch.h"
+#include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
@@ -30,7 +35,10 @@
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "net/instaweb/http/public/wait_url_async_fetcher.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/response_headers.h"
+#include "net/instaweb/http/public/semantic_type.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/image_testing_peer.h"
 #include "net/instaweb/rewriter/public/dom_stats_filter.h"
@@ -47,39 +55,31 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/rendered_image.pb.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/google_url.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/md5_hasher.h"  // for MD5Hasher
+#include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_property_page.h"
+#include "net/instaweb/util/public/null_thread_system.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
+#include "net/instaweb/util/public/thread_system.h"
+#include "net/instaweb/util/public/timer.h"  // for Timer, etc
 #include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/md5_hasher.h"  // for MD5Hasher
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/null_thread_system.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"  // for Timer, etc
-#include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/empty_html_filter.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/http_options.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/response_headers.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/kernel/image/test_utils.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace net_instaweb {
+
+class AbstractMutex;
 
 using pagespeed::image_compression::kMessagePatternPixelFormat;
 using pagespeed::image_compression::kMessagePatternStats;
@@ -2056,38 +2056,6 @@ TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimize) {
       64 /* resized_height */);
 }
 
-TEST_F(ImageRewriteTest, InlineTestWithResizeKeepDims) {
-  // their dimensions when we inline.
-  options()->set_image_inline_max_bytes(10000);
-  options()->EnableFilter(RewriteOptions::kResizeImages);
-  options()->EnableFilter(RewriteOptions::kInlineImages);
-  options()->EnableFilter(RewriteOptions::kInsertImageDimensions);
-  options()->EnableFilter(RewriteOptions::kConvertGifToPng);
-  options()->EnableFilter(RewriteOptions::kDebug);
-  rewrite_driver()->AddFilters();
-
-  GoogleString initial_url = StrCat(kTestDomain, kChefGifFile);
-  GoogleString page_url = StrCat(kTestDomain, "test.html");
-  AddFileToMockFetcher(initial_url, kChefGifFile, kContentTypeGif, 100);
-  const char kResizedDims[] = " width=48 height=64";
-  const char html_boilerplate[] = "<td background='%s'%s></td>";
-  GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), kResizedDims);
-  ParseUrl(page_url, html_input);
-  // Image should have been resized
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr("<!--Resized image from 192x256 to 48x64-->"));
-  // And inlined
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr("<td background='data:"));
-  // But dimensions should still be there.
-  EXPECT_THAT(
-      output_buffer_,
-      testing::HasSubstr(kResizedDims));
-}
-
 TEST_F(ImageRewriteTest, InlineTestWithResizeWithOptimizeAndUrlLogging) {
   options()->set_image_inline_max_bytes(10000);
   options()->EnableFilter(RewriteOptions::kResizeImages);
@@ -3547,82 +3515,6 @@ TEST_F(ImageRewriteTest, NoTransformOptimized) {
     found |= *(values[i]) == "no-transform";
   }
   EXPECT_TRUE(found);
-}
-
-TEST_F(ImageRewriteTest, ReportDimensionsToJs) {
-  options()->EnableFilter(RewriteOptions::kExperimentCollectMobImageInfo);
-  AddRecompressImageFilters();
-  rewrite_driver()->AddFilters();
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  AddFileToMockFetcher(StrCat(kTestDomain, "b.jpeg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-
-  SetupWriter();
-  rewrite_driver()->StartParse(StrCat(kTestDomain, "dims.html"));
-  rewrite_driver()->ParseText(StrCat("<img src=\"", kTestDomain, "a.png\">"));
-  rewrite_driver()->Flush();
-  rewrite_driver()->ParseText(StrCat("<img src=\"", kTestDomain, "b.jpeg\">"));
-  rewrite_driver()->FinishParse();
-
-  GoogleString out_png_url(Encode(kTestDomain, "ic", "0", "a.png", "jpg"));
-  GoogleString out_jpeg_url(Encode(kTestDomain, "ic", "0", "b.jpeg", "jpg"));
-  GoogleString js = StrCat(
-      "psMobStaticImageInfo = {"
-      "\"", out_png_url, "\":{w:100,h:100},"
-      "\"", out_jpeg_url, "\":{w:1023,h:766},"
-      "}");
-  EXPECT_EQ(StrCat(StrCat("<img src=\"", out_png_url, "\">"),
-                   StrCat("<img src=\"", out_jpeg_url, "\">"),
-                          "<script>", js, "</script>"),
-            output_buffer_);
-}
-
-TEST_F(ImageRewriteTest, ReportDimensionsToJsPartial) {
-  // Test where one image isn't loaded in time. We report partial info.
-  SetupWaitFetcher();
-  options()->EnableFilter(RewriteOptions::kExperimentCollectMobImageInfo);
-  AddRecompressImageFilters();
-  rewrite_driver()->AddFilters();
-  AddFileToMockFetcher(StrCat(kTestDomain, "a.png"), kBikePngFile,
-                       kContentTypePng, 100);
-  AddFileToMockFetcher(StrCat(kTestDomain, "b.jpeg"), kPuzzleJpgFile,
-                       kContentTypeJpeg, 100);
-  factory()->wait_url_async_fetcher()->DoNotDelay(StrCat(kTestDomain, "a.png"));
-
-  SetupWriter();
-  rewrite_driver()->StartParse(StrCat(kTestDomain, "dims.html"));
-  rewrite_driver()->ParseText("<img src=\"a.png\"><img src=\"b.jpeg\">");
-  rewrite_driver()->FinishParse();
-
-  GoogleString out_png_url(Encode("", "ic", "0", "a.png", "jpg"));
-  GoogleString out_jpeg_url(Encode("", "ic", "0", "b.jpeg", "jpg"));
-  GoogleString js1 = StrCat(
-      "psMobStaticImageInfo = {"
-      "\"", kTestDomain, out_png_url, "\":{w:100,h:100},"
-      "}");
-  GoogleString js2 = StrCat(
-      "psMobStaticImageInfo = {"
-      "\"", kTestDomain, out_png_url, "\":{w:100,h:100},"
-      "\"", kTestDomain, out_jpeg_url, "\":{w:1023,h:766},"
-      "}");
-  EXPECT_EQ(StrCat(StrCat("<img src=\"", out_png_url, "\">"),
-                   "<img src=\"b.jpeg\">",
-                   "<script>", js1, "</script>"),
-            output_buffer_);
-
-  CallFetcherCallbacks();
-
-  // Next time all is available.
-  output_buffer_.clear();
-  SetupWriter();
-  rewrite_driver()->StartParse(StrCat(kTestDomain, "dims2.html"));
-  rewrite_driver()->ParseText("<img src=\"a.png\"><img src=\"b.jpeg\">");
-  rewrite_driver()->FinishParse();
-  EXPECT_EQ(StrCat(StrCat("<img src=\"", out_png_url, "\">"),
-                   StrCat("<img src=\"", out_jpeg_url, "\">"),
-                   "<script>", js2, "</script>"),
-            output_buffer_);
 }
 
 TEST_F(ImageRewriteTest, DebugMessageImageInfo) {

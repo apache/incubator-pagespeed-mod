@@ -2,21 +2,22 @@
 var pagespeed = window.pagespeed;
 pagespeed.getResourceTimingData = function() {
   if (window.performance && (window.performance.getEntries || window.performance.webkitGetEntries)) {
-    for (var l = 0, m = 0, e = 0, n = 0, f = 0, p = 0, g = 0, q = 0, h = 0, r = 0, k = 0, c = {}, d = window.performance.getEntries ? window.performance.getEntries() : window.performance.webkitGetEntries(), b = 0;b < d.length;b++) {
-      var a = d[b].duration;
-      0 < a && (l += a, ++e, m = Math.max(m, a));
-      a = d[b].connectEnd - d[b].connectStart;
-      0 < a && (p += a, ++g);
-      a = d[b].domainLookupEnd - d[b].domainLookupStart;
-      0 < a && (n += a, ++f);
-      a = d[b].initiatorType;
-      c[a] ? ++c[a] : c[a] = 1;
-      a = d[b].requestStart - d[b].fetchStart;
-      0 < a && (r += a, ++k);
-      a = d[b].responseStart - d[b].requestStart;
-      0 < a && (q += a, ++h);
+    for (var totalFetchDuration = 0, maxFetchDuration = 0, numFetches = 0, totalDnsDuration = 0, numDnsLookups = 0, totalConnectionTime = 0, numConnections = 0, totalTTFB = 0, numTTFBRequests = 0, totalBlockingTime = 0, numRequestsBlocked = 0, entryCountMap = {}, entries = window.performance.getEntries ? window.performance.getEntries() : window.performance.webkitGetEntries(), i = 0;i < entries.length;i++) {
+      var duration = entries[i].duration;
+      0 < duration && (totalFetchDuration += duration, ++numFetches, maxFetchDuration = Math.max(maxFetchDuration, duration));
+      var connectTime = entries[i].connectEnd - entries[i].connectStart;
+      0 < connectTime && (totalConnectionTime += connectTime, ++numConnections);
+      var dnsTime = entries[i].domainLookupEnd - entries[i].domainLookupStart;
+      0 < dnsTime && (totalDnsDuration += dnsTime, ++numDnsLookups);
+      var initiator = entries[i].initiatorType;
+      entryCountMap[initiator] ? ++entryCountMap[initiator] : entryCountMap[initiator] = 1;
+      var blockingTime = entries[i].requestStart - entries[i].fetchStart;
+      0 < blockingTime && (totalBlockingTime += blockingTime, ++numRequestsBlocked);
+      var ttfb = entries[i].responseStart - entries[i].requestStart;
+      0 < ttfb && (totalTTFB += ttfb, ++numTTFBRequests);
     }
-    return "&afd=" + (e ? Math.round(l / e) : 0) + "&nfd=" + e + "&mfd=" + Math.round(m) + "&act=" + (g ? Math.round(p / g) : 0) + "&nct=" + g + "&adt=" + (f ? Math.round(n / f) : 0) + "&ndt=" + f + "&abt=" + (k ? Math.round(r / k) : 0) + "&nbt=" + k + "&attfb=" + (h ? Math.round(q / h) : 0) + "&nttfb=" + h + (c.css ? "&rit_css=" + c.css : "") + (c.link ? "&rit_link=" + c.link : "") + (c.script ? "&rit_script=" + c.script : "") + (c.img ? "&rit_img=" + c.img : "");
+    return "&afd=" + (numFetches ? Math.round(totalFetchDuration / numFetches) : 0) + "&nfd=" + numFetches + "&mfd=" + Math.round(maxFetchDuration) + "&act=" + (numConnections ? Math.round(totalConnectionTime / numConnections) : 0) + "&nct=" + numConnections + "&adt=" + (numDnsLookups ? Math.round(totalDnsDuration / numDnsLookups) : 0) + "&ndt=" + numDnsLookups + "&abt=" + (numRequestsBlocked ? Math.round(totalBlockingTime / numRequestsBlocked) : 0) + "&nbt=" + numRequestsBlocked + "&attfb=" + (numTTFBRequests ? 
+    Math.round(totalTTFB / numTTFBRequests) : 0) + "&nttfb=" + numTTFBRequests + (entryCountMap.css ? "&rit_css=" + entryCountMap.css : "") + (entryCountMap.link ? "&rit_link=" + entryCountMap.link : "") + (entryCountMap.script ? "&rit_script=" + entryCountMap.script : "") + (entryCountMap.img ? "&rit_img=" + entryCountMap.img : "");
   }
   return "";
 };

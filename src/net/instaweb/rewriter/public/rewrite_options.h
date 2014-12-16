@@ -19,7 +19,6 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 
-#include <bitset>
 #include <cstddef>                      // for size_t
 #include <map>
 #include <set>
@@ -27,34 +26,33 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/meta_data.h"
+#include "net/instaweb/http/public/semantic_type.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "net/instaweb/util/public/basictypes.h"
+#include "net/instaweb/util/public/enum_set.h"
+#include "net/instaweb/util/public/gtest_prod.h"
+#include "net/instaweb/util/public/md5_hasher.h"
+#include "net/instaweb/util/public/proto_util.h"
+#include "net/instaweb/util/public/scoped_ptr.h"
+#include "net/instaweb/util/public/thread_system.h"
 #include "pagespeed/kernel/base/dense_hash_map.h"
-#include "pagespeed/kernel/base/enum_set.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
-#include "pagespeed/kernel/base/gtest_prod.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/rde_hash_map.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/sha1_signature.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/wildcard.h"
-#include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/util/copy_on_write.h"
 
 namespace net_instaweb {
 
+class Hasher;
 class HttpOptions;
 class MessageHandler;
 class PurgeSet;
@@ -106,7 +104,6 @@ class RewriteOptions {
   enum Filter {
     kAddBaseTag,  // Update kFirstFilter if you add something before this.
     kAddHead,
-    kAddIds,
     kAddInstrumentation,
     kComputeStatistics,
     kCachePartialHtml,
@@ -134,7 +131,6 @@ class RewriteOptions {
     kDisableJavascript,
     kDivStructure,
     kElideAttributes,
-    kExperimentCollectMobImageInfo,
     kExperimentSpdy,  // Temporary and will be removed soon.
     kExplicitCloseTags,
     kExtendCacheCss,
@@ -216,7 +212,6 @@ class RewriteOptions {
   static const char kAddOptionsToUrls[];
   static const char kAllowLoggingUrlsInLogRecord[];
   static const char kAllowOptionsToBeSetByCookies[];
-  static const char kAlwaysMobilize[];
   static const char kAlwaysRewriteCss[];
   static const char kAnalyticsID[];
   static const char kAvoidRenamingIntrospectiveJavascript[];
@@ -301,7 +296,6 @@ class RewriteOptions {
   static const char kLazyloadImagesBlankUrl[];
   static const char kLoadFromFileCacheTtlMs[];
   static const char kLogBackgroundRewrite[];
-  static const char kLogMobilizationSamples[];
   static const char kLogRewriteTiming[];
   static const char kLogUrlIndices[];
   static const char kLowercaseHtmlNames[];
@@ -323,8 +317,6 @@ class RewriteOptions {
   static const char kMinCacheTtlMs[];
   static const char kMinImageSizeLowResolutionBytes[];
   static const char kMinResourceCacheTimeToRewriteMs[];
-  static const char kMobLayout[];
-  static const char kMobNav[];
   static const char kModifyCachingHeaders[];
   static const char kNoTransformOptimizedImages[];
   static const char kNonCacheablesForCachePartialHtml[];
@@ -411,7 +403,6 @@ class RewriteOptions {
   static const char kMemcachedServers[];
   static const char kMemcachedThreads[];
   static const char kMemcachedTimeoutUs[];
-  static const char kProxySuffix[];
   static const char kRateLimitBackgroundFetches[];
   static const char kServeWebpToAnyAgent[];
   static const char kSlurpDirectory[];
@@ -725,7 +716,7 @@ class RewriteOptions {
     // If spec doesn't have an id, then id_ will be set to
     // experiment::kExperimentNotSet.  These ExperimentSpecs will then be
     // rejected by AddExperimentSpec().
-    ExperimentSpec(const StringPiece& spec, const RewriteOptions* options,
+    ExperimentSpec(const StringPiece& spec, RewriteOptions* options,
                    MessageHandler* handler);
 
     // Creates a ExperimentSpec with id_=id.  All other variables
@@ -749,13 +740,8 @@ class RewriteOptions {
     FilterSet enabled_filters() const { return enabled_filters_; }
     FilterSet disabled_filters() const { return disabled_filters_; }
     OptionSet filter_options() const { return filter_options_; }
-    bool matches_device_type(UserAgentMatcher::DeviceType type) const;
     bool use_default() const { return use_default_; }
     GoogleString ToString() const;
-
-    // Mutate the origin domains in DomainLawyer with alternate_origin_domains_.
-    void ApplyAlternateOriginsToDomainLawyer(DomainLawyer* domain_lawyer,
-                                             MessageHandler* handler) const;
 
    protected:
     // Merges a spec into this. This follows the same semantics as
@@ -764,58 +750,13 @@ class RewriteOptions {
     // preserve vs extend_cache, *this will take precedence.
     void Merge(const ExperimentSpec& spec);
 
-    typedef std::bitset<net_instaweb::UserAgentMatcher::kEndOfDeviceType>
-        DeviceTypeBitSet;
-
-    static bool ParseDeviceTypeBitSet(const StringPiece& in,
-                                      DeviceTypeBitSet* out,
-                                      MessageHandler* handler);
-
-    struct AlternateOriginDomainSpec {
-      StringVector serving_domains;
-      GoogleString origin_domain;
-      GoogleString host_header;
-    };
-
-    // Simple check that 's' is not obviously an invalid host. Used to avoid
-    // problems when a port number is accidentally placed in a host field.
-    static bool LooksLikeValidHost(const StringPiece& s);
-
-    // Parses the string after an 'alternate_origin_domain' experiment
-    // option, returning if it was successfull. If it returns false, the spec is
-    // invalid and should be discarded.
-    static bool ParseAlternateOriginDomain(const StringPiece& in,
-                                           AlternateOriginDomainSpec* out,
-                                           MessageHandler* handler);
-
-    // Combine consecutive entries in a StringPieceVector such that
-    // [ a, b, "host, port" ] can be turned into [ a, b, host:port ].
-    // Inspects vec[first_pos] and vec[first_pos + 1]. If they appear to be a
-    // quoted tuple, will replace vec[first_pos] with a combined value and
-    // vec[first_pos + 1] will be removed, ie: vec will reduce in size by 1.
-    // combined_container is used as the underlying storage for the combined
-    // string, if necessary.
-    static void CombineQuotedHostPort(StringPieceVector* vec, size_t first_pos,
-                                      GoogleString* combined_container);
-
-    // Returns a copy of the input string that will be surrounded by double
-    // quotes if the input string contains a colon. This is used to turn
-    // host:port into "host:port" when printing an ExperimentSpec.
-    static GoogleString QuoteHostPort(const GoogleString& in);
-
    private:
     FRIEND_TEST(RewriteOptionsTest, ExperimentMergeTest);
-    FRIEND_TEST(RewriteOptionsTest, DeviceTypeMergeTest);
-    FRIEND_TEST(RewriteOptionsTest, AlternateOriginDomainMergeTest);
 
-    // Parse 'spec' and set the FilterSets, rewrite level, inlining thresholds,
-    // and OptionSets accordingly.
+    // Initialize parses spec and sets the FilterSets, rewrite level,
+    // inlining thresholds, and OptionSets accordingly.
     void Initialize(const StringPiece& spec, MessageHandler* handler);
 
-    //
-    // If you add any members to this list, be sure to also add them to the
-    // Merge method.
-    //
     int id_;  // id for this experiment
     GoogleString ga_id_;  // Google Analytics ID for this experiment
     int ga_variable_slot_;
@@ -824,18 +765,9 @@ class RewriteOptions {
     FilterSet enabled_filters_;
     FilterSet disabled_filters_;
     OptionSet filter_options_;
-    // bitset to indicate which device types this ExperimentSpec should apply
-    // to. If NULL, no device type was specified and the experiment applies
-    // to all device types.
-    scoped_ptr<DeviceTypeBitSet> matches_device_types_;
     // Use whatever RewriteOptions' settings are without experiments
     // for this experiment.
     bool use_default_;
-    // vector of parsed alternate_origin_domain options. These mutations will
-    // be applied to a DomainLawyer when passed to MutateDomainLawer.
-    typedef std::vector<AlternateOriginDomainSpec> AlternateOriginDomains;
-    AlternateOriginDomains alternate_origin_domains_;
-
     DISALLOW_COPY_AND_ASSIGN(ExperimentSpec);
   };
 
@@ -1675,13 +1607,6 @@ class RewriteOptions {
     return log_background_rewrites_.value();
   }
 
-  void set_log_mobilization_samples(bool x) {
-    set_option(x, &log_mobilization_samples_);
-  }
-  bool log_mobilization_samples() const {
-    return log_mobilization_samples_.value();
-  }
-
   void set_log_rewrite_timing(bool x) {
     set_option(x, &log_rewrite_timing_);
   }
@@ -2486,14 +2411,6 @@ class RewriteOptions {
   int64 option_cookies_duration_ms() const {
     return option_cookies_duration_ms_.value();
   }
-
-  bool mob_always() const { return mob_always_.value(); }
-  void set_mob_always(bool x) { set_option(x, &mob_always_); }
-  bool mob_layout() const { return mob_layout_.value(); }
-  void set_mob_layout(bool x) { set_option(x, &mob_layout_); }
-  bool mob_nav() const { return mob_nav_.value(); }
-  void set_mob_nav(bool x) { set_option(x, &mob_nav_); }
-
 
   // Merge src into 'this'.  Generally, options that are explicitly
   // set in src will override those explicitly set in 'this' (except that
@@ -3545,7 +3462,6 @@ class RewriteOptions {
   Option<bool> private_not_vary_for_ie_;
   Option<bool> combine_across_paths_;
   Option<bool> log_background_rewrites_;
-  Option<bool> log_mobilization_samples_;
   Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
   Option<bool> log_url_indices_;
   Option<bool> lowercase_html_names_;
@@ -3941,10 +3857,6 @@ class RewriteOptions {
   scoped_ptr<std::vector<ElementAttributeCategory> > url_valued_attributes_;
 
   Option<ResourceCategorySet> inline_unauthorized_resource_types_;
-
-  Option<bool> mob_always_;
-  Option<bool> mob_layout_;
-  Option<bool> mob_nav_;
 
   CopyOnWrite<JavascriptLibraryIdentification>
       javascript_library_identification_;

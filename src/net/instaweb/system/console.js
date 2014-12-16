@@ -246,7 +246,6 @@ pagespeed.statistics.percent_total = function(badStat, goodStat) {
  * displays a fixed set of graphs ordered by level of importance.
  *
  * @return {pagespeed.Console}  The initialized console object.
- * @export
  */
 pagespeed.startConsole = function() {
   var mpsConsole = new pagespeed.Console();
@@ -452,15 +451,13 @@ pagespeed.Console.prototype.drawGraphsFromJsonData = function(data) {
              * @param {string} name  variable name.
              * @return {number}  Variable value at timestamp j.
              */
-            var fn = function(name) {
+            return function(name) {
               if (name in variables) {
                 return variables[name][j];
               } else {
                 pagespeed.error('JSON data missing required variable.');
-                return 0;
               }
-            };
-            return fn;
+            }
           }(this.variables_)));
     }
     this.graphs_[i].overallPercent = statTimeSeries[statTimeSeries.length - 1];

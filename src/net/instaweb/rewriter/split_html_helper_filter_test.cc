@@ -23,6 +23,8 @@
 #include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
@@ -31,15 +33,13 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "net/instaweb/util/enums.pb.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/wildcard.h"  // for Wildcard
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/opt/logging/enums.pb.h"
 
 namespace net_instaweb {
 
@@ -105,18 +105,14 @@ class SplitHtmlHelperFilterTest : public RewriteTestBase {
     return StrCat("<img pagespeed_lazy_src='", url, "'",
         no_transform ? " pagespeed_no_transform=" : "",
         " src=\"/psajs/1.0.gif\" "
-        "onload=\"", LazyloadImagesFilter::kImageOnloadCode,
-        "\" onerror=\"this.onerror=null;",
-        LazyloadImagesFilter::kImageOnloadCode, "\">");
+        "onload=\"", LazyloadImagesFilter::kImageOnloadCode, "\">");
   }
 
   GoogleString GetInlinePreviewImageTag(const GoogleString& url,
                                         const GoogleString& low_res_src) {
     return StrCat(
         "<img pagespeed_high_res_src=\"", url, "\" src=\"", low_res_src,
-        "\" onload=\"", DelayImagesFilter::kImageOnloadCode,
-        "\" onerror=\"this.onerror=null;", DelayImagesFilter::kImageOnloadCode,
-        "\">");
+        "\" onload=\"", DelayImagesFilter::kImageOnloadCode, "\">");
   }
 
   GoogleString GetImageOnloadScriptBlock() const {

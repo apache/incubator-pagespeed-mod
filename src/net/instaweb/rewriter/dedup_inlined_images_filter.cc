@@ -21,16 +21,16 @@
 #include <map>
 
 #include "base/logging.h"
+#include "net/instaweb/htmlparse/public/html_element.h"
+#include "net/instaweb/htmlparse/public/html_name.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/html/html_element.h"
-#include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/http/data_url.h"
+#include "net/instaweb/util/public/data_url.h"
+#include "net/instaweb/util/public/hasher.h"
+#include "net/instaweb/util/public/statistics.h"
+#include "net/instaweb/util/public/string.h"
 #include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {
@@ -144,7 +144,8 @@ void DedupInlinedImagesFilter::EndElementImpl(HtmlElement* element) {
                 element_id, "','", script_id, "');");
       HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
       driver()->InsertElementAfterElement(element, script);
-      AddJsToElement(snippet, script);
+      driver()->server_context()->static_asset_manager()->AddJsToElement(
+          snippet, script, driver());
       driver()->AddAttribute(script, HtmlName::kId, script_id);
       script->AddAttribute(driver()->MakeName(HtmlName::kPagespeedNoDefer),
                            NULL, HtmlElement::NO_QUOTE);
@@ -175,13 +176,14 @@ void DedupInlinedImagesFilter::InsertOurScriptElement(HtmlElement* before) {
       server_context()->static_asset_manager();
   StringPiece dedup_inlined_images_js =
       static_asset_manager->GetAsset(
-          StaticAssetEnum::DEDUP_INLINED_IMAGES_JS, driver()->options());
+          StaticAssetManager::kDedupInlinedImagesJs, driver()->options());
   const GoogleString& initialized_js = StrCat(dedup_inlined_images_js,
                                               kDiiInitializer);
   HtmlElement* script_element = driver()->NewElement(before->parent(),
                                                      HtmlName::kScript);
   driver()->InsertElementBeforeElement(before, script_element);
-  AddJsToElement(initialized_js, script_element);
+  static_asset_manager->AddJsToElement(
+      initialized_js, script_element, driver());
   script_element->AddAttribute(driver()->MakeName(HtmlName::kPagespeedNoDefer),
                                NULL, HtmlElement::NO_QUOTE);
   script_inserted_ = true;

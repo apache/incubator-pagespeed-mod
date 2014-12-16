@@ -271,7 +271,6 @@
       'type': '<(library)',
       'sources': [
         'kernel/http/data_url.cc',
-        'kernel/http/domain_registry.cc',
         'kernel/http/headers.cc',
         'kernel/http/http_options.cc',
         'kernel/http/response_headers_parser.cc',
@@ -281,7 +280,6 @@
         'kernel/http/user_agent_normalizer.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/third_party/domain_registry_provider/src/domain_registry/domain_registry.gyp:init_registry_tables_lib',
         'pagespeed_http_core',
         'pagespeed_http_gperf',
         'pagespeed_http_pb',
@@ -313,19 +311,6 @@
       'sources': [
         'kernel/http/http.proto',
         '<(protoc_out_dir)/<(instaweb_protoc_subdir)/http.pb.cc',
-      ],
-      'includes': [
-        '../net/instaweb/protoc.gypi',
-      ],
-    },
-    {
-      'target_name': 'pagespeed_image_types_pb',
-      'variables': {
-        'instaweb_protoc_subdir': 'pagespeed/kernel/http',
-      },
-      'sources': [
-        'kernel/http/image_types.proto',
-        '<(protoc_out_dir)/<(instaweb_protoc_subdir)/image_types.pb.cc',
       ],
       'includes': [
         '../net/instaweb/protoc.gypi',
@@ -421,7 +406,6 @@
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
       'sources': [
-        'kernel/image/frame_interface_optimizer.cc',
         'kernel/image/gif_reader.cc',
         'kernel/image/image_analysis.cc',
         'kernel/image/image_converter.cc',

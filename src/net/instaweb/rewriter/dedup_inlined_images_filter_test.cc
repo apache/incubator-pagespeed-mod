@@ -16,23 +16,22 @@
 
 // Author: matterbury@google.com (Matt Atterbury)
 
+#include "net/instaweb/htmlparse/public/html_parse_test_base.h"
+#include "net/instaweb/http/public/content_type.h"
+#include "net/instaweb/http/public/request_headers.h"
+#include "net/instaweb/http/public/user_agent_matcher_test_base.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/dedup_inlined_images_filter.h"
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
+#include "net/instaweb/rewriter/public/server_context.h"
+#include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
-#include "net/instaweb/rewriter/static_asset_config.pb.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
+#include "net/instaweb/util/public/gtest.h"
+#include "net/instaweb/util/public/string.h"
+#include "net/instaweb/util/public/string_util.h"
 #include "pagespeed/kernel/base/wildcard.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace net_instaweb {
 
@@ -115,7 +114,7 @@ class DedupInlinedImagesTest : public RewriteTestBase,
     dedup_inlined_images_js_ =
         StrCat("<script type=\"text/javascript\" pagespeed_no_defer>",
                static_asset_manager->GetAsset(
-                   StaticAssetEnum::DEDUP_INLINED_IMAGES_JS, options()),
+                   StaticAssetManager::kDedupInlinedImagesJs, options()),
                DedupInlinedImagesFilter::kDiiInitializer,
                "</script>");
   }
@@ -294,19 +293,15 @@ class DedupInlinePreviewImagesTest : public DedupInlinedImagesTest {
 TEST_F(DedupInlinePreviewImagesTest, DedupInlinePreviewImages) {
   GoogleString image_filename = StrCat(kTestDomain, kCuppaPngFilename);
   GoogleString input_img = StrCat("<img src='", image_filename, "'/>");
-  GoogleString inlined_img =
-      StrCat("<img pagespeed_high_res_src='", image_filename,
-             "' src=\"", kCuppaPngWildcardData,
-             "\" onload=\"", DelayImagesFilter::kImageOnloadCode,
-             "\" onerror=\"this.onerror=null;",
-             DelayImagesFilter::kImageOnloadCode,
-             "\" id=\"pagespeed_img_0\"/>");
+  GoogleString inlined_img = StrCat("<img pagespeed_high_res_src='",
+                                    image_filename, "' src=\"",
+                                    kCuppaPngWildcardData, "\" onload=\"",
+                                    DelayImagesFilter::kImageOnloadCode,
+                                    "\" id=\"pagespeed_img_0\"/>");
   GoogleString scripted_img =
       StrCat("<img pagespeed_high_res_src='", image_filename,
-             "' onload=\"", DelayImagesFilter::kImageOnloadCode,
-             "\" onerror=\"this.onerror=null;",
-             DelayImagesFilter::kImageOnloadCode,
-             "\" id=\"pagespeed_img_0\"/>");
+             "' onload=\"pagespeed.switchToHighResAndMaybeBeacon(this);\""
+             " id=\"pagespeed_img_0\"/>");
   GoogleString script_1 = StringPrintf(kInlinedScriptFormat, 1, 1);
   GoogleString script_2 = StringPrintf(kInlinedScriptFormat, 2, 2);
   GoogleString input_html = StrCat("<head></head>"
