@@ -77,7 +77,8 @@ ProxyFetchFactory::ProxyFetchFactory(ServerContext* server_context)
       timer_(server_context->timer()),
       handler_(server_context->message_handler()),
       outstanding_proxy_fetches_mutex_(
-          server_context->thread_system()->NewMutex()) {
+      server_context->thread_system()->NewMutex()),
+      proxy_fetches_done_in_flight_(0) {
 }
 
 ProxyFetchFactory::~ProxyFetchFactory() {
@@ -88,6 +89,37 @@ ProxyFetchFactory::~ProxyFetchFactory() {
   LOG(INFO) << "ProxyFetchFactory exiting with "
             << outstanding_proxy_fetches_.size()
             << " outstanding requests.";
+}
+
+void ProxyFetchFactory::CancelOutstanding() {
+  int64 sleep_us = 250;
+
+  // First wait any current scheduled CompleteFinishParse calls to round up,
+  // so we don't have to worry about races w/regard to done_outstanding_ and
+  // finishing_, avoiding the need to take a lock on proxy_fetch.
+  while (proxy_fetches_done_in_flight_.value() != 0) {
+    timer_->SleepUs(sleep_us);
+  }
+
+  // Any outstanding fetches left do not have a Done() call initiated on them.
+  // So we don't have to worry about done_outstanding_ and finishing_
+  while (true) {
+    ProxyFetch* fetch;
+    {
+      ScopedMutex lock(outstanding_proxy_fetches_mutex_.get());
+      if (outstanding_proxy_fetches_.empty()) {
+        break;
+      }
+      fetch = *outstanding_proxy_fetches_.begin();
+      outstanding_proxy_fetches_.erase(fetch);
+    }
+    fetch->Done(false);
+  }
+
+  // Wait for any deferred finalization to round up before exiting, releasing
+  // any associated drivers. 
+  while (proxy_fetches_done_in_flight_.value() != 0) {
+    timer_->SleepUs(sleep_us);  }
 }
 
 ProxyFetch* ProxyFetchFactory::CreateNewProxyFetch(
@@ -954,7 +986,7 @@ bool ProxyFetch::HandleFlush(MessageHandler* message_handler) {
     // in ExecuteQueued.  Note that this can re-order Flushes behind
     // pending text, and aggregate together multiple flushes received from
     // the network into one.
-    if (Options()->flush_html()) {
+    if (Options()->flush_html() || Options()->follow_flushes()) {
       ScopedMutex lock(mutex_.get());
       network_flush_outstanding_ = true;
       ScheduleQueueExecutionIfNeeded();
@@ -966,6 +998,7 @@ bool ProxyFetch::HandleFlush(MessageHandler* message_handler) {
 }
 
 void ProxyFetch::HandleDone(bool success) {
+  factory_->proxy_fetches_done_in_flight_.BarrierIncrement(1);
   // TODO(jmarantz): check if the server is being shut down and punt,
   // possibly by calling Finish(false).
   if (original_content_fetch_ != NULL) {
@@ -1028,8 +1061,8 @@ void ProxyFetch::ExecuteQueued() {
   bool do_flush = false;
   bool do_finish = false;
   bool done_result = false;
-  bool force_flush = false;
-
+  bool force_flush = network_flush_outstanding_
+      && Options()->follow_flushes();
   size_t buffer_limit = Options()->flush_buffer_limit_bytes();
   StringStarVector v;
   {
@@ -1171,7 +1204,9 @@ void ProxyFetch::Finish(bool success) {
   // indicates the test functionality is complete.  In other contexts
   // this is a no-op.
   ThreadSynchronizer* sync = server_context_->thread_synchronizer();
+  ProxyFetchFactory* tmp = factory_;
   delete this;
+  tmp->proxy_fetches_done_in_flight_.BarrierIncrement(-1);
   sync->Signal(kHeadersSetupRaceDone);
 }
 
