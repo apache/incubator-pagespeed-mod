@@ -41,6 +41,7 @@
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/hasher.h"
 #include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/mock_message_handler.h"
 #include "net/instaweb/util/public/mock_scheduler.h"
 #include "net/instaweb/util/public/statistics.h"
@@ -51,8 +52,6 @@
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace net_instaweb {
-
-class MessageHandler;
 
 namespace {
 
