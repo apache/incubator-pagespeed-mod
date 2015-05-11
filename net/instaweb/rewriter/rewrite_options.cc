@@ -136,6 +136,8 @@ const char RewriteOptions::kFlushMoreResourcesEarlyIfTimePermits[] =
     "FlushMoreResourcesEarlyIfTimePermits";
 const char RewriteOptions::kForbidAllDisabledFilters[] =
     "ForbidAllDisabledFilters";
+const char RewriteOptions::kGoogleFontCssInlineMaxBytes[] =
+    "GoogleFontCssInlineMaxBytes";
 const char RewriteOptions::kHideRefererUsingMeta[] = "HideRefererUsingMeta";
 const char RewriteOptions::kIdleFlushTimeMs[] = "IdleFlushTimeMs";
 const char RewriteOptions::kImageInlineMaxBytes[] = "ImageInlineMaxBytes";
@@ -404,6 +406,8 @@ const int64 RewriteOptions::kDefaultCssInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultCssFlattenMaxBytes = 1024000;
 const int64 RewriteOptions::kDefaultCssImageInlineMaxBytes = 0;
 const int64 RewriteOptions::kDefaultCssOutlineMinBytes = 3000;
+// 3K is bigger than Roboto loader for Chrome (2.2k)
+const int64 RewriteOptions::kDefaultGoogleFontCssInlineMaxBytes = 3 * 1024;
 const int64 RewriteOptions::kDefaultImageInlineMaxBytes = 3072;
 const int64 RewriteOptions::kDefaultJsInlineMaxBytes = 2048;
 const int64 RewriteOptions::kDefaultJsOutlineMinBytes = 3000;
@@ -1196,6 +1200,13 @@ void RewriteOptions::AddProperties() {
       kCssFlattenMaxBytes,
       kQueryScope,
       "Number of bytes below which stylesheets will be flattened.", true);
+  AddBaseProperty(
+      kDefaultGoogleFontCssInlineMaxBytes,
+      &RewriteOptions::google_font_css_inline_max_bytes_, "gfci",
+      kGoogleFontCssInlineMaxBytes,
+      kQueryScope,
+      "Number of bytes below which Google Font stylesheets will be inlined.",
+      true);
   AddBaseProperty(
       kDefaultCssImageInlineMaxBytes,
       &RewriteOptions::css_image_inline_max_bytes_,
