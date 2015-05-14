@@ -605,7 +605,7 @@ TEST_F(CssFlattenImportsTest, DontFlattenOverTinyLimit) {
 TEST_F(CssFlattenImportsTest, FlattenEmpty) {
   // We intentionally do not inline any empty resources.
   const char kFilename[] = "empty.css";
-  const char css_in[] = "@import url(http://test.com/empty.css);";
+  const char css_in[] = "@import url(http://test.com/empty.css) ;";
   const char empty_content[] = "";
 
   SetResponseWithDefaultHeaders(kFilename, kContentTypeCss, empty_content, 100);
