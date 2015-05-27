@@ -299,7 +299,7 @@ if [ -z ${DISABLE_FONT_API_TESTS:-} ]; then
   # Use a more recent version of Chrome UA than our default, which will get
   # a very large (which hit our previous default size limits) CSS using woff2
   WGETRC_OLD=$WGETRC
-  export WGETRC=$TESTTMP/wgetrc-chrome
+  export WGETRC=$TEMPDIR/wgetrc-chrome
   cat > $WGETRC <<EOF
 user_agent =Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.45 Safari/537.36
 EOF
