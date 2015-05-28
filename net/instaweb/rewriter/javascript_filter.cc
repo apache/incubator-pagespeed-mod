@@ -163,17 +163,31 @@ class JavascriptFilter::Context : public SingleRewriteContext {
       return kRewriteFailed;
     }
 
-    // Write out source map first so that we can embed the source map URL
-    // into the rewritten version.
-    if (Options()->Enabled(RewriteOptions::kIncludeJsSourceMaps) &&
+    // Write out source map before rewritten JS so that we can embed the
+    // source map URL into the rewritten JS.
+    if (code_block.SourceMappings().empty()) {
+      if (output_source_map_) {
         // Source map will be empty if we can't construct it correctly.
-        !code_block.SourceMappings().empty()) {
-      // Note: We append PageSpeed=off query parameter to make sure that
-      // the source URL doesn't get rewritten with IPRO.
+        // If this fetch is explicitly for a source map, we must fail.
+        return kRewriteFailed;
+      }
+      // If this is not a fetch for a source map, just skip over source map
+      // generation code.
+    } else if (Options()->Enabled(RewriteOptions::kIncludeJsSourceMaps) ||
+               output_source_map_) {
+      // We produce a source map if they are enabled or requested.
       GoogleUrl original_gurl(input->url());
-      scoped_ptr<GoogleUrl> source_gurl(
-          original_gurl.CopyAndAddEscapedQueryParam(RewriteQuery::kPageSpeed,
-                                                    "off"));
+      scoped_ptr<GoogleUrl> source_gurl;
+      if (server_context->IsPagespeedResource(original_gurl)) {
+        // Do not append Pagespeed=off if input is already a pagespeed resource.
+        source_gurl.reset(new GoogleUrl);
+        source_gurl->Reset(original_gurl);
+      } else {
+        // Note: We append PageSpeed=off query parameter to make sure that
+        // the source URL doesn't get rewritten with IPRO.
+        source_gurl.reset(original_gurl.CopyAndAddEscapedQueryParam(
+            RewriteQuery::kPageSpeed, "off"));
+      }
 
       GoogleString source_map_text;
       // Note: We omit rewritten URL because of a chicken-and-egg problem.
