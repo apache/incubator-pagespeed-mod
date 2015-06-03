@@ -90,7 +90,8 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
 TEST_F(LazyloadImagesFilterTest, SingleHead) {
   InitLazyloadImagesFilter(false);
 
-  ValidateExpected("lazyload_images",
+  ValidateExpected(
+      "lazyload_images",
       "<head></head>"
       "<body>"
       "<img />"
@@ -114,7 +115,9 @@ TEST_F(LazyloadImagesFilterTest, SingleHead) {
       "<img src=\"1.jpg\" onload=\"blah();\" />"
       "<img src=\"1.jpg\" class=\"123 dfcg-metabox\" />"
       "</body>",
-      StrCat("<head></head><body><img/>"
+      StrCat("<head>",
+             GetLazyloadScriptHtml(),
+             "</head><body><img/>"
              "<img src=\"\"/>"
              "<noscript>"
              "<img src=\"noscript.jpg\"/>"
@@ -125,7 +128,6 @@ TEST_F(LazyloadImagesFilterTest, SingleHead) {
              "<marquee>"
              "<img src=\"marquee.jpg\"/>"
              "</marquee>",
-             GetLazyloadScriptHtml(),
              GenerateRewrittenImageTag("img", "1.jpg", ""),
              "<img src=\"1.jpg\" pagespeed_no_defer />"
              "<img src=\"1.jpg\" data-src=\"2.jpg\"/>",
@@ -167,16 +169,16 @@ TEST_F(LazyloadImagesFilterTest, Blacklist) {
   ValidateExpected(
       "lazyload_images",
       input_html,
-      StrCat("<head></head><body>"
-             "<img src=\"http://www.1.com/blacklist.jpg\"/>",
+      StrCat("<head>",
              GetLazyloadScriptHtml(),
-             StrCat(
-                 GenerateRewrittenImageTag(
-                     "img", "http://www.1.com/img1", ""),
-                 GenerateRewrittenImageTag(
-                     "img", "img2", ""),
-                 GetLazyloadPostscriptHtml(),
-                 "</body>")));
+             "</head><body>"
+             "<img src=\"http://www.1.com/blacklist.jpg\"/>",
+             GenerateRewrittenImageTag(
+                 "img", "http://www.1.com/img1", ""),
+             GenerateRewrittenImageTag(
+                 "img", "img2", ""),
+             GetLazyloadPostscriptHtml(),
+             "</body>"));
   EXPECT_EQ(3, logging_info()->rewriter_info().size());
   ExpectLogRecord(0, RewriterApplication::NOT_APPLIED, true, false);
   ExpectLogRecord(1, RewriterApplication::APPLIED_OK, false, false);
@@ -210,16 +212,16 @@ TEST_F(LazyloadImagesFilterTest, CriticalImages) {
   ValidateExpected(
       "lazyload_images",
       input_html,
-      StrCat("<head></head><body>"
-             "<img src=\"http://www.1.com/critical\"/>",
+      StrCat("<head>",
              GetLazyloadScriptHtml(),
-             StrCat(
-                 GenerateRewrittenImageTag(
-                     "img", "http://www.1.com/critical2", ""),
-                 "<img src=\"critical3\"/>"
-                 "<img src=\"", rewritten_url, "\"/>",
-                 GetLazyloadPostscriptHtml(),
-                 "</body>")));
+             "</head><body>"
+             "<img src=\"http://www.1.com/critical\"/>",
+             GenerateRewrittenImageTag(
+                 "img", "http://www.1.com/critical2", ""),
+             "<img src=\"critical3\"/>"
+             "<img src=\"", rewritten_url, "\"/>",
+             GetLazyloadPostscriptHtml(),
+             "</body>"));
   EXPECT_EQ(4, logging_info()->rewriter_info().size());
   ExpectLogRecord(0, RewriterApplication::NOT_APPLIED, false, true);
   ExpectLogRecord(1, RewriterApplication::APPLIED_OK, false, false);
@@ -252,14 +254,16 @@ TEST_F(LazyloadImagesFilterTest, CriticalImages) {
 TEST_F(LazyloadImagesFilterTest, SingleHeadLoadOnOnload) {
   options()->set_lazyload_images_after_onload(true);
   InitLazyloadImagesFilter(false);
-  ValidateExpected("lazyload_images",
+  ValidateExpected(
+      "lazyload_images",
       "<head></head>"
       "<body>"
       "<img src=\"1.jpg\" />"
       "</body>",
-      StrCat("<head></head>"
-             "<body>",
+      StrCat("<head>",
              GetLazyloadScriptHtml(),
+             "</head>"
+             "<body>",
              GenerateRewrittenImageTag("img", "1.jpg", ""),
              GetLazyloadPostscriptHtml(),
              "</body>"));
@@ -271,31 +275,36 @@ TEST_F(LazyloadImagesFilterTest, SingleHeadLoadOnOnload) {
 // not an onload attribute added by PageSpeed.
 TEST_F(LazyloadImagesFilterTest, NoLazyloadImagesWithOnloadAttribute) {
   InitLazyloadImagesFilter(false);
-  ValidateExpected("lazyload_images",
+  ValidateExpected(
+      "lazyload_images",
       "<head></head>"
       "<body>"
       "<img src=\"1.jpg\" onload=\"do_something();\"/>"
       "</body>",
-      "<head></head>"
-      "<body>"
-      "<img src=\"1.jpg\" onload=\"do_something();\"/>"
-      "</body>");
+      StrCat("<head>",
+             GetLazyloadScriptHtml(),
+             "</head>"
+             "<body>"
+             "<img src=\"1.jpg\" onload=\"do_something();\"/>"
+             "</body>"));
 }
 
 // Verify that lazyload_images gets applied on image elements that have an
 // onload handler whose value is CriticalImagesBeaconFilter::kImageOnloadCode.
 TEST_F(LazyloadImagesFilterTest, LazyloadWithPagespeedAddedOnloadAttribute) {
   InitLazyloadImagesFilter(false);
-  ValidateExpected("lazyload_images",
+  ValidateExpected(
+      "lazyload_images",
       StrCat("<head></head>"
              "<body>"
              "<img src=\"1.jpg\" onload=\"",
              CriticalImagesBeaconFilter::kImageOnloadCode,
              "\"/>"
              "</body>"),
-      StrCat("<head></head>"
-             "<body>",
+      StrCat("<head>",
              GetLazyloadScriptHtml(),
+             "</head>"
+             "<body>",
              GenerateRewrittenImageTag("img", "1.jpg", ""),
              GetLazyloadPostscriptHtml(),
              "</body>"));
@@ -314,8 +323,8 @@ TEST_F(LazyloadImagesFilterTest, MultipleBodies) {
       "<script></script>"
       "</body>",
       StrCat(
-          "<body>",
           GetLazyloadScriptHtml(),
+          "<body>",
           GenerateRewrittenImageTag("img", "1.jpg", ""),
           GetLazyloadPostscriptHtml(),
           StrCat(
@@ -337,8 +346,8 @@ TEST_F(LazyloadImagesFilterTest, NoHeadTag) {
       "<body>"
       "<img src=\"1.jpg\" />"
       "</body>",
-      StrCat("<body>",
-             GetLazyloadScriptHtml(),
+      StrCat(GetLazyloadScriptHtml(),
+             "<body>",
              GenerateRewrittenImageTag("img", "1.jpg", ""),
              GetLazyloadPostscriptHtml(),
              "</body>"));
@@ -367,8 +376,8 @@ TEST_F(LazyloadImagesFilterTest, CustomImageUrl) {
       "<body>"
       "<img src=\"1.jpg\" />"
       "</body>",
-      StrCat("<body>",
-             GetLazyloadScriptHtml(),
+      StrCat(GetLazyloadScriptHtml(),
+             "<body>",
              GenerateRewrittenImageTag("img", "1.jpg", ""),
              GetLazyloadPostscriptHtml(),
              "</body>"));
@@ -382,7 +391,8 @@ TEST_F(LazyloadImagesFilterTest, DfcgClass) {
       "<img src=\"1.jpg\"/>"
       "</div>"
       "</body>";
-  ValidateNoChanges("lazyload_images", input_html);
+  ValidateExpected("DfcgClass",
+                   input_html, StrCat(GetLazyloadScriptHtml(), input_html));
 }
 
 TEST_F(LazyloadImagesFilterTest, NivoClass) {
@@ -393,7 +403,8 @@ TEST_F(LazyloadImagesFilterTest, NivoClass) {
       "</div>"
       "<img class=\"nivo\" src=\"1.jpg\"/>"
       "</body>";
-  ValidateNoChanges("lazyload_images", input_html);
+  ValidateExpected("NivoClass",
+                   input_html, StrCat(GetLazyloadScriptHtml(), input_html));
 }
 
 TEST_F(LazyloadImagesFilterTest, ClassContainsSlider) {
@@ -404,13 +415,16 @@ TEST_F(LazyloadImagesFilterTest, ClassContainsSlider) {
       "</div>"
       "<img class=\"my_sLiDer\" src=\"1.jpg\"/>"
       "</body>";
-  ValidateNoChanges("lazyload_images", input_html);
+  ValidateExpected("SliderClass",
+                   input_html, StrCat(GetLazyloadScriptHtml(), input_html));
 }
 
 TEST_F(LazyloadImagesFilterTest, NoImages) {
   InitLazyloadImagesFilter(false);
   GoogleString input_html = "<head></head><body></body>";
-  ValidateNoChanges("lazyload_images", input_html);
+  ValidateExpected("NoImages", input_html,
+                   StrCat("<head>", GetLazyloadScriptHtml(),
+                          "</head><body></body>"));
   EXPECT_EQ(0, logging_info()->rewriter_info().size());
 }
 
@@ -440,7 +454,8 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledWithJquerySlider) {
       "<img src=\"1.jpg\"/>"
       "</body>";
   // No change in the html.
-  ValidateNoChanges("lazyload_images", input_html);
+  ValidateExpected("JQuerySlider", input_html,
+                   StrCat(GetLazyloadScriptHtml(), input_html));
 }
 
 TEST_F(LazyloadImagesFilterTest, LazyloadDisabledWithJquerySliderAfterHead) {
@@ -451,7 +466,15 @@ TEST_F(LazyloadImagesFilterTest, LazyloadDisabledWithJquerySliderAfterHead) {
       "<script src=\"jquery.sexyslider.js\"/>"
       "<img src=\"1.jpg\"/>"
       "</body>";
-  ValidateNoChanges("abort_script_inserted", input_html);
+  GoogleString expected_html = StrCat(
+      "<head>",
+      GetLazyloadScriptHtml(),
+      "</head>"
+      "<body>"
+      "<script src=\"jquery.sexyslider.js\"/>"
+      "<img src=\"1.jpg\"/>"
+      "</body>");
+  ValidateExpected("abort_script_inserted", input_html, expected_html);
 }
 
 TEST_F(LazyloadImagesFilterTest, LazyloadDisabledForOldBlackberry) {
