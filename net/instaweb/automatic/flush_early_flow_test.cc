@@ -409,6 +409,14 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
                         redirect_url_.c_str());
   }
 
+  GoogleString GetLazyloadScriptFlushEarly() {
+    return StrCat(
+        "<script type=\"text/javascript\">",
+        LazyloadImagesFilter::GetLazyloadJsSnippet(
+            options_, server_context()->static_asset_manager()),
+        "</script>");
+  }
+
   GoogleString FlushEarlyRewrittenHtml(
       UserAgentMatcher::PrefetchMechanism value,
       bool defer_js_enabled, bool insert_dns_prefetch,
@@ -472,12 +480,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
                      FlushEarlyContentWriterFilter::kDisableLinkTag).c_str(),
               4);
           if (lazyload_enabled) {
-            StrAppend(
-                &flush_early_html,
-                StrCat("<script type=\"text/javascript\">",
-                       LazyloadImagesFilter::GetLazyloadJsSnippet(
-                           options_, server_context()->static_asset_manager()),
-                       "</script>"));
+            StrAppend(&flush_early_html, GetLazyloadScriptFlushEarly());
           }
         } else {
           flush_early_html = StringPrintf(
@@ -622,10 +625,7 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
             "window.mod_pagespeed_num_resources_prefetched = 1"
             "</script>", rewritten_css_url_1_.c_str(),
             FlushEarlyContentWriterFilter::kDisableLinkTag),
-        "<script type=\"text/javascript\">",
-        LazyloadImagesFilter::GetLazyloadJsSnippet(
-            options_, server_context()->static_asset_manager()),
-        "</script>"
+        GetLazyloadScriptFlushEarly(),
         "<title>Flush Subresources Early example</title>"
         "</head>"
         "<body>",
@@ -635,12 +635,12 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
         "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
         "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
         " src=\"/psajs/1.0.gif\""
-        " onload=\"%s\"/>"
-        "Hello, mod_pagespeed!"
-        "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
-        "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
-        "</body></html>", rewritten_css_url_1_.c_str(), kMockHashValue,
-        LazyloadImagesFilter::kImageOnloadCode));
+        " onload=\"%s\"/>",
+        rewritten_css_url_1_.c_str(), kMockHashValue,
+        LazyloadImagesFilter::kImageOnloadCode),
+        "Hello, mod_pagespeed!",
+        GetLazyloadPostscriptHtml(),
+        "</body></html>");
 
     GoogleString kMobileOutputHtml = StrCat(
         "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
@@ -654,27 +654,24 @@ class FlushEarlyFlowTest : public ProxyInterfaceTestBase {
             "window.mod_pagespeed_num_resources_prefetched = 1"
             "</script>", rewritten_css_url_1_.c_str(),
             FlushEarlyContentWriterFilter::kDisableLinkTag),
-        "<title>Flush Subresources Early example</title>"
+        "<title>Flush Subresources Early example</title>",
+        GetLazyloadScriptHtml(),
         "</head>"
         "<body>",
         StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
                      redirect_url.c_str()),
         StringPrintf(
-        "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-        "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-        rewritten_css_url_1_.c_str()),
-        LazyloadImagesFilter::GetLazyloadJsSnippet(
-            options_, server_context()->static_asset_manager()),
-        StringPrintf(
-        "</script>"
+            "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">",
+            rewritten_css_url_1_.c_str()),
+        StrCat(StringPrintf(
         "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
         " src=\"/psajs/1.0.gif\""
-        " onload=\"%s\"/>"
-        "Hello, mod_pagespeed!"
-        "<script type=\"text/javascript\" pagespeed_no_defer=\"\">"
-        "pagespeed.lazyLoadImages.overrideAttributeFunctions();</script>"
-        "</body></html>", kMockHashValue,
-        LazyloadImagesFilter::kImageOnloadCode));
+        " onload=\"%s\"/>",
+        kMockHashValue,
+        LazyloadImagesFilter::kImageOnloadCode),
+        "Hello, mod_pagespeed!",
+        GetLazyloadPostscriptHtml(),
+        "</body></html>"));
 
     ResponseHeaders headers;
     headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
@@ -1291,6 +1288,9 @@ TEST_F(FlushEarlyFlowTest, LazyloadAndDeferJsScriptFlushedEarly) {
 }
 
 TEST_F(FlushEarlyFlowTest, NoLazyloadScriptFlushedOutIfNoImagePresent) {
+  // TODO(jmaessen): We now include the lazy load script (in <head>) even if
+  // there are no images present.  We could tighten this up, but it will require
+  // a major redesign of the filter.
   const char kInputHtml[] =
       "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
       "<html>"
@@ -1308,30 +1308,31 @@ TEST_F(FlushEarlyFlowTest, NoLazyloadScriptFlushedOutIfNoImagePresent) {
       "</html>";
 
   GoogleString redirect_url = StrCat(kTestDomain, "?PageSpeed=noscript");
-  GoogleString kOutputHtml = StringPrintf(
-      "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
+  GoogleString kOutputHtml = StrCat(
+      StrCat("<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
       "<html>"
       "<head>"
-      "<link rel=\"stylesheet\" href=\"%s\"/>\n"
-      "%s"
+      "<link rel=\"stylesheet\" href=\"",
+      rewritten_css_url_1_.c_str(),
+      "\"/>\n",
+      FlushEarlyContentWriterFilter::kDisableLinkTag),
       "<script type='text/javascript'>"
       "window.mod_pagespeed_prefetch_start = Number(new Date());"
       "window.mod_pagespeed_num_resources_prefetched = 1"
-      "</script>"
+      "</script>",
+      GetLazyloadScriptFlushEarly(),
       "<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\"/>"
       "<meta http-equiv=\"last-modified\" content=\"2012-08-09T11:03:27Z\"/>"
       "<meta charset=\"UTF-8\"/>"
       "<title>Flush Subresources Early example</title>"
-      "<link rel=\"stylesheet\" type=\"text/css\""
-      " href=\"%s\"></head>"
-      "<body>%sHello, mod_pagespeed!</body></html>",
+      "<link rel=\"stylesheet\" type=\"text/css\" href=\"",
       rewritten_css_url_1_.c_str(),
-      FlushEarlyContentWriterFilter::kDisableLinkTag,
-      rewritten_css_url_1_.c_str(),
+      "\"></head><body>",
       StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
-                   redirect_url.c_str()).c_str());
+                   redirect_url.c_str()),
+      "Hello, mod_pagespeed!</body></html>");
 
-  ResponseHeaders headers;
+ResponseHeaders headers;
   headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
   headers.SetStatusAndReason(HttpStatus::kOK);
   mock_url_fetcher_.SetResponse(kTestDomain, headers, kInputHtml);
@@ -1466,16 +1467,13 @@ TEST_F(FlushEarlyFlowTest, InsertLazyloadJsOnlyIfResourceHtmlNotEmpty) {
       "<!doctype html PUBLIC \"HTML 4.0.1 Strict>"
       "<html>"
       "<head>"
-      "<title>Flush Subresources Early example</title>"
+      "<title>Flush Subresources Early example</title>",
+      GetLazyloadScriptHtml(),
       "</head>"
       "<body>",
       StringPrintf(kNoScriptRedirectFormatter, redirect_url.c_str(),
                    redirect_url.c_str()),
-      "<script type=\"text/javascript\" pagespeed_no_defer=\"\">",
-      LazyloadImagesFilter::GetLazyloadJsSnippet(
-          options_, server_context()->static_asset_manager()),
       StringPrintf(
-      "</script>"
       "<img pagespeed_lazy_src=http://test.com/1.jpg.pagespeed.ce.%s.jpg"
       " src=\"/psajs/1.0.gif\""
       " onload=\"%s\"/>"
