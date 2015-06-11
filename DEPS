@@ -76,12 +76,9 @@ vars = {
   # TODO(jmarantz): create an easy way to choose this option from the
   # 'gclient' command, without having to edit the gyp & DEPS files.
   #
-  # The revision we are picking here is to a specific commit found on
-  # https://git.chromium.org/gitweb/?p=chromium/deps/openssl.git;a=summary :
-  # 2014-06-09 agl@chromium.org Pull in more changes from OpenSSL 1.0.1h.
-  # This point includes all CVE fixes in 1.0.1h, including the CCS fix.
-  "openssl_src": "https://chromium.googlesource.com/chromium/deps/openssl.git",
-  "openssl_revision": "@063a4b93646788bd883fc0cb1b5eafc991ddacc4",
+  # BoringSSL commit picked on Mar 19, 2015
+  "boringssl_src": "https://boringssl.googlesource.com/boringssl.git",
+  "boringssl_git_revision": "@078abceb29077f9204db3dfca16de646e94c9014",
 
   "domain_registry_provider_src":
      "https://domain-registry-provider.googlecode.com/svn/trunk/",
@@ -213,7 +210,8 @@ deps = {
   # Comment to disable HTTPS fetching via serf.  See also the
   # references in src/third_party/serf/serf.gyp.
   #
-  "src/third_party/openssl": Var("openssl_src") + Var("openssl_revision"),
+  "src/third_party/boringssl/src":
+    Var("boringssl_src") + Var("boringssl_git_revision"),
 
   # Domain Registry Provider gives us the Public Suffix List.
   "src/third_party/domain_registry_provider":
