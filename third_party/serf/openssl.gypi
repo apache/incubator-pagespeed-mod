@@ -1,7 +1,9 @@
 # Copyright (c) 2014 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-# This file is created by update_gypi_and_asm.py. Do not edit manually.
+
+# This file is created by generate_build_files.py. Do not edit manually.
+
 {
   'variables': {
     'boringssl_lib_sources': [
@@ -93,6 +95,7 @@
       '<(openssl_root)/crypto/cipher/e_ssl3.c',
       '<(openssl_root)/crypto/cipher/e_tls.c',
       '<(openssl_root)/crypto/cipher/tls_cbc.c',
+      '<(openssl_root)/crypto/cmac/cmac.c',
       '<(openssl_root)/crypto/conf/conf.c',
       '<(openssl_root)/crypto/cpu-arm.c',
       '<(openssl_root)/crypto/cpu-intel.c',
@@ -115,19 +118,21 @@
       '<(openssl_root)/crypto/ec/ec_key.c',
       '<(openssl_root)/crypto/ec/ec_montgomery.c',
       '<(openssl_root)/crypto/ec/oct.c',
+      '<(openssl_root)/crypto/ec/p256-64.c',
       '<(openssl_root)/crypto/ec/simple.c',
+      '<(openssl_root)/crypto/ec/util-64.c',
       '<(openssl_root)/crypto/ec/wnaf.c',
       '<(openssl_root)/crypto/ecdh/ecdh.c',
       '<(openssl_root)/crypto/ecdsa/ecdsa.c',
       '<(openssl_root)/crypto/ecdsa/ecdsa_asn1.c',
       '<(openssl_root)/crypto/engine/engine.c',
       '<(openssl_root)/crypto/err/err.c',
-      '<(openssl_root)/crypto/err/err_impl.c',
       '<(openssl_root)/crypto/evp/algorithm.c',
       '<(openssl_root)/crypto/evp/asn1.c',
       '<(openssl_root)/crypto/evp/digestsign.c',
       '<(openssl_root)/crypto/evp/evp.c',
       '<(openssl_root)/crypto/evp/evp_ctx.c',
+      '<(openssl_root)/crypto/evp/p_dsa_asn1.c',
       '<(openssl_root)/crypto/evp/p_ec.c',
       '<(openssl_root)/crypto/evp/p_ec_asn1.c',
       '<(openssl_root)/crypto/evp/p_hmac.c',
@@ -137,7 +142,6 @@
       '<(openssl_root)/crypto/evp/pbkdf.c',
       '<(openssl_root)/crypto/evp/sign.c',
       '<(openssl_root)/crypto/ex_data.c',
-      '<(openssl_root)/crypto/ex_data_impl.c',
       '<(openssl_root)/crypto/hkdf/hkdf.c',
       '<(openssl_root)/crypto/hmac/hmac.c',
       '<(openssl_root)/crypto/lhash/lhash.c',
@@ -166,10 +170,13 @@
       '<(openssl_root)/crypto/poly1305/poly1305.c',
       '<(openssl_root)/crypto/poly1305/poly1305_arm.c',
       '<(openssl_root)/crypto/poly1305/poly1305_vec.c',
+      '<(openssl_root)/crypto/rand/hwrand.c',
       '<(openssl_root)/crypto/rand/rand.c',
       '<(openssl_root)/crypto/rand/urandom.c',
       '<(openssl_root)/crypto/rand/windows.c',
       '<(openssl_root)/crypto/rc4/rc4.c',
+      '<(openssl_root)/crypto/refcount_c11.c',
+      '<(openssl_root)/crypto/refcount_lock.c',
       '<(openssl_root)/crypto/rsa/blinding.c',
       '<(openssl_root)/crypto/rsa/padding.c',
       '<(openssl_root)/crypto/rsa/rsa.c',
@@ -180,6 +187,9 @@
       '<(openssl_root)/crypto/sha/sha512.c',
       '<(openssl_root)/crypto/stack/stack.c',
       '<(openssl_root)/crypto/thread.c',
+      '<(openssl_root)/crypto/thread_none.c',
+      '<(openssl_root)/crypto/thread_pthread.c',
+      '<(openssl_root)/crypto/thread_win.c',
       '<(openssl_root)/crypto/time_support.c',
       '<(openssl_root)/crypto/x509/a_digest.c',
       '<(openssl_root)/crypto/x509/a_sign.c',
@@ -276,10 +286,11 @@
       '<(openssl_root)/ssl/s3_meth.c',
       '<(openssl_root)/ssl/s3_pkt.c',
       '<(openssl_root)/ssl/s3_srvr.c',
+      '<(openssl_root)/ssl/ssl_aead_ctx.c',
       '<(openssl_root)/ssl/ssl_algs.c',
       '<(openssl_root)/ssl/ssl_asn1.c',
       '<(openssl_root)/ssl/ssl_cert.c',
-      '<(openssl_root)/ssl/ssl_ciph.c',
+      '<(openssl_root)/ssl/ssl_cipher.c',
       '<(openssl_root)/ssl/ssl_lib.c',
       '<(openssl_root)/ssl/ssl_rsa.c',
       '<(openssl_root)/ssl/ssl_sess.c',
@@ -338,6 +349,7 @@
       'linux-x86_64/crypto/md5/md5-x86_64.S',
       'linux-x86_64/crypto/modes/aesni-gcm-x86_64.S',
       'linux-x86_64/crypto/modes/ghash-x86_64.S',
+      'linux-x86_64/crypto/rand/rdrand-x86_64.S',
       'linux-x86_64/crypto/rc4/rc4-md5-x86_64.S',
       'linux-x86_64/crypto/rc4/rc4-x86_64.S',
       'linux-x86_64/crypto/sha/sha1-x86_64.S',
@@ -372,6 +384,7 @@
       'mac-x86_64/crypto/md5/md5-x86_64.S',
       'mac-x86_64/crypto/modes/aesni-gcm-x86_64.S',
       'mac-x86_64/crypto/modes/ghash-x86_64.S',
+      'mac-x86_64/crypto/rand/rdrand-x86_64.S',
       'mac-x86_64/crypto/rc4/rc4-md5-x86_64.S',
       'mac-x86_64/crypto/rc4/rc4-x86_64.S',
       'mac-x86_64/crypto/sha/sha1-x86_64.S',
@@ -406,6 +419,7 @@
       'win-x86_64/crypto/md5/md5-x86_64.asm',
       'win-x86_64/crypto/modes/aesni-gcm-x86_64.asm',
       'win-x86_64/crypto/modes/ghash-x86_64.asm',
+      'win-x86_64/crypto/rand/rdrand-x86_64.asm',
       'win-x86_64/crypto/rc4/rc4-md5-x86_64.asm',
       'win-x86_64/crypto/rc4/rc4-x86_64.asm',
       'win-x86_64/crypto/sha/sha1-x86_64.asm',
@@ -414,3 +428,4 @@
     ],
   }
 }
+

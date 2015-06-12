@@ -350,6 +350,8 @@ static long bio_bucket_ctrl(BIO *bio, int cmd, long num, void *ptr)
     default:
         /* abort(); */
         break;
+#ifndef OPENSSL_IS_BORINGSSL  // boringssl doesn't support SSL_BIO, so this is a
+                              // no-op change.
     case BIO_CTRL_FLUSH:
         /* At this point we can't force a flush. */
         break;
@@ -357,6 +359,7 @@ static long bio_bucket_ctrl(BIO *bio, int cmd, long num, void *ptr)
     case BIO_CTRL_POP:
         ret = 0;
         break;
+#endif
     }
     return ret;
 }
