@@ -2434,7 +2434,6 @@ start_test Do not proxy content without a Content-Type header
 URL="$PRIMARY_SERVER/content_type_absent/"
 CONTENTS="This file should not be proxied"
 
-
 OUT=$($CURL --include --silent $URL)
 check_from "$OUT" fgrep -q "403 Forbidden"
 check_from "$OUT" fgrep -q \
