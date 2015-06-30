@@ -473,7 +473,7 @@ void RewriteTestBase::SetFetchResponse404(
   ResponseHeaders response_headers;
   SetDefaultLongCacheHeaders(&kContentTypeText, &response_headers);
   response_headers.SetStatusAndReason(HttpStatus::kNotFound);
-  SetFetchResponse(name, response_headers, StringPiece());
+  SetFetchResponse(name, response_headers, "");
 }
 
 bool RewriteTestBase::LoadFile(const StringPiece& filename,

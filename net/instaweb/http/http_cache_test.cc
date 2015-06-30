@@ -21,6 +21,7 @@
 #include "net/instaweb/http/public/http_cache.h"
 
 #include <cstddef>                     // for size_t
+
 #include "net/instaweb/http/public/content_type.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/meta_data.h"
@@ -29,6 +30,7 @@
 #include "net/instaweb/util/public/google_message_handler.h"
 #include "net/instaweb/util/public/gtest.h"
 #include "net/instaweb/util/public/lru_cache.h"
+#include "net/instaweb/util/public/message_handler.h"
 #include "net/instaweb/util/public/mock_hasher.h"
 #include "net/instaweb/util/public/mock_timer.h"
 #include "net/instaweb/util/public/platform.h"
@@ -52,8 +54,6 @@ const char kFragment2[] = "www.other.com";
 }  // namespace
 
 namespace net_instaweb {
-
-class MessageHandler;
 
 class HTTPCacheTest : public testing::Test {
  protected:
@@ -484,6 +484,29 @@ TEST_F(HTTPCacheTest, RememberDropped) {
             Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
 }
 
+// Remember empty resources.
+TEST_F(HTTPCacheTest, RememberEmpty) {
+  ResponseHeaders meta_data_out;
+  http_cache_->RememberEmpty(kUrl, kFragment, &message_handler_);
+  HTTPValue value;
+  EXPECT_EQ(HTTPCache::kRecentFetchEmpty,
+            Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
+
+  // Now advance time 301 seconds; the cache should allow us to try fetching
+  // again.
+  mock_timer_.AdvanceMs(301 * 1000);
+  EXPECT_EQ(HTTPCache::kNotFound,
+            Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
+
+  http_cache_->set_remember_empty_ttl_seconds(600);
+  http_cache_->RememberEmpty(kUrl, kFragment, &message_handler_);
+  // Now advance time 301 seconds; the cache should remember that the resource
+  // is empty.
+  mock_timer_.AdvanceMs(301 * 1000);
+  EXPECT_EQ(HTTPCache::kRecentFetchEmpty,
+            Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
+}
+
 // Make sure we don't remember 'non-cacheable' once we've put it into
 // non-recording of failures mode (but do before that), and that we
 // remember successful results even when in SetIgnoreFailurePuts() mode.
@@ -734,6 +757,53 @@ TEST_F(HTTPCacheTest, FragmentsIndependent) {
   Put(kUrl, kFragment2, &meta_data_in, "content", &message_handler_);
   ASSERT_EQ(HTTPCache::kFound,
             Find(kUrl, kFragment2, &value, &meta_data_out, &message_handler_));
+}
+
+TEST_F(HTTPCacheTest, UpdateVersion) {
+  HTTPValue value;
+  ResponseHeaders meta_data_in, meta_data_out;
+  InitHeaders(&meta_data_in, "max-age=300");
+  StringPiece contents;
+
+  // Equivalent to pre-versioned caching.
+  http_cache_->set_version_prefix("");
+  Put(kUrl, "", &meta_data_in, "v1: No fragment", &message_handler_);
+  Put(kUrl, kFragment, &meta_data_in, "v1: Fragment", &message_handler_);
+
+  EXPECT_EQ(HTTPCache::kFound,
+            Find(kUrl, "", &value, &meta_data_out, &message_handler_));
+  ASSERT_TRUE(value.ExtractContents(&contents));
+  EXPECT_STREQ("v1: No fragment", contents);
+  EXPECT_EQ(HTTPCache::kFound,
+            Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
+  ASSERT_TRUE(value.ExtractContents(&contents));
+  EXPECT_STREQ("v1: Fragment", contents);
+
+  // Setting version invalidates old data.
+  http_cache_->SetVersion(2);
+  EXPECT_EQ(HTTPCache::kNotFound,
+            Find(kUrl, "", &value, &meta_data_out, &message_handler_));
+  EXPECT_EQ(HTTPCache::kNotFound,
+            Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
+
+  Put(kUrl, "", &meta_data_in, "v2: No fragment", &message_handler_);
+  Put(kUrl, kFragment, &meta_data_in, "v2: Fragment", &message_handler_);
+
+  EXPECT_EQ(HTTPCache::kFound,
+            Find(kUrl, "", &value, &meta_data_out, &message_handler_));
+  ASSERT_TRUE(value.ExtractContents(&contents));
+  EXPECT_STREQ("v2: No fragment", contents);
+  EXPECT_EQ(HTTPCache::kFound,
+            Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
+  ASSERT_TRUE(value.ExtractContents(&contents));
+  EXPECT_STREQ("v2: Fragment", contents);
+
+  // Updating version invalidates old data.
+  http_cache_->SetVersion(3);
+  EXPECT_EQ(HTTPCache::kNotFound,
+            Find(kUrl, "", &value, &meta_data_out, &message_handler_));
+  EXPECT_EQ(HTTPCache::kNotFound,
+            Find(kUrl, kFragment, &value, &meta_data_out, &message_handler_));
 }
 
 }  // namespace net_instaweb

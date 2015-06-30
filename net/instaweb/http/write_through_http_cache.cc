@@ -273,6 +273,12 @@ void WriteThroughHTTPCache::set_remember_fetch_dropped_ttl_seconds(
   cache2_->set_remember_fetch_dropped_ttl_seconds(value);
 }
 
+void WriteThroughHTTPCache::set_remember_empty_ttl_seconds(int64 value) {
+  HTTPCache::set_remember_empty_ttl_seconds(value);
+  cache1_->set_remember_empty_ttl_seconds(value);
+  cache2_->set_remember_empty_ttl_seconds(value);
+}
+
 void WriteThroughHTTPCache::set_max_cacheable_response_content_length(
     int64 value) {
   HTTPCache::set_max_cacheable_response_content_length(value);
@@ -300,6 +306,13 @@ void WriteThroughHTTPCache::RememberFetchDropped(const GoogleString& key,
                                                  MessageHandler * handler) {
   cache1_->RememberFetchDropped(key, fragment, handler);
   cache2_->RememberFetchDropped(key, fragment, handler);
+}
+
+void WriteThroughHTTPCache::RememberEmpty(const GoogleString& key,
+                                          const GoogleString& fragment,
+                                          MessageHandler * handler) {
+  cache1_->RememberEmpty(key, fragment, handler);
+  cache2_->RememberEmpty(key, fragment, handler);
 }
 
 }  // namespace net_instaweb

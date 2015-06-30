@@ -39,12 +39,18 @@ namespace net_instaweb {
 
 namespace {
 
+// Increment this value to flush HTTP cache.
+// Similar to RewriteOptions::kOptionVersion which can be used to flush the
+// metadata cache.
+const int kHttpCacheVersion = 2;
+
 // Remember that a Fetch failed for 5 minutes by default.
 //
 // TODO(jmarantz): We could handle cc-private a little differently:
 // in this case we could arguably remember it using the original cc-private ttl.
 const int kRememberNotCacheableTtlSec = 300;
 const int kRememberFetchFailedTtlSec = 300;
+const int kRememberEmptyTtlSec = 300;
 
 // We use an extremely low TTL for load-shed resources since we don't
 // want this to get in the way of debugging, or letting a page with
@@ -97,7 +103,13 @@ HTTPCache::HTTPCache(CacheInterface* cache, Timer* timer, Hasher* hasher,
   remember_not_cacheable_ttl_seconds_ = kRememberNotCacheableTtlSec;
   remember_fetch_failed_ttl_seconds_ = kRememberFetchFailedTtlSec;
   remember_fetch_dropped_ttl_seconds_ = kRememberFetchDroppedTtlSec;
+  remember_empty_ttl_seconds_ = kRememberEmptyTtlSec;
   max_cacheable_response_content_length_ = kCacheSizeUnlimited;
+  SetVersion(kHttpCacheVersion);
+}
+
+void HTTPCache::SetVersion(int version_number) {
+  version_prefix_ = StrCat("v", IntegerToString(version_number), "/");
 }
 
 HTTPCache::~HTTPCache() {}
@@ -192,7 +204,8 @@ class HTTPCacheCallback : public CacheInterface::Callback {
 
       if (http_status == HttpStatus::kRememberNotCacheableStatusCode ||
           http_status == HttpStatus::kRememberNotCacheableAnd200StatusCode ||
-          http_status == HttpStatus::kRememberFetchFailedStatusCode) {
+          http_status == HttpStatus::kRememberFetchFailedStatusCode ||
+          http_status == HttpStatus::kRememberEmptyStatusCode) {
         // If the response was stored as uncacheable and a 200, it may since
         // have since been added to the override caching group. Hence, we
         // consider it invalid if override_cache_ttl_ms > 0.
@@ -209,9 +222,14 @@ class HTTPCacheCallback : public CacheInterface::Callback {
                   HttpStatus::kRememberNotCacheableAnd200StatusCode) {
             status = "not-cacheable";
             result = HTTPCache::kRecentFetchNotCacheable;
-          } else {
+          } else if (http_status ==
+                     HttpStatus::kRememberFetchFailedStatusCode) {
             status = "not-found";
             result = HTTPCache::kRecentFetchFailed;
+          } else {
+            DCHECK(http_status == HttpStatus::kRememberEmptyStatusCode);
+            status = "empty";
+            result = HTTPCache::kRecentFetchEmpty;
           }
           if (handler_ != NULL) {
             handler_->Message(kInfo,
@@ -313,7 +331,7 @@ void HTTPCache::RememberNotCacheable(const GoogleString& key,
                                      const GoogleString& fragment,
                                      bool is_200_status_code,
                                      MessageHandler* handler) {
-  RememberFetchFailedorNotCacheableHelper(
+  RememberFetchFailedOrNotCacheableHelper(
       key, fragment, handler,
       is_200_status_code ? HttpStatus::kRememberNotCacheableAnd200StatusCode :
                            HttpStatus::kRememberNotCacheableStatusCode,
@@ -323,17 +341,25 @@ void HTTPCache::RememberNotCacheable(const GoogleString& key,
 void HTTPCache::RememberFetchFailed(const GoogleString& key,
                                     const GoogleString& fragment,
                                     MessageHandler* handler) {
-  RememberFetchFailedorNotCacheableHelper(key, fragment, handler,
+  RememberFetchFailedOrNotCacheableHelper(key, fragment, handler,
       HttpStatus::kRememberFetchFailedStatusCode,
       remember_fetch_failed_ttl_seconds_);
 }
 
 void HTTPCache::RememberFetchDropped(const GoogleString& key,
                                      const GoogleString& fragment,
-                                    MessageHandler* handler) {
-  RememberFetchFailedorNotCacheableHelper(key, fragment, handler,
+                                     MessageHandler* handler) {
+  RememberFetchFailedOrNotCacheableHelper(key, fragment, handler,
       HttpStatus::kRememberFetchFailedStatusCode,
       remember_fetch_dropped_ttl_seconds_);
+}
+
+void HTTPCache::RememberEmpty(const GoogleString& key,
+                              const GoogleString& fragment,
+                              MessageHandler* handler) {
+  RememberFetchFailedOrNotCacheableHelper(key, fragment, handler,
+      HttpStatus::kRememberEmptyStatusCode,
+      remember_empty_ttl_seconds_);
 }
 
 void HTTPCache::set_max_cacheable_response_content_length(int64 value) {
@@ -343,7 +369,7 @@ void HTTPCache::set_max_cacheable_response_content_length(int64 value) {
   }
 }
 
-void HTTPCache::RememberFetchFailedorNotCacheableHelper(
+void HTTPCache::RememberFetchFailedOrNotCacheableHelper(
     const GoogleString& key, const GoogleString& fragment,
     MessageHandler* handler, HttpStatus::Code code, int64 ttl_sec) {
   ResponseHeaders headers;

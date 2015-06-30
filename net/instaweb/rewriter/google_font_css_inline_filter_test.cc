@@ -68,6 +68,10 @@ class GoogleFontCssInlineFilterTestBase : public RewriteTestBase {
 
     SetFetchResponse(StrCat(kRoboto, "&UA=Safieri"),
                      response_headers, "font_safieri");
+
+    // If other filters will try to fetch this, they won't have a UA.
+    SetFetchResponse(StrCat(kRoboto, "&UA=unknown"),
+                     response_headers, "font_huh");
   }
 };
 
@@ -127,10 +131,11 @@ class GoogleFontCssInlineFilterSizeLimitTest
  protected:
   virtual void SetUp() {
     GoogleFontCssInlineFilterTestBase::SetUp();
-    // GoogleFontCssInlineFilter honors css_inline_max_bytes.
+    // GoogleFontCssInlineFilter uses google_font_css_inline_max_bytes.
     // Set a threshold at font_safieri, which should prevent longer
     // font_chromezilla from inlining.
-    options()->set_css_inline_max_bytes(STATIC_STRLEN("font_safieri"));
+    options()->set_google_font_css_inline_max_bytes(STATIC_STRLEN(
+        "font_safieri"));
     SetUpForFontFilterTest(RewriteOptions::kInlineGoogleFontCss);
   }
 };
@@ -181,6 +186,8 @@ class GoogleFontCssInlineFilterAndWidePermissionsTest
     // Check that we don't rely solely on authorization to properly
     // dispatch the URL to us.
     options()->WriteableDomainLawyer()->AddDomain("*", message_handler());
+    rewrite_driver()->request_context()->AddSessionAuthorizedFetchOrigin(
+        "http://fonts.googleapis.com");
     options()->EnableFilter(RewriteOptions::kInlineCss);
     SetUpForFontFilterTest(RewriteOptions::kInlineGoogleFontCss);
   }
@@ -200,8 +207,12 @@ class NoGoogleFontCssInlineFilterAndWidePermissionsTest
   virtual void SetUp() {
     GoogleFontCssInlineFilterTestBase::SetUp();
     // Check that we don't rely solely on authorization to properly
-    // dispatch the URL to us.
+    // dispatch the URL to us. Note that we can't only use DomainLawyer here
+    // since UserAgentSensitiveTestFetcher is at http layer so is simply
+    // unaware of it.
     options()->WriteableDomainLawyer()->AddDomain("*", message_handler());
+    rewrite_driver()->request_context()->AddSessionAuthorizedFetchOrigin(
+        "http://fonts.googleapis.com");
     SetUpForFontFilterTest(RewriteOptions::kInlineCss);
   }
 };
@@ -210,12 +221,12 @@ TEST_F(NoGoogleFontCssInlineFilterAndWidePermissionsTest,
        WithWideAuthorization) {
   // Since font inlining isn't on, the regular inliner complains. This isn't
   // ideal, but doing otherwise requires inline_css to know about
-  // inline_google_font_css, which aslso seems suboptimal.
+  // inline_google_font_css, which also seems suboptimal.
   rewrite_driver()->SetUserAgent("Chromezilla");
   ValidateExpected("with_domain_*_without_font_filter", CssLinkHref(kRoboto),
                    StrCat(CssLinkHref(kRoboto),
-                          "<!--Can&#39;t inline since resource not "
-                               "fetchable or cacheable-->"));
+                          "<!--Uncacheable content, preventing rewriting of "
+                          "http://fonts.googleapis.com/css?family=Roboto-->"));
 }
 
 }  // namespace

@@ -261,6 +261,7 @@ class RewriteOptions {
   static const char kFlushBufferLimitBytes[];
   static const char kFlushHtml[];
   static const char kFlushMoreResourcesEarlyIfTimePermits[];
+  static const char kGoogleFontCssInlineMaxBytes[];
   static const char kForbidAllDisabledFilters[];
   static const char kHideRefererUsingMeta[];
   static const char kIdleFlushTimeMs[];
@@ -455,12 +456,13 @@ class RewriteOptions {
   // there is no need bump the option version when changing the filter enum.
   //
   // Updating this value will have the indirect effect of flushing the metadata
-  // cache.
+  // cache. The HTTPCache can be flushed by updating kHttpCacheVersion in
+  // http_cache.cc.
   //
   // This version number should be incremented if any default-values
   // are changed, either in an Add*Property() call or via
   // options->set_default.
-  static const int kOptionsVersion = 13;
+  static const int kOptionsVersion = 14;
 
   // Number of bytes used for signature hashing.
   static const int kHashBytes = 20;
@@ -608,6 +610,7 @@ class RewriteOptions {
   static const int64 kDefaultCssFlattenMaxBytes;
   static const int64 kDefaultCssImageInlineMaxBytes;
   static const int64 kDefaultCssInlineMaxBytes;
+  static const int64 kDefaultGoogleFontCssInlineMaxBytes;
   static const int64 kDefaultCssOutlineMinBytes;
   static const int64 kDefaultImageInlineMaxBytes;
   static const int64 kDefaultJsInlineMaxBytes;
@@ -1276,6 +1279,12 @@ class RewriteOptions {
   int64 css_inline_max_bytes() const { return css_inline_max_bytes_.value(); }
   void set_css_inline_max_bytes(int64 x) {
     set_option(x, &css_inline_max_bytes_);
+  }
+  int64 google_font_css_inline_max_bytes() const {
+    return google_font_css_inline_max_bytes_.value();
+  }
+  void set_google_font_css_inline_max_bytes(int64 x) {
+    set_option(x, &google_font_css_inline_max_bytes_);
   }
   int64 js_inline_max_bytes() const { return js_inline_max_bytes_.value(); }
   void set_js_inline_max_bytes(int64 x) {
@@ -3365,6 +3374,7 @@ class RewriteOptions {
   Option<int64> css_image_inline_max_bytes_;
   Option<int64> css_inline_max_bytes_;
   Option<int64> css_outline_min_bytes_;
+  Option<int64> google_font_css_inline_max_bytes_;
 
   // Preserve URL options
   Option<bool> css_preserve_urls_;

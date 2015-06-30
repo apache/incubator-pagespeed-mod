@@ -103,12 +103,15 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
       case kFetchStatusUncacheable:
         StrAppend(reason, "Uncacheable content, ");
         break;
+      case kFetchStatusEmpty:
+        // https://github.com/pagespeed/mod_pagespeed/issues/1050
+        StrAppend(reason, "Resource is empty, ");
+        break;
       case kFetchStatusOther:
         StrAppend(reason, "Fetch failure, ");
         break;
       case kFetchStatusNotSet:
-        StrAppend(reason,
-                  "Fetch status not set when IsSafeToRewrite was called, ");
+        StrAppend(reason, "Resource headers are ");
         break;
       case kFetchStatusOK:
         CHECK(false) << "Fetch status OK but !HttpStatusOk in IsSafeToRewrite!";
@@ -123,6 +126,9 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
              response_headers_.HasValue(HttpAttributes::kCacheControl,
                                         "no-transform")) {
     StrAppend(reason, "Cache-control: no-transform, ");
+  } else if (contents().empty()) {
+    // https://github.com/pagespeed/mod_pagespeed/issues/1050
+    StrAppend(reason, "Resource is empty, ");
   } else {
     // Safe.
     stats->num_cache_control_rewritable_resources()->Add(1);
