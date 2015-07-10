@@ -51,6 +51,7 @@
         'system/add_headers_fetcher.cc',
         'system/loopback_route_fetcher.cc',
         'system/serf_url_async_fetcher.cc',
+        '<(DEPTH)/pagespeed/apache/apache_fetch.cc',
       ],
       'export_dependent_settings': [
         '<(instaweb_root)/instaweb.gyp:instaweb_util',

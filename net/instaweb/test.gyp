@@ -394,7 +394,7 @@
         # header_util.cc is dependent on the version of httpd, so it
         # is not included in 'instaweb_apr' which is httpd-version independent.
         # Note that the unit tests are only run against Apache 2.2.  In module
-        # builds it is pulled in mod_pagespeed.gypi.
+        # builds it is pulled in mod_pagespeed.gypi. FIXME
         'apache/header_util.cc',
         'apache/header_util_test.cc',
         'apache/speed_test.cc',
@@ -404,6 +404,10 @@
         'system/serf_url_async_fetcher_test.cc',
         'system/system_caches_test.cc',
         'system/system_request_context_test.cc',
+        '<(DEPTH)/pagespeed/apache/apache_fetch_test.cc',
+        'apache/apache_writer.cc',
+        '<(DEPTH)/pagespeed/apache/apache_writer_test.cc',
+        '<(DEPTH)/pagespeed/apache/mock_apache.cc',
         '<(DEPTH)/pagespeed/kernel/base/mem_debug.cc',
       ],
     },

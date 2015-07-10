@@ -20,7 +20,6 @@
 #include "net/instaweb/util/public/basictypes.h"
 #include "net/instaweb/util/public/string_util.h"
 #include "net/instaweb/util/public/writer.h"
-#include "httpd.h"  // NOLINT
 
 struct request_rec;
 
@@ -57,6 +56,7 @@ class ApacheWriter : public Writer {
 
   // Removes 'Set-Cookie' and 'Set-Cookie2' from the response headers
   // once they are complete.  Default is false.
+  // TODO(jefftk): Doesn't actually do anything, because of an old bug.
   void set_strip_cookies(bool x) {
     strip_cookies_ = x;
   }
