@@ -344,24 +344,9 @@ static int bio_bucket_destroy(BIO *bio)
 
 static long bio_bucket_ctrl(BIO *bio, int cmd, long num, void *ptr)
 {
-    long ret = 1;
-
-    switch (cmd) {
-    default:
-        /* abort(); */
-        break;
-#ifndef OPENSSL_IS_BORINGSSL  // boringssl doesn't support SSL_BIO, so this is a
-                              // no-op change.
-    case BIO_CTRL_FLUSH:
-        /* At this point we can't force a flush. */
-        break;
-    case BIO_CTRL_PUSH:
-    case BIO_CTRL_POP:
-        ret = 0;
-        break;
-#endif
-    }
-    return ret;
+    /* Note that this is probably wrong for e.g. BIO_CTRL_PENDING, where we
+     * should return 0. */
+    return 1;
 }
 
 static BIO_METHOD bio_bucket_method = {
