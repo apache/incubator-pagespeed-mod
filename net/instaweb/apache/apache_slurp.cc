@@ -270,7 +270,7 @@ void SlurpUrl(ApacheServerContext* server_context, request_rec* r) {
     // We always disable downstream header filters when sending out
     // slurped resources, since we've captured them from the origin
     // in the fetch we did to write the slurp.
-    ApacheWriter apache_writer(r);
+    ApacheWriter apache_writer(r, server_context->thread_system());
     apache_writer.set_disable_downstream_header_filters(true);
     ChunkingWriter chunking_writer(
         &apache_writer, global_config->slurp_flush_limit());
