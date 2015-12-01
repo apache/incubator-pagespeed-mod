@@ -17,6 +17,7 @@
 #include "pagespeed/system/system_server_context.h"
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/redirect_following_url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher_stats.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -330,6 +331,12 @@ void SystemServerContext::ApplySessionFetchers(
   // Apache has experimental support for direct fetching from mod_spdy.  Other
   // implementations that support something similar would use this hook.
   MaybeApplySpdySessionFetcher(request, driver);
+
+  // TODO(oschaaf): hard coded max-redirects....
+  driver->SetSessionFetcher(
+    new RedirectFollowingUrlAsyncFetcher(
+        driver->async_fetcher(), thread_system(), statistics(), 10)    
+  );
 
   if (driver->options()->num_custom_fetch_headers() > 0) {
     driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),

@@ -978,7 +978,7 @@ TEST_F(ServerContextTest, TestNotRememberEmptyRedirect) {
 
   ResponseHeaders headers;
   SetDefaultLongCacheHeaders(&kContentTypeHtml, &headers);
-  headers.SetStatusAndReason(HttpStatus::kMovedPermanently);
+  headers.SetStatusAndReason(HttpStatus::kMultipleChoices);
   headers.Add(HttpAttributes::kLocation, "http://example.com/destination.html");
   static const char kUrl[] = "http://example.com/redirect.html";
   SetFetchResponse(kUrl, headers, "");

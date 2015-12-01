@@ -84,7 +84,7 @@ FetchResponseStatus HttpCacheFailure::ClassifyFailure(
     } else if (!external_cacheable) {
       classification = (status_code == 200 ? kFetchStatusUncacheable200
                                            : kFetchStatusUncacheableError);
-    } else if (status_code == 200) {
+    } else if (status_code == 200 || status_code == 301) {
       classification = kFetchStatusOK;
     } else {
       // It's some failure, but it's not a 4xx, 5xx, nor cacheability...

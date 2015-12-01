@@ -483,7 +483,7 @@ void CacheableResourceBase::LoadHttpCacheCallback::Done(
           response_headers()->status_code() == HttpStatus::kOK ?
               kFetchStatusOK : kFetchStatusOtherError);
       resource_callback_->Done(false /* lock_failure */,
-                               true /* resource_ok */);
+                              true /* resource_ok */);
       break;
     case HTTPCache::kRecentFailure:
       // TODO(jmarantz): in this path, should we try to fetch again
@@ -653,7 +653,7 @@ bool CacheableResourceBase::IsValidAndCacheable() const {
 
 bool CacheableResourceBase::IsValidAndCacheableImpl(
     const ResponseHeaders& headers) const {
-  if (headers.status_code() != HttpStatus::kOK) {
+  if (headers.status_code() != HttpStatus::kOK && headers.status_code() != HttpStatus::kMovedPermanently) {
     return false;
   }
 
