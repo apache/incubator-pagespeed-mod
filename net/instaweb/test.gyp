@@ -187,7 +187,8 @@
         'rewriter/mobilize_label_filter_test.cc',
         'rewriter/mobilize_menu_filter_test.cc',
         'rewriter/mobilize_menu_render_filter_test.cc',
-        'rewriter/mobilize_rewrite_filter_test.cc',
+        # Disable incomplete and unsupported moblization filters.
+        # 'rewriter/mobilize_rewrite_filter_test.cc',
         'rewriter/mock_critical_css_finder.cc',
         'rewriter/mock_critical_images_finder.cc',
         'rewriter/mock_resource_callback.cc',

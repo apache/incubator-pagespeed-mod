@@ -874,6 +874,8 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   OUT=$($WGET_DUMP "$HOSTNAME/pagespeed_admin/cache?purge=*")
   check_from "$OUT" fgrep -q "ModPagespeedEnableCachePurge on"
 
+  # Disable mobilizer tests.
+ if false; then
   start_test mobilizer with inlined XHR-helper and other JS compiled.
   MOB_SUFFIX_RE="\\.[A-Za-z0-9_\-]+\\.js"
 
@@ -955,6 +957,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   first_script=$(\
     fgrep -n '<script>' $FETCH_FILE | tail -1 | grep -o '^[^:]*')
   check [ "$last_style" -lt "$first_script" ]
+ fi  # Disable mobilizer tests.
 
 fi
 

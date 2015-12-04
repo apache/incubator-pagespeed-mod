@@ -53,7 +53,8 @@ run_test image_quality_jpeg
 run_test image_quality_webp
 run_test broken_images
 run_test make_show_ads_async
-run_test mobilizer
+# Disable mobilizer tests.
+# run_test mobilizer
 run_test responsive_images
 
 # These have to run after image_rewrite tests. Otherwise it causes some images
