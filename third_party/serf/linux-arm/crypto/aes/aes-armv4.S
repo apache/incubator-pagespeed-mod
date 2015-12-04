@@ -1,3 +1,4 @@
+#if defined(__arm__)
 
 @ ====================================================================
 @ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -33,7 +34,7 @@
 
 #if defined(__arm__)
 #ifndef __KERNEL__
-# include "arm_arch.h"
+# include <openssl/arm_arch.h>
 #else
 # define __ARM_ARCH__ __LINUX_ARM_ARCH__
 #endif
@@ -1195,4 +1196,5 @@ _armv4_AES_decrypt:
 .align	2
 .align	2
 
+#endif
 #endif

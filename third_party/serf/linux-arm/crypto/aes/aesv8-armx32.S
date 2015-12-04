@@ -1,4 +1,5 @@
-#include "arm_arch.h"
+#if defined(__arm__)
+#include <openssl/arm_arch.h>
 
 #if __ARM_MAX_ARCH__>=7
 .text
@@ -751,4 +752,5 @@ aes_v8_ctr32_encrypt_blocks:
 	vldmia	sp!,{d8,d9,d10,d11,d12,d13,d14,d15}
 	ldmia	sp!,{r4,r5,r6,r7,r8,r9,r10,pc}
 .size	aes_v8_ctr32_encrypt_blocks,.-aes_v8_ctr32_encrypt_blocks
+#endif
 #endif

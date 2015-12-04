@@ -1,3 +1,4 @@
+#if defined(__arm__)
 
 @ ====================================================================
 @ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -46,7 +47,7 @@
 @ was reflected in below two parameters as 0 and 4. Now caller is
 @ expected to maintain native byte order for whole 64-bit values.
 #ifndef __KERNEL__
-# include "arm_arch.h"
+# include <openssl/arm_arch.h>
 # define VFP_ABI_PUSH	vstmdb	sp!,{d8-d15}
 # define VFP_ABI_POP	vldmia	sp!,{d8-d15}
 #else
@@ -1864,4 +1865,5 @@ sha512_block_data_order_neon:
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .comm	OPENSSL_armcap_P,4,4
 .hidden	OPENSSL_armcap_P
+#endif
 #endif

@@ -1,4 +1,5 @@
-#include "arm_arch.h"
+#if defined(__aarch64__)
+#include <openssl/arm_arch.h>
 
 #if __ARM_MAX_ARCH__>=7
 .text
@@ -746,4 +747,5 @@ aes_v8_ctr32_encrypt_blocks:
 	ldr	x29,[sp],#16
 	ret
 .size	aes_v8_ctr32_encrypt_blocks,.-aes_v8_ctr32_encrypt_blocks
+#endif
 #endif

@@ -1,4 +1,5 @@
-#include "arm_arch.h"
+#if defined(__arm__)
+#include <openssl/arm_arch.h>
 
 .text
 .fpu	neon
@@ -66,10 +67,10 @@ gcm_gmult_v8:
 #endif
 	vext.8	q3,q9,q9,#8
 
-.byte	0x86,0x0e,0xa8,0xf2	@ pmull q0,q12,q3		@ H.lo·Xi.lo
+.byte	0x86,0x0e,0xa8,0xf2	@ pmull q0,q12,q3		@ H.loÂ·Xi.lo
 	veor	q9,q9,q3		@ Karatsuba pre-processing
-.byte	0x87,0x4e,0xa9,0xf2	@ pmull2 q2,q12,q3		@ H.hi·Xi.hi
-.byte	0xa2,0x2e,0xaa,0xf2	@ pmull q1,q13,q9		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
+.byte	0x87,0x4e,0xa9,0xf2	@ pmull2 q2,q12,q3		@ H.hiÂ·Xi.hi
+.byte	0xa2,0x2e,0xaa,0xf2	@ pmull q1,q13,q9		@ (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
 
 	vext.8	q9,q0,q2,#8		@ Karatsuba post-processing
 	veor	q10,q0,q2
@@ -134,7 +135,7 @@ gcm_ghash_v8:
 #endif
 	vext.8	q7,q9,q9,#8
 	veor	q3,q3,q0		@ I[i]^=Xi
-.byte	0x8e,0x8e,0xa8,0xf2	@ pmull q4,q12,q7		@ H·Ii+1
+.byte	0x8e,0x8e,0xa8,0xf2	@ pmull q4,q12,q7		@ HÂ·Ii+1
 	veor	q9,q9,q7		@ Karatsuba pre-processing
 .byte	0x8f,0xce,0xa9,0xf2	@ pmull2 q6,q12,q7
 	b	.Loop_mod2x_v8
@@ -143,14 +144,14 @@ gcm_ghash_v8:
 .Loop_mod2x_v8:
 	vext.8	q10,q3,q3,#8
 	subs	r3,r3,#32		@ is there more data?
-.byte	0x86,0x0e,0xac,0xf2	@ pmull q0,q14,q3		@ H^2.lo·Xi.lo
+.byte	0x86,0x0e,0xac,0xf2	@ pmull q0,q14,q3		@ H^2.loÂ·Xi.lo
 	movlo	r12,#0			@ is it time to zero r12?
 
 .byte	0xa2,0xae,0xaa,0xf2	@ pmull q5,q13,q9
 	veor	q10,q10,q3		@ Karatsuba pre-processing
-.byte	0x87,0x4e,0xad,0xf2	@ pmull2 q2,q14,q3		@ H^2.hi·Xi.hi
+.byte	0x87,0x4e,0xad,0xf2	@ pmull2 q2,q14,q3		@ H^2.hiÂ·Xi.hi
 	veor	q0,q0,q4		@ accumulate
-.byte	0xa5,0x2e,0xab,0xf2	@ pmull2 q1,q13,q10		@ (H^2.lo+H^2.hi)·(Xi.lo+Xi.hi)
+.byte	0xa5,0x2e,0xab,0xf2	@ pmull2 q1,q13,q10		@ (H^2.lo+H^2.hi)Â·(Xi.lo+Xi.hi)
 	vld1.64	{q8},[r2],r12	@ load [rotated] I[i+2]
 
 	veor	q2,q2,q6
@@ -175,7 +176,7 @@ gcm_ghash_v8:
 	vext.8	q7,q9,q9,#8
 	vext.8	q3,q8,q8,#8
 	veor	q0,q1,q10
-.byte	0x8e,0x8e,0xa8,0xf2	@ pmull q4,q12,q7		@ H·Ii+1
+.byte	0x8e,0x8e,0xa8,0xf2	@ pmull q4,q12,q7		@ HÂ·Ii+1
 	veor	q3,q3,q2		@ accumulate q3 early
 
 	vext.8	q10,q0,q0,#8		@ 2nd phase of reduction
@@ -196,10 +197,10 @@ gcm_ghash_v8:
 	veor	q3,q3,q0		@ inp^=Xi
 	veor	q9,q8,q10		@ q9 is rotated inp^Xi
 
-.byte	0x86,0x0e,0xa8,0xf2	@ pmull q0,q12,q3		@ H.lo·Xi.lo
+.byte	0x86,0x0e,0xa8,0xf2	@ pmull q0,q12,q3		@ H.loÂ·Xi.lo
 	veor	q9,q9,q3		@ Karatsuba pre-processing
-.byte	0x87,0x4e,0xa9,0xf2	@ pmull2 q2,q12,q3		@ H.hi·Xi.hi
-.byte	0xa2,0x2e,0xaa,0xf2	@ pmull q1,q13,q9		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
+.byte	0x87,0x4e,0xa9,0xf2	@ pmull2 q2,q12,q3		@ H.hiÂ·Xi.hi
+.byte	0xa2,0x2e,0xaa,0xf2	@ pmull q1,q13,q9		@ (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
 
 	vext.8	q9,q0,q2,#8		@ Karatsuba post-processing
 	veor	q10,q0,q2
@@ -229,3 +230,4 @@ gcm_ghash_v8:
 .byte	71,72,65,83,72,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2
+#endif
