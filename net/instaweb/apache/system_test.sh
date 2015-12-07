@@ -693,7 +693,7 @@ OUTFILE=$OUTDIR/blocking_rewrite.out.html
 $WGET_DUMP --header 'X-PSA-Blocking-Rewrite: psatest' $URL > $OUTFILE
 check egrep -q 'link[[:space:]]rel=' $OUTFILE
 EXPECTED_COMMENT_LINE="<!--The preceding resource was not rewritten \
-because its domain (www.google.com) is not authorized-->"
+because its domain (cse.google.com) is not authorized-->"
 check [ $(grep -o "$EXPECTED_COMMENT_LINE" $OUTFILE | wc -l) -eq 1 ]
 
 if [ "$SECONDARY_HOSTNAME" != "" ]; then
@@ -2101,7 +2101,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
 http://www.google.com/css/maia.css as it is on an unauthorized domain-->"
   check [ $(grep -o "$EXPECTED_IMPORT_FAILURE_LINE" $FETCH_FILE | wc -l) -eq 1 ]
   EXPECTED_COMMENT_LINE="<!--The preceding resource was not rewritten \
-because its domain (www.google.com) is not authorized-->"
+because its domain (cse.google.com) is not authorized-->"
   check [ $(grep -o "$EXPECTED_COMMENT_LINE" $FETCH_FILE | wc -l) -eq 1 ]
 
   start_test inline_unauthorized_resources allows unauthorized css selectors
