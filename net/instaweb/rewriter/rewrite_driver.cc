@@ -127,6 +127,7 @@
 #include "net/instaweb/rewriter/public/split_html_helper_filter.h"
 #include "net/instaweb/rewriter/public/strip_non_cacheable_filter.h"
 #include "net/instaweb/rewriter/public/strip_scripts_filter.h"
+#include "net/instaweb/rewriter/public/strip_subresource_hints_filter.h"
 #include "net/instaweb/rewriter/public/support_noscript_filter.h"
 #include "net/instaweb/rewriter/public/suppress_prehead_filter.h"
 #include "net/instaweb/rewriter/public/url_input_resource.h"
@@ -656,7 +657,9 @@ void RewriteDriver::FlushAsync(Function* callback) {
   }
   flush_requested_ = false;
 
-  DetermineEnabledFilters();
+  // Figure out which filters should be enabled and whether any enabled filter
+  // can modify urls.
+  DetermineFiltersBehavior();
 
   for (FilterList::iterator it = early_pre_render_filters_.begin();
       it != early_pre_render_filters_.end(); ++it) {
@@ -1010,7 +1013,9 @@ void RewriteDriver::AddPreRenderFilters() {
     dom_stats_filter_ = new DomStatsFilter(this);
     AddOwnedEarlyPreRenderFilter(dom_stats_filter_);
   }
-
+  if (!rewrite_options->preserve_subresource_hints()) {
+    AddOwnedEarlyPreRenderFilter(new StripSubresourceHintsFilter(this));
+  }
   if (rewrite_options->Enabled(RewriteOptions::kDecodeRewrittenUrls)) {
     AddOwnedEarlyPreRenderFilter(new DecodeRewrittenUrlsFilter(this));
   }
@@ -3609,12 +3614,12 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
   return ret;
 }
 
-void RewriteDriver::DetermineEnabledFiltersImpl() {
-  DetermineEnabledFiltersInList(early_pre_render_filters_);
-  DetermineEnabledFiltersInList(pre_render_filters_);
+void RewriteDriver::DetermineFiltersBehaviorImpl() {
+  DetermineFilterListBehavior(early_pre_render_filters_);
+  DetermineFilterListBehavior(pre_render_filters_);
 
-  // Call parent DetermineEnabled to setup post render filters.
-  HtmlParse::DetermineEnabledFiltersImpl();
+  // Call parent to set up post render filters.
+  HtmlParse::DetermineFiltersBehaviorImpl();
 }
 
 void RewriteDriver::ClearRequestProperties() {
