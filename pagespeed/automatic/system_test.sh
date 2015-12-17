@@ -90,6 +90,7 @@ fi
 
 run_test content_length
 run_test keep_data_urls
+run_test rel_canonical
 
 wait_for_async_tests
 
