@@ -48,9 +48,9 @@ done
 
 if [ -z $DEFAULT_FILE ]; then
   KEY='Last Changed Rev: '
-  REVISION=$(git rev-list --all --count)
+  REVISION=0
   echo LASTCHANGE=$REVISION > $OUT_FILE
 else
-  cat $DEFAULT_FILE > $OUT_FILE
+  echo LASTCHANGE=0 > $OUT_FILE
 fi
 
