@@ -51,6 +51,6 @@ if [ -z $DEFAULT_FILE ]; then
   REVISION=0
   echo LASTCHANGE=$REVISION > $OUT_FILE
 else
-  echo 0 > $OUT_FILE
+  echo LASTCHANGE=0 > $OUT_FILE
 fi
 
