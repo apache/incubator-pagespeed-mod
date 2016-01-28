@@ -82,8 +82,12 @@ vars = {
   "boringssl_git_revision": "@6d9e5a74482bb832a6b4d9ae3d20d8f10f250bbd",
 
   "domain_registry_provider_src":
-     "https://domain-registry-provider.googlecode.com/svn/trunk/",
-  "domain_registry_provider_revision": "@31",
+     "https://github.com/pagespeed/domain-registry-provider.git",
+  "domain_registry_provider_revision":
+     "@e9b72eaef413335eb054a5982277cb2e42eaead7",
+
+  "libpng_src": "https://github.com/glennrp/libpng.git",
+  "libpng_revision": "@a36c4f3f165fb2dd1772603da7f996eb40326621",
 }
 
 deps = {
