@@ -79,6 +79,18 @@ const char UserAgentMatcherTestBase::kChromeUserAgent[] =
     "AppleWebKit/525.13 (KHTML, like Gecko) Chrome/0.A.B.C Safari/525.13";
 const char UserAgentMatcherTestBase::kCompalUserAgent[] =
     "Compal-A618";
+const char UserAgentMatcherTestBase::kCriOS31UserAgent[] =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 7_0_3 like Mac OS X) "
+    "AppleWebKit/537.51.1 (KHTML, like Gecko) CriOS/31.0.1650.18 Mobile/11B511 "
+    "Safari/8536.25 (37014222-1F1D-4117-89B3-699D5C10628A)";
+const char UserAgentMatcherTestBase::kCriOS32UserAgent[] =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 7_0_4 like Mac OS X) "
+    "AppleWebKit/537.51.1 (KHTML, like Gecko) CriOS/32.0.1700.21 "
+    "Mobile/11B554a Safari/9537.53 (A7BED55D-B09E-484F-B2FE-5E4952E9B87E)";
+const char UserAgentMatcherTestBase::kCriOS48UserAgent[] =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 9_2 like Mac OS X) "
+    "AppleWebKit/601.1 (KHTML, like Gecko) CriOS/48.0.2564.87 "
+    "Mobile/13C75 Safari/601.1.46";
 const char UserAgentMatcherTestBase::kDoCoMoMobileUserAgent[] =
     "DoCoMo/1.0/D505iS/c20/TB/W20H10";
 const char UserAgentMatcherTestBase::kFirefox1UserAgent[] =
