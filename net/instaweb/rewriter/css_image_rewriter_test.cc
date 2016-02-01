@@ -1006,7 +1006,11 @@ class CssRecompressImagesInStyleAttributes : public RewriteTestBase {
     int64 start_image_rewrites = image_rewrite_count->Get();
     output_buffer_.clear();
     ClearRewriteDriver();
-    SetCurrentUserAgent(user_agent);
+    if (user_agent == "webp") {
+      SetupForWebp();
+    } else {
+      SetCurrentUserAgent(user_agent);
+    }
     Parse(id, html_input);
     EXPECT_TRUE(output_buffer_.find(expected_substring) != GoogleString::npos)
         << expected_substring;
@@ -1054,7 +1058,7 @@ TEST_F(CssRecompressImagesInStyleAttributes, RecompressAndWebpAndStyleEnabled) {
   options()->EnableFilter(RewriteOptions::kRecompressJpeg);
   options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
   options()->set_image_jpeg_recompress_quality(85);
-  SetCurrentUserAgent("webp");
+  SetupForWebp();
   rewrite_driver()->AddFilters();
   ValidateExpected("webp",
       "<div style=\"background-image:url(foo.jpg)\"/>",
@@ -1073,7 +1077,7 @@ TEST_F(CssRecompressImagesInStyleAttributes,
   options()->EnableFilter(RewriteOptions::kRecompressJpeg);
   options()->EnableFilter(RewriteOptions::kRewriteStyleAttributesWithUrl);
   options()->set_image_jpeg_recompress_quality(85);
-  SetCurrentUserAgent("webp-la");
+  SetupForWebpLossless();
   rewrite_driver()->AddFilters();
   ValidateExpected("webp-lossless",
       "<div style=\"background-image:url(foo.jpg)\"/>",
