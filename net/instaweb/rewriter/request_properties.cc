@@ -198,4 +198,12 @@ bool RequestProperties::ForbidWebpInlining() const {
   return device_properties_->ForbidWebpInlining();
 }
 
+bool RequestProperties::RequestsSaveData() const {
+  return device_properties_->RequestsSaveData();
+}
+
+bool RequestProperties::HasViaHeader() const {
+  return device_properties_->HasViaHeader();
+}
+
 }  // namespace net_instaweb

@@ -194,6 +194,49 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
     EXPECT_FALSE(lawyer.IsOriginKnown(url));
   }
 
+  void VerifyAllowVaryOn(const GoogleString& input_str,
+                         bool expected_valid,
+                         bool expected_allow_auto,
+                         bool expected_allow_save_data,
+                         bool expected_allow_user_agent,
+                         bool expected_allow_accept,
+                         const GoogleString& expected_str) {
+    RewriteOptions::OptionSettingResult is_valid =
+        options_.SetOptionFromName(RewriteOptions::kAllowVaryOn, input_str);
+
+    if (expected_valid) {
+      EXPECT_EQ(RewriteOptions::kOptionOk, is_valid);
+    } else {
+      EXPECT_EQ(RewriteOptions::kOptionValueInvalid, is_valid);
+      return;  // No more checking
+    }
+    EXPECT_EQ(expected_allow_auto, options_.AllowVaryOnAuto());
+    EXPECT_EQ(expected_allow_save_data, options_.AllowVaryOnSaveData());
+    EXPECT_EQ(expected_allow_user_agent,
+              options_.AllowVaryOnUserAgent());
+    EXPECT_EQ(expected_allow_accept, options_.AllowVaryOnAccept());
+    EXPECT_STREQ(expected_str, options_.AllowVaryOnToString());
+  }
+
+  void VerifyMergingAllowVaryOn(const GoogleString& old_option_str,
+                                const GoogleString& new_option_str,
+                                const GoogleString& expected_option_str) {
+    RewriteOptions merged_options(&thread_system_);
+    RewriteOptions new_options(&thread_system_);
+    if (!old_option_str.empty()) {
+      EXPECT_EQ(RewriteOptions::kOptionOk,
+                merged_options.SetOptionFromName(RewriteOptions::kAllowVaryOn,
+                                                 old_option_str));
+    }
+    if (!new_option_str.empty()) {
+      EXPECT_EQ(RewriteOptions::kOptionOk,
+                new_options.SetOptionFromName(RewriteOptions::kAllowVaryOn,
+                                              new_option_str));
+    }
+    merged_options.Merge(new_options);
+    EXPECT_STREQ(expected_option_str, merged_options.AllowVaryOnToString());
+  }
+
   void TestSetOptionFromName(bool test_log_variant);
 
   NullThreadSystem thread_system_;
@@ -797,7 +840,7 @@ void RewriteOptionsTest::TestSetOptionFromName(bool test_log_variant) {
               "1",
               &handler);
   // Default is -1.
-  EXPECT_EQ(1, options_.image_jpeg_recompress_quality());
+  EXPECT_EQ(1, options_.ImageJpegQuality());
 
   TestNameSet(RewriteOptions::kOptionOk,
               test_log_variant,
@@ -871,6 +914,7 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kAddOptionsToUrls,
     RewriteOptions::kAllowLoggingUrlsInLogRecord,
     RewriteOptions::kAllowOptionsToBeSetByCookies,
+    RewriteOptions::kAllowVaryOn,
     RewriteOptions::kAlwaysMobilize,
     RewriteOptions::kAlwaysRewriteCss,
     RewriteOptions::kAnalyticsID,
@@ -932,6 +976,7 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kImageInlineMaxBytes,
     RewriteOptions::kImageJpegNumProgressiveScans,
     RewriteOptions::kImageJpegNumProgressiveScansForSmallScreens,
+    RewriteOptions::kImageJpegQualityForSaveData,
     RewriteOptions::kImageJpegRecompressionQuality,
     RewriteOptions::kImageJpegRecompressionQualityForSmallScreens,
     RewriteOptions::kImageLimitOptimizedPercent,
@@ -941,6 +986,7 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kImagePreserveURLs,
     RewriteOptions::kImageRecompressionQuality,
     RewriteOptions::kImageResolutionLimitBytes,
+    RewriteOptions::kImageWebpQualityForSaveData,
     RewriteOptions::kImageWebpRecompressionQuality,
     RewriteOptions::kImageWebpRecompressionQualityForSmallScreens,
     RewriteOptions::kImageWebpAnimatedRecompressionQuality,
@@ -2675,12 +2721,12 @@ TEST_F(RewriteOptionsTest, ParseAndSetDeprecatedOptionFromName1) {
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options_.ParseAndSetOptionFromName1("ImageWebpRecompressionQuality",
                                                 "12", &msg, &handler));
-  EXPECT_EQ(12, options_.image_webp_recompress_quality());
+  EXPECT_EQ(12, options_.ImageWebpQuality());
 
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options_.ParseAndSetOptionFromName1("WebpRecompressionQuality",
                                                 "23", &msg, &handler));
-  EXPECT_EQ(23, options_.image_webp_recompress_quality());
+  EXPECT_EQ(23, options_.ImageWebpQuality());
 
   // 'ImageWebpRecompressionQualityForSmallScreens' is replaced by
   // 'WebpRecompressionQualityForSmallScreens'.
@@ -2688,13 +2734,13 @@ TEST_F(RewriteOptionsTest, ParseAndSetDeprecatedOptionFromName1) {
             options_.ParseAndSetOptionFromName1(
                 "ImageWebpRecompressionQualityForSmallScreens",
                 "34", &msg, &handler));
-  EXPECT_EQ(34, options_.image_webp_recompress_quality_for_small_screens());
+  EXPECT_EQ(34, options_.ImageWebpQualityForSmallScreen());
 
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options_.ParseAndSetOptionFromName1(
                 "WebpRecompressionQualityForSmallScreens",
                 "45", &msg, &handler));
-  EXPECT_EQ(45, options_.image_webp_recompress_quality_for_small_screens());
+  EXPECT_EQ(45, options_.ImageWebpQualityForSmallScreen());
 }
 
 TEST_F(RewriteOptionsTest, BandwidthMode) {
@@ -3143,6 +3189,300 @@ TEST_F(RewriteOptionsTest, MobilizeFiltersTest) {
   EXPECT_TRUE(options_.mob_nav());
   EXPECT_FALSE(options_.mob_always());
   EXPECT_FALSE(options_.mob_layout());
+}
+
+TEST_F(RewriteOptionsTest, ParseAllowVaryOn) {
+  // Explicitly listed headers should be supported, independently of "Via"
+  // header.
+  VerifyAllowVaryOn("User-Agent",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    false /* expected_allow_save_data */,
+                    true /* expected_allow_user_agent */,
+                    false /* expected_allow_accept */,
+                    "User-Agent");
+  VerifyAllowVaryOn("Save-Data",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    true /* expected_allow_save_data */,
+                    false /* expected_allow_user_agent */,
+                    false /* expected_allow_accept */,
+                    "Save-Data");
+  VerifyAllowVaryOn("Accept",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    false /* expected_allow_save_data */,
+                    false /* expected_allow_user_agent */,
+                    true /* expected_allow_accept */,
+                    "Accept");
+  VerifyAllowVaryOn("Save-Data,Accept,User-Agent",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    true /* expected_allow_save_data */,
+                    true /* expected_allow_user_agent */,
+                    true /* expected_allow_accept */,
+                    "Accept,Save-Data,User-Agent");
+  VerifyAllowVaryOn("Save-Data,Accept,User-Agent",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    true /* expected_allow_save_data */,
+                    true /* expected_allow_user_agent */,
+                    true /* expected_allow_accept */,
+                    "Accept,Save-Data,User-Agent");
+
+  // Case and empty space don't matter.
+  VerifyAllowVaryOn(" accept,SAVE-DATA,   uSER-aGENT  ",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    true /* expected_allow_save_data */,
+                    true /* expected_allow_user_agent */,
+                    true /* expected_allow_accept */,
+                    "Accept,Save-Data,User-Agent");
+
+  // "None" disables all headers.
+  VerifyAllowVaryOn("None",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    false /* expected_allow_save_data */,
+                    false /* expected_allow_user_agent */,
+                    false /* expected_allow_accept */,
+                    "None");
+  VerifyAllowVaryOn("nONE  ",
+                    true /* expected_valid */,
+                    false /* expected_allow_auto */,
+                    false /* expected_allow_save_data */,
+                    false /* expected_allow_user_agent */,
+                    false /* expected_allow_accept */,
+                    "None");
+
+  // In "Auto" mode, the "Auto" bit is set and the "Save-Data" header is
+  // enabled. Caller can decide which other headers to allow.
+  VerifyAllowVaryOn("AUTO",
+                    true /* expected_valid */,
+                    true /* expected_allow_auto */,
+                    true /* expected_allow_save_data */,
+                    false /* expected_allow_user_agent */,
+                    false /* expected_allow_accept */,
+                    "Auto");
+  VerifyAllowVaryOn("   auto ",
+                    true /* expected_valid */,
+                    true /* expected_allow_auto */,
+                    true /* expected_allow_save_data */,
+                    false /* expected_allow_user_agent */,
+                    false /* expected_allow_accept */,
+                    "Auto");
+
+  const bool not_used = false;
+  // Unsupported or invalid headers will not be accepted.
+  VerifyAllowVaryOn("Content-Length,User-Agent",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn(", ,User-Agent,Invalid",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn("Content-Length,Invalid",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+
+  // Mixing "Auto" with "None", or mixing either of them with other headers
+  // is not allowed.
+  VerifyAllowVaryOn("Auto,None",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn("Auto,Accept",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn("Content-Length,None",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+
+  // Empty string and extra comma are disallowed.
+  VerifyAllowVaryOn("",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn("    ",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn(",",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn(", ,, ",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+  VerifyAllowVaryOn("accept,",
+                    false /* expected_valid */,
+                    not_used, not_used, not_used, not_used, "not-used");
+}
+
+TEST_F(RewriteOptionsTest, MergeAllowVaryOnOptions) {
+  // New option, if specified, will always overwrite the old one.
+  VerifyMergingAllowVaryOn("Accept,User-Agent", "Save-Data", "Save-Data");
+  VerifyMergingAllowVaryOn("Accept", "Save-Data", "Save-Data");
+  VerifyMergingAllowVaryOn("Accept", "None", "None");
+  VerifyMergingAllowVaryOn("", "Save-Data", "Save-Data");
+  VerifyMergingAllowVaryOn("", "None", "None");
+  VerifyMergingAllowVaryOn("", "Auto", "Auto");
+
+  // New option, is un-specified, will be ignored.
+  VerifyMergingAllowVaryOn("Accept,User-Agent", "", "Accept,User-Agent");
+  VerifyMergingAllowVaryOn("None", "", "None");
+  VerifyMergingAllowVaryOn("Auto", "", "Auto");
+
+  // If neither option has been specified, the default will be used.
+  VerifyMergingAllowVaryOn("", "", "Auto");
+}
+
+TEST_F(RewriteOptionsTest, ImageQualitiesOverride) {
+  options_.set_image_recompress_quality(1);
+
+  options_.set_image_webp_recompress_quality(20);
+  options_.set_image_webp_recompress_quality_for_small_screens(30);
+  options_.set_image_webp_quality_for_save_data(40);
+  options_.set_image_webp_animated_recompress_quality(50);
+
+  options_.set_image_jpeg_recompress_quality(21);
+  options_.set_image_jpeg_recompress_quality_for_small_screens(31);
+  options_.set_image_jpeg_quality_for_save_data(41);
+  options_.set_image_jpeg_num_progressive_scans(5);
+  options_.set_image_jpeg_num_progressive_scans_for_small_screens(3);
+
+  CHECK_EQ(20, options_.ImageWebpQuality());
+  CHECK_EQ(30, options_.ImageWebpQualityForSmallScreen());
+  CHECK_EQ(40, options_.ImageWebpQualityForSaveData());
+  CHECK_EQ(50, options_.ImageWebpAnimatedQuality());
+  CHECK_EQ(21, options_.ImageJpegQuality());
+  CHECK_EQ(31, options_.ImageJpegQualityForSmallScreen());
+  CHECK_EQ(41, options_.ImageJpegQualityForSaveData());
+  CHECK_EQ(5, options_.image_jpeg_num_progressive_scans());
+  CHECK_EQ(3, options_.ImageJpegNumProgressiveScansForSmallScreen());
+
+  EXPECT_TRUE(options_.HasValidSmallScreenQualities());
+  EXPECT_TRUE(options_.HasValidSaveDataQualities());
+}
+
+TEST_F(RewriteOptionsTest, ImageQualitiesSubEqualToBase) {
+  options_.set_image_recompress_quality(1);
+
+  options_.set_image_webp_recompress_quality(20);
+  options_.set_image_webp_recompress_quality_for_small_screens(20);
+  options_.set_image_webp_quality_for_save_data(20);
+  options_.set_image_webp_animated_recompress_quality(20);
+
+  options_.set_image_jpeg_recompress_quality(21);
+  options_.set_image_jpeg_recompress_quality_for_small_screens(21);
+  options_.set_image_jpeg_quality_for_save_data(21);
+  options_.set_image_jpeg_num_progressive_scans(5);
+  options_.set_image_jpeg_num_progressive_scans_for_small_screens(5);
+
+  CHECK_EQ(20, options_.ImageWebpQuality());
+  CHECK_EQ(20, options_.ImageWebpQualityForSmallScreen());
+  CHECK_EQ(20, options_.ImageWebpQualityForSaveData());
+  CHECK_EQ(20, options_.ImageWebpAnimatedQuality());
+  CHECK_EQ(21, options_.ImageJpegQuality());
+  CHECK_EQ(21, options_.ImageJpegQualityForSmallScreen());
+  CHECK_EQ(21, options_.ImageJpegQualityForSaveData());
+  CHECK_EQ(5, options_.image_jpeg_num_progressive_scans());
+  CHECK_EQ(5, options_.ImageJpegNumProgressiveScansForSmallScreen());
+
+  EXPECT_FALSE(options_.HasValidSmallScreenQualities());
+  EXPECT_FALSE(options_.HasValidSaveDataQualities());
+}
+
+TEST_F(RewriteOptionsTest, ImageQualitiesSubInheritFromBase) {
+  options_.set_image_recompress_quality(1);
+
+  options_.set_image_webp_recompress_quality(-1);
+  options_.set_image_webp_recompress_quality_for_small_screens(-1);
+  options_.set_image_webp_quality_for_save_data(-1);
+  options_.set_image_webp_animated_recompress_quality(-1);
+
+  options_.set_image_jpeg_recompress_quality(-1);
+  options_.set_image_jpeg_recompress_quality_for_small_screens(-1);
+  options_.set_image_jpeg_quality_for_save_data(-1);
+  options_.set_image_jpeg_num_progressive_scans(5);
+  options_.set_image_jpeg_num_progressive_scans_for_small_screens(-1);
+
+  CHECK_EQ(1, options_.ImageWebpQuality());
+  CHECK_EQ(1, options_.ImageWebpQualityForSmallScreen());
+  CHECK_EQ(1, options_.ImageWebpQualityForSaveData());
+  CHECK_EQ(1, options_.ImageWebpAnimatedQuality());
+  CHECK_EQ(1, options_.ImageJpegQuality());
+  CHECK_EQ(1, options_.ImageJpegQualityForSmallScreen());
+  CHECK_EQ(1, options_.ImageJpegQualityForSaveData());
+  CHECK_EQ(5, options_.image_jpeg_num_progressive_scans());
+  CHECK_EQ(5, options_.ImageJpegNumProgressiveScansForSmallScreen());
+
+  EXPECT_FALSE(options_.HasValidSmallScreenQualities());
+  EXPECT_FALSE(options_.HasValidSaveDataQualities());
+}
+
+TEST_F(RewriteOptionsTest, ImageQualitiesAllDisabled) {
+  options_.set_image_recompress_quality(-1);
+
+  options_.set_image_webp_recompress_quality(-1);
+  options_.set_image_webp_recompress_quality_for_small_screens(-1);
+  options_.set_image_webp_quality_for_save_data(-1);
+  options_.set_image_webp_animated_recompress_quality(-1);
+
+  options_.set_image_jpeg_recompress_quality(-1);
+  options_.set_image_jpeg_recompress_quality_for_small_screens(-1);
+  options_.set_image_jpeg_quality_for_save_data(-1);
+
+  CHECK_EQ(-1, options_.ImageWebpQuality());
+  CHECK_EQ(-1, options_.ImageWebpQualityForSmallScreen());
+  CHECK_EQ(-1, options_.ImageWebpQualityForSaveData());
+  CHECK_EQ(-1, options_.ImageWebpAnimatedQuality());
+  CHECK_EQ(-1, options_.ImageJpegQuality());
+  CHECK_EQ(-1, options_.ImageJpegQualityForSmallScreen());
+  CHECK_EQ(-1, options_.ImageJpegQualityForSaveData());
+
+  EXPECT_FALSE(options_.HasValidSmallScreenQualities());
+  EXPECT_FALSE(options_.HasValidSaveDataQualities());
+}
+
+TEST_F(RewriteOptionsTest, SupportSaveData) {
+  // By default, AllowVaryOn is set to "Auto" which implies "Save-Data".
+  options_.set_image_jpeg_quality_for_save_data(-1);
+  options_.set_image_webp_quality_for_save_data(-1);
+  EXPECT_FALSE(options_.HasValidSaveDataQualities());
+  EXPECT_TRUE(options_.AllowVaryOnSaveData());
+  EXPECT_FALSE(options_.SupportSaveData());
+
+  options_.set_image_jpeg_quality_for_save_data(20);
+  options_.set_image_webp_quality_for_save_data(30);
+  EXPECT_TRUE(options_.HasValidSaveDataQualities());
+  EXPECT_TRUE(options_.AllowVaryOnSaveData());
+  EXPECT_TRUE(options_.SupportSaveData());
+
+  // Disallow vary on "Save-Data".
+  EXPECT_EQ(RewriteOptions::kOptionOk,
+            options_.SetOptionFromName(RewriteOptions::kAllowVaryOn,
+                                       "None"));
+  options_.set_image_jpeg_quality_for_save_data(-1);
+  options_.set_image_webp_quality_for_save_data(-1);
+  EXPECT_FALSE(options_.HasValidSaveDataQualities());
+  EXPECT_FALSE(options_.AllowVaryOnSaveData());
+  EXPECT_FALSE(options_.SupportSaveData());
+
+  options_.set_image_jpeg_quality_for_save_data(20);
+  options_.set_image_webp_quality_for_save_data(30);
+  EXPECT_TRUE(options_.HasValidSaveDataQualities());
+  EXPECT_FALSE(options_.AllowVaryOnSaveData());
+  EXPECT_FALSE(options_.SupportSaveData());
+
+  // Explicitly allow vary on "Save-Data".
+  EXPECT_EQ(RewriteOptions::kOptionOk,
+            options_.SetOptionFromName(RewriteOptions::kAllowVaryOn,
+                                       "Save-Data"));
+  EXPECT_TRUE(options_.HasValidSaveDataQualities());
+  EXPECT_TRUE(options_.AllowVaryOnSaveData());
+  EXPECT_TRUE(options_.SupportSaveData());
+
+  options_.set_image_jpeg_quality_for_save_data(-1);
+  options_.set_image_webp_quality_for_save_data(-1);
+  EXPECT_FALSE(options_.HasValidSaveDataQualities());
+  EXPECT_TRUE(options_.AllowVaryOnSaveData());
+  EXPECT_FALSE(options_.SupportSaveData());
 }
 
 }  // namespace net_instaweb

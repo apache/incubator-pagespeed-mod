@@ -44,6 +44,7 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource.h"
+#include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/responsive_image_filter.h"
@@ -68,8 +69,10 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/data_url.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/image/image_util.h"
+#include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 
@@ -77,21 +80,33 @@ namespace net_instaweb {
 
 namespace {
 
-// Determines the image options to be used for the given image. If neither
-// of large screen and small screen values are set, use the base value. If
-// any of them are set explicity, use the set value depending on the size of
-// the screen. The only exception is if the image is being compressed for a
-// small screen and the quality for small screen is set to a higher value.
-// In this case, use the value that is explicitly set to be lower of the two.
-int64 DetermineImageOptions(
-    int64 base_value, int64 large_screen_value, int64 small_screen_value,
-    bool is_small_screen) {
-  int64 quality = (large_screen_value == -1) ? base_value : large_screen_value;
-  if (is_small_screen && small_screen_value != -1) {
-    quality = (quality == -1) ? small_screen_value :
-        std::min(quality, small_screen_value);
+void DetermineQualities(const RewriteOptions& options,
+                        const ResourceContext& resource_context,
+                        const RequestProperties& request_properties,
+                        Image::CompressionOptions* image_options) {
+  if (resource_context.may_use_save_data_quality()) {
+    // Use Save-Data qualities.
+    image_options->webp_quality = options.ImageWebpQualityForSaveData();
+    image_options->webp_animated_quality =
+      options.ImageWebpQualityForSaveData();
+    image_options->jpeg_quality = options.ImageJpegQualityForSaveData();
+    image_options->jpeg_num_progressive_scans =
+      options.image_jpeg_num_progressive_scans();
+  } else if (resource_context.may_use_small_screen_quality()) {
+    // Use small screen qualities.
+    image_options->webp_quality = options.ImageWebpQualityForSmallScreen();
+    image_options->webp_animated_quality = options.ImageWebpAnimatedQuality();
+    image_options->jpeg_quality = options.ImageJpegQualityForSmallScreen();
+    image_options->jpeg_num_progressive_scans =
+        options.ImageJpegNumProgressiveScansForSmallScreen();
+  } else {
+    // Use regular (desktop) qualities.
+    image_options->webp_quality = options.ImageWebpQuality();
+    image_options->webp_animated_quality = options.ImageWebpAnimatedQuality();
+    image_options->jpeg_quality = options.ImageJpegQuality();
+    image_options->jpeg_num_progressive_scans =
+        options.image_jpeg_num_progressive_scans();
   }
-  return quality;
 }
 
 int64 GetPageWidth(const int64 page_height,
@@ -163,6 +178,7 @@ const char* const kRelatedOptions[] = {
   RewriteOptions::kImageJpegNumProgressiveScansForSmallScreens,
   RewriteOptions::kImageJpegRecompressionQuality,
   RewriteOptions::kImageJpegRecompressionQualityForSmallScreens,
+  RewriteOptions::kImageJpegQualityForSaveData,
   RewriteOptions::kImageLimitOptimizedPercent,
   RewriteOptions::kImageLimitResizeAreaPercent,
   RewriteOptions::kImageMaxRewritesAtOnce,
@@ -171,6 +187,8 @@ const char* const kRelatedOptions[] = {
   RewriteOptions::kImageResolutionLimitBytes,
   RewriteOptions::kImageWebpRecompressionQuality,
   RewriteOptions::kImageWebpRecompressionQualityForSmallScreens,
+  RewriteOptions::kImageWebpAnimatedRecompressionQuality,
+  RewriteOptions::kImageWebpQualityForSaveData,
   RewriteOptions::kProgressiveJpegMinBytes
 };
 
@@ -593,7 +611,7 @@ GoogleString ImageRewriteFilter::Context::UserAgentCacheKey(
 
 void ImageRewriteFilter::Context::EncodeUserAgentIntoResourceContext(
     ResourceContext* context) {
-  return filter_->EncodeUserAgentIntoResourceContext(context);
+  filter_->EncodeUserAgentIntoResourceContext(context);
 }
 
 ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver)
@@ -821,8 +839,8 @@ void ImageRewriteFilter::RenderDone() {
 // Allocate and initialize CompressionOptions object based on RewriteOptions and
 // ResourceContext.
 Image::CompressionOptions* ImageRewriteFilter::ImageOptionsForLoadedResource(
-    const ResourceContext& resource_context, const ResourcePtr& input_resource,
-    bool is_css) {
+    const ResourceContext& resource_context,
+    const ResourcePtr& input_resource) {
   Image::CompressionOptions* image_options = new Image::CompressionOptions();
   int64 input_size =
       static_cast<int64>(input_resource->UncompressedContentsSize());
@@ -831,33 +849,14 @@ Image::CompressionOptions* ImageRewriteFilter::ImageOptionsForLoadedResource(
   // support progressive which causes a perceptible delay in the loading of
   // large background images.
   const RewriteOptions* options = driver()->options();
-  if ((resource_context.libwebp_level() != ResourceContext::LIBWEBP_NONE) &&
-      // TODO(vchudnov): Consider whether we want to treat CSS images
-      // differently.
-      (!is_css || input_size <= options->max_image_bytes_for_webp_in_css())) {
+  if (resource_context.libwebp_level() != ResourceContext::LIBWEBP_NONE) {
     SetWebpCompressionOptions(resource_context, *options, input_resource->url(),
-                              &webp_conversion_variables_,
-                              image_options);
+                              &webp_conversion_variables_, image_options);
   }
-  image_options->jpeg_quality =
-      DetermineImageOptions(options->image_recompress_quality(),
-          options->image_jpeg_recompress_quality(),
-          options->image_jpeg_recompress_quality_for_small_screens(),
-          resource_context.use_small_screen_quality());
-  image_options->webp_quality =
-      DetermineImageOptions(options->image_recompress_quality(),
-          options->image_webp_recompress_quality(),
-          options->image_webp_recompress_quality_for_small_screens(),
-          resource_context.use_small_screen_quality());
-  image_options->webp_animated_quality = options->image_recompress_quality();
-  if (options->image_webp_animated_recompress_quality() != -1) {
-    image_options->webp_animated_quality =
-        options->image_webp_animated_recompress_quality();
-  }
-  image_options->jpeg_num_progressive_scans =
-      DetermineImageOptions(-1, options->image_jpeg_num_progressive_scans(),
-          options->image_jpeg_num_progressive_scans_for_small_screens(),
-          resource_context.use_small_screen_quality());
+
+  DetermineQualities(*options, resource_context,
+                     *driver()->request_properties(), image_options);
+
   image_options->progressive_jpeg =
       options->Enabled(RewriteOptions::kConvertJpegToProgressive) &&
       input_size >= options->progressive_jpeg_min_bytes();
@@ -909,6 +908,9 @@ bool ImageRewriteFilter::ResizeImageIfNecessary(
   ImageDim* desired_dim = resource_context->mutable_desired_image_dims();
   const ImageDim* post_resize_dim = &image_dim;
   if (ShouldResize(*resource_context, url, image, desired_dim)) {
+    DCHECK_LT(0, desired_dim->width());
+    DCHECK_LT(0, desired_dim->height());
+
     const char* message;  // Informational message for logging only.
     if (image->ResizeTo(*desired_dim)) {
       post_resize_dim = desired_dim;
@@ -917,8 +919,7 @@ bool ImageRewriteFilter::ResizeImageIfNecessary(
     } else {
       message = "Couldn't resize";
     }
-    DCHECK_LT(0, desired_dim->width());
-    DCHECK_LT(0, desired_dim->height());
+
     driver()->InfoAt(rewrite_context, "%s image `%s' from %dx%d to %dx%d",
                      message, url.c_str(),
                      image_dim.width(), image_dim.height(),
@@ -1037,8 +1038,7 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   }
 
   Image::CompressionOptions* image_options =
-      ImageOptionsForLoadedResource(resource_context, input_resource,
-                                    rewrite_context->is_css_);
+      ImageOptionsForLoadedResource(resource_context, input_resource);
   scoped_ptr<Image> image(
       NewImage(input_resource->ExtractUncompressedContents(),
                input_resource->url(), server_context()->filename_prefix(),
@@ -1084,6 +1084,27 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   is_resized = ResizeImageIfNecessary(
       rewrite_context, input_resource->url(),
       &resource_context, image.get(), cached);
+
+  // When the "resize_images" filter has been turned on and the IMG tag has
+  // width and/or height specified, we assume that the image will be resized so
+  // the new dimension will be embedded into the rewritten image URL. However,
+  // if reizing turns out to be a failure, we don't want the new dimension in
+  // the rewritten URL. For the latter case, we will reset the "name" of the
+  // output resource.
+  if (!is_resized) {
+    resource_context.clear_desired_image_dims();
+    GoogleString name;
+    GoogleUrl mapped_gurl;  // Not used
+    GoogleString failure_reason;  // Not used
+    if (driver()->GenerateOutputResourceNameAndUrl(
+            encoder(), &resource_context, input_resource, &name, &mapped_gurl,
+            &failure_reason)) {
+      result->mutable_full_name()->set_name(name);
+    } else {
+      LOG(DFATAL) << "Failed to generate name and URL for the output resource.";
+      return kRewriteFailed;
+    }
+  }
 
   // Now re-compress the (possibly resized) image, and decide if it's
   // saved us anything.
@@ -1169,7 +1190,8 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
           static_cast<unsigned>(image->output_size()));
     }
   }
-  cached->set_minimal_webp_support(image->MinimalWebpSupport());
+
+  cached->set_optimized_image_type(optimized_image_type);
   cached->set_size(rewrite_result == kRewriteOk ? image->output_size() :
                    image->input_size());
   SaveDebugMessageToCache(image->debug_message(), rewrite_context, cached);
@@ -1193,22 +1215,9 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
                               &webp_conversion_variables_,
                               image_options);
 
-    image_options->jpeg_quality = options->image_recompress_quality();
-    if (options->image_jpeg_recompress_quality() != -1) {
-      // if jpeg quality is explicitly set, it takes precedence over
-      // generic image quality.
-      image_options->jpeg_quality = options->image_jpeg_recompress_quality();
-    }
-    image_options->webp_quality = options->image_recompress_quality();
-    if (options->image_webp_recompress_quality() != -1) {
-      image_options->webp_quality = options->image_webp_recompress_quality();
-    }
-    image_options->webp_animated_quality =
-        options->image_recompress_quality();
-    if (options->image_webp_animated_recompress_quality() != -1) {
-      image_options->webp_animated_quality =
-          options->image_webp_animated_recompress_quality();
-    }
+    image_options->jpeg_quality = options->ImageJpegQuality();
+    image_options->webp_quality = options->ImageWebpQuality();
+    image_options->webp_animated_quality = options->ImageWebpAnimatedQuality();
     image_options->progressive_jpeg = false;
     image_options->convert_png_to_jpeg =
         options->Enabled(RewriteOptions::kConvertPngToJpeg);
@@ -1301,21 +1310,9 @@ void ImageRewriteFilter::ResizeLowQualityImage(
     const RewriteOptions* options = driver()->options();
     Image::CompressionOptions* image_options =
         new Image::CompressionOptions();
-    image_options->jpeg_quality = options->image_recompress_quality();
-    if (options->image_jpeg_recompress_quality() != -1) {
-      // if jpeg quality is explicitly set, it takes precedence over
-      // generic image quality.
-      image_options->jpeg_quality = options->image_jpeg_recompress_quality();
-    }
-    image_options->webp_quality = options->image_recompress_quality();
-    if (options->image_webp_recompress_quality() != -1) {
-      image_options->webp_quality = options->image_webp_recompress_quality();
-    }
-    image_options->webp_animated_quality = options->image_recompress_quality();
-    if (options->image_webp_animated_recompress_quality() != -1) {
-      image_options->webp_animated_quality =
-          options->image_webp_animated_recompress_quality();
-    }
+    image_options->jpeg_quality = options->ImageJpegQuality();
+    image_options->webp_quality = options->ImageWebpQuality();
+    image_options->webp_animated_quality = options->ImageWebpAnimatedQuality();
     image_options->progressive_jpeg = false;
     image_options->convert_png_to_jpeg =
         options->Enabled(RewriteOptions::kConvertPngToJpeg);
@@ -2043,6 +2040,10 @@ void ImageRewriteFilter::EncodeUserAgentIntoResourceContext(
   ImageUrlEncoder::SetWebpAndMobileUserAgent(*driver(), context);
   CssUrlEncoder::SetInliningImages(*driver()->request_properties(), context);
   ImageUrlEncoder::SetSmallScreen(*driver(), context);
+
+  context->set_may_use_save_data_quality(
+      driver()->options()->SupportSaveData() &&
+      driver()->request_properties()->RequestsSaveData());
 }
 
 RewriteContext* ImageRewriteFilter::MakeRewriteContext() {

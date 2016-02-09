@@ -222,6 +222,7 @@ class RewriteOptions {
   static const char kAddOptionsToUrls[];
   static const char kAllowLoggingUrlsInLogRecord[];
   static const char kAllowOptionsToBeSetByCookies[];
+  static const char kAllowVaryOn[];
   static const char kAlwaysMobilize[];
   static const char kAlwaysRewriteCss[];
   static const char kAnalyticsID[];
@@ -285,6 +286,7 @@ class RewriteOptions {
   // kImageJpeg*Quality might be renamed to kImageJpegQuality.
   static const char kImageJpegNumProgressiveScans[];
   static const char kImageJpegNumProgressiveScansForSmallScreens[];
+  static const char kImageJpegQualityForSaveData[];
   static const char kImageJpegRecompressionQuality[];
   static const char kImageJpegRecompressionQualityForSmallScreens[];
   static const char kImageLimitOptimizedPercent[];
@@ -294,6 +296,7 @@ class RewriteOptions {
   static const char kImagePreserveURLs[];
   static const char kImageRecompressionQuality[];
   static const char kImageResolutionLimitBytes[];
+  static const char kImageWebpQualityForSaveData[];
   static const char kImageWebpRecompressionQuality[];
   static const char kImageWebpRecompressionQualityForSmallScreens[];
   static const char kImageWebpAnimatedRecompressionQuality[];
@@ -504,6 +507,98 @@ class RewriteOptions {
   class ResponsiveDensities : public std::vector<double> {
   };
 
+  class AllowVaryOn {
+   public:
+    // Strings for display.
+    static const char kNoneString[];
+    static const char kAutoString[];
+
+    AllowVaryOn() :
+        allow_auto_(false),
+        allow_accept_(false),
+        allow_save_data_(false),
+        allow_user_agent_(false) {
+    }
+
+    GoogleString ToString() const;
+
+    bool allow_auto() const {
+      return allow_auto_;
+    }
+    void set_allow_auto(bool v) {
+      allow_auto_ = v;
+    }
+    bool allow_accept() const {
+      return allow_accept_;
+    }
+    void set_allow_accept(bool v) {
+      allow_accept_ = v;
+    }
+    bool allow_save_data() const {
+      return allow_save_data_ || allow_auto_;
+    }
+    void set_allow_save_data(bool v) {
+      allow_save_data_ = v;
+    }
+    bool allow_user_agent() const {
+      return allow_user_agent_;
+    }
+    void set_allow_user_agent(bool v) {
+      allow_user_agent_ = v;
+    }
+
+   private:
+    // All of the properties must be included in
+    // RewriteOptions::OptionSignature.
+    bool allow_auto_;
+    bool allow_accept_;
+    bool allow_save_data_;
+    bool allow_user_agent_;
+  };
+
+  bool AllowVaryOnAuto() const {
+    return allow_vary_on_.value().allow_auto();
+  }
+  bool AllowVaryOnAccept() const {
+    return allow_vary_on_.value().allow_accept();
+  }
+  bool AllowVaryOnSaveData() const {
+    return allow_vary_on_.value().allow_save_data();
+  }
+  bool AllowVaryOnUserAgent() const {
+    return allow_vary_on_.value().allow_user_agent();
+  }
+  GoogleString AllowVaryOnToString() const {
+    return ToString(allow_vary_on_.value());
+  }
+
+  // Returns true if PageSpeed responds differently for image requests with
+  // Save-Data header, i.e., using a unique quality and adding
+  // "Vary: Save-Data" header.
+  bool SupportSaveData() const {
+    return (HasValidSaveDataQualities() && AllowVaryOnSaveData());
+  }
+
+  void set_allow_vary_on(const AllowVaryOn& x) {
+    set_option(x, &allow_vary_on_);
+  }
+
+  // Image qualities and parameters, after applying the inheritance rules.
+  int64 ImageJpegQuality() const;
+  int64 ImageJpegQualityForSmallScreen() const;
+  int64 ImageJpegQualityForSaveData() const;
+  int64 ImageWebpQuality() const;
+  int64 ImageWebpQualityForSmallScreen() const;
+  int64 ImageWebpQualityForSaveData() const;
+  int64 ImageWebpAnimatedQuality() const;
+  int64 ImageJpegNumProgressiveScansForSmallScreen() const;
+  // Returns true if any quality for small screen is valid and different from
+  // the base quality.
+  bool HasValidSmallScreenQualities() const;
+  // Returns true if any quality for Save-Data is valid and different from the
+  // base quality.
+  bool HasValidSaveDataQualities() const;
+
   // This version index serves as global signature key.  Much of the
   // data emitted in signatures is based on the option ordering, which
   // can change as we add new options.  So every time there is a
@@ -669,6 +764,7 @@ class RewriteOptions {
     kOptionValueInvalid
   };
 
+  static const char kDefaultAllowVaryOn[];
   static const int kDefaultBeaconReinstrumentTimeSec;
   static const int64 kDefaultBlinkMaxHtmlSizeRewritable;
   static const int64 kDefaultCssFlattenMaxBytes;
@@ -697,6 +793,7 @@ class RewriteOptions {
   static const int64 kDefaultPrioritizeVisibleContentCacheTimeMs;
   static const char kDefaultBeaconUrl[];
   static const int64 kDefaultImageRecompressQuality;
+  static const int64 kDefaultImageJpegQualityForSaveData;
   static const int64 kDefaultImageJpegRecompressQuality;
   static const int64 kDefaultImageJpegRecompressQualityForSmallScreens;
   static const int kDefaultImageLimitOptimizedPercent;
@@ -704,6 +801,7 @@ class RewriteOptions {
   static const int kDefaultImageLimitResizeAreaPercent;
   static const int64 kDefaultImageResolutionLimitBytes;
   static const int64 kDefaultImageJpegNumProgressiveScans;
+  static const int64 kDefaultImageWebpQualityForSaveData;
   static const int64 kDefaultImageWebpRecompressQuality;
   static const int64 kDefaultImageWebpAnimatedRecompressQuality;
   static const int64 kDefaultImageWebpRecompressQualityForSmallScreens;
@@ -1371,6 +1469,8 @@ class RewriteOptions {
                               ResponsiveDensities* value);
   static bool ParseFromString(StringPiece value_string,
                               protobuf::MessageLite* proto);
+  static bool ParseFromString(StringPiece value_string,
+                              AllowVaryOn* allow_vary_on);
 
   // TODO(jmarantz): consider setting flags in the set_ methods so that
   // first's explicit settings can override default values from second.
@@ -2128,18 +2228,16 @@ class RewriteOptions {
   // Return false in a subclass if you want to disallow all URL trimming in CSS.
   virtual bool trim_urls_in_css() const { return true; }
 
-  int64 image_jpeg_recompress_quality() const {
-    return image_jpeg_recompress_quality_.value();
-  }
   void set_image_jpeg_recompress_quality(int64 x) {
     set_option(x, &image_jpeg_recompress_quality_);
   }
 
-  int64 image_jpeg_recompress_quality_for_small_screens() const {
-    return image_jpeg_recompress_quality_for_small_screens_.value();
-  }
   void set_image_jpeg_recompress_quality_for_small_screens(int64 x) {
     set_option(x, &image_jpeg_recompress_quality_for_small_screens_);
+  }
+
+  void set_image_jpeg_quality_for_save_data(int64 x) {
+    set_option(x, &image_jpeg_quality_for_save_data_);
   }
 
   int64 image_recompress_quality() const {
@@ -2176,32 +2274,24 @@ class RewriteOptions {
     set_option(x, &image_jpeg_num_progressive_scans_);
   }
 
-  int64 image_jpeg_num_progressive_scans_for_small_screens() const {
-    return image_jpeg_num_progressive_scans_for_small_screens_.value();
-  }
   void set_image_jpeg_num_progressive_scans_for_small_screens(int64 x) {
     set_option(x, &image_jpeg_num_progressive_scans_for_small_screens_);
   }
 
-  int64 image_webp_recompress_quality() const {
-    return image_webp_recompress_quality_.value();
-  }
   void set_image_webp_recompress_quality(int64 x) {
     set_option(x, &image_webp_recompress_quality_);
   }
 
-  int64 image_webp_recompress_quality_for_small_screens() const {
-    return image_webp_recompress_quality_for_small_screens_.value();
-  }
   void set_image_webp_recompress_quality_for_small_screens(int64 x) {
     set_option(x, &image_webp_recompress_quality_for_small_screens_);
   }
 
-  int64 image_webp_animated_recompress_quality() const {
-    return image_webp_animated_recompress_quality_.value();
-  }
   void set_image_webp_animated_recompress_quality(int64 x) {
     set_option(x, &image_webp_animated_recompress_quality_);
+  }
+
+  void set_image_webp_quality_for_save_data(int64 x) {
+    set_option(x, &image_webp_quality_for_save_data_);
   }
 
   int64 image_webp_timeout_ms() const {
@@ -3584,6 +3674,8 @@ class RewriteOptions {
                                       const Hasher* hasher);
   static GoogleString OptionSignature(const ResponsiveDensities& densities,
                                       const Hasher* hasher);
+  static GoogleString OptionSignature(const AllowVaryOn& allow_vary_on,
+                                      const Hasher* hasher);
   static GoogleString OptionSignature(
       const protobuf::MessageLite& proto,
       const Hasher* hasher);
@@ -3609,6 +3701,7 @@ class RewriteOptions {
   static GoogleString ToString(const Color& color);
   static GoogleString ToString(const ResponsiveDensities& densities);
   static GoogleString ToString(const protobuf::MessageLite& proto);
+  static GoogleString ToString(const AllowVaryOn& allow_vary_on);
 
   // Returns true if p1's option_name is less than p2's. Used to order
   // all_properties_ and all_options_.
@@ -3748,6 +3841,7 @@ class RewriteOptions {
   // Options related to jpeg compression.
   Option<int64> image_jpeg_recompress_quality_;
   Option<int64> image_jpeg_recompress_quality_for_small_screens_;
+  Option<int64> image_jpeg_quality_for_save_data_;
   Option<int64> image_jpeg_num_progressive_scans_;
   Option<int64> image_jpeg_num_progressive_scans_for_small_screens_;
 
@@ -3760,6 +3854,7 @@ class RewriteOptions {
   Option<int64> image_webp_recompress_quality_;
   Option<int64> image_webp_recompress_quality_for_small_screens_;
   Option<int64> image_webp_animated_recompress_quality_;
+  Option<int64> image_webp_quality_for_save_data_;
   Option<int64> image_webp_timeout_ms_;
 
   Option<int> image_max_rewrites_at_once_;
@@ -4250,6 +4345,9 @@ class RewriteOptions {
   Option<MobTheme> mob_theme_;
 
   Option<int64> noop_;
+
+  // Comma separated list of headers which we can vary-on, or "Auto", or "None".
+  Option<AllowVaryOn> allow_vary_on_;
 
   CopyOnWrite<JavascriptLibraryIdentification>
       javascript_library_identification_;

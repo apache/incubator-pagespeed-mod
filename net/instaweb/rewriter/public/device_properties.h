@@ -82,6 +82,9 @@ class DeviceProperties {
   static const int kLargeScreenWidthThreshold = 1500;
   bool ForbidWebpInlining() const;
 
+  bool RequestsSaveData() const;
+  bool HasViaHeader() const;
+
  private:
   friend class ImageRewriteTest;
   friend class RequestProperties;
@@ -94,6 +97,7 @@ class DeviceProperties {
   mutable LazyBool supports_image_inlining_;
   mutable LazyBool supports_js_defer_;
   mutable LazyBool supports_lazyload_images_;
+  mutable LazyBool requests_save_data_;
   mutable LazyBool accepts_webp_;
   mutable LazyBool accepts_gzip_;
   mutable LazyBool supports_webp_rewritten_urls_;
@@ -108,6 +112,7 @@ class DeviceProperties {
   // Used to lazily set device_type_.
   mutable LazyBool device_type_set_;
   mutable UserAgentMatcher::DeviceType device_type_;
+  mutable LazyBool has_via_header_;
 
   DISALLOW_COPY_AND_ASSIGN(DeviceProperties);
 };

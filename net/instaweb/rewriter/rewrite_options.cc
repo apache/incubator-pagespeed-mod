@@ -26,6 +26,7 @@
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
+#include "pagespeed/kernel/base/base64_util.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/dynamic_annotations.h"  // RunningOnValgrind
 #include "pagespeed/kernel/base/hasher.h"
@@ -157,6 +158,8 @@ const char RewriteOptions::kImageJpegRecompressionQuality[] =
     "JpegRecompressionQuality";
 const char RewriteOptions::kImageJpegRecompressionQualityForSmallScreens[] =
     "JpegRecompressionQualityForSmallScreens";
+const char RewriteOptions::kImageJpegQualityForSaveData[] =
+    "JpegQualityForSaveData";
 const char RewriteOptions::kImageLimitOptimizedPercent[] =
     "ImageLimitOptimizedPercent";
 const char RewriteOptions::kImageLimitRenderedAreaPercent[] =
@@ -175,6 +178,8 @@ const char RewriteOptions::kImageWebpRecompressionQualityForSmallScreens[] =
     "WebpRecompressionQualityForSmallScreens";
 const char RewriteOptions::kImageWebpAnimatedRecompressionQuality[] =
     "WebpAnimatedRecompressionQuality";
+const char RewriteOptions::kImageWebpQualityForSaveData[] =
+    "WebpQualityForSaveData";
 const char RewriteOptions::kImageWebpTimeoutMs[] = "WebpTimeoutMs";
 const char RewriteOptions::kImplicitCacheTtlMs[] = "ImplicitCacheTtlMs";
 const char RewriteOptions::kInPlaceResourceOptimization[] =
@@ -314,6 +319,7 @@ const char RewriteOptions::kXModPagespeedHeaderValue[] =
 const char RewriteOptions::kXPsaBlockingRewrite[] = "BlockingRewriteKey";
 
 const char RewriteOptions::kAllow[] = "Allow";
+const char RewriteOptions::kAllowVaryOn[] = "AllowVaryOn";
 const char RewriteOptions::kBlockingRewriteRefererUrls[] =
     "BlockingRewriteRefererUrls";
 const char RewriteOptions::kDisableFilters[] = "DisableFilters";
@@ -485,6 +491,8 @@ const int64 RewriteOptions::kDefaultImageRecompressQuality = 85;
 const int64 RewriteOptions::kDefaultImageJpegRecompressQuality = -1;
 const int64
 RewriteOptions::kDefaultImageJpegRecompressQualityForSmallScreens = 70;
+// TODO(huibao): Determine proper value for kDefaultImageJpegQualityForSaveData.
+const int64 RewriteOptions::kDefaultImageJpegQualityForSaveData = 50;
 
 // Number of scans to output for jpeg images when using progressive mode. If set
 // to -1, we retain all scans of a progressive jpeg.
@@ -510,6 +518,7 @@ const int64 RewriteOptions::kDefaultImageWebpRecompressQuality = 80;
 const int64
 RewriteOptions::kDefaultImageWebpRecompressQualityForSmallScreens = 70;
 const int64 RewriteOptions::kDefaultImageWebpAnimatedRecompressQuality = 70;
+const int64 RewriteOptions::kDefaultImageWebpQualityForSaveData = 50;
 
 // Timeout, in ms, for all WebP conversion attempts for each source
 // image. If negative, does not time out.
@@ -604,6 +613,9 @@ const RewriteOptions::PropertyBase**
 
 RewriteOptions::Properties* RewriteOptions::properties_ = NULL;
 RewriteOptions::Properties* RewriteOptions::all_properties_ = NULL;
+
+const char RewriteOptions::AllowVaryOn::kNoneString[] = "None";
+const char RewriteOptions::AllowVaryOn::kAutoString[] = "Auto";
 
 namespace {
 
@@ -1796,6 +1808,14 @@ void RewriteOptions::AddProperties() {
       "screens. [-1,100], 100 refers to best quality, -1 falls back to "
       "ImageJpegRecompressionQuality.", true);
   AddBaseProperty(
+      kDefaultImageJpegQualityForSaveData,
+      &RewriteOptions::image_jpeg_quality_for_save_data_, "iqsd",
+      kImageJpegQualityForSaveData,
+      kQueryScope,
+      "Set quality for the images which will be optimized to JPEG format in "
+      "the Save-Data mode. Use a value in [0,100] to explicitly set the "
+      "quality. Use -1 to ignore the Save-Data header.", true);
+  AddBaseProperty(
       kDefaultImageRecompressQuality,
       &RewriteOptions::image_recompress_quality_, "irq",
       kImageRecompressionQuality,
@@ -1852,6 +1872,14 @@ void RewriteOptions::AddProperties() {
       kQueryScope,
       "Quality for rewritten animated webp images [-1,100], "
       "100 refers to best quality, -1 uses ImageRecompressionQuality.", true);
+  AddBaseProperty(
+      kDefaultImageWebpQualityForSaveData,
+      &RewriteOptions::image_webp_quality_for_save_data_, "iwsd",
+      kImageWebpQualityForSaveData,
+      kQueryScope,
+      "Set quality for the images which will be optimized to lossy WebP "
+      "format in the Save-Data mode. Use a value in [0,100] to explicitly set "
+      "the quality. Use -1 to ignore the Save-Data header.", true);
   AddBaseProperty(
       kDefaultImageWebpTimeoutMs,
       &RewriteOptions::image_webp_timeout_ms_, "wt",
@@ -2297,6 +2325,14 @@ void RewriteOptions::AddProperties() {
       "rid", kResponsiveImageDensities, kDirectoryScope,
       "Comma separated list of screen densities to target with "
       "ResponsiveImageFilter srcsets.", true);
+
+  AllowVaryOn default_allow_vary_on;
+  ParseFromString(AllowVaryOn::kAutoString, &default_allow_vary_on);
+  AddBaseProperty(
+      default_allow_vary_on,  &RewriteOptions::allow_vary_on_,
+      "avo", kAllowVaryOn, kQueryScope,
+      "\"Auto\", \"None\", or comma separated list of strings chosen from "
+      "\"Save-Data\", \"User-Agent\", and \"Accept\".", true);
 
   AddBaseProperty(
       false, &RewriteOptions::mob_always_, "malways", kAlwaysMobilize,
@@ -3539,6 +3575,38 @@ bool RewriteOptions::ParseFromString(StringPiece value_string,
   return ParseProtoFromStringPiece(value_string, proto);
 }
 
+bool RewriteOptions::ParseFromString(StringPiece value_string,
+                                     AllowVaryOn* allow_vary_on) {
+  AllowVaryOn allow;
+  TrimWhitespace(&value_string);
+  if (StringCaseEqual(value_string, AllowVaryOn::kNoneString)) {
+    // "allow" has already been initialized to all false; nothing to do.
+  } else if (StringCaseEqual(value_string, AllowVaryOn::kAutoString)) {
+    allow.set_allow_auto(true);
+  } else {
+    StringPieceVector value_vector;
+    SplitStringPieceToVector(value_string, ",", &value_vector,
+                             false /* omit_empty_strings */);
+    // When "value_string" is empty, "value_vector" has only one element
+    // which is an empty string.
+    for (size_t i = 0, n = value_vector.size(); i < n; ++i) {
+      StringPiece value = value_vector[i];
+      TrimWhitespace(&value);
+      if (StringCaseEqual(value, HttpAttributes::kAccept)) {
+        allow.set_allow_accept(true);
+      } else if (StringCaseEqual(value, HttpAttributes::kSaveData)) {
+        allow.set_allow_save_data(true);
+      } else if (StringCaseEqual(value, HttpAttributes::kUserAgent)) {
+        allow.set_allow_user_agent(true);
+      } else {
+        return false;
+      }
+    }
+  }
+  *allow_vary_on = allow;
+  return true;
+}
+
 bool RewriteOptions::Enabled(Filter filter) const {
   // Enforce a hierarchy of configuration precedence:
   // a. Explicit forbid is permanent all the way down the hierarchy and
@@ -3925,6 +3993,18 @@ GoogleString RewriteOptions::OptionSignature(
   return hasher->Hash(ToString(proto));
 }
 
+GoogleString RewriteOptions::OptionSignature(
+    const AllowVaryOn& allow_vary_on, const Hasher* hasher) {
+  GoogleString out;
+  char mask =
+      (allow_vary_on.allow_auto() |
+       (allow_vary_on.allow_accept() << 1) |
+       (allow_vary_on.allow_save_data() << 2) |
+       (allow_vary_on.allow_user_agent() << 3));
+  Web64Encode(GoogleString(&mask, 1), &out);
+  return out;
+}
+
 void RewriteOptions::DisableIfNotExplictlyEnabled(Filter filter) {
   if (!enabled_filters_.IsSet(filter)) {
     disabled_filters_.Insert(filter);
@@ -4165,6 +4245,38 @@ GoogleString RewriteOptions::FilterSetToString(
     }
   }
   return output;
+}
+
+GoogleString RewriteOptions::AllowVaryOn::ToString() const {
+  GoogleString result = "";
+  const char* delim = "";
+  if (allow_auto()) {
+    result = kAutoString;
+    // Make sure all other options have been set correctly.
+    DCHECK(!allow_accept());
+    DCHECK(!allow_user_agent());
+    DCHECK(allow_save_data());
+  } else {
+    if (allow_accept()) {
+      StrAppend(&result, delim, HttpAttributes::kAccept);
+      delim = ",";
+    }
+    if (allow_save_data()) {
+      StrAppend(&result, delim, HttpAttributes::kSaveData);
+      delim = ",";
+    }
+    if (allow_user_agent()) {
+      StrAppend(&result, delim, HttpAttributes::kUserAgent);
+    }
+    if (result.empty()) {
+      result = kNoneString;
+    }
+  }
+  return result;
+}
+
+GoogleString RewriteOptions::ToString(const AllowVaryOn& allow_vary_on) {
+  return allow_vary_on.ToString();
 }
 
 GoogleString RewriteOptions::EnabledFiltersToString() const {
@@ -5094,6 +5206,80 @@ bool RewriteOptions::CheckLevelSpecificOption(
     return option.value();
   }
   return true;
+}
+
+int64 RewriteOptions::ImageJpegQuality() const {
+  int64 quality = image_jpeg_recompress_quality_.value();
+  if (quality < 0) {
+    quality = image_recompress_quality_.value();
+  }
+  return quality;
+}
+
+int64 RewriteOptions::ImageJpegQualityForSmallScreen() const {
+  int64 quality = image_jpeg_recompress_quality_for_small_screens_.value();
+  if (quality < 0) {
+    quality = ImageJpegQuality();
+  }
+  return quality;
+}
+
+int64 RewriteOptions::ImageJpegQualityForSaveData() const {
+  int64 quality = image_jpeg_quality_for_save_data_.value();
+  if (quality < 0) {
+    quality = ImageJpegQuality();
+  }
+  return quality;
+}
+
+int64 RewriteOptions::ImageWebpQuality() const {
+  int64 quality = image_webp_recompress_quality_.value();
+  if (quality < 0) {
+    quality = image_recompress_quality_.value();
+  }
+  return quality;
+}
+
+int64 RewriteOptions::ImageWebpQualityForSmallScreen() const {
+  int64 quality = image_webp_recompress_quality_for_small_screens_.value();
+  if (quality < 0) {
+    quality = ImageWebpQuality();
+  }
+  return quality;
+}
+
+int64 RewriteOptions::ImageWebpQualityForSaveData() const {
+  int64 quality = image_webp_quality_for_save_data_.value();
+  if (quality < 0) {
+    quality = ImageWebpQuality();
+  }
+  return quality;
+}
+
+int64 RewriteOptions::ImageWebpAnimatedQuality() const {
+  int64 quality = image_webp_animated_recompress_quality_.value();
+  if (quality < 0) {
+    quality = ImageWebpQuality();
+  }
+  return quality;
+}
+
+int64 RewriteOptions::ImageJpegNumProgressiveScansForSmallScreen() const {
+  int64 num = image_jpeg_num_progressive_scans_for_small_screens_.value();
+  if (num < 0) {
+    num = image_jpeg_num_progressive_scans_.value();
+  }
+  return num;
+}
+
+bool RewriteOptions::HasValidSmallScreenQualities() const {
+  return (ImageWebpQualityForSmallScreen() != ImageWebpQuality() ||
+          ImageJpegQualityForSmallScreen() != ImageJpegQuality());
+}
+
+bool RewriteOptions::HasValidSaveDataQualities() const {
+  return (ImageWebpQualityForSaveData() != ImageWebpQuality() ||
+          ImageJpegQualityForSaveData() != ImageJpegQuality());
 }
 
 }  // namespace net_instaweb
