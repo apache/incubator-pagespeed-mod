@@ -879,9 +879,33 @@ void ServerContext::ShutDownDrivers() {
     if (RunningOnValgrind()) {
       timeout_ms *= 20;
     }
+
+    // It is possible that there's still a RewriteContext associated which has
+    // a call scheduled to run, which will drop the last reference and bring
+    // the reference count to 0. That will cause SignalIfRequired to DCHECK if
+    // there is a pending BoundedWaitFor on the driver. To avoid that, add a
+    // user-reference here to pin the driver. Note that in this case, there will
+    // be no user-references left on the driver originally.
+    active->AddUserReference();
     active->BoundedWaitFor(RewriteDriver::kWaitForShutDown, timeout_ms);
     active->Cleanup();  // Note: only cleans up if the rewrites are complete.
     // TODO(jmarantz): rename RewriteDriver::Cleanup to CleanupIfDone.
+  }
+
+  // It's possible that during the BoundedWaitFor the last reference was dropped
+  // in which case the active driver should now be contained in the deferred set.
+  // If it isn't, we need to call Cleanup here. We iterate again here, because
+  // in the earlier iteration other threads may be finishing up drivers and thus
+  // accessing the deferred set.
+  for (RewriteDriverSet::iterator i = active_rewrite_drivers_.begin();
+       i != active_rewrite_drivers_.end(); ++i) {
+    RewriteDriver* driver = *i;
+    if (deferred_release_rewrite_drivers_.find(driver)
+        == deferred_release_rewrite_drivers_.end()) {
+      driver->Cleanup();
+      DCHECK(deferred_release_rewrite_drivers_.find(driver)
+             != deferred_release_rewrite_drivers_.end());
+    }
   }
 }
 

@@ -274,6 +274,7 @@ class RewriteOptions {
   static const char kFinderPropertiesCacheRefreshTimeMs[];
   static const char kFlushBufferLimitBytes[];
   static const char kFlushHtml[];
+  static const char kFollowFlushes[];
   static const char kFlushMoreResourcesEarlyIfTimePermits[];
   static const char kGoogleFontCssInlineMaxBytes[];
   static const char kForbidAllDisabledFilters[];
@@ -1931,6 +1932,9 @@ class RewriteOptions {
 
   void set_flush_html(bool x) { set_option(x, &flush_html_); }
   bool flush_html() const { return flush_html_.value(); }
+
+  void set_follow_flushes(bool x) { set_option(x, &follow_flushes_); }
+  bool follow_flushes() const { return follow_flushes_.value(); }
 
   void set_serve_split_html_in_two_chunks(bool x) {
     set_option(x, &serve_split_html_in_two_chunks_);
@@ -3936,6 +3940,9 @@ class RewriteOptions {
   Option<bool> respect_vary_;
   Option<bool> respect_x_forwarded_proto_;
   Option<bool> flush_html_;
+  // If set to true, ProxyFetch will request a flush on its RewriteDriver when
+  // Flush() is called on it.
+  Option<bool> follow_flushes_;
   // Should we serve the split html response in two chunks - above the fold and
   // below the fold. If set to false, we serve the above the fold and below the
   // fold in a single response.

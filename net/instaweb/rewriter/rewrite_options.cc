@@ -139,6 +139,7 @@ const char RewriteOptions::kFinderPropertiesCacheRefreshTimeMs[] =
     "FinderPropertiesCacheRefreshTimeMs";
 const char RewriteOptions::kFlushBufferLimitBytes[] = "FlushBufferLimitBytes";
 const char RewriteOptions::kFlushHtml[] = "FlushHtml";
+const char RewriteOptions::kFollowFlushes[] = "FollowFlushes";
 const char RewriteOptions::kFlushMoreResourcesEarlyIfTimePermits[] =
     "FlushMoreResourcesEarlyIfTimePermits";
 const char RewriteOptions::kForbidAllDisabledFilters[] =
@@ -1572,6 +1573,10 @@ void RewriteOptions::AddProperties() {
       false, &RewriteOptions::flush_html_, "fh", kFlushHtml,
       kDirectoryScope,
       NULL, true);  // TODO(jmarantz): implement for mod_pagespeed.
+  AddBaseProperty(
+      false, &RewriteOptions::follow_flushes_, "ff", kFollowFlushes,
+      kDirectoryScope,
+      NULL, false);
   AddBaseProperty(
       false, &RewriteOptions::css_preserve_urls_, "cpu",
       kCssPreserveURLs,

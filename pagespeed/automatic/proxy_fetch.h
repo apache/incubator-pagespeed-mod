@@ -89,6 +89,11 @@ class ProxyFetchFactory {
       ProxyFetchPropertyCallbackCollector* property_callback,
       AsyncFetch* original_content_fetch);
 
+  // Calls Done(false) on all outstanding ProxyFetch instances, and waits for
+  // those to round up. Meant to be called before shutting down the rewrite
+  // driver factory when the server doesn't give a chance to do so otherwise.
+  void CancelOutstanding();
+
   // Initiates the PropertyCache lookup.  See ngx_pagespeed.cc or
   // proxy_interface.cc for example usage.
   static ProxyFetchPropertyCallbackCollector* InitiatePropertyCacheLookup(
@@ -117,6 +122,9 @@ class ProxyFetchFactory {
 
   scoped_ptr<AbstractMutex> outstanding_proxy_fetches_mutex_;
   std::set<ProxyFetch*> outstanding_proxy_fetches_;
+  // Tracks the number of ProxyFetch instances that have Done() called but have
+  // not been destructed yet.
+  AtomicInt32 proxy_fetches_done_in_flight_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetchFactory);
 };
