@@ -258,6 +258,18 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
     return 1;
   }
 
+  // Set the name of this process, for debugging visibility.
+  virtual void NameProcess(const char* name);
+
+  // Hook for handling any process-specific initialization the host webserver
+  // might need when we manually fork off a process.
+  virtual void PrepareForkedProcess(const char* name);
+
+  // Set up the controller process, with init, handlers, etc.
+  virtual void PrepareControllerProcess();
+
+  void set_is_root_process(bool x) { is_root_process_ = x; }
+
  protected:
   // Initializes all the statistics objects created transitively by
   // SystemRewriteDriverFactory.  Only subclasses should call this.
