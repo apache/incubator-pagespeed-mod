@@ -279,11 +279,9 @@ void SystemRewriteDriverFactory::RootInit() {
 
   caches_->RootInit();
 
-  ControllerManager controller_manager(
+  // In the forked process, this call starts a new event loop and never returns.
+  ControllerManager::ForkOffControllerProcess(
       this, system_thread_system_, message_handler());
-  // In the forked process, this call never returns, and the ControllerManager
-  // is small, so it's ok for it to be on the stack.
-  controller_manager.ForkOffControllerProcess();
 }
 
 void SystemRewriteDriverFactory::ChildInit() {

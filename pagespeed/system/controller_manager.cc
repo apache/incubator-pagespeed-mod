@@ -31,23 +31,6 @@
 namespace net_instaweb {
 
 
-ControllerManager::ControllerManager(
-    SystemRewriteDriverFactory* factory,
-    ThreadSystem* thread_system,
-    MessageHandler* handler) : factory_(factory),
-                               thread_system_(thread_system),
-                               handler_(handler) { }
-
-void ControllerManager::SetUpSignalHandlers() {
-  // We need to clear inherited signal handlers. There's no portable way to get
-  // a list of all possible signals, and they're not even guaranteed to be in
-  // order.  But NSIG is usually defined these days, and if it is then we just
-  // want ascending numbers up to to NSIG.
-  for (int i = 0; i < NSIG; i++) {
-    signal(i, SIG_DFL);
-  }
-}
-
 ControllerManager::ProcessDeathWatcherThread::ProcessDeathWatcherThread(
     ThreadSystem* thread_system,
     int controller_read_fd,
@@ -89,8 +72,9 @@ void ControllerManager::ProcessDeathWatcherThread::Run() {
   // see that and quit itself instead of restarting it.
 }
 
-void ControllerManager::RunController() {
-  handler_->Message(kInfo, "Controller running with PID %d", getpid());
+void ControllerManager::RunController(SystemRewriteDriverFactory* factory,
+                                      MessageHandler* handler) {
+  handler->Message(kInfo, "Controller running with PID %d", getpid());
 
   // Would set up gRPC server here and pass control to its event loop.  Instead
   // just hang out sleeping until the ProcessDeathWatcherThread decides it's
@@ -100,10 +84,10 @@ void ControllerManager::RunController() {
   }
 }
 
-void ControllerManager::Daemonize() {
+void ControllerManager::Daemonize(MessageHandler* handler) {
   // Make a new session (process group).
   if (setsid() < 0) {
-    handler_->Message(kWarning, "Daemonize: Failed to setsid().");
+    handler->Message(kWarning, "Daemonize: Failed to setsid().");
   }
 
   // We need to fork again to make sure there is no session group leader.
@@ -116,14 +100,18 @@ void ControllerManager::Daemonize() {
   // If we keep the current directory we might keep them from being able to
   // unmount their filesystem.
   if (chdir("/") < 0) {
-    handler_->Message(kWarning, "Daemonize: Failed to chdir(/).");
+    handler->Message(kWarning, "Daemonize: Failed to chdir(/).");
   }
 
   // If we disconnect file descriptors then logging will break, so don't.
 }
 
-void ControllerManager::ForkOffControllerProcess() {
-  handler_->Message(kInfo, "Forking controller process off of %d", getpid());
+void ControllerManager::ForkOffControllerProcess(
+    SystemRewriteDriverFactory* factory,
+    ThreadSystem* thread_system,
+    MessageHandler* handler) {
+
+  handler->Message(kInfo, "Forking controller process off of %d", getpid());
 
   // Whenever we fork off a controller we save the fd for a pipe to it.  Then if
   // we fork off another controller we can write a byte to the pipe to tell the
@@ -132,9 +120,9 @@ void ControllerManager::ForkOffControllerProcess() {
   if (controller_write_fd != -1) {
     // We already forked off a controller earlier.  Tell it to quit by writing a
     // byte.  If there's no one still with the pipe open we'll get SIGPIPE and
-    // die horribly, but the babysitter-restarting-controller structure makes
-    // that very unlikely.
-    handler_->Message(
+    // die horribly, but as long as the babysitter hasn't died that won't
+    // happen.
+    handler->Message(
         kInfo, "Writing a byte to a pipe to tell the old controller to exit.");
     ssize_t status;
     do {
@@ -142,8 +130,8 @@ void ControllerManager::ForkOffControllerProcess() {
     } while (status == -1 && (errno == EAGAIN ||
                               errno == EINTR));
     if (status == -1) {
-      handler_->Message(kWarning, "killing old controller failed: %s",
-                        strerror(errno));
+      handler->Message(kWarning, "killing old controller failed: %s",
+                       strerror(errno));
     }
   }
 
@@ -172,11 +160,18 @@ void ControllerManager::ForkOffControllerProcess() {
   // Now we're in the child process.  Set this up as a babysitter process,
   // that forks off a controller and restarts it if it dies.
 
-  Daemonize();
-  SetUpSignalHandlers();
+  Daemonize(handler);
 
-  factory_->set_is_root_process(false);
-  factory_->PrepareForkedProcess("babysitter");
+  // We need to clear inherited signal handlers. There's no portable way to get
+  // a list of all possible signals, and they're not even guaranteed to be in
+  // order.  But NSIG is usually defined these days, and if it is then we just
+  // want ascending numbers up to to NSIG.
+  for (int i = 0; i < NSIG; i++) {
+    signal(i, SIG_DFL);
+  }
+
+  factory->set_is_root_process(false);
+  factory->PrepareForkedProcess("babysitter");
 
   // Close the writing end of the pipe.  If we read a byte from the pipe it
   // means we should quit because a new controller is starting up.  If we get
@@ -185,23 +180,25 @@ void ControllerManager::ForkOffControllerProcess() {
   close(file_descriptors[1]);
   int controller_read_fd = file_descriptors[0];
 
-  handler_->Message(kInfo, "Babysitter running with PID %d", getpid());
+  handler->Message(kInfo, "Babysitter running with PID %d", getpid());
 
   while (true) {
     pid = fork();
     CHECK(pid != -1) << "Couldn't fork a controller process";
 
     if (pid == 0) {
-      factory_->PrepareForkedProcess("controller");
-      factory_->PrepareControllerProcess();
+      factory->PrepareForkedProcess("controller");
+      factory->PrepareControllerProcess();
 
       // Start a thread to watch to see if the root or babysitter process
       // dies, and quit if it does.
-      process_death_watcher_thread_.reset(new ProcessDeathWatcherThread(
-          thread_system_, controller_read_fd, handler_));
-      CHECK(process_death_watcher_thread_->Start());
+      scoped_ptr<ProcessDeathWatcherThread> process_death_watcher_thread(
+          new ProcessDeathWatcherThread(thread_system,
+                                        controller_read_fd,
+                                        handler));
+      CHECK(process_death_watcher_thread->Start());
 
-      RunController();
+      RunController(factory, handler);
     } else {
       // Wait for controller process to die, then continue with the loop by
       // restarting it.
@@ -213,12 +210,12 @@ void ControllerManager::ForkOffControllerProcess() {
       CHECK(child_pid != -1) << "Call to waitpid failed with status "
                              << child_pid;
       if (WIFEXITED(status)) {
-        handler_->Message(kInfo,
+        handler->Message(kInfo,
             "Controller process %d exited normally, not restarting it. "
             "Shutting down babysitter.", child_pid);
         exit(EXIT_SUCCESS);
       }
-      handler_->Message(
+      handler->Message(
           kWarning, "Controller process %d exited with status code %d",
           child_pid, status);
     }

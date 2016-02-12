@@ -44,31 +44,31 @@ namespace net_instaweb {
 // and the controller.  If the master process goes away, the controller reading
 // will get EOF.  If the master process wants the controller to shut down so it
 // can be replaced, it writes a byte.
+//
+// (All methods in the ControllerManager are static.  When you call
+//  ForkOffControllerProcess() it keeps running until process exit.)
 class ControllerManager {
  public:
-  // Takes ownership of nothing.
-  ControllerManager(SystemRewriteDriverFactory* factory,
-                    ThreadSystem* thread_system,
-                    MessageHandler* handler);
-  virtual ~ControllerManager() {}
-
   // Called on system startup, before forking off any workers.  Starts up a
   // babysitter process that starts a controller process and restarts the
   // controller if it dies.  Also called (again) on configuration reloading.
-  void ForkOffControllerProcess();
+  static void ForkOffControllerProcess(SystemRewriteDriverFactory* factory,
+                                       ThreadSystem* thread_system,
+                                       MessageHandler* handler);
 
  private:
   // Controller will be hooked up here.  This method is called in a single
   // centralized "controller" process, and if that process dies it will be
   // started again.
-  void RunController();
-
-  // Remove inherited signal handlers in babysitter/controller, and replace them
-  // with our cleanups as needed.
-  void SetUpSignalHandlers();
+  //
+  // When this method is called, there may be an old controller that has not
+  // finished shutting down yet.  So if there are global resources the new
+  // controller needs, it should be prepared to wait for them to be available.
+  static void RunController(SystemRewriteDriverFactory* factory,
+                            MessageHandler* handler);
 
   // Set us up as a proper daemon, with no stdin/out/err and not process group.
-  void Daemonize();
+  static void Daemonize(MessageHandler* handler);
 
   class ProcessDeathWatcherThread : public ThreadSystem::Thread {
    public:
@@ -86,12 +86,6 @@ class ControllerManager {
 
     DISALLOW_COPY_AND_ASSIGN(ProcessDeathWatcherThread);
   };
-
-  SystemRewriteDriverFactory* factory_;
-  ThreadSystem* thread_system_;
-  MessageHandler* handler_;
-
-  scoped_ptr<ProcessDeathWatcherThread> process_death_watcher_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(ControllerManager);
 };
