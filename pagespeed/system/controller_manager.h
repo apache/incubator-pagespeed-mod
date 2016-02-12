@@ -46,15 +46,15 @@ namespace net_instaweb {
 // can be replaced, it writes a byte.
 //
 // (All methods in the ControllerManager are static.  When you call
-//  ForkOffControllerProcess() it keeps running until process exit.)
+//  ForkControllerProcess() it keeps running until process exit.)
 class ControllerManager {
  public:
   // Called on system startup, before forking off any workers.  Starts up a
   // babysitter process that starts a controller process and restarts the
   // controller if it dies.  Also called (again) on configuration reloading.
-  static void ForkOffControllerProcess(SystemRewriteDriverFactory* factory,
-                                       ThreadSystem* thread_system,
-                                       MessageHandler* handler);
+  static void ForkControllerProcess(SystemRewriteDriverFactory* factory,
+                                    ThreadSystem* thread_system,
+                                    MessageHandler* handler);
 
  private:
   // Controller will be hooked up here.  This method is called in a single

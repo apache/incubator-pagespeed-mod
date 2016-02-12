@@ -106,7 +106,7 @@ void ControllerManager::Daemonize(MessageHandler* handler) {
   // If we disconnect file descriptors then logging will break, so don't.
 }
 
-void ControllerManager::ForkOffControllerProcess(
+void ControllerManager::ForkControllerProcess(
     SystemRewriteDriverFactory* factory,
     ThreadSystem* thread_system,
     MessageHandler* handler) {

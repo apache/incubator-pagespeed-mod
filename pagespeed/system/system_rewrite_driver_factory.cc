@@ -266,6 +266,12 @@ void SystemRewriteDriverFactory::PrepareControllerProcess() {
   SetupMessageHandlers();
 }
 
+void SystemRewriteDriverFactory::StartController() {
+  // In the forked process, this call starts a new event loop and never returns.
+  ControllerManager::ForkControllerProcess(
+      this, system_thread_system_, message_handler());
+}
+
 void SystemRewriteDriverFactory::RootInit() {
   ParentOrChildInit();
 
@@ -280,9 +286,7 @@ void SystemRewriteDriverFactory::RootInit() {
 
   caches_->RootInit();
 
-  // In the forked process, this call starts a new event loop and never returns.
-  ControllerManager::ForkOffControllerProcess(
-      this, system_thread_system_, message_handler());
+  StartController();
 }
 
 void SystemRewriteDriverFactory::ChildInit() {

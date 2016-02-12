@@ -2295,8 +2295,6 @@ check_from "$OUT" grep -q "414 Request-URI Too Large\|Long"
 
 start_test babysitter process restarts controller when killed
 
-echo "$ERROR_LOG"
-
 function get_controller_pid() {
   grep "Controller running with PID " $ERROR_LOG | tail -n 1 | awk '{print $NF}'
 }
