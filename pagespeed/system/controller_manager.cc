@@ -53,7 +53,7 @@ void ControllerManager::ProcessDeathWatcherThread::Run() {
   if (status == -1) {
     handler_->Message(
         kWarning, "Controller got error %d reading from pipe, shutting down",
-        static_cast<int>(status));
+        errno);
   } else if (status == 0 /* EOF */) {
     handler_->Message(kInfo, "Root process exited; controller shutting down.");
   } else if (status == 1 /* read a byte */) {
