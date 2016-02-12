@@ -268,8 +268,6 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // Set up the controller process, with init, handlers, etc.
   virtual void PrepareControllerProcess();
 
-  void set_is_root_process(bool x) { is_root_process_ = x; }
-
  protected:
   // Initializes all the statistics objects created transitively by
   // SystemRewriteDriverFactory.  Only subclasses should call this.

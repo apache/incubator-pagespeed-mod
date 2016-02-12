@@ -256,6 +256,7 @@ void SystemRewriteDriverFactory::NameProcess(const char* name) {
 }
 
 void SystemRewriteDriverFactory::PrepareForkedProcess(const char* name) {
+  is_root_process_ = false;
   NameProcess(name);
 }
 

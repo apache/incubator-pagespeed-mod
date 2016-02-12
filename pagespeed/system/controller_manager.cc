@@ -170,7 +170,6 @@ void ControllerManager::ForkOffControllerProcess(
     signal(i, SIG_DFL);
   }
 
-  factory->set_is_root_process(false);
   factory->PrepareForkedProcess("babysitter");
 
   // Close the writing end of the pipe.  If we read a byte from the pipe it
@@ -199,6 +198,7 @@ void ControllerManager::ForkOffControllerProcess(
       CHECK(process_death_watcher_thread->Start());
 
       RunController(factory, handler);
+      LOG(FATAL) << "Controller should run until exit().";
     } else {
       // Wait for controller process to die, then continue with the loop by
       // restarting it.
