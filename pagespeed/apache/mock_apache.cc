@@ -164,13 +164,6 @@ ap_filter_rec_t* ap_register_input_filter(const char*, ap_in_filter_func,
   return NULL;
 }
 
-const char* ap_server_root_relative(apr_pool_t*, const char*) {
-  log_fatal("ap_server_root_relative");
-  return NULL;
-}
-
-const char* ap_pid_fname = NULL;
-
 #define IMPLEMENT_AS_LOG_FATAL(AP_X) \
   void AP_X() { log_fatal(#AP_X); }
 
