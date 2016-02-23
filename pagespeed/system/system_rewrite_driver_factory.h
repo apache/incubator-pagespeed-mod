@@ -258,6 +258,23 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
     return 1;
   }
 
+  // By default this uses the ControllerManager to fork off some processes to
+  // handle the Controller.  If you're on a system where fork doesn't make
+  // sense or running the Controller in its own process doesn't make sense, this
+  // is a hook where you can start the controller in whatever way makes sense
+  // for your platform.
+  virtual void StartController();
+
+  // Set the name of this process, for debugging visibility.
+  virtual void NameProcess(const char* name);
+
+  // Hook for handling any process-specific initialization the host webserver
+  // might need when we manually fork off a process.
+  virtual void PrepareForkedProcess(const char* name);
+
+  // Set up the controller process, with init, handlers, etc.
+  virtual void PrepareControllerProcess();
+
  protected:
   // Initializes all the statistics objects created transitively by
   // SystemRewriteDriverFactory.  Only subclasses should call this.
