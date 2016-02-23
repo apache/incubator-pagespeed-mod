@@ -91,6 +91,9 @@ vars = {
 
   "libpng_src": "https://github.com/glennrp/libpng.git",
   "libpng_revision": "@a36c4f3f165fb2dd1772603da7f996eb40326621",
+
+  "proto_src": "https://github.com/google/protobuf.git",
+  "protobuf_revision": "v3.0.0-beta-2",
 }
 
 deps = {
@@ -159,9 +162,8 @@ deps = {
   "src/third_party/google-sparsehash":
     Var("google_sparsehash_root") + Var("google_sparsehash_revision"),
 
-  "src/third_party/protobuf":
-    Var("chromium_trunk") + "src/third_party/protobuf/@" +
-        Var("chromium_revision_num"),
+  "src/third_party/protobuf/src":
+    Var("proto_src") + '@' + Var("protobuf_revision"),
 
   # Json cpp.
   "src/third_party/jsoncpp/src":
