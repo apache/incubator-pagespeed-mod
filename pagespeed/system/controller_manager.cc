@@ -20,13 +20,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <cerrno>
-#include <cstddef>
 #include <cstdlib>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/system/system_rewrite_options.h"
+#include "third_party/pagespeed/kernel/base/scoped_ptr.h"
+#include "third_party/pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
@@ -37,8 +35,8 @@ ControllerManager::ProcessDeathWatcherThread::ProcessDeathWatcherThread(
     MessageHandler* handler) : Thread(thread_system,
                                       "process death watcher",
                                       ThreadSystem::kDetached),
-                              handler_(handler),
-                              controller_read_fd_(controller_read_fd) {
+                               handler_(handler),
+                               controller_read_fd_(controller_read_fd) {
 }
 
 void ControllerManager::ProcessDeathWatcherThread::Run() {

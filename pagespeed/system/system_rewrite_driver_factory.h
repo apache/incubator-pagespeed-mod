@@ -269,10 +269,14 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   virtual void NameProcess(const char* name);
 
   // Hook for handling any process-specific initialization the host webserver
-  // might need when we manually fork off a process.
+  // might need when we manually fork off a process.  Children should call the
+  // superclass method when overriding (so it can set the process name).  See
+  // NgxRewriteDriverFactory::PrepareForkedProcess.
   virtual void PrepareForkedProcess(const char* name);
 
-  // Set up the controller process, with init, handlers, etc.
+  // Once we've created the controller process, we need to initialize it like we
+  // would one of our normal parent or child processes.  The controller manager
+  // will call this once it has a process it needs prepared.
   virtual void PrepareControllerProcess();
 
  protected:

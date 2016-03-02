@@ -17,16 +17,10 @@
 #ifndef PAGESPEED_CONTROLLER_MANAGER_H_
 #define PAGESPEED_CONTROLLER_MANAGER_H_
 
-#include <sys/types.h>
-
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/file_system.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/system/system_rewrite_driver_factory.h"
 
 
