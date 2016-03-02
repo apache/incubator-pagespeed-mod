@@ -29,14 +29,12 @@
 
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/scoped_ptr.h"
 #include "strings/strutil.h"
 #include "third_party/utf/utf.h"
 #include "util/gtl/stl_util.h"
 #include "util/utf8/public/unicodetext.h"
 #include "util/utf8/public/unilib.h"
-#include "webutil/css/fallthrough_intended.h"
-#include "webutil/css/string.h"
+#include "webutil/css/fallthrough_intended.h"  // Needed in open source
 #include "webutil/css/string_util.h"
 #include "webutil/css/util.h"
 #include "webutil/css/value.h"
@@ -542,7 +540,7 @@ char32 Parser::ParseEscape() {
     }
     if (end_ - in_ >= 2 && memcmp(in_, "\r\n", 2) == 0)
       in_ += 2;
-    else if (IsSpace(*in_))
+    else if (in_ < end_ && IsSpace(*in_))
       in_++;
   }
 
@@ -926,7 +924,6 @@ Value* Parser::ParseUrl() {
         if (len && rune != Runeerror) {
           s.push_back(rune);
           in_ += len;
-          DCHECK(!Done());
         } else {
           ReportParsingError(kUtf8Error, "UTF8 parsing error in URL");
           in_++;
@@ -2387,7 +2384,9 @@ MediaQuery* Parser::ParseMediaQuery() {
             found_and = true;
           }
         } else {
-          if (ident.empty()) {
+          if (in_ >= end_) {
+            ReportParsingError(kMediaError, "Unexpected EOF");
+          } else if (ident.empty()) {
             ReportParsingError(kMediaError, StringPrintf(
                 "Unexpected char in media query: %c", *in_));
           } else {
