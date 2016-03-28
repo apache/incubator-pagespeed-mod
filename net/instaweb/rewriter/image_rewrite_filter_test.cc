@@ -4319,4 +4319,8 @@ TEST_F(ImageRewriteTest, IproAllowAutoNoSmallScreenSaveDataQualities) {
       kPuzzleOptimizedForWebpUaNoSpecialQualities);
 }
 
+TEST_F(ImageRewriteTest, ContentTypeValidation) {
+  ValidateFallbackHeaderSanitization("ic");
+}
+
 }  // namespace net_instaweb

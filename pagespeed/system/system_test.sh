@@ -2323,3 +2323,4 @@ URL="$TEST_ROOT/strip_subresource_hints/default_passthrough/index.html"
 echo $WGET_DUMP $URL
 OUT=$($WGET_DUMP $URL)
 check_from "$OUT" grep -q -F "rel=\"subresource"
+
