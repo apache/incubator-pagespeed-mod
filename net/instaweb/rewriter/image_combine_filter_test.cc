@@ -635,6 +635,10 @@ TEST_F(CssImageMultiFilterTest, NoCombineAcrossFlattening) {
   ValidateExpected("with_flattening", kBeforeHtml, kAfterHtml);
 }
 
+TEST_F(CssImageCombineTest, ContentTypeValidation) {
+  ValidateFallbackHeaderSanitization("is");
+}
+
 }  // namespace
 
 }  // namespace net_instaweb
