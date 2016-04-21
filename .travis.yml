@@ -14,6 +14,7 @@ install:
   - ~/bin/depot_tools/gclient config https://github.com/pagespeed/mod_pagespeed.git --unmanaged --name=src
   - ~/bin/depot_tools/gclient sync --force --jobs=1
   - cd src
+  - echo '#define alignas(x) __attribute__ ((aligned (x)))' > third_party/boringssl/src/crypto/stdalign.h
   - CFLAGS="-Wno-sign-compare" CXXFLAGS="-Wno-sign-compare" make AR.host=`pwd`/build/wrappers/ar.sh AR.target=`pwd`/build/wrappers/ar.sh BUILDTYPE=Release
   - python build/gyp_chromium -Dchannel=beta
   - CFLAGS="-Wno-sign-compare" CXXFLAGS="-Wno-sign-compare" make BUILDTYPE=Release AR.host=`pwd`/build/wrappers/ar.sh AR.target=`pwd`/build/wrappers/ar.sh linux_package_deb
