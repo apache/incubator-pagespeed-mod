@@ -748,7 +748,7 @@ function scrape_header {
 
 # Scrapes HTTP headers from stdin for Content-Length and returns the value.
 function scrape_content_length {
-  scrape_header 'Content-Length'
+  scrape_header '^Content-Length'
 }
 
 # Pulls the headers out of a 'wget --save-headers' dump.
