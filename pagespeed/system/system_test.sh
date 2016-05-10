@@ -2143,6 +2143,7 @@ function cache_purge_test() {
       echo $CURL --request PURGE --proxy $SECONDARY_HOSTNAME "$PURGE_URL"
       check $CURL --request PURGE --proxy $SECONDARY_HOSTNAME "$PURGE_URL"
     fi
+    echo ""
     if [ $statistics_enabled -eq "0" ]; then
       # Without statistics, we have no mechanism to transmit state-changes
       # from one Apache child process to another, and so each process must
@@ -2167,13 +2168,24 @@ function cache_purge_test() {
   yellow_css=$(grep yellow.css $FETCH_UNTIL_OUTFILE | cut -d\" -f6)
   blue_css=$(grep blue.css $FETCH_UNTIL_OUTFILE | cut -d\" -f6)
 
+  purple_url="$PURGE_ROOT/styles/purple.css"
+  purple_file="$APACHE_DOC_ROOT/mod_pagespeed_test/purge/styles/purple.css"
+
   for method in $CACHE_PURGE_METHODS; do
     echo Individual URL Cache Purging with $method
     check_from "$(read_metadata_cache $yellow_css)" fgrep -q cache_ok:true
     check_from "$(read_metadata_cache $blue_css)" fgrep -q cache_ok:true
+    echo 'body { background: MediumPurple; }' > "$purple_file"
+    http_proxy=$SECONDARY_HOSTNAME fetch_until "$purple_url" 'fgrep -c 9370db' 1
+    echo 'body { background: black; }' > "$purple_file"
+
     cache_purge $method "*"
+
     check_from "$(read_metadata_cache $yellow_css)" fgrep -q cache_ok:false
     check_from "$(read_metadata_cache $blue_css)" fgrep -q cache_ok:false
+    http_proxy=$SECONDARY_HOSTNAME fetch_until "$purple_url" 'fgrep -c #000' 1
+    rm -f "$purple_file"
+    cache_purge "$method" styles/purple.css
 
     sleep 1
     STATS=$OUTDIR/purge.stats
