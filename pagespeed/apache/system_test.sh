@@ -1143,6 +1143,19 @@ start_test Fetch gzipped, make sure that we have cache compressed at gzip 9.
 URL="$PRIMARY_SERVER/mod_pagespeed_test/invalid.css"
 fetch_until -gzip $URL "wc -c" 27
 
+if [ "$SECONDARY_HOSTNAME" != "" ]; then
+  start_test Process-scope configuration handling.
+  # Must be the same value in top-level and both vhosts
+  OUT=$($CURL --silent $HOSTNAME/?PageSpeedFilters=+debug)
+  check_from "$OUT" fgrep -q "IproMaxResponseBytes (imrb) 1048576003"
+
+  OUT=$($CURL --silent --proxy $SECONDARY_HOSTNAME http://ps1.example.com)
+  check_from "$OUT" fgrep -q "IproMaxResponseBytes (imrb) 1048576003"
+
+  OUT=$($CURL --silent --proxy $SECONDARY_HOSTNAME http://ps2.example.com)
+  check_from "$OUT" fgrep -q "IproMaxResponseBytes (imrb) 1048576003"
+fi
+
 # Cleanup
 rm -rf $OUTDIR
 
