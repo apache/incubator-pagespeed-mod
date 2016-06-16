@@ -197,6 +197,18 @@ class ResponseHeadersTest : public testing::Test {
     headers->RemoveIfNotIn(keep);
   }
 
+  // Initiates a ResponseHeaders instance with the specified cache-control
+  // value, calls SetCacheControlPublic, and returns the resulting cached
+  // control as a joined string.
+  GoogleString AddPublicToCacheControl(const StringVector& cache_control) {
+    ResponseHeaders headers;
+    for (int i = 0, n = cache_control.size(); i < n; ++i) {
+      headers.Add(HttpAttributes::kCacheControl, cache_control[i]);
+    }
+    headers.SetCacheControlPublic();
+    return headers.LookupJoined(HttpAttributes::kCacheControl);
+  }
+
   GoogleMessageHandler message_handler_;
   ResponseHeaders response_headers_;
   ResponseHeadersParser parser_;
@@ -2102,6 +2114,40 @@ TEST_F(ResponseHeadersTest, ClearOptionCookies) {
   CheckCookies(headers, "null", "", 0);
   EXPECT_TRUE(headers.Sanitize());
   EXPECT_EQ(kBaseHeaders, headers.ToString());
+}
+
+TEST_F(ResponseHeadersTest, CacheControlPublic) {
+  StringVector strvec;
+  EXPECT_STREQ("public", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("max-age=100");
+  EXPECT_STREQ("max-age=100, public", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("public, max-age=100");
+  EXPECT_STREQ("public, max-age=100", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("public");
+  strvec.push_back("max-age=100");
+  EXPECT_STREQ("public, max-age=100", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("max-age=100,private");
+  EXPECT_STREQ("max-age=100, private", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("max-age=100");
+  strvec.push_back("private");
+  EXPECT_STREQ("max-age=100, private", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("no-store");
+  EXPECT_STREQ("no-store", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("no-cache");
+  EXPECT_STREQ("no-cache", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("No-Store");
+  EXPECT_STREQ("No-Store", AddPublicToCacheControl(strvec));
+  strvec.clear();
+  strvec.push_back("No-Cache");
+  EXPECT_STREQ("No-Cache", AddPublicToCacheControl(strvec));
 }
 
 }  // namespace net_instaweb

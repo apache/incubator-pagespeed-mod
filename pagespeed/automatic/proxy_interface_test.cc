@@ -178,9 +178,7 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     GoogleString body;
     ResponseHeaders output_headers;
     FetchFromProxy(url, true, &body, &output_headers);
-    ConstStringStarVector values;
-    output_headers.Lookup(HttpAttributes::kCacheControl, &values);
-    return JoinStringStar(values, ", ");
+    return output_headers.LookupJoined(HttpAttributes::kCacheControl);
   }
 
   int GetStatusCodeInPropertyCache(const GoogleString& url) {
@@ -2890,10 +2888,8 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch) {
   // max-age actually gets smaller, though, since this also triggers
   // a rewrite failure.
   values.clear();
-  out_headers.Lookup(HttpAttributes::kCacheControl, &values);
-  ASSERT_EQ(2, values.size());
-  EXPECT_STREQ("max-age=300", *values[0]);
-  EXPECT_STREQ("private", *values[1]);
+  EXPECT_STREQ("max-age=300, private", out_headers.LookupJoined(
+      HttpAttributes::kCacheControl));
 }
 
 TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch2) {
@@ -2923,11 +2919,8 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch2) {
   EXPECT_STREQ("*{pretty}", out_text);
 
   // Private.
-  ConstStringStarVector values;
-  out_headers.Lookup(HttpAttributes::kCacheControl, &values);
-  ASSERT_EQ(2, values.size());
-  EXPECT_STREQ("max-age=400", *values[0]);
-  EXPECT_STREQ("private", *values[1]);
+  EXPECT_STREQ("max-age=400, private", out_headers.LookupJoined(
+      HttpAttributes::kCacheControl));
 
   // Check that we ate the cookies.
   EXPECT_FALSE(out_headers.Has(HttpAttributes::kSetCookie));
