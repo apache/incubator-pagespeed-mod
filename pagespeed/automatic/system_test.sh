@@ -57,6 +57,7 @@ run_test make_show_ads_async
 # Disable mobilizer tests.
 # run_test mobilizer
 run_test responsive_images
+run_test shortcut_icons
 
 # These have to run after image_rewrite tests. Otherwise it causes some images
 # to be loaded into memory before they should be.
