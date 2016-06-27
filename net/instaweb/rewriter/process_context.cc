@@ -16,6 +16,7 @@
 
 #include "net/instaweb/rewriter/public/process_context.h"
 
+#include "base/at_exit.h"
 #include "base/logging.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/html/html_keywords.h"
@@ -37,6 +38,8 @@ int construction_count = 0;
 
 namespace net_instaweb {
 
+base::AtExitManager* at_exit_manager = NULL;
+
 ProcessContext::ProcessContext()
     : js_tokenizer_patterns_(new pagespeed::js::JsTokenizerPatterns) {
   ++construction_count;
@@ -50,6 +53,9 @@ ProcessContext::ProcessContext()
   // thread-unsafe way and so it must be explicitly initialized prior to thread
   // creation, and explicitly terminated after thread quiescence.
   url::Initialize();
+  if (at_exit_manager == NULL) {
+    at_exit_manager = new base::AtExitManager;
+  }
 }
 
 ProcessContext::~ProcessContext() {
@@ -62,6 +68,10 @@ ProcessContext::~ProcessContext() {
 
   url::Shutdown();
   HtmlKeywords::ShutDown();
+  if (at_exit_manager != NULL) {
+    delete at_exit_manager;
+    at_exit_manager = NULL;
+  }
 }
 
 }  // namespace net_instaweb

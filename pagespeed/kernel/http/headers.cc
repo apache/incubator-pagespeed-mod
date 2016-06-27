@@ -274,6 +274,7 @@ bool IsCommaSeparatedField(const StringPiece& name) {
   if (StringCaseEqual(name, HttpAttributes::kAccept) ||
       StringCaseEqual(name, HttpAttributes::kCacheControl) ||
       StringCaseEqual(name, HttpAttributes::kContentEncoding) ||
+      StringCaseEqual(name, HttpAttributes::kConnection) ||
       StringCaseEqual(name, HttpAttributes::kVary)) {
     return true;
   } else {
