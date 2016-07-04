@@ -131,6 +131,7 @@ const char kModPagespeedForbidFilters[] = "ModPagespeedForbidFilters";
 const char kModPagespeedForceCaching[] = "ModPagespeedForceCaching";
 const char kModPagespeedExperimentVariable[] = "ModPagespeedExperimentVariable";
 const char kModPagespeedExperimentSpec[] = "ModPagespeedExperimentSpec";
+const char kModPagespeedFollowFlushes[] = "ModPagespeedFollowFlushes";
 const char kModPagespeedGeneratedFilePrefix[] =
     "ModPagespeedGeneratedFilePrefix";
 const char kModPagespeedGlobalAdminDomains[] = "ModPagespeedGlobalAdminDomains";
