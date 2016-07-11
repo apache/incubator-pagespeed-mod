@@ -101,7 +101,7 @@ vars = {
   ## When updating grpc, you should check the nanopb submodule version
   ## specified by your branch.
   "grpc_src": "https://github.com/grpc/grpc.git",
-  "grpc_revision": "release-0_13_1",
+  "grpc_revision": "release-0_15_0",
   "nanopb_src": "https://github.com/nanopb/nanopb.git",
   "nanopb_revision": "f8ac463766281625ad710900479130c7fcb4d63b",
 }

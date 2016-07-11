@@ -13,8 +13,8 @@ function gypify_file_list {
 
 cd src/third_party/grpc
 
-GPR_DIRS='src/src/core/profiling src/src/core/support'
-CORE_EXCLUDE_DIRS='src/src/core/statistics src/src/test'
+GPR_DIRS='src/src/core/lib/profiling src/src/core/lib/support'
+CORE_EXCLUDE_DIRS='src/src/test/core/statistics src/src/test src/src/core/ext/census'
 
 gpr_sources=$(find $GPR_DIRS -type f -name '*.c' | gypify_file_list)
 
