@@ -218,7 +218,7 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
     virtual ~FakeMemcacheServerThread() {}
 
    private:
-    void HandleClientConnection(apr_socket_t* sock) override {
+    virtual void HandleClientConnection(apr_socket_t* sock) {
       static const char kMessage[] = "blah\n";
       apr_size_t message_size = STATIC_STRLEN(kMessage);
       char buf[kStackBufferSize];
