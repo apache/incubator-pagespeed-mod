@@ -975,18 +975,17 @@ class SerfUrlAsyncFetcherTestFakeWebServer : public SerfUrlAsyncFetcherTest {
                                     thread_system) {}
     virtual ~FakeWebServerThread() {}
 
-    void HandleClientConnection(apr_socket_t* sock) override {
+    virtual void HandleClientConnection(apr_socket_t* sock) {
       char request_buffer[kStackBufferSize];
       apr_size_t req_bufsz = sizeof(request_buffer) - 1;
       apr_socket_recv(sock, request_buffer, &req_bufsz);
 
-      static const char kResponse[] = R"END(HTTP/1.0 282 Fake Status Code
-Content-Length: 500
-Connection: close
-Content-Type: text/plain
-
-This text is less than 500 bytes.
-)END";
+      static const char kResponse[] = "HTTP/1.0 282 Fake Status Code\n"
+          "Content-Length: 500\n"
+          "Connection: close\n"
+          "Content-Type: text/plain\n"
+          "\n"
+          "This text is less than 500 bytes.\n";
 
       apr_size_t response_size = STATIC_STRLEN(kResponse);
       apr_socket_send(sock, kResponse, &response_size);
@@ -999,7 +998,7 @@ This text is less than 500 bytes.
     TcpServerThreadForTesting::PickListenPortOnce(&desired_listen_port_);
   }
 
-  void SetUp() override {
+  virtual void SetUp() {
     thread_.reset(
         new FakeWebServerThread(desired_listen_port_, thread_system_.get()));
     ASSERT_TRUE(thread_->Start());

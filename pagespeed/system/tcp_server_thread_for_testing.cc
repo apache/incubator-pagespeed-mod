@@ -31,14 +31,14 @@ TcpServerThreadForTesting::TcpServerThreadForTesting(
     : Thread(thread_system, name, ThreadSystem::kJoinable),
       mutex_(thread_system->NewMutex()),
       ready_notify_(mutex_->NewCondvar()),
-      pool_(AprCreateThreadCompatiblePool(nullptr)),
+      pool_(AprCreateThreadCompatiblePool(NULL)),
       requested_listen_port_(listen_port),
       actual_listening_port_(0) {
 }
 
 TcpServerThreadForTesting::~TcpServerThreadForTesting() {
   this->Join();
-  if (pool_ != nullptr) {
+  if (pool_ != NULL) {
     apr_pool_destroy(pool_);
   }
 }

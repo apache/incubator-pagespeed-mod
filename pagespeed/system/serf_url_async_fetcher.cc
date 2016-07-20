@@ -592,7 +592,7 @@ apr_status_t SerfFetch::ReadBody(serf_bucket_t* response) {
   apr_size_t len = 0;
   apr_size_t bytes_to_flush = 0;
   while (MoreDataAvailable(status) && (async_fetch_ != NULL)) {
-    if (fetcher_->read_calls_count_ != nullptr) {
+    if (fetcher_->read_calls_count_ != NULL) {
       fetcher_->read_calls_count_->Add(1);
     }
     status = serf_bucket_read(response, SERF_READ_ALL_AVAIL, &data, &len);

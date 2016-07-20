@@ -59,7 +59,7 @@ class TcpServerThreadForTesting : public ThreadSystem::Thread {
   apr_socket_t* CreateAndBindSocket();
 
   // Thread implementation.
-  void Run() override;
+  virtual void Run();
 
   scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
   scoped_ptr<ThreadSystem::Condvar> ready_notify_;
