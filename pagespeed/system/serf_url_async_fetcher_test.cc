@@ -1065,7 +1065,7 @@ TEST_F(SerfUrlAsyncFetcherTestFakeWebServer, TestHangingGet) {
       statistics_->FindVariable("serf_fetch_num_calls_to_read");
 #ifdef NDEBUG
   // We don't want this statistic on prod builds.
-  EXPECT_EQ(nullptr, read_calls);
+  EXPECT_EQ(NULL, read_calls);
 #else
   // This is the most important part of this test. Verify that read was only
   // called a handful of times (while we waited in poll), not millions of times
