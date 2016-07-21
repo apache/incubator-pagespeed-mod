@@ -591,6 +591,9 @@ apr_status_t SerfFetch::ReadBody(serf_bucket_t* response) {
   apr_size_t bytes_to_flush = 0;
   while (MoreDataAvailable(status) && (async_fetch_ != NULL)) {
     status = serf_bucket_read(response, SERF_READ_ALL_AVAIL, &data, &len);
+    if (APR_STATUS_IS_EAGAIN(status)) {
+      break;
+    }
     bytes_received_ += len;
     bytes_to_flush += len;
     if (IsStatusOk(status) && (len != 0) &&
