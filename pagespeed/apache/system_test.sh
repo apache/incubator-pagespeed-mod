@@ -26,7 +26,8 @@ if [ -z $APACHE_DOC_ROOT ]; then
 fi
 
 PSA_JS_LIBRARY_URL_PREFIX="mod_pagespeed_static"
-BEACON_HANDLER="mod_pagespeed_beacon"
+BEACON_HANDLER="ps-timing-beacon"
+CRITICAL_IMAGES_BEACON_HANDLER="ps-images-beacon"
 STATISTICS_HANDLER="mod_pagespeed_statistics"
 GLOBAL_STATISTICS_HANDLER="mod_pagespeed_global_statistics"
 MESSAGES_HANDLER="mod_pagespeed_message"
@@ -34,6 +35,7 @@ HEADERS_FINALIZED=false
 
 CACHE_FLUSH_TEST=${CACHE_FLUSH_TEST:-off}
 NO_VHOST_MERGE=${NO_VHOST_MERGE:-off}
+
 SUDO=${SUDO:-}
 # TODO(jkarlin): Should we just use a vhost instead?  If so, remember to update
 # all scripts that use TEST_PROXY_ORIGIN.
