@@ -130,7 +130,11 @@ deferJsNs.DeferJs.prototype.createIdVars = function() {
   b && (a = this.globalEval(b), a.setAttribute(deferJsNs.DeferJs.PSA_NOT_PROCESSED, ""), a.setAttribute(deferJsNs.DeferJs.PRIORITY_PSA_NOT_PROCESSED, ""));
 };
 deferJsNs.DeferJs.prototype.attemptPrefetchOrQueue = function(a) {
-  this.isWebKit() && ((new Image).src = a);
+  var b = this.origCreateElement_.call(document, "link");
+  b.setAttribute("rel", "preload");
+  b.setAttribute("as", "script");
+  b.setAttribute("href", a);
+  document.head.appendChild(b);
 };
 deferJsNs.DeferJs.prototype.addNode = function(a, b, c) {
   var d = a.getAttribute(deferJsNs.DeferJs.PSA_ORIG_SRC) || a.getAttribute("src");
@@ -609,7 +613,7 @@ deferJsNs.deferInit = function() {
 deferJsNs.deferInit();
 pagespeed.deferJsStarted = !1;
 deferJsNs.startDeferJs = function() {
-  pagespeed.deferJsStarted || pagespeed.panelLoader || (pagespeed.deferJsStarted = !0, pagespeed.deferJs.registerScriptTags(), pagespeed.deferJs.execute());
+  pagespeed.deferJsStarted || (pagespeed.deferJsStarted = !0, pagespeed.deferJs.registerScriptTags(), pagespeed.deferJs.execute());
 };
 deferJsNs.startDeferJs = deferJsNs.startDeferJs;
 pagespeedutils.addHandler(document, "DOMContentLoaded", deferJsNs.startDeferJs);

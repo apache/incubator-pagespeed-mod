@@ -511,14 +511,15 @@ deferJsNs.DeferJs.prototype.createIdVars = function() {
 
 
 /**
- * Tries to prefetch the file using image technique based on browser.
- * We are using image technique to prefetch only for webkit based browsers.
+ * Tries to prefetch the file using rel-preload.
  * @param {!string} url Url to be downloaded.
  */
 deferJsNs.DeferJs.prototype.attemptPrefetchOrQueue = function(url) {
-  if (this.isWebKit()) {
-    new Image().src = url;
-  }
+  var newLink = this.origCreateElement_.call(document, 'link');
+  newLink.setAttribute('rel', 'preload');
+  newLink.setAttribute('as', 'script');
+  newLink.setAttribute('href', url);
+  document.head.appendChild(newLink);
 };
 
 
@@ -1772,7 +1773,9 @@ pagespeed.deferJsStarted = false;
  * Starts deferJs execution.
  */
 deferJsNs.startDeferJs = function() {
-  if (pagespeed.deferJsStarted || pagespeed['panelLoader']) return;
+  if (pagespeed.deferJsStarted) {
+    return;
+  }
   pagespeed.deferJsStarted = true;
   pagespeed.deferJs.registerScriptTags();
   pagespeed.deferJs.execute();
