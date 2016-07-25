@@ -155,7 +155,8 @@
 
     'defines': [ 'CHROMIUM_REVISION=<(chromium_revision)',
                  # See https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html
-                 '_GLIBCXX_USE_CXX11_ABI=0' ],
+                 '_GLIBCXX_USE_CXX11_ABI=0',
+                 '__STDC_LIMIT_MACROS',],
 
     # We don't want -std=gnu++0x (enabled by some versions of libpagespeed)
     # since it can cause binary compatibility problems; see issue 453.

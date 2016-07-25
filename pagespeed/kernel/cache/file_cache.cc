@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <stdint.h>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
