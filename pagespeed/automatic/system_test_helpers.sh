@@ -785,3 +785,76 @@ function kill_port {
     kill -9 $PID
   fi
 }
+
+# Kills the process listening on a port if the name matches the first argument.
+# usage:
+# kill_listener_port program_name port
+function kill_listener_port {
+  CMDLINE="$1"
+  PORT="$2"
+  kill -9 $(lsof -t -i TCP:${PORT} -s TCP:LISTEN -a -c "/^${CMDLINE}$/") || true
+}
+
+# Performs timed reads on the output from a command passed via $1. The stream
+# will be interpreted as a chunked http encoding. Each chunk will be allowed
+# at most threshold_sec ($2) seconds to be read or the function will fail. When
+# the stream is fully read, the funcion will compare the total number of http
+# chunks read with expect_chunk_count ($3) and fail on mismatch.
+# Usage:
+# check_flushing "curl -N --raw --silent --proxy $SECONDARY_HOSTNAME $URL" 5 1
+# This will check if the curl command resulted in single chunk which was read
+# within one second or less.
+function check_flushing() {
+  local command="$1"
+  local threshold_sec="$2"
+  local expect_chunk_count="$3"
+  local output=""
+  local start=$(date +%s%N)
+  local chunk_count=0
+
+  echo "Command: $command"
+
+  if [ "${USE_VALGRIND:-}" = true ]; then
+    # We can't say much about correctness of timings under valgrind, so relax
+    # the test for that.
+    threshold_sec=$(echo "scale=2; $threshold_sec*10" | bc)
+  fi
+
+  while true; do
+    start=$(date +%s%N)
+    # Read the http chunk size from the stream. This is also the read which
+    # checks timings.
+    check read -t $threshold_sec line
+    echo "Chunk number [$chunk_count] has size: $line"
+    line=$(echo $line | tr -d '\n' | tr -d '\r')
+    # If we read 0 that means we have finished reading the stream.
+    if [ $((16#$line)) -eq "0" ] ; then
+      check [ $expect_chunk_count -le $chunk_count ]
+      return
+    fi
+    let chunk_count=chunk_count+1
+    # read the actual data from the stream, using the amount indicated in
+    # the previous read. This read should be fast.
+    # Note that we need to clear IFS for read since otherwise it can get
+    # confused by whitespace-only chunks.
+    IFS= check read -N $((16#$line)) line
+    echo "Chunk data: $line"
+    # Read the trailing \r\n - should be fast.
+    check read -N 2 line
+  done < <($command)
+  check 0
+}
+
+# Given the output of a page with ?PageSpeedFilters=+debug, print the section of
+# the page where it lists what filters are enabled.
+function extract_filters_from_debug_html() {
+  local debug_output="$1"
+
+  # Pull out the non-blank lines between "Filters:" and Options:".  First
+  # convert newlines to % so sed can operate on the whole file, then put them
+  # back again.
+  check_from -q "$debug_output" grep -q "^Filters:$"
+  check_from -q "$debug_output" grep -q "^Options:$"
+  echo "$debug_output" | tr '\n' '%' | sed 's~.*%Filters:%~~' \
+                       | sed "s~%Options:.*~~" | tr '%' '\n'
+}
