@@ -853,8 +853,8 @@ function extract_filters_from_debug_html() {
   # Pull out the non-blank lines between "Filters:" and Options:".  First
   # convert newlines to % so sed can operate on the whole file, then put them
   # back again.
-  check_from -q "$debug_output" grep -q "^Filters:$"
-  check_from -q "$debug_output" grep -q "^Options:$"
+  check_from "$debug_output" grep -q "^Filters:$"
+  check_from "$debug_output" grep -q "^Options:$"
   echo "$debug_output" | tr '\n' '%' | sed 's~.*%Filters:%~~' \
                        | sed "s~%Options:.*~~" | tr '%' '\n'
 }
