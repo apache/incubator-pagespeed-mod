@@ -1147,13 +1147,13 @@ fetch_until -gzip $URL "wc -c" 27
 if [ "$SECONDARY_HOSTNAME" != "" ]; then
   start_test Process-scope configuration handling.
   # Must be the same value in top-level and both vhosts
-  OUT=$($CURL --silent $HOSTNAME/?PageSpeedFilters=+debug)
+  OUT=$($CURL --silent $HOSTNAME/mod_pagespeed_test/?PageSpeedFilters=+debug)
   check_from "$OUT" fgrep -q "IproMaxResponseBytes (imrb) 1048576003"
 
-  OUT=$($CURL --silent --proxy $SECONDARY_HOSTNAME http://ps1.example.com)
+  OUT=$($CURL --silent --proxy $SECONDARY_HOSTNAME http://ps1.example.com/mod_pagespeed_test/)
   check_from "$OUT" fgrep -q "IproMaxResponseBytes (imrb) 1048576003"
 
-  OUT=$($CURL --silent --proxy $SECONDARY_HOSTNAME http://ps2.example.com)
+  OUT=$($CURL --silent --proxy $SECONDARY_HOSTNAME http://ps2.example.com/mod_pagespeed_test/)
   check_from "$OUT" fgrep -q "IproMaxResponseBytes (imrb) 1048576003"
 fi
 
