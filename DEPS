@@ -93,7 +93,7 @@ vars = {
   "libpng_revision": "@a36c4f3f165fb2dd1772603da7f996eb40326621",
 
   "proto_src": "https://github.com/google/protobuf.git",
-  "protobuf_revision": "v3.0.0-beta-2",
+  "protobuf_revision": "v3.0.0",
 }
 
 deps = {
