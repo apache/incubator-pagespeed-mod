@@ -55,6 +55,10 @@ ModPagespeedInlineResourcesWithoutExplicitAuthorization off
 # built with ssl, but otherwise will cause no trouble.
 ModPagespeedFetchHttps enable
 
+
+ModPagespeedBeaconUrl /ps-timing-beacon
+ModPagespeedCriticalImagesBeaconUrl /ps-images-beacon
+
 ModPagespeedLibrary 43 1o978_K0_LNE5_ystNklf http://www.modpagespeed.com/rewrite_javascript.js
 ModPagespeedRetainComment " google_ad_section*"
 
@@ -543,6 +547,8 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
 
   # Helps testing whether the configuration of reporting 'unload' time works.
   ModPagespeedReportUnloadTime on
+#NEED_VHOST_BEACON ModPagespeedBeaconUrl /ps-timing-beacon
+#NEED_VHOST_BEACON ModPagespeedCriticalImagesBeaconUrl /ps-images-beacon
 
   # Make a non-empty subdirectory config to make sure that
   # cache.flush updates get transmitted to nested configurations.
@@ -1153,7 +1159,13 @@ ModPagespeedUsePerVHostStatistics on
 
   # add_instrumentation tests beacon handling with no handler specified, while
   # here we test it with a handler (that should do nothing).
-  <Location /mod_pagespeed_beacon>
+#NEED_VHOST_BEACON ModPagespeedBeaconUrl /ps-timing-beacon
+#NEED_VHOST_BEACON ModPagespeedCriticalImagesBeaconUrl /ps-images-beacon
+
+  <Location /ps-timing-beacon>
+    SetHandler mod_pagespeed_beacon
+  </Location>
+  <Location /ps-images-beacon>
     SetHandler mod_pagespeed_beacon
   </Location>
 </VirtualHost>
@@ -1240,10 +1252,14 @@ ModPagespeedUsePerVHostStatistics on
   ModPagespeedRewriteLevel PassThrough
   ModPagespeedEnableFilters resize_rendered_image_dimensions
   ModPagespeedCriticalImagesBeaconEnabled true
-
+#NEED_VHOST_BEACON ModPagespeedBeaconUrl /ps-timing-beacon
+#NEED_VHOST_BEACON ModPagespeedCriticalImagesBeaconUrl /ps-images-beacon
   # add_instrumentation tests beacon handling with no handler specified, while
   # here we test it with a handler (that should do nothing).
-  <Location /mod_pagespeed_beacon>
+  <Location /ps-timing-beacon>
+    SetHandler mod_pagespeed_beacon
+  </Location>
+  <Location /ps-images-beacon>
     SetHandler mod_pagespeed_beacon
   </Location>
 </VirtualHost>

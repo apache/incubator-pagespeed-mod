@@ -125,8 +125,8 @@ void CriticalCssBeaconFilter::AppendSelectorsInitJs(
 void CriticalCssBeaconFilter::AppendBeaconInitJs(
     const BeaconMetadata& metadata, GoogleString* script) {
   GoogleString beacon_url = driver()->IsHttps() ?
-      driver()->options()->beacon_url().https :
-      driver()->options()->beacon_url().http;
+      driver()->options()->critical_images_beacon_url().https :
+      driver()->options()->critical_images_beacon_url().http;
   GoogleString page_url;
   EscapeToJsStringLiteral(driver()->google_url().Spec(), false /* add_quotes */,
                           &page_url);

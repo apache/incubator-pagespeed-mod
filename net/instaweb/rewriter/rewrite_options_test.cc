@@ -945,6 +945,7 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kContentExperimentID,
     RewriteOptions::kContentExperimentVariantID,
     RewriteOptions::kCriticalImagesBeaconEnabled,
+    RewriteOptions::kCriticalImagesBeaconUrl,
     RewriteOptions::kCssFlattenMaxBytes,
     RewriteOptions::kCssImageInlineMaxBytes,
     RewriteOptions::kCssInlineMaxBytes,

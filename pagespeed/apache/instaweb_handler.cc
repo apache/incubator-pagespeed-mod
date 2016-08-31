@@ -876,6 +876,7 @@ bool InstawebHandler::IsBeaconUrl(const RewriteOptions::BeaconUrl& beacons,
   if (!gurl.IsWebValid()) {
     return false;
   }
+
   // Ignore query params in the beacon URLs. Normally the beacon URL won't have
   // a query param, but it could have been added using ModPagespeedBeaconUrl.
   return (gurl.PathSansQuery() == beacons.http_in ||
@@ -1037,7 +1038,9 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
       if (!gurl.IsWebValid()) {
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
                       "Ignoring invalid URL: %s", gurl.spec_c_str());
-      } else if (IsBeaconUrl(global_config->beacon_url(), gurl)) {
+      } else if (IsBeaconUrl(global_config->beacon_url(), gurl) ||
+                 IsBeaconUrl(global_config->critical_images_beacon_url(),
+                             gurl)) {
         ret = instaweb_beacon_handler(request, server_context);
       // For the beacon accept any method; for all others only allow GETs.
       } else if (request->method_number != M_GET) {
@@ -1154,6 +1157,9 @@ apr_status_t InstawebHandler::save_url_in_note(
         gurl.PathSansLeaf() ==
           server_context->apache_factory()->static_asset_prefix() ||
         IsBeaconUrl(server_context->global_options()->beacon_url(), gurl) ||
+        IsBeaconUrl(
+            server_context->global_options()->critical_images_beacon_url(),
+            gurl) ||
         server_context->IsPagespeedResource(gurl)) {
       bypass_mod_rewrite = true;
     }

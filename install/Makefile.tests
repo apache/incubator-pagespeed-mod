@@ -159,6 +159,7 @@ apache_debug_smoke_test : apache_install_conf apache_debug_restart
 	@echo '***' System-test without InheritVhostConfig, stats on.
 	sed -e "s/InheritVHostConfig on/InheritVHostConfig off/" \
 		< $(APACHE_DEBUG_PAGESPEED_CONF).save \
+		| sed -e "s/#NEED_VHOST_BEACON//" \
 		> $(APACHE_DEBUG_PAGESPEED_CONF)
 	grep ModPagespeedStatistics $(APACHE_DEBUG_PAGESPEED_CONF)
 	grep ModPagespeedInheritVHostConfig $(APACHE_DEBUG_PAGESPEED_CONF)
