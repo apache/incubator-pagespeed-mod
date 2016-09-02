@@ -407,6 +407,7 @@
         'pagespeed_thread',
         '<(DEPTH)/third_party/re2/re2.gyp:re2',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
+        '<(DEPTH)/url/url.gyp:url_lib',
       ],
     },
     {
