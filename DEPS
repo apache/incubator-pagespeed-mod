@@ -188,8 +188,10 @@ deps = {
     Var("chromium_git") + "/chromium/src/third_party/modp_b64/@aae60754fa997799e8037f5e8ca1f56d58df763d",
 
   # RE2.
+  # This is release 2016-02-01, the latest that works w/o C++11 (which we don't
+  # require on this branch).
   "src/third_party/re2/src":
-    "https://github.com/google/re2.git/@78dd4fa1f86bafbf5a5eb006778d9e6e27297af6",
+    "https://github.com/google/re2.git/@7436831ef39b89b3a2ea50be91cf09732a900239",
 
   # Comment to disable HTTPS fetching via serf.  See also the
   # references in src/third_party/serf/serf.gyp.
