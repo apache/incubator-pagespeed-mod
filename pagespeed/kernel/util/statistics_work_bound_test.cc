@@ -100,6 +100,16 @@ TEST_F(StatisticsWorkBoundTest, TestZeroBound) {
   }
 }
 
+// Test that a bound of -1 allows large # of tries.
+TEST_F(StatisticsWorkBoundTest, TestNegativeBound) {
+  scoped_ptr<StatisticsWorkBound> bound1(MakeBound(var1_, -1));
+  scoped_ptr<StatisticsWorkBound> bound2(MakeBound(var1_, -1));
+  for (int i = 0; i < 1000; ++i) {
+    EXPECT_TRUE(bound1->TryToWork());
+    EXPECT_TRUE(bound2->TryToWork());
+  }
+}
+
 // Test that absent variable allows large # of tries.
 TEST_F(StatisticsWorkBoundTest, TestNullVar) {
   scoped_ptr<StatisticsWorkBound> bound1(MakeBound(NULL, 2));
