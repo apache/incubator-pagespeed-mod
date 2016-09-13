@@ -45,6 +45,7 @@ class HtmlName {
     kAlt,
     kArea,
     kArticle,
+    kAs,
     kAside,
     kAsync,
     kAudio,
