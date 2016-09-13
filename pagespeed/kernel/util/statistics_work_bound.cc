@@ -24,7 +24,7 @@
 namespace net_instaweb {
 
 StatisticsWorkBound::StatisticsWorkBound(UpDownCounter* counter, int bound)
-    : counter_((bound == 0) ? NULL : counter), bound_(bound) { }
+    : counter_((bound <= 0) ? NULL : counter), bound_(bound) { }
 StatisticsWorkBound::~StatisticsWorkBound() { }
 
 bool StatisticsWorkBound::TryToWork() {
