@@ -43,7 +43,10 @@ class StripSubresourceHintsFilter : public EmptyHtmlFilter {
  private:
   RewriteDriver* driver_;
   HtmlElement* delete_element_;
-  bool remove_;
+  bool remove_script_;
+  bool remove_style_;
+  bool remove_image_;
+  bool remove_any_;
 
   DISALLOW_COPY_AND_ASSIGN(StripSubresourceHintsFilter);
 };
