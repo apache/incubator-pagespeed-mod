@@ -1,3 +1,10 @@
+# The two httpds are the longest syncs, so we'd like to start them first.
+[submodule "third_party/httpd/src"]
+	path = third_party/httpd/src
+	url = git://git.apache.org/httpd.git
+[submodule "third_party/httpd24/src"]
+	path = third_party/httpd24/src
+	url = git://git.apache.org/httpd.git
 [submodule "third_party/brotli/src"]
 	path = third_party/brotli/src
 	url = https://github.com/google/brotli.git
@@ -19,6 +26,8 @@
 [submodule "third_party/libjpeg_turbo/src"]
 	path = third_party/libjpeg_turbo/src
 	url = https://chromium.googlesource.com/chromium/deps/libjpeg_turbo
+# For gyp generated makefiles.
+  ignore = untracked
 [submodule "third_party/libjpeg_turbo/yasm/source/patched-yasm"]
 	path = third_party/libjpeg_turbo/yasm/source/patched-yasm
 	url = https://chromium.googlesource.com/chromium/deps/yasm/patched-yasm
@@ -31,9 +40,6 @@
 [submodule "third_party/apr/src"]
 	path = third_party/apr/src
 	url = git://git.apache.org/apr.git
-[submodule "third_party/httpd/src"]
-	path = third_party/httpd/src
-	url = git://git.apache.org/httpd.git
 [submodule "third_party/optipng"]
 	path = third_party/optipng
 	url = https://github.com/pagespeed/optipng.git
@@ -52,6 +58,8 @@
 [submodule "third_party/modp_b64"]
 	path = third_party/modp_b64
 	url = https://chromium.googlesource.com/chromium/src/third_party/modp_b64
+# For gyp generated makefiles.
+  ignore = untracked
 [submodule "third_party/boringssl/src"]
 	path = third_party/boringssl/src
 	url = https://boringssl.googlesource.com/boringssl.git
@@ -61,6 +69,8 @@
 [submodule "third_party/chromium/src/base"]
 	path = third_party/chromium/src/base
 	url = https://chromium.googlesource.com/chromium/src/base
+# For gyp generated makefiles.
+  ignore = untracked
 [submodule "third_party/chromium/src/build"]
 	path = third_party/chromium/src/build
 	url = https://chromium.googlesource.com/chromium/src/build
@@ -70,9 +80,6 @@
 [submodule "third_party/google-sparsehash/src"]
 	path = third_party/google-sparsehash/src
 	url = https://github.com/google/sparsehash.git
-[submodule "third_party/httpd24/src"]
-	path = third_party/httpd24/src
-	url = git://git.apache.org/httpd.git
 [submodule "third_party/domain_registry_provider"]
 	path = third_party/domain_registry_provider
 	url = https://github.com/pagespeed/domain-registry-provider.git
