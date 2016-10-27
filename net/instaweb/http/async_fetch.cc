@@ -107,11 +107,23 @@ void AsyncFetch::HeadersComplete() {
 
 void AsyncFetch::Done(bool success) {
   if (!headers_complete_) {
-    if (!success &&
-        (response_headers()->status_code() == 0)) {
-      // Failing fetches might not set status codes but we expect
-      // successful ones to.
-      response_headers()->set_status_code(HttpStatus::kNotFound);
+    if (!success) {
+      if (response_headers()->status_code() == 0) {
+        // Failing fetches might not set status codes but we expect
+        // successful ones to.
+        response_headers()->set_status_code(HttpStatus::kNotFound);
+      } else if (response_headers()->status_code() == HttpStatus::kOK) {
+        // Our API here is not ideal when Done is called with success=false.
+        // The problem is that we need to call HeadersComplete before we call
+        // HandleDone, but there's no way to tell HeadersComplete that we're in
+        // a bad state and it should throw away anything it has and return an
+        // error to the visitor.  This was a problem with ngx_pagespeed, because
+        // it sends out the headers immediately on HeadersComplete.
+        //
+        // Since this can't be handled by the callee, handle it here.
+        response_headers()->Clear();
+        response_headers()->set_status_code(HttpStatus::kInternalServerError);
+      }
     }
     response_headers()->ComputeCaching();
     HeadersComplete();
