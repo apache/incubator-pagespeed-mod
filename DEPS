@@ -88,7 +88,7 @@ vars = {
   # On releases, change this tag from chromium-stable, to the tag of the pinned
   # chromium release at the time of release, eg) "@52.0.2743.116"
   "boringssl_src": "https://boringssl.googlesource.com/boringssl.git",
-  "boringssl_git_revision": "@3cab5572b1fcf5a8f6018529dc30dc8d21b2a4bd",
+  "boringssl_git_revision": "@chromium-stable",
 
   "domain_registry_provider_src":
      "https://github.com/pagespeed/domain-registry-provider.git",
