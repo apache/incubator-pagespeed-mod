@@ -40,7 +40,13 @@ APACHE_ROOT = /etc/httpd
 APACHE_MODULES        = $(APACHE_ROOT)/modules
 
 # The root directory Apache uses for serving files.
-APACHE_DOC_ROOT       = /var/www
+ifeq "$(wildcard /var/www/html/.)" ""
+  # /var/www/html doesn't exist, so use /var/www.
+  APACHE_DOC_ROOT = /var/www
+else
+  APACHE_DOC_ROOT = /var/www/html
+endif
+
 # The domain Apache is serving from
 #APACHE_DOMAIN        = localhost:8080  # For test-server.
 APACHE_DOMAIN         = localhost
@@ -126,6 +132,7 @@ echo_vars :
 	@echo "   APACHE_CONF_FILE=$(APACHE_CONF_FILE)"
 	@echo "   APACHE_MODULES=$(APACHE_MODULES)"
 	@echo "   APACHE_ROOT=$(APACHE_ROOT)"
+	@echo "   APACHE_DOC_ROOT=$(APACHE_DOC_ROOT)"
 	@echo "   APACHE_START=$(APACHE_START)"
 	@echo "   APACHE_STOP_COMMAND=$(APACHE_STOP_COMMAND)"
 	@echo "   MOD_PAGESPEED_CACHE=$(MOD_PAGESPEED_CACHE)"
@@ -298,6 +305,9 @@ staging_except_module : setup_staging_dir $(CONF_TEMPLATES)
 	cp -f $(LIBRARY_CONF_SOURCE) $(STAGING_DIR)/pagespeed_libraries.conf
 	$(MODS_ENABLED_STAGING_COMMANDS)
 	cp -rp mod_pagespeed_example mod_pagespeed_test $(STAGING_DIR)
+	@echo Changing security context of $(APACHE_DOC_ROOT)
+	@echo This will fail and be ignored if your selinux isn\'t set up.
+	-chcon -R --reference=$(APACHE_DOC_ROOT) $(STAGING_DIR)
 
 staging : staging_except_module
 	cp $(PAGESPEED_MODULE) $(STAGING_DIR)/mod_pagespeed.so
@@ -408,7 +418,8 @@ apache_debug_stop : stop
 # actually create a VirtualHost on 1023.
 enable_ports_and_file_access :
 	set -x; \
-	for port in 1023 8081 8082 8084; do \
+	for port in 1023 8081 8082 $(APACHE_SECONDARY_PORT) \
+	    $(APACHE_TERTIARY_PORT) $(CONTROLLER_PORT); do \
 	    /usr/sbin/semanage port -a -t http_port_t -p tcp $$port || \
 	    /usr/sbin/semanage port -m -t http_port_t -p tcp $$port; \
 	done
