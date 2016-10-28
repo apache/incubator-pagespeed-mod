@@ -42,8 +42,8 @@ vars = {
   "libwebp_src": "https://chromium.googlesource.com/webm/libwebp.git",
   "libwebp_revision": "@8af2771813632e2007988c8df6ad7e68b28ad121",
 
-  "modspdy_src": "https://svn.apache.org/repos/asf/httpd/mod_spdy/trunk",
-  "modspdy_revision": "@1661925",
+  "modspdy_src": "https://github.com/pagespeed/mod_spdy.git",
+  "modspdy_revision": "@818c05cef721862a36c1733e72e5e3591a856765",
 
   "serf_src": "https://git.apache.org/serf.git",
   "serf_revision": "@1.3.8",
