@@ -378,12 +378,13 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   COLOR1=rgb\(1$COLOR_SUFFIX
 
   echo Clear out our existing state before we begin the test.
-  echo $SUDO touch $MOD_PAGESPEED_CACHE/cache.flush
-  $SUDO touch $MOD_PAGESPEED_CACHE/cache.flush
-  echo $SUDO touch ${MOD_PAGESPEED_CACHE}_secondary/cache.flush
-  $SUDO touch ${MOD_PAGESPEED_CACHE}_secondary/cache.flush
-  echo $SUDO touch ${MOD_PAGESPEED_CACHE}_ipro_for_browser/cache.flush
-  $SUDO touch ${MOD_PAGESPEED_CACHE}_ipro_for_browser/cache.flush
+  for flushfile in $MOD_PAGESPEED_CACHE/cache.flush \
+      ${MOD_PAGESPEED_CACHE}_secondary/cache.flush \
+      ${MOD_PAGESPEED_CACHE}_ipro_for_browser/cache.flush; do
+    echo $SUDO touch $flushfile
+    $SUDO touch $flushfile
+    $SUDO chcon --reference=${APACHE_DOC_ROOT} $flushfile || true
+  done
   sleep 1
 
   CACHE_TESTING_DIR="$APACHE_DOC_ROOT/cache_flush"
@@ -402,7 +403,7 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   # the html.
   echo "echo \".class myclass { color: $COLOR0; }\" > $CSS_FILE"
   echo ".class myclass { color: $COLOR0; }" >$TMP_CSS_FILE
-  chmod ugo+r $TMP_CSS_FILE  # in case the user's umask doesn't allow o+r
+  chmod a+r $TMP_CSS_FILE  # in case the user's umask doesn't allow o+r
   $SUDO cp $TMP_CSS_FILE $CSS_FILE
   fetch_until $URL "grep -c $COLOR0" 1
 
@@ -419,6 +420,7 @@ if [ "$CACHE_FLUSH_TEST" = "on" ]; then
   # Now change the file to $COLOR1.
   echo echo ".class myclass { color: $COLOR1; }" ">" $CSS_FILE
   echo ".class myclass { color: $COLOR1; }" >$TMP_CSS_FILE
+  chmod a+r $TMP_CSS_FILE  # in case the user's umask doesn't allow o+r
   $SUDO cp $TMP_CSS_FILE $CSS_FILE
 
   # We might have stale cache for 5 seconds, so the result might stay
