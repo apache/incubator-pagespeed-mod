@@ -104,3 +104,6 @@
 [submodule "tools/gyp"]
 	path = tools/gyp
 	url = https://chromium.googlesource.com/external/gyp
+[submodule "third_party/nghttp2"]
+	path = third_party/nghttp2
+	url = https://github.com/nghttp2/nghttp2
