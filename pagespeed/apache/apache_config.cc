@@ -103,8 +103,6 @@ void ApacheConfig::AddProperties() {
                         RewriteOptions::kDirectoryScope);
   AddDeprecatedProperty("GeneratedFilePrefix",
                         RewriteOptions::kServerScope);
-  AddDeprecatedProperty("InheritVHostConfig",
-                        RewriteOptions::kServerScope);
   AddDeprecatedProperty("FetchFromModSpdy",
                         RewriteOptions::kServerScope);
   AddDeprecatedProperty("NumShards", RewriteOptions::kServerScope);

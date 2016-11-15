@@ -53,6 +53,11 @@ function run_post_cache_flush() {
 rm -rf $OUTDIR
 mkdir -p $OUTDIR
 
+# In Apache users can disable merging the global config into the vhost config.
+# If we're running that way then apache_system_test will have set
+# NO_VHOST_MERGE to "on".
+NO_VHOST_MERGE="${NO_VHOST_MERGE:-off}"
+
 SUDO=${SUDO:-}
 
 SYSTEM_TEST_DIR="$(dirname "${BASH_SOURCE[0]}")/system_tests/"
