@@ -184,6 +184,8 @@ const char kModPagespeedImageWebpRecompressionQuality[] =
 const char kModPagespeedImageWebpRecompressionQualityForSmallScreens[] =
     "ModPagespeedImageWebpRecompressionQualityForSmallScreens";
 
+static bool warned_about_inherit_deprecation = false;
+
 enum RewriteOperation {REWRITE, FLUSH, FINISH};
 
 // TODO(sligocki): Move inside PSOL.
@@ -1492,17 +1494,6 @@ static const char* ParseDirective(cmd_parms* cmd, void* data, const char* arg) {
           factory, cmd,
           &ApacheRewriteDriverFactory::set_inherit_vhost_config, arg);
     }
-  } else if (StringCaseEqual(directive,
-                             kModPagespeedCollectRefererStatistics) ||
-             StringCaseEqual(directive, kModPagespeedDisableForBots) ||
-             StringCaseEqual(directive, kModPagespeedGeneratedFilePrefix) ||
-             StringCaseEqual(directive, kModPagespeedHashRefererStatistics) ||
-             StringCaseEqual(directive, kModPagespeedNumShards) ||
-             StringCaseEqual(directive, kModPagespeedStatisticsLoggingFile) ||
-             StringCaseEqual(directive,
-                             kModPagespeedRefererStatisticsOutputLevel) ||
-             StringCaseEqual(directive, kModPagespeedUrlPrefix)) {
-    warn_deprecated(cmd, "Please remove it from your configuration.");
   } else {
     ret = apr_pstrcat(cmd->pool, "Unknown directive ",
                       directive.as_string().c_str(), NULL);
