@@ -2222,7 +2222,7 @@ AddType application/javascript .js
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingFile /tmp/log/stats.log
 #ALL_DIRECTIVES ModPagespeedDisableForBots 1
 #ALL_DIRECTIVES ModPagespeedGeneratedFilePrefix 1
-#ALL_DIRECTIVES ModPagespeedInheritVHostConfig 1
+#ALL_DIRECTIVES ModPagespeedInheritVHostConfig on
 #ALL_DIRECTIVES ModPagespeedFetchFromModSpdy 1
 #ALL_DIRECTIVES ModPagespeedNumShards 1
 #ALL_DIRECTIVES ModPagespeedUrlPrefix 1
