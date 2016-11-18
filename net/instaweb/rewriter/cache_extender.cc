@@ -219,7 +219,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
     }
   }
 
-  if (element->keyword() == HtmlName::kImg &&
+  if (resource_tag_scanner::IsImageLike(element->keyword()) &&
       driver()->MayCacheExtendImages()) {
     HtmlElement::Attribute* srcset = element->FindAttribute(HtmlName::kSrcset);
     if (srcset != nullptr) {

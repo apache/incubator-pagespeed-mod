@@ -73,16 +73,16 @@ class ResponsiveImageFilterTest : public RewriteTestBase {
 
   void TestSimple(int width, int height, StringPiece filename,
                   StringPiece full_density, StringPiece final_ext,
-                  bool include_zoom_script) {
+                  bool include_zoom_script, StringPiece tag) {
     GoogleString width_str = IntegerToString(width);
     GoogleString height_str = IntegerToString(height);
     GoogleString input_html = StrCat(
         html_prolog_,
-        "<img src=", filename, " width=", width_str, " height=", height_str,
-        ">");
+        "<", tag, " src=", filename, " width=", width_str, " height=",
+        height_str, ">");
     GoogleString output_html = StrCat(
         html_prolog_,
-        "<img src=", EncodeImage(width, height, filename, "0", final_ext),
+        "<", tag, " src=", EncodeImage(width, height, filename, "0", final_ext),
         " width=", width_str, " height=", height_str);
     StrAppend(
         &output_html, " srcset=\"",
@@ -100,6 +100,13 @@ class ResponsiveImageFilterTest : public RewriteTestBase {
     ValidateExpected("test_simple", input_html, output_html);
   }
 
+  void TestSimple(int width, int height, StringPiece filename,
+                  StringPiece full_density, StringPiece final_ext,
+                  bool include_zoom_script) {
+    TestSimple(width, height, filename, full_density, final_ext,
+               include_zoom_script, "img");
+  }
+
   GoogleString html_prolog_;
 };
 
@@ -110,6 +117,31 @@ TEST_F(ResponsiveImageFilterTest, SimpleJpg) {
   rewrite_driver()->AddFilters();
 
   TestSimple(100, 100, "a.jpg", "10.23", "jpg", false);
+}
+
+TEST_F(ResponsiveImageFilterTest, AmpImg) {
+  options()->EnableFilter(RewriteOptions::kResponsiveImages);
+  options()->EnableFilter(RewriteOptions::kResizeImages);
+  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  rewrite_driver()->AddFilters();
+
+  TestSimple(100, 100, "a.jpg", "10.23", "jpg", false, "amp-img");
+}
+
+TEST_F(ResponsiveImageFilterTest, AmpImgResponsive) {
+  options()->EnableFilter(RewriteOptions::kResponsiveImages);
+  options()->EnableFilter(RewriteOptions::kResizeImages);
+  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  rewrite_driver()->AddFilters();
+
+  GoogleString input_html = StrCat(
+      html_prolog_,
+      "<amp-img src=a.jpg width=100 height=100 layout=Responsive>");
+  GoogleString output_html = StrCat(
+        html_prolog_, "<amp-img src=",
+        EncodeImage(100, 100, "a.jpg", "0", "jpg"),
+        " width=100 height=100 layout=Responsive>");
+  ValidateExpected("amp-responsive", input_html, output_html);
 }
 
 TEST_F(ResponsiveImageFilterTest, SimplePng) {

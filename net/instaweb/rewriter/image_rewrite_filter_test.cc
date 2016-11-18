@@ -1327,6 +1327,20 @@ TEST_F(ImageRewriteTest, ImgTag) {
   RewriteImage("img", kContentTypeJpeg);
 }
 
+TEST_F(ImageRewriteTest, AmpImg) {
+  AddFileToMockFetcher("a.png", kBikePngFile, kContentTypePng, 100);
+
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  rewrite_driver()->AddFilters();
+
+  // This isn't valid amp; it's missing width/height.  But it's fine for testing
+  // purposes.
+  ValidateExpected(
+      "amp-img-src",
+      "<amp-img src=\"a.png\">",
+      "<amp-img src=\"xa.png.pagespeed.ic.0.png\">");
+}
+
 TEST_F(ImageRewriteTest, ImgSrcSet) {
   AddFileToMockFetcher("a.png", kBikePngFile, kContentTypePng, 100);
   AddFileToMockFetcher("b.png", kCuppaPngFile, kContentTypePng, 100);
@@ -1338,6 +1352,21 @@ TEST_F(ImageRewriteTest, ImgSrcSet) {
       "srcset",
       "<img src=\"a.png\" srcset=\"a.png 1x, b.png 2x\">",
       "<img src=\"xa.png.pagespeed.ic.0.png\" "
+      "srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
+}
+
+TEST_F(ImageRewriteTest, AmpImgSrcSet) {
+  AddFileToMockFetcher("a.png", kBikePngFile, kContentTypePng, 100);
+  AddFileToMockFetcher("b.png", kCuppaPngFile, kContentTypePng, 100);
+
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  rewrite_driver()->AddFilters();
+
+  // This isn't valid amp; see above.
+  ValidateExpected(
+      "amp-img-srcset",
+      "<amp-img src=\"a.png\" srcset=\"a.png 1x, b.png 2x\">",
+      "<amp-img src=\"xa.png.pagespeed.ic.0.png\" "
       "srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
 }
 

@@ -532,6 +532,11 @@ function check_stat_op() {
   handle_failure
 }
 
+function count_exact_matches() {
+  # Needed because "fgrep -c" counts lines with matches, not pure matches.
+  fgrep -o "$1" | wc -l
+}
+
 # Continuously fetches URL and pipes the output to COMMAND.  Loops until COMMAND
 # outputs RESULT, in which case we return 0, or until TIMEOUT seconds have
 # passed, in which case we return 1.

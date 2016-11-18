@@ -1601,7 +1601,7 @@ void SetHeightFromAttribute(const HtmlElement* element, ImageDim* page_dim) {
 void DeleteMatchingImageDimsAfterInline(
     const CachedResult* cached, HtmlElement* element) {
   // Never strip width= or height= attributes from non-img elements.
-  if (element->keyword() != HtmlName::kImg) {
+  if (!resource_tag_scanner::IsImageLike(element->keyword())) {
     return;
   }
   // We used to take the absence of desired_image_dims here as license to delete
@@ -1710,7 +1710,7 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
       rewrote_url = true;
     }
     if (options->Enabled(RewriteOptions::kInsertImageDimensions) &&
-        (element->keyword() == HtmlName::kImg ||
+        (resource_tag_scanner::IsImageLike(element->keyword()) ||
          element->keyword() == HtmlName::kInput) &&
         !HasAnyDimensions(element) &&
         cached->has_image_file_dims() &&
@@ -1745,7 +1745,7 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
   ImageType low_res_image_type = IMAGE_UNKNOWN;
   if (options->Enabled(RewriteOptions::kDelayImages) &&
       src->keyword() == HtmlName::kSrc &&
-      (element->keyword() == HtmlName::kImg ||
+      (resource_tag_scanner::IsImageLike(element->keyword()) ||
        element->keyword() == HtmlName::kInput)) {
     try_low_res_src_insertion = true;
     int max_preview_image_index = options->max_inlined_preview_images_index();
@@ -2133,7 +2133,7 @@ void ImageRewriteFilter::EndElementImpl(HtmlElement* element) {
     BeginRewriteImageUrl(element, attributes[i].url);
   }
 
-  if (element->keyword() == HtmlName::kImg) {
+  if (resource_tag_scanner::IsImageLike(element->keyword())) {
     HtmlElement::Attribute* srcset = element->FindAttribute(HtmlName::kSrcset);
     if (srcset != nullptr) {
       BeginRewriteSrcSet(element, srcset);

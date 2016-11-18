@@ -25,11 +25,6 @@ check [ $MATCHES -eq 1 ]
 
 start_test Additional url-valued attributes are fully respected.
 
-function count_exact_matches() {
-  # Needed because "fgrep -c" counts lines with matches, not pure matches.
-  fgrep -o "$1" | wc -l
-}
-
 # There are ten resources that should be optimized.
 http_proxy=$SECONDARY_HOSTNAME \
     fetch_until $UVA_EXTEND_CACHE 'count_exact_matches .pagespeed.' 10

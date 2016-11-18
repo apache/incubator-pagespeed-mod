@@ -130,6 +130,9 @@ semantic_type::Category CategorizeAttribute(
 void ScanElement(HtmlElement* element, const RewriteOptions* options,
                  UrlCategoryVector* attributes);
 
+// Return whether this keyword is "img" or an "img" synonym.
+bool IsImageLike(HtmlName::Keyword keyword);
+
 }  // namespace resource_tag_scanner
 }  // namespace net_instaweb
 
