@@ -1609,6 +1609,37 @@ ModPagespeedMessagesDomains Allow localhost
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
+  ServerName redirecting-fetch.example.com
+  DocumentRoot "@@APACHE_DOC_ROOT@@"
+  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
+  ModPagespeedDomain redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@
+  ModPagespeedMapOriginDomain 127.0.0.1:@@APACHE_SECONDARY_PORT@@ \
+    redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@
+  ModPagespeedDisallow *styles/disallowed.css
+
+  Redirect permanent /redir_to_test/styles/blue.css /mod_pagespeed_example/styles/yellow.css
+  Redirect permanent /redir_to_test/styles/1.css /redir_to_test/styles/2.css
+  Redirect permanent /redir_to_test/styles/2.css /mod_pagespeed_example/styles/yellow.css
+
+  RewriteRule ^/redir_to_test/styles/redirtodisallowed.css$ \
+     /mod_pagespeed_example/styles/disallowed.css [L,R=301]
+</VirtualHost>
+
+<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
+  ServerName redirecting-fetch-single-only.example.com
+  DocumentRoot "@@APACHE_DOC_ROOT@@"
+  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
+  ModPagespeedDomain redirecting-fetch-single-only.example.com:@@APACHE_SECONDARY_PORT@@
+  ModPagespeedMapOriginDomain 127.0.0.1:@@APACHE_SECONDARY_PORT@@ \
+    redirecting-fetch-single-only.example.com:@@APACHE_SECONDARY_PORT@@
+  ModPagespeedMaxFetchRedirects 1
+
+  Redirect permanent /redir_to_test/styles/1.css /redir_to_test/styles/2.css
+  Redirect permanent /redir_to_test/styles/2.css /mod_pagespeed_example/styles/yellow.css
+</VirtualHost>
+
+
+<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
   ServerName debug-filters.example.com
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"

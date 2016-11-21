@@ -290,6 +290,10 @@ class SystemRewriteOptions : public RewriteOptions {
     set_option(x, &purge_method_);
   }
   const GoogleString& purge_method() const { return purge_method_.value(); }
+  void set_max_fetch_redirects(const int x) {
+    set_option(x, &max_fetch_redirects_);
+  }
+  int max_fetch_redirects() const { return max_fetch_redirects_.value(); }
 
   bool AllowDomain(const GoogleUrl& url,
                    const FastWildcardGroup& wildcard_group) const;
@@ -525,6 +529,7 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<int64> default_shared_memory_cache_kb_;
   Option<int> shm_metadata_cache_checkpoint_interval_sec_;
   Option<GoogleString> purge_method_;
+  Option<int> max_fetch_redirects_;
 
   StaticAssetCDNOptions static_assets_to_cdn_;
 

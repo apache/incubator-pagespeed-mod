@@ -152,6 +152,7 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   run_test max_combined_css_bytes
   run_test sane_connection_header
   run_test handler_access_messages
+  run_test redirect_following
 fi
 run_test show_cache
 run_test message_history_colors

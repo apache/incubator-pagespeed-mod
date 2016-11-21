@@ -295,6 +295,11 @@ void SystemRewriteOptions::AddProperties() {
                     "HTTP method used for Cache Purge requests. Typically "
                     "this is set to PURGE, but you must ensure that only "
                     "authorized clients have access to this method.", false);
+  AddSystemProperty(2, /* Follow two redirects in a fetch by default */
+                    &SystemRewriteOptions::max_fetch_redirects_,
+                    "mfr", "MaxFetchRedirects", kServerScope,
+                    "The maximum number of redirects pagespeed should follow "
+                    "when fetching resources.", false);
 
   AddSystemProperty("",
                     &SystemRewriteOptions::static_assets_to_cdn_,

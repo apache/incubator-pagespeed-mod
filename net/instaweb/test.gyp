@@ -93,6 +93,7 @@
         'http/inflating_fetch_test.cc',
         'http/mock_url_fetcher_test.cc',
         'http/rate_controlling_url_async_fetcher_test.cc',
+        'http/redirect_following_url_async_fetcher_test.cc',
         'http/reflecting_test_fetcher_test.cc',
         # SimulatedDelayFetcher isn't currently used in {mod_,ngx_}pagespeed,
         # so we only build it into the test binary.

@@ -17,6 +17,7 @@
 #include "pagespeed/system/system_server_context.h"
 
 #include "base/logging.h"
+#include "net/instaweb/http/public/redirect_following_url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher_stats.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -309,7 +310,7 @@ void SystemServerContext::ApplySessionFetchers(
   // added: the last one added here is the first one applied and vice versa.
   //
   // Currently, we want AddHeadersFetcher running first, then
-  // LoopbackRouteFetcher (and then Serf).
+  // RedirectFollowingUrlAsyncFetcher, then LoopbackRouteFetcher (and then Serf).
   SystemRewriteOptions* options = global_system_rewrite_options();
   if (!options->disable_loopback_routing() &&
       !options->slurping_enabled() &&
@@ -319,6 +320,13 @@ void SystemServerContext::ApplySessionFetchers(
     driver->SetSessionFetcher(new LoopbackRouteFetcher(
         driver->options(), system_request->local_ip(),
         system_request->local_port(), driver->async_fetcher()));
+  }
+
+  if (options->max_fetch_redirects() > 0) {
+    driver->SetSessionFetcher(new RedirectFollowingUrlAsyncFetcher(
+        driver->async_fetcher(), system_request->url().as_string(),
+        thread_system(), statistics(), options->max_fetch_redirects(),
+        options));
   }
 
   if (driver->options()->num_custom_fetch_headers() > 0) {
