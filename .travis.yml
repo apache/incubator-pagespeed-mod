@@ -34,7 +34,7 @@ script:
   # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
   # The downside of travis_wait is that it buffers the output, so we see exactly
   # nothing when a timeout occurrs.
-  - travis_wait 25 install/build_release.sh --skip_psol --debug $BIT_FLAG
+  - travis_wait 60 install/build_release.sh --skip_psol --debug $BIT_FLAG
 
 notifications:
   email:
