@@ -35,13 +35,13 @@ fi
 install_sl_gcc=
 
 if version_compare "$(lsb_release -rs)" -ge 7; then
-  binary_packages+=(python27 wget git)
+  binary_packages+=(python wget git)
   if "$additional_test_packages"; then
     binary_packages+=(memcached)
   fi
 elif version_compare "$(lsb_release -rs)" -ge 6; then
   install_sl_gcc=6
-  binary_packages+=(python26 wget)
+  binary_packages+=(python wget)
   # gyp runs "git rev-list --all --count" which the CentOS 6 package is too old
   # for.
   src_packages+=(git)
@@ -101,7 +101,9 @@ if [ -n "$include_line_number" -a -n "$loglevel_line_number" ] && \
   sed -i.pagespeed_bak "s/^LogLevel[[:space:]]/#&/; 0,/^Include/s//$loglevel_line\\n&/" $httpd_conf
 fi
 
-install_from_src "${src_packages[@]}"
+# src_packages might be empty. The below placates set -u, see:
+# http://stackoverflow.com/questions/7577052/bash-empty-array-expansion-with-set-u
+install_from_src ${src_packages[@]+"${src_packages[@]}"}
 
 # Start memcached if it was installed from source
 # TODO(cheesy): This should probably happen as part of the test setup, though

@@ -33,7 +33,7 @@ install_redis_from_src=false
 if "$additional_test_packages"; then
   binary_packages+=(memcached libapache2-mod-php5)
 
-  if version_compare $(lsb_release -sr) -ge 14.04; then
+  if version_compare $(lsb_release -sr) -ge 16.04; then
     binary_packages+=(redis-server)
   else
     src_packages+=(redis-server)
@@ -41,4 +41,7 @@ if "$additional_test_packages"; then
 fi
 
 apt-get -y install "${binary_packages[@]}"
-install_from_src "${src_packages[@]}"
+
+# src_packages might be empty. The below placates set -u, see:
+# http://stackoverflow.com/questions/7577052/bash-empty-array-expansion-with-set-u
+install_from_src ${src_packages[@]+"${src_packages[@]}"}

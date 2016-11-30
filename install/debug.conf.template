@@ -73,7 +73,7 @@ ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/content_type_present \
 ModPagespeedMapProxyDomain http://@@APACHE_DOMAIN@@/content_type_absent \
                            http://@@PAGESPEED-TEST-HOST@@:8092
 
-#CONTROLLER ModPagespeedCentralControllerPort @@CONTROLLER_PORT@@
+#CONTROLLER ModPagespeedExperimentalCentralControllerPort @@CONTROLLER_PORT@@
 
 # Turn on "KeepAlive" so we can test it in system_test.sh.
 KeepAlive On
@@ -1584,6 +1584,16 @@ ModPagespeedMessagesDomains Allow localhost
   ModPagespeedEnableFilters debug
 </VirtualHost>
 
+<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
+  ServerName content-encoding.example.com
+  DocumentRoot "@@APACHE_DOC_ROOT@@"
+  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
+  ModPagespeedRewriteLevel PassThrough
+  ModPagespeedEnableFilters debug
+  ModPagespeedSlurpDirectory @@APACHE_DOC_ROOT@@/mod_pagespeed_test/bogus_content_encoding/
+  ModPagespeedSlurpReadOnly on
+</VirtualHost>
+
 #STATS_LOGGING ModPagespeedStatistics on
 #STATS_LOGGING ModPagespeedStatisticsLogging on
 #STATS_LOGGING ModPagespeedLogDir "@@MOD_PAGESPEED_LOG@@"
@@ -2070,6 +2080,26 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
   ModPagespeedRewriteLevel PassThrough
   ModPagespeedRewriteDeadlinePerFlushMs 1
   ModPagespeedDisableFilters add_instrumentation
+</VirtualHost>
+
+<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
+  ServerName broken-fetch.example.com
+  DocumentRoot "@@APACHE_DOC_ROOT@@"
+  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@/broken-fetch"
+
+  # Set up a fetch proxy that will 404 every request.
+  ModPagespeedFetchProxy "brokenfetch.example.com:1111"
+
+  # Prevent loopback fetch by explicitly authorizing the domain.  Loopback
+  # fetches would work, and for this test, we're trying to have fetches fail,
+  # so they are instead picked up by the ipro recorder.
+  ModPagespeedDomain http://broken-fetch.example.com
+  ModPagespeedInPlaceResourceOptimization on
+
+  ModPagespeedRewriteLevel PassThrough
+  ModPagespeedEnableFilters rewrite_javascript
+  ModPagespeedDisableFilters add_instrumentation
+  ModPagespeedCriticalImagesBeaconEnabled false
 </VirtualHost>
 
 # In case the system has not added webp as an installed mimetype, this
