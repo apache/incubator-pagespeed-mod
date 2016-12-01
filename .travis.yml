@@ -30,11 +30,10 @@ script:
   # Travis will time out our build if doesn't output anything for > 10 mintes,
   # but --verbose sometimes outputs more than 4 MB of data, which will also
   # cause our build to be killed. travis_wait allows the command to be silent
-  # for longer, see:
+  # for longer, but has the downside of not producing output if we timeout. See:
   # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
-  # The downside of travis_wait is that it buffers the output, so we see exactly
-  # nothing when a timeout occurrs.
-  - travis_wait 60 install/build_release.sh --skip_psol --debug $BIT_FLAG
+  # For now, stick with --verbose and keep an eye on the logs.
+  - install/build_release.sh --verbose --skip_psol --debug $BIT_FLAG
 
 notifications:
   email:
