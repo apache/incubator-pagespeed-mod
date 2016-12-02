@@ -49,10 +49,21 @@ expect_messages anything-b-wildcard allow
 expect_messages anything-c-wildcard deny
 # VHost lists deny *
 expect_messages nothing-allowed deny
-# Not listed at any level.
-expect_messages messages-not-allowed deny
-# Listed at top level, VHost level lists CLEAR_INHERITED.
-expect_messages cleared-inherited deny
+
+if [ "$NO_VHOST_MERGE" = "on" ]; then
+  # In Apache the global config may or may not be inherited into the vhost
+  # config.  This affects option merging here, so for some tests we need to
+  # sets of expectations.  If NO_VHOST_MERGE is set, that's equivalent here to
+  # CLEAR_INHERITED.
+
+  # Not listed at any level.
+  expect_messages messages-not-allowed allow
+else
+  # Not listed at any level.
+  expect_messages messages-not-allowed deny
+  # Listed at top level, VHost level lists CLEAR_INHERITED.
+  expect_messages cleared-inherited deny
+fi
 
 # No <Handler>Domains listings for these, default is allow.
 expect_handler nothing-explicitly-allowed $STATISTICS_HANDLER allow

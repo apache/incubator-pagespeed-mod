@@ -1623,6 +1623,8 @@ ModPagespeedMessagesDomains Allow localhost
 #
 # TODO(jmarantz): add a test-path where we set this in a VirtualHost and
 # make sure the right error message comes out.
+#LOADTEST # Don't want global slurp inheriting into :8080
+#LOADTEST ModPagespeedInheritVHostConfig off
 #LOADTEST ModPagespeedMessageBufferSize 100000
 #LOADTEST
 #LOADTEST # We want backtraces to be dumped during the load test, as
@@ -2250,7 +2252,7 @@ AddType application/javascript .js
 #ALL_DIRECTIVES ModPagespeedStatisticsLoggingFile /tmp/log/stats.log
 #ALL_DIRECTIVES ModPagespeedDisableForBots 1
 #ALL_DIRECTIVES ModPagespeedGeneratedFilePrefix 1
-#ALL_DIRECTIVES ModPagespeedInheritVHostConfig 1
+#ALL_DIRECTIVES ModPagespeedInheritVHostConfig on
 #ALL_DIRECTIVES ModPagespeedFetchFromModSpdy 1
 #ALL_DIRECTIVES ModPagespeedNumShards 1
 #ALL_DIRECTIVES ModPagespeedUrlPrefix 1

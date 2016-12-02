@@ -63,7 +63,8 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
       apache_message_handler_(new ApacheMessageHandler(
           server_rec_, version_, timer(), thread_system()->NewMutex())),
       apache_html_parse_message_handler_(new ApacheMessageHandler(
-          server_rec_, version_, timer(), thread_system()->NewMutex())) {
+          server_rec_, version_, timer(), thread_system()->NewMutex())),
+      inherit_vhost_config_(false) {
   apr_pool_create(&pool_, NULL);
 
   // Apache defaults UsePerVhostStatistics to false for historical reasons, but

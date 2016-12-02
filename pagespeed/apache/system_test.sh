@@ -10,6 +10,8 @@
 # APACHE_LOG to the log file.
 #
 # CACHE_FLUSH_TEST=on can be passed to test our cache.flush behavior
+# NO_VHOST_MERGE=on can be passed to tell tests to assume
+# that ModPagespeedInheritVHostConfig has been turned off.
 
 if [ -z $APACHE_DEBUG_PAGESPEED_CONF ]; then
   APACHE_DEBUG_PAGESPEED_CONF=/usr/local/apache2/conf/pagespeed.conf
@@ -32,6 +34,7 @@ HEADERS_FINALIZED=false
 
 CACHE_FLUSH_TEST=${CACHE_FLUSH_TEST:-off}
 SKIP_EXTERNAL_RESOURCE_TESTS=${SKIP_EXTERNAL_RESOURCE_TESTS:-false}
+NO_VHOST_MERGE=${NO_VHOST_MERGE:-off}
 SUDO=${SUDO:-}
 # TODO(jkarlin): Should we just use a vhost instead?  If so, remember to update
 # all scripts that use TEST_PROXY_ORIGIN.
