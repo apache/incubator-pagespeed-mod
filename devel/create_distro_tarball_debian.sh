@@ -33,7 +33,7 @@ set -u  # exit the script if any variable is uninitialized
 function usage {
   echo -n "create_distro_tarball_debian.sh [ --checkout_dir dir ] tarball"
   echo " [ --git_tag tag | source_tree ]"
-  echo "examples of git_tag  would be 'master' or '1.11.33.4'"
+  echo "examples of git_tag would be 'master', '33', '1.11.33.4' or 04e3237"
   exit 1
 }
 
@@ -76,7 +76,7 @@ if [ "$1" = "--checkout_dir" ]; then
   CHECKOUT_DIR=$2
   shift 2
 else
-  CHECKOUT_DIR=`mktemp -d`
+  CHECKOUT_DIR=$(mktemp -d)
   echo $CHECKOUT_DIR
 fi
 
@@ -85,7 +85,7 @@ if [ -z $TARBALL ]; then
   usage
 fi
 touch $TARBALL
-TARBALL=`realpath $TARBALL`
+TARBALL=$(realpath $TARBALL)
 
 if [ "$2" == --git_tag ]; then
   if [ -z $3 ]; then
@@ -93,7 +93,7 @@ if [ "$2" == --git_tag ]; then
   else
     GIT_TAG=$3
     if [ -z $CHECKOUT_DIR ]; then
-      CHECKOUT_DIR=`mktemp -d`
+      CHECKOUT_DIR=$(mktemp -d)
     fi
     SRC_DIR=$CHECKOUT_DIR
     cd $CHECKOUT_DIR
@@ -125,7 +125,7 @@ chmod +x $DIR/generate.sh
 
 # Normally, the build system runs build/lastchange.sh to figure out what
 # to put into the last portion of the version number. We are, however, going to
-# be getting rid of the .svn dirs, so that will not work (nor would it without
+# be getting rid of the .git dirs, so that will not work (nor would it without
 # network access). Luckily, we can provide the number via LASTCHANGE.in,
 # so we just compute it now, and save it there.
 cd src/
@@ -133,9 +133,9 @@ cd src/
 cd ..
 
 # It's tarball time!
-# Note that this is highly-version specific, and may require tweaks for
-# every release as its dependencies change. It's probably a good idea to
-# branch this script with every release.
+# Note that this is highly-version specific, and requires tweaks for every
+# release as its dependencies change.  Always run the version of this
+# script that's on the branch you're making a tarball for.
 tar cj --dereference --exclude='.git' --exclude='.svn' --exclude='.hg' -f $TARBALL \
     --exclude='*.mk' --exclude='*.pyc' \
     --exclude=$DIR/src/net/instaweb/genfiles/*/*.cc \
