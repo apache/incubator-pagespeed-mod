@@ -18,20 +18,20 @@
 #
 # The usual mechanism used to develop mod_pagespeed and build binaries is based
 # on merging all dependencies into a single source tree.  This script enables a
-# standard  untar/configure/make flow that does not bundle external libraries.
-# It generates the tarball including the configure (or rather generate.sh)
-# script.
+# standard  untar/configure/make flow that does not bundle widely available
+# external libraries. It generates the tarball including the configure (or
+# rather generate.sh) script.
 #
-# This is a variant that's extra-lean, as it targets Debian, which has a
-# particularly extensive package repository. Its file list is based on
-# version 1.11.33.4 (which is partly why it's a separate script and not just
-# a flag).
+# If --minimal is passed, it will cut out even more things. This was meant
+# for packaging properly Debian, which has a particularly extensive package
+# repository. At the moment this configuration requires further patching of
+# the .gyp[i] files and doesn't work out of the box.
 
 set -e  # exit script if any command returns an error
 set -u  # exit the script if any variable is uninitialized
 
 function usage {
-  echo -n "create_distro_tarball_debian.sh [ --checkout_dir dir ] tarball"
+  echo -n "create_distro_tarball_debian.sh [ --minimal ] [ --checkout_dir dir ] tarball"
   echo " [ --git_tag tag | source_tree ]"
   echo "examples of git_tag would be 'master', '33', '1.11.33.4' or 04e3237"
   exit 1
@@ -78,6 +78,12 @@ if [ "$1" = "--checkout_dir" ]; then
 else
   CHECKOUT_DIR=$(mktemp -d)
   echo $CHECKOUT_DIR
+fi
+
+MINIMAL=0
+if [ "$1" == "--minimal" ]; then
+  MINIMAL=1
+  shift 1
 fi
 
 TARBALL=$1
@@ -132,6 +138,32 @@ cd src/
 ./build/lastchange.sh $PWD > LASTCHANGE.in
 cd ..
 
+# Things that depends on minimal or not.
+if [ $MINIMAL -eq 0 ]; then
+  GTEST=$DIR/src/testing
+  GFLAGS=$DIR/src/third_party/gflags
+  GIFLIB=$DIR/src/third_party/giflib
+  ICU="$DIR/src/third_party/icu/icu.gyp \
+      $DIR/src/third_party/icu/source/common/unicode/"
+  JSONCPP=$DIR/src/third_party/jsoncpp
+  LIBWEBP=$DIR/src/third_party/libwebp
+  PROTOBUF=$DIR/src/third_party/protobuf
+  RE2=$DIR/src/third_party/re2
+else
+  GTEST="$DIR/src/testing \
+      --exclude $DIR/src/testing/gmock \
+      --exclude $DIR/src/testing/gtest"
+  GFLAGS=$DIR/src/third_party/gflags/gflags.gyp
+  GIFLIB=$DIR/src/third_party/giflib/giflib.gyp
+  ICU=$DIR/src/third_party/icu/icu.gyp
+  JSONCPP=$DIR/src/third_party/jsoncpp/jsoncpp.gyp
+  LIBWEBP="$DIR/src/third_party/libwebp/COPYING \
+      $DIR/src/third_party/libwebp/examples/gif2webp_util.*"
+  PROTOBUF="$DIR/src/third_party/protobuf/*.gyp \
+      $DIR/src/third_party/protobuf/*.gypi"
+  RE2=$DIR/src/third_party/re2/re2.gyp
+fi
+
 # It's tarball time!
 # Note that this is highly-version specific, and requires tweaks for every
 # release as its dependencies change.  Always run the version of this
@@ -147,9 +179,7 @@ tar cj --dereference --exclude='.git' --exclude='.svn' --exclude='.hg' -f $TARBA
     $DIR/src/install \
     $DIR/src/net/instaweb \
     $DIR/src/pagespeed \
-    $DIR/src/testing \
-    --exclude $DIR/src/testing/gmock \
-    --exclude $DIR/src/testing/gtest \
+    $GTEST \
     $DIR/src/third_party/apr/apr.gyp \
     $DIR/src/third_party/aprutil/aprutil.gyp \
     $DIR/src/third_party/aprutil/apr_memcache2.h \
@@ -168,23 +198,21 @@ tar cj --dereference --exclude='.git' --exclude='.svn' --exclude='.hg' -f $TARBA
     $DIR/src/third_party/closure_library/ \
     $DIR/src/third_party/css_parser \
     $DIR/src/third_party/domain_registry_provider \
-    $DIR/src/third_party/gflags/gflags.gyp \
-    $DIR/src/third_party/giflib/giflib.gyp \
+    $GFLAGS \
+    $GIFLIB \
     $DIR/src/third_party/google-sparsehash \
-    $DIR/src/third_party/icu/icu.gyp \
+    $ICU \
     $DIR/src/third_party/mod_spdy/src/mod_spdy/mod_spdy.h \
     $DIR/src/third_party/mod_spdy/src/mod_spdy/apache/slave_connection_api.h \
-    $DIR/src/third_party/jsoncpp/jsoncpp.gyp \
+    $JSONCPP \
     $DIR/src/third_party/libjpeg_turbo/libjpeg_turbo.gyp \
     $DIR/src/third_party/libpng/libpng.gyp \
-    $DIR/src/third_party/libwebp/COPYING \
-    $DIR/src/third_party/libwebp/examples/gif2webp_util.* \
+    $LIBWEBP \
     $DIR/src/third_party/modp_b64 \
     $DIR/src/third_party/optipng \
-    $DIR/src/third_party/protobuf/*.gyp \
-    $DIR/src/third_party/protobuf/*.gypi \
+    $PROTOBUF  \
     $DIR/src/third_party/rdestl \
-    $DIR/src/third_party/re2/re2.gyp \
+    $RE2 \
     $DIR/src/third_party/serf \
     $DIR/src/third_party/zlib/zlib.gyp \
     $DIR/src/tools/gyp \
