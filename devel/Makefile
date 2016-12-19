@@ -314,7 +314,8 @@ apache_debug_psol : apache_debug
 submodule_update:
 	@echo "Updating local checkouts from open source. If these generate any"
 	@echo "merge conflicts you'll need to resolve them manually."
-	cd $(GIT_SRC) && git pull --ff-only && git submodule update --recursive
+	cd $(GIT_SRC) && git pull --ff-only && \
+	  git submodule update --init --recursive
 
 .PHONY : exes apache_debug_install apache_debug_stop apache_debug_start
 exes : apache_debug_install
