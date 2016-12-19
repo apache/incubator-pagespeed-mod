@@ -79,10 +79,10 @@ function machine_ready() {
   sudo apt-get -y upgrade
   sudo apt-get -y install git
   if ! [ -d mod_pagespeed ]; then
-    git clone -b "$branch" https://github.com/pagespeed/mod_pagespeed.git
+    git clone -b "$branch" https://github.com/pagespeed/mod_pagespeed.git \
+              --recurse-submodules
   fi
   cd mod_pagespeed
-  git submodule update --init --recursive
   if ! [ -d ~/apache2 ]; then
     install/build_development_apache.sh 2.2 prefork
   fi
