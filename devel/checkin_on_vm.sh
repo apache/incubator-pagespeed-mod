@@ -67,6 +67,7 @@ if [ -z "$machine_name" ]; then
   machine_name="${USER}-checkin-${sanitized_branch}"
 fi
 
+# Empty final argument is to placate -u
 remaining_arguments=( "$@" "" )
 
 # Hook for run_on_vm.sh to call.

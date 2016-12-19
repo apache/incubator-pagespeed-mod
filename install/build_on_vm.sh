@@ -96,6 +96,7 @@ fi
 
 mkdir -p ~/release
 
+# Empty final argument is to placate -u
 remaining_arguments=( "$@" "" )
 
 # Hook for run_on_vm.sh to call.
