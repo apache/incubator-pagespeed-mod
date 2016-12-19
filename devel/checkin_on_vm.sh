@@ -86,7 +86,7 @@ function machine_ready() {
   if ! [ -d ~/apache2 ]; then
     install/build_development_apache.sh 2.2 prefork
   fi
-  devel/checkin ${remaining_arguments[@]}
+  devel/checkin "${remaining_arguments[@]}"
 EOF
 }
 

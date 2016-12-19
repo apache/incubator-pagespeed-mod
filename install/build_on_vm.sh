@@ -111,7 +111,7 @@ function machine_ready() {
   fi
   git clone -b "$branch" https://github.com/pagespeed/mod_pagespeed.git
   cd mod_pagespeed
-  install/build_release.sh ${remaining_arguments[@]}
+  install/build_release.sh "${remaining_arguments[@]}"
 EOF
 
   gcloud compute copy-files "${machine_name}:mod_pagespeed/release/*" ~/release/
