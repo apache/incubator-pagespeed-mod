@@ -24,6 +24,8 @@
 
 set -u
 
+this_dir=$(dirname $0)
+
 branch=master
 delete_existing_machine=false
 image_family=ubuntu-1204-lts
@@ -69,16 +71,9 @@ if $use_existing_machine && $delete_existing_machine; then
   exit 1
 fi
 
-if ! type gcloud >/dev/null 2>&1; then
-  echo "gcloud is not in your PATH. See: https://cloud.google.com/sdk/" >&2
-  exit 1
-fi
-
-use_rpms=false
-
 case "$image_family" in
-  centos-*) image_project=centos-cloud ; use_rpms=true ;;
-  ubuntu-*) image_project=ubuntu-os-cloud ;;
+  centos-*) use_rpms=true ;;
+  ubuntu-*) use_rpms=false ;;
   *) echo "This script doesn't recognize image family '$image_family'" >&2;
      exit 1 ;;
 esac
@@ -99,28 +94,14 @@ if [ -z "$machine_name" ]; then
   machine_name+="-${sanitized_branch}-mps-build${bit_suffix}"
 fi
 
-instances=$(gcloud compute instances list -q "$machine_name")
-if [ -n "$instances" ]; then
-  if $delete_existing_machine; then
-    gcloud -q compute instances delete "$machine_name"
-    instances=
-  elif ! $use_existing_machine; then
-    echo "Instance '$machine_name' already exists." >&2
-    exit 1
-  fi
-fi
-
-if [ -z "$instances" ] || ! $use_existing_machine; then
-  gcloud compute instances create "$machine_name" \
-    --image-family="$image_family" --image-project="$image_project"
-fi
-
 mkdir -p ~/release
 
-# Display an error including the machine name if we die in the script below.
-trap '[ $? -ne 0 ] && echo -e "\nBuild failed on $machine_name"' EXIT
+# Empty final argument is to placate -u
+remaining_arguments=( "$@" "" )
 
-gcloud compute ssh "$machine_name" -- bash << EOF
+# Hook for run_on_vm.sh to call.
+function machine_ready() {
+  gcloud compute ssh "$machine_name" -- bash << EOF
   set -e
   set -x
   if $use_rpms; then
@@ -130,11 +111,10 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   fi
   git clone -b "$branch" https://github.com/pagespeed/mod_pagespeed.git
   cd mod_pagespeed
-  install/build_release.sh $@
+  install/build_release.sh "${remaining_arguments[@]}"
 EOF
 
-gcloud compute copy-files "${machine_name}:mod_pagespeed/release/*" ~/release/
+  gcloud compute copy-files "${machine_name}:mod_pagespeed/release/*" ~/release/
+}
 
-if ! $keep_machine; then
-  gcloud -q compute instances delete "$machine_name"
-fi
+source "$this_dir/run_on_vm.sh"
