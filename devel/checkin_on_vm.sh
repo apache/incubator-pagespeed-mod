@@ -75,6 +75,8 @@ function machine_ready() {
   gcloud compute ssh "$machine_name" -- bash << EOF
   set -e
   set -x
+  set -u
+
   sudo apt-get -y update
   sudo apt-get -y upgrade
   sudo apt-get -y install git
