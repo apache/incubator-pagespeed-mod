@@ -1,0 +1,111 @@
+<!-- Common source for mod_pagespeed & PSS doc for flush subresources early -->
+<html devsite>
+  <head>
+    <title>Flush Resources Early</title>
+    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
+    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
+    <link rel="stylesheet" href="/speed/styles/local.css">
+  </head>
+  <body>
+{% if pss %}
+{% include "speed/pagespeed/service/_header.html" %}
+{% endif %}
+
+<h2>Objective</h2>
+<p>
+This rewriter speeds up rendering of the page by providing server hints at the
+beginning of the HTML, which allows the browser to download important resources
+such as CSS, JS and some images early.
+</p>
+
+<h2>Description</h2>
+<p>
+When the browser requests a web page, PageSpeed Service sends an
+<i>early-head</i> with the list of resources to be downloaded early. In
+parallel, PageSpeed Service fetches the HTML content from the origin server,
+rewrites it and sends it to the browser. Since Page Speed Service flushes the
+<i>early-head</i> even before the origin server sends its response, cookies
+received from the origin server are inserted through JS, later in the HTML.
+</p>
+<p>
+The list of resources to be flushed is determined from previous page renders.
+This rewriter also provides browser hints to open TCP connections back to
+PageSpeed Service servers for faster fetches in the future. If the
+<code>Pre-resolve DNS</code> rewriter is enabled, then the DNS prefetch tags are
+also sent as part of the <i>early-head</i>.
+</p>
+
+<h2>Example</h2>
+<p>
+The example below shows the HTML before rewriting:
+</p>
+
+<pre class="prettyprint">
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;link rel="stylesheet" type="text/css"
+    href="styles/bold.css&gt;
+    &lt;script src="scripts/example.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div class="bold"&gt;
+      Hello, world!
+    &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+
+<p>
+and after rewriting:
+</p>
+
+<pre class="prettyprint">
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;link rel="subresource"
+    href="http://1-ps.googleusercontent.com/h/www.pssdemos.com/filter/styles/bold.css.pagespeed.ce.LPpzLxg8Oe.css"/&gt;
+    &lt;link rel="subresource"
+    href="http://1-ps.googleusercontent.com/h/www.pssdemos.com/filter/scripts/example.js.pagespeed.jm.ZJt5aYddtc.js"/&gt;
+  &lt;/head&gt;
+  &lt;!-- The html till here is is sent to the browser significantly earlier than
+       the rest of the document.--&gt;
+  &lt;head&gt;
+    &lt;link rel="stylesheet" type="text/css"
+    href="http://1-ps.googleusercontent.com/h/www.pssdemos.com/filter/styles/bold.css.pagespeed.ce.LPpzLxg8Oe.css"&gt;
+    &lt;script
+    src="http://1-ps.googleusercontent.com/h/www.pssdemos.com/filter/scripts/example.js.pagespeed.jm.ZJt5aYddtc.js"&gt;
+    &lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div class="bold"&gt;
+      Hello, world!
+    &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>
+The exact mechanism used to download resources early will vary depending on the
+browser. The effect of this rewriter can be observed on pssdemos.com <a
+  href="http://www.pssdemos.com/filter/flush_resources_early.html?ModPagespeed=off">
+  before</a> and <a
+  href="http://www.pssdemos.com/filter/flush_resources_early.html?ModPagespeedFilters=+flush_subresources,-inline_css">
+  after</a> rewriting. Please reload the page to see the effect, since this
+rewriter computes the list of resources based on previous page renders.
+</p>
+
+<h2>Limitations</h2>
+<p>
+<ol>
+  <li>This rewriter might degrade performance if the HTML content served changes
+  significantly based on request headers.</li>
+  <li>If the resources downloaded vary based on cookies then this rewriter
+  should not be enabled.</li>
+  <li>This rewriter works on modern browsers such as IE, Firefox and Chrome. For
+  other user agents the rewriter is turned off automatically.</li>
+  <li>This rewriter creates an extra head. If <code>Combine HEADs</code>
+  rewriter is enabled, and this rewriter is applied, the <i>early-head</i> will
+  not be combined.</li>
+</ol>
+</p>
+  </body>
+</html>
