@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Experimenting with PageSpeed</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Experimenting with PageSpeed</h1>
 <h2 id="Framework">Experimental Framework</h2>
 <p>
 The <a href="module-run-experiment.html">Run Experiment</a> module allows you to
@@ -422,5 +424,7 @@ using reasonable caching headers.
     &lt;/Directory&gt;
 </pre>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

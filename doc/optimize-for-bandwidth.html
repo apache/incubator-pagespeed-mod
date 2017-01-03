@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Optimizing For Bandwidth</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
-    <p>
+<!--#include virtual="_header.html" -->
+
+
+  <div id=content>
+<h1>Optimizing For Bandwidth</h1>    <p>
       PageSpeed's default <code>RewriteLevel</code> of
       <a href="config_filters#level">CoreFilters</a>
       is designed to reduce latency, incurring a small risk of page breakage.
@@ -105,5 +107,7 @@ server {
   <dt>Nginx:<dd><pre class="prettyprint"
      >pagespeed InPlaceResourceOptimization on;</pre>
 </dl>
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

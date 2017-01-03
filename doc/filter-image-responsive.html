@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Responsive Images</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Responsive Images</h1>
 <p class="note"><strong>Note: New filter as of 1.10.33.0</strong></p>
 
 <h2>Configuration</h2>
@@ -135,5 +137,7 @@
   implement that feature may conflict with other JS on the page.
 </p>
 
-</body>
+</div>
+  <!--#include virtual="_footer.html" -->
+  </body>
 </html>

@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PageSpeed HTTPS Support</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>PageSpeed HTTPS Support</h1>
     <p class="note">
       As of version 1.10 HTTPS fetching (<code>FetchHttps</code>) is enabled by
       default, and PageSpeed no longer requires additional configuration to
@@ -356,5 +358,7 @@ http {
       signs, see <a href="system#nginx_script_variables">Script Variable
       Support</a>.
     </p>
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

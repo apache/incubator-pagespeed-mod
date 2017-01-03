@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>October 2013 mod_pagespeed Security Update.</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>October 2013 mod_pagespeed Security Update.</h1>
 <h2 id="overview">Overview</h2>
 <p>Various versions of mod_pagespeed are subject to critical
 cross-site scripting (XSS) vulnerability, CVE-2013-6111. This permits a hostile
@@ -391,5 +393,7 @@ All of the packages above are signed with the Google Linux Package Signing Key,
 as described on <a href="http://www.google.com/linuxrepositories/">
 http://www.google.com/linuxrepositories/</a>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

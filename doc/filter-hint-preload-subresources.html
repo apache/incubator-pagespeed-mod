@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Hint Resource Preloading</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Hint Resource Preloading</h1>
 
 <p class="note"><strong>Note: New feature as of 1.12.34.1.</strong></p>
 <h2>Configuration</h2>
@@ -96,5 +98,7 @@ observe them. </p>
 resources they hint are already easy to discover from the browser's parser,
 especially in HTTP/1, which lacks header compression. </p>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

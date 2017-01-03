@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Configuring Downstream Caches</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Configuring Downstream Caches</h1>
 <style>
 .diff-del { color: darkred }
 .diff-add { color: green }
@@ -486,11 +488,6 @@ http {
   between the PageSpeed server and the downstream caching layer is depicted in
   the diagram given below.
 </p>
-{% comment %}
-  Internal link to Google Drawing for editing purposes is
-  <a href="https://docs.google.com/a/google.com/drawings/d/10UrZRYOjC21gOu9B_JJyJAOLjnEgDLXcEHJKNyDZh9Q/edit">
-  here</a>.
-{% endcomment %}
   <img src="images/downstream_caching.png" >
 <p>
   In the interaction depicted above, note that the partially optimized HTML will
@@ -499,5 +496,7 @@ http {
   layer servers on a one to one basis so that the purges can be sent to the
   correct downstream server.
 </p>
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

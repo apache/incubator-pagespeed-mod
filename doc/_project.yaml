@@ -1,7 +1,0 @@
-name: PageSpeed Module
-home_url: /speed/pagespeed/module
-description: "The PageSpeed modules are open-source server modules that optimize your site automatically."
-content_license: cc3-apache2
-buganizer_id: 44434
-parent_project_metadata_path: /speed/pagespeed/_project.yaml
-color: google-blue

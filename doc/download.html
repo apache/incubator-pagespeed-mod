@@ -1,34 +1,36 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Installing From Packages</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Installing From Packages</h1>
 <p class="note">
   If you're using Nginx you need
   to <a href="build_ngx_pagespeed_from_source">build from source</a>.  These
   packages are Apache-only.
 </p>
 
-<div class="sidebox">
+<div id="downloads">
 <dl>
   <dt>Latest Beta Version</dt>
   <dd>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_i386.deb">mod_pagespeed 32-bit .deb (Debian/Ubuntu)</a></div>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_amd64.deb">mod_pagespeed 64-bit .deb (Debian/Ubuntu)</a></div>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_i386.rpm">mod_pagespeed 32-bit .rpm (CentOS/Fedora)</a></div>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_x86_64.rpm">mod_pagespeed 64-bit .rpm (CentOS/Fedora)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_i386.deb">mod_pagespeed 32-bit .deb (Debian/Ubuntu)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_amd64.deb">mod_pagespeed 64-bit .deb (Debian/Ubuntu)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_i386.rpm">mod_pagespeed 32-bit .rpm (CentOS/Fedora)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_x86_64.rpm">mod_pagespeed 64-bit .rpm (CentOS/Fedora)</a></div>
   </dd>
   <dt>Latest Stable Version</dt>
   <dd>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_i386.deb">mod_pagespeed 32-bit .deb (Debian/Ubuntu)</a></div>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_amd64.deb">mod_pagespeed 64-bit .deb (Debian/Ubuntu)</a></div>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_i386.rpm">mod_pagespeed 32-bit .rpm (CentOS/Fedora)</a></div>
-<div><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_x86_64.rpm">mod_pagespeed 64-bit .rpm (CentOS/Fedora)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_i386.deb">mod_pagespeed 32-bit .deb (Debian/Ubuntu)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_amd64.deb">mod_pagespeed 64-bit .deb (Debian/Ubuntu)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_i386.rpm">mod_pagespeed 32-bit .rpm (CentOS/Fedora)</a></div>
+<div class=download><a href="https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-stable_current_x86_64.rpm">mod_pagespeed 64-bit .rpm (CentOS/Fedora)</a></div>
   </dd>
 </dl>
 </div>
@@ -102,5 +104,7 @@ sudo apt-get remove mod-pagespeed-stable
 sudo apt-get install mod-pagespeed-beta</pre>
 </dl>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>
