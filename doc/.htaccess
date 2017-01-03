@@ -12,4 +12,5 @@ RewriteRule !.*\.html$ %{REQUEST_FILENAME}.html [L]
 ModPagespeed on
 ModPagespeedRewriteLevel CoreFilters
 ModPagespeedEnableFilters collapse_whitespace
+ModPagespeedEnableFilters remove_comments
 ModPagespeedInPlaceResourceOptimization on
