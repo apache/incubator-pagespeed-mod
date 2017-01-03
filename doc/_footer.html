@@ -3,28 +3,28 @@
 </div>
 
 <script>
-function build_toc_helper(node, headers) {
+function buildTocHelper(node, headers) {
   if (node.nodeType == 1) {
     // Element node.
-    var node_name = node.nodeName.toLowerCase();
-    if (node_name == "h2" || node_name == "h3" || node_name == "h4" ||
-        node_name == "h5" || node_name == "h6") {
+    var nodeName = node.nodeName.toLowerCase();
+    if (nodeName == "h2" || nodeName == "h3" || nodeName == "h4" ||
+        nodeName == "h5" || nodeName == "h6") {
       if (node.id) {
-        headers.push([node_name, node.innerHTML, node.id]);
+        headers.push([nodeName, node.innerHTML, node.id]);
         node.innerHTML +=
           '&nbsp;<a class=header-link href="#' + node.id + '">&#x1f517;</a>';
       }
     } else {
       for (var i = 0; i < node.childNodes.length; i++) {
-        build_toc_helper(node.childNodes[i], headers);
+        buildTocHelper(node.childNodes[i], headers);
       }
     }
   }
 }
 
-function build_toc() {
+function buildToc() {
   var headers = [];
-  build_toc_helper(document.body, headers);
+  buildTocHelper(document.body, headers);
   if (headers.length == 0) {
     return;
   }
@@ -33,20 +33,20 @@ function build_toc() {
   var level = 1;
   for (var i = 0; i < headers.length; i++) {
     var header = headers[i];
-    var header_level = header[0];
-    var header_value = header[1];
-    var header_id = header[2];
+    var headerLevel = header[0];
+    var headerValue = header[1];
+    var headerId = header[2];
 
-    var new_level = parseInt(header_level.substring(1));
-    while (new_level > level) {
+    var newLevel = parseInt(headerLevel.substring(1));
+    while (newLevel > level) {
       toc += "<ul>"
       level++;
     }
-    while (new_level < level) {
+    while (newLevel < level) {
       toc += "</ul>";
       level--;
     }
-    toc += '<li><a href="#' + header_id + '">' + header_value + '</a>'
+    toc += '<li><a href="#' + headerId + '">' + headerValue + '</a>'
   }
   while (level > 1) {
     toc += "</ul>";
@@ -55,7 +55,7 @@ function build_toc() {
   document.getElementById("toc").innerHTML += toc;
 }
 
-function wrap_tables() {
+function wrapTables() {
   var tables = document.getElementsByTagName("table");
   for (var i = 0; i < tables.length; i++) {
     var table = tables[i];
@@ -67,6 +67,6 @@ function wrap_tables() {
   }
 }
 
-build_toc();
-wrap_tables();
+buildToc();
+wrapTables();
 </script>
