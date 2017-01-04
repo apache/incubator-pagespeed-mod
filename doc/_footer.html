@@ -39,8 +39,8 @@ function buildToc() {
   tocContents.textContent = "Contents";
   toc.appendChild(tocContents);
 
-  ulNodes = [];  // stack of active <ul> nodes
-  // replace level with ulNodes.length + 1
+  var level = 1;
+  var currentUl = null;
   for (var i = 0; i < headers.length; i++) {
     var header = headers[i];
     var headerLevel = header[0];
@@ -48,25 +48,30 @@ function buildToc() {
     var headerId = header[2];
 
     var newLevel = parseInt(headerLevel.substring(1));
-    while (newLevel >= ulNodes.length) {
-      ulNodes.push(document.createElement("ul"));
+    while (newLevel > level) {
+      // We loop here to handle the case where we have h2 ... h4.  This
+      // isn't a good way to write html, but someone may still do it.
+
+      var newUl = document.createElement("ul");
+      if (currentUl == null) {
+        toc.appendChild(newUl);
+      } else {
+        currentUl.appendChild(newUl);
+      }
+      currentUl = newUl;
+      level++;
     }
-    while (newLevel <=  ulNodes.length) {
-      var finishedUl = ulNodes.pop();
-      ulNodes[ulNodes.length - 1].appendChild(finishedUl);
+    while (newLevel < level) {
+      currentUl = currentUl.parentNode;
+      level--;
     }
     var li = document.createElement("li");
     var a = document.createElement("a");
     a.href = "#" + headerId;
     a.textContent = headerValue;
     li.appendChild(a);
-    ulNodes[ulNodes.length - 1].appendChild(li);
+    currentUl.appendChild(li);
   }
-  while (ulNodes.length > 1) {
-    var finishedUl = ulNodes.pop();
-    ulNodes[ulNodes.length - 1].appendChild(finishedUl);
-  }
-  toc.appendChild(ulNodes[0]);
 }
 
 function wrapTables() {
