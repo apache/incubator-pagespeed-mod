@@ -11,8 +11,12 @@ function buildTocHelper(node, headers) {
         nodeName == "h5" || nodeName == "h6") {
       if (node.id) {
         headers.push([nodeName, node.innerHTML, node.id]);
-        node.innerHTML +=
-          '&nbsp;<a class=header-link href="#' + node.id + '">&#x1f517;</a>';
+	node.appendChild(document.createTextNode("\u00A0"));  // nbsp
+	var a = document.createElement("a");
+	a.class = "header-link";
+	a.href = "#" + node.id;
+	a.appendChild(document.createTextNode("\uD83D\uDD17"));  // link symbol
+	node.appendChild(a);
       }
     } else {
       for (var i = 0; i < node.childNodes.length; i++) {
@@ -29,8 +33,14 @@ function buildToc() {
     return;
   }
 
-  var toc = "<div id=toc-contents>Contents</div>";
-  var level = 1;
+  var toc = document.getElementById("toc");
+  var tocContents = document.createElement("div");
+  tocContents.id = "toc-contents";
+  tocContents.appendChild(document.createTextNode("Contents"));
+  toc.appendChild(tocContents);
+
+  ulNodes = [];  // stack of active <ul> nodes
+  // replace level with ulNodes.length + 1
   for (var i = 0; i < headers.length; i++) {
     var header = headers[i];
     var headerLevel = header[0];
@@ -38,21 +48,25 @@ function buildToc() {
     var headerId = header[2];
 
     var newLevel = parseInt(headerLevel.substring(1));
-    while (newLevel > level) {
-      toc += "<ul>"
-      level++;
+    while (newLevel >= ulNodes.length) {
+      ulNodes.push(document.createElement("ul"));
     }
-    while (newLevel < level) {
-      toc += "</ul>";
-      level--;
+    while (newLevel <=  ulNodes.length) {
+      var finishedUl = ulNodes.pop();
+      ulNodes[ulNodes.length - 1].appendChild(finishedUl);
     }
-    toc += '<li><a href="#' + headerId + '">' + headerValue + '</a>'
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.href = "#" + headerId;
+    a.appendChild(document.createTextNode(headerValue));
+    li.appendChild(a);
+    ulNodes[ulNodes.length - 1].appendChild(li);
   }
-  while (level > 1) {
-    toc += "</ul>";
-    level--;
+  while (ulNodes.length > 1) {
+    var finishedUl = ulNodes.pop();
+    ulNodes[ulNodes.length - 1].appendChild(finishedUl);
   }
-  document.getElementById("toc").innerHTML += toc;
+  toc.appendChild(ulNodes[0]);
 }
 
 function wrapTables() {
