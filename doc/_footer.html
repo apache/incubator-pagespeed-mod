@@ -15,7 +15,7 @@ function buildTocHelper(node, headers) {
 	var a = document.createElement("a");
 	a.class = "header-link";
 	a.href = "#" + node.id;
-	a.appendChild(document.createTextNode("\uD83D\uDD17"));  // link symbol
+	a.textContent = "\uD83D\uDD17";  // link symbol
 	node.appendChild(a);
       }
     } else {
@@ -36,7 +36,7 @@ function buildToc() {
   var toc = document.getElementById("toc");
   var tocContents = document.createElement("div");
   tocContents.id = "toc-contents";
-  tocContents.appendChild(document.createTextNode("Contents"));
+  tocContents.textContent = "Contents";
   toc.appendChild(tocContents);
 
   ulNodes = [];  // stack of active <ul> nodes
@@ -58,7 +58,7 @@ function buildToc() {
     var li = document.createElement("li");
     var a = document.createElement("a");
     a.href = "#" + headerId;
-    a.appendChild(document.createTextNode(headerValue));
+    a.textContent = headerValue;
     li.appendChild(a);
     ulNodes[ulNodes.length - 1].appendChild(li);
   }
