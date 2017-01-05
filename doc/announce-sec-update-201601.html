@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>January 2016 PageSpeed Security Update.</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>January 2016 PageSpeed Security Update.</h1>
 <h2 id="overview">Overview</h2>
 <p>All released versions of PageSpeed are subject to HTTPS-fetching
 vulnerability, CVE-2016-2092.  This permits a hostile third party who can
@@ -96,5 +98,7 @@ vulnerability by either explicitly disabling fetching of resources over HTTPS or
 by removing the <a href="affected-configurations">configuration directives</a>
 that enable fetching over HTTPS from other hosts.
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

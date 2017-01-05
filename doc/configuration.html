@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PageSpeed Configuration</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>PageSpeed Configuration</h1>
 
 <h2 id="module">Enabling the Module</h2>
 <p>
@@ -570,5 +572,7 @@ With Apache and mod_pagespeed, <a href="http://httpd.apache.org/docs/2.2/mod/mod
 With Nginx and ngx_pagespeed, <a href="http://nginx.com/resources/admin-guide/reverse-proxy/">
   proxy_pass</a> can be used to configure Nginx as a reverse proxy.
 </p>
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

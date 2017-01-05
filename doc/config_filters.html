@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Configuring PageSpeed Filters</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Configuring PageSpeed Filters</h1>
 <h2 id="level">Rewriting Level</h2>
 
 <p>
@@ -704,11 +706,55 @@ limit:
      >pagespeed FinderPropertiesCacheExpirationTimeMs TtlInMs;</pre>
 </dl>
 
-{% include "speed/pagespeed/module/_local_variables.html" %}
-{% setvar image_preserve_urls %}<code>ImagePreserveURLs</code>{% endsetvar %}
-{% setvar css_preserve_urls %}<code>CssPreserveURLs</code>{% endsetvar %}
-{% setvar js_preserve_urls %}<code>JsPreserveURLs</code>{% endsetvar %}
-{% include "speed/pagespeed/_shared/preserve_urls.html" %}
+<h2 id="preserveurls">Preserving URLs in HTML</h2>
+<p>
+PageSpeed filters often modify the URLs of resources in HTML pages.  This is
+generally harmless but it has the potential to break pages whose JavaScript
+expects to read or modify the URLs in the page.
+</p>
+<p>
+image_preserve_urls, css_preserve_urls, and js_preserve_urls
+will suppress URL rewriting actions for the respective resource types.  Those
+filters that require modifications to the URL are disabled by the preserve
+directives.
+</p>
+<p class="note">
+<strong>Note:</strong>
+Even though resource URLs are unchanged that does not mean that they cannot
+still be optimized.  For instance,
+<a href="system#ipro">InPlaceResourceOptimization</a> still works since it does
+not alter URLs.  Turning on in place resource optimization is recommended when
+enabling any of the options to preserve URLs.  In version 1.9.32.1 and later
+in place resource optimization is enabled by default.
+</p>
+<p>
+Enabling image_preserve_urls will <a href="#forbidding">forbid</a>
+the use of the following filters:
+<code><a href="filter-inline-preview-images">inline_preview_images</a></code>,
+<code><a href="filter-lazyload-images">lazyload_images</a></code>,
+<code><a href="filter-cache-extend">extend_cache_images</a></code>,
+<code><a href="filter-image-optimize#inline_images">inline_images</a></code>,
+and <code><a href="filter-image-sprite">sprite_images</a></code>.
+</p>
+<p>
+Enabling css_preserve_urls will <a href="#forbidding">forbid</a> the use
+of the following filters:
+<code><a href="filter-css-combine">combine_css</a></code>,
+<code><a href="filter-cache-extend">extend_cache_css</a></code>,
+<code><a href="filter-css-inline">inline_css</a></code>,
+<code><a href="filter-css-inline-import">inline_import_to_link</a></code>,
+and <code><a href="filter-css-outline">outline_css</a></code>.
+</p>
+<p>
+Enabling js_preserve_urls will <a href="#forbidding">forbid</a> the use
+of the following filters:
+<code><a href="filter-canonicalize-js">canonicalize_javascript_libraries</a></code>,
+<code><a href="filter-js-combine">combine_javascript</a></code>,
+<code><a href="filter-js-defer">defer_javascript</a></code>,
+<code><a href="filter-cache-extend">extend_cache_javascript</a></code>,
+<code><a href="filter-js-inline">inline_javascript</a></code>,
+and <code><a href="filter-js-outline">outline_javascript</a></code>.
+</p>
 
 <h2 id="RewriteRandomDropPercentage">Reducing Load by Randomly Dropping
 Expensive Rewrites</h2>
@@ -933,5 +979,7 @@ the instance of pagespeed.
 </p>
 </p>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

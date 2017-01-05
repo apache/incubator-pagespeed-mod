@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PageSpeed System Integration</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>PageSpeed System Integration</h1>
     <h2 id="caching">Configuring Caching</h2>
     <p>
       PageSpeed requires publicly cacheable resources to provide
@@ -799,7 +801,7 @@ resolver 8.8.8.8;</pre>
      >pagespeed RewriteDeadlinePerFlushMs deadline_value_in_milliseconds;</pre>
 </dl>
 
-{% comment %}
+<!--
     <h2 id="rewrite_cache_min_ttl"
         >Setting the minimum cache-lifetime for optimizing resources</h2>
     <p>When PageSpeed fetches a resource via HTTP or HTTPS, it uses
@@ -817,7 +819,7 @@ resolver 8.8.8.8;</pre>
   <dt>Nginx:<dd><pre class="prettyprint"
      >pagespeed MinResourceCacheTimeToRewriteMs minimum_cache_ttl_in_in_milliseconds;</pre>
 </dl>
-{% endcomment %}
+-->
 
     <h2 id="implicit_cache_ttl"
         >Setting the implicit cache-lifetime for resources</h2>
@@ -1080,12 +1082,12 @@ gzip_http_version 1.0;
       in <a href="configuration#htaccess">location-specific configuration
       sections</a>.
   </p>
-  {% comment %}
+<!--
   <p>
     Furthermore, in-place resource optimization allows more expansive rewriting
     with <a href="#uncacheable_optimization">optimize uncacheable resources</a>.
   </p>
-  {% endcomment %}
+-->
   <h3>Considerations</h3>
   <p>Resources optimized by in-place resource optimization are optimized
     differently from resources found in HTML, JS, and CSS. First, rewritten
@@ -1108,7 +1110,7 @@ gzip_http_version 1.0;
     noticeable slow-down, but if most of your resources are uncacheable, you may
     wish to avoid this cost.</p>
 
-    {% comment %}
+    <!--
     <h2 id="uncacheable_optimization">Optimizing Uncacheable Resources</h2>
     <p>
       By default PageSpeed does not optimize resources that are uncacheable
@@ -1139,7 +1141,7 @@ ModPagespeedInPlaceResourceOptimization on</pre>
       in <a href="configuration#htaccess">location-specific configuration
       sections</a>.
     </p>
-    {% endcomment %}
+    -->
 
     <h2 id="rate_limit_background_fetches">Rate Limit Background Fetches</h2>
     <p>
@@ -1294,5 +1296,7 @@ http {
   }
 }</pre>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

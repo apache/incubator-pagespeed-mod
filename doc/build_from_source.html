@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Build From Source</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Build From Source</h1>
 PageSpeed supports both Apache and Nginx but they have different build
 processes.  See either:
 
@@ -18,5 +20,7 @@ processes.  See either:
              >Building From Source (Nginx)</a>
     </ul>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

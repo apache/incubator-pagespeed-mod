@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PageSpeed Console</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>PageSpeed Console</h1>
 <h2 id="about">About the Console</h2>
 <p>
   The PageSpeed Console reports various problems your installation has that can
@@ -196,5 +198,7 @@ The PageSpeed console displays graphs for these metrics:
   </li>
 </ul>
 
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>

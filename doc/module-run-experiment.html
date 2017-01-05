@@ -1,13 +1,15 @@
-{% include "speed/pagespeed/module/_local_variables.html" %}
-<html devsite>
+<html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Run Experiment</title>
-    <meta name="project_path" value="/speed/pagespeed/module/_project.yaml" />
-    <meta name="book_path" value="/speed/pagespeed/module/_book.yaml" />
-    <link rel="stylesheet" href="/speed/styles/local.css">
+    <link rel="stylesheet" href="doc.css">
   </head>
   <body>
+<!--#include virtual="_header.html" -->
 
+
+  <div id=content>
+<h1>Run Experiment</h1>
 <h2>Overview</h2>
 
 This feature allows you to run experiments where segments of your traffic get
@@ -431,5 +433,7 @@ sampleRate to 80% would be:
    _gaq = _gaq || [];
    _gaq.push(['_setSampleRate', '80']);
 </pre>
+  </div>
+  <!--#include virtual="_footer.html" -->
   </body>
 </html>
