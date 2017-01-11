@@ -7,6 +7,9 @@
 # at least build it on our workstations.  It will also copy the tarball into
 # ~/release (where the binaries usually go).
 #
+# Like most of our dev tools this assumes Ubuntu 14 LTS.  If that isn't what you
+# have, it's probably easiest to run this in a VM.
+#
 # Note that if this fails you may need to tweak the file list inside
 # devel/create_distro_tarball.sh
 
