@@ -37,6 +37,10 @@ if [ ! -d loadtest_collect ]; then
   exit 1
 fi
 
+if [ ! $(which phantomjs) ]; then
+  sudo apt-get install phantomjs
+fi
+
 SLURP_TOP_DIR=$(mktemp -d)
 SLURP_DIR=$SLURP_TOP_DIR/slurp
 mkdir $SLURP_DIR
