@@ -1,0 +1,171 @@
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PageSpeed Modules</title></head>
+
+<style>
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+a {
+  color: #0288d1;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#header, #navline {
+  color: white;
+}
+
+#logoline {
+  background-color: #0061ff;
+  padding: 1em;
+}
+
+#logo {
+  display: inline-block;
+  position: relative;
+  top: 4px;
+}
+
+#logotext {
+  font-size: 32px;
+  display: inline-block;
+}
+
+#content-wrapper {
+  max-width: 30em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#content {
+  margin: 2em 0 1em 0;
+}
+
+#banner {
+  height: 10em;
+  position: relative;
+  text-align: justify;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#banner::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  opacity: .3;
+  content: "";
+  z-index: -1;
+  background-image: url(network-loading.png);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+#banner img {
+  height: 8em;
+  padding-top: 1em;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+
+#grey-stripe {
+  height: 0.5em;
+  background-color: #888;
+}
+
+#resources h2, #resources h3 {
+  color: #757575;
+  font-weight: normal;
+}
+
+#resources h2 {
+  margin-top: 3em;
+}
+
+#resources h3 {
+  margin-top: 2em;
+}
+
+#resources a {
+  margin-right: 3em;
+}
+
+@media (max-width: 30em) {
+  #content, .group {
+    margin-left: 1em;
+    margin-right: 1em;
+  }
+}
+
+</style>
+
+<body>
+
+<div id=header>
+  <div id=logoline>
+    <div id=logo>
+      <img src="https://www.gstatic.com/images/branding/product/1x/pagespeed_32dp.png"
+           srcset="https://www.gstatic.com/images/branding/product/2x/pagespeed_32dp.png"
+           width=32 height=32 alt="pagespeed logo">
+    </div>
+    <div id=logotext>PageSpeed</div>
+  </div>
+</div>
+
+<div id=banner>
+  <img src="pagespeed+nginx+apache.svg">
+</div>
+
+<div id=grey-stripe></div>
+
+<div id=content-wrapper>
+<div id=content>
+
+  The PageSpeed Modules, mod_pagespeed and ngx_pagespeed, are open-source
+  webserver modules that optimize your site automatically.
+
+  <div id=resources>
+    <h2>Install on your webserver</h2>
+    <h3>Packages for Apache</h3>
+    <p>Pre-built binary packages for Apache</p>
+    <a href="doc/download">Download Packages</a>
+
+    <h3>Source for Nginx</h3>
+    <p>Build from source on Nginx</p>
+    <a href="doc/build_ngx_pagespeed_from_source">Download Source</a>
+
+    <h2>Read Documentation</h2>
+    <h3>Configuring PageSpeed for your site</h3>
+    <p>Read how to enable the module and adjust it for your system</p>
+    <a href="doc/">Documentation</a>
+    <a href="doc/release_notes">Release Notes</a>
+
+    <h2>Get Support</h2>
+    <h3>Ask a question on the mailing list</h3>
+    <p>On our discussion mailing lists you can ask questions and get help from
+       the developers and other users.</p>
+    <a href="https://groups.google.com/group/mod-pagespeed-discuss">Apache</a>
+    <a href="https://groups.google.com/group/ngx-pagespeed-discuss">Nginx</a>
+
+    <h3>File a bug</h3>
+    <p>If PageSpeed isn't working correctly on your site, file a bug and we'll
+       look into it.</p>
+    <a href="https://github.com/pagespeed/mod_pagespeed/issues/new">Apache</a>
+    <a href="https://github.com/pagespeed/ngx_pagespeed/issues/new">Nginx</a>
+   </div>
+
+</div>
+</div>
+
+</body></html>
