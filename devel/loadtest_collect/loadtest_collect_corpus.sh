@@ -19,6 +19,7 @@
 
 function usage {
   echo "Usage: loadtest_collect/loadtest_collect_corpus.sh pages.txt out.tar.bz2"
+  echo "Where pages.txt has a URL (including http://) per line"
 }
 
 set -u  # exit the script if any variable is uninitialized
@@ -38,6 +39,7 @@ if [ ! -d loadtest_collect ]; then
 fi
 
 if [ ! $(which phantomjs) ]; then
+  echo "phantomjs not found, trying to install it with apt-get"
   sudo apt-get install phantomjs
 fi
 
