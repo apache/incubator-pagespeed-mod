@@ -49,11 +49,12 @@ a:hover {
 }
 
 #banner {
-  height: 10em;
+  height: 9em;
   position: relative;
   text-align: justify;
   margin-left: auto;
   margin-right: auto;
+  border-top: 1px solid silver;
 }
 
 #banner::before {
@@ -70,13 +71,22 @@ a:hover {
   background-size: cover;
 }
 
-#banner img {
+
+
+#banner-logo-container {
   height: 8em;
-  padding-top: 1em;
+  top: -2em;
+  padding-top: -2.5em;
   margin-left: auto;
-  margin-right: auto;
+  margin-right: 0.5em;
   display: block;
+  position:relative;
+  width: 150px;
+  background-image: url(pagespeed+nginx+apache.svg);
+  background-size: contain;
+  background-position: center center;
 }
+
 
 #grey-stripe {
   height: 0.5em;
@@ -92,18 +102,6 @@ a:hover {
   font-weight: normal;
 }
 
-#resources h2:first-child {
-  margin-top: 1.5em;
-}
-
-#resources h2:not(:first-child) {
-  margin-top: 3em;
-}
-
-#resources h3 {
-  margin-top: 2em;
-}
-
 #resources a {
   margin-right: 2em;
   white-space: nowrap;
@@ -117,7 +115,9 @@ a:hover {
   }
 }
 
-
+h2 {
+  border-bottom: 1px dashed silver;
+}
 
 </style>
 
@@ -135,7 +135,7 @@ a:hover {
 </div>
 
 <div id=banner>
-  <img src="pagespeed+nginx+apache.svg">
+  <div id="banner-logo-container"></div>
 </div>
 
 <div id=grey-stripe></div>
