@@ -97,8 +97,15 @@ ModPagespeed off
 <pre class="prettyprint">
 ModPagespeed unplugged
 </pre>
+
 <p>
-The <code>on</code> and <code>off</code> values can be used in
+
+In versions UNRELEASED and later "off" is deprecated and "standby" has been
+added as a replacement.
+
+<p>
+The <code>on</code>, <code>off</code>, and (in UNRELEASED and
+later) <code>standby</code> values can be used in
 <a href="#htaccess"><code>.htaccess</code> files,
 <code>&lt;Directory&gt;</code></a> scopes, <code>query parameters</code>, and
 <code>headers</code>.  The <code>unplugged</code> value can only be used in the
@@ -166,6 +173,15 @@ pagespeed off;
 </pre>
 This is equivalent to the "unplugged" setting for mod_pagespeed, and entirely
 disables ngx_pagespeed.
+<p>
+
+As of UNRELEASED, "off" is deprecated, and replaced with the synonym
+"unplugged".  Additionally the "standby" setting has been added, which is
+equivalent to the "off" or "standby" setting for mod_pagespeed.
+
+<p class=warning><b>Warning:</b> do not set ngx_pagespeed to "unplugged" mode in
+1.12.34.1 and earlier.  That will trigger a crash on every request.  With those
+versions, use "off" instead.
 
 <h2 id="respectvary">Respecting Vary Headers</h2>
 <p>

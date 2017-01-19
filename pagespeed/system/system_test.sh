@@ -75,6 +75,7 @@ SUDO=${SUDO:-}
 SYSTEM_TEST_DIR="$(dirname "${BASH_SOURCE[0]}")/system_tests/"
 run_test check_headers
 run_test aris
+run_test pagespeed_on_off_unplugged_standby
 run_test css_combining_authorization
 run_test add_instrumentation
 run_test cache_partial_html
