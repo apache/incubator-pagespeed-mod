@@ -75,7 +75,6 @@ SUDO=${SUDO:-}
 SYSTEM_TEST_DIR="$(dirname "${BASH_SOURCE[0]}")/system_tests/"
 run_test check_headers
 run_test aris
-run_test pagespeed_on_off_unplugged_standby
 run_test css_combining_authorization
 run_test add_instrumentation
 run_test cache_partial_html
@@ -103,6 +102,7 @@ if [ $statistics_enabled = "1" ]; then
 fi
 run_test prioritize_critical_css
 if [ "$SECONDARY_HOSTNAME" != "" ]; then
+  run_test pagespeed_on_off_unplugged_standby
   run_test ajax_overrides_experiments
 
   # The broken_fetch test can only run with a file-cache, not with

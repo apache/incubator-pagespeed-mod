@@ -26,10 +26,10 @@ function assert_debug_off() {
   check_not_from "$OUT" grep "^mod_pagespeed on$"
 }
 function assert_collapse_on() {
-  check_from "$OUT" grep "^<body>"
+  check_from "$OUT" grep "^</table>"
 }
 function assert_collapse_off() {
-  check_not_from "$OUT" grep "^<body>"
+  check_not_from "$OUT" grep "^</table>"
 }
 
 http_proxy=$SECONDARY_HOSTNAME
