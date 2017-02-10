@@ -322,16 +322,16 @@ void SystemServerContext::ApplySessionFetchers(
         system_request->local_port(), driver->async_fetcher()));
   }
 
+  if (driver->options()->num_custom_fetch_headers() > 0) {
+    driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),
+                                                    driver->async_fetcher()));
+  }
+
   if (options->max_fetch_redirects() > 0) {
     driver->SetSessionFetcher(new RedirectFollowingUrlAsyncFetcher(
         driver->async_fetcher(), system_request->url().as_string(),
         thread_system(), statistics(), options->max_fetch_redirects(),
         options));
-  }
-
-  if (driver->options()->num_custom_fetch_headers() > 0) {
-    driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),
-                                                    driver->async_fetcher()));
   }
 }
 
