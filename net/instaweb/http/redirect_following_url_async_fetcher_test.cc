@@ -27,6 +27,7 @@
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -209,6 +210,7 @@ class RedirectFollowingUrlAsyncFetcherTest : public ::testing::Test {
         {"http://longchain.com/foo6", HttpStatus::kOK, false, "", "response!"}};
     SETUPRESPONSECHAIN(longchain);
     domain_lawyer_->AddDomain("http://longchain.com/", &handler);
+
 
     SimpleResponse missinglocation[] = {{"http://missinglocation.com",
                                          HttpStatus::kMovedPermanently, false,
@@ -400,6 +402,65 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectChainWorks) {
   EXPECT_STREQ("response!", fetch.content());
 }
 
+TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectChainGivesSmallestTTL) {
+  //kDefaultHttpOptionsForTests.cache_temp_redirects = true;
+  HttpOptions http_options(kDefaultHttpOptionsForTests);
+  //http_options.cache_temp_redirects = true;
+  MockFetch fetch(RequestContextPtr(new RequestContext(
+      http_options, thread_system_->NewMutex(), NULL)), true);
+/*
+  MockFetch* fetch = new MockFetch(
+      RequestContextPtr(new RequestContext(
+          http_options_, thread_system_->NewMutex(), NULL)),
+*/
+
+
+  //MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
+  //                true);
+  // lots of redirects, but less then kMaxRedirects
+  SimpleResponse ttlchain[] = {
+      {"http://ttlchain.com/foo", HttpStatus::kMovedPermanently, true,
+        "http://ttlchain.com/foo2", ""},
+      {"http://ttlchain.com/foo2", HttpStatus::kMovedPermanently, true,
+        "http://ttlchain.com/foo3", ""},
+      {"http://ttlchain.com/foo3", HttpStatus::kOK, false, "", "response!"}};
+  NullMessageHandler handler;
+  domain_lawyer_->AddDomain("http://ttlchain.com/", &handler);
+  size_t size = sizeof(ttlchain) / sizeof(ttlchain[0]);
+  int two_seconds_ttl_ms = 1000 * 200;
+  for (size_t i = 0; i < size; i++) {
+    SimpleResponse response = ttlchain[i];
+    // Set fetcher result and headers.
+    ResponseHeaders headers;
+    headers.set_major_version(1);
+    headers.set_minor_version(1);
+    headers.SetStatusAndReason(response.status_code);
+
+    // Give the second redirect a small TTL.
+    // This is the TTL that we want to see in the final 200 response.
+    if (i == 1) {
+      headers.SetDateAndCaching(timer_.NowMs(), two_seconds_ttl_ms);
+    } else{
+      headers.SetDateAndCaching(timer_.NowMs(), ttl_ms_);
+    }
+    if (response.set_location) {
+      headers.Add("Location", response.location);
+    }
+    headers.SetCacheControlPublic();
+    mock_fetcher_.SetResponse(response.url, headers, response.body);
+  }
+  //rewrite_options_->set_cache_temp_redirects(true);
+
+  redirect_following_fetcher_->Fetch("http://ttlchain.com/foo", &handler_,
+                                     &fetch);
+  EXPECT_TRUE(fetch.done());
+  EXPECT_TRUE(fetch.success());
+  EXPECT_EQ(3, counting_fetcher_->fetch_count());
+  EXPECT_EQ(two_seconds_ttl_ms, fetch.response_headers()->cache_ttl_ms());
+  EXPECT_EQ(HttpStatus::kOK, fetch.response_headers()->status_code());
+  EXPECT_STREQ("response!", fetch.content());
+}
+
 TEST_F(RedirectFollowingUrlAsyncFetcherTest, DirectCycleFails) {
   MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
                   true);
@@ -577,6 +638,9 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest,
   EXPECT_EQ(2, counting_fetcher_->fetch_count());
   EXPECT_EQ(HttpStatus::kOK, fetch.response_headers()->status_code());
   EXPECT_STREQ("SingleRedirectInContextWithoutExplicitAuth", fetch.content());
+  // We should get the minimum TTL encountered along the chain, which is the default
+  // unspecified TTL in this case (300 seconds)
+  EXPECT_EQ(300000, fetch.response_headers()->cache_ttl_ms());
 }
 
 TEST_F(RedirectFollowingUrlAsyncFetcherTest,

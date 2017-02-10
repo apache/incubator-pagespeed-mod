@@ -25,6 +25,7 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
+#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/platform.h"
 
@@ -36,37 +37,39 @@ class RewriteOptions;
 class Statistics;
 class ThreadSystem;
 
-typedef std::set<GoogleString> GoogleUrlSet;
-
 class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
+
  public:
+  static const int64 kUnset;
+
   // Does not take ownership of 'fetcher'.
+  // The context_url is needed for verifying that the url we are about to
+  // redirect to is authorized.
   RedirectFollowingUrlAsyncFetcher(UrlAsyncFetcher* fetcher,
-                                   GoogleString context_url,
+                                   const GoogleString& context_url,
                                    ThreadSystem* thread_system,
                                    Statistics* statistics, int max_redirects,
                                    RewriteOptions* rewrite_options);
 
   virtual ~RedirectFollowingUrlAsyncFetcher();
 
-  virtual bool SupportsHttps() const { return base_fetcher_->SupportsHttps(); }
+  bool SupportsHttps() const override { return base_fetcher_->SupportsHttps(); }
 
   virtual void Fetch(const GoogleString& url, MessageHandler* message_handler,
                      AsyncFetch* fetch);
-
-  class RedirectFollowingFetch;
-  friend class RedirectFollowingFetch;
 
   // Returns the maximum number of redirects that will be followed.
   int max_redirects() { return max_redirects_; }
   const RewriteOptions* rewrite_options() { return rewrite_options_; }
 
  private:
+  class RedirectFollowingFetch;
+
   // Initiates a fetch of a pre-validated url originating from a Location
   // header of a response.
   void FollowRedirect(const GoogleString& valid_redirect_url,
                       MessageHandler* message_handler, AsyncFetch* fetch,
-                      GoogleUrlSet* redirects_followed_earlier);
+                      StringSet* redirects_followed_earlier, int64 max_age);
   UrlAsyncFetcher* base_fetcher_;
   // base url as stored on the request context.
   GoogleString context_url_;

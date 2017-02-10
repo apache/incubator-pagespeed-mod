@@ -29,6 +29,9 @@
 // TODO(oschaaf): inlining & intent should  be persisted across redirects.
 namespace net_instaweb {
 
+const int64 RedirectFollowingUrlAsyncFetcher::kUnset =
+  GOOGLE_LONGLONG(0x7FFFFFFFFFFFFFFF);
+
 class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
     : public SharedAsyncFetch {
  public:
@@ -38,13 +41,14 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
       const GoogleString& context_url, MessageHandler* message_handler)
       : SharedAsyncFetch(base_fetch),
         redirect_following_fetcher_(redirect_following_fetcher),
-        recieved_redirect_status_code_(false),
-        urls_seen_(new GoogleUrlSet()),
+        received_redirect_status_code_(false),
+        urls_seen_(new StringSet()),
         url_(url),
         gurl_(url),
         base_fetch_(base_fetch),
         context_url_(context_url),
-        message_handler_(message_handler) {
+        message_handler_(message_handler),
+        max_age_(kUnset) {
     GoogleString sanitized = GoogleUrl::Sanitize(url);
     urls_seen_->insert(sanitized);
   }
@@ -52,17 +56,18 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
   RedirectFollowingFetch(
       RedirectFollowingUrlAsyncFetcher* redirect_following_fetcher,
       AsyncFetch* base_fetch, const GoogleString& url,
-      const GoogleString& context_url, GoogleUrlSet* redirects_followed_earlier,
-      MessageHandler* message_handler)
+      const GoogleString& context_url, StringSet* redirects_followed_earlier,
+      MessageHandler* message_handler, int64 max_age)
       : SharedAsyncFetch(base_fetch),
         redirect_following_fetcher_(redirect_following_fetcher),
-        recieved_redirect_status_code_(false),
+        received_redirect_status_code_(false),
         urls_seen_(redirects_followed_earlier),
         url_(url),
         gurl_(url),
         base_fetch_(base_fetch),
         context_url_(context_url),
-        message_handler_(message_handler) {}
+        message_handler_(message_handler),
+        max_age_(max_age) {}
 
   bool Validate() {
     if (!gurl_.IsWebValid()) {
@@ -73,56 +78,68 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
   }
 
  protected:
-  virtual bool HandleFlush(MessageHandler* message_handler) {
-    if (!recieved_redirect_status_code_) {
+  bool HandleFlush(MessageHandler* message_handler) override {
+    if (!received_redirect_status_code_) {
       return SharedAsyncFetch::HandleFlush(message_handler);
     }
     return true;
   }
 
-  virtual void HandleHeadersComplete() {
-    GoogleString h = response_headers()->ToString();
+  void HandleHeadersComplete() override {
     // Currently we support permanent and temporary redirects.
-    recieved_redirect_status_code_ =
+    // TODO(oschaaf): use ResponseHeaders::IsRedirectStatus() once
+    // we support all redirect codes.
+    int tmp =
         response_headers()->status_code() == HttpStatus::kMovedPermanently ||
         response_headers()->status_code() == HttpStatus::kFound;
 
-    if (!recieved_redirect_status_code_) {
+    if (!tmp) {
+      if (max_age_ != kUnset) {
+        // We must reduce max_age_ to the minimum of max_age_ or its current
+        // value. If no cc is given, we should check the default.
+        if (response_headers()->cache_ttl_ms() > max_age_) {
+          response_headers()->SetCacheControlMaxAge(max_age_);
+        }
+      }
       SharedAsyncFetch::HandleHeadersComplete();
+    } else {
+      received_redirect_status_code_ = true;
     }
   }
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
-    if (!recieved_redirect_status_code_) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
+    if (!received_redirect_status_code_) {
       return SharedAsyncFetch::HandleWrite(content, handler);
     }
     return true;
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     DCHECK(gurl_.IsWebValid() || !success);
     const RewriteOptions* options =
         redirect_following_fetcher_->rewrite_options();
 
-    if (!recieved_redirect_status_code_) {
+    if (!received_redirect_status_code_) {
       SharedAsyncFetch::HandleDone(success);
       delete this;
       return;
     }
 
-    bool my_success = success;
     int redirects_followed = urls_seen_->size();
 
-    if (my_success) {
+    if (success) {
       // TODO(oschaaf): does this have the correct arguments?
       bool cacheable = response_headers()->IsProxyCacheable(
           base_fetch_->request_headers()->GetProperties(),
           ResponseHeaders::GetVaryOption(options->respect_vary()),
           ResponseHeaders::kHasValidator);
       if (!cacheable) {
-        LOG(WARNING) << "Not following uncacheable redirect: " << url_;
-        my_success = false;
+        message_handler_->Message(
+            kWarning, "Uncacheable response for %s", url_.c_str());
+        success = false;
+      } else {
+        max_age_ = std::min(max_age_, response_headers()->cache_ttl_ms());
       }
     }
 
@@ -131,67 +148,77 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
     GoogleString redirect_url;
 
     if (!raw_redirect_url) {
-      LOG(WARNING) << "Failed looking up exactly one Location: header " << url_;
-      my_success = false;
+      message_handler_->Message(kWarning,
+          "Failed looking up exactly one Location header: %s", url_.c_str());
+      success = false;
     } else if (!strlen(raw_redirect_url)) {
-      LOG(WARNING) << "Empty Location: header value";
-      my_success = false;
+      message_handler_->Message(kWarning, "Empty Location header value: %s", url_.c_str());
+      success = false;
     } else {
       redirect_url = GoogleUrl::Sanitize(raw_redirect_url);
       raw_redirect_url = redirect_url.c_str();
     }
 
-    if (my_success && FindIgnoreCase(redirect_url, "#") != StringPiece::npos) {
-      LOG(WARNING) << "Decline redirect to " << redirect_url
-                   << " fragments are not supported.";
-      my_success = false;
+    if (success && redirect_url.find('#') != StringPiece::npos) {
+      message_handler_->Message(
+          kWarning, "Decline redirect to '%s': fragments are not supported",
+          raw_redirect_url);
+      success = false;
     }
 
     scoped_ptr<GoogleUrl> redirect_gurl;
-    if (my_success) {
+    if (success) {
       redirect_gurl.reset(new GoogleUrl(gurl_, redirect_url));
       if (!redirect_gurl->IsWebValid()) {
-        LOG(WARNING) << "Invalid or unsupported url in location header: "
-                     << redirect_url;
-        my_success = false;
+        message_handler_->Message(
+            kWarning, "Invalid or unsupported url in location header: %s",
+            raw_redirect_url);
+        success = false;
       } else {
-        redirect_url = redirect_gurl->spec_c_str();
+        redirect_gurl->Spec().CopyToString(&redirect_url);
       }
     }
 
-    if (my_success) {
+    if (success) {
       if (redirects_followed > redirect_following_fetcher_->max_redirects()) {
-        LOG(WARNING) << "Max redirects " << redirects_followed << " / "
-                     << redirect_following_fetcher_->max_redirects()
-                     << " exceedeed for " << redirect_url;
-        my_success = false;
+        message_handler_->Message(
+            kWarning, "max redirects (%d) exceeded, not redirecting to %s",
+            redirect_following_fetcher_->max_redirects(), raw_redirect_url);
+        success = false;
       }
     }
 
-    if (my_success) {
-      std::pair<GoogleUrlSet::iterator, bool> ret =
+    if (success) {
+      std::pair<StringSet::iterator, bool> ret =
           urls_seen_->insert(redirect_url);
       if (!ret.second) {
-        LOG(WARNING) << "Already followed " << redirect_url;
-        my_success = false;
+        message_handler_->Message(
+            kWarning, "Cyclic redirect detected, aborting: %s",
+            raw_redirect_url);
+        success = false;
       }
     }
 
     const DomainLawyer* domain_lawyer = options->domain_lawyer();
 
-    if (my_success &&
+    if (success &&
         !domain_lawyer->IsDomainAuthorized(GoogleUrl(context_url_),
                                            *redirect_gurl)) {
-      LOG(WARNING) << "Unauthorized url: " << context_url_ << " -> "
-                   << redirect_gurl->Spec();
-      my_success = false;
+
+      message_handler_->Message(kWarning,
+                                "Unauthorized url: %s -> %s",
+                                context_url_.c_str(),
+                                raw_redirect_url);
+      success = false;
     }
-    if (my_success && !options->IsAllowed(redirect_gurl->Spec())) {
-      LOG(WARNING) << "Rewriting disallowed for " << redirect_gurl->Spec();
-      my_success = false;
+    if (success && !options->IsAllowed(redirect_gurl->Spec())) {
+      message_handler_->Message(
+          kWarning, "Rewriting disallowed for '%s'",
+          raw_redirect_url);
+      success = false;
     }
 
-    if (my_success) {
+    if (success) {
       GoogleString mapped_domain_name;
       GoogleString host_header;
       bool is_proxy;
@@ -203,10 +230,12 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
         redirect_url.assign(mapped_domain_name);
         if (redirect_gurl->SchemeIs("https") &&
             !redirect_following_fetcher_->SupportsHttps()) {
-          LOG(WARNING) << "Can't follow redirect to https because https is not "
-                          "supported: ' "
-                       << redirect_url;
-          my_success = false;
+
+          message_handler_->Message(
+              kWarning,
+              "Can't follow redirect to https because https is not supported: '%s'",
+              raw_redirect_url);
+          success = false;
         }
         if (!is_proxy) {
           request_headers()->Replace(HttpAttributes::kHost, host_header);
@@ -214,17 +243,19 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
       } else {
         // Shouldn't happen
         DCHECK(false);
-        LOG(WARNING) << "Invalid mapped url: " << redirect_gurl->Spec();
-        my_success = false;
+        message_handler_->Message(kError, "Invalid mapped url: '%s'",
+            raw_redirect_url);
+        success = false;
       }
     }
 
     // Wipe out the 3XX response. We'll either fail/404 or return 200/OK
     response_headers()->Clear();
 
-    if (my_success) {
+    if (success) {
       redirect_following_fetcher_->FollowRedirect(
-          redirect_url, message_handler_, base_fetch_, urls_seen_.release());
+          redirect_url, message_handler_, base_fetch_, urls_seen_.release(),
+          max_age_);
     } else {
       response_headers()->set_status_code(HttpStatus::kNotFound);
       SharedAsyncFetch::HandleDone(false);
@@ -235,19 +266,20 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
 
  private:
   RedirectFollowingUrlAsyncFetcher* redirect_following_fetcher_;
-  bool recieved_redirect_status_code_;
-  scoped_ptr<GoogleUrlSet> urls_seen_;
+  bool received_redirect_status_code_;
+  scoped_ptr<StringSet> urls_seen_;
   GoogleString url_;
   GoogleUrl gurl_;
   AsyncFetch* base_fetch_;
   const GoogleString context_url_;
   MessageHandler* message_handler_;
+  int64 max_age_;
 
   DISALLOW_COPY_AND_ASSIGN(RedirectFollowingFetch);
 };
 
 RedirectFollowingUrlAsyncFetcher::RedirectFollowingUrlAsyncFetcher(
-    UrlAsyncFetcher* fetcher, GoogleString context_url,
+    UrlAsyncFetcher* fetcher, const GoogleString& context_url,
     ThreadSystem* thread_system, Statistics* statistics, int max_redirects,
     RewriteOptions* rewrite_options)
     : base_fetcher_(fetcher),
@@ -261,10 +293,11 @@ RedirectFollowingUrlAsyncFetcher::~RedirectFollowingUrlAsyncFetcher() {}
 
 void RedirectFollowingUrlAsyncFetcher::FollowRedirect(
     const GoogleString& url, MessageHandler* message_handler, AsyncFetch* fetch,
-    GoogleUrlSet* redirects_followed_earlier) {
+    StringSet* redirects_followed_earlier, int64 max_age) {
   RedirectFollowingFetch* redirect_following_fetch =
       new RedirectFollowingFetch(this, fetch, url, context_url_,
-                                 redirects_followed_earlier, message_handler);
+                                 redirects_followed_earlier, message_handler,
+                                 max_age);
 
   if (redirect_following_fetch->Validate()) {
     base_fetcher_->Fetch(url, message_handler, redirect_following_fetch);
@@ -272,7 +305,6 @@ void RedirectFollowingUrlAsyncFetcher::FollowRedirect(
   } else {
     message_handler->Message(
         kWarning, "Decline following of bad redirect url: %s", url.c_str());
-    LOG(WARNING) << "Decline following of bad redirect url: " << url;
     redirect_following_fetch->Done(false);
   }
 }
@@ -286,7 +318,8 @@ void RedirectFollowingUrlAsyncFetcher::Fetch(const GoogleString& url,
   if (redirect_following_fetch->Validate()) {
     base_fetcher_->Fetch(url, message_handler, redirect_following_fetch);
   } else {
-    LOG(WARNING) << "Decline fetching of bad url: " << url << std::endl;
+    message_handler->Message(
+        kWarning, "Decline fetching of bad url: %s", url.c_str());
     redirect_following_fetch->Done(false);
   }
 }
