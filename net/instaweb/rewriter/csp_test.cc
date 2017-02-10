@@ -59,7 +59,7 @@ TEST(CspParseSourceTest, Quoted) {
       CspSourceExpression::Parse("'nonce-qwertyu12345'"));
 }
 
-TEST(CssParseSourceTest, NonQuoted) {
+TEST(CspParseSourceTest, NonQuoted) {
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnknown),
       CspSourceExpression::Parse("   "));
@@ -75,7 +75,7 @@ TEST(CssParseSourceTest, NonQuoted) {
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kHostSource, "*.example.com"),
-      CspSourceExpression::Parse("*example.com"));
+      CspSourceExpression::Parse("*.example.com"));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kHostSource,
