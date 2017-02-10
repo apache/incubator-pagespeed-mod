@@ -133,7 +133,7 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
       bool cacheable = response_headers()->IsProxyCacheable(
           base_fetch_->request_headers()->GetProperties(),
           ResponseHeaders::GetVaryOption(options->respect_vary()),
-          ResponseHeaders::kHasValidator);
+          ResponseHeaders::kNoValidator);
       if (!cacheable) {
         message_handler_->Message(
             kWarning, "Uncacheable response for %s", url_.c_str());
