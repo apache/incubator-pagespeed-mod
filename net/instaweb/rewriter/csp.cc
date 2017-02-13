@@ -30,7 +30,7 @@ namespace {
 void TrimCspWhitespace(StringPiece* input) {
   // AKA RWS in HTTP spec, which of course isn't the HTML notion of whitespace
   // that TrimWhitespace uses.
-  while (!input->empty() && ((*input)[0] == ' ' || (*input)[1] == '\t')) {
+  while (!input->empty() && ((*input)[0] == ' ' || (*input)[0] == '\t')) {
     input->remove_prefix(1);
   }
 

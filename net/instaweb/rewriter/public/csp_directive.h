@@ -32,7 +32,7 @@ namespace net_instaweb {
 
 struct CspDirectiveInfo;
 
-// Directives mentionned in the spec that we care (and comments for those
+// Directives mentioned in the spec that we care (and comments for those
 // where we don't).
 enum class CspDirective {
   // These take source list:
@@ -67,7 +67,7 @@ enum class CspDirective {
 };
 
 // Returns kNumSourceListDirectives if unrecognized.
-CspDirective LookupCspDirective(const StringPiece& name);
+CspDirective LookupCspDirective(StringPiece name);
 
 }  // namespace net_instaweb
 

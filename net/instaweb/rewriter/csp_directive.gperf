@@ -35,7 +35,7 @@ struct CspDirectiveInfo {
 "base-uri", CspDirective::kBaseUri
 %%
 
-CspDirective LookupCspDirective(const StringPiece& name) {
+CspDirective LookupCspDirective(StringPiece name) {
   const CspDirectiveInfo* info =
       CspDirectiveMapper::Lookup(name.data(), name.size());
   return info ? info->directive : CspDirective::kNumSourceListDirectives;

@@ -40,7 +40,7 @@ TEST(CspParseSourceTest, Quoted) {
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kStrictDynamic),
-      CspSourceExpression::Parse("   'strict-dynamic' "));
+      CspSourceExpression::Parse("  \t 'strict-dynamic' "));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnsafeInline),
@@ -93,23 +93,22 @@ TEST(CspParseSourceTest, NonQuoted) {
 }
 
 TEST(CspParseTest, Empty) {
-  std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
-      "   "));
+  std::unique_ptr<CspPolicy> policy(CspPolicy::Parse("   "));
   EXPECT_EQ(policy, nullptr);
 }
 
 TEST(CspParseTest, Basic) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
     "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"));
-  ASSERT_NE(policy, nullptr);
-  ASSERT_NE(policy->SourceListFor(CspDirective::kDefaultSrc), nullptr);
+  ASSERT_TRUE(policy != nullptr);
+  ASSERT_TRUE(policy->SourceListFor(CspDirective::kDefaultSrc) != nullptr);
   const std::vector<CspSourceExpression>& default_src =
       policy->SourceListFor(CspDirective::kDefaultSrc)->expressions();
   ASSERT_EQ(1, default_src.size());
   EXPECT_EQ(CspSourceExpression::kHostSource, default_src[0].kind());
   EXPECT_EQ("*", default_src[0].param());
 
-  ASSERT_NE(policy->SourceListFor(CspDirective::kScriptSrc), nullptr);
+  ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
   const std::vector<CspSourceExpression>& script_src =
       policy->SourceListFor(CspDirective::kScriptSrc)->expressions();
   ASSERT_EQ(2, script_src.size());
@@ -121,8 +120,8 @@ TEST(CspParseTest, Repeated) {
   // Repeating within same policy doesn't do anything.
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
     "script-src 'unsafe-inline' 'unsafe-eval'; script-src 'strict-dynamic'"));
-  ASSERT_NE(policy, nullptr);
-  ASSERT_NE(policy->SourceListFor(CspDirective::kScriptSrc), nullptr);
+  ASSERT_TRUE(policy != nullptr);
+  ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
   const std::vector<CspSourceExpression>& script_src =
       policy->SourceListFor(CspDirective::kScriptSrc)->expressions();
   ASSERT_EQ(2, script_src.size());
