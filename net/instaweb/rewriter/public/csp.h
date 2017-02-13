@@ -40,27 +40,78 @@ class CspSourceExpression {
     kUnsafeInline, kUnsafeEval, kStrictDynamic, kUnsafeHashedAttributes,
     kUnknown /* includes hash-or-nonce */
   };
+  
+  struct UrlData {
+    UrlData() {}
+    UrlData(StringPiece in_scheme, StringPiece in_host, 
+            StringPiece in_port, StringPiece in_path)
+        : scheme_part(in_scheme.as_string()),
+          host_part(in_host.as_string()),
+          port_part(in_port.as_string()),
+          path_part(in_path.as_string()) {}
+    
+    GoogleString scheme_part;  // doesn't include :
+    GoogleString host_part;
+    GoogleString port_part;
+    GoogleString path_part;
+    
+    GoogleString DebugString() const {
+      return StrCat("scheme:", scheme_part, " host:", host_part, 
+                    " port:", port_part, " path:", path_part);
+    }
+    
+    bool operator==(const UrlData& other) const {
+      return scheme_part == other.scheme_part &&
+             host_part == other.host_part &&
+             port_part == other.port_part &&
+             path_part == other.path_part;
+    }
+  };
 
   CspSourceExpression() : kind_(kUnknown) {}
   explicit CspSourceExpression(Kind kind): kind_(kind) {}
-  CspSourceExpression(Kind kind, StringPiece input)
-      : kind_(kind), param_(input.as_string()) {}
+  CspSourceExpression(Kind kind, const UrlData& url_data) : kind_(kind) {
+    *mutable_url_data() = url_data;
+  }
 
   static CspSourceExpression Parse(StringPiece input);
+  
+  GoogleString DebugString() const {
+    return StrCat("kind:", IntegerToString(kind_), 
+                  " url_data:{", url_data().DebugString(), "}");
+  }
 
   bool operator==(const CspSourceExpression& other) const {
-    return kind_ == other.kind_ && param_ == other.param_;
+    return (kind_ == other.kind_) && (url_data() == other.url_data());
   }
 
   Kind kind() const { return kind_; }
-  const GoogleString& param() const { return param_; }
+  
+  const UrlData& url_data() const {
+    if (url_data_.get() == nullptr) {
+      url_data_.reset(new UrlData());
+    }
+    return *url_data_.get();
+  }  
 
  private:
   // input here is without the quotes, and non-empty.
   static CspSourceExpression ParseQuoted(StringPiece input);
-
+  
+  // Tries to see if the input is either an entire scheme-source, or the 
+  // scheme-part portion of a host-source, filling in url_data->scheme_part 
+  // appropriately. Returns true only if this is a scheme-source, however.
+  bool TryParseScheme(StringPiece* input);
+  
+  UrlData* mutable_url_data() {
+    if (url_data_.get() == nullptr) {
+      url_data_.reset(new UrlData());
+    }
+    return url_data_.get();
+  }
+  
   Kind kind_;
-  GoogleString param_;
+  mutable std::unique_ptr<UrlData> url_data_;
 };
 
 class CspSourceList {

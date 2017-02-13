@@ -49,43 +49,139 @@ inline bool IsAsciiAlpha(char ch) {
           ((ch >= 'A') && (ch <= 'Z')));
 }
 
+inline bool IsAsciiDigit(char ch) {
+  return ((ch >= '0') && (ch <= '9'));
+}
+
 }  // namespace
+
+bool CspSourceExpression::TryParseScheme(StringPiece* input) {
+  if (input->size() < 2) {
+    // Need at least a: or such.
+    return false;
+  }
+  
+  if (!IsAsciiAlpha((*input)[0])) {
+    return false;
+  }
+  
+  size_t pos = 1;
+  while (pos < input->size() &&
+         (IsAsciiAlphaNumeric((*input)[pos]) 
+          || (*input)[pos] == '+' 
+          || (*input)[pos] == '-' 
+          || (*input)[pos] == '.')) {
+    ++pos;
+  }
+  
+  if (pos == input->size() || (*input)[pos] != ':') {
+    // All schema characters, but no : or :// afterwards -> something else.
+    return false;
+  }
+  
+  if (pos == (input->size() - 1)) {
+    // Last character was also : -> clearly a scheme-source
+    kind_ = kSchemeSource;
+    input->substr(0, pos).CopyToString(&mutable_url_data()->scheme_part);
+    input->remove_prefix(pos + 1);
+    return true;
+  }
+  
+  // We now want to see if it's actually foo://
+  if ((pos + 2 < input->size())
+       && ((*input)[pos + 1] == '/') && ((*input)[pos + 2] == '/')) {
+    input->substr(0, pos).CopyToString(&mutable_url_data()->scheme_part);
+    input->remove_prefix(pos + 3);
+  }
+  
+  // Either way, it's not a valid scheme-source at this point, even if it's
+  // a valid host-source
+  return false;
+}
 
 CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
   TrimCspWhitespace(&input);
   if (input.empty()) {
-    return CspSourceExpression(kUnknown);
+    return CspSourceExpression();
   }
 
   if (input.size() > 2 && input[0] == '\'' && Last(input) == '\'') {
     return ParseQuoted(input.substr(1, input.size() - 2));
   }
-
-  // Check for scheme-source.
-  if (input.size() >= 2 && Last(input) == ':') {
-    // scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-    bool is_scheme = true;
-    if (IsAsciiAlpha(input[0])) {
-      for (size_t i = 1; i < (input.size() - 1); ++i) {
-        char c = input[i];
-        if (!IsAsciiAlphaNumeric(c) && (c != '+') && (c != '-') && (c != '.')) {
-          is_scheme = false;
-          break;
-        }
+  
+  CspSourceExpression result;
+  if (!result.TryParseScheme(&input)) {
+    // This looks like a host-source, and we have already skipped 
+    // over a scheme, and ://, if any.
+    // From the spec:
+    // host-source = [ scheme-part "://" ] host-part [ port-part ] [ path-part ]
+    
+    // host-part   = "*" / [ "*." ] 1*host-char *( "." 1*host-char )
+    // host-char   = ALPHA / DIGIT / "-"
+    // port-part   = ":" ( 1*DIGIT / "*" )
+    //
+    // Key bit from path-part: it's either empty or starts with /
+    result.kind_ = kHostSource;    
+    if (input.empty()) {
+      return CspSourceExpression();
+    }
+    
+    if (input.starts_with("*.")) {
+      result.mutable_url_data()->host_part = "*.";
+      input.remove_prefix(2);
+    } else if (input.starts_with("*")) {
+      result.mutable_url_data()->host_part = "*";
+      input.remove_prefix(1);
+    }
+    
+    while (!input.empty()
+           && (IsAsciiAlphaNumeric(input[0]) 
+               || (input[0] == '-') || (input[0] == '.'))) {
+      result.mutable_url_data()->host_part.push_back(input[0]);
+      input.remove_prefix(1);
+    }
+    
+    // Verify accumulated host-part is valid.
+    StringPiece host_part(result.url_data().host_part);    
+    if (host_part.empty()) {
+      return CspSourceExpression();
+    }
+    
+    if (host_part.starts_with("*")) {
+      if (!host_part.starts_with("*.") && (host_part != "*")) {
+        return CspSourceExpression();
       }
-    } else {
-      is_scheme = false;
     }
-
-    if (is_scheme) {
-      return CspSourceExpression(kSchemeSource, input);
+    
+    // Start on port-part, if any
+    if (input.starts_with(":")) {
+      input.remove_prefix(1);
+      if (input.empty()) {
+        return CspSourceExpression();
+      }
+      
+      if (IsAsciiDigit(input[0])) {
+        while (!input.empty() && IsAsciiDigit(input[0])) {
+          result.mutable_url_data()->port_part.push_back(input[0]);
+          input.remove_prefix(1);
+        }
+      } else if (input[0] == '*') {
+        result.mutable_url_data()->port_part = "*";
+        input.remove_prefix(1);
+      } else {
+        return CspSourceExpression();
+      }
     }
+    
+    // path-part, if any.
+    if (!input.empty() && input[0] != '/') {
+      return CspSourceExpression();
+    }
+      
+    input.CopyToString(&result.mutable_url_data()->path_part);
   }
-
-  // Assume host-source. It might make sense to split this down further here,
-  // that will become clear once the actual URL matching algorithm is
-  // implemented.
-  return CspSourceExpression(kHostSource, input);
+  
+  return result;
 }
 
 CspSourceExpression CspSourceExpression::ParseQuoted(StringPiece input) {
@@ -120,11 +216,22 @@ std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
   TrimCspWhitespace(&input);
   StringPieceVector tokens;
   SplitStringPieceToVector(input, " ", &tokens, true);
+  
+  // A single token of 'none' is equivalent to an empty list, and means reject.
+  //
+  // TODO(morlovich): There is some inconsistency with respect to the empty list
+  // case in the spec; the grammar doesn't permit one, but the algorithm 
+  // "Does url match source list in origin with redirect count?" assigns it
+  // semantics.    
+  if (tokens.size() == 1 && StringCaseEqual(tokens[0], "'none'")) {
+    return result;
+  }
+  
   for (StringPiece token : tokens) {
     TrimCspWhitespace(&token);
     CspSourceExpression expr = CspSourceExpression::Parse(token);
     if (expr.kind() != CspSourceExpression::kUnknown) {
-      result->expressions_.push_back(expr);
+      result->expressions_.push_back(std::move(expr));
     }
   }
 

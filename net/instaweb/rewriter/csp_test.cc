@@ -18,6 +18,7 @@
 
 #include "net/instaweb/rewriter/public/csp.h"
 
+#include <iostream>
 #include <memory>
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -27,6 +28,17 @@
 
 namespace net_instaweb {
 
+// Help gTest printing.
+  
+::std::ostream& operator<<(::std::ostream& os, const CspSourceExpression& expr) {
+  return os << expr.DebugString();
+}
+
+::std::ostream& operator<<(::std::ostream& os, 
+                           const CspSourceExpression::UrlData& url_data) {
+  return os << url_data.DebugString();
+}
+  
 namespace {
 
 TEST(CspParseSourceTest, Quoted) {
@@ -65,31 +77,51 @@ TEST(CspParseSourceTest, NonQuoted) {
       CspSourceExpression::Parse("   "));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kSchemeSource, "https:"),
+      CspSourceExpression(CspSourceExpression::kSchemeSource, 
+                          CspSourceExpression::UrlData("https", "", "", "")),
       CspSourceExpression::Parse(" https:"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kSchemeSource,
-                          "weird-schema+-1.0:"),
-      CspSourceExpression::Parse("weird-schema+-1.0:"));
+      CspSourceExpression(
+            CspSourceExpression::kSchemeSource,
+            CspSourceExpression::UrlData("weird-scheme+-1.0", "", "", "")),
+      CspSourceExpression::Parse("weird-scheme+-1.0:"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHostSource, "*.example.com"),
+      CspSourceExpression(
+            CspSourceExpression::kHostSource, 
+            CspSourceExpression::UrlData("", "*.example.com", "", "")),
       CspSourceExpression::Parse("*.example.com"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHostSource,
-                          "http://www.example.com/dir"),
+      CspSourceExpression(
+            CspSourceExpression::kHostSource,
+            CspSourceExpression::UrlData("http", "www.example.com", "", 
+                                         "/dir")),
       CspSourceExpression::Parse("http://www.example.com/dir"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHostSource,
-                          "http://www.example.com/dir/file.js"),
+      CspSourceExpression(
+            CspSourceExpression::kHostSource,
+            CspSourceExpression::UrlData("http", "www.example.com", "", 
+                                         "/dir/file.js")),
       CspSourceExpression::Parse("http://www.example.com/dir/file.js"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHostSource, "*"),
+      CspSourceExpression(CspSourceExpression::kHostSource, 
+                          CspSourceExpression::UrlData("", "*", "", "")),
       CspSourceExpression::Parse("*"));
+}
+
+TEST(CspParseSourceListTest, None) {
+  // Special keyword "none", semantically equivalent to an empty 
+  // expressions list.
+  std::unique_ptr<CspSourceList> n1(CspSourceList::Parse(" 'None'  "));
+  std::unique_ptr<CspSourceList> n2(CspSourceList::Parse("'none'"));
+  ASSERT_TRUE(n1 != nullptr);
+  ASSERT_TRUE(n2 != nullptr);
+  EXPECT_TRUE(n1->expressions().empty());
+  EXPECT_TRUE(n2->expressions().empty());
 }
 
 TEST(CspParseTest, Empty) {
@@ -106,7 +138,8 @@ TEST(CspParseTest, Basic) {
       policy->SourceListFor(CspDirective::kDefaultSrc)->expressions();
   ASSERT_EQ(1, default_src.size());
   EXPECT_EQ(CspSourceExpression::kHostSource, default_src[0].kind());
-  EXPECT_EQ("*", default_src[0].param());
+  EXPECT_EQ(CspSourceExpression::UrlData("", "*", "", ""),
+            default_src[0].url_data());
 
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
   const std::vector<CspSourceExpression>& script_src =
