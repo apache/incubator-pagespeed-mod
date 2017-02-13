@@ -129,7 +129,6 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
     int redirects_followed = urls_seen_->size();
 
     if (success) {
-      // TODO(oschaaf): does this have the correct arguments?
       bool cacheable = response_headers()->IsProxyCacheable(
           base_fetch_->request_headers()->GetProperties(),
           ResponseHeaders::GetVaryOption(options->respect_vary()),
