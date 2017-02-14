@@ -20,8 +20,8 @@
 // Content-Security-Policy that's relevant for PageSpeed Automatic.
 // CspContext is the main class.
 
-#ifndef NET_INSTAWEB_REWRITER_CSP_H_
-#define NET_INSTAWEB_REWRITER_CSP_H_
+#ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
+#define NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
 
 #include <memory>
 #include <string>
@@ -40,26 +40,26 @@ class CspSourceExpression {
     kUnsafeInline, kUnsafeEval, kStrictDynamic, kUnsafeHashedAttributes,
     kUnknown /* includes hash-or-nonce */
   };
-  
+
   struct UrlData {
     UrlData() {}
-    UrlData(StringPiece in_scheme, StringPiece in_host, 
+    UrlData(StringPiece in_scheme, StringPiece in_host,
             StringPiece in_port, StringPiece in_path)
         : scheme_part(in_scheme.as_string()),
           host_part(in_host.as_string()),
           port_part(in_port.as_string()),
           path_part(in_path.as_string()) {}
-    
+
     GoogleString scheme_part;  // doesn't include :
     GoogleString host_part;
     GoogleString port_part;
     GoogleString path_part;
-    
+
     GoogleString DebugString() const {
-      return StrCat("scheme:", scheme_part, " host:", host_part, 
+      return StrCat("scheme:", scheme_part, " host:", host_part,
                     " port:", port_part, " path:", path_part);
     }
-    
+
     bool operator==(const UrlData& other) const {
       return scheme_part == other.scheme_part &&
              host_part == other.host_part &&
@@ -75,9 +75,9 @@ class CspSourceExpression {
   }
 
   static CspSourceExpression Parse(StringPiece input);
-  
+
   GoogleString DebugString() const {
-    return StrCat("kind:", IntegerToString(kind_), 
+    return StrCat("kind:", IntegerToString(kind_),
                   " url_data:{", url_data().DebugString(), "}");
   }
 
@@ -86,30 +86,30 @@ class CspSourceExpression {
   }
 
   Kind kind() const { return kind_; }
-  
+
   const UrlData& url_data() const {
     if (url_data_.get() == nullptr) {
       url_data_.reset(new UrlData());
     }
     return *url_data_.get();
-  }  
+  }
 
  private:
   // input here is without the quotes, and non-empty.
   static CspSourceExpression ParseQuoted(StringPiece input);
-  
-  // Tries to see if the input is either an entire scheme-source, or the 
-  // scheme-part portion of a host-source, filling in url_data->scheme_part 
+
+  // Tries to see if the input is either an entire scheme-source, or the
+  // scheme-part portion of a host-source, filling in url_data->scheme_part
   // appropriately. Returns true only if this is a scheme-source, however.
   bool TryParseScheme(StringPiece* input);
-  
+
   UrlData* mutable_url_data() {
     if (url_data_.get() == nullptr) {
       url_data_.reset(new UrlData());
     }
     return url_data_.get();
   }
-  
+
   Kind kind_;
   mutable std::unique_ptr<UrlData> url_data_;
 };
@@ -176,4 +176,4 @@ class CspContext {
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_REWRITER_CSP_H_
+#endif  // NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_

@@ -18,8 +18,8 @@
 //
 // Enum for Content-Security-Policy directives
 
-#ifndef NET_INSTAWEB_REWRITER_CSP_DIRECTIVE_H_
-#define NET_INSTAWEB_REWRITER_CSP_DIRECTIVE_H_
+#ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSP_DIRECTIVE_H_
+#define NET_INSTAWEB_REWRITER_PUBLIC_CSP_DIRECTIVE_H_
 
 #include <memory>
 #include <string>
@@ -71,4 +71,4 @@ CspDirective LookupCspDirective(StringPiece name);
 
 }  // namespace net_instaweb
 
-#endif  // NET_INSTAWEB_REWRITER_CSP_DIRECTIVE_H_
+#endif  // NET_INSTAWEB_REWRITER_PUBLIC_CSP_DIRECTIVE_H_

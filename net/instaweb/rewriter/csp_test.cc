@@ -29,16 +29,16 @@
 namespace net_instaweb {
 
 // Help gTest printing.
-  
+
 ::std::ostream& operator<<(::std::ostream& os, const CspSourceExpression& expr) {
   return os << expr.DebugString();
 }
 
-::std::ostream& operator<<(::std::ostream& os, 
+::std::ostream& operator<<(::std::ostream& os,
                            const CspSourceExpression::UrlData& url_data) {
   return os << url_data.DebugString();
 }
-  
+
 namespace {
 
 TEST(CspParseSourceTest, Quoted) {
@@ -55,12 +55,20 @@ TEST(CspParseSourceTest, Quoted) {
       CspSourceExpression::Parse("  \t 'strict-dynamic' "));
 
   EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("  \t 'strictly-unknown' "));
+
+  EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnsafeInline),
       CspSourceExpression::Parse("'unsafe-inline'"));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnsafeEval),
       CspSourceExpression::Parse("'unsafe-eval'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'unsafe-eviiiiiil'"));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnsafeHashedAttributes),
@@ -77,7 +85,7 @@ TEST(CspParseSourceTest, NonQuoted) {
       CspSourceExpression::Parse("   "));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kSchemeSource, 
+      CspSourceExpression(CspSourceExpression::kSchemeSource,
                           CspSourceExpression::UrlData("https", "", "", "")),
       CspSourceExpression::Parse(" https:"));
 
@@ -89,32 +97,100 @@ TEST(CspParseSourceTest, NonQuoted) {
 
   EXPECT_EQ(
       CspSourceExpression(
-            CspSourceExpression::kHostSource, 
+            CspSourceExpression::kHostSource,
             CspSourceExpression::UrlData("", "*.example.com", "", "")),
       CspSourceExpression::Parse("*.example.com"));
 
   EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("*example.com"));
+
+  // w/o a colon this is a hostname, not a scheme.
+  EXPECT_EQ(
+      CspSourceExpression(
+          CspSourceExpression::kHostSource,
+          CspSourceExpression::UrlData("", "http", "", "")),
+      CspSourceExpression::Parse("http"));
+
+  EXPECT_EQ(
       CspSourceExpression(
             CspSourceExpression::kHostSource,
-            CspSourceExpression::UrlData("http", "www.example.com", "", 
+            CspSourceExpression::UrlData("http", "www.example.com", "",
                                          "/dir")),
       CspSourceExpression::Parse("http://www.example.com/dir"));
 
   EXPECT_EQ(
       CspSourceExpression(
             CspSourceExpression::kHostSource,
-            CspSourceExpression::UrlData("http", "www.example.com", "", 
+            CspSourceExpression::UrlData("http", "www.example.com", "",
                                          "/dir/file.js")),
       CspSourceExpression::Parse("http://www.example.com/dir/file.js"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHostSource, 
+      CspSourceExpression(
+            CspSourceExpression::kHostSource,
+            CspSourceExpression::UrlData("", "www.example.com", "",
+                                         "/dir/file.js")),
+      CspSourceExpression::Parse("www.example.com/dir/file.js"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kHostSource,
                           CspSourceExpression::UrlData("", "*", "", "")),
       CspSourceExpression::Parse("*"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("http:!/example.com"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("http://"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("http:/"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("http:/example.com"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("?example.com/dir/file.js"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("http:///dir/file.js"));
+
+  EXPECT_EQ(
+      CspSourceExpression(
+          CspSourceExpression::kHostSource,
+          CspSourceExpression::UrlData("https", "*", "*", "/foo.js")),
+      CspSourceExpression::Parse("https://*:*/foo.js"));
+
+  // Test for no port after :. Note that this needs an explicit scheme, since
+  // www.example.com: would be a valid scheme-source!
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("http://www.example.com:"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("www.example.com:/foo"));
+
+  EXPECT_EQ(
+      CspSourceExpression(
+          CspSourceExpression::kHostSource,
+          CspSourceExpression::UrlData("https", "*", "443", "/foo.js")),
+      CspSourceExpression::Parse("https://*:443/foo.js"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("https://*:443?foo.js"));
 }
 
 TEST(CspParseSourceListTest, None) {
-  // Special keyword "none", semantically equivalent to an empty 
+  // Special keyword "none", semantically equivalent to an empty
   // expressions list.
   std::unique_ptr<CspSourceList> n1(CspSourceList::Parse(" 'None'  "));
   std::unique_ptr<CspSourceList> n2(CspSourceList::Parse("'none'"));
