@@ -49,29 +49,41 @@ class CspSourceExpression {
   };
 
   struct UrlData {
-    UrlData() {}
+    UrlData() : path_exact_match(false) {}
+    // Constructor for tests, assumes already normalized.
     UrlData(StringPiece in_scheme, StringPiece in_host,
-            StringPiece in_port, StringPiece in_path)
+            StringPiece in_port, StringPiece in_path,
+            bool exact_match = false)
         : scheme_part(in_scheme.as_string()),
           host_part(in_host.as_string()),
           port_part(in_port.as_string()),
-          path_part(in_path.as_string()) {}
+          path_exact_match(exact_match) {
+      StringPieceVector portions;
+      SplitStringPieceToVector(in_path, "/", &portions, true);
+      for (StringPiece p : portions) {
+        path_part.push_back(p.as_string());
+      }
+    }
 
     GoogleString scheme_part;  // doesn't include :, lowercased.
     GoogleString host_part;    // lowercased.
     GoogleString port_part;
-    GoogleString path_part;
+    std::vector<GoogleString> path_part;  // normalized, separated by /
+    bool path_exact_match;
 
     GoogleString DebugString() const {
       return StrCat("scheme:", scheme_part, " host:", host_part,
-                    " port:", port_part, " path:", path_part);
+                    " port:", port_part,
+                    " path:",  JoinCollection(path_part, "/"),
+                    " path_exact_match:", BoolToString(path_exact_match));
     }
 
     bool operator==(const UrlData& other) const {
       return scheme_part == other.scheme_part &&
              host_part == other.host_part &&
              port_part == other.port_part &&
-             path_part == other.path_part;
+             path_part == other.path_part &&
+             path_exact_match == other.path_exact_match;
     }
   };
 

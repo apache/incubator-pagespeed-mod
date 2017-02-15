@@ -252,6 +252,11 @@ class GoogleUrl {
   // Result may contain: a-z A-Z 0-9 -._~:/?#[]@!$&'()*+,;=%
   static GoogleString Sanitize(StringPiece url);
 
+  // Returns the canonical representation of a given path component of URL.
+  // Will also prepend / if it's not there. This will follow the same rules for
+  // what's in %-encoded form and what isn't as GoogleUrl does.
+  static GoogleString CanonicalizePath(StringPiece path);
+
  private:
   // Returned by *Position methods when that position is not well-defined.
   static const size_t npos;

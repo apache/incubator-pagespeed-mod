@@ -121,21 +121,29 @@ TEST(CspParseSourceTest, NonQuoted) {
       CspSourceExpression(
             CspSourceExpression::kHostSource,
             CspSourceExpression::UrlData("http", "www.example.com", "",
-                                         "/dir")),
+                                         "/dir", true)),
       CspSourceExpression::Parse("http://www.example.com/dir"));
 
   EXPECT_EQ(
       CspSourceExpression(
             CspSourceExpression::kHostSource,
             CspSourceExpression::UrlData("http", "www.example.com", "",
-                                         "/dir/file.js")),
+                                         "/dir", false)),
+      CspSourceExpression::Parse("http://www.example.com/dir/"));
+
+
+  EXPECT_EQ(
+      CspSourceExpression(
+            CspSourceExpression::kHostSource,
+            CspSourceExpression::UrlData("http", "www.example.com", "",
+                                         "/dir/file.js", true)),
       CspSourceExpression::Parse("http://www.example.com/dir/file.js"));
 
   EXPECT_EQ(
       CspSourceExpression(
             CspSourceExpression::kHostSource,
             CspSourceExpression::UrlData("", "www.example.com", "",
-                                         "/dir/file.js")),
+                                         "/dir/file.js", true)),
       CspSourceExpression::Parse("www.example.com/dir/file.js"));
 
   EXPECT_EQ(
@@ -170,7 +178,7 @@ TEST(CspParseSourceTest, NonQuoted) {
   EXPECT_EQ(
       CspSourceExpression(
           CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("https", "*", "*", "/foo.js")),
+          CspSourceExpression::UrlData("https", "*", "*", "/foo.js", true)),
       CspSourceExpression::Parse("https://*:*/foo.js"));
 
   // Test for no port after :. Note that this needs an explicit scheme, since
@@ -186,7 +194,7 @@ TEST(CspParseSourceTest, NonQuoted) {
   EXPECT_EQ(
       CspSourceExpression(
           CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("https", "*", "443", "/foo.js")),
+          CspSourceExpression::UrlData("https", "*", "443", "/foo.js", true)),
       CspSourceExpression::Parse("https://*:443/foo.js"));
 
   EXPECT_EQ(
@@ -368,6 +376,12 @@ TEST_F(CspMatchSourceTest, Path) {
   // Paths are case sensitive.
   CheckMatch(false, "www.example.com/CSS/", "http://whatever",
              "http://www.example.com/css/pretty.css");
+
+  // Making sure we always get consistent canonicalization rules.
+  // notably here %2f is / --- which GURL knows not to unescape, but simpler
+  // GoogleUrl::UnescapeIgnorePlus wouldn't.
+  CheckMatch(true, "www.example.com/cs%2f/", "http://whatever",
+             "http://www.example.com/cs%2f/pretty.css");
 }
 
 TEST_F(CspMatchSourceTest, CaseSensitivity) {

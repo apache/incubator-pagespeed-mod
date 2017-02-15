@@ -175,7 +175,20 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
       return CspSourceExpression();
     }
 
-    input.CopyToString(&result.mutable_url_data()->path_part);
+    // Normalize and tokenize the path.
+    StringPieceVector components;
+    SplitStringPieceToVector(input, "/", &components, true);
+
+    for (StringPiece c : components) {
+      GoogleString canon = GoogleUrl::CanonicalizePath(c);
+      if (canon.empty()) {
+        LOG(DFATAL) << "Path canonicalization returned empty string?" << c;
+        return CspSourceExpression();
+      }
+      result.mutable_url_data()->path_part.push_back(canon.substr(1));
+    }
+    result.mutable_url_data()->path_exact_match =
+        !input.empty() && !input.ends_with("/");
   }
 
   return result;
@@ -225,7 +238,7 @@ bool CspSourceExpression::Matches(
   StringPiece expr_scheme = url_data().scheme_part;
   StringPiece expr_host = url_data().host_part;
   StringPiece expr_port = url_data().port_part;
-  StringPiece expr_path = url_data().path_part;
+  const std::vector<GoogleString>& expr_path = url_data().path_part;
 
   // Some special handling of *, which for some reason handles some schemes
   // a bit differently than other things with * host portion and no scheme
@@ -293,23 +306,19 @@ bool CspSourceExpression::Matches(
 
   if (!expr_path.empty()) {  // this would also be skipped for redirects
     // TODO(morlovich): Verify that behavior for query here is what we want.
-    bool exact_match = !expr_path.ends_with("/");
-    StringPieceVector expr_path_list, url_path_list;
-    SplitStringPieceToVector(expr_path, "/", &expr_path_list, true);
+    StringPieceVector url_path_list;
     SplitStringPieceToVector(url.PathAndLeaf(), "/", &url_path_list, true);
-    if (expr_path_list.size() > url_path_list.size()) {
+    if (expr_path.size() > url_path_list.size()) {
       return false;
     }
 
-    if (exact_match && (url_path_list.size() != expr_path_list.size())) {
+    if (url_data().path_exact_match
+        && (url_path_list.size() != expr_path.size())) {
       return false;
     }
 
-    for (int i = 0, n = expr_path_list.size(); i < n; ++i) {
-      StringPiece expr_path_piece = expr_path_list[i];
-      StringPiece url_path_piece = url_path_list[i];
-      if (GoogleUrl::UnescapeIgnorePlus(expr_path_piece) !=
-          GoogleUrl::UnescapeIgnorePlus(url_path_piece)) {
+    for (int i = 0, n = expr_path.size(); i < n; ++i) {
+      if (expr_path[i] != url_path_list[i]) {
         return false;
       }
     }
