@@ -578,6 +578,12 @@ TEST_F(CspMatchSourceTest, Path) {
   // Paths are case sensitive.
   CheckMatch(false, "www.example.com/CSS/", "http://whatever",
              "http://www.example.com/css/pretty.css");
+
+  // Making sure we always get consistent canonicalization rules.
+  // notably here %2f is / --- which GURL knows not to unescape, but simpler
+  // GoogleUrl::UnescapeIgnorePlus wouldn't.
+  CheckMatch(true, "www.example.com/cs%2f/", "http://whatever",
+             "http://www.example.com/cs%2f/pretty.css");
 }
 
 TEST_F(CspMatchSourceTest, CaseSensitivity) {
