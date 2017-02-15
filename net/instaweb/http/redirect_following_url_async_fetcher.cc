@@ -117,8 +117,6 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
 
   void HandleDone(bool success) override {
     DCHECK(gurl_.IsWebValid() || !success);
-    const RewriteOptions* options =
-        redirect_following_fetcher_->rewrite_options();
 
     if (!received_redirect_status_code_) {
       SharedAsyncFetch::HandleDone(success);
@@ -126,126 +124,17 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
       return;
     }
 
-    int redirects_followed = urls_seen_->size();
-
-    if (success) {
-      bool cacheable = response_headers()->IsProxyCacheable(
-          base_fetch_->request_headers()->GetProperties(),
-          ResponseHeaders::GetVaryOption(options->respect_vary()),
-          ResponseHeaders::kNoValidator);
-      if (!cacheable) {
-        message_handler_->Message(
-            kWarning, "Uncacheable response for %s", url_.c_str());
-        success = false;
-      } else {
-        max_age_ = std::min(max_age_, response_headers()->cache_ttl_ms());
-      }
-    }
-
-    const char* raw_redirect_url =
-        response_headers()->Lookup1(HttpAttributes::kLocation);
     GoogleString redirect_url;
-
-    if (!raw_redirect_url) {
-      message_handler_->Message(kWarning,
-          "Failed looking up exactly one Location header: %s", url_.c_str());
-      success = false;
-    } else if (!strlen(raw_redirect_url)) {
-      message_handler_->Message(kWarning, "Empty Location header value: %s", url_.c_str());
-      success = false;
-    } else {
-      redirect_url = GoogleUrl::Sanitize(raw_redirect_url);
-      raw_redirect_url = redirect_url.c_str();
-    }
-
-    if (success && redirect_url.find('#') != StringPiece::npos) {
-      message_handler_->Message(
-          kWarning, "Decline redirect to '%s': fragments are not supported",
-          raw_redirect_url);
-      success = false;
-    }
-
-    scoped_ptr<GoogleUrl> redirect_gurl;
-    if (success) {
-      redirect_gurl.reset(new GoogleUrl(gurl_, redirect_url));
-      if (!redirect_gurl->IsWebValid()) {
-        message_handler_->Message(
-            kWarning, "Invalid or unsupported url in location header: %s",
-            raw_redirect_url);
-        success = false;
-      } else {
-        redirect_gurl->Spec().CopyToString(&redirect_url);
-      }
-    }
+    GoogleString mapped_redirect_url;
 
     if (success) {
-      if (redirects_followed > redirect_following_fetcher_->max_redirects()) {
-        message_handler_->Message(
-            kWarning, "max redirects (%d) exceeded, not redirecting to %s",
-            redirect_following_fetcher_->max_redirects(), raw_redirect_url);
-        success = false;
-      }
+      success = TryExtractRedirectUrlFromResponseHeaders(redirect_url);
     }
-
     if (success) {
-      std::pair<StringSet::iterator, bool> ret =
-          urls_seen_->insert(redirect_url);
-      if (!ret.second) {
-        message_handler_->Message(
-            kWarning, "Cyclic redirect detected, aborting: %s",
-            raw_redirect_url);
-        success = false;
-      }
+      success = CheckRedirectAdministration(redirect_url);
     }
-
-    const DomainLawyer* domain_lawyer = options->domain_lawyer();
-
-    if (success &&
-        !domain_lawyer->IsDomainAuthorized(GoogleUrl(context_url_),
-                                           *redirect_gurl)) {
-
-      message_handler_->Message(kWarning,
-                                "Unauthorized url: %s -> %s",
-                                context_url_.c_str(),
-                                raw_redirect_url);
-      success = false;
-    }
-    if (success && !options->IsAllowed(redirect_gurl->Spec())) {
-      message_handler_->Message(
-          kWarning, "Rewriting disallowed for '%s'",
-          raw_redirect_url);
-      success = false;
-    }
-
     if (success) {
-      GoogleString mapped_domain_name;
-      GoogleString host_header;
-      bool is_proxy;
-      bool mapped = domain_lawyer->MapOriginUrl(
-          *redirect_gurl, &mapped_domain_name, &host_header, &is_proxy);
-
-      if (mapped) {
-        redirect_gurl->Reset(mapped_domain_name);
-        redirect_url.assign(mapped_domain_name);
-        if (redirect_gurl->SchemeIs("https") &&
-            !redirect_following_fetcher_->SupportsHttps()) {
-
-          message_handler_->Message(
-              kWarning,
-              "Can't follow redirect to https because https is not supported: '%s'",
-              raw_redirect_url);
-          success = false;
-        }
-        if (!is_proxy) {
-          request_headers()->Replace(HttpAttributes::kHost, host_header);
-        }
-      } else {
-        // Shouldn't happen
-        DCHECK(false);
-        message_handler_->Message(kError, "Invalid mapped url: '%s'",
-            raw_redirect_url);
-        success = false;
-      }
+      success = TryMapRedirect(redirect_url, mapped_redirect_url);
     }
 
     // Wipe out the 3XX response. We'll either fail/404 or return 200/OK
@@ -253,8 +142,8 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
 
     if (success) {
       redirect_following_fetcher_->FollowRedirect(
-          redirect_url, message_handler_, base_fetch_, urls_seen_.release(),
-          max_age_);
+          mapped_redirect_url, message_handler_, base_fetch_,
+          urls_seen_.release(), max_age_);
     } else {
       response_headers()->set_status_code(HttpStatus::kNotFound);
       SharedAsyncFetch::HandleDone(false);
@@ -264,6 +153,125 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
   }
 
  private:
+  void EmitRedirectWarning(const GoogleString& context_url,
+                           const GoogleString& redirect_url,
+                           const GoogleString message) {
+      const char* message_template = "Fetch redirect: [%s] -> [%s]: %s.";
+      message_handler_->Message(
+          kWarning, message_template, context_url.c_str(),
+          redirect_url.c_str(), message.c_str());
+  }
+
+  bool CheckRedirectAdministration(const GoogleString& redirect_url) {
+    int redirects_followed = urls_seen_->size();
+
+    if (redirects_followed > redirect_following_fetcher_->max_redirects()) {
+      EmitRedirectWarning(url_, redirect_url, "Max redirects exceeded");
+      return false;
+    }
+
+    std::pair<StringSet::iterator, bool> ret =
+        urls_seen_->insert(redirect_url);
+    if (!ret.second) {
+      EmitRedirectWarning(url_, redirect_url, "Cyclic redirect detected");
+      return false;
+    }
+    return true;
+  }
+
+  bool TryMapRedirect(const GoogleString& redirect_url,
+                           GoogleString& mapped_url) {
+
+    const RewriteOptions* options =
+        redirect_following_fetcher_->rewrite_options();
+    const DomainLawyer* domain_lawyer = options->domain_lawyer();
+
+    bool cacheable = response_headers()->IsProxyCacheable(
+        base_fetch_->request_headers()->GetProperties(),
+        ResponseHeaders::GetVaryOption(options->respect_vary()),
+        ResponseHeaders::kNoValidator);
+
+    if (!cacheable) {
+      EmitRedirectWarning(url_, "t.b.d.", "Redirect not cacheable, not following");
+      return false;
+    } else {
+      max_age_ = std::min(max_age_, response_headers()->cache_ttl_ms());
+    }
+    GoogleUrl redirect_gurl(gurl_, redirect_url);
+    if (!domain_lawyer->IsDomainAuthorized(GoogleUrl(context_url_),
+                                           redirect_gurl)) {
+      EmitRedirectWarning(context_url_, redirect_url, "Unauthorized");
+      return false;
+    }
+
+    if (!options->IsAllowed(redirect_gurl.Spec())) {
+      EmitRedirectWarning(context_url_, redirect_url, "Rewriting disallowed");
+      return false;
+    }
+
+    GoogleString mapped_domain_name;
+    GoogleString host_header;
+    bool is_proxy;
+    bool mapped = domain_lawyer->MapOriginUrl(
+        redirect_gurl, &mapped_domain_name, &host_header, &is_proxy);
+
+    if (mapped) {
+      redirect_gurl.Reset(mapped_domain_name);
+      mapped_url.assign(mapped_domain_name);
+      if (redirect_gurl.SchemeIs("https") &&
+          !redirect_following_fetcher_->SupportsHttps()) {
+        EmitRedirectWarning(url_, redirect_url, "Https not supported");
+        return false;
+      }
+      if (!is_proxy) {
+        request_headers()->Replace(HttpAttributes::kHost, host_header);
+      }
+    } else {
+      // Shouldn't happen
+      DCHECK(false);
+      EmitRedirectWarning(url_, redirect_url, "Invalid mapped url");
+      return false;
+    }
+    return true;
+  }
+
+  bool TryExtractRedirectUrlFromResponseHeaders(GoogleString& redirect_url) {
+    const char* raw_redirect_url =
+        response_headers()->Lookup1(HttpAttributes::kLocation);
+
+    if (!raw_redirect_url) {
+      EmitRedirectWarning(
+          url_, "none", "Failed looking up exactly one Location header");
+      return false;
+    } else if (!strlen(raw_redirect_url)) {
+      // todo(oschaaf): trim?!
+      EmitRedirectWarning(
+          url_, "", "Location header has an empty value");
+      return false;
+    } else {
+      redirect_url = GoogleUrl::Sanitize(raw_redirect_url);
+      raw_redirect_url = redirect_url.c_str();
+    }
+
+    if (redirect_url.find('#') != StringPiece::npos) {
+      EmitRedirectWarning(
+          url_, redirect_url, "Location url has a fragment, not following");
+      return false;
+    }
+
+    scoped_ptr<GoogleUrl> redirect_gurl;
+    redirect_gurl.reset(new GoogleUrl(gurl_, redirect_url));
+    if (!redirect_gurl->IsWebValid()) {
+      EmitRedirectWarning(
+          url_, redirect_url, "Invalid or unsupported url in location header");
+      return false;
+    } else {
+      redirect_gurl->Spec().CopyToString(&redirect_url);
+    }
+
+    return true;
+  }
+
   RedirectFollowingUrlAsyncFetcher* redirect_following_fetcher_;
   bool received_redirect_status_code_;
   scoped_ptr<StringSet> urls_seen_;

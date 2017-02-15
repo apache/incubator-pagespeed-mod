@@ -403,20 +403,11 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectChainWorks) {
 }
 
 TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectChainGivesSmallestTTL) {
-  //kDefaultHttpOptionsForTests.cache_temp_redirects = true;
   HttpOptions http_options(kDefaultHttpOptionsForTests);
-  //http_options.cache_temp_redirects = true;
   MockFetch fetch(RequestContextPtr(new RequestContext(
       http_options, thread_system_->NewMutex(), NULL)), true);
-/*
-  MockFetch* fetch = new MockFetch(
-      RequestContextPtr(new RequestContext(
-          http_options_, thread_system_->NewMutex(), NULL)),
-*/
 
 
-  //MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
-  //                true);
   // lots of redirects, but less then kMaxRedirects
   SimpleResponse ttlchain[] = {
       {"http://ttlchain.com/foo", HttpStatus::kMovedPermanently, true,
@@ -449,7 +440,6 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectChainGivesSmallestTTL) {
     headers.SetCacheControlPublic();
     mock_fetcher_.SetResponse(response.url, headers, response.body);
   }
-  //rewrite_options_->set_cache_temp_redirects(true);
 
   redirect_following_fetcher_->Fetch("http://ttlchain.com/foo", &handler_,
                                      &fetch);
