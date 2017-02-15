@@ -580,6 +580,26 @@ TEST_F(CspMatchSourceTest, Path) {
              "http://www.example.com/css/pretty.css");
 }
 
+TEST_F(CspMatchSourceTest, CaseSensitivity) {
+  // Scheme is case-insensitive, so is host.
+  CheckMatch(true, "HTTP:", "gopher://whatever", "http://www.example.com");
+  CheckMatch(true, "http:", "gopher://whatever", "HTTP://www.example.com");
+  CheckMatch(true, "HTTP://WWW.EXAMPLE.COM", "gopher://whatever",
+             "http://www.example.com");
+  CheckMatch(true, "http://www.example.com", "gopher://whatever",
+             "HTTP://WWW.EXAMPLE.COM");
+
+  // Paths are case-sensitive, though.
+  CheckMatch(false, "http://www.example.com/a.js", "gopher://whatever",
+             "http://www.example.com/A.JS");
+
+
+  // Make sure the logic about default ports works correctly with
+  // weird case, too.
+  CheckMatch(true, "'self'", "http://www.example.com",
+             "HTTP://www.example.com:80/something");
+}
+
 TEST(CspParseSourceListTest, None) {
   // Special keyword "none", semantically equivalent to an empty
   // expressions list.
