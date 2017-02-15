@@ -467,12 +467,10 @@ TEST_F(CspMatchSourceTest, Self) {
   CheckMatch(true, "'self'", "gopher://www.example.com:123/a.html",
              "gopher://www.example.com:123/b.js");
 
-  // Can upgrade from http to https or wss, but not hop to arbitrary
+  // Can upgrade from http to https, but not hop to arbitrary
   // unrelated port.
   CheckMatch(true, "'self'", "http://www.example.com/a.html",
              "https://www.example.com/b.js");
-  CheckMatch(true, "'self'", "http://www.example.com/a.html",
-             "wss://www.example.com/b.js");
   CheckMatch(false, "'self'", "https://www.example.com/a.html",
              "http://www.example.com/b.js");
   CheckMatch(true, "'self'", "http://www.example.com/a.html",
@@ -489,20 +487,10 @@ TEST_F(CspMatchSourceTest, Scheme) {
 
   // Protocol upgrade/switch special rules.
   CheckMatch(true, "http:", "gopher://whatever", "https://example.com");
-  CheckMatch(false, "http:", "gopher://whatever", "ws://example.com");
-  CheckMatch(false, "http:", "gopher://whatever", "wss://example.com");
+  CheckMatch(false, "http:", "gopher://whatever", "ftp://example.com");
 
   CheckMatch(false, "https:", "gopher://whatever", "http://example.com");
-  CheckMatch(false, "https:", "gopher://whatever", "ws://example.com");
-  CheckMatch(false, "https:", "gopher://whatever", "wss://example.com");
-
-  CheckMatch(true, "ws:", "gopher://whatever", "http://example.com");
-  CheckMatch(true, "ws:", "gopher://whatever", "https://example.com");
-  CheckMatch(true, "ws:", "gopher://whatever", "wss://example.com");
-
-  CheckMatch(false, "wss:", "gopher://whatever", "http://example.com");
-  CheckMatch(true, "wss:", "gopher://whatever", "https://example.com");
-  CheckMatch(false, "wss:", "gopher://whatever", "ws://example.com");
+  CheckMatch(false, "https:", "gopher://whatever", "ftp://example.com");
 }
 
 TEST_F(CspMatchSourceTest, Schemeless) {
@@ -519,15 +507,8 @@ TEST_F(CspMatchSourceTest, Schemeless) {
   // Upgrades and some switches are OK, too.
   CheckMatch(true, "www.example.com", "http://whatever",
              "https://www.example.com/foo.js");
-  CheckMatch(true, "www.example.com", "http://whatever",
-             "wss://www.example.com/foo.js");
-  CheckMatch(true, "www.example.com", "http://whatever",
-             "ws://www.example.com/foo.js");
-
-  CheckMatch(true, "www.example.com", "https://whatever",
-             "wss://www.example.com/foo.js");
   CheckMatch(false, "www.example.com", "https://whatever",
-             "ws://www.example.com/foo.js");
+             "ftp://www.example.com/foo.js");
   CheckMatch(false, "www.example.com", "https://whatever",
              "http://www.example.com/foo.js");
 }
