@@ -489,6 +489,10 @@ StringPiece GoogleUrl::UncheckedSpec() const {
   return StringPiece(spec.data(), spec.size());
 }
 
+int GoogleUrl::DefaultPortForScheme(StringPiece scheme) {
+  return url_canon::DefaultPortForScheme(scheme.data(), scheme.size());
+}
+
 UrlRelativity GoogleUrl::FindRelativity(StringPiece url) {
   GoogleUrl temp(url);
   if (temp.IsAnyValid()) {

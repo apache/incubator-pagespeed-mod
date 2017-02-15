@@ -664,4 +664,12 @@ TEST_F(GoogleUrlTest, Sanitize) {
   EXPECT_STREQ(escaped_random, GoogleUrl::Sanitize(escaped_random));
 }
 
+TEST_F(GoogleUrlTest, DefaultPortForScheme) {
+  EXPECT_EQ(url::PORT_UNSPECIFIED, GoogleUrl::DefaultPortForScheme("chipmunk"));
+  EXPECT_EQ(80, GoogleUrl::DefaultPortForScheme("http"));
+  EXPECT_EQ(443, GoogleUrl::DefaultPortForScheme("https"));
+  EXPECT_EQ(80, GoogleUrl::DefaultPortForScheme("ws"));
+  EXPECT_EQ(443, GoogleUrl::DefaultPortForScheme("wss"));
+}
+
 }  // namespace net_instaweb

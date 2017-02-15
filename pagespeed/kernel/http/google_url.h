@@ -182,6 +182,10 @@ class GoogleUrl {
   // Returns the effective port number, which is dependent on the scheme.
   int EffectiveIntPort() const { return gurl_.EffectiveIntPort(); }
 
+  // Returns the default port for given scheme, or url::PORT_UNSPECIFIED
+  // if the scheme isn't recognized. Scheme is expected to be in lowercase.
+  static int DefaultPortForScheme(StringPiece scheme);
+
   bool is_empty() const { return gurl_.is_empty(); }
   bool has_scheme() const { return gurl_.has_scheme(); }
   bool has_path() const { return gurl_.has_path(); }

@@ -30,6 +30,7 @@
 #include "net/instaweb/rewriter/public/csp_directive.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
 
@@ -76,6 +77,8 @@ class CspSourceExpression {
 
   static CspSourceExpression Parse(StringPiece input);
 
+  bool Matches(const GoogleUrl& origin_url, const GoogleUrl& url) const;
+
   GoogleString DebugString() const {
     return StrCat("kind:", IntegerToString(kind_),
                   " url_data:{", url_data().DebugString(), "}");
@@ -102,6 +105,8 @@ class CspSourceExpression {
   // scheme-part portion of a host-source, filling in url_data->scheme_part
   // appropriately. Returns true only if this is a scheme-source, however.
   bool TryParseScheme(StringPiece* input);
+
+  static bool HasDefaultPortForScheme(const GoogleUrl& url);
 
   UrlData* mutable_url_data() {
     if (url_data_.get() == nullptr) {

@@ -178,6 +178,146 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
   return result;
 }
 
+bool CspSourceExpression::Matches(
+    const GoogleUrl& origin_url, const GoogleUrl& url) const {
+  // Implementation of the "Does url match expression in origin with
+  // redirect count?" algorithm (where redirect count is 0 for our
+  // purposes, since we check the request).
+  // TODO(morlovich): This means redirect following may require changes
+  // here.
+  if (kind_ != kSelf && kind_ != kSchemeSource && kind_ != kHostSource) {
+    return false;
+  }
+
+  if (!origin_url.IsAnyValid() || !url.IsAnyValid()) {
+    return false;
+  }
+
+  // Check for 'self' first, since that doesn't need/have url_data()
+  if (kind_ == kSelf) {
+    if (origin_url.Origin() == url.Origin()) {
+      return true;
+    }
+
+    if (origin_url.Host() != url.Host()) {
+      return false;
+    }
+
+    if (origin_url.SchemeIs("http") &&
+        (url.SchemeIs("https") || url.SchemeIs("wss")) &&
+        ((origin_url.EffectiveIntPort() == url.EffectiveIntPort())
+         || (HasDefaultPortForScheme(origin_url)
+             && HasDefaultPortForScheme(url)))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Give our state some short names closer to those in the spec
+  StringPiece expr_scheme = url_data().scheme_part;
+  StringPiece expr_host = url_data().host_part;
+  StringPiece expr_port = url_data().port_part;
+  StringPiece expr_path = url_data().path_part;
+
+  // Some special handling of *, which for some reason handles some schemes
+  // a bit differently than other things with * host portion and no scheme
+  // specified.
+  if (kind_ == kHostSource &&
+      expr_scheme.empty() &&
+      expr_host == "*" &&
+      expr_port.empty() &&
+      expr_path.empty()) {
+    if (url.SchemeIs("http") ||
+        url.SchemeIs("https") ||
+        url.SchemeIs("ftp")) {
+      return true;
+    }
+    return StringCaseEqual(url.Scheme(), origin_url.Scheme());
+  }
+
+  // TODO(morlovich): Lowercase our state at parse, for efficiency?
+  if (!expr_scheme.empty()
+      && !StringCaseEqual(url.Scheme(), expr_scheme)
+      && !(StringCaseEqual(expr_scheme, "http") && url.SchemeIs("https"))
+      && !(StringCaseEqual(expr_scheme, "ws") &&
+           (url.SchemeIs("wss") || url.SchemeIs("http")
+            || url.SchemeIs("https")))
+      && !(StringCaseEqual(expr_scheme, "wss") && url.SchemeIs("https"))) {
+    return false;
+  }
+
+  if (kind_ == kSchemeSource) {
+    return true;
+  }
+
+  if (url.Host().empty() || expr_host.empty()) {
+    return false;
+  }
+
+  if (expr_scheme.empty()
+      && !StringCaseEqual(url.Scheme(), origin_url.Scheme())
+      && !(origin_url.SchemeIs("http") &&
+           (url.SchemeIs("https") || url.SchemeIs("ws") || url.SchemeIs("wss")))
+      && !(origin_url.SchemeIs("https") && url.SchemeIs("wss"))) {
+    return false;
+  }
+
+  if (expr_host[0] == '*') {
+    StringPiece remaining = expr_host.substr(1);
+    if (!StringCaseEndsWith(url.Host(), remaining)) {
+      return false;
+    }
+  } else {
+    if (!StringCaseEqual(url.Host(), expr_host)) {
+      return false;
+    }
+  }
+
+  // TODO(morlovich): Implement IP-address handling here, once appropriate
+  // spec has been read.
+
+  if (expr_port.empty()) {
+    if (!HasDefaultPortForScheme(url)) {
+      return false;
+    }
+  } else {
+    // TODO(morlovich): Check whether the :80/:443 case is about effective
+    // or explicit port.
+    if (expr_port != "*"
+        && expr_port != IntegerToString(url.EffectiveIntPort())
+        && !(expr_port == "80" && url.EffectiveIntPort() == 443)) {
+      return false;
+    }
+  }
+
+  if (!expr_path.empty()) {  // this would also be skipped for redirects
+    // TODO(morlovich): Verify that behavior for query here is what we want.
+    bool exact_match = !expr_path.ends_with("/");
+    StringPieceVector expr_path_list, url_path_list;
+    SplitStringPieceToVector(expr_path, "/", &expr_path_list, true);
+    SplitStringPieceToVector(url.PathAndLeaf(), "/", &url_path_list, true);
+    if (expr_path_list.size() > url_path_list.size()) {
+      return false;
+    }
+
+    if (exact_match && (url_path_list.size() != expr_path_list.size())) {
+      return false;
+    }
+
+    for (int i = 0, n = expr_path_list.size(); i < n; ++i) {
+      StringPiece expr_path_piece = expr_path_list[i];
+      StringPiece url_path_piece = url_path_list[i];
+      if (GoogleUrl::UnescapeIgnorePlus(expr_path_piece) !=
+          GoogleUrl::UnescapeIgnorePlus(url_path_piece)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 CspSourceExpression CspSourceExpression::ParseQuoted(StringPiece input) {
   CHECK(!input.empty());
 
@@ -202,6 +342,15 @@ CspSourceExpression CspSourceExpression::ParseQuoted(StringPiece input) {
     }
   }
   return CspSourceExpression(kUnknown);
+}
+
+bool CspSourceExpression::HasDefaultPortForScheme(const GoogleUrl& url) {
+  int url_scheme_port = GoogleUrl::DefaultPortForScheme(url.Scheme());
+  if (url_scheme_port == url::PORT_UNSPECIFIED) {
+    return false;
+  }
+
+  return (url_scheme_port == url.EffectiveIntPort());
 }
 
 std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
