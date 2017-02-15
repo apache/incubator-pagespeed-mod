@@ -19,6 +19,12 @@
 // This provides basic parsing and evaluation of a (subset of)
 // Content-Security-Policy that's relevant for PageSpeed Automatic.
 // CspContext is the main class.
+//
+// Limitations versus the full spec:
+// 1) We don't parse some kinds of source expressions, like nonce and hash ones.
+// 2) Only some of the directives are parsed.
+// 3) URL matching doesn't support WebSocket (ws: and wss:) schemes, since
+//    mod_pagespeed doesn't and they make for some really ugly conditionals.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
