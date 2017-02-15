@@ -77,6 +77,10 @@ TEST(CspParseSourceTest, Quoted) {
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnknown),
       CspSourceExpression::Parse("'nonce-qwertyu12345'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("''"));
 }
 
 TEST(CspParseSourceTest, NonQuoted) {
