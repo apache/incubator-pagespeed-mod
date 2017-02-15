@@ -57,8 +57,8 @@ class CspSourceExpression {
           port_part(in_port.as_string()),
           path_part(in_path.as_string()) {}
 
-    GoogleString scheme_part;  // doesn't include :
-    GoogleString host_part;
+    GoogleString scheme_part;  // doesn't include :, lowercased.
+    GoogleString host_part;    // lowercased.
     GoogleString port_part;
     GoogleString path_part;
 

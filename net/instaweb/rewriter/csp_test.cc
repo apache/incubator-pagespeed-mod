@@ -192,6 +192,13 @@ TEST(CspParseSourceTest, NonQuoted) {
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnknown),
       CspSourceExpression::Parse("https://*:443?foo.js"));
+
+  // Case normalization.
+  EXPECT_EQ(
+      CspSourceExpression(
+          CspSourceExpression::kHostSource,
+          CspSourceExpression::UrlData("https", "www.example.com", "", "")),
+      CspSourceExpression::Parse(" HttPs://www.EXAMPLE.com"));
 }
 
 class CspMatchSourceTest : public ::testing::Test {
@@ -363,6 +370,26 @@ TEST_F(CspMatchSourceTest, Path) {
              "http://www.example.com/css/pretty.css");
 }
 
+TEST_F(CspMatchSourceTest, CaseSensitivity) {
+  // Scheme is case-insensitive, so is host.
+  CheckMatch(true, "HTTP:", "gopher://whatever", "http://www.example.com");
+  CheckMatch(true, "http:", "gopher://whatever", "HTTP://www.example.com");
+  CheckMatch(true, "HTTP://WWW.EXAMPLE.COM", "gopher://whatever",
+             "http://www.example.com");
+  CheckMatch(true, "http://www.example.com", "gopher://whatever",
+             "HTTP://WWW.EXAMPLE.COM");
+
+  // Paths are case-sensitive, though.
+  CheckMatch(false, "http://www.example.com/a.js", "gopher://whatever",
+             "http://www.example.com/A.JS");
+
+
+  // Make sure the logic about default ports works correctly with
+  // weird case, too.
+  CheckMatch(true, "'self'", "http://www.example.com",
+             "HTTP://www.example.com:80/something");
+}
+
 TEST(CspParseSourceListTest, None) {
   // Special keyword "none", semantically equivalent to an empty
   // expressions list.
@@ -381,7 +408,7 @@ TEST(CspParseTest, Empty) {
 
 TEST(CspParseTest, Basic) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
-    "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"));
+      "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"));
   ASSERT_TRUE(policy != nullptr);
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kDefaultSrc) != nullptr);
   const std::vector<CspSourceExpression>& default_src =
@@ -402,7 +429,7 @@ TEST(CspParseTest, Basic) {
 TEST(CspParseTest, Repeated) {
   // Repeating within same policy doesn't do anything.
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
-    "script-src 'unsafe-inline' 'unsafe-eval'; script-src 'strict-dynamic'"));
+      "script-src 'unsafe-inline' 'unsafe-eval'; script-src 'strict-dynamic'"));
   ASSERT_TRUE(policy != nullptr);
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
   const std::vector<CspSourceExpression>& script_src =
