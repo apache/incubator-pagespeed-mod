@@ -244,7 +244,6 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
           url_, "none", "Failed looking up exactly one Location header");
       return false;
     } else if (!strlen(raw_redirect_url)) {
-      // todo(oschaaf): trim?!
       EmitRedirectWarning(
           url_, "", "Location header has an empty value");
       return false;
