@@ -139,6 +139,7 @@ void RecordingFetch::HandleHeadersComplete() {
       // kNotInCacheStatus instead to fall back to the server's native method of
       // serving the url and indicate we do want it recorded.
       if (!response_headers()->IsErrorStatus()) {
+        response_headers()->Clear();
         response_headers()->set_status_code(
             CacheUrlAsyncFetcher::kNotInCacheStatus);
       }
