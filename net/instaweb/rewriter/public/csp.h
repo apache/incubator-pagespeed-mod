@@ -200,6 +200,11 @@ class CspPolicy {
   bool PermitsInlineStyle() const;
   bool PermitsInlineStyleAttribute() const;
 
+  // Tests whether 'url' can be loaded within 'origin_url' as 'role', where
+  // 'role' should be kStyleSrc, kScriptSrc or kImgSrc.
+  bool CanLoadUrl(CspDirective role, const GoogleUrl& origin_url,
+                  const GoogleUrl& url) const;
+
  private:
   // The expectation is that some of these may be null.
   std::vector<std::unique_ptr<CspSourceList>> policies_;
@@ -228,6 +233,17 @@ class CspContext {
 
   bool PermitsInlineStyleAttribute() const {
     return AllPermit(&CspPolicy::PermitsInlineStyleAttribute);
+  }
+
+  bool CanLoadUrl(CspDirective role, const GoogleUrl& origin_url,
+                  const GoogleUrl& url) {
+    // All policies must OK, with base case being 'true'.
+    for (const auto& policy : policies_) {
+      if (!policy->CanLoadUrl(role, origin_url, url)) {
+        return false;
+      }
+    }
+    return true;
   }
 
  private:

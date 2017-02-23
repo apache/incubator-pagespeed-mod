@@ -560,7 +560,7 @@ TEST(CspParseTest, Repeated) {
 
 TEST(CspPolicyTest, Eval) {
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("image-src *"));
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
     ASSERT_TRUE(p != nullptr);
     // No default-src or script-src specified.
     EXPECT_TRUE(p->PermitsEval());
@@ -589,7 +589,7 @@ TEST(CspPolicyTest, Eval) {
 
 TEST(CspPolicyTest, InlineScript) {
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("image-src *"));
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_TRUE(p->PermitsInlineScript());
     EXPECT_TRUE(p->PermitsInlineScriptAttribute());
@@ -647,7 +647,7 @@ TEST(CspPolicyTest, InlineScript) {
 
 TEST(CspPolicyTest, InlineStyle) {
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("image-src *"));
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_TRUE(p->PermitsInlineStyle());
     EXPECT_TRUE(p->PermitsInlineStyleAttribute());
@@ -698,6 +698,44 @@ TEST(CspPolicyTest, InlineStyle) {
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsInlineStyle());
     EXPECT_FALSE(p->PermitsInlineStyleAttribute());
+  }
+}
+
+TEST(CspPolicyTest, CanLoadUrl) {
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(p->CanLoadUrl(CspDirective::kImgSrc,
+                              GoogleUrl("http://www.example.com/"),
+                              GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src 'self'"));
+    EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com/"),
+                               GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("default-src *"));
+    EXPECT_TRUE(p->CanLoadUrl(CspDirective::kImgSrc,
+                              GoogleUrl("http://www.example.com/"),
+                              GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("child-src *"));
+    EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com/"),
+                               GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "default-src *; img-src 'self'"));
+    EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com/"),
+                               GoogleUrl("http://www.example.org/foo.png")));
   }
 }
 

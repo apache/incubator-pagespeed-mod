@@ -545,4 +545,28 @@ bool CspPolicy::PermitsInlineStyleAttribute() const {
   return PermitsInlineStyle();
 }
 
+bool CspPolicy::CanLoadUrl(
+    CspDirective role, const GoogleUrl& origin_url,
+    const GoogleUrl& url) const {
+  // AKA: "Does url match source list in origin with redirect count?", combined
+  // with the various pre-request checks.
+  CHECK(role == CspDirective::kImgSrc || role == CspDirective::kStyleSrc ||
+        role == CspDirective::kScriptSrc);
+  const CspSourceList* source_list = SourceListFor(role);
+  if (source_list == nullptr) {
+    source_list = SourceListFor(CspDirective::kDefaultSrc);
+  }
+
+  if (source_list == nullptr) {
+    return false;
+  }
+
+  for (const CspSourceExpression& expr : source_list->expressions()) {
+    if (expr.Matches(origin_url, url)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace net_instaweb
