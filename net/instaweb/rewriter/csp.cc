@@ -436,6 +436,9 @@ std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
       case CspSourceExpression::kUnsafeHashedAttributes:
         result->saw_unsafe_hashed_attributes_ = true;
         break;
+      case CspSourceExpression::kHashOrNonce:
+        result->saw_hash_or_nonce_ = true;
+        break;
       default:
         result->expressions_.push_back(std::move(expr));
         break;
@@ -499,8 +502,7 @@ bool CspPolicy::PermitsEval() const {
 }
 
 bool CspPolicy::PermitsInlineScript() const {
-#if 0
-  const CspSourceList* script_src = SourceListFor(CspDirective::kScript);
+  const CspSourceList* script_src = SourceListFor(CspDirective::kScriptSrc);
   if (script_src == nullptr) {
     return true;
   }
@@ -509,19 +511,38 @@ bool CspPolicy::PermitsInlineScript() const {
     return false;
   }
 
-  // ... do 6.6.2.2?
-#endif
-  return false;
+  return (script_src->saw_unsafe_inline() && !script_src->saw_hash_or_nonce());
 }
 
 bool CspPolicy::PermitsInlineScriptAttribute() const {
-  return false;
+  const CspSourceList* script_src = SourceListFor(CspDirective::kScriptSrc);
+  if (script_src == nullptr) {
+    return true;
+  }
+
+  if (script_src->saw_strict_dynamic() &&
+      !script_src->saw_unsafe_hashed_attributes()) {
+    return false;
+  }
+
+  return (script_src->saw_unsafe_inline() && !script_src->saw_hash_or_nonce());
 }
 
 bool CspPolicy::PermitsInlineStyle() const {
-//   const CspSourceList* style_src = SourceListFor(CspDirective::kStyleSrc);
-//   return (style_src == nullptr || style_src->saw_unsafe_inline());
-  return false;
+  const CspSourceList* style_src = SourceListFor(CspDirective::kStyleSrc);
+  if (style_src == nullptr) {
+    return true;
+  }
+
+  if (style_src->saw_strict_dynamic()) {
+    return false;
+  }
+
+  return (style_src->saw_unsafe_inline() && !style_src->saw_hash_or_nonce());
+}
+
+bool CspPolicy::PermitsInlineStyleAttribute() const {
+  return PermitsInlineStyle();
 }
 
 }  // namespace net_instaweb
