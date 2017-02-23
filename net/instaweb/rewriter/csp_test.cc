@@ -782,6 +782,100 @@ TEST(CspParseTest, BaseUri) {
   }
 }
 
+TEST(CspContextText, BitField) {
+  {
+    // Base case.
+    CspContext ctx;
+    EXPECT_TRUE(ctx.PermitsEval());
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("script-src 'unsafe-eval'"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(ctx.PermitsEval());
+  }
+
+  {
+    // default-src is relevant here.
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("script-src 'unsafe-eval'"));
+    ctx.AddPolicy(CspPolicy::Parse("default-src *"));
+    EXPECT_FALSE(ctx.PermitsEval());
+  }
+}
+
+TEST(CspContext, CanLoadUrl) {
+  {
+    // Base case.
+    CspContext ctx;
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("script-src 'unsafe-eval'"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                                GoogleUrl("http://www.example.com"),
+                                GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("default-src https:"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("img-src https:"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("img-src 'self'"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                                GoogleUrl("http://www.example.com"),
+                                GoogleUrl("https://www.example.org/foo.png")));
+  }
+}
+
+TEST(CspContext, BaseUri) {
+  {
+    // Base case.
+    CspContext ctx;
+    EXPECT_TRUE(ctx.IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://sub.example.com")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("base-uri https:"));
+    ctx.AddPolicy(CspPolicy::Parse("base-uri *.example.com"));
+    EXPECT_TRUE(ctx.IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://sub.example.com")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("base-uri https:"));
+    ctx.AddPolicy(CspPolicy::Parse("base-uri *.example.com"));
+    EXPECT_FALSE(ctx.IsBasePermitted(GoogleUrl("http://example.com"),
+                                     GoogleUrl("https://sub.example.org")));
+  }
+}
+
 }  // namespace
 
 }  // namespace net_instaweb
