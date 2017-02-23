@@ -76,8 +76,36 @@ TEST(CspParseSourceTest, Quoted) {
       CspSourceExpression::Parse("'unsafe-hashed-attribUtes'"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression(CspSourceExpression::kHashOrNonce),
       CspSourceExpression::Parse("'nonce-qwertyu12345'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kHashOrNonce),
+      CspSourceExpression::Parse("'sha256-qwertyu12345='"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kHashOrNonce),
+      CspSourceExpression::Parse("'sha256-qwertyu12345/=='"));
+
+
+  // Some base64 errors.
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha256-'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha256-qwertyu12345========'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha256-qwertyu1.2345'"));
+
+
+  // Not a valid hashing algorithm.
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha1-qwertyu12345'"));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnknown),

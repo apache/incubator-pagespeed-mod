@@ -53,6 +53,12 @@ inline bool IsSchemeContinuation(char ch) {
   return IsAsciiAlphaNumeric(ch) || (ch == '+') || (ch == '-') || (ch == '.');
 }
 
+inline bool IsBase64Char(char ch) {
+  // ALPHA / DIGIT / "+" / "/" / "-" / "_"
+  return IsAsciiAlphaNumeric(ch) ||
+         (ch == '+') || (ch == '/') || (ch == '-') || (ch == '_');
+}
+
 }  // namespace
 
 bool CspSourceExpression::TryParseScheme(StringPiece* input) {
@@ -351,8 +357,38 @@ CspSourceExpression CspSourceExpression::ParseQuoted(StringPiece input) {
     if (StringCaseEqual(input, "strict-dynamic")) {
       return CspSourceExpression(kStrictDynamic);
     }
+    // TODO(morlovich): Test case sensitivity here and below against spec,
+    // potentially file feedback. What's a bit goofy is that the grammar, as
+    // interpreted by rules of RFC5234, calls for case-insensitive algorithm
+    // names, while the matching algorithm treats them case-sensitively.
+    if (StringCaseStartsWith(input, "sha256-") ||
+        StringCaseStartsWith(input, "sha384-") ||
+        StringCaseStartsWith(input, "sha512-")) {
+      input.remove_prefix(7);
+      return ParseBase64(input) ? CspSourceExpression(kHashOrNonce)
+                                : CspSourceExpression(kUnknown);
+    }
+  }
+
+  if (StringCaseStartsWith(input, "nonce-")) {
+    input.remove_prefix(6);
+    return ParseBase64(input) ? CspSourceExpression(kHashOrNonce)
+                              : CspSourceExpression(kUnknown);
   }
   return CspSourceExpression(kUnknown);
+}
+
+bool CspSourceExpression::ParseBase64(StringPiece input) {
+  // base64-value  = 1*( ALPHA / DIGIT / "+" / "/" / "-" / "_" )*2( "=" )
+  if (input.empty()) {
+    return false;
+  }
+
+  while (!input.empty() && IsBase64Char(input[0])) {
+    input.remove_prefix(1);
+  }
+
+  return input.empty() || (input == "=") || (input == "==");
 }
 
 bool CspSourceExpression::HasDefaultPortForScheme(const GoogleUrl& url) {
@@ -450,6 +486,42 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
   }
 
   return policy;
+}
+
+bool CspPolicy::PermitsEval() const {
+  // AKA EnsureCSPDoesNotBlockStringCompilation() from the spec.
+  const CspSourceList* relevant_list = SourceListFor(CspDirective::kScriptSrc);
+  if (relevant_list == nullptr) {
+    relevant_list = SourceListFor(CspDirective::kDefaultSrc);
+  }
+
+  return (relevant_list == nullptr || relevant_list->saw_unsafe_eval());
+}
+
+bool CspPolicy::PermitsInlineScript() const {
+#if 0
+  const CspSourceList* script_src = SourceListFor(CspDirective::kScript);
+  if (script_src == nullptr) {
+    return true;
+  }
+
+  if (script_src->saw_strict_dynamic()) {
+    return false;
+  }
+
+  // ... do 6.6.2.2?
+#endif
+  return false;
+}
+
+bool CspPolicy::PermitsInlineScriptAttribute() const {
+  return false;
+}
+
+bool CspPolicy::PermitsInlineStyle() const {
+//   const CspSourceList* style_src = SourceListFor(CspDirective::kStyleSrc);
+//   return (style_src == nullptr || style_src->saw_unsafe_inline());
+  return false;
 }
 
 }  // namespace net_instaweb

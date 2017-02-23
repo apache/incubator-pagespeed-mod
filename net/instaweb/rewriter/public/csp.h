@@ -21,7 +21,8 @@
 // CspContext is the main class.
 //
 // Limitations versus the full spec:
-// 1) We don't parse some kinds of source expressions, like nonce and hash ones.
+// 1) We don't fully parse some kinds of source expressions, like nonce and
+//    hash ones.
 // 2) Only some of the directives are parsed.
 // 3) URL matching doesn't support WebSocket (ws: and wss:) schemes, since
 //    mod_pagespeed doesn't, and they make for some really ugly conditionals.
@@ -45,7 +46,7 @@ class CspSourceExpression {
   enum Kind {
     kSelf, kSchemeSource, kHostSource,
     kUnsafeInline, kUnsafeEval, kStrictDynamic, kUnsafeHashedAttributes,
-    kUnknown /* includes hash-or-nonce */
+    kHashOrNonce, kUnknown
   };
 
   struct UrlData {
@@ -128,6 +129,9 @@ class CspSourceExpression {
   // input here is without the quotes, and non-empty.
   static CspSourceExpression ParseQuoted(StringPiece input);
 
+  // Returns true if input matches the base64-value production in CSP spec.
+  static bool ParseBase64(StringPiece input);
+
   // Tries to see if the input is either an entire scheme-source, or the
   // scheme-part portion of a host-source, filling in url_data->scheme_part
   // appropriately. Returns true only if this is a scheme-source, however.
@@ -178,16 +182,18 @@ class CspPolicy {
  public:
   CspPolicy();
 
-  // Just an example for now...
-  bool UnsafeEval() const { return false; /* */ }
-
   // May return null.
   static std::unique_ptr<CspPolicy> Parse(StringPiece input);
 
   // May return null.
-  const CspSourceList* SourceListFor(CspDirective directive) {
+  const CspSourceList* SourceListFor(CspDirective directive) const {
     return policies_[static_cast<int>(directive)].get();
   }
+
+  bool PermitsEval() const;
+  bool PermitsInlineScript() const;
+  bool PermitsInlineScriptAttribute() const;
+  bool PermitsInlineStyle() const;
 
  private:
   // The expectation is that some of these may be null.
@@ -199,8 +205,20 @@ class CspPolicy {
 // seems like it would keep the page author informed about our effects as it is.
 class CspContext {
  public:
-  bool UnsafeEval() const {
-    return AllPermit(&CspPolicy::UnsafeEval);
+  bool PermitsEval() const {
+    return AllPermit(&CspPolicy::PermitsEval);
+  }
+
+  bool PermitsInlineScript() const {
+    return AllPermit(&CspPolicy::PermitsInlineScript);
+  }
+
+  bool PermitsInlineScriptAttribute() const {
+    return AllPermit(&CspPolicy::PermitsInlineScriptAttribute);
+  }
+
+  bool PermitsInlineStyle() const {
+    return AllPermit(&CspPolicy::PermitsInlineStyle);
   }
 
  private:
