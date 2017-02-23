@@ -448,6 +448,16 @@ std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
   return result;
 }
 
+bool CspSourceList::Matches(
+    const GoogleUrl& origin_url, const GoogleUrl& url) const {
+  for (const CspSourceExpression& expr : expressions_) {
+    if (expr.Matches(origin_url, url)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 CspPolicy::CspPolicy() {
   policies_.resize(static_cast<size_t>(CspDirective::kNumSourceListDirectives));
 }
@@ -561,12 +571,18 @@ bool CspPolicy::CanLoadUrl(
     return false;
   }
 
-  for (const CspSourceExpression& expr : source_list->expressions()) {
-    if (expr.Matches(origin_url, url)) {
-      return true;
+  return source_list->Matches(origin_url, url);
+}
+
+bool CspPolicy::IsBasePermitted(
+    const GoogleUrl& previous_origin, const GoogleUrl& base_candidate) const {
+  const CspSourceList* source_list = SourceListFor(CspDirective::kBaseUri);
+  if (source_list != nullptr) {
+    if (!source_list->Matches(previous_origin, base_candidate)) {
+      return false;
     }
   }
-  return false;
+  return true;
 }
 
 }  // namespace net_instaweb

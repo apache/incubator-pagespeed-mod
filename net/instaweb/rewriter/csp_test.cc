@@ -739,6 +739,49 @@ TEST(CspPolicyTest, CanLoadUrl) {
   }
 }
 
+TEST(CspParseTest, BaseUri) {
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri *"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri 'self'"));
+    EXPECT_FALSE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri 'self'"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://example.com")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri *.example.com"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://sub.example.com")));
+    EXPECT_FALSE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://sub.example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "base-uri *.example.com *.example.org"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://sub.example.com")));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://sub.example.org")));
+  }
+}
+
 }  // namespace
 
 }  // namespace net_instaweb

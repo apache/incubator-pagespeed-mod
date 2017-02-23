@@ -171,6 +171,8 @@ class CspSourceList {
 
   bool saw_hash_or_nonce() const { return saw_hash_or_nonce_; }
 
+  bool Matches(const GoogleUrl& origin_url, const GoogleUrl& url) const;
+
  private:
   std::vector<CspSourceExpression> expressions_;
   bool saw_unsafe_inline_;
@@ -204,6 +206,9 @@ class CspPolicy {
   // 'role' should be kStyleSrc, kScriptSrc or kImgSrc.
   bool CanLoadUrl(CspDirective role, const GoogleUrl& origin_url,
                   const GoogleUrl& url) const;
+
+  bool IsBasePermitted(const GoogleUrl& previous_origin,
+                       const GoogleUrl& base_candidate) const;
 
  private:
   // The expectation is that some of these may be null.
@@ -240,6 +245,16 @@ class CspContext {
     // All policies must OK, with base case being 'true'.
     for (const auto& policy : policies_) {
       if (!policy->CanLoadUrl(role, origin_url, url)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool IsBasePermitted(const GoogleUrl& previous_origin,
+                       const GoogleUrl& base_candidate) const {
+    for (const auto& policy : policies_) {
+      if (!policy->IsBasePermitted(previous_origin, base_candidate)) {
         return false;
       }
     }
