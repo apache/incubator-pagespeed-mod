@@ -422,6 +422,42 @@ TEST(CspParseSourceListTest, None) {
   EXPECT_TRUE(n2->expressions().empty());
 }
 
+TEST(CspParseSourceListTest, Flags) {
+  {
+    std::unique_ptr<CspSourceList> l1(CspSourceList::Parse("'unsafe-eval'"));
+    EXPECT_FALSE(l1->saw_unsafe_inline());
+    EXPECT_TRUE(l1->saw_unsafe_eval());
+    EXPECT_FALSE(l1->saw_strict_dynamic());
+    EXPECT_FALSE(l1->saw_unsafe_hashed_attributes());
+  }
+
+  {
+    std::unique_ptr<CspSourceList> l2(CspSourceList::Parse("'unsafe-inline'"));
+    EXPECT_TRUE(l2->saw_unsafe_inline());
+    EXPECT_FALSE(l2->saw_unsafe_eval());
+    EXPECT_FALSE(l2->saw_strict_dynamic());
+    EXPECT_FALSE(l2->saw_unsafe_hashed_attributes());
+  }
+
+  {
+    std::unique_ptr<CspSourceList> l3(
+        CspSourceList::Parse("'unsafe-hashed-attributes'"));
+    EXPECT_FALSE(l3->saw_unsafe_inline());
+    EXPECT_FALSE(l3->saw_unsafe_eval());
+    EXPECT_FALSE(l3->saw_strict_dynamic());
+    EXPECT_TRUE(l3->saw_unsafe_hashed_attributes());
+  }
+
+  {
+    std::unique_ptr<CspSourceList> l4(
+        CspSourceList::Parse("'strict-dynamic'"));
+    EXPECT_FALSE(l4->saw_unsafe_inline());
+    EXPECT_FALSE(l4->saw_unsafe_eval());
+    EXPECT_TRUE(l4->saw_strict_dynamic());
+    EXPECT_FALSE(l4->saw_unsafe_hashed_attributes());
+  }
+}
+
 TEST(CspParseTest, Empty) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse("   "));
   EXPECT_EQ(policy, nullptr);
@@ -429,22 +465,37 @@ TEST(CspParseTest, Empty) {
 
 TEST(CspParseTest, Basic) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
-      "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"));
+      "default-src *; script-src https: 'unsafe-inline' 'unsafe-eval'"));
   ASSERT_TRUE(policy != nullptr);
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kDefaultSrc) != nullptr);
+  const CspSourceList* default_list =
+      policy->SourceListFor(CspDirective::kDefaultSrc);
   const std::vector<CspSourceExpression>& default_src =
-      policy->SourceListFor(CspDirective::kDefaultSrc)->expressions();
+      default_list->expressions();
   ASSERT_EQ(1, default_src.size());
   EXPECT_EQ(CspSourceExpression::kHostSource, default_src[0].kind());
   EXPECT_EQ(CspSourceExpression::UrlData("", "*", "", ""),
             default_src[0].url_data());
+  EXPECT_FALSE(default_list->saw_unsafe_inline());
+  EXPECT_FALSE(default_list->saw_unsafe_eval());
+  EXPECT_FALSE(default_list->saw_strict_dynamic());
+  EXPECT_FALSE(default_list->saw_unsafe_hashed_attributes());
+
 
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
+  const CspSourceList* source_list =
+      policy->SourceListFor(CspDirective::kScriptSrc);
   const std::vector<CspSourceExpression>& script_src =
-      policy->SourceListFor(CspDirective::kScriptSrc)->expressions();
-  ASSERT_EQ(2, script_src.size());
-  EXPECT_EQ(CspSourceExpression::kUnsafeInline, script_src[0].kind());
-  EXPECT_EQ(CspSourceExpression::kUnsafeEval, script_src[1].kind());
+      source_list->expressions();
+  ASSERT_EQ(1, script_src.size());
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kSchemeSource,
+                          CspSourceExpression::UrlData("https", "", "", "")),
+      script_src[0]);
+  EXPECT_TRUE(source_list->saw_unsafe_inline());
+  EXPECT_TRUE(source_list->saw_unsafe_eval());
+  EXPECT_FALSE(source_list->saw_strict_dynamic());
+  EXPECT_FALSE(source_list->saw_unsafe_hashed_attributes());
 }
 
 TEST(CspParseTest, Repeated) {
@@ -452,12 +503,16 @@ TEST(CspParseTest, Repeated) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
       "script-src 'unsafe-inline' 'unsafe-eval'; script-src 'strict-dynamic'"));
   ASSERT_TRUE(policy != nullptr);
-  ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
+  const CspSourceList* source_list =
+      policy->SourceListFor(CspDirective::kScriptSrc);
+  ASSERT_TRUE(source_list != nullptr);
   const std::vector<CspSourceExpression>& script_src =
-      policy->SourceListFor(CspDirective::kScriptSrc)->expressions();
-  ASSERT_EQ(2, script_src.size());
-  EXPECT_EQ(CspSourceExpression::kUnsafeInline, script_src[0].kind());
-  EXPECT_EQ(CspSourceExpression::kUnsafeEval, script_src[1].kind());
+      source_list->expressions();
+  ASSERT_EQ(0, script_src.size());
+  EXPECT_TRUE(source_list->saw_unsafe_inline());
+  EXPECT_TRUE(source_list->saw_unsafe_eval());
+  EXPECT_FALSE(source_list->saw_strict_dynamic());
+  EXPECT_FALSE(source_list->saw_unsafe_hashed_attributes());
 }
 
 }  // namespace

@@ -24,7 +24,7 @@
 // 1) We don't parse some kinds of source expressions, like nonce and hash ones.
 // 2) Only some of the directives are parsed.
 // 3) URL matching doesn't support WebSocket (ws: and wss:) schemes, since
-//    mod_pagespeed doesn't and they make for some really ugly conditionals.
+//    mod_pagespeed doesn't, and they make for some really ugly conditionals.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
@@ -148,13 +148,28 @@ class CspSourceExpression {
 
 class CspSourceList {
  public:
+  CspSourceList()
+      : saw_unsafe_inline_(false), saw_unsafe_eval_(false),
+        saw_strict_dynamic_(false), saw_unsafe_hashed_attributes_(false) {}
+
   static std::unique_ptr<CspSourceList> Parse(StringPiece input);
   const std::vector<CspSourceExpression>& expressions() const {
     return expressions_;
   }
 
+  bool saw_unsafe_inline() const { return saw_unsafe_inline_; }
+  bool saw_unsafe_eval() const { return saw_unsafe_eval_; }
+  bool saw_strict_dynamic() const { return saw_strict_dynamic_; }
+  bool saw_unsafe_hashed_attributes() const {
+    return saw_unsafe_hashed_attributes_;
+  }
+
  private:
   std::vector<CspSourceExpression> expressions_;
+  bool saw_unsafe_inline_;
+  bool saw_unsafe_eval_;
+  bool saw_strict_dynamic_;
+  bool saw_unsafe_hashed_attributes_;
 };
 
 // An individual policy. Note that a page is constrained by an intersection

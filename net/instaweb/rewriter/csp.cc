@@ -384,8 +384,25 @@ std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
   for (StringPiece token : tokens) {
     TrimCspWhitespace(&token);
     CspSourceExpression expr = CspSourceExpression::Parse(token);
-    if (expr.kind() != CspSourceExpression::kUnknown) {
-      result->expressions_.push_back(std::move(expr));
+    switch (expr.kind()) {
+      case CspSourceExpression::kUnknown:
+        // Skip over unknown stuff, it makes no difference anyway.
+        break;
+      case CspSourceExpression::kUnsafeInline:
+        result->saw_unsafe_inline_ = true;
+        break;
+      case CspSourceExpression::kUnsafeEval:
+        result->saw_unsafe_eval_ = true;
+        break;
+      case CspSourceExpression::kStrictDynamic:
+        result->saw_strict_dynamic_ = true;
+        break;
+      case CspSourceExpression::kUnsafeHashedAttributes:
+        result->saw_unsafe_hashed_attributes_ = true;
+        break;
+      default:
+        result->expressions_.push_back(std::move(expr));
+        break;
     }
   }
 
