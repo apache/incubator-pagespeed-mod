@@ -331,7 +331,7 @@ void SystemServerContext::ApplySessionFetchers(
     driver->SetSessionFetcher(new RedirectFollowingUrlAsyncFetcher(
         driver->async_fetcher(), system_request->url().as_string(),
         thread_system(), statistics(), options->max_fetch_redirects(),
-        options));
+        options->cache_temp_redirects(), options));
   }
 }
 

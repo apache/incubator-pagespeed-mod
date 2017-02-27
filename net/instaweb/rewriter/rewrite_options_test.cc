@@ -928,6 +928,7 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
     RewriteOptions::kCacheFragment,
     RewriteOptions::kCacheSmallImagesUnrewritten,
     RewriteOptions::kClientDomainRewrite,
+    RewriteOptions::kCacheTempRedirects,
     RewriteOptions::kCombineAcrossPaths,
     RewriteOptions::kContentExperimentID,
     RewriteOptions::kContentExperimentVariantID,

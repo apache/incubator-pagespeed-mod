@@ -107,7 +107,8 @@ class RedirectFollowingUrlAsyncFetcherTest : public ::testing::Test {
 
     redirect_following_fetcher_.reset(new RedirectFollowingUrlAsyncFetcher(
         counting_fetcher_.get(), "http://context.url/", thread_system_.get(),
-        &stats_, max_redirects_, rewrite_options_.get()));
+        &stats_, max_redirects_, false /* follow temporary redirects */,
+        rewrite_options_.get()));
 
     // single redirect
     SimpleResponse singleredirect[] = {
@@ -438,6 +439,56 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectChainGivesSmallestTTL) {
       headers.Add("Location", response.location);
     }
     headers.SetCacheControlPublic();
+    mock_fetcher_.SetResponse(response.url, headers, response.body);
+  }
+
+  redirect_following_fetcher_->Fetch("http://ttlchain.com/foo", &handler_,
+                                     &fetch);
+  EXPECT_TRUE(fetch.done());
+  EXPECT_TRUE(fetch.success());
+  EXPECT_EQ(3, counting_fetcher_->fetch_count());
+  EXPECT_EQ(two_seconds_ttl_ms, fetch.response_headers()->cache_ttl_ms());
+  EXPECT_EQ(HttpStatus::kOK, fetch.response_headers()->status_code());
+  EXPECT_STREQ("response!", fetch.content());
+}
+
+TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectTempChainGivesSmallestTTL) {
+  HttpOptions http_options(kDefaultHttpOptionsForTests);
+  MockFetch fetch(RequestContextPtr(new RequestContext(
+      http_options, thread_system_->NewMutex(), NULL)), true);
+
+
+  // lots of redirects, but less then kMaxRedirects
+  SimpleResponse ttlchain[] = {
+      {"http://ttlchain.com/foo", HttpStatus::kFound, true,
+        "http://ttlchain.com/foo2", ""},
+      {"http://ttlchain.com/foo2", HttpStatus::kFound, true,
+        "http://ttlchain.com/foo3", ""},
+      {"http://ttlchain.com/foo3", HttpStatus::kOK, false, "", "response!"}};
+  NullMessageHandler handler;
+  domain_lawyer_->AddDomain("http://ttlchain.com/", &handler);
+  size_t size = sizeof(ttlchain) / sizeof(ttlchain[0]);
+  int two_seconds_ttl_ms = 1000 * 200;
+  for (size_t i = 0; i < size; i++) {
+    SimpleResponse response = ttlchain[i];
+    // Set fetcher result and headers.
+    ResponseHeaders headers;
+    headers.set_major_version(1);
+    headers.set_minor_version(1);
+    headers.SetStatusAndReason(response.status_code);
+
+    // Give the second redirect a small TTL.
+    // This is the TTL that we want to see in the final 200 response.
+    if (i == 1) {
+      headers.SetDateAndCaching(timer_.NowMs(), two_seconds_ttl_ms);
+    } else{
+      headers.SetDateAndCaching(timer_.NowMs(), ttl_ms_);
+    }
+    if (response.set_location) {
+      headers.Add("Location", response.location);
+    }
+    headers.SetCacheControlPublic();
+    headers.set_cache_temp_redirects(true);
     mock_fetcher_.SetResponse(response.url, headers, response.body);
   }
 

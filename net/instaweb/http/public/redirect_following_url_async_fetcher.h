@@ -49,6 +49,7 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
                                    const GoogleString& context_url,
                                    ThreadSystem* thread_system,
                                    Statistics* statistics, int max_redirects,
+                                   bool follow_temp_redirects,
                                    RewriteOptions* rewrite_options);
 
   virtual ~RedirectFollowingUrlAsyncFetcher();
@@ -60,6 +61,7 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
 
   // Returns the maximum number of redirects that will be followed.
   int max_redirects() { return max_redirects_; }
+  bool follow_temp_redirects() { return follow_temp_redirects_; }
   const RewriteOptions* rewrite_options() { return rewrite_options_; }
 
  private:
@@ -74,6 +76,7 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
   // base url as stored on the request context.
   GoogleString context_url_;
   int max_redirects_;
+  bool follow_temp_redirects_;
   const RewriteOptions* rewrite_options_;
 
   DISALLOW_COPY_AND_ASSIGN(RedirectFollowingUrlAsyncFetcher);

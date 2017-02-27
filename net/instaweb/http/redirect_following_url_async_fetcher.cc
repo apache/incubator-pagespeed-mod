@@ -186,6 +186,11 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
         redirect_following_fetcher_->rewrite_options();
     const DomainLawyer* domain_lawyer = options->domain_lawyer();
 
+    if (redirect_following_fetcher_->follow_temp_redirects()) {
+      response_headers()->set_cache_temp_redirects(true);
+      response_headers()->ComputeCaching();
+    }
+
     bool cacheable = response_headers()->IsProxyCacheable(
         base_fetch_->request_headers()->GetProperties(),
         ResponseHeaders::GetVaryOption(options->respect_vary()),
@@ -287,10 +292,11 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
 RedirectFollowingUrlAsyncFetcher::RedirectFollowingUrlAsyncFetcher(
     UrlAsyncFetcher* fetcher, const GoogleString& context_url,
     ThreadSystem* thread_system, Statistics* statistics, int max_redirects,
-    RewriteOptions* rewrite_options)
+    bool follow_temp_redirects, RewriteOptions* rewrite_options)
     : base_fetcher_(fetcher),
       context_url_(context_url),
       max_redirects_(max_redirects),
+      follow_temp_redirects_(follow_temp_redirects),
       rewrite_options_(rewrite_options) {
   CHECK(rewrite_options);
 }
@@ -320,7 +326,6 @@ void RedirectFollowingUrlAsyncFetcher::Fetch(const GoogleString& url,
                                              AsyncFetch* fetch) {
   RedirectFollowingFetch* redirect_following_fetch = new RedirectFollowingFetch(
       this, fetch, url, context_url_, message_handler);
-
   if (redirect_following_fetch->Validate()) {
     base_fetcher_->Fetch(url, message_handler, redirect_following_fetch);
   } else {

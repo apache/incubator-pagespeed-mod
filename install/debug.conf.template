@@ -1626,6 +1626,25 @@ ModPagespeedMessagesDomains Allow localhost
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
+  ServerName redirecting-fetch-temp.example.com
+
+  ModPagespeedCacheTempRedirects on
+  # We'll only follow 302's marked as explicitly cacheable.
+  Header always set Cache-Control "public, max-age=3000"
+
+
+  DocumentRoot "@@APACHE_DOC_ROOT@@"
+  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
+  ModPagespeedDomain redirecting-fetch-temp.example.com:@@APACHE_SECONDARY_PORT@@
+  ModPagespeedMapOriginDomain 127.0.0.1:@@APACHE_SECONDARY_PORT@@ \
+    redirecting-fetch-temp.example.com:@@APACHE_SECONDARY_PORT@@
+
+  Redirect temp /redir_to_test/styles/1.css /redir_to_test/styles/2.css
+  Redirect temp /redir_to_test/styles/2.css /mod_pagespeed_example/styles/yellow.css
+
+</VirtualHost>
+
+<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
   ServerName redirecting-fetch-single-only.example.com
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"

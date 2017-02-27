@@ -412,6 +412,9 @@ TEST_F(ResponseHeadersTest, TestCachingExplicitTempRedirect302) {
                       "Cache-control: max-age=300\r\n"
                       "\r\n"));
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
+  response_headers_.set_cache_temp_redirects(true);
+  response_headers_.ComputeCaching();
+  EXPECT_TRUE(response_headers_.IsProxyCacheable());
 }
 
 TEST_F(ResponseHeadersTest, TestCachingExplicitTempRedirect307) {
@@ -644,6 +647,80 @@ TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityFor302Redirect) {
       "Location: http://www.foo.com/\r\n"
       "Cache-control: max-age=300\r\n\r\n"));
   EXPECT_FALSE(response_headers_.IsProxyCacheable());
+
+  // 302 Redirects are not cacheable if there are no caching directives and no
+  // Set-Cookie headers.
+  response_headers_.Clear();
+  ParseHeaders(StrCat(
+      "HTTP/1.0 302 Moved\r\n"
+      "Date: ",
+      start_time_string_,
+      "\r\n"
+      "Location: http://www.foo.com/\r\n\r\n"));
+  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+
+  // 302 Redirects are not cacheable if there are cookies.
+  response_headers_.Clear();
+  ParseHeaders(StrCat(
+      "HTTP/1.0 302 Moved\r\n"
+      "Date: ",
+      start_time_string_,
+      "\r\n"
+      "Location: http://www.foo.com/\r\n"
+      "Set-Cookie: cookie\r\n"
+      "Set-Cookie: cookie2\r\n"
+      "Cache-control: max-age=300\r\n\r\n"));
+  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+
+  response_headers_.Clear();
+  ParseHeaders(StrCat(
+      "HTTP/1.0 302 Moved\r\n"
+      "Date: ",
+      start_time_string_,
+      "\r\n"
+      "Location: http://www.foo.com/\r\n"
+      "Set-Cookie2: cookie\r\n"
+      "Set-Cookie2: cookie2\r\n"
+      "Cache-control: max-age=300\r\n\r\n"));
+  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+
+  // 302 Redirects are not cacheable if there are cookies and no caching
+  // headers.
+  response_headers_.Clear();
+  ParseHeaders(StrCat(
+      "HTTP/1.0 302 Moved\r\n"
+      "Date: ",
+      start_time_string_,
+      "\r\n"
+      "Location: http://www.foo.com/\r\n"
+      "Set-Cookie: cookie\r\n"
+      "Set-Cookie: cookie2\r\n\r\n"));
+  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+
+  response_headers_.Clear();
+  ParseHeaders(StrCat(
+      "HTTP/1.0 302 Moved\r\n"
+      "Date: ",
+      start_time_string_,
+      "\r\n"
+      "Location: http://www.foo.com/\r\n"
+      "Set-Cookie2: cookie\r\n"
+      "Set-Cookie2: cookie2\r\n\r\n"));
+  EXPECT_FALSE(response_headers_.IsProxyCacheable());
+}
+
+TEST_F(ResponseHeadersTest, TestSetCookieCacheabilityFor302RedirectWithCaching) {
+  response_headers_.set_cache_temp_redirects(true);
+  // 302 Redirects are cacheable if there are explicit caching directives,
+  // but no Set-Cookie headers.
+  ParseHeaders(StrCat(
+      "HTTP/1.0 302 Moved\r\n"
+      "Date: ",
+      start_time_string_,
+      "\r\n"
+      "Location: http://www.foo.com/\r\n"
+      "Cache-control: max-age=300\r\n\r\n"));
+  EXPECT_TRUE(response_headers_.IsProxyCacheable());
 
   // 302 Redirects are not cacheable if there are no caching directives and no
   // Set-Cookie headers.

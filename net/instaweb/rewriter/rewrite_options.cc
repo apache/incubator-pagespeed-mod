@@ -74,6 +74,7 @@ const char RewriteOptions::kCacheFragment[] = "CacheFragment";
 const char RewriteOptions::kCacheSmallImagesUnrewritten[] =
     "CacheSmallImagesUnrewritten";
 const char RewriteOptions::kClientDomainRewrite[] = "ClientDomainRewrite";
+const char RewriteOptions::kCacheTempRedirects[] = "CacheTempRedirects";
 const char RewriteOptions::kCombineAcrossPaths[] = "CombineAcrossPaths";
 const char RewriteOptions::kCompressMetadataCache[] = "CompressMetadataCache";
 const char RewriteOptions::kContentExperimentID[] = "ContentExperimentID";
@@ -1709,6 +1710,11 @@ void RewriteOptions::AddProperties() {
       kClientDomainRewrite,
       kDirectoryScope,
       "Allow rewrite_domains to rewrite urls on the client side.", true);
+  AddBaseProperty(
+      false, &RewriteOptions::cache_temp_redirects_, "ctr",
+      kCacheTempRedirects,
+      kServerScope /* TODO(oschaaf): XXX */,
+      "Treat temporary redirects as cacheable.", true);
   AddBaseProperty(
       kDefaultImageJpegRecompressQuality,
       &RewriteOptions::image_jpeg_recompress_quality_, "iq",
@@ -5134,6 +5140,7 @@ HttpOptions RewriteOptions::ComputeHttpOptions() const {
   HttpOptions options;
   options.respect_vary = respect_vary();
   options.implicit_cache_ttl_ms = implicit_cache_ttl_ms();
+  options.cache_temp_redirects = cache_temp_redirects();
   return options;
 }
 

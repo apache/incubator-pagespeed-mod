@@ -670,7 +670,8 @@ class InstawebCacheComputer : public CachingHeaders {
   // them correctly (say 304 or 206, which depend upon input headers).
   bool IsAllowedCacheableStatusCode() {
     // For now it's identical to the default cacheable list.
-    return IsCacheableResourceStatusCode();
+    return IsCacheableResourceStatusCode() ||
+      (response_headers_.http_options().cache_temp_redirects && status_code() == 302);
 
     // Note: We have made a conscious decision not to allow caching
     // 302 Found or 307 Temporary Redirect even if they explicitly

@@ -28,7 +28,8 @@ struct HttpOptions {
   bool respect_vary;
   // TTL assigned to resources with no explicit caching headers.
   int64 implicit_cache_ttl_ms;
-
+  // Treat temporary redirects as cacheable
+  bool cache_temp_redirects;
   // Allow copy and assign.
 };
 

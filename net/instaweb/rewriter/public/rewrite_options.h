@@ -259,6 +259,7 @@ class RewriteOptions {
   static const char kBeaconUrl[];
   static const char kCacheFragment[];
   static const char kCacheSmallImagesUnrewritten[];
+  static const char kCacheTempRedirects[];
   static const char kClientDomainRewrite[];
   static const char kCombineAcrossPaths[];
   static const char kContentExperimentID[];
@@ -2371,6 +2372,13 @@ class RewriteOptions {
     set_option(x, &client_domain_rewrite_);
   }
 
+  bool cache_temp_redirects() const {
+    return cache_temp_redirects_.value();
+  }
+  void set_cache_temp_redirects(bool x) {
+    set_option(x, &cache_temp_redirects_);
+  }
+
   void set_follow_flushes(bool x) { set_option(x, &follow_flushes_); }
   bool follow_flushes() const { return follow_flushes_.value(); }
 
@@ -3839,6 +3847,9 @@ class RewriteOptions {
   // Indicates whether the DomainRewriteFilter should also do client side
   // rewriting.
   Option<bool> client_domain_rewrite_;
+  // Indicate whether temporary (302) redirects will be followed and treated
+  // as cacheable.
+  Option<bool> cache_temp_redirects_;
   // Indicates whether DomainRewriteFilter should rewrite domain information
   // in Set-Cookie: headers.
   Option<bool> domain_rewrite_cookies_;

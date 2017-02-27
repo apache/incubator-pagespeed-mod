@@ -223,6 +223,13 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   void set_implicit_cache_ttl_ms(const int64 ttl) {
     http_options_.implicit_cache_ttl_ms = ttl;
   }
+  bool cache_temp_redirects() const {
+    return http_options_.cache_temp_redirects;
+  }
+  void set_cache_temp_redirects(const bool cache_temp_redirects) {
+    cache_fields_dirty_ = true;
+    http_options_.cache_temp_redirects = cache_temp_redirects;
+  }
 
   bool has_last_modified_time_ms() const;
   int64 last_modified_time_ms() const;
