@@ -58,7 +58,7 @@ void SrcSetSlotCollection::Initialize(CommonFilter* filter) {
       // inlining unknown; make it explicit somewhere that this relies on
       // them being consistent about it if shared between filters.
       ResourcePtr resource(filter->CreateInputResourceOrInsertDebugComment(
-                               candidates_[i].url, element_));
+          candidates_[i].url, RewriteDriver::InputRole::kImg, element_));
       if (resource.get() != nullptr) {
         candidates_[i].slot = new SrcSetSlot(resource, this, i);
       }

@@ -247,7 +247,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
                          "",
                          "function id(x) { return x; }\n",
                          RewriteDriver::GenerateUnauthorizedDomainDebugComment(
-                             gurl));
+                             gurl, RewriteDriver::InputRole::kScript));
   EXPECT_EQ(0, statistics()->GetVariable(JsInlineFilter::kNumJsInlined)->Get());
 }
 
@@ -308,7 +308,7 @@ TEST_F(JsInlineFilterTest, DontInlineDisallowed) {
                          "",
                          "function close() { return 'inline!'; }\n",
                          RewriteDriver::GenerateUnauthorizedDomainDebugComment(
-                             gurl));
+                             gurl, RewriteDriver::InputRole::kScript));
 }
 
 TEST_F(JsInlineFilterTest, DoInlineDisallowedIfAllowedWhenInlining) {

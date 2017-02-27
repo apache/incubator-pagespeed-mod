@@ -160,6 +160,7 @@ void CommonFilter::ResolveUrl(StringPiece input_url, GoogleUrl* out_url) {
 }
 
 ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
+                                              RewriteDriver::InputRole role,
                                               bool* is_authorized) {
   *is_authorized = true;  // Must be false iff input_url is not authorized.
   ResourcePtr resource;
@@ -172,19 +173,22 @@ ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
         (IntendedForInlining()
          ? RewriteDriver::kIntendedForInlining
          : RewriteDriver::kIntendedForGeneral),
+        role,
         is_authorized);
   }
   return resource;
 }
 
 ResourcePtr CommonFilter::CreateInputResourceOrInsertDebugComment(
-    StringPiece input_url, HtmlElement* element) {
+    StringPiece input_url, RewriteDriver::InputRole role,
+    HtmlElement* element) {
   DCHECK(element != NULL);
   bool is_authorized;
-  ResourcePtr input_resource(CreateInputResource(input_url, &is_authorized));
+  ResourcePtr input_resource(
+      CreateInputResource(input_url, role, &is_authorized));
   if (input_resource.get() == NULL) {
     if (!is_authorized) {
-      driver()->InsertUnauthorizedDomainDebugComment(input_url, element);
+      driver()->InsertUnauthorizedDomainDebugComment(input_url, role, element);
     }
   }
   return input_resource;

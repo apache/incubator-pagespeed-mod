@@ -1481,7 +1481,7 @@ void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
   EncodeUserAgentIntoResourceContext(resource_context.get());
 
   ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
-      src->DecodedValueOrNull(), element));
+      src->DecodedValueOrNull(), RewriteDriver::InputRole::kImg, element));
   if (input_resource.get() == NULL) {
     return;
   }

@@ -481,7 +481,7 @@ void JavascriptFilter::RewriteExternalScript(
     HtmlElement* script_in_progress, HtmlElement::Attribute* script_src) {
   const StringPiece script_url(script_src->DecodedValueOrNull());
   ResourcePtr resource(CreateInputResourceOrInsertDebugComment(
-      script_url, script_in_progress));
+      script_url, RewriteDriver::InputRole::kScript, script_in_progress));
   if (resource.get() == nullptr) {
     return;
   }

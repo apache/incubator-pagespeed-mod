@@ -21,6 +21,7 @@
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 
 namespace net_instaweb {
 

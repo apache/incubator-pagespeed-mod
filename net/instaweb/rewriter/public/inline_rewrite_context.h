@@ -22,6 +22,7 @@
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_context.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
@@ -61,6 +62,7 @@ class InlineRewriteContext : public RewriteContext {
   virtual void RenderInline(const ResourcePtr& resource,
                             const StringPiece& text,
                             HtmlElement* element) = 0;
+  virtual RewriteDriver::InputRole InputRole() const = 0;
 
   // Subclasses of InlineRewriteContext may override this to customize
   // resource creation. Default version just uses

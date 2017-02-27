@@ -95,8 +95,8 @@ bool CssImageRewriter::RewriteImport(RewriteContext* parent,
                                      CssHierarchy* hierarchy,
                                      bool* is_authorized) {
   GoogleUrl import_url(hierarchy->url());
-  ResourcePtr resource = driver()->CreateInputResource(import_url,
-                                                       is_authorized);
+  ResourcePtr resource = driver()->CreateInputResource(
+      import_url, RewriteDriver::InputRole::kStyle, is_authorized);
   if (resource.get() == NULL) {
     return false;
   }
@@ -115,8 +115,8 @@ bool CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
                                     size_t value_index,
                                     bool* is_authorized) {
   const RewriteOptions* options = driver()->options();
-  ResourcePtr resource = driver()->CreateInputResource(original_url,
-                                                       is_authorized);
+  ResourcePtr resource = driver()->CreateInputResource(
+      original_url, RewriteDriver::InputRole::kImg, is_authorized);
   if (resource.get() == NULL) {
     return false;
   }

@@ -2287,7 +2287,8 @@ TEST_F(CssFilterTest, UnauthorizedCssResource) {
   GoogleUrl gurl("http://unauth.example.com/style.css");
   DebugWithMessage(StrCat(
       "<!--",
-      RewriteDriver::GenerateUnauthorizedDomainDebugComment(gurl),
+      RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+          gurl, RewriteDriver::InputRole::kStyle),
       "-->"));
   ValidateRewriteExternalCssUrl("unauth", gurl.Spec(),
                                 kInputStyle, kInputStyle, kExpectNoChange);

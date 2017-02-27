@@ -145,15 +145,18 @@ TEST_F(SrcSetSlotTest, BasicOperation) {
   bool unused;
   GoogleUrl optimized_a("http://www.example.com/dir/a.pagespeed.webp");
   slot0->SetResource(
-    rewrite_driver()->CreateInputResource(optimized_a, &unused));
+    rewrite_driver()->CreateInputResource(
+        optimized_a, RewriteDriver::InputRole::kImg, &unused));
 
   GoogleUrl optimized_b("http://www.example.com/dir/b.pagespeed.webp");
   slot1->SetResource(
-    rewrite_driver()->CreateInputResource(optimized_b, &unused));
+    rewrite_driver()->CreateInputResource(
+        optimized_b, RewriteDriver::InputRole::kImg, &unused));
 
   GoogleUrl optimized_c("http://www.example.com/dir/c.pagespeed.png");
   slot2->SetResource(
-    rewrite_driver()->CreateInputResource(optimized_c, &unused));
+    rewrite_driver()->CreateInputResource(
+        optimized_c, RewriteDriver::InputRole::kImg, &unused));
 
   slot0->set_disable_rendering(true);
   slot0->Render();

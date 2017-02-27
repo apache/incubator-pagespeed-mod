@@ -324,8 +324,15 @@ void CollectDependenciesFilter::StartElementImpl(HtmlElement* element) {
         }
       }
 
+      // Code below relies on this being the guard here for it to be safe.
+      CHECK(attributes[i].category == semantic_type::kStylesheet ||
+            attributes[i].category == semantic_type::kScript);
+      RewriteDriver::InputRole role =
+          (attributes[i].category == semantic_type::kStylesheet
+           ? RewriteDriver::InputRole::kStyle
+           : RewriteDriver::InputRole::kScript);
       ResourcePtr resource(
-          CreateInputResourceOrInsertDebugComment(url, element));
+          CreateInputResourceOrInsertDebugComment(url, role, element));
       if (resource.get() == nullptr) {
         // TODO(morlovich): This may mean a valid 3rd party resource;
         // we also probably don't want a warning in that case.

@@ -544,7 +544,10 @@ bool CssFilter::Context::FallbackRewriteUrls(
       CHECK(url.IsAnyValid()) << it->first;
       // Add slot.
       bool is_authorized;
-      ResourcePtr resource = Driver()->CreateInputResource(url, &is_authorized);
+      // This can be both an image or CSS at very least, so have to be
+      // conservative wrt to policy.
+      ResourcePtr resource = Driver()->CreateInputResource(
+          url, RewriteDriver::InputRole::kUnknown, &is_authorized);
       if (resource.get()) {
         ResourceSlotPtr slot(new AssociationSlot(
             resource, fallback_transformer_->map(), url.Spec()));
@@ -1053,7 +1056,7 @@ void CssFilter::StartExternalRewrite(HtmlElement* link,
   }
   // Create the input resource for the slot.
   ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
-      src->DecodedValueOrNull(), link));
+      src->DecodedValueOrNull(), RewriteDriver::InputRole::kStyle, link));
   if (input_resource.get() == NULL) {
     return;
   }

@@ -100,7 +100,8 @@ void FakeFilter::StartElementImpl(HtmlElement* element) {
   for (int i = 0, n = attributes.size(); i < n; ++i) {
     if (attributes[i].category == category_) {
       ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
-          attributes[i].url->DecodedValueOrNull(), element));
+          attributes[i].url->DecodedValueOrNull(),
+          RewriteDriver::InputRole::kUnknown, element));
       if (input_resource.get() == NULL) {
         return;
       }

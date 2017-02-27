@@ -3002,7 +3002,8 @@ class TestNotifyFilter : public CommonFilter {
     if (href != NULL) {
       bool unused;
       ResourcePtr input_resource(CreateInputResource(
-          href->DecodedValueOrNull(), &unused));
+          href->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
+          &unused));
       ResourceSlotPtr slot(driver()->GetSlot(input_resource, element, href));
       Context* context = new Context(driver(), sync_);
       context->AddSlot(slot);

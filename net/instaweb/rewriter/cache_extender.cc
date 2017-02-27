@@ -171,15 +171,19 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
   resource_tag_scanner::ScanElement(element, driver()->options(), &attributes);
   for (int i = 0, n = attributes.size(); i < n; ++i) {
     bool may_load = false;
+    RewriteDriver::InputRole input_role = RewriteDriver::InputRole::kUnknown;
     switch (attributes[i].category) {
       case semantic_type::kStylesheet:
         may_load = driver()->MayCacheExtendCss();
+        input_role = RewriteDriver::InputRole::kStyle;
         break;
       case semantic_type::kImage:
         may_load = driver()->MayCacheExtendImages();
+        input_role = RewriteDriver::InputRole::kImg;
         break;
       case semantic_type::kScript:
         may_load = driver()->MayCacheExtendScripts();
+        input_role = RewriteDriver::InputRole::kScript;
         break;
       default:
         // Does the url in the attribute end in .pdf, ignoring query params?
@@ -202,7 +206,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
     // resources are non-cacheable or privately cacheable.
     if (driver()->IsRewritable(element)) {
       ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
-          attributes[i].url->DecodedValueOrNull(), element));
+          attributes[i].url->DecodedValueOrNull(), input_role, element));
       if (input_resource.get() == NULL) {
         continue;
       }
