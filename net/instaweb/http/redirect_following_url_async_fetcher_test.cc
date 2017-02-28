@@ -104,11 +104,11 @@ class RedirectFollowingUrlAsyncFetcherTest : public ::testing::Test {
     rewrite_options_.reset(new RewriteOptions(thread_system_.get()));
     domain_lawyer_ = rewrite_options_->WriteableDomainLawyer();
     NullMessageHandler handler;
-
+    rewrite_options_manager_.reset(new RewriteOptionsManager());
     redirect_following_fetcher_.reset(new RedirectFollowingUrlAsyncFetcher(
         counting_fetcher_.get(), "http://context.url/", thread_system_.get(),
         &stats_, max_redirects_, false /* follow temporary redirects */,
-        rewrite_options_.get()));
+        rewrite_options_.get(), rewrite_options_manager_.get()));
 
     // single redirect
     SimpleResponse singleredirect[] = {
@@ -307,6 +307,7 @@ class RedirectFollowingUrlAsyncFetcherTest : public ::testing::Test {
   scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher_;
   scoped_ptr<CountingUrlAsyncFetcher> counting_fetcher_;
   scoped_ptr<RewriteOptions> rewrite_options_;
+  scoped_ptr<RewriteOptionsManager> rewrite_options_manager_;
   // not owned.
   DomainLawyer* domain_lawyer_;
   MockTimer timer_;

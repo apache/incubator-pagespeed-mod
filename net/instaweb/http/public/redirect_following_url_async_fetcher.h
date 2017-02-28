@@ -21,6 +21,7 @@
 
 #include <set>
 
+#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -40,8 +41,6 @@ class ThreadSystem;
 class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
 
  public:
-  static const int64 kUnset;
-
   // Does not take ownership of 'fetcher'.
   // The context_url is needed for verifying that the url we are about to
   // redirect to is authorized.
@@ -50,21 +49,26 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
                                    ThreadSystem* thread_system,
                                    Statistics* statistics, int max_redirects,
                                    bool follow_temp_redirects,
-                                   RewriteOptions* rewrite_options);
+                                   RewriteOptions* rewrite_options,
+                                   RewriteOptionsManager* rewrite_options_manager);
 
   virtual ~RedirectFollowingUrlAsyncFetcher();
 
   bool SupportsHttps() const override { return base_fetcher_->SupportsHttps(); }
 
-  virtual void Fetch(const GoogleString& url, MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
   // Returns the maximum number of redirects that will be followed.
   int max_redirects() { return max_redirects_; }
+  // If set will follow temporary redirects (302 status code) when they are
+  // marked as publically cacheable.
   bool follow_temp_redirects() { return follow_temp_redirects_; }
   const RewriteOptions* rewrite_options() { return rewrite_options_; }
-
+  RewriteOptionsManager* rewrite_options_manager() { return rewrite_options_manager_; }
  private:
+  static const int64 kUnset;
+
   class RedirectFollowingFetch;
 
   // Initiates a fetch of a pre-validated url originating from a Location
@@ -78,6 +82,7 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
   int max_redirects_;
   bool follow_temp_redirects_;
   const RewriteOptions* rewrite_options_;
+  RewriteOptionsManager* rewrite_options_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(RedirectFollowingUrlAsyncFetcher);
 };

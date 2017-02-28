@@ -1613,6 +1613,9 @@ ModPagespeedMessagesDomains Allow localhost
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
   ModPagespeedDomain redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@
+
+  # This needs MapOriginDomain because the redirect to redirecting-fetch.example.com will
+  # not resolve.
   ModPagespeedMapOriginDomain 127.0.0.1:@@APACHE_SECONDARY_PORT@@ \
     redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@
   ModPagespeedDisallow *styles/disallowed.css
