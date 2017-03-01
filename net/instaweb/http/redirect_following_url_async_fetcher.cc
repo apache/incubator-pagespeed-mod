@@ -58,12 +58,12 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
   RedirectFollowingFetch(
       RedirectFollowingUrlAsyncFetcher* redirect_following_fetcher,
       AsyncFetch* base_fetch, const GoogleString& url,
-      const GoogleString& context_url, StringSet* redirects_followed_earlier,
+      const GoogleString& context_url, std::unique_ptr<StringSet> redirects_followed_earlier,
       MessageHandler* message_handler, int64 max_age)
       : SharedAsyncFetch(base_fetch),
         redirect_following_fetcher_(redirect_following_fetcher),
         received_redirect_status_code_(false),
-        urls_seen_(redirects_followed_earlier),
+        urls_seen_(std::move(redirects_followed_earlier)),
         url_(url),
         gurl_(url),
         base_fetch_(base_fetch),
@@ -149,7 +149,7 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
     if (success) {
       redirect_following_fetcher_->FollowRedirect(
           mapped_redirect_url, message_handler_, base_fetch_,
-          urls_seen_.release(), max_age_);
+          std::move(urls_seen_), max_age_);
     } else {
       response_headers()->set_status_code(HttpStatus::kNotFound);
       SharedAsyncFetch::HandleDone(false);
@@ -186,10 +186,9 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
     return true;
   }
 
-
-  void DoFetch(bool prepare_success) {
+  void PrepareRequestDone(bool success) {
     callback_done_ = true;
-    prepare_ok_ = prepare_success;
+    prepare_ok_ = success;
   }
 
   bool TryMapRedirect(const GoogleString& redirect_url,
@@ -231,7 +230,7 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
 
     redirect_following_fetcher_->rewrite_options_manager()->PrepareRequest(
         options, request_context(), mapped_url, request_headers(),
-        NewCallback(this, &RedirectFollowingFetch::DoFetch));
+        NewCallback(this, &RedirectFollowingFetch::PrepareRequestDone));
 
     // While writing this the callback will always be executed synchronously.
     // when that changes, this will need maintenance.
@@ -284,7 +283,7 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
 
   RedirectFollowingUrlAsyncFetcher* redirect_following_fetcher_;
   bool received_redirect_status_code_;
-  scoped_ptr<StringSet> urls_seen_;
+  std::unique_ptr<StringSet> urls_seen_;
   GoogleString url_;
   GoogleUrl gurl_;
   AsyncFetch* base_fetch_;
@@ -316,10 +315,10 @@ RedirectFollowingUrlAsyncFetcher::~RedirectFollowingUrlAsyncFetcher() {}
 
 void RedirectFollowingUrlAsyncFetcher::FollowRedirect(
     const GoogleString& url, MessageHandler* message_handler, AsyncFetch* fetch,
-    StringSet* redirects_followed_earlier, int64 max_age) {
+    std::unique_ptr<StringSet> redirects_followed_earlier, int64 max_age) {
   RedirectFollowingFetch* redirect_following_fetch =
       new RedirectFollowingFetch(this, fetch, url, context_url_,
-                                 redirects_followed_earlier, message_handler,
+                                 std::move(redirects_followed_earlier), message_handler,
                                  max_age);
 
   if (redirect_following_fetch->Validate()) {

@@ -78,7 +78,7 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
   // header of a response.
   void FollowRedirect(const GoogleString& valid_redirect_url,
                       MessageHandler* message_handler, AsyncFetch* fetch,
-                      StringSet* redirects_followed_earlier, int64 max_age);
+                      std::unique_ptr<StringSet> redirects_followed_earlier, int64 max_age);
   UrlAsyncFetcher* base_fetcher_;
   // base url as stored on the request context.
   GoogleString context_url_;
