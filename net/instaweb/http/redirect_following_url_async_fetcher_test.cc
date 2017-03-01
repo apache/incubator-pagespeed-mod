@@ -63,21 +63,21 @@ class MockFetch : public AsyncFetch {
       : AsyncFetch(ctx),
         is_background_fetch_(is_background_fetch),
         done_(false),
-        success_(false) {}
+        success_(false),
+        supports_https_(false) {}
   virtual ~MockFetch() {}
-  virtual void HandleHeadersComplete() {}
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  void HandleHeadersComplete() override {}
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     content.AppendToString(&content_);
     return true;
   }
-  virtual bool HandleFlush(MessageHandler* handler) { return true; }
-  virtual void HandleDone(bool success) {
+  bool HandleFlush(MessageHandler* handler) override { return true; }
+  void HandleDone(bool success) override {
     success_ = success;
     done_ = true;
   }
-
-  virtual bool IsBackgroundFetch() const { return is_background_fetch_; }
+  bool IsBackgroundFetch() const override { return is_background_fetch_; }
 
   const GoogleString& content() { return content_; }
   bool done() { return done_; }
@@ -88,6 +88,7 @@ class MockFetch : public AsyncFetch {
   bool is_background_fetch_;
   bool done_;
   bool success_;
+  bool supports_https_;
 
   DISALLOW_COPY_AND_ASSIGN(MockFetch);
 };
@@ -119,6 +120,16 @@ class RedirectFollowingUrlAsyncFetcherTest : public ::testing::Test {
     };
     SETUPRESPONSECHAIN(singleredirect);
     domain_lawyer_->AddDomain("http://singleredirect.com/", &handler);
+
+    // single https redirect
+    SimpleResponse singleredirecthttps[] = {
+        {"http://singleredirecthttps.com/", HttpStatus::kMovedPermanently, true,
+         "https://singleredirecthttps.com/foo", ""},
+        {"https://singleredirecthttps.com/foo", HttpStatus::kOK, false, "",
+         "singleredirecthttps"},
+    };
+    SETUPRESPONSECHAIN(singleredirecthttps);
+    domain_lawyer_->AddDomain("https://singleredirecthttps.com/", &handler);
 
     // single redirect on the context domain, should not require explicit
     // authorization
@@ -333,6 +344,36 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest, SingleRedirect) {
   EXPECT_EQ(HttpStatus::kOK, fetch.response_headers()->status_code());
   EXPECT_STREQ("singleredirect", fetch.content());
 }
+
+TEST_F(RedirectFollowingUrlAsyncFetcherTest, SingleRedirectHttpsNoSupport) {
+  MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
+                  true);
+  NullMessageHandler handler;
+  redirect_following_fetcher_->Fetch("http://singleredirecthttps.com/", &handler_,
+                                     &fetch);
+
+  EXPECT_TRUE(fetch.done());
+  EXPECT_FALSE(fetch.success());
+  EXPECT_EQ(1, counting_fetcher_->fetch_count());
+  EXPECT_EQ(HttpStatus::kNotFound, fetch.response_headers()->status_code());
+  EXPECT_STREQ("", fetch.content());
+}
+
+TEST_F(RedirectFollowingUrlAsyncFetcherTest, SingleRedirectHttpsWithSupport) {
+  MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
+                  true);
+  redirect_following_fetcher_->SimulateHttpsSupportForTest();
+  NullMessageHandler handler;
+  redirect_following_fetcher_->Fetch("http://singleredirecthttps.com/", &handler_,
+                                     &fetch);
+
+  EXPECT_TRUE(fetch.done());
+  EXPECT_TRUE(fetch.success());
+  EXPECT_EQ(2, counting_fetcher_->fetch_count());
+  EXPECT_EQ(HttpStatus::kOK, fetch.response_headers()->status_code());
+  EXPECT_STREQ("singleredirecthttps", fetch.content());
+}
+
 
 TEST_F(RedirectFollowingUrlAsyncFetcherTest, SingleRedirectOriginMapped) {
   MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),

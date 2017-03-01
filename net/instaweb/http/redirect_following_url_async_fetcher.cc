@@ -49,7 +49,9 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
         base_fetch_(base_fetch),
         context_url_(context_url),
         message_handler_(message_handler),
-        max_age_(kUnset) {
+        max_age_(kUnset),
+        callback_done_(false),
+        prepare_ok_(false) {
     urls_seen_->insert(gurl_.UncheckedSpec().as_string());
   }
 
@@ -67,7 +69,9 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
         base_fetch_(base_fetch),
         context_url_(context_url),
         message_handler_(message_handler),
-        max_age_(max_age) {}
+        max_age_(max_age),
+        callback_done_(false),
+        prepare_ok_(false) {}
 
   bool Validate() {
     if (!gurl_.IsWebValid()) {
@@ -158,6 +162,7 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
   void EmitRedirectWarning(const GoogleString& context_url,
                            const GoogleString& redirect_url,
                            GoogleString message) {
+      std::cerr << " redir to " << redirect_url << " - " << message << std::endl;
       message_handler_->Message(
           kWarning, "Fetch redirect: [%s] -> [%s]: %s.", context_url.c_str(),
           redirect_url.c_str(), message.c_str());
@@ -183,6 +188,8 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
 
 
   void DoFetch(bool prepare_success) {
+    callback_done_ = true;
+    prepare_ok_ = prepare_success;
   }
 
   bool TryMapRedirect(const GoogleString& redirect_url,
@@ -220,35 +227,27 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
       return false;
     }
 
-    // TODO(oschaaf): XXX
+    mapped_url->assign(redirect_url);
+
     redirect_following_fetcher_->rewrite_options_manager()->PrepareRequest(
         options, request_context(), mapped_url, request_headers(),
         NewCallback(this, &RedirectFollowingFetch::DoFetch));
 
-    GoogleString mapped_domain_name;
-    GoogleString host_header;
-    bool is_proxy;
-    bool mapped = domain_lawyer->MapOriginUrl(
-        redirect_gurl, &mapped_domain_name, &host_header, &is_proxy);
+    // While writing this the callback will always be executed synchronously.
+    // when that changes, this will need maintenance.
+    CHECK(callback_done_);
 
-    if (mapped) {
-      redirect_gurl.Reset(mapped_domain_name);
-      mapped_url->assign(mapped_domain_name);
+    if (!prepare_ok_) {
+      EmitRedirectWarning(url_, redirect_url, "Failed to prepare redirect request");
+    } else {
+      redirect_gurl.Reset(*mapped_url);
       if (redirect_gurl.SchemeIs("https") &&
           !redirect_following_fetcher_->SupportsHttps()) {
-        EmitRedirectWarning(url_, redirect_url, "Https not supported");
+        EmitRedirectWarning(url_, *mapped_url, "Https not supported");
         return false;
       }
-      if (!is_proxy) {
-        request_headers()->Replace(HttpAttributes::kHost, host_header);
-      }
-    } else {
-      // Shouldn't happen
-      DCHECK(false);
-      EmitRedirectWarning(url_, redirect_url, "Invalid mapped url");
-      return false;
     }
-    return true;
+    return prepare_ok_;
   }
 
   bool TryExtractRedirectUrlFromResponseHeaders(GoogleString* redirect_url) {
@@ -292,6 +291,8 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
   const GoogleString context_url_;
   MessageHandler* message_handler_;
   int64 max_age_;
+  bool callback_done_;
+  bool prepare_ok_;
 
   DISALLOW_COPY_AND_ASSIGN(RedirectFollowingFetch);
 };
@@ -306,7 +307,8 @@ RedirectFollowingUrlAsyncFetcher::RedirectFollowingUrlAsyncFetcher(
       max_redirects_(max_redirects),
       follow_temp_redirects_(follow_temp_redirects),
       rewrite_options_(rewrite_options),
-      rewrite_options_manager_(rewrite_options_manager) {
+      rewrite_options_manager_(rewrite_options_manager),
+      simulate_https_support_(false) {
   CHECK(rewrite_options);
 }
 

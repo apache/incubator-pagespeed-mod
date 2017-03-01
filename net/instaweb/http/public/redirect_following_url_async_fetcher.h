@@ -54,7 +54,9 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
 
   virtual ~RedirectFollowingUrlAsyncFetcher();
 
-  bool SupportsHttps() const override { return base_fetcher_->SupportsHttps(); }
+  bool SupportsHttps() const override {
+    return simulate_https_support_ || base_fetcher_->SupportsHttps();
+  }
 
   void Fetch(const GoogleString& url, MessageHandler* message_handler,
              AsyncFetch* fetch) override;
@@ -66,6 +68,7 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
   bool follow_temp_redirects() { return follow_temp_redirects_; }
   const RewriteOptions* rewrite_options() { return rewrite_options_; }
   RewriteOptionsManager* rewrite_options_manager() { return rewrite_options_manager_; }
+  void SimulateHttpsSupportForTest() { simulate_https_support_ = true; }
  private:
   static const int64 kUnset;
 
@@ -83,6 +86,7 @@ class RedirectFollowingUrlAsyncFetcher : public UrlAsyncFetcher {
   bool follow_temp_redirects_;
   const RewriteOptions* rewrite_options_;
   RewriteOptionsManager* rewrite_options_manager_;
+  bool simulate_https_support_;
 
   DISALLOW_COPY_AND_ASSIGN(RedirectFollowingUrlAsyncFetcher);
 };
