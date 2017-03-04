@@ -963,9 +963,9 @@ gzip_http_version 1.0;
     and then replacing that URL by an optimized pagespeed URL. But what about
     resources that are loaded by JavaScript code? And what about links to your
     images from pages outside your domain? In-Place Resource Optimization (IPRO)
-    will optimize the content of a resource that’s requested using the original
+    will optimize the content of a resource that's requested using the original
     (non-pagespeed) URL, ensuring you are serving optimized content even when
-    that content isn’t explicitly linked in your html. This should be especially
+    that content isn't explicitly linked in your html. This should be especially
     helpful for sites with slide shows that use JavaScript to load images in the
     background; those images can now be optimized by PageSpeed by adding
     this command to your configuration file:</p>
@@ -983,7 +983,7 @@ gzip_http_version 1.0;
     resources; these will still be rewritten by IPRO, but they won't be replaced
     by a pagespeed URL. This is especially useful as an &quot;optimization is on
     by default&quot; setting for hosting providers and optimizing forward
-    proxies – cases where site-specific settings to blacklist URLs are
+    proxies &mdash; cases where site-specific settings to blacklist URLs are
     impractical.
   </p>
     <h3 id="s-maxage">Setting s-maxage on unoptimized resources</h3>
@@ -1095,7 +1095,7 @@ gzip_http_version 1.0;
     cached for a year by browser and proxy caches; in-place resources are not
     cache extended. Second, in-place resources can't be optimized specially for
     the context in which they occur on the page: images can't be resized to the
-    size they appear on the page, and multiple resources on a page can’t be
+    size they appear on the page, and multiple resources on a page can't be
     combined together. Finally, in-place resources that are eligible for
     browser-specific optimizations (such as conversion to the WebP image format)
     will be served with the <code>Vary: User-Agent</code> caching header,
