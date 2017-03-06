@@ -65,7 +65,7 @@ enum HttpsOptions {
   kAllowCertificateNotYetValid          = 1 << 3,
 };
 
-const int kReliabilityCheckPeriodMs = 30 * 60 * 1000; // 30 minutes
+const int kReliabilityCheckPeriodMs = 30 * net_instaweb::Timer::kMinuteMs;
 const int kReliabilityCheckMinFetches = 5;
 
 }  // namespace
@@ -1401,7 +1401,7 @@ void SerfUrlAsyncFetcher::ReportFetchSuccessStats(
       last_check_timestamp_ms_->Set(now_ms);
 
       int64 total = success + failure;
-      if (total > kReliabilityCheckMinFetches &&
+      if (total >= kReliabilityCheckMinFetches &&
           (double(success) / total) < 0.5) {
         message_handler_->Message(
           kError, "PageSpeed Serf fetch failure rate extremely high; "
