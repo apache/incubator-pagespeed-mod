@@ -74,6 +74,20 @@ struct SerfStats {
   static const char kSerfFetchFailureCount[];
   static const char kSerfFetchCertErrors[];
   static const char kSerfFetchReadCalls[];
+
+  // A fetch that finished with a 2xx or a 3xx code --- and not just a
+  // mechanically successful one that's a 4xx or such.
+  static const char kSerfFetchUltimateSuccess[];
+
+  // A failure or an error status. Doesn't include fetches dropped due to
+  // process exit and the like.
+  static const char kSerfFetchUltimateFailure[];
+};
+
+enum class SerfCompletionResult {
+  kClientCancel,
+  kSuccess,
+  kFailure
 };
 
 // Identifies the set of HTML keywords.  This is used in error messages emitted
@@ -128,7 +142,9 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   void FetchComplete(SerfFetch* fetch);
 
   // Update the statistics object with results of the (completed) fetch.
-  void ReportCompletedFetchStats(SerfFetch* fetch);
+  void ReportCompletedFetchStats(SerfCompletionResult result,
+                                 const ResponseHeaders* headers,
+                                 const SerfFetch* fetch);
 
   apr_pool_t* pool() const { return pool_; }
 
@@ -261,6 +277,8 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   Variable* failure_count_;
   Variable* cert_errors_;
   Variable* read_calls_count_;  // Non-NULL only on debug builds.
+  Variable* ultimate_success_;
+  Variable* ultimate_failure_;
   const int64 timeout_ms_;
   bool shutdown_ GUARDED_BY(mutex_);
   bool list_outstanding_urls_on_error_;
@@ -280,12 +298,6 @@ class SerfFetch : public PoolElement<SerfFetch> {
     kClientDecision,
     kSerfError,
     kFetchTimeout,
-  };
-
-  enum class CompletionResult {
-    kClientCancel,
-    kSuccess,
-    kFailure
   };
 
   // TODO(lsong): make use of request_headers.
@@ -312,8 +324,8 @@ class SerfFetch : public PoolElement<SerfFetch> {
   //
   // Note that when there are SSL error messages, we immediately call
   // CallCallback, which is robust against duplicate calls in that case.
-  void CallCallback(CompletionResult result);
-  void CallbackDone(CompletionResult result);
+  void CallCallback(SerfCompletionResult result);
+  void CallbackDone(SerfCompletionResult result);
 
   // If last poll of this fetch's connection resulted in an error, clean it up.
   // Must be called after serf_context_run, with fetcher's mutex_ held.

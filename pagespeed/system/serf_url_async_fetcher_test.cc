@@ -847,7 +847,7 @@ class SerfFetchTest : public SerfUrlAsyncFetcherTest {
 
   virtual void TearDown() {
     async_fetch_->response_headers()->set_status_code(200);
-    serf_fetch_->CallbackDone(SerfFetch::CompletionResult::kSuccess);
+    serf_fetch_->CallbackDone(SerfCompletionResult::kSuccess);
     // Fetch must be deleted before fetcher because it has a child pool.
     serf_fetch_.reset(NULL);
     SerfUrlAsyncFetcherTest::TearDown();

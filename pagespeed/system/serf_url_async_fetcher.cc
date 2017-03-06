@@ -102,6 +102,10 @@ const char SerfStats::kSerfFetchTimeoutCount[] = "serf_fetch_timeout_count";
 const char SerfStats::kSerfFetchFailureCount[] = "serf_fetch_failure_count";
 const char SerfStats::kSerfFetchCertErrors[] = "serf_fetch_cert_errors";
 const char SerfStats::kSerfFetchReadCalls[] = "serf_fetch_num_calls_to_read";
+const char SerfStats::kSerfFetchUltimateSuccess[] =
+    "serf_fetch_ultimate_success";
+const char SerfStats::kSerfFetchUltimateFailure[] =
+    "serf_fetch_ultimate_failure";
 
 GoogleString GetAprErrorString(apr_status_t status) {
   char error_str[1024];
@@ -183,17 +187,19 @@ void SerfFetch::Cancel(CancelCause cause) {
   }
 
   CallCallback(cause == CancelCause::kClientDecision ?
-                  CompletionResult::kClientCancel : CompletionResult::kFailure);
+                  SerfCompletionResult::kClientCancel :
+                  SerfCompletionResult::kFailure);
 }
 
-void SerfFetch::CallCallback(CompletionResult result) {
+void SerfFetch::CallCallback(SerfCompletionResult result) {
   if (ssl_error_message_ != NULL) {
-    result = CompletionResult::kFailure;
+    result = SerfCompletionResult::kFailure;
   }
 
   if (async_fetch_ != NULL) {
     fetch_end_ms_ = timer_->NowMs();
-    fetcher_->ReportCompletedFetchStats(this);
+    fetcher_->ReportCompletedFetchStats(
+        result, async_fetch_->response_headers(), this);
     CallbackDone(result);
     fetcher_->FetchComplete(this);
   } else if (ssl_error_message_ == NULL) {
@@ -203,10 +209,10 @@ void SerfFetch::CallCallback(CompletionResult result) {
   }
 }
 
-void SerfFetch::CallbackDone(CompletionResult result) {
+void SerfFetch::CallbackDone(SerfCompletionResult result) {
   // fetcher_==NULL if Start is called during shutdown.
   if (fetcher_ != NULL) {
-    if (result == CompletionResult::kFailure) {
+    if (result == SerfCompletionResult::kFailure) {
       fetcher_->failure_count_->Add(1);
     }
     if (fetcher_->track_original_content_length() &&
@@ -216,7 +222,7 @@ void SerfFetch::CallbackDone(CompletionResult result) {
           bytes_received_);
     }
   }
-  async_fetch_->Done(result == CompletionResult::kSuccess);
+  async_fetch_->Done(result == SerfCompletionResult::kSuccess);
   // We should always NULL the async_fetch_ out after calling otherwise we
   // could get weird double calling errors.
   async_fetch_ = NULL;
@@ -435,7 +441,7 @@ apr_status_t SerfFetch::HandleSSLCertValidation(
   // check async_fetch before CallCallback.
   if ((ssl_error_message_ != NULL) && (async_fetch_ != NULL)) {
     fetcher_->cert_errors_->Add(1);
-    CallCallback(CompletionResult::kFailure);  // sets async_fetch_ to null.
+    CallCallback(SerfCompletionResult::kFailure);  // sets async_fetch_ to null.
   }
 
   // TODO(jmarantz): I think the design of this system indicates
@@ -459,7 +465,7 @@ apr_status_t SerfFetch::HandleResponse(serf_bucket_t* response) {
     message_handler_->Message(
         kInfo, "serf HandleResponse called with NULL response for %s",
         DebugInfo().c_str());
-    CallCallback(CompletionResult::kFailure);
+    CallCallback(SerfCompletionResult::kFailure);
     return APR_EGENERAL;
   }
 
@@ -509,7 +515,8 @@ apr_status_t SerfFetch::HandleResponse(serf_bucket_t* response) {
         APR_STATUS_IS_EOF(status) && parser_.headers_complete();
     // Zeros async_fetch_.
     CallCallback(successful_completion ?
-                     CompletionResult::kSuccess : CompletionResult::kFailure);
+                     SerfCompletionResult::kSuccess :
+                     SerfCompletionResult::kFailure);
   }
   return status;
 }
@@ -1080,6 +1087,8 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
       failure_count_(NULL),
       cert_errors_(NULL),
       read_calls_count_(NULL),
+      ultimate_success_(NULL),
+      ultimate_failure_(NULL),
       timeout_ms_(timeout_ms),
       shutdown_(false),
       list_outstanding_urls_on_error_(false),
@@ -1100,6 +1109,10 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
   cert_errors_ = statistics->GetVariable(SerfStats::kSerfFetchCertErrors);
   // Using FindVariable for this one since it's only set in debug builds.
   read_calls_count_ = statistics->FindVariable(SerfStats::kSerfFetchReadCalls);
+  ultimate_success_ =
+      statistics->GetVariable(SerfStats::kSerfFetchUltimateSuccess);
+  ultimate_failure_ =
+      statistics->GetVariable(SerfStats::kSerfFetchUltimateFailure);
   Init(pool, proxy);
   threaded_fetcher_ = new SerfThreadedFetcher(this, proxy);
 }
@@ -1121,6 +1134,8 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent,
       failure_count_(parent->failure_count_),
       cert_errors_(parent->cert_errors_),
       read_calls_count_(parent->read_calls_count_),
+      ultimate_success_(parent->ultimate_success_),
+      ultimate_failure_(parent->ultimate_failure_),
       timeout_ms_(parent->timeout_ms()),
       shutdown_(false),
       list_outstanding_urls_on_error_(parent->list_outstanding_urls_on_error_),
@@ -1213,8 +1228,8 @@ bool SerfUrlAsyncFetcher::StartFetch(SerfFetch* fetch) {
     active_fetches_.Remove(fetch);
     active_count_->Add(-1);
     fetch->CallbackDone(shutdown_ ?
-                            SerfFetch::CompletionResult::kClientCancel :
-                            SerfFetch::CompletionResult::kFailure);
+                            SerfCompletionResult::kClientCancel :
+                            SerfCompletionResult::kFailure);
     delete fetch;
   }
   return started;
@@ -1335,7 +1350,10 @@ void SerfUrlAsyncFetcher::FetchComplete(SerfFetch* fetch)
   completed_fetches_.Add(fetch);
 }
 
-void SerfUrlAsyncFetcher::ReportCompletedFetchStats(SerfFetch* fetch) {
+void SerfUrlAsyncFetcher::ReportCompletedFetchStats(
+    SerfCompletionResult result,
+    const ResponseHeaders* headers,
+    const SerfFetch* fetch) {
   if (time_duration_ms_) {
     time_duration_ms_->Add(fetch->TimeDuration());
   }
@@ -1344,6 +1362,20 @@ void SerfUrlAsyncFetcher::ReportCompletedFetchStats(SerfFetch* fetch) {
   }
   if (active_count_) {
     active_count_->Add(-1);
+  }
+  if (result != SerfCompletionResult::kClientCancel) {
+    if (result == SerfCompletionResult::kSuccess &&
+        !headers->IsErrorStatus()) {
+      ultimate_success_->Add(1);
+    } else {
+      ultimate_failure_->Add(1);
+    }
+    int64 success = ultimate_success_->Get();
+    int64 failure = ultimate_failure_->Get();
+
+    if ((success + failure) != 0) { // Possible if stats off?
+      LOG(ERROR) << "### Ratio:" << double(success)/(success + failure);
+    }
   }
 }
 
@@ -1426,6 +1458,8 @@ void SerfUrlAsyncFetcher::InitStats(Statistics* statistics) {
 #ifndef NDEBUG
   statistics->AddVariable(SerfStats::kSerfFetchReadCalls);
 #endif
+  statistics->AddVariable(SerfStats::kSerfFetchUltimateSuccess);
+  statistics->AddVariable(SerfStats::kSerfFetchUltimateFailure);
 }
 
 void SerfUrlAsyncFetcher::set_list_outstanding_urls_on_error(bool x) {
