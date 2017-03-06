@@ -1394,23 +1394,21 @@ void SerfUrlAsyncFetcher::ReportFetchSuccessStats(
     int64 success = ultimate_success_->Get();
     int64 failure = ultimate_failure_->Get();
 
-    if (failure != 0) {
-      int64 now_ms = timer_->NowMs();
-      if (now_ms > (last_check_ms + kReliabilityCheckPeriodMs)) {
-        ultimate_failure_->Clear();
-        ultimate_success_->Clear();
-        last_check_timestamp_ms_->Set(now_ms);
+    int64 now_ms = timer_->NowMs();
+    if (now_ms > (last_check_ms + kReliabilityCheckPeriodMs)) {
+      ultimate_failure_->Clear();
+      ultimate_success_->Clear();
+      last_check_timestamp_ms_->Set(now_ms);
 
-        int64 total = success + failure;
-        if (total > kReliabilityCheckMinFetches &&
-            (double(success) / total) < 0.5) {
-          message_handler_->Message(
-            kError, "PageSpeed Serf fetch failure rate extremely high; "
-            "only %s of %s recent fetches fully successful; is fetching "
-            "working?",
-            Integer64ToString(success).c_str(),
-            Integer64ToString(total).c_str());
-        }
+      int64 total = success + failure;
+      if (total > kReliabilityCheckMinFetches &&
+          (double(success) / total) < 0.5) {
+        message_handler_->Message(
+          kError, "PageSpeed Serf fetch failure rate extremely high; "
+          "only %s of %s recent fetches fully successful; is fetching "
+          "working?",
+          Integer64ToString(success).c_str(),
+          Integer64ToString(total).c_str());
       }
     }
   }
