@@ -142,9 +142,13 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   void FetchComplete(SerfFetch* fetch);
 
   // Update the statistics object with results of the (completed) fetch.
-  void ReportCompletedFetchStats(SerfCompletionResult result,
-                                 const ResponseHeaders* headers,
-                                 const SerfFetch* fetch);
+  void ReportCompletedFetchStats(const SerfFetch* fetch);
+
+  // Updates states used for success/failure monitoring.
+  void ReportFetchSuccessStats(SerfCompletionResult result,
+                               const ResponseHeaders* headers,
+                               const SerfFetch* fetch);
+
 
   apr_pool_t* pool() const { return pool_; }
 

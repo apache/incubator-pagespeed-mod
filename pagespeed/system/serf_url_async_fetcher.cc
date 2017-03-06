@@ -198,8 +198,7 @@ void SerfFetch::CallCallback(SerfCompletionResult result) {
 
   if (async_fetch_ != NULL) {
     fetch_end_ms_ = timer_->NowMs();
-    fetcher_->ReportCompletedFetchStats(
-        result, async_fetch_->response_headers(), this);
+    fetcher_->ReportCompletedFetchStats(this);
     CallbackDone(result);
     fetcher_->FetchComplete(this);
   } else if (ssl_error_message_ == NULL) {
@@ -220,6 +219,11 @@ void SerfFetch::CallbackDone(SerfCompletionResult result) {
             HttpAttributes::kXOriginalContentLength)) {
       async_fetch_->extra_response_headers()->SetOriginalContentLength(
           bytes_received_);
+    }
+
+    if (async_fetch_ != nullptr) {
+      fetcher_->ReportFetchSuccessStats(
+          result, async_fetch_->response_headers(), this);
     }
   }
   async_fetch_->Done(result == SerfCompletionResult::kSuccess);
@@ -1350,10 +1354,7 @@ void SerfUrlAsyncFetcher::FetchComplete(SerfFetch* fetch)
   completed_fetches_.Add(fetch);
 }
 
-void SerfUrlAsyncFetcher::ReportCompletedFetchStats(
-    SerfCompletionResult result,
-    const ResponseHeaders* headers,
-    const SerfFetch* fetch) {
+void SerfUrlAsyncFetcher::ReportCompletedFetchStats(const SerfFetch* fetch) {
   if (time_duration_ms_) {
     time_duration_ms_->Add(fetch->TimeDuration());
   }
@@ -1363,6 +1364,12 @@ void SerfUrlAsyncFetcher::ReportCompletedFetchStats(
   if (active_count_) {
     active_count_->Add(-1);
   }
+}
+
+void SerfUrlAsyncFetcher::ReportFetchSuccessStats(
+    SerfCompletionResult result,
+    const ResponseHeaders* headers,
+    const SerfFetch* fetch) {
   if (result != SerfCompletionResult::kClientCancel) {
     if (result == SerfCompletionResult::kSuccess &&
         !headers->IsErrorStatus()) {
