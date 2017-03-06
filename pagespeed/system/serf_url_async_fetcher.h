@@ -82,6 +82,10 @@ struct SerfStats {
   // A failure or an error status. Doesn't include fetches dropped due to
   // process exit and the like.
   static const char kSerfFetchUltimateFailure[];
+
+  // When we last checked the ultimate failure/success numbers for a
+  // possible concern.
+  static const char kSerfFetchLastCheckTimestampMs[];
 };
 
 enum class SerfCompletionResult {
@@ -283,6 +287,7 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   Variable* read_calls_count_;  // Non-NULL only on debug builds.
   Variable* ultimate_success_;
   Variable* ultimate_failure_;
+  UpDownCounter* last_check_timestamp_ms_;
   const int64 timeout_ms_;
   bool shutdown_ GUARDED_BY(mutex_);
   bool list_outstanding_urls_on_error_;

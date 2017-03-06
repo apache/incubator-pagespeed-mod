@@ -213,6 +213,10 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
       serf_url_async_fetcher_->SetSslCertificatesFile(ssl_cert_file);
     }
 #endif
+    // Set initial timestamp so we don't roll-over monitoring stats right after
+    // start.
+    statistics_->GetUpDownCounter(SerfStats::kSerfFetchLastCheckTimestampMs)
+        ->Set(timer_->NowMs());
   }
 
   virtual void TearDown() {

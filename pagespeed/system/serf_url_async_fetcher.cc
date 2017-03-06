@@ -65,6 +65,9 @@ enum HttpsOptions {
   kAllowCertificateNotYetValid          = 1 << 3,
 };
 
+const int kReliabilityCheckPeriodMs = 30 * 60 * 1000; // 30 minutes
+const int kReliabilityCheckMinFetches = 5;
+
 }  // namespace
 
 extern "C" {
@@ -106,6 +109,8 @@ const char SerfStats::kSerfFetchUltimateSuccess[] =
     "serf_fetch_ultimate_success";
 const char SerfStats::kSerfFetchUltimateFailure[] =
     "serf_fetch_ultimate_failure";
+const char SerfStats::kSerfFetchLastCheckTimestampMs[] =
+    "serf_fetch_last_check_timestamp_ms";
 
 GoogleString GetAprErrorString(apr_status_t status) {
   char error_str[1024];
@@ -1093,6 +1098,7 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
       read_calls_count_(NULL),
       ultimate_success_(NULL),
       ultimate_failure_(NULL),
+      last_check_timestamp_ms_(NULL),
       timeout_ms_(timeout_ms),
       shutdown_(false),
       list_outstanding_urls_on_error_(false),
@@ -1117,6 +1123,8 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
       statistics->GetVariable(SerfStats::kSerfFetchUltimateSuccess);
   ultimate_failure_ =
       statistics->GetVariable(SerfStats::kSerfFetchUltimateFailure);
+  last_check_timestamp_ms_ =
+      statistics->GetUpDownCounter(SerfStats::kSerfFetchLastCheckTimestampMs);
   Init(pool, proxy);
   threaded_fetcher_ = new SerfThreadedFetcher(this, proxy);
 }
@@ -1140,6 +1148,7 @@ SerfUrlAsyncFetcher::SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent,
       read_calls_count_(parent->read_calls_count_),
       ultimate_success_(parent->ultimate_success_),
       ultimate_failure_(parent->ultimate_failure_),
+      last_check_timestamp_ms_(parent->last_check_timestamp_ms_),
       timeout_ms_(parent->timeout_ms()),
       shutdown_(false),
       list_outstanding_urls_on_error_(parent->list_outstanding_urls_on_error_),
@@ -1377,11 +1386,32 @@ void SerfUrlAsyncFetcher::ReportFetchSuccessStats(
     } else {
       ultimate_failure_->Add(1);
     }
+
+    // We clear "failures" first, read it last, so if we get an
+    // interleaving, failures will be 0, which of course won't
+    // issue a warning.
+    int64 last_check_ms = last_check_timestamp_ms_->Get();
     int64 success = ultimate_success_->Get();
     int64 failure = ultimate_failure_->Get();
 
-    if ((success + failure) != 0) { // Possible if stats off?
-      LOG(ERROR) << "### Ratio:" << double(success)/(success + failure);
+    if (failure != 0) {
+      int64 now_ms = timer_->NowMs();
+      if (now_ms > (last_check_ms + kReliabilityCheckPeriodMs)) {
+        ultimate_failure_->Clear();
+        ultimate_success_->Clear();
+        last_check_timestamp_ms_->Set(now_ms);
+
+        int64 total = success + failure;
+        if (total > kReliabilityCheckMinFetches &&
+            (double(success) / total) < 0.5) {
+          message_handler_->Message(
+            kError, "PageSpeed Serf fetch failure rate extremely high; "
+            "only %s of %s recent fetches fully successful; is fetching "
+            "working?",
+            Integer64ToString(success).c_str(),
+            Integer64ToString(total).c_str());
+        }
+      }
     }
   }
 }
@@ -1467,6 +1497,7 @@ void SerfUrlAsyncFetcher::InitStats(Statistics* statistics) {
 #endif
   statistics->AddVariable(SerfStats::kSerfFetchUltimateSuccess);
   statistics->AddVariable(SerfStats::kSerfFetchUltimateFailure);
+  statistics->AddUpDownCounter(SerfStats::kSerfFetchLastCheckTimestampMs);
 }
 
 void SerfUrlAsyncFetcher::set_list_outstanding_urls_on_error(bool x) {
