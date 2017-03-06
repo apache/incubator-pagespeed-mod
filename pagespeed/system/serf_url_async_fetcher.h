@@ -276,6 +276,18 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
 // TODO(lsong): Move this to a separate file. Necessary?
 class SerfFetch : public PoolElement<SerfFetch> {
  public:
+  enum class CancelCause {
+    kClientDecision,
+    kSerfError,
+    kFetchTimeout,
+  };
+
+  enum class CompletionResult {
+    kClientCancel,
+    kSuccess,
+    kFailure
+  };
+
   // TODO(lsong): make use of request_headers.
   SerfFetch(const GoogleString& url,
             AsyncFetch* async_fetch,
@@ -290,7 +302,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
   GoogleString DebugInfo();
 
   // This must be called while holding SerfUrlAsyncFetcher's mutex_.
-  void Cancel();
+  void Cancel(CancelCause cause);
 
   // Calls the callback supplied by the user.  This needs to happen
   // exactly once.  In some error cases it appears that Serf calls
@@ -300,8 +312,8 @@ class SerfFetch : public PoolElement<SerfFetch> {
   //
   // Note that when there are SSL error messages, we immediately call
   // CallCallback, which is robust against duplicate calls in that case.
-  void CallCallback(bool success);
-  void CallbackDone(bool success);
+  void CallCallback(CompletionResult result);
+  void CallbackDone(CompletionResult result);
 
   // If last poll of this fetch's connection resulted in an error, clean it up.
   // Must be called after serf_context_run, with fetcher's mutex_ held.

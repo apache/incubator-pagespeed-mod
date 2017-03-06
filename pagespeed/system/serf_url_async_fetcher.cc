@@ -166,7 +166,7 @@ GoogleString SerfFetch::DebugInfo() {
   return str_url_;
 }
 
-void SerfFetch::Cancel() {
+void SerfFetch::Cancel(CancelCause cause) {
   if (connection_ != NULL) {
     // We can get here either because we're canceling the connection ourselves
     // or because Serf detected an error.
@@ -182,18 +182,19 @@ void SerfFetch::Cancel() {
     connection_ = NULL;
   }
 
-  CallCallback(false);
+  CallCallback(cause == CancelCause::kClientDecision ?
+                  CompletionResult::kClientCancel : CompletionResult::kFailure);
 }
 
-void SerfFetch::CallCallback(bool success) {
+void SerfFetch::CallCallback(CompletionResult result) {
   if (ssl_error_message_ != NULL) {
-    success = false;
+    result = CompletionResult::kFailure;
   }
 
   if (async_fetch_ != NULL) {
     fetch_end_ms_ = timer_->NowMs();
     fetcher_->ReportCompletedFetchStats(this);
-    CallbackDone(success);
+    CallbackDone(result);
     fetcher_->FetchComplete(this);
   } else if (ssl_error_message_ == NULL) {
     LOG(FATAL) << "BUG: Serf callback called more than once on same fetch "
@@ -202,10 +203,10 @@ void SerfFetch::CallCallback(bool success) {
   }
 }
 
-void SerfFetch::CallbackDone(bool success) {
+void SerfFetch::CallbackDone(CompletionResult result) {
   // fetcher_==NULL if Start is called during shutdown.
   if (fetcher_ != NULL) {
-    if (!success) {
+    if (result == CompletionResult::kFailure) {
       fetcher_->failure_count_->Add(1);
     }
     if (fetcher_->track_original_content_length() &&
@@ -215,7 +216,7 @@ void SerfFetch::CallbackDone(bool success) {
           bytes_received_);
     }
   }
-  async_fetch_->Done(success);
+  async_fetch_->Done(result == CompletionResult::kSuccess);
   // We should always NULL the async_fetch_ out after calling otherwise we
   // could get weird double calling errors.
   async_fetch_ = NULL;
@@ -226,7 +227,7 @@ void SerfFetch::CleanupIfError() {
       serf_connection_is_in_error_state(connection_)) {
     message_handler_->Message(
         kInfo, "Serf cleanup for error'd fetch of: %s", DebugInfo().c_str());
-    Cancel();
+    Cancel(CancelCause::kSerfError);
   }
 }
 
@@ -434,7 +435,7 @@ apr_status_t SerfFetch::HandleSSLCertValidation(
   // check async_fetch before CallCallback.
   if ((ssl_error_message_ != NULL) && (async_fetch_ != NULL)) {
     fetcher_->cert_errors_->Add(1);
-    CallCallback(false);  // sets async_fetch_ to null.
+    CallCallback(CompletionResult::kFailure);  // sets async_fetch_ to null.
   }
 
   // TODO(jmarantz): I think the design of this system indicates
@@ -458,7 +459,7 @@ apr_status_t SerfFetch::HandleResponse(serf_bucket_t* response) {
     message_handler_->Message(
         kInfo, "serf HandleResponse called with NULL response for %s",
         DebugInfo().c_str());
-    CallCallback(false);
+    CallCallback(CompletionResult::kFailure);
     return APR_EGENERAL;
   }
 
@@ -506,7 +507,9 @@ apr_status_t SerfFetch::HandleResponse(serf_bucket_t* response) {
     }
     bool successful_completion =
         APR_STATUS_IS_EOF(status) && parser_.headers_complete();
-    CallCallback(successful_completion);  // Zeros async_fetch_.
+    // Zeros async_fetch_.
+    CallCallback(successful_completion ?
+                     CompletionResult::kSuccess : CompletionResult::kFailure);
   }
   return status;
 }
@@ -1189,7 +1192,7 @@ void SerfUrlAsyncFetcher::CancelActiveFetchesMutexHeld() {
     // trouble, we simply ask for the oldest element, knowing it will go away.
     SerfFetch* fetch = active_fetches_.oldest();
     LOG(WARNING) << "Aborting fetch of " << fetch->DebugInfo();
-    fetch->Cancel();
+    fetch->Cancel(SerfFetch::CancelCause::kClientDecision);
     ++num_canceled;
   }
 
@@ -1209,7 +1212,9 @@ bool SerfUrlAsyncFetcher::StartFetch(SerfFetch* fetch) {
                                       fetch->DebugInfo().c_str());
     active_fetches_.Remove(fetch);
     active_count_->Add(-1);
-    fetch->CallbackDone(false);
+    fetch->CallbackDone(shutdown_ ?
+                            SerfFetch::CompletionResult::kClientCancel :
+                            SerfFetch::CompletionResult::kFailure);
     delete fetch;
   }
   return started;
@@ -1270,7 +1275,7 @@ int SerfUrlAsyncFetcher::Poll(int64 max_wait_ms) {
         if (timeout_count_ != NULL) {
           timeout_count_->Add(1);
         }
-        fetch->Cancel();
+        fetch->Cancel(SerfFetch::CancelCause::kFetchTimeout);
       }
     }
     bool success = ((status == APR_SUCCESS) || APR_STATUS_IS_TIMEUP(status));
