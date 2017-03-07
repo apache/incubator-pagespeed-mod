@@ -545,8 +545,15 @@ TEST_F(SerfUrlAsyncFetcherTest, TestCancelThreeThreaded) {
   StartFetches(kModpagespeedSite, kGoogleLogo);
   // Explicit shutdown, it's OK to call this twice.
   TearDown();
-  // Cancelled things don't contribute to stats.
-  ValidateMonitoringStats(0, 0);
+
+  // Some of the fetches may succeed in the tiny window above, but none should
+  // be considered failed due to the quick shutdown cancelling them.
+  EXPECT_LE(statistics_->GetVariable(
+                SerfStats::kSerfFetchUltimateSuccess)->Get(),
+            3);
+  EXPECT_EQ(0,
+            statistics_->GetVariable(
+                SerfStats::kSerfFetchUltimateFailure)->Get());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitThreeThreaded) {
