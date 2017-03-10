@@ -1631,7 +1631,6 @@
         'rewriter/property_cache_util.cc',
         'rewriter/push_preload_filter.cc',
         'rewriter/redirect_on_size_limit_filter.cc',
-        'rewriter/render_blocking_html_computation.cc',
         'rewriter/resource_combiner.cc',
         'rewriter/resource_fetch.cc',
         'rewriter/resource_slot.cc',
