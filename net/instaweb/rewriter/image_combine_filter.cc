@@ -1179,7 +1179,8 @@ bool ImageCombineFilter::AddCssBackgroundContext(
                                                    decls));
   future->Initialize(values->at(value_index));
 
-  ResourcePtr resource = CreateInputResource(url_piece, is_authorized);
+  ResourcePtr resource = CreateInputResource(
+      url_piece, RewriteDriver::InputRole::kImg, is_authorized);
   if (resource.get() == NULL) {
     return false;
   }

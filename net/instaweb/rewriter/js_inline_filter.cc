@@ -56,6 +56,9 @@ class JsInlineFilter::Context : public InlineRewriteContext {
   }
 
   virtual const char* id() const { return RewriteOptions::kJavascriptInlineId; }
+  RewriteDriver::InputRole InputRole() const override {
+    return RewriteDriver::InputRole::kScript;
+  }
 
  private:
   JsInlineFilter* filter_;

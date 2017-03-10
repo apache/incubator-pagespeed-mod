@@ -82,6 +82,9 @@ class CssInlineFilter::Context : public InlineRewriteContext {
   }
 
   virtual const char* id() const { return filter_->id_; }
+  RewriteDriver::InputRole InputRole() const override {
+    return RewriteDriver::InputRole::kStyle;
+  }
 
  private:
   CssInlineFilter* filter_;
@@ -162,7 +165,8 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
 
 ResourcePtr CssInlineFilter::CreateResource(const char* url,
                                             bool* is_authorized) {
-  return CreateInputResource(url, is_authorized);
+  return CreateInputResource(
+      url, RewriteDriver::InputRole::kStyle, is_authorized);
 }
 
 bool CssInlineFilter::HasClosingStyleTag(StringPiece contents) {

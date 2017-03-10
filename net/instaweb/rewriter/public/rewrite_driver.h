@@ -605,12 +605,28 @@ class RewriteDriver : public HtmlParse {
                                         kind, failure_reason);
   }
 
+  // How the input will be used in the page; relevant for checking against
+  // Content-Security-Policy.
+  enum class InputRole {
+    kScript,
+    kStyle,
+    kImg,
+    // Something where we don't know for sure; has to be handled
+    // extra-conservatively.
+    kUnknown,
+    // Special role for resource reconstruction. This will be unchecked since
+    // the original resource path should be checked on the web page with
+    // appropriate policy.
+    kReconstruction,
+  };
+
   // Creates an input resource based on input_url.  Returns NULL if the input
   // resource url isn't valid or is a data url, or can't legally be rewritten
   // in the context of this page, in which case *is_authorized will be false.
   // Assumes that resources from unauthorized domains may not be rewritten and
   // that the resource is not intended exclusively for inlining.
   ResourcePtr CreateInputResource(const GoogleUrl& input_url,
+                                  InputRole role,
                                   bool* is_authorized);
 
   // Creates an input resource.  Returns NULL if the input resource url isn't
@@ -632,6 +648,7 @@ class RewriteDriver : public HtmlParse {
       const GoogleUrl& input_url,
       InlineAuthorizationPolicy inline_authorization_policy,
       IntendedFor intended_for,
+      InputRole role,
       bool* is_authorized);
 
   // Creates an input resource from the given absolute url.  Requires that the
@@ -1124,11 +1141,12 @@ class RewriteDriver : public HtmlParse {
       const protobuf::RepeatedPtrField<GoogleString>& unescaped_messages,
       HtmlElement* element);
   void InsertUnauthorizedDomainDebugComment(StringPiece url,
+                                            InputRole role,
                                             HtmlElement* element);
 
   // Generates an unauthorized domain debug comment. Public for unit tests.
   static GoogleString GenerateUnauthorizedDomainDebugComment(
-      const GoogleUrl& gurl);
+      const GoogleUrl& gurl, InputRole role);
 
   // log_record() always returns a pointer to a valid AbstractLogRecord, owned
   // by the rewrite_driver's request context.

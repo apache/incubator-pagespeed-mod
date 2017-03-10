@@ -2328,7 +2328,8 @@ ResourcePtr RewriteContext::CreateUrlResource(const StringPiece& input_url) {
   const GoogleUrl resource_url(input_url);
   ResourcePtr resource;
   if (resource_url.IsWebValid()) {
-    resource = Driver()->CreateInputResource(resource_url, &unused);
+    resource = Driver()->CreateInputResource(
+        resource_url, RewriteDriver::InputRole::kReconstruction, &unused);
   }
   return resource;
 }
@@ -2518,7 +2519,8 @@ bool RewriteContext::PrepareFetch(
       }
 
       bool is_authorized;
-      ResourcePtr resource(driver->CreateInputResource(*url, &is_authorized));
+      ResourcePtr resource(driver->CreateInputResource(
+          *url, RewriteDriver::InputRole::kReconstruction, &is_authorized));
       if (resource.get() == NULL) {
         // TODO(jmarantz): bump invalid-input-resource count
         // TODO(matterbury): Add DCHECK(is_authorized) ...

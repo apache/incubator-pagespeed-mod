@@ -449,8 +449,9 @@ void CssSummarizerBase::StartExternalRewrite(
     HtmlElement* link, HtmlElement::Attribute* src, StringPiece rel) {
   // Create the input resource for the slot.
   bool is_authorized;
-  ResourcePtr input_resource(CreateInputResource(src->DecodedValueOrNull(),
-                                                 &is_authorized));
+  ResourcePtr input_resource(CreateInputResource(
+      src->DecodedValueOrNull(), RewriteDriver::InputRole::kStyle,
+      &is_authorized));
   if (input_resource.get() == NULL) {
     // Record a failure, so the subclass knows of it.
     summaries_.push_back(SummaryInfo());

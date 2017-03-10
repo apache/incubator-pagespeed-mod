@@ -1283,8 +1283,8 @@ TEST_F(RewriteDriverTest, RejectDataResourceGracefully) {
   MockRewriteContext context(rewrite_driver());
   GoogleUrl dataUrl("data:");
   bool is_authorized;
-  ResourcePtr resource(rewrite_driver()->CreateInputResource(dataUrl,
-                                                             &is_authorized));
+  ResourcePtr resource(rewrite_driver()->CreateInputResource(
+      dataUrl, RewriteDriver::InputRole::kImg, &is_authorized));
   EXPECT_TRUE(resource.get() == NULL);
   EXPECT_TRUE(is_authorized);
 }
@@ -1301,8 +1301,8 @@ TEST_F(RewriteDriverTest, NoCreateInputResourceUnauthorized) {
   // Test that an unauthorized resource is not allowed to be created.
   GoogleUrl unauthorized_url("http://unauthorized.domain.com/a.js");
   bool is_authorized;
-  ResourcePtr resource(rewrite_driver()->CreateInputResource(unauthorized_url,
-                                                             &is_authorized));
+  ResourcePtr resource(rewrite_driver()->CreateInputResource(
+      unauthorized_url, RewriteDriver::InputRole::kScript, &is_authorized));
   EXPECT_TRUE(resource.get() == NULL);
   EXPECT_FALSE(is_authorized);
 
@@ -1313,6 +1313,7 @@ TEST_F(RewriteDriverTest, NoCreateInputResourceUnauthorized) {
       authorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
       RewriteDriver::kIntendedForGeneral,
+      RewriteDriver::InputRole::kScript,
       &is_authorized));
   EXPECT_TRUE(resource2.get() != NULL);
   EXPECT_TRUE(is_authorized);
@@ -1338,6 +1339,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
       unauthorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
       RewriteDriver::kIntendedForGeneral,
+      RewriteDriver::InputRole::kScript,
       &is_authorized));
   EXPECT_TRUE(resource.get() != NULL);
   EXPECT_FALSE(is_authorized);
@@ -1351,6 +1353,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
       authorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
       RewriteDriver::kIntendedForGeneral,
+      RewriteDriver::InputRole::kScript,
       &is_authorized));
   EXPECT_TRUE(resource2.get() != NULL);
   EXPECT_TRUE(is_authorized);
@@ -1363,6 +1366,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
       unauthorized_url,
       RewriteDriver::kInlineOnlyAuthorizedResources,
       RewriteDriver::kIntendedForGeneral,
+      RewriteDriver::InputRole::kScript,
       &is_authorized));
   EXPECT_TRUE(resource3.get() == NULL);
   EXPECT_FALSE(is_authorized);
@@ -1370,7 +1374,8 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
   // Test that an unauthorized resource is not created with the default
   // CreateInputResource call.
   ResourcePtr resource4(
-      rewrite_driver()->CreateInputResource(unauthorized_url, &is_authorized));
+      rewrite_driver()->CreateInputResource(
+          unauthorized_url, RewriteDriver::InputRole::kScript, &is_authorized));
   EXPECT_TRUE(resource4.get() == NULL);
   EXPECT_FALSE(is_authorized);
 }
@@ -1393,6 +1398,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorizedWithDisallow) {
       unauthorized_url,
       RewriteDriver::kInlineUnauthorizedResources,
       RewriteDriver::kIntendedForGeneral,
+      RewriteDriver::InputRole::kScript,
       &is_authorized));
   EXPECT_TRUE(resource.get() == NULL);
   EXPECT_FALSE(is_authorized);
@@ -1415,6 +1421,7 @@ TEST_F(RewriteDriverTest, AllowWhenInliningOverridesDisallow) {
       js_url,
       RewriteDriver::kInlineUnauthorizedResources,
       RewriteDriver::kIntendedForInlining,
+      RewriteDriver::InputRole::kScript,
       &is_authorized));
   EXPECT_FALSE(resource.get() == NULL);
   EXPECT_TRUE(is_authorized);
@@ -1437,6 +1444,7 @@ TEST_F(RewriteDriverTest, AllowWhenInliningDoesntOverrideDisallow) {
       js_url,
       RewriteDriver::kInlineUnauthorizedResources,
       RewriteDriver::kIntendedForGeneral,
+      RewriteDriver::InputRole::kScript,
       &is_authorized));
   EXPECT_TRUE(resource.get() == NULL);
   EXPECT_FALSE(is_authorized);

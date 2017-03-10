@@ -301,7 +301,8 @@ ResourcePtr RewriteTestBase::CreateResource(const StringPiece& base,
   GoogleUrl base_url(base);
   GoogleUrl resource_url(base_url, url);
   bool unused;
-  return rewrite_driver_->CreateInputResource(resource_url, &unused);
+  return rewrite_driver_->CreateInputResource(
+      resource_url, RewriteDriver::InputRole::kUnknown, &unused);
 }
 
 void RewriteTestBase::PopulateDefaultHeaders(

@@ -2000,16 +2000,18 @@ bool RewriteDriver::MatchesBaseUrl(const GoogleUrl& input_url) const {
 }
 
 ResourcePtr RewriteDriver::CreateInputResource(const GoogleUrl& input_url,
+                                               InputRole role,
                                                bool* is_authorized) {
   return CreateInputResource(
       input_url, kInlineOnlyAuthorizedResources, kIntendedForGeneral,
-      is_authorized);
+      role, is_authorized);
 }
 
 ResourcePtr RewriteDriver::CreateInputResource(
     const GoogleUrl& input_url,
     InlineAuthorizationPolicy inline_authorization_policy,
     IntendedFor intended_for,
+    InputRole role,
     bool* is_authorized) {
   *is_authorized = true;  // Must be false iff we fail b/c of authorization.
   ResourcePtr resource;
@@ -3246,18 +3248,19 @@ void RewriteDriver::InsertDebugComments(
   }
 }
 
-void RewriteDriver::InsertUnauthorizedDomainDebugComment(StringPiece url,
-                                                         HtmlElement* element) {
+void RewriteDriver::InsertUnauthorizedDomainDebugComment(
+    StringPiece url, InputRole role, HtmlElement* element) {
   if (DebugMode() && element != NULL && IsRewritable(element)) {
     GoogleUrl gurl(url);
     InsertNodeAfterNode(
-        element, NewCommentNode(element->parent(),
-                                GenerateUnauthorizedDomainDebugComment(gurl)));
+        element,
+        NewCommentNode(element->parent(),
+                       GenerateUnauthorizedDomainDebugComment(gurl, role)));
   }
 }
 
 GoogleString RewriteDriver::GenerateUnauthorizedDomainDebugComment(
-    const GoogleUrl& gurl) {
+    const GoogleUrl& gurl, InputRole role) {
   GoogleString comment("The preceding resource was not rewritten because ");
   // Note: this is all being defensive - at the time of writing I believe
   // url will always be a valid URL.

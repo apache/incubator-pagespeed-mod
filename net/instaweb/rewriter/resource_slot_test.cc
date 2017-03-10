@@ -169,7 +169,8 @@ TEST_F(ResourceSlotTest, RenderUpdate) {
 
   GoogleUrl gurl("http://html.parse.test/new_css.css");
   bool unused;
-  ResourcePtr updated(rewrite_driver()->CreateInputResource(gurl, &unused));
+  ResourcePtr updated(rewrite_driver()->CreateInputResource(
+      gurl, RewriteDriver::InputRole::kStyle, &unused));
   slot(0)->SetResource(updated);
   slot(0)->Render();
 

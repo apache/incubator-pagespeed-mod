@@ -227,7 +227,8 @@ TEST_P(JavascriptFilterTest, DebugForUnauthorizedDomain) {
   GoogleUrl gurl(kUnauthorizedJs);
   StrAppend(&html_output,
             "<!--",
-            RewriteDriver::GenerateUnauthorizedDomainDebugComment(gurl),
+            RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+                gurl, RewriteDriver::InputRole::kScript),
             "-->"
             "\n");
   html_output = AddHtmlBody(html_output);

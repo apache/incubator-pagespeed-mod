@@ -220,7 +220,8 @@ class JsCombineFilter::Context : public RewriteContext {
   // Create and add the slot that corresponds to this element.
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
     ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
-        href->DecodedValueOrNull(), element));
+        href->DecodedValueOrNull(), RewriteDriver::InputRole::kScript,
+        element));
     if (resource.get() == NULL) {
       return false;
     }

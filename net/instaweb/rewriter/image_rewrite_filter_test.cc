@@ -3991,7 +3991,8 @@ TEST_F(ImageRewriteTest, DebugMessageUnauthorized) {
       "noise, and has no animation.-->"
       "<img src=", kUnauthorizedPath, ">",
       "<!--",
-      RewriteDriver::GenerateUnauthorizedDomainDebugComment(unauth_gurl),
+      RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+          unauth_gurl, RewriteDriver::InputRole::kImg),
       "-->");
 
   EXPECT_THAT(output_buffer_, HasSubstr(expected));

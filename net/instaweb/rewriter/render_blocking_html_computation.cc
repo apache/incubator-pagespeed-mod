@@ -100,8 +100,11 @@ void RenderBlockingHtmlComputation::Compute(const GoogleString& url) {
   }
 
   bool is_authorized = false;
+  // Note: this is for HTML, so may be kReconstruction would be appropriate,
+  // but it's tough to audit since this doesn't seem to have any users?
   ResourcePtr resource(
-      parent_driver_->CreateInputResource(gurl, &is_authorized));
+      parent_driver_->CreateInputResource(
+          gurl, RewriteDriver::InputRole::kUnknown, &is_authorized));
   if (resource.get() == NULL) {
     ReportResult(false);
     return;

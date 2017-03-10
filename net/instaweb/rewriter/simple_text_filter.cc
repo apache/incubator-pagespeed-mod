@@ -77,7 +77,7 @@ void SimpleTextFilter::StartElementImpl(HtmlElement* element) {
     return;
   }
   ResourcePtr resource(CreateInputResourceOrInsertDebugComment(
-      attr->DecodedValueOrNull(), element));
+      attr->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown, element));
   if (resource.get() == NULL) {
     return;
   }

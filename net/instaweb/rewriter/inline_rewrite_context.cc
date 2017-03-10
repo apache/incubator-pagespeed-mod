@@ -58,7 +58,7 @@ bool InlineRewriteContext::StartInlining() {
       return true;
     }
     if (!is_authorized) {
-      driver->InsertUnauthorizedDomainDebugComment(url, element_);
+      driver->InsertUnauthorizedDomainDebugComment(url, InputRole(), element_);
     }
   } else if (driver->DebugMode()) {
     driver->InsertDebugComment("Following resource not rewritten because its "
@@ -70,7 +70,7 @@ bool InlineRewriteContext::StartInlining() {
 
 ResourcePtr InlineRewriteContext::CreateResource(const char* url,
                                                  bool* is_authorized) {
-  return filter_->CreateInputResource(url, is_authorized);
+  return filter_->CreateInputResource(url, InputRole(), is_authorized);
 }
 
 bool InlineRewriteContext::Partition(OutputPartitions* partitions,

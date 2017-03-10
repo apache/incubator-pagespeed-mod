@@ -467,7 +467,8 @@ TEST_F(JsFilterAndCombineFilterTest, TestCrossDomainRejectUnauthEnabled) {
   server_context()->ComputeSignature(options());
   GoogleUrl gurl(StrCat(other_domain_, kJsUrl1));
   GoogleString debug_message = StrCat(
-      "<!--", RewriteDriver::GenerateUnauthorizedDomainDebugComment(gurl),
+      "<!--", RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+                  gurl, RewriteDriver::InputRole::kScript),
       "-->");
   // Note that we get the debug message twice, once for the combining attempt
   // and once for the rewriting attempt, both of which fail due to the domain
