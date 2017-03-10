@@ -61,7 +61,7 @@ void ScanFilter::StartDocument() {
   driver_->set_containing_charset(headers == NULL ? "" :
                                   headers->DetermineCharset());
 
-  if (headers != nullptr) {
+  if (driver_->options()->honor_csp() && headers != nullptr) {
     ConstStringStarVector values;
     if (headers->Lookup(HttpAttributes::kContentSecurityPolicy, &values)) {
       for (const GoogleString* policy : values) {
@@ -139,7 +139,8 @@ void ScanFilter::StartElement(HtmlElement* element) {
     }
   }
 
-  if (element->keyword() == HtmlName::kMeta) {
+  if (driver_->options()->honor_csp() &&
+      element->keyword() == HtmlName::kMeta) {
     // Note: https://html.spec.whatwg.org/multipage/semantics.html#attr-meta-http-equiv-content-security-policy
     // requires us to check whether the meta element is a child of a <head>.
     // We cannot do it reliably since we don't do full HTML5 parsing (complete

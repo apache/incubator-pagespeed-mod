@@ -298,6 +298,7 @@ class RewriteOptions {
   static const char kForbidAllDisabledFilters[];
   static const char kHideRefererUsingMeta[];
   static const char kHttpCacheCompressionLevel[];
+  static const char kHonorCsp[];
   static const char kIdleFlushTimeMs[];
   static const char kImageInlineMaxBytes[];
   // TODO(huibao): Unify terminology for image rewrites. For example,
@@ -2700,6 +2701,14 @@ class RewriteOptions {
   void set_amp_link_pattern(const GoogleString& id) {
     set_option(id, &amp_link_pattern_);
   }
+
+  bool honor_csp() const {
+    return honor_csp_.value();
+  }
+  void set_honor_csp(bool x) {
+    set_option(x, &honor_csp_);
+  }
+
   virtual bool DisableDomainRewrite() const { return false; }
 
   // Merge src into 'this'.  Generally, options that are explicitly
@@ -4111,6 +4120,9 @@ class RewriteOptions {
   // TODO(sjnickerson): Make this Option<AmpLinkPattern> so that parsing and
   // validation can happen up front.
   Option<GoogleString> amp_link_pattern_;
+
+  // Whether our CSP support is on or not.
+  Option<bool> honor_csp_;
 
   // If set, how to fragment the http cache.  Otherwise the server's hostname,
   // from the Host header, is used.

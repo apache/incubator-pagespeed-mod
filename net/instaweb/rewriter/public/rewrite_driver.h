@@ -1255,7 +1255,6 @@ class RewriteDriver : public HtmlParse {
   CspContext* mutable_content_security_policy() { return &csp_context_; }
   bool IsLoadPermittedByCsp(CspDirective role, StringPiece url);
 
-
  protected:
   virtual void DetermineFiltersBehaviorImpl();
 

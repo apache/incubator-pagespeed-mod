@@ -133,6 +133,8 @@ const char RewriteOptions::kGoogleFontCssInlineMaxBytes[] =
 const char RewriteOptions::kHideRefererUsingMeta[] = "HideRefererUsingMeta";
 const char RewriteOptions::kHttpCacheCompressionLevel[] =
     "HttpCacheCompressionLevel";
+const char RewriteOptions::kHonorCsp[] =
+    "HonorCsp";
 const char RewriteOptions::kIdleFlushTimeMs[] = "IdleFlushTimeMs";
 const char RewriteOptions::kImageInlineMaxBytes[] = "ImageInlineMaxBytes";
 const char RewriteOptions::kImageJpegNumProgressiveScans[] =
@@ -2067,6 +2069,11 @@ void RewriteOptions::AddProperties() {
   AddBaseProperty("", &RewriteOptions::amp_link_pattern_, "alp",
                   kAmpLinkPattern, kDirectoryScope, nullptr,
                   true);  // Not applicable for mod_pagespeed.
+  AddBaseProperty(true, &RewriteOptions::honor_csp_, "hcsp",
+                  kHonorCsp, kServerScope,
+                  "Controls whether PageSpeed should pay attention to "
+                  "Content-Security-Policy directives",
+                  false);
 
   // Note: defer_javascript and defer_iframe were previously not
   // trusted on mobile user-agents, but have now matured to the point
