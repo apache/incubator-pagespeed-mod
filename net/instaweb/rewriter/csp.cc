@@ -49,8 +49,8 @@ inline bool IsAsciiAlpha(char ch) {
           ((ch >= 'A') && (ch <= 'Z')));
 }
 
-inline bool IsAsciiDigit(char ch) {
-  return ((ch >= '0') && (ch <= '9'));
+inline bool IsSchemeContinuation(char ch) {
+  return IsAsciiAlphaNumeric(ch) || (ch == '+') || (ch == '-') || (ch == '.');
 }
 
 }  // namespace
@@ -66,11 +66,7 @@ bool CspSourceExpression::TryParseScheme(StringPiece* input) {
   }
 
   size_t pos = 1;
-  while (pos < input->size() &&
-         (IsAsciiAlphaNumeric((*input)[pos])
-          || (*input)[pos] == '+'
-          || (*input)[pos] == '-'
-          || (*input)[pos] == '.')) {
+  while (pos < input->size() && IsSchemeContinuation((*input)[pos])) {
     ++pos;
   }
 
@@ -147,10 +143,8 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
       return CspSourceExpression();
     }
 
-    if (host_part.starts_with("*")) {
-      if (!host_part.starts_with("*.") && (host_part != "*")) {
-        return CspSourceExpression();
-      }
+    if (host_part[0] == '*' && host_part.size() > 1 && host_part[1] != '.') {
+      return CspSourceExpression();
     }
 
     // Start on port-part, if any
@@ -160,8 +154,8 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
         return CspSourceExpression();
       }
 
-      if (IsAsciiDigit(input[0])) {
-        while (!input.empty() && IsAsciiDigit(input[0])) {
+      if (IsDecimalDigit(input[0])) {
+        while (!input.empty() && IsDecimalDigit(input[0])) {
           result.mutable_url_data()->port_part.push_back(input[0]);
           input.remove_prefix(1);
         }
