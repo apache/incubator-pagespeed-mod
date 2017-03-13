@@ -580,6 +580,10 @@ inline bool IsHexDigit(char c) {
          ('a' <= c && c <= 'f');
 }
 
+inline bool IsDecimalDigit(char c) {
+  return (c >= '0' && c <= '9');
+}
+
 // In-place removal of leading and trailing HTML whitespace.  Returns true if
 // any whitespace was trimmed.
 bool TrimWhitespace(StringPiece* str);
