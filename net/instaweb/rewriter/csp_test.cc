@@ -30,7 +30,8 @@ namespace net_instaweb {
 
 // Help gTest printing.
 
-::std::ostream& operator<<(::std::ostream& os, const CspSourceExpression& expr) {
+::std::ostream& operator<<(::std::ostream& os,
+                           const CspSourceExpression& expr) {
   return os << expr.DebugString();
 }
 
