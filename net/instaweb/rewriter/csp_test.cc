@@ -252,6 +252,10 @@ TEST_F(CspMatchSourceTest, Universal) {
   CheckMatch(false, "*", "gopher://origin", "ws://www.example.com");
   CheckMatch(false, "*", "gopher://origin", "wss://www.example.com");
 
+  // Note that data: in particular is not intended to be matched by *
+  CheckMatch(false, "*", "http://www.example.com",
+                         "data:text/plain,stuff");
+
   // Other schemes have to match origin to be permitted.
   CheckMatch(true, "*", "gopher://origin", "gopher://www.example.com");
   CheckMatch(false, "*", "gopher://origin", "weirder://www.example.com");
@@ -282,6 +286,9 @@ TEST_F(CspMatchSourceTest, Self) {
 TEST_F(CspMatchSourceTest, Scheme) {
   CheckMatch(true, "alpha:", "gopher://whatever", "alpha://example.com");
   CheckMatch(false, "alpha:", "gopher://whatever", "beta://example.com");
+
+  CheckMatch(true, "data:", "http://www.example.com", "data:text/plain,stuff");
+  CheckMatch(false, "http:", "http://www.example.com", "data:text/plain,stuff");
 
   // Protocol upgrade/switch special rules.
   CheckMatch(true, "http:", "gopher://whatever", "https://example.com");

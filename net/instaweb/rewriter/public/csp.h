@@ -65,10 +65,18 @@ class CspSourceExpression {
       }
     }
 
-    GoogleString scheme_part;  // doesn't include :, lowercased.
-    GoogleString host_part;    // lowercased.
+    // All the components here are stored in a manner that matches the way
+    // GoogleUrl stores their corresponding portions, to make it easy to
+    // compare against incoming URLs:
+    // 1) The case-insensitive scheme and host portions are lowercased.
+    // 2) The case-sensitive path doesn't have its case changed, but the
+    //    % escaping is normalized. We also pre-split it since we have
+    //    to check per-component.
+    GoogleString scheme_part;  // doesn't include :
+    GoogleString host_part;
     GoogleString port_part;
-    std::vector<GoogleString> path_part;  // normalized, separated by /
+    // separated by /
+    std::vector<GoogleString> path_part;
     bool path_exact_match;
 
     GoogleString DebugString() const {
@@ -78,6 +86,7 @@ class CspSourceExpression {
                     " path_exact_match:", BoolToString(path_exact_match));
     }
 
+    // For convenience of unit testing.
     bool operator==(const UrlData& other) const {
       return scheme_part == other.scheme_part &&
              host_part == other.host_part &&

@@ -199,8 +199,8 @@ bool CspSourceExpression::Matches(
   // Implementation of the "Does url match expression in origin with
   // redirect count?" algorithm (where redirect count is 0 for our
   // purposes, since we check the request).
-  // TODO(morlovich): This means redirect following may require changes
-  // here.
+  // https://w3c.github.io/webappsec-csp/#match-url-to-source-list
+
   if (kind_ != kSelf && kind_ != kSchemeSource && kind_ != kHostSource) {
     return false;
   }
@@ -304,7 +304,9 @@ bool CspSourceExpression::Matches(
     }
   }
 
-  if (!expr_path.empty()) {  // this would also be skipped for redirects
+  // TODO(morlovich):Redirect following may require changes here ---
+  // this would also be skipped for redirects.
+  if (!expr_path.empty()) {
     // TODO(morlovich): Verify that behavior for query here is what we want.
     StringPieceVector url_path_list;
     SplitStringPieceToVector(url.PathAndLeaf(), "/", &url_path_list, true);
@@ -422,7 +424,8 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
       if (dir_name != CspDirective::kNumSourceListDirectives &&
           policy->policies_[static_cast<int>(dir_name)] == nullptr) {
         // Note: repeated directives are ignored per the "Parse a serialized
-        // CSP as disposition" algorith,
+        // CSP as disposition" algorithm.
+        // https://w3c.github.io/webappsec-csp/#parse-serialized-policy
         policy->policies_[static_cast<int>(dir_name)]
             = CspSourceList::Parse(value);
       }
