@@ -485,6 +485,9 @@ TEST_F(CspMatchSourceTest, Scheme) {
   CheckMatch(true, "alpha:", "gopher://whatever", "alpha://example.com");
   CheckMatch(false, "alpha:", "gopher://whatever", "beta://example.com");
 
+  CheckMatch(true, "data:", "http://www.example.com", "data:text/plain,stuff");
+  CheckMatch(false, "http:", "http://www.example.com", "data:text/plain,stuff");
+
   // Protocol upgrade/switch special rules.
   CheckMatch(true, "http:", "gopher://whatever", "https://example.com");
   CheckMatch(false, "http:", "gopher://whatever", "ftp://example.com");
