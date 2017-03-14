@@ -503,6 +503,7 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
 
 bool CspPolicy::PermitsEval() const {
   // AKA EnsureCSPDoesNotBlockStringCompilation() from the spec.
+  // https://w3c.github.io/webappsec-csp/#can-compile-strings
   const CspSourceList* relevant_list = SourceListFor(CspDirective::kScriptSrc);
   if (relevant_list == nullptr) {
     relevant_list = SourceListFor(CspDirective::kDefaultSrc);
