@@ -82,6 +82,9 @@ class ImageCombineFilter;
 
 namespace {
 
+const char kInlineCspMessage[] =
+    "Avoiding modifying inline style with CSP present";
+
 // A simple transformer that resolves URLs against a base. Unlike
 // RewriteDomainTransformer, does not do any mapping or trimming.
 class SimpleAbsolutifyTransformer : public CssTagScanner::Transformer {
@@ -972,7 +975,7 @@ void CssFilter::Characters(HtmlCharactersNode* characters_node) {
     // Note: HtmlParse should guarantee that we only get one CharactersNode
     // per <style> block even if it is split by a flush. However, this code
     // will still mostly work if we somehow got multiple CharacterNodes.
-    StartInlineRewrite(characters_node);
+    StartInlineRewrite(characters_node, style_element_);
   }
 }
 
@@ -1001,7 +1004,13 @@ void CssFilter::EndElementImpl(HtmlElement* element) {
   }
 }
 
-void CssFilter::StartInlineRewrite(HtmlCharactersNode* char_node) {
+void CssFilter::StartInlineRewrite(HtmlCharactersNode* char_node,
+                                   HtmlElement* parent_element) {
+  if (!driver()->content_security_policy().empty()) {
+    driver()->InsertDebugComment(kInlineCspMessage, parent_element);
+    return;
+  }
+
   ResourcePtr input_resource(MakeInlineResource(char_node->contents()));
   ResourceSlotPtr slot(driver()->GetInlineSlot(input_resource, char_node));
 
@@ -1032,6 +1041,10 @@ void CssFilter::StartInlineRewrite(HtmlCharactersNode* char_node) {
 void CssFilter::StartAttributeRewrite(HtmlElement* element,
                                       HtmlElement::Attribute* style,
                                       InlineCssKind inline_css_kind) {
+  if (!driver()->content_security_policy().empty()) {
+    driver()->InsertDebugComment(kInlineCspMessage, element);
+    return;
+  }
   ResourcePtr input_resource(MakeInlineResource(style->DecodedValueOrNull()));
   ResourceSlotPtr slot(
       driver()->GetInlineAttributeSlot(input_resource, element, style));

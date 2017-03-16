@@ -54,6 +54,9 @@ namespace net_instaweb {
 
 namespace {
 
+const char kInlineCspMessage[] =
+    "Avoiding modifying inline script with CSP present";
+
 void CleanupWhitespaceScriptBody(RewriteDriver* driver,
                                  HtmlCharactersNode* node) {
   // Note that an external script tag might contain body data.  We erase this
@@ -439,6 +442,11 @@ void JavascriptFilter::InitializeConfigIfNecessary() {
 }
 
 void JavascriptFilter::RewriteInlineScript(HtmlCharactersNode* body_node) {
+  if (!driver()->content_security_policy().empty()) {
+    driver()->InsertDebugComment(kInlineCspMessage, body_node->parent());
+    return;
+  }
+
   // Log rewriter activity
   // First buffer up script data and minify it.
   GoogleString* script = body_node->mutable_contents();

@@ -2448,6 +2448,25 @@ TEST_F(CssFilterTest, BasicCsp) {
              "because CSP disallows its fetch-->"));
 }
 
+TEST_F(CssFilterTest, InlineCsp) {
+  EnableDebug();
+  options()->ClearSignatureForTesting();
+  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributes);
+
+  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                      "content=\"style-src */styles/ \">";
+  const char kCss[] = "<style>* { display: stylish; }</style>";
+  const char kStyledDiv[] = "<div style='background-color: #f00; '/>";
+
+  ValidateExpected(
+      "inline_css",
+      StrCat(kCsp, kCss, kStyledDiv),
+      StrCat(kCsp, kCss,
+             "<!--Avoiding modifying inline style with CSP present-->",
+             kStyledDiv,
+             "<!--Avoiding modifying inline style with CSP present-->"));
+}
+
 class CssFilterTestUrlNamer : public CssFilterTest {
  public:
   CssFilterTestUrlNamer() {

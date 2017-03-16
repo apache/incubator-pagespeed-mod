@@ -1439,6 +1439,24 @@ TEST_P(JavascriptFilterTest, BasicCsp) {
              "because CSP disallows its fetch-->"));
 }
 
+TEST_P(JavascriptFilterTest, InlineCsp) {
+  InitFilters();
+  EnableDebug();
+
+
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"script-src */scripts/;  default-src */uploads/\">";
+  const char kScript[] =
+      "<script> var a  = 42;</script>";
+
+  ValidateExpected(
+      "inline_csp",
+      StrCat(kCsp, kScript),
+      StrCat(kCsp, kScript,
+             "<!--Avoiding modifying inline script with CSP present-->"));
+}
+
 // We test with use_experimental_minifier == GetParam() as both true and false.
 INSTANTIATE_TEST_CASE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
                         ::testing::Bool());

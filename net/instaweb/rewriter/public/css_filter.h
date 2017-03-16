@@ -153,7 +153,8 @@ class CssFilter : public RewriteFilter {
                        RewriteContext* parent);
 
   // Starts the asynchronous rewrite process for inline CSS 'text'.
-  void StartInlineRewrite(HtmlCharactersNode* text);
+  void StartInlineRewrite(HtmlCharactersNode* text,
+                          HtmlElement* parent_element);
 
   // Starts the asynchronous rewrite process for inline CSS inside the given
   // element's given style attribute.
