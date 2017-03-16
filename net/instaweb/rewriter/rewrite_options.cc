@@ -133,8 +133,7 @@ const char RewriteOptions::kGoogleFontCssInlineMaxBytes[] =
 const char RewriteOptions::kHideRefererUsingMeta[] = "HideRefererUsingMeta";
 const char RewriteOptions::kHttpCacheCompressionLevel[] =
     "HttpCacheCompressionLevel";
-const char RewriteOptions::kHonorCsp[] =
-    "HonorCsp";
+const char RewriteOptions::kHonorCsp[] = "HonorCsp";
 const char RewriteOptions::kIdleFlushTimeMs[] = "IdleFlushTimeMs";
 const char RewriteOptions::kImageInlineMaxBytes[] = "ImageInlineMaxBytes";
 const char RewriteOptions::kImageJpegNumProgressiveScans[] =

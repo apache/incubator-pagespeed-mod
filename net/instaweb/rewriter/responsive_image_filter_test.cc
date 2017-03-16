@@ -716,6 +716,54 @@ TEST_F(ResponsiveImageFilterTest, Debug) {
       "(other-domain.com) is not authorized-->");
 }
 
+TEST_F(ResponsiveImageFilterTest, DebugCsp) {
+  options()->EnableFilter(RewriteOptions::kResponsiveImages);
+  options()->EnableFilter(RewriteOptions::kResponsiveImagesZoom);
+  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  options()->EnableFilter(RewriteOptions::kResizeImages);
+
+  rewrite_driver()->AddFilters();
+  EnableDebug();
+
+  ResponseHeaders headers;
+  headers.Add("Content-Security-Policy", "script-src https://modpagespeed.com");
+  rewrite_driver()->set_response_headers_ptr(&headers);
+
+  ValidateExpected(
+      "csp_no_zoom",
+      // Input
+      "<img src=a.jpg width=10 height=10>",
+      // Output
+      "<!--ResponsiveImageFilter: Any debug messages after this refer "
+      "to the virtual 1.5x image with "
+      "src=15x15xa.jpg.pagespeed.ic.0.jpg width=15 height=15-->"
+      "<!--Resized image http://test.com/a.jpg from 1023x766 to 15x15-->"
+      "<!--ResponsiveImageFilter: Any debug messages after this refer "
+      "to the virtual 2x image with "
+      "src=20x20xa.jpg.pagespeed.ic.0.jpg width=20 height=20-->"
+      "<!--Resized image http://test.com/a.jpg from 1023x766 to 20x20-->"
+      "<!--ResponsiveImageFilter: Any debug messages after this refer "
+      "to the virtual 3x image with "
+      "src=30x30xa.jpg.pagespeed.ic.0.jpg width=30 height=30-->"
+      "<!--Resized image http://test.com/a.jpg from 1023x766 to 30x30-->"
+      "<!--ResponsiveImageFilter: Any debug messages after this refer "
+      "to the virtual inlinable 3x image with "
+      "src=30x30xa.jpg.pagespeed.ic.0.jpg width=30 height=30-->"
+      "<!--Resized image http://test.com/a.jpg from 1023x766 to 30x30-->"
+      "<!--ResponsiveImageFilter: Any debug messages after this refer "
+      "to the virtual full-sized image with "
+      "src=xa.jpg.pagespeed.ic.0.jpg width= height=-->"
+      "<!--Image http://test.com/a.jpg does not appear to need resizing.-->"
+      "<img src=10x10xa.jpg.pagespeed.ic.0.jpg width=10 height=10 "
+      "srcset=\"15x15xa.jpg.pagespeed.ic.0.jpg "
+      "1.5x,20x20xa.jpg.pagespeed.ic.0.jpg "
+      "2x,30x30xa.jpg.pagespeed.ic.0.jpg "
+      "3x,xa.jpg.pagespeed.ic.0.jpg 102.3x\">"
+      "<!--Resized image http://test.com/a.jpg from 1023x766 to 10x10-->"
+      "<!--ResponsiveImageFilter: cannot insert zoom JS as "
+      "Content-Security-Policy would disallow it-->");
+}
+
 TEST_F(ResponsiveImageFilterTest, InlinePreview) {
   options()->EnableFilter(RewriteOptions::kResponsiveImages);
   options()->EnableFilter(RewriteOptions::kResizeImages);

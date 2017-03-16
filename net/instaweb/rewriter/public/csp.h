@@ -263,6 +263,7 @@ class CspContext {
 
   void AddPolicy(std::unique_ptr<CspPolicy> policy);
   void Clear() { policies_.clear(); }
+  size_t policies_size() const { return policies_.size(); }
 
  private:
   typedef bool (CspPolicy::*SimplePredicateFn)() const;
