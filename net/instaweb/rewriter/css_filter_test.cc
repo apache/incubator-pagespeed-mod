@@ -2427,6 +2427,27 @@ TEST_F(CssFilterTest, AbsolutifyServingFallback) {
   TestFallbackFetch(url, expected_output);
 }
 
+TEST_F(CssFilterTest, BasicCsp) {
+  EnableDebug();
+  SetResponseWithDefaultHeaders("styles/a.css",
+                                kContentTypeCss, kInputStyle, 100);
+  SetResponseWithDefaultHeaders("uploads/sneaky.png",
+                                kContentTypeCss, kInputStyle, 100);
+
+  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                      "content=\"style-src */styles/ \">";
+  ValidateExpected(
+      "basic_csp",
+      StrCat(kCsp,
+             CssLinkHref("styles/a.css"),
+             CssLinkHref("uploads/sneaky.png")),
+      StrCat(kCsp,
+             CssLinkHref(Encode("styles/", "cf", "0", "a.css", "css")),
+             CssLinkHref("uploads/sneaky.png"),
+             "<!--The preceding resource was not rewritten "
+             "because CSP disallows its fetch-->"));
+}
+
 class CssFilterTestUrlNamer : public CssFilterTest {
  public:
   CssFilterTestUrlNamer() {
