@@ -278,7 +278,7 @@ class CacheExtenderTest : public RewriteTestBase {
         "<script src='http://unauth.example.com/unauth.js'></script>";
     GoogleUrl gurl("http://unauth.example.com/unauth.xxx");
     const GoogleString kDebugMessage = StrCat(
-        "<!--", RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+        "<!--", rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
                     gurl, RewriteDriver::InputRole::kScript),
         "-->");
     const char kCssReference[] =

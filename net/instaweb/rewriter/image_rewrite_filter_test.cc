@@ -4013,7 +4013,7 @@ TEST_F(ImageRewriteTest, DebugMessageUnauthorized) {
       "noise, and has no animation.-->"
       "<img src=", kUnauthorizedPath, ">",
       "<!--",
-      RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+      rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
           unauth_gurl, RewriteDriver::InputRole::kImg),
       "-->");
 
