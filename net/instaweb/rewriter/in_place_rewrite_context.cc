@@ -308,6 +308,11 @@ int64 InPlaceRewriteContext::GetRewriteDeadlineAlarmMs() const {
   return RewriteContext::GetRewriteDeadlineAlarmMs();
 }
 
+bool InPlaceRewriteContext::PolicyPermitsRendering() const {
+  // Doesn't realy render, so output check isn't relevant.
+  return true;
+}
+
 void InPlaceRewriteContext::Harvest() {
   if (num_nested() == 1) {
     RewriteContext* const nested_context = nested(0);

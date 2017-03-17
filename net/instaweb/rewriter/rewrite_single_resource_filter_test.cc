@@ -168,6 +168,7 @@ class TestRewriter : public RewriteFilter {
       RewriteDone(filter_->RewriteLoadedResource(input, output), 0);
     }
 
+    bool PolicyPermitsRendering() const override { return true; }
     virtual OutputResourceKind kind() const { return kRewrittenResource; }
     virtual const char* id() const { return filter_->id(); }
     virtual const UrlSegmentEncoder* encoder() const {

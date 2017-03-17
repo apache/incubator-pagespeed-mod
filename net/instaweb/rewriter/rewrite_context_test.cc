@@ -2980,6 +2980,7 @@ class TestNotifyFilter : public CommonFilter {
       RewriteDone(kRewriteFailed, 0);
     }
 
+    bool PolicyPermitsRendering() const override { return true; }
     virtual const char* id() const { return "testnotify"; }
     virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
@@ -5102,6 +5103,7 @@ class FailOnHashMismatchFilter : public RewriteFilter {
 
     virtual bool FailOnHashMismatch() const { return true; }
 
+    bool PolicyPermitsRendering() const override { return true; }
     virtual const char* id() const { return kFilterId; }
     virtual OutputResourceKind kind() const { return kRewrittenResource; }
     virtual void RewriteSingle(

@@ -225,6 +225,7 @@ class NestedFilter : public RewriteFilter {
     virtual ~Context();
     virtual void RewriteSingle(
         const ResourcePtr& input, const OutputResourcePtr& output);
+    bool PolicyPermitsRendering() const override { return true; }
     virtual void Harvest();
 
    protected:
@@ -340,6 +341,7 @@ class CombiningFilter : public RewriteFilter {
     void DoRewrite(int partition_index,
                    CachedResult* partition,
                    OutputResourcePtr output);
+    bool PolicyPermitsRendering() const override { return true; }
     virtual void Render();
     virtual void WillNotRender();
     virtual void Cancel();

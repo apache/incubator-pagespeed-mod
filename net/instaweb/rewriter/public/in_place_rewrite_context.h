@@ -122,6 +122,7 @@ class InPlaceRewriteContext : public SingleRewriteContext {
 
  private:
   friend class RecordingFetch;
+  bool PolicyPermitsRendering() const override;
   // Implements RewriteContext::Harvest().
   virtual void Harvest();
   void StartFetchReconstructionParent();

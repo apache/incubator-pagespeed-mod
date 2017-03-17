@@ -1830,7 +1830,7 @@ void RewriteContext::FinalizeRewriteForHtml() {
   Driver()->DeregisterForPartitionKey(partition_key_, this);
   WritePartition();
 
-  RetireRewriteForHtml(true /* permit rendering, if attached */);
+  RetireRewriteForHtml(PolicyPermitsRendering());
 }
 
 void RewriteContext::RetireRewriteForHtml(bool permit_render) {
@@ -1994,6 +1994,20 @@ void RewriteContext::Harvest() {
 }
 
 void RewriteContext::Render() {
+}
+
+bool RewriteContext::AreOutputsAllowedByCsp(CspDirective role) const {
+  if (Driver()->content_security_policy().empty()) {
+   return true;
+  }
+
+  for (const OutputResourcePtr& o : outputs_) {
+    if (o.get() != nullptr && o->has_hash() && o->has_url() &&
+        !Driver()->IsLoadPermittedByCsp(GoogleUrl(o->url()), role)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void RewriteContext::WillNotRender() {

@@ -1235,6 +1235,7 @@ class MockRewriteContext : public SingleRewriteContext {
 
   virtual void RewriteSingle(const ResourcePtr& input,
                              const OutputResourcePtr& output) {}
+  bool PolicyPermitsRendering() const override { return true; }
   virtual const char* id() const { return "mock"; }
   virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
 };

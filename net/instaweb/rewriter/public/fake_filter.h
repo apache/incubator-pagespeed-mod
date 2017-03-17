@@ -61,6 +61,7 @@ class FakeFilter : public RewriteFilter {
 
     virtual const char* id() const { return filter_->id(); }
     virtual OutputResourceKind kind() const { return filter_->kind(); }
+    bool PolicyPermitsRendering() const override { return true; }
 
    private:
     FakeFilter* filter_;

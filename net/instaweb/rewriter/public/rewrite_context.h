@@ -25,6 +25,7 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/input_info.pb.h"
+#include "net/instaweb/rewriter/public/csp_directive.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -414,6 +415,16 @@ class RewriteContext {
   // do not require any nested RewriteContexts, it is OK to skip
   // overriding this method -- the empty default implementation is fine.
   virtual void Harvest();
+
+  // This method gives the context a chance to verify that rendering the
+  // result is consistent with the current document's (Content Security) Policy,
+  // which may be different than that of the page for which the result was first
+  // computed + cached. Most subclasses can just call AreOutputsAllowedByCsp(),
+  // with appropriate role.
+  virtual bool PolicyPermitsRendering() const = 0;
+
+  // Helper that checks that all output resources are OK with CSP as given role.
+  bool AreOutputsAllowedByCsp(CspDirective role) const;
 
   // Performs rendering activities that span multiple HTML slots.  For
   // example, in a filter that combines N slots to 1, N-1 of the HTML
