@@ -1457,6 +1457,29 @@ TEST_P(JavascriptFilterTest, InlineCsp) {
              "<!--Avoiding modifying inline script with CSP present-->"));
 }
 
+TEST_P(JavascriptFilterTest, CspBaseUri) {
+  InitFilters();
+  EnableDebug();
+  SetResponseWithDefaultHeaders(
+      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+
+  const char kCspAndBase[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"base-uri whatever; script-src *\">"
+      "<base href=\"http://test.com/\">";
+
+  ValidateExpected(
+      "base_uri_csp",
+      StrCat(kCspAndBase,
+             ScriptSrc("scripts/a.js"),
+             ScriptSrc("http://test.com/scripts/a.js")),
+      StrCat(kCspAndBase,
+             "<!--Unable to check safety of a base with CSP base-uri, "
+             "proceeding conservatively.-->",
+             ScriptSrc("scripts/a.js"),
+             ScriptSrc("http://test.com/scripts/a.js.pagespeed.jm.0.js")));
+}
+
 // We test with use_experimental_minifier == GetParam() as both true and false.
 INSTANTIATE_TEST_CASE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
                         ::testing::Bool());
