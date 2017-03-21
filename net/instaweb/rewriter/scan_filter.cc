@@ -109,9 +109,26 @@ void ScanFilter::StartElement(HtmlElement* element) {
     // See http://www.whatwg.org/specs/web-apps/current-work/multipage
     // /semantics.html#the-base-element
     //
-    // TODO(jmarantz): If the base is present but cannot be decoded, we should
-    // probably not do any resource rewriting at all.
-    if ((href != NULL) && (href->DecodedValueOrNull() != NULL)) {
+    if (href != NULL) {
+      if (href->DecodedValueOrNull() == NULL) {
+        // Can't decode base well, so give up on using.
+        driver_->set_other_base_problem();
+        return;
+      }
+
+      // It would be much better if we were to use IsBasePermitted here, but
+      // we may not be able to set previous_origin accurately. So instead,
+      // we act overly conservatively and handle
+      if (driver_->content_security_policy().HasAny(CspDirective::kBaseUri)) {
+        driver_->InsertDebugComment(
+            "Unable to check safety of a base with CSP base-uri, "
+            "proceeding conservatively.",
+            element);
+        driver_->set_other_base_problem();
+        return;
+      }
+
+
       // TODO(jmarantz): consider having rewrite_driver access the url in this
       // class, rather than poking it into rewrite_driver.
       GoogleString new_base = href->DecodedValueOrNull();

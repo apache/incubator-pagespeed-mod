@@ -236,6 +236,7 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
     : HtmlParse(message_handler),
       base_was_set_(false),
       refs_before_base_(false),
+      other_base_problem_(false),
       filters_added_(false),
       externally_managed_(false),
       ref_counts_(this),
@@ -450,6 +451,7 @@ void RewriteDriver::Clear() NO_THREAD_SAFETY_ANALYSIS {
   is_lazyload_script_flushed_ = false;
   base_was_set_ = false;
   refs_before_base_ = false;
+  other_base_problem_ = false;
   containing_charset_.clear();
   fully_rewrite_on_flush_ = false;
   fast_blocking_rewrite_ = true;
@@ -3553,15 +3555,6 @@ bool RewriteDriver::IsLoadPermittedByCsp(
   }
 
   return csp_context_.CanLoadUrl(role, google_url(), url);
-}
-
-bool RewriteDriver::IsRelativeUrlLoadPermittedByCsp(
-    StringPiece url, CspDirective role) {
-  if (refs_before_base_ || !base_url().IsWebValid()) {
-    return false;
-  }
-  GoogleUrl abs_url(base_url(), url);
-  return IsLoadPermittedByCsp(abs_url, role);
 }
 
 bool RewriteDriver::IsLoadPermittedByCsp(const GoogleUrl& url, InputRole role) {
