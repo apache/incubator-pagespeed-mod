@@ -270,6 +270,16 @@ class CspContext {
     return false;
   }
 
+  bool HasAnyOrDefault(CspDirective directive) const {
+    for (const auto& policy : policies_) {
+      if (policy->SourceListFor(directive) != nullptr ||
+          policy->SourceListFor(CspDirective::kDefaultSrc) != nullptr) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void AddPolicy(std::unique_ptr<CspPolicy> policy);
   void Clear() { policies_.clear(); }
   size_t policies_size() const { return policies_.size(); }

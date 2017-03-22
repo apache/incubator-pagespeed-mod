@@ -1491,7 +1491,6 @@ TEST_P(JavascriptFilterTest, InlineCsp) {
   InitFilters();
   EnableDebug();
 
-
   const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"script-src */scripts/;  default-src */uploads/\">";
@@ -1503,6 +1502,42 @@ TEST_P(JavascriptFilterTest, InlineCsp) {
       StrCat(kCsp, kScript),
       StrCat(kCsp, kScript,
              "<!--Avoiding modifying inline script with CSP present-->"));
+}
+
+TEST_P(JavascriptFilterTest, InlineCsp2) {
+  InitFilters();
+  EnableDebug();
+
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"default-src */uploads/\">";
+  const char kScript[] =
+      "<script> var a  = 42;</script>";
+
+  ValidateExpected(
+      "inline_csp2",
+      StrCat(kCsp, kScript),
+      StrCat(kCsp, kScript,
+             "<!--Avoiding modifying inline script with CSP present-->"));
+}
+
+TEST_P(JavascriptFilterTest, InlineCsp3) {
+  InitFilters();
+  EnableDebug();
+
+  // This one doesn't restrict scripts.
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"img-src */uploads/\">";
+  const char kScript[] =
+      "<script> var a  = 42;</script>";
+  const char kScriptMin[] =
+      "<script>var a=42;</script>";
+
+  ValidateExpected(
+      "inline_csp3",
+      StrCat(kCsp, kScript),
+      StrCat(kCsp, kScriptMin));
 }
 
 TEST_P(JavascriptFilterTest, CspBaseUri) {
