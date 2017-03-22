@@ -495,6 +495,14 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
         policy->policies_[static_cast<int>(dir_name)]
             = CspSourceList::Parse(value);
       }
+    } else {
+      // Empty policy
+      CspDirective dir_name = LookupCspDirective(token);
+      if (dir_name != CspDirective::kNumSourceListDirectives &&
+          policy->policies_[static_cast<int>(dir_name)] == nullptr) {
+        policy->policies_[static_cast<int>(dir_name)].reset(
+            new CspSourceList());
+      }
     }
   }
 
@@ -569,7 +577,8 @@ bool CspPolicy::CanLoadUrl(
   }
 
   if (source_list == nullptr) {
-    return false;
+    // No source list permits loading, empty doesn't.
+    return true;
   }
 
   return source_list->Matches(origin_url, url);

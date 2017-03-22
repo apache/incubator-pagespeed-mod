@@ -1459,13 +1459,32 @@ TEST_P(JavascriptFilterTest, RenderCsp) {
       ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")));
 
   // Now render again w/CSP -- blocked since .pagespeed. resource isn't
-  //permitted.
+  // permitted.
   ValidateExpected(
       "render_csp",
       StrCat(kCsp, ScriptSrc("scripts/a.js")),
       StrCat(kCsp, ScriptSrc("scripts/a.js"),
              "<!--PageSpeed output (by JavascriptFilter) not permitted by "
              "Content Security Policy-->"));
+}
+
+TEST_P(JavascriptFilterTest, CspIrrelevant) {
+  InitFilters();
+  EnableDebug();
+
+  SetResponseWithDefaultHeaders(
+      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"img-src https:\">";
+
+  ValidateExpected(
+      "basic_csp",
+      StrCat(kCsp,
+             ScriptSrc("scripts/a.js")),
+      StrCat(kCsp,
+             ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js"))));
 }
 
 TEST_P(JavascriptFilterTest, InlineCsp) {
