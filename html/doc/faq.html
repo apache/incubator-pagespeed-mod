@@ -728,6 +728,30 @@ origin domain, to specify the host or IP to talk to fetch resources.</p>
 <p>You may also want to consider using <a href="domains#ModPagespeedLoadFromFile">
 <code>LoadFromFile</code></a> functionality, as that performs much better if
 your resources are static.</p>
+
+<h2 id="varying-results">Sometimes pages are served as partially optimized. How can
+I achieve a more steady optimization ouput?</h2>
+
+<p>There are two (relatively) common situations that may lead up to a fluctuating
+level of optimization in the output:
+<ol>
+<li>Low traffic, combined with short http expiry times for image, css and javascript
+responses: <br/>
+Consider increasing the http expiry applied to the original
+resources, or set up <a href="domains#ModPagespeedLoadFromFile">LoadFromFile</a>
+to allow the module to load static files directly from disk.</li>
+<li>High cache churn rates:<br/>
+If PageSpeed's caches are sized too small, optimized assets falling out of the cache
+may cause frequent reoptimization. <a href="system#caching">Sizing the cache</a> to 3
+to 4 times the size of the original assets of the website should allow the module to
+cache all the original resources plus multiple optimized variants (for serving 
+different user-agents and screen sizes).
+</li>
+<li>If the above did not help, the <a href="admin">admin pages</a> offer various tools
+that may assist in diagnosing what happens.</li>
+</ol>
+
+</p>
   </div>
   <!--#include virtual="_footer.html" -->
   </body>
