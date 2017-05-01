@@ -1141,6 +1141,20 @@ TEST_F(CacheExtenderTest, SrcSet) {
                           a_url, " 1x, ", b_url, " 2x\">"));
 }
 
+TEST_F(CacheExtenderTest, AmpSrcSet) {
+  InitTest(100);
+  InitResource("a.jpg", kContentTypeJpeg, kImageData, 100);
+  InitResource("b.jpg", kContentTypeJpeg, kImageData, 100);
+
+  const GoogleString a_url = Encode("", kFilterId, "0", "a.jpg", "jpg");
+  const GoogleString b_url = Encode("", kFilterId, "0", "b.jpg", "jpg");
+
+  ValidateExpected("amp-srcset",
+                   "<amp-img src=a.jpg srcset=\"a.jpg 1x, b.jpg 2x\">",
+                   StrCat("<amp-img src=", a_url, " srcset=\"",
+                          a_url, " 1x, ", b_url, " 2x\">"));
+}
+
 TEST_F(CacheExtenderTest, VaryOrigin) {
   options()->EnableExtendCacheFilters();
   rewrite_driver()->AddFilters();

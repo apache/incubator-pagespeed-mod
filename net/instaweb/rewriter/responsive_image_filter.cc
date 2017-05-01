@@ -25,6 +25,7 @@
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -60,9 +61,10 @@ void ResponsiveImageFirstFilter::StartDocumentImpl() {
 }
 
 void ResponsiveImageFirstFilter::EndElementImpl(HtmlElement* element) {
-  if (element->keyword() != HtmlName::kImg) {
+  if (!resource_tag_scanner::IsImageLike(element->keyword())) {
     return;
   }
+  const HtmlElement::Attribute* layout = nullptr;
 
   if (element->AttributeValue(HtmlName::kSrc) == nullptr) {
     driver()->InsertDebugComment("Responsive image URL not decodable", element);
@@ -75,6 +77,14 @@ void ResponsiveImageFirstFilter::EndElementImpl(HtmlElement* element) {
     driver()->InsertDebugComment(
         "ResponsiveImageFilter: Not adding srcset because image already "
         "has one.", element);
+  } else if (element->keyword() == HtmlName::kAmpImg &&
+             (layout = element->FindAttribute(HtmlName::kLayout)) != nullptr &&
+             StringCaseEqual("responsive", layout->escaped_value())) {
+    // See github.com/ampproject/amphtml/blob/master/spec/amp-html-layout.md
+    driver()->InsertDebugComment(
+        "ResponsiveImageFilter: Not adding srcset to amp-img because it's "
+        "marked as responsive, so we don't know what size to resize it to.",
+        element);
   } else if (!element->HasAttribute(HtmlName::kDataPagespeedResponsiveTemp)) {
     // On first run of this filter, split <img> element into multiple
     // elements.
@@ -151,7 +161,9 @@ ResponsiveImageCandidate ResponsiveImageFirstFilter::AddHiResVersion(
     HtmlElement* img, const HtmlElement::Attribute& src_attr,
     int orig_width, int orig_height, StringPiece responsive_attribute_value,
     double resolution) {
-  HtmlElement* new_img = driver()->NewElement(img->parent(), HtmlName::kImg);
+  HtmlName::Keyword keyword = img->keyword();
+  CHECK(resource_tag_scanner::IsImageLike(keyword));
+  HtmlElement* new_img = driver()->NewElement(img->parent(), keyword);
   new_img->AddAttribute(src_attr);
   driver()->AddAttribute(new_img, HtmlName::kDataPagespeedResponsiveTemp,
                          responsive_attribute_value);
@@ -187,7 +199,7 @@ void ResponsiveImageSecondFilter::StartDocumentImpl() {
 }
 
 void ResponsiveImageSecondFilter::EndElementImpl(HtmlElement* element) {
-  if (element->keyword() != HtmlName::kImg) {
+  if (!resource_tag_scanner::IsImageLike(element->keyword())) {
     return;
   }
 

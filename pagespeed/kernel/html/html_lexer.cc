@@ -50,6 +50,7 @@ namespace {
 // syntax.html#void-elements
 const HtmlName::Keyword kImplicitlyClosedHtmlTags[] = {
   HtmlName::kXml,
+  HtmlName::kAmpImg,
   HtmlName::kArea,
   HtmlName::kBase,
   HtmlName::kBr,

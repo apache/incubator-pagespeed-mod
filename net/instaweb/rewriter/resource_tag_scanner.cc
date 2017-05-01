@@ -94,6 +94,13 @@ semantic_type::Category CategorizeAttributeBySpec(
       return (attribute_name == HtmlName::kSrc ?
               semantic_type::kScript : semantic_type::kUndefined);
     case HtmlName::kImg:
+    case HtmlName::kAmpImg:
+      // If add anything else that should be treated as a synonym of image, you
+      // also need to add it to resource_tag_scanner::IsImageLike().
+      //
+      // <amp-img> isn't in the html spec, but we don't expect anyone to be
+      // naming something <amp-img> that doesn't follow the AMP spec.  In the
+      // AMP spec, for our purposes, <amp-img> is equivalent to <img>.
       if (attribute_name == HtmlName::kSrc) {
         return semantic_type::kImage;
       }
@@ -110,6 +117,8 @@ semantic_type::Category CategorizeAttributeBySpec(
       if (attribute_name == HtmlName::kLongdesc) {
         return semantic_type::kHyperlink;
       }
+      // <img srcset=...> is special-cased in the filters that care about it
+      // since it doesn't fit into the CategorizeAttributeBySpec model.
       return semantic_type::kUndefined;
     case HtmlName::kBody:
       if (attribute_name == HtmlName::kBackground) {
@@ -247,6 +256,10 @@ void ScanElement(HtmlElement* element,
       }
     }
   }
+}
+
+bool IsImageLike(HtmlName::Keyword keyword) {
+  return keyword == HtmlName::kImg || keyword == HtmlName::kAmpImg;
 }
 
 }  // namespace resource_tag_scanner

@@ -292,6 +292,8 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
   // Rename srcset -> data-pagespeed-high-res-srcset
   HtmlElement::Attribute* srcset =
       element->FindAttribute(HtmlName::kSrcset);
+  // It's ok that we don't find <amp-img srcset=...> here because this
+  // filter isn't amp-compatible.
   if (srcset != NULL) {
     driver()->SetAttributeName(srcset, HtmlName::kDataPagespeedLazySrcset);
   }
