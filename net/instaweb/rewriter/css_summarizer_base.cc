@@ -296,7 +296,6 @@ void CssSummarizerBase::Clear() {
 void CssSummarizerBase::StartDocumentImpl() {
   // TODO(morlovich): we hold on to the summaries_ memory too long; refine this
   // once the data type is refined.
-  DCHECK(canceled_summaries_.empty());
   Clear();
 }
 
