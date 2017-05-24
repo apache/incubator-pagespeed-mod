@@ -57,7 +57,7 @@ OUTFILE=$OUTDIR/blocking_rewrite.out.html
 $WGET_DUMP --header 'X-PSA-Blocking-Rewrite: psatest' $URL > $OUTFILE
 check egrep -q 'link[[:space:]]rel=' $OUTFILE
 EXPECTED_COMMENT_LINE="<!--The preceding resource was not rewritten because"
-EXPECTED_COMMENT_LINE+=" its domain (cse.google.com) is not authorized-->"
+EXPECTED_COMMENT_LINE+=" its domain (modpagespeed.com) is not authorized-->"
 check [ $(grep -o "$EXPECTED_COMMENT_LINE" $OUTFILE | wc -l) -eq 1 ]
 
 start_test inline_unauthorized_resources allows inlining
