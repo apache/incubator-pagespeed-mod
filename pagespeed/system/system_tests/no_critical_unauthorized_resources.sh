@@ -19,7 +19,7 @@ check_not fgrep -q "interesting_color" $FETCH_FILE
 check [ $(fgrep -c "non_flattened_selector" $FETCH_FILE) -eq 1 ]
 EXPECTED_IMPORT_FAILURE_LINE="<!--Flattening failed: Cannot import http://www.google.com/css/maia.css as it is on an unauthorized domain-->"
 check [ $(grep -o "$EXPECTED_IMPORT_FAILURE_LINE" $FETCH_FILE | wc -l) -eq 1 ]
-EXPECTED_COMMENT_LINE="<!--The preceding resource was not rewritten because its domain (cse.google.com) is not authorized-->"
+EXPECTED_COMMENT_LINE="<!--The preceding resource was not rewritten because its domain (modpagespeed.com) is not authorized-->"
 check [ $(grep -o "$EXPECTED_COMMENT_LINE" $FETCH_FILE | wc -l) -eq 1 ]
 
 start_test inline_unauthorized_resources allows unauthorized css selectors
