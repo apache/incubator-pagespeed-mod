@@ -16,4 +16,4 @@ echo -e "GET /mod_pagespeed_example/ HTTP/1.1\nHost: 127.0.0.\xEF\xBF\xBD\n" >&3
 read -t 1 OUT <&3
 
 # Expect a 200 response and not, say, EOF.
-check_from "$OUT" grep -q "HTTP/1.[01] 200 OK"
+check_from "$OUT" grep -q "HTTP/1.[01] (200 OK|400 Bad Request)"
