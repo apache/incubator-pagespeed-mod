@@ -12,7 +12,7 @@ set -u
 
 branch=master
 delete_existing_machine=false
-image_family=ubuntu-1204-lts
+image_family=ubuntu-1404-lts
 keep_machine=false
 machine_name=
 use_existing_machine=false
