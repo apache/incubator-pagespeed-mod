@@ -74,7 +74,10 @@ if "$additional_dev_packages"; then
     $(first_available_package php-mbstring libapache2-mod-php5))
 fi
 
-apt-get -y install "${binary_packages[@]}"
+# The 32 bits ubuntu 14.04 image has /etc/protocols modified which 
+# will cause a prompt here. Force retaining the old configuration here.
+apt-get -y -o Dpkg::Options::="--force-confdef" \
+  -o Dpkg::Options::="--force-confold" install "${binary_packages[@]}"
 
 # src_packages might be empty. The below placates set -u, see:
 # http://stackoverflow.com/questions/7577052/bash-empty-array-expansion-with-set-u
