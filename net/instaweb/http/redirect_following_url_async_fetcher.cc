@@ -162,7 +162,6 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
   void EmitRedirectWarning(const GoogleString& context_url,
                            const GoogleString& redirect_url,
                            GoogleString message) {
-      std::cerr << " redir to " << redirect_url << " - " << message << std::endl;
       message_handler_->Message(
           kWarning, "Fetch redirect: [%s] -> [%s]: %s.", context_url.c_str(),
           redirect_url.c_str(), message.c_str());
@@ -203,13 +202,20 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
       response_headers()->ComputeCaching();
     }
 
+    if (response_headers()->RequiresProxyRevalidation()) {
+      EmitRedirectWarning(url_, "t.b.d.",
+          "Revalidation not supported for redirects");
+      return false;
+    }
+
     bool cacheable = response_headers()->IsProxyCacheable(
         base_fetch_->request_headers()->GetProperties(),
         ResponseHeaders::GetVaryOption(options->respect_vary()),
         ResponseHeaders::kNoValidator);
 
     if (!cacheable) {
-      EmitRedirectWarning(url_, "t.b.d.", "Redirect not cacheable, not following");
+      EmitRedirectWarning(url_, "t.b.d.",
+          "Redirect not cacheable, not following");
       return false;
     } else {
       max_age_ = std::min(max_age_, response_headers()->cache_ttl_ms());

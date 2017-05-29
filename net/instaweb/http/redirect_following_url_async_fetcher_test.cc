@@ -776,6 +776,51 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest, RedirectToProtocolRelativeWorks) {
   EXPECT_STREQ("protocolrelativebody", fetch.content());
 }
 
+TEST_F(RedirectFollowingUrlAsyncFetcherTest,
+       RedirectMustRevalidateNotFollowed) {
+  ResponseHeaders headers;
+  headers.set_major_version(1);
+  headers.set_minor_version(1);
+  headers.SetStatusAndReason(HttpStatus::kMovedPermanently);
+  headers.SetDateAndCaching(timer_.NowMs(), ttl_ms_);
+  headers.Add("Location", "http://context.url/bar");
+  headers.Add(HttpAttributes::kCacheControl, "must-revalidate");
+  mock_fetcher_.SetResponse("http://context.url/must-revalidate", headers, "redir");
+
+  MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
+                  true);
+  NullMessageHandler handler;
+  redirect_following_fetcher_->Fetch("http://context.url/must-revalidate",
+                                     &handler_, &fetch);
+
+  EXPECT_TRUE(fetch.done());
+  EXPECT_FALSE(fetch.success());
+  EXPECT_EQ(1, counting_fetcher_->fetch_count());
+}
+
+TEST_F(RedirectFollowingUrlAsyncFetcherTest,
+       RedirectProxyRevalidateNotFollowed) {
+  ResponseHeaders headers;
+  headers.set_major_version(1);
+  headers.set_minor_version(1);
+  headers.SetStatusAndReason(HttpStatus::kMovedPermanently);
+  headers.SetDateAndCaching(timer_.NowMs(), ttl_ms_);
+  headers.Add("Location", "http://context.url/bar");
+  headers.Add(HttpAttributes::kCacheControl, "proxy-revalidate");
+  mock_fetcher_.SetResponse("http://context.url/proxy-revalidate", headers, "redir");
+
+  MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
+                  true);
+  NullMessageHandler handler;
+  redirect_following_fetcher_->Fetch("http://context.url/proxy-revalidate",
+                                     &handler_, &fetch);
+
+  EXPECT_TRUE(fetch.done());
+  EXPECT_FALSE(fetch.success());
+  EXPECT_EQ(1, counting_fetcher_->fetch_count());
+}
+
+
 }  // namespace
 
 }  // namespace net_instaweb
