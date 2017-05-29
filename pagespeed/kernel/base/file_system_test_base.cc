@@ -523,6 +523,9 @@ void FileSystemTest::TestLockBumping() {
 
   // Try to take the lock again.  If bumping didn't work, then the lock would
   // have expired 1s ago and we could have taken it here.
+  // TODO(oschaaf): I have observed this flaking a single time during release
+  // test execution. We should look into bumping the timeouts here if it happens
+  // again.
   EXPECT_FALSE(file_system()->TryLockWithTimeout(
       lock_name, Timer::kSecondMs * 3, timer(), &handler_).is_true());
 
