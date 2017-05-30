@@ -402,8 +402,19 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
       headers->Replace(HttpAttributes::kEtag, HTTPCache::FormatEtag(StrCat(
                                                   id(), "-", rewritten_hash_)));
     }
+
+    // Determine if we need to use the implicit cache ttl ms or the implicit
+    // load from file cache ttl ms.
+    int64 implicit_ttl = Options()->implicit_cache_ttl_ms();
+    if (num_slots() == 1) {
+      ResourcePtr resource(slot(0)->resource());
+      if (!resource->UseHttpCache()) {
+	implicit_ttl = Options()->load_from_file_cache_ttl_ms();
+      }
+    }
+
     headers->RemoveAll(HttpAttributes::kLastModified);
-    headers->set_implicit_cache_ttl_ms(Options()->implicit_cache_ttl_ms());
+    headers->set_implicit_cache_ttl_ms(implicit_ttl);
     headers->ComputeCaching();
     int64 expire_at_ms = kint64max;
     int64 date_ms = kint64max;
