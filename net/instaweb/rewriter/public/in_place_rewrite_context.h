@@ -152,6 +152,9 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   void RemoveRedundantRelCanonicalHeader(const CachedResult& cached_result,
                                          ResponseHeaders* headers);
 
+  // Returns true iff the single underlying resource is mapped by LoadFromFile.
+  bool IsLoadFromFileBased();
+
   GoogleString url_;
   // Boolean indicating whether or not the resource was rewritten successfully.
   bool is_rewritten_;

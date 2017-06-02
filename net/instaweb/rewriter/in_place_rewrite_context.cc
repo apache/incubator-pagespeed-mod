@@ -405,13 +405,9 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
 
     // Determine if we need to use the implicit cache ttl ms or the implicit
     // load from file cache ttl ms.
-    int64 implicit_ttl_ms = Options()->implicit_cache_ttl_ms();
-    if (num_slots() == 1) {
-      ResourcePtr resource(slot(0)->resource());
-      if (!resource->UseHttpCache()) {
-	implicit_ttl_ms = Options()->load_from_file_cache_ttl_ms();
-      }
-    }
+    int64 implicit_ttl_ms = IsLoadFromFileBased() ?
+        Options()->load_from_file_cache_ttl_ms() :
+        Options()->implicit_cache_ttl_ms();
 
     headers->RemoveAll(HttpAttributes::kLastModified);
     headers->set_implicit_cache_ttl_ms(implicit_ttl_ms);
@@ -463,6 +459,16 @@ void InPlaceRewriteContext::RemoveRedundantRelCanonicalHeader(
     const CachedResult& cached_result, ResponseHeaders* headers) {
   headers->Remove(HttpAttributes::kLink,
                   ResponseHeaders::RelCanonicalHeaderValue(url_));
+}
+
+bool InPlaceRewriteContext::IsLoadFromFileBased() {
+  if (num_slots() == 1) {
+    ResourcePtr resource(slot(0)->resource());
+    if (!resource->UseHttpCache()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void InPlaceRewriteContext::UpdateDateAndExpiry(
