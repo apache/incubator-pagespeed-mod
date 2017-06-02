@@ -1682,16 +1682,13 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserNegative) {
 }
 
 TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
+  const int64 kIproFileTtl = 15000;
   options()->file_load_policy()->Associate("http://www.example.com", "/test/");
+  options()->set_load_from_file_cache_ttl_ms(kIproFileTtl);
   WriteFile("/test/cacheable.js", cache_body_ /*"   alert ( 'foo ')   "*/);
 
   Init();
 
-  // TODO(jmarantz): currently we will not have caching headers on
-  // file-input-resources so we default to the implicit cache TTL.
-  // We should probably have a new config options for file-input
-  // TTL for use with in-place.
-  const int64 kIproFileTtl = RewriteOptions::kDefaultImplicitCacheTtlMs;
   FetchAndCheckResponse(cache_js_url_, cache_body_, true,
                         kIproFileTtl, NULL, start_time_ms());
 
