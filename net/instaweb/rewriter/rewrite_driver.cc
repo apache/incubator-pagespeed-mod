@@ -2096,7 +2096,7 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
     // Note: type may be NULL if url has an unexpected or malformed extension.
     const ContentType* type = NameExtensionToContentType(url.LeafSansQuery());
     GoogleString filename;
-    if (options()->file_load_policy()->ShouldLoadFromFile(url, &filename)) {
+    if (false && options()->file_load_policy()->ShouldLoadFromFile(url, &filename)) {
       resource.reset(
           new FileInputResource(this, type, url_string, filename));
     } else {

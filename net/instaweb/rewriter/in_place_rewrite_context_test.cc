@@ -1700,11 +1700,11 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   // resource gets inserted into cache.
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(0, http_cache()->cache_misses()->Get());
-  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());
+  EXPECT_EQ(1, http_cache()->cache_misses()->Get());
+  EXPECT_EQ(2, http_cache()->cache_inserts()->Get());
   EXPECT_EQ(0, lru_cache()->num_hits());
-  EXPECT_EQ(2, lru_cache()->num_misses());
-  EXPECT_EQ(3, lru_cache()->num_inserts());
+  EXPECT_EQ(3, lru_cache()->num_misses());
+  EXPECT_EQ(4, lru_cache()->num_inserts());
   EXPECT_EQ(0, img_filter_->num_rewrites());
   EXPECT_EQ(1, js_filter_->num_rewrites());
   EXPECT_EQ(0, css_filter_->num_rewrites());

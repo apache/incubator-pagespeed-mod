@@ -2869,12 +2869,12 @@ TEST_F(RewriteContextTest, LoadFromFileOnTheFly) {
   ValidateExpected("trimmable", CssLinkHref("a.css"),
                    CssLinkHref(Encode("", "tw", "0", "a.css", "css")));
   EXPECT_EQ(0, lru_cache()->num_hits());
-  // 1 cache miss for the OutputPartitions.  The input resource does not
-  // induce a cache check as it's loaded from the file system.
-  EXPECT_EQ(1, lru_cache()->num_misses());
-  // 1 cache insertion: resource mapping (CachedResult).
-  // Output resource not stored in cache (because it's an on-the-fly resource).
-  EXPECT_EQ(1, lru_cache()->num_inserts());
+  // 2 cache misses for the OutputPartitions.  The input resource
+  // induces a cache check as it's loaded from the file system.
+  EXPECT_EQ(2, lru_cache()->num_misses());
+  // 2 cache insertions: resource mapping (CachedResult) and the http resource.
+  // Output resource stored in cache (because it's an on-the-fly resource).
+  EXPECT_EQ(2, lru_cache()->num_inserts());
   // No fetches because it's loaded from file.
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(1, file_system()->num_input_file_opens());

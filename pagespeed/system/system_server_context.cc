@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher_stats.h"
+//#include "net/instaweb/http/public/load_from_file_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -321,10 +322,13 @@ void SystemServerContext::ApplySessionFetchers(
         system_request->local_port(), driver->async_fetcher()));
   }
 
+  //  driver->SetSessionFetcher(new LoadFromFileFetcher(driver->options(), file_system(), timer(),
+  //                                                driver->async_fetcher()));
   if (driver->options()->num_custom_fetch_headers() > 0) {
     driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),
                                                     driver->async_fetcher()));
   }
+  ServerContext::ApplySessionFetchers(request, driver);
 }
 
 void SystemServerContext::CollapseConfigOverlaysAndComputeSignatures() {

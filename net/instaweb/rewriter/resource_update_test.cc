@@ -282,7 +282,7 @@ TEST_F(ResourceUpdateTest, LoadFromFileOnTheFly) {
   EXPECT_EQ(2, trim_filter_->num_rewrites());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   // EXPECT_EQ(1, file_system()->num_input_file_opens());
-  EXPECT_EQ(2, file_system()->num_input_file_opens());
+  EXPECT_EQ(1, file_system()->num_input_file_opens());
 
   // 2) Advance time, but not so far that resources would have expired if
   // they were loaded by UrlFetch.
@@ -292,7 +292,7 @@ TEST_F(ResourceUpdateTest, LoadFromFileOnTheFly) {
   EXPECT_EQ("init", RewriteSingleResource("advance_time"));
   EXPECT_EQ(1, trim_filter_->num_rewrites());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(1, file_system()->num_input_file_opens());
+  EXPECT_EQ(0, file_system()->num_input_file_opens());
 
   // 3) Change resource.
   WriteFile("/test/a.css", " new ");

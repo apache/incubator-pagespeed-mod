@@ -26,6 +26,7 @@
 #include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_cache.h"
+#include "net/instaweb/http/public/load_from_file_fetcher.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -1022,6 +1023,8 @@ void ServerContext::set_critical_selector_finder(
 
 void ServerContext::ApplySessionFetchers(const RequestContextPtr& req,
                                          RewriteDriver* driver) {
+  driver->SetSessionFetcher(new LoadFromFileFetcher(driver->options(), file_system(), timer(),
+						    driver->async_fetcher()));
 }
 
 RequestProperties* ServerContext::NewRequestProperties() {
