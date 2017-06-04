@@ -1682,18 +1682,15 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserNegative) {
 }
 
 TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
+  const int64 kIproFileTtlMs = 15000;
   options()->file_load_policy()->Associate("http://www.example.com", "/test/");
+  options()->set_load_from_file_cache_ttl_ms(kIproFileTtlMs);
   WriteFile("/test/cacheable.js", cache_body_ /*"   alert ( 'foo ')   "*/);
 
   Init();
 
-  // TODO(jmarantz): currently we will not have caching headers on
-  // file-input-resources so we default to the implicit cache TTL.
-  // We should probably have a new config options for file-input
-  // TTL for use with in-place.
-  const int64 kIproFileTtl = RewriteOptions::kDefaultImplicitCacheTtlMs;
   FetchAndCheckResponse(cache_js_url_, cache_body_, true,
-                        kIproFileTtl, NULL, start_time_ms());
+                        kIproFileTtlMs, NULL, start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
   // result into cache. Also, the resource gets rewritten and the rewritten
@@ -1715,7 +1712,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   ResetHeadersAndStats();
   SetTimeMs(start_time_ms() + ttl_ms_/2);
   FetchAndCheckResponse(cache_js_url_, "good:jm", true,
-                        kIproFileTtl, etag_,
+                        kIproFileTtlMs, etag_,
                         start_time_ms() + ttl_ms_/2);
   // Second fetch hits the metadata cache and the rewritten resource is served
   // out.
@@ -1737,7 +1734,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   AdvanceTimeMs(2 * ttl_ms_);
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, "good:jm", true,
-                        kIproFileTtl, etag_, timer()->NowMs());
+                        kIproFileTtlMs, etag_, timer()->NowMs());
   CheckWarmCache("third_fetch");
 
   // OK let's now move time forward a little and touch the file
@@ -1749,7 +1746,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   WriteFile("/test/cacheable.js", cache_body_ /*"   alert ( 'foo ')   "*/);
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, cache_body_, true,
-                        kIproFileTtl, NULL, timer()->NowMs());
+                        kIproFileTtlMs, NULL, timer()->NowMs());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
@@ -1764,7 +1761,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   AdvanceTimeMs(1 * Timer::kSecondMs);
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, "good:jm", true,
-                        kIproFileTtl, etag_, timer()->NowMs());
+                        kIproFileTtlMs, etag_, timer()->NowMs());
   CheckWarmCache("second_fetch_after_touch");
 
   // Now change the content.
@@ -1772,7 +1769,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   WriteFile("/test/cacheable.js", "new_content");
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, "new_content", true,
-                        kIproFileTtl, NULL, timer()->NowMs());
+                        kIproFileTtlMs, NULL, timer()->NowMs());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
@@ -1787,7 +1784,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   AdvanceTimeMs(1 * Timer::kSecondMs);
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, "new_content:jm", true,
-                        kIproFileTtl, etag_, timer()->NowMs());
+                        kIproFileTtlMs, etag_, timer()->NowMs());
   CheckWarmCache("second_fetch_after_mutation");
 }
 
