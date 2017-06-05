@@ -221,8 +221,10 @@ void OutputResource::SetHash(StringPiece hash) {
 void OutputResource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                      const RequestContextPtr& request_context,
                                      AsyncCallback* callback) {
-  LOG(DFATAL) << "Output resources shouldn't be loaded via "
-                 "LoadAsync, but rather through FetchResource";
+  // TODO(oschaaf): Output resources shouldn't be loaded via LoadAsync, but
+  // rather through FetchResource. Yet 
+  // ProxyInterfaceTest.TestNoDebugAbortAfterMoreThenOneYear does manage to hit
+  // this code. See https://github.com/pagespeed/mod_pagespeed/issues/1553
   callback->Done(false /* lock_failure */, writing_complete_);
 }
 
