@@ -381,6 +381,53 @@ TEST_F(ProxyInterfaceTest, LoggingInfo) {
   EXPECT_TRUE(logging_info()->is_request_disabled());
 }
 
+// Regression test for https://github.com/pagespeed/mod_pagespeed/issues/1553
+TEST_F(ProxyInterfaceTest, TestNoDebugAbortAfterMoreThenOneYear) {
+  GoogleString text;
+  RequestHeaders request_headers;
+  ResponseHeaders response_headers;
+  RewriteOptions* options = server_context()->global_options();
+  static const char* kUrl = "http://test.com/flush_subresources.html";
+
+  options->ClearSignatureForTesting();
+  options->EnableFilter(RewriteOptions::kExtendCacheCss);
+  options->DisableFilter(RewriteOptions::kInlineCss);
+  server_context()->ComputeSignature(options);
+
+  response_headers.Add(HttpAttributes::kContentType,
+                       kContentTypeHtml.mime_type());
+  response_headers.SetStatusAndReason(HttpStatus::kOK);
+
+  mock_url_fetcher_.SetResponse("http://test.com/flush_subresources.html",
+                                response_headers,
+                                "<html><head><link rel='stylesheet' "
+                                "type='text/css' href='test.css'></head></html>");
+
+  response_headers.Replace(HttpAttributes::kContentType,
+                           kContentTypeCss.mime_type());
+  mock_url_fetcher_.SetResponse("http://test.com/test.css", response_headers,
+                                kCssContent);
+
+  FetchFromProxy(kUrl,
+                 request_headers,
+                 true,  /* expect_success */
+                 &text,
+                 &response_headers,
+                 false  /* proxy_fetch_property_callback_collector_created */);
+
+  SetTimeMs(MockTimer::kApr_5_2010_ms + 2 * Timer::kYearMs);
+
+  // This second fetch would run into a VLOG(DFATAL) prior to changing that to a
+  // TODO.
+  FetchFromProxy(kUrl,
+                 request_headers,
+                 true,  /* expect_success */
+                 &text,
+                 &response_headers,
+                 false  /* proxy_fetch_property_callback_collector_created */);
+}
+
+
 TEST_F(ProxyInterfaceTest, SkipPropertyCacheLookupIfOptionsNotEnabled) {
   GoogleString url = "http://www.example.com/";
   GoogleString text;
