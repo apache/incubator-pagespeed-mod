@@ -63,5 +63,5 @@ for site in $(cat $1); do
 done
 cat $LOG_PATH | grep ^GET | cut -d ' ' -f 2 > $URLS_PATH
 cd $SLURP_TOP_DIR
-tar cvjf $2 .
+tar cvjf $2 *
 
