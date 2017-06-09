@@ -14,12 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Note: this script is not yet usable outside Google, because it depends on a
-# corpus database that we can't open source.  It should be possible to create a
-# db with a combination of mod_pagespeed's slurping and a headless browser, but
-# we don't currently have a script or instructions on how to do this.
-# TODO(jefftk): resolve this
-#
 # This script runs a mod_pagespeed load-test.  The typical
 # configuration is to run this on your development workstation and
 # mps_generate_load.sh will be run (via ssh) on a different machine
@@ -208,7 +202,8 @@ cd "$src/devel"
 
 # Build a version of mod_pagespeed with all optimizations enabled, but with
 # a build that includes DCHECKs.
-make -j8 CONF=$compile_mode apache_trace_stress_test_server \
+# TODO(oschaaf): can we skip this step if we have a custom .so?
+make BUILDTYPE=Debug -j8 CONF=$compile_mode apache_trace_stress_test_server \
   DUMP_DIR="$corpus" \
   APACHE_DEBUG_ROOT="${APACHE_DEBUG_ROOT}" \
   MOD_PAGESPEED_CACHE=/var/run/pagespeed/cache
