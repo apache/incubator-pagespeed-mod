@@ -2089,11 +2089,8 @@ InlineResult ImageRewriteFilter::TryInline(bool is_html, bool is_critical,
   return INLINE_SUCCESS;
 }
 
-void ImageRewriteFilter::EndElementImpl(HtmlElement* element) {
-  // Don't rewrite if the image is broken by a flush.
-  if (driver()->HasChildrenInFlushWindow(element)) {
-    return;
-  }
+void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
+
   // Don't rewrite if there is a pagespeed_no_transform or
   // data-pagespeed-no-transform attribute.
   if (element->FindAttribute(HtmlName::kDataPagespeedNoTransform)) {

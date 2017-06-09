@@ -2132,6 +2132,16 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
   ModPagespeedCriticalImagesBeaconEnabled false
 </VirtualHost>
 
+# Test image rewrites for parent,child nodes and flush.
+<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
+  ServerName image-rewrite-with-flush.example.com
+  DocumentRoot "@@APACHE_DOC_ROOT@@"
+  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
+  ModPagespeedRewriteLevel PassThrough
+  ModPagespeedUrlValuedAttribute li data-thumb image
+  ModPagespeedEnableFilters core
+</VirtualHost>
+
 # In case the system has not added webp as an installed mimetype, this
 # is needed to allow automatic/system_tests/resource_content_type_html.sh
 # to work, as that is needed for
