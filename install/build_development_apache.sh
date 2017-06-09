@@ -89,6 +89,7 @@ if [ "$HTTPD_DIR" = "httpd24" ]; then
   # nghttp2 depends on Apache 2.4+, so only build it for 2.4.
   cd "$third_party/nghttp2"
   echo "Configuring nghttp2"
+  autoreconf -if
   ./configure --prefix=$TARGET
   echo "Building nghttp2"
   make
