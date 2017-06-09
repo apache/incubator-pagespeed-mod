@@ -215,11 +215,11 @@ make -j8 CONF=$compile_mode apache_trace_stress_test_server \
 
 # If a custom .so got specified, install it.
 if [[ -n "$custom_so" ]]; then
-  install -c $custom_so $HOME/apache2/modules/mod_pagespeed.so
+  install -c $custom_so $APACHE_DEBUG_ROOT/modules/mod_pagespeed.so
 fi
 
 if [[ -n "$custom_so24" ]]; then
-  install -c $custom_so24 $HOME/apache2/modules/mod_pagespeed_ap24.so
+  install -c $custom_so24 $APACHE_DEBUG_ROOT/modules/mod_pagespeed_ap24.so
 fi
 
 # Restart apache for any hand-specified .so or alternative binary
