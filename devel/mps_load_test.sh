@@ -110,7 +110,7 @@ else
 fi
 
 if [[ $# -ge 1 && "$1" = "-memcached" ]]; then
-  echo Using memcached on port $MEMCACHED_PORT
+  echo "Using memcached on port $MEMCACHED_PORT"
   shift
   export MEMCACHED=1
   export REDIS=0
@@ -186,7 +186,7 @@ if [ -d /var/run/pagespeed/ ]; then
   rm -rf /var/run/pagespeed/*
 else
   sudo mkdir -p /var/run/pagespeed
-  sudo chown $USER /var/run/pagespeed
+  sudo chown "$USER" /var/run/pagespeed
 fi
 
 # Only ssh (and warn user that they will need a password) if using a separate
@@ -210,16 +210,16 @@ cd "$src/devel"
 # a build that includes DCHECKs.
 make -j8 CONF=$compile_mode apache_trace_stress_test_server \
   DUMP_DIR="$corpus" \
-  APACHE_DEBUG_ROOT=${APACHE_DEBUG_ROOT} \
+  APACHE_DEBUG_ROOT="${APACHE_DEBUG_ROOT}" \
   MOD_PAGESPEED_CACHE=/var/run/pagespeed/cache
 
 # If a custom .so got specified, install it.
 if [[ -n "$custom_so" ]]; then
-  install -c $custom_so /usr/local/apache2/modules/mod_pagespeed.so
+  install -c "$custom_so" "$APACHE_DEBUG_ROOT/modules/mod_pagespeed.so"
 fi
 
 if [[ -n "$custom_so24" ]]; then
-  install -c $custom_so24 /usr/local/apache2/modules/mod_pagespeed_ap24.so
+  install -c "$custom_so24" "$APACHE_DEBUG_ROOT/modules/mod_pagespeed_ap24.so"
 fi
 
 # Restart apache for any hand-specified .so or alternative binary
@@ -239,7 +239,7 @@ rm -f "$stop_crash_scraper"
 echo starting test ...
 "$src/devel/scrape_error_log_for_crashes.sh" \
     "$error_log" "$stop_crash_scraper" &
-echo $cmd ...
+echo "$cmd ..."
 $cmd
 touch "$stop_crash_scraper"
 
@@ -278,5 +278,5 @@ if [ "$MEMCACHED" = "1" -o "$REDIS" = "1" ]; then
   echo -n Sleeping 5 seconds before killing external cache server to let
   echo -n outstanding writes quiesce...
   sleep 5
-  echo done
+  echo "done"
 fi
