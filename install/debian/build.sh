@@ -91,7 +91,7 @@ do_package_in_fakeroot() {
   fakeroot -s "${FAKEROOTFILE}" -i "${FAKEROOTFILE}" -- \
     chown -R ${APACHE_USER}:${APACHE_USER} ${STAGEDIR}${MOD_PAGESPEED_LOG}
   fakeroot -i "${FAKEROOTFILE}" -- \
-    dpkg-deb -b "${STAGEDIR}" .
+    dpkg-deb -Zgzip -b "${STAGEDIR}" .
   rm -f "${FAKEROOTFILE}"
 }
 
