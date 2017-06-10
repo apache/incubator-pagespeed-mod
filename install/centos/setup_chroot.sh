@@ -54,7 +54,7 @@ if version_compare "$centos_version" -lt 6; then
   release_rpm_url=http://mirror.centos.org/centos/5/os/i386/CentOS/centos-release-5-11.el5.centos.i386.rpm
 elif version_compare "$centos_version" -lt 7; then
   # CentOS 6
-  release_rpm_url=http://mirror.centos.org/centos/6/os/i386/Packages/centos-release-6-8.el6.centos.12.3.i686.rpm
+  release_rpm_url=http://mirror.centos.org/centos/6/os/i386/Packages/centos-release-6-9.el6.12.3.i686.rpm
 else
   # CentOS 7
   release_rpm_url=http://mirror.centos.org/altarch/7/os/i386/Packages/centos-release-7-2.1511.el7.centos.2.9.i686.rpm
