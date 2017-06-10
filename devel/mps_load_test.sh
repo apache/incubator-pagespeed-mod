@@ -203,7 +203,7 @@ cd "$src/devel"
 # Build a version of mod_pagespeed with all optimizations enabled, but with
 # a build that includes DCHECKs.
 # TODO(oschaaf): can we skip this step if we have a custom .so?
-make BUILDTYPE=Debug -j8 CONF=$compile_mode apache_trace_stress_test_server \
+make -j8 CONF=$compile_mode apache_trace_stress_test_server \
   DUMP_DIR="$corpus" \
   APACHE_DEBUG_ROOT="${APACHE_DEBUG_ROOT}" \
   MOD_PAGESPEED_CACHE=/var/run/pagespeed/cache

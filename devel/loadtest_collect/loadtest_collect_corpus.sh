@@ -55,6 +55,7 @@ make apache_debug_stop
 sed -e "s^#HOME^$HOME^" -e "s^#SLURP_DIR^$SLURP_DIR^" \
   -e "s^#LOG_PATH^$LOG_PATH^" \
   < loadtest_collect/loadtest_collect.conf > ~/apache2/conf/pagespeed.conf
+cat ~/apache2/conf/pagespeed.conf
 make -j8 apache_debug_restart
 
 for site in $(cat $1); do

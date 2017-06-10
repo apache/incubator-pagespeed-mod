@@ -125,8 +125,6 @@ DEVEL_DIR = $(GIT_SRC)/devel
 INSTALL_DATA_DIR = $(GIT_SRC)/install
 
 # Where binaries go.
-GIT_RELEASE_BIN = $(GIT_SRC)/out/Release
-GIT_DEBUG_BIN = $(GIT_SRC)/out/Debug
 GIT_BIN = $(GIT_SRC)/out/$(BUILDTYPE)
 
 # GYP_MANIFEST holds a cached copy of the gyp files in this client.  When we
@@ -296,19 +294,19 @@ apache_debug : $(HOOKS_STAMP)
 	@echo "building Apache module $@ ..."
 	cd $(GIT_SRC) && $(MAKE)
 	@echo Built mod_pagespeed successfully:
-	ls -l $(GIT_DEBUG_BIN)/libmod_pagespeed.so
+	ls -l $(GIT_BIN)/libmod_pagespeed.so
 	@echo To install, type
-	@echo "   " cp $(GIT_DEBUG_BIN)/libmod_pagespeed.so \
+	@echo "   " cp $(GIT_BIN)/libmod_pagespeed.so \
 		$(APACHE_DEBUG_ROOT)/modules/mod_pagespeed.so
 
 apache_debug_psol : apache_debug
 	cd $(GIT_SRC)/pagespeed/automatic && $(MAKE) \
 		MOD_PAGESPEED_ROOT=$(GIT_SRC) \
-		OUTPUT_DIR=$(GIT_DEBUG_BIN) \
+		OUTPUT_DIR=$(GIT_BIN) \
 		BUILDTYPE=Debug \
 		CXXFLAGS=$(CXXFLAGS) \
 		all
-	@echo Built PSOL successfully under in $(GIT_DEBUG_BIN)
+	@echo Built PSOL successfully under in $(GIT_BIN)
 
 .PHONY : submodule_update
 submodule_update:
@@ -561,9 +559,9 @@ TMP_PREFIX = /tmp/mod_pagespeed.$(USER).install
 internal_release_test :
 	cd $(GIT_SRC) && \
 	  BUILDTYPE=Release install/run_program_with_ext_caches.sh \
-	    $(GIT_RELEASE_BIN)/mod_pagespeed_test  $(TEST_ARG) && \
+	    $(GIT_BIN)/mod_pagespeed_test  $(TEST_ARG) && \
 	  BUILDTYPE=Release install/run_program_with_ext_caches.sh \
-	    $(GIT_RELEASE_BIN)/pagespeed_automatic_test $(TEST_ARG)
+	    $(GIT_BIN)/pagespeed_automatic_test $(TEST_ARG)
 
 # Configuration root for Apache file-system and cache directories, to
 # be written into config file.
@@ -622,15 +620,15 @@ apache_release : internal_release_build
 	@echo "   " sudo make install
 	@echo "or"
 	@echo "   " sudo cp \
-		$(GIT_RELEASE_BIN)/libmod_pagespeed.so \
+		$(GIT_BIN)/libmod_pagespeed.so \
 		$(APACHE_RELEASE_MODULES_DIR)/mod_pagespeed.so
 
 apache_release_install : apache_release
 	@echo "Copy the module to your Apache2 modules directory."
 	@echo "Then, restart your Apache server."
-	install -c $(GIT_RELEASE_BIN)/libmod_pagespeed.so \
+	install -c $(GIT_BIN)/libmod_pagespeed.so \
 	           $(APACHE_RELEASE_MODULES_DIR)/mod_pagespeed.so
-	install -c $(GIT_RELEASE_BIN)/libmod_pagespeed_ap24.so \
+	install -c $(GIT_BIN)/libmod_pagespeed_ap24.so \
 	           $(APACHE_RELEASE_MODULES_DIR)/mod_pagespeed_ap24.so
 	/etc/init.d/apache2 stop
 	/etc/init.d/apache2 start
