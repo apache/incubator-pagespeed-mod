@@ -103,7 +103,6 @@ RecordingFetch::~RecordingFetch() {}
 void RecordingFetch::HandleHeadersComplete() {
   can_in_place_rewrite_ = CanInPlaceRewrite();
   streaming_ = ShouldStream();
-
   if (can_in_place_rewrite_) {
     // Save the headers, and wait to finalize them in HandleDone().
     saved_headers_.reset(new ResponseHeaders(*response_headers()));
@@ -659,12 +658,9 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
     } else {
       ServerContext* server_context = resource->server_context();
       MessageHandler* handler = server_context->message_handler();
-
-     
-      NonHttpResourceCallback* callback = new NonHttpResourceCallback(
-          resource, proxy_mode_, this, async_fetch(), handler);
-
+      NonHttpResourceCallback* callback = NULL;
       bool optimizeable = true;
+      
       if (num_output_partitions() == 1)
         optimizeable = output_partition(0)->optimizable();
 
