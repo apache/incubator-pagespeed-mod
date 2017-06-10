@@ -103,6 +103,7 @@ RecordingFetch::~RecordingFetch() {}
 void RecordingFetch::HandleHeadersComplete() {
   can_in_place_rewrite_ = CanInPlaceRewrite();
   streaming_ = ShouldStream();
+
   if (can_in_place_rewrite_) {
     // Save the headers, and wait to finalize them in HandleDone().
     saved_headers_.reset(new ResponseHeaders(*response_headers()));
@@ -588,7 +589,7 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
   NonHttpResourceCallback(const ResourcePtr& resource,
                           bool proxy_mode,
                           RewriteContext* context,
-                          RecordingFetch* fetch,
+                          AsyncFetch* fetch,
                           MessageHandler* handler)
       : AsyncCallback(resource),
         proxy_mode_(proxy_mode),
@@ -601,6 +602,7 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
     if (!lock_failure && resource_ok) {
       async_fetch_->response_headers()->CopyFrom(
           *resource()->response_headers());
+      async_fetch_->set_content_length(resource()->UncompressedContentsSize());
       async_fetch_->Write(resource()->ExtractUncompressedContents(),
                           message_handler_);
       async_fetch_->Done(true);
@@ -622,7 +624,7 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
  private:
   bool proxy_mode_;
   RewriteContext* context_;
-  RecordingFetch* async_fetch_;
+  AsyncFetch* async_fetch_;
   MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(NonHttpResourceCallback);
@@ -637,11 +639,11 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
     ResourcePtr resource(slot(0)->resource());
     // If we get here, the resource must not have been rewritten.
     is_rewritten_ = false;
-    RecordingFetch* fetch =
-        new RecordingFetch(proxy_mode_, async_fetch(), resource, this,
-                           Options()->EffectiveInPlaceSMaxAgeSec(),
-                           fetch_message_handler());
     if (resource->UseHttpCache()) {
+      RecordingFetch* fetch =
+          new RecordingFetch(proxy_mode_, async_fetch(), resource, this,
+                            Options()->EffectiveInPlaceSMaxAgeSec(),
+                            fetch_message_handler());
       if (proxy_mode_) {
         cache_fetcher_.reset(Driver()->CreateCacheFetcher());
         // Since we are proxying resources to user, we want to fetch it even
@@ -657,8 +659,27 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
     } else {
       ServerContext* server_context = resource->server_context();
       MessageHandler* handler = server_context->message_handler();
+
+     
       NonHttpResourceCallback* callback = new NonHttpResourceCallback(
-          resource, proxy_mode_, this, fetch, handler);
+          resource, proxy_mode_, this, async_fetch(), handler);
+
+      bool optimizeable = true;
+      if (num_output_partitions() == 1)
+        optimizeable = output_partition(0)->optimizable();
+
+      if (optimizeable) {
+        RecordingFetch* fetch =
+            new RecordingFetch(proxy_mode_, async_fetch(), resource, this,
+                              Options()->EffectiveInPlaceSMaxAgeSec(),
+                              fetch_message_handler());       
+        callback = new NonHttpResourceCallback(
+            resource, proxy_mode_, this, fetch, handler);
+      } else {       
+        callback = new NonHttpResourceCallback(
+            resource, proxy_mode_, this, async_fetch(), handler);
+      }
+
       resource->LoadAsync(Resource::kLoadEvenIfNotCacheable,
                           Driver()->request_context(), callback);
     }
