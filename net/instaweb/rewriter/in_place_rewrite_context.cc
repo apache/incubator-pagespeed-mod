@@ -103,6 +103,7 @@ RecordingFetch::~RecordingFetch() {}
 void RecordingFetch::HandleHeadersComplete() {
   can_in_place_rewrite_ = CanInPlaceRewrite();
   streaming_ = ShouldStream();
+  std::cerr << "@@ stream: " << streaming_ << " canipro: " << can_in_place_rewrite_ << " " << response_headers()->ToString() << "\n";
   if (can_in_place_rewrite_) {
     // Save the headers, and wait to finalize them in HandleDone().
     saved_headers_.reset(new ResponseHeaders(*response_headers()));
@@ -624,6 +625,7 @@ void InPlaceRewriteContext::StartFetchReconstruction() {
         new RecordingFetch(proxy_mode_, async_fetch(), resource, this,
                            Options()->EffectiveInPlaceSMaxAgeSec(),
                            fetch_message_handler());
+    std::cerr << "IPRC:SFRC proxy: " << proxy_mode_ << " usehttpcache"<< resource->UseHttpCache() << "\n";
     if (resource->UseHttpCache()) {
       if (proxy_mode_) {
         cache_fetcher_.reset(Driver()->CreateCacheFetcher());

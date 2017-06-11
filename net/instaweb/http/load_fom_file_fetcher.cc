@@ -111,6 +111,7 @@ void LoadFromFileFetcher::Fetch(
         response_headers->FixDateHeaders(now_ms);
         response_headers->SetContentLength(output_buffer.size());
         response_headers->ComputeCaching();
+	fetch->HeadersComplete();
         fetch->Write(output_buffer, handler);
 
         std::cerr << "@@ loaded fine: " << url << "\n";
