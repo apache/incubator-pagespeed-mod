@@ -18,8 +18,4 @@
 start_test Image rewrite with flush.
 HOST_NAME="http://image-rewrite-with-flush.example.com"
 URL="http://image-rewrite-with-flush.example.com/mod_pagespeed_test/image_rewrite_with_flush/image_rewrite_with_flush.php"
-RESPONSE_OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET -O - $URL)
-# Again fetching url, since second fetch will involve cache and optimization
-RESPONSE_OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET -O - $URL)
-MATCHES=$(echo "$RESPONSE_OUT" | grep -c pagespeed.ic)
-check [ "$MATCHES" = 2 ]
+http_proxy=$SECONDARY_HOSTNAME fetch_until -save "$URL" 'fgrep -c .pagespeed.ic' 2
