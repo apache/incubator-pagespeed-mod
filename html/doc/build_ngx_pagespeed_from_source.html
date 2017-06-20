@@ -119,7 +119,7 @@ cd
 wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
 tar -xvzf nginx-${NGINX_VERSION}.tar.gz
 cd nginx-${NGINX_VERSION}/
-./configure --add-module=$HOME/ngx_pagespeed-${NPS_VERSION}-beta ${PS_NGX_EXTRA_FLAGS}
+./configure --add-module=$HOME/ngx_pagespeed-${NPS_VERSION} ${PS_NGX_EXTRA_FLAGS}
 make
 sudo make install
 </pre>
@@ -150,7 +150,7 @@ you will have to configure ngx_pagespeed as follows, instead of the above
 </p>
 
 <pre class="prettyprint lang-sh">
-setarch i686 ./configure --add-module=$HOME/ngx_pagespeed-release-${NPS_VERSION}-beta
+setarch i686 ./configure --add-module=$HOME/ngx_pagespeed-release-${NPS_VERSION}
 </pre>
 
 <p>
