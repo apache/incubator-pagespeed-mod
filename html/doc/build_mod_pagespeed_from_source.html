@@ -85,11 +85,20 @@ path. In <code>bash</code> you would run:
 </pre>
 <h2 id="checkout">Check out mod_pagespeed and dependencies</h2>
 <p>
+<p>For building version 1.12 and later:</p>
+<pre>
+  git clone -b latest-stable --recursive https://github.com/pagespeed/mod_pagespeed.git
+  cd mod_pagespeed
+  python build/gyp_chromium --depth=.
+  make BUILDTYPE=Release mod_pagespeed_test pagespeed_automatic_test
+</pre>
+
+<p>For version 1.11.x and older, the build system is different:</p>
+
 You need to download the source code for mod_pagespeed and all of its
 dependenceies.  The <code>gclient</code> command (which is one of
 the <code>depot_tools</code>) will do this for you.
 
-<p>For the latest stable version:</p>
 <pre>
   mkdir ~/mod_pagespeed    # Any directory is fine.
   cd ~/mod_pagespeed
@@ -104,13 +113,6 @@ the <code>depot_tools</code>) will do this for you.
       BUILDTYPE=Release mod_pagespeed_test pagespeed_automatic_test
 </pre>
 
-<p>The beta version has a slightly different build system:</p>
-<pre>
-  git clone -b latest-beta --recursive https://github.com/pagespeed/mod_pagespeed.git
-  cd mod_pagespeed
-  python build/gyp_chromium --depth=.
-  make BUILDTYPE=Release mod_pagespeed_test pagespeed_automatic_test
-</pre>
 <h2 id="tests">Build &amp; Run Tests</h2>
 <p>
 To make sure mod_pagespeed will work on your system we provide some automated
