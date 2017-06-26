@@ -1357,6 +1357,28 @@ TEST_F(ImageRewriteTest, ImgSrcSetWithCacheExtender) {
       "srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
 }
 
+TEST_F(ImageRewriteTest, ImageUrlValuedAttributeWithFlush) {
+  options()->EnableFilter(RewriteOptions::kRecompressJpeg);
+  options()->AddUrlValuedAttribute("li", "data-thumb", semantic_type::kImage);
+  rewrite_driver()->AddFilters();
+
+  GoogleString initial_url = StrCat(kTestDomain, kPuzzleJpgFile);
+  AddFileToMockFetcher(initial_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
+
+  SetupWriter();
+  rewrite_driver()->StartParse(kTestDomain);
+  rewrite_driver()->ParseText("<html><body><ul><li data-thumb='Puzzle.jpg'>");
+  // Flush in middle of parent and child element
+  rewrite_driver()->Flush();
+  rewrite_driver()->ParseText("<img src='Puzzle.jpg'/></li></ul></body></html>");
+  rewrite_driver()->FinishParse();
+
+  // Check output with optimized parent, child image nodes
+  EXPECT_STREQ("<html><body><ul><li data-thumb='xPuzzle.jpg.pagespeed.ic.0.jpg'>"
+      "<img src='xPuzzle.jpg.pagespeed.ic.0.jpg'/></li></ul></body></html>",
+      output_buffer_);
+}
+
 TEST_F(ImageRewriteTest, ImgTagWithComputeStatistics) {
   options()->EnableFilter(RewriteOptions::kComputeStatistics);
   RewriteImage("img", kContentTypeJpeg);

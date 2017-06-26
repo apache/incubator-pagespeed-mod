@@ -118,8 +118,8 @@ class ImageRewriteFilter : public RewriteFilter {
   virtual void StartDocumentImpl();
   virtual void EndDocument();
   virtual void RenderDone();
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element);
+  virtual void StartElementImpl(HtmlElement* element);
+  virtual void EndElementImpl(HtmlElement* element) {}
   virtual const char* Name() const { return "ImageRewrite"; }
   virtual const char* id() const { return RewriteOptions::kImageCompressionId; }
   virtual void EncodeUserAgentIntoResourceContext(
