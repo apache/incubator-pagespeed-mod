@@ -1374,7 +1374,7 @@ TEST_F(ImageRewriteTest, ImageUrlValuedAttributeWithFlush) {
   rewrite_driver()->FinishParse();
 
   // Check output with optimized parent, child image nodes
-  EXPECT_EQ("<html><body><ul><li data-thumb='xPuzzle.jpg.pagespeed.ic.0.jpg'>"
+  EXPECT_STREQ("<html><body><ul><li data-thumb='xPuzzle.jpg.pagespeed.ic.0.jpg'>"
       "<img src='xPuzzle.jpg.pagespeed.ic.0.jpg'/></li></ul></body></html>",
       output_buffer_);
 }
