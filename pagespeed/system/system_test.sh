@@ -77,6 +77,7 @@ run_test check_headers
 run_test aris
 run_test css_combining_authorization
 run_test add_instrumentation
+run_test type_attribute_pedantic
 run_test cache_partial_html
 run_test flush_subresources
 run_test respect_custom_options

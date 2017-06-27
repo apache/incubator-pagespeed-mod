@@ -45,8 +45,14 @@ namespace {
 
 // The javascript tag to insert in the top of the <head> element.  We want this
 // as early as possible in the html.  It must be short and fast.
-const char kHeadScript[] =
+const char kHeadScriptPedantic[] =
     "<script type='text/javascript'>"
+    "window.mod_pagespeed_start = Number(new Date());"
+    "</script>";
+
+// script tag without type attribute
+const char kHeadScriptNonPedantic[] =
+    "<script>"
     "window.mod_pagespeed_start = Number(new Date());"
     "</script>";
 
@@ -95,7 +101,12 @@ void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
     added_head_script_ = true;
     // TODO(abliss): add an actual element instead, so other filters can
     // rewrite this JS
-    HtmlCharactersNode* script = driver()->NewCharactersNode(NULL, kHeadScript);
+    HtmlCharactersNode* script = NULL;
+    if(driver()->options()->Enabled(RewriteOptions::kPedantic)){
+        script = driver()->NewCharactersNode(NULL, kHeadScriptPedantic);
+    } else {
+        script = driver()->NewCharactersNode(NULL, kHeadScriptNonPedantic);
+    }
     driver()->InsertNodeBeforeCurrent(script);
     instrumentation_script_added_count_->Add(1);
   }
