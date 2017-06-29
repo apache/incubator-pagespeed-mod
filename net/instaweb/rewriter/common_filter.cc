@@ -300,7 +300,8 @@ void CommonFilter::AddJsToElement(StringPiece js, HtmlElement* script) {
   }
 
   // is pedantic filter only check sufficient for adding type attribute?
-  if (!driver_->doctype().IsVersion5() || driver_->options()->Enabled(RewriteOptions::kPedantic)) {
+  if (!driver_->doctype().IsVersion5() ||
+          driver_->options()->Enabled(RewriteOptions::kPedantic)) {
     driver_->AddAttribute(script, HtmlName::kType, "text/javascript");
   }
   HtmlCharactersNode* script_content = driver_->NewCharactersNode(script, js);

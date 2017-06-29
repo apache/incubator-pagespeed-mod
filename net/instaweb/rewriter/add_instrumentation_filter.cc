@@ -101,11 +101,11 @@ void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
     added_head_script_ = true;
     // TODO(abliss): add an actual element instead, so other filters can
     // rewrite this JS
-    HtmlCharactersNode* script = NULL;
-    if(driver()->options()->Enabled(RewriteOptions::kPedantic)){
-        script = driver()->NewCharactersNode(NULL, kHeadScriptPedantic);
+    HtmlCharactersNode* script = nullptr;
+    if (driver()->options()->Enabled(RewriteOptions::kPedantic)) {
+        script = driver()->NewCharactersNode(nullptr, kHeadScriptPedantic);
     } else {
-        script = driver()->NewCharactersNode(NULL, kHeadScriptNonPedantic);
+        script = driver()->NewCharactersNode(nullptr, kHeadScriptNonPedantic);
     }
     driver()->InsertNodeBeforeCurrent(script);
     instrumentation_script_added_count_->Add(1);
@@ -149,7 +149,7 @@ void AddInstrumentationFilter::EndDocument() {
     return;
   }
   GoogleString js = GetScriptJs(kLoadTag);
-  HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
   if (!driver()->defer_instrumentation_script()) {
     driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                            StringPiece());
@@ -207,7 +207,7 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
   }
 
   // Append the http response code.
-  if (driver()->response_headers() != NULL &&
+  if (driver()->response_headers() != nullptr &&
       driver()->response_headers()->status_code() > 0 &&
       driver()->response_headers()->status_code() != HttpStatus::kOK) {
     StrAppend(&extra_params, "&rc=", IntegerToString(
