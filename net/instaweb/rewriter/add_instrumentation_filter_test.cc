@@ -267,6 +267,51 @@ TEST_F(AddInstrumentationFilterTest, TestDisableForBots) {
                     "<head></head><head></head><body></body><body></body>");
 }
 
+// Test script tag and type attribute without pedantic filter
+TEST_F(AddInstrumentationFilterTest, TestScriptTagTypeAttribute) {
+  options()->EnableFilter(RewriteOptions::kAddInstrumentation);
+  AddFilters();
+
+  SetupWriter();
+  rewrite_driver()->StartParse(kTestDomain);
+  rewrite_driver()->ParseText("<!DOCTYPE html><html><head></head><body>"
+                              "<img src='Puzzle.jpg'/></body></html>");
+  rewrite_driver()->FinishParse();
+
+  // check html without type attribute in head
+  EXPECT_TRUE(output_buffer_.find(
+      "<script>window.mod_pagespeed_start") !=
+          StringPiece::npos);
+
+  // check html without type attribute in data-pagespeed-no-defer tag
+  EXPECT_TRUE(output_buffer_.find(
+      "<script data-pagespeed-no-defer>") !=
+          StringPiece::npos);
+}
+
+// Test script tag and type attribute with pedantic filter
+TEST_F(AddInstrumentationFilterTest, TestScriptTagTypeAttributePedantic) {
+  options()->EnableFilter(RewriteOptions::kAddInstrumentation);
+  options()->EnableFilter(RewriteOptions::kPedantic);
+  AddFilters();
+
+  SetupWriter();
+  rewrite_driver()->StartParse(kTestDomain);
+  rewrite_driver()->ParseText("<!DOCTYPE html><html><head></head><body>"
+                              "<img src='Puzzle.jpg'/></body></html>");
+  rewrite_driver()->FinishParse();
+
+  // check html with type attribute in head
+  EXPECT_TRUE(output_buffer_.find(
+      "<script type='text/javascript'>window.mod_pagespeed_start") !=
+          StringPiece::npos);
+
+  // check html with type attribute in data-pagespeed-no-defer tag
+  EXPECT_TRUE(output_buffer_.find(
+      "<script data-pagespeed-no-defer type=\"text/javascript\">")!=
+          StringPiece::npos);
+}
+
 const char kBeaconUrl[] = "http://example.com/beacon?org=xxx";
 
 class AddInstrumentationAmpTest : public AddInstrumentationFilterTest {

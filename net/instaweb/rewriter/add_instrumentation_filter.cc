@@ -45,8 +45,14 @@ namespace {
 
 // The javascript tag to insert in the top of the <head> element.  We want this
 // as early as possible in the html.  It must be short and fast.
-const char kHeadScript[] =
+const char kHeadScriptPedantic[] =
     "<script type='text/javascript'>"
+    "window.mod_pagespeed_start = Number(new Date());"
+    "</script>";
+
+// script tag without type attribute
+const char kHeadScriptNonPedantic[] =
+    "<script>"
     "window.mod_pagespeed_start = Number(new Date());"
     "</script>";
 
@@ -95,7 +101,12 @@ void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
     added_head_script_ = true;
     // TODO(abliss): add an actual element instead, so other filters can
     // rewrite this JS
-    HtmlCharactersNode* script = driver()->NewCharactersNode(NULL, kHeadScript);
+    HtmlCharactersNode* script = nullptr;
+    if (driver()->options()->Enabled(RewriteOptions::kPedantic)) {
+        script = driver()->NewCharactersNode(nullptr, kHeadScriptPedantic);
+    } else {
+        script = driver()->NewCharactersNode(nullptr, kHeadScriptNonPedantic);
+    }
     driver()->InsertNodeBeforeCurrent(script);
     instrumentation_script_added_count_->Add(1);
   }
@@ -138,7 +149,7 @@ void AddInstrumentationFilter::EndDocument() {
     return;
   }
   GoogleString js = GetScriptJs(kLoadTag);
-  HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
   if (!driver()->defer_instrumentation_script()) {
     driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                            StringPiece());
@@ -196,7 +207,7 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
   }
 
   // Append the http response code.
-  if (driver()->response_headers() != NULL &&
+  if (driver()->response_headers() != nullptr &&
       driver()->response_headers()->status_code() > 0 &&
       driver()->response_headers()->status_code() != HttpStatus::kOK) {
     StrAppend(&extra_params, "&rc=", IntegerToString(
