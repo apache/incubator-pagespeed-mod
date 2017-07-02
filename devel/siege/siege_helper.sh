@@ -60,13 +60,13 @@ sed -e "s/#CUSTOM_CONFIG/$custom_config/" -e "s^#HOME^$HOME^" < siege/siege.conf
 
 if [ $callgrind -eq 1 ]; then
   echo running with callgrind...
-  make -j8 apache_debug_install CONF=OptDebug
+  make apache_debug_install CONF=OptDebug
   valgrind --tool=callgrind --collect-systime=yes ~/apache2/bin/httpd -X &
   sleep 5
   callgrind=1
 else
   echo running without calgrind -- use -callgrind to get a profile.
-  make -j8 apache_debug_restart BUILDTYPE=Release
+  make apache_debug_restart BUILDTYPE=Release
 fi
 
 # This function returns its value in shell variable 'url'.  Note that it

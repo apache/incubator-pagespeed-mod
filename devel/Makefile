@@ -296,9 +296,9 @@ apache_debug : $(HOOKS_STAMP)
 	@echo "building Apache module $@ ..."
 	cd $(GIT_SRC) && $(MAKE)
 	@echo Built mod_pagespeed successfully:
-	ls -l $(GIT_DEBUG_BIN)/libmod_pagespeed.so
+	ls -l $(GIT_BIN)/libmod_pagespeed.so
 	@echo To install, type
-	@echo "   " cp $(GIT_DEBUG_BIN)/libmod_pagespeed.so \
+	@echo "   " cp $(GIT_BIN)/libmod_pagespeed.so \
 		$(APACHE_DEBUG_ROOT)/modules/mod_pagespeed.so
 
 apache_debug_psol : apache_debug
