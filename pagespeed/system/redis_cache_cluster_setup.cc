@@ -38,7 +38,7 @@ namespace RedisCluster {
 
 namespace {
 
-static const int kReconfigurationPropagationTimeoutMs = 5000;
+static const int kReconfigurationPropagationTimeoutMs = 10000;
 
 GoogleString ReadBulkString(TcpConnectionForTesting* conn) {
   GoogleString length_str_storage = conn->ReadLineCrLf();
