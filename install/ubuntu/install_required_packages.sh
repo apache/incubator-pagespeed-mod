@@ -59,7 +59,7 @@ function first_available_package() {
 install_redis_from_src=false
 if "$additional_dev_packages"; then
   binary_packages+=(memcached autoconf valgrind libev-dev libssl-dev
-    libpcre3-dev openjdk-7-jre language-pack-tr-base gperf uuid-dev)
+    libpcre3-dev openjdk-7-jre language-pack-tr-base gperf uuid-dev pkg-config)
 
   if version_compare $(lsb_release -sr) -ge 16.04; then
     binary_packages+=(redis-server)
