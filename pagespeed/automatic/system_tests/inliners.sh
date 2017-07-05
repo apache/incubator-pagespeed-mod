@@ -77,7 +77,8 @@ start_test inlining gzip-encoded resources
 # see two .pagespeed. resources, then verify that we see the debug comments we
 # expect to see.
 URL="$TEST_ROOT/gzip_precompressed/?PageSpeedFilters=+debug"
-fetch_until -save $URL 'fgrep -c .pagespeed.' 2
+fetch_until -save $URL 'fgrep -c .pagespeed.cf.' 1
+fetch_until -save $URL 'fgrep -c .pagespeed.jm.' 1
 
 OUT=$(cat $FETCH_UNTIL_OUTFILE)
 # First verify that the inliners are actually enabled.
