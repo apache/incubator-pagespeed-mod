@@ -34,7 +34,7 @@ fi
 start_test Do not proxy content without a Content-Type header
 # These tests depend on modpagespeed.com being configured to serve an example
 # file with a content-type header on port 8091 and without one on port 8092.
-# scripts/serve_proxying_tests.sh can do this.
+# scripts/serve_proxying_tests.py can do this.
 URL="$PRIMARY_SERVER/content_type_absent/"
 CONTENTS="This file should not be proxied"
 
