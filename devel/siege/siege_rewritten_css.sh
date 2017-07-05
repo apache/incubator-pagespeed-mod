@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Runs 'siege' on a single cache-extended URL cache-extended CSS file
 # scraped from rewrite_css.html.
 #

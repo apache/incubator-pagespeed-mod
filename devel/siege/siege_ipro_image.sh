@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Runs 'siege' on a single ipro-optimized image.
 #
 # Usage:

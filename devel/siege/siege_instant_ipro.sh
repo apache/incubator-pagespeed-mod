@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if ! hash siege 2>/dev/null; then
   echo "'siege' command is not found. Please install siege >=3.0.8."

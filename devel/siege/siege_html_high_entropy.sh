@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Runs 'siege' on a HTML file, but with 400k unique query-params.  We
 # use 400k because a typical siege covers >300k transactions and we
 # want to avoid repeats.

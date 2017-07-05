@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 this_dir=$(dirname "${BASH_SOURCE[0]}")
 source "$this_dir/siege_helper.sh" || exit 1

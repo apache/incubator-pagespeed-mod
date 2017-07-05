@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 this_dir=$(dirname "${BASH_SOURCE[0]}")
 
