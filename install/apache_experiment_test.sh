@@ -102,8 +102,7 @@ check [ $(grep -c "src=\"introspection.js\"" $FETCH_UNTIL_OUTFILE) = 1 ]
 
 # For id 7 ARIS is off.  Repeat this test, expecting it to get renamed.
 WGET_ARGS="--header Cookie:PageSpeedExperiment=7" fetch_until -save $ARIS \
-  'grep -c "src=\"normal.js\""' 0
-check [ $(grep -c "src=\"introspection.js\"" $FETCH_UNTIL_OUTFILE) = 0 ]
+  'grep -c "src=\"introspection.js\""' 0
 
 start_test Images are different when the url specifies different experiments.
 # While the images are the same, image B should be smaller because in the config
