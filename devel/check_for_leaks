@@ -160,7 +160,7 @@ function check_system_test_for_leaks() {
     $apache_debug_root/bin/httpd --enable-pool-debug \
     >& $outfile &
 
-  local apache_timeout=30
+  local apache_timeout=120
   echo -n Waiting up to "$apache_timeout" seconds for valgrind/httpd \
           to start listening
   if ! wait_cmd_with_timeout "$apache_timeout" \
