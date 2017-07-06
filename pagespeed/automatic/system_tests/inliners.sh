@@ -77,13 +77,10 @@ start_test inlining gzip-encoded resources
 # see two .pagespeed. resources, then verify that we see the debug comments we
 # expect to see.
 URL="$TEST_ROOT/gzip_precompressed/?PageSpeedFilters=+debug"
-fetch_until -save $URL 'fgrep -c .pagespeed.cf.' 1
-fetch_until -save $URL 'fgrep -c .pagespeed.jm.' 1
+fetch_until -save $URL 'fgrep -c "JS not inlined because it appears to be gzip-encoded"' 1
+fetch_until -save $URL 'fgrep -c "CSS not inlined because it appears to be gzip-encoded"' 1
 
 OUT=$(cat $FETCH_UNTIL_OUTFILE)
 # First verify that the inliners are actually enabled.
 check_from "$OUT" fgrep "Inline Javascript"
 check_from "$OUT" fgrep "Inline Css"
-# Then check for the debug comments.
-check_from "$OUT" fgrep "JS not inlined because it appears to be gzip-encoded"
-check_from "$OUT" fgrep "CSS not inlined because it appears to be gzip-encoded"
