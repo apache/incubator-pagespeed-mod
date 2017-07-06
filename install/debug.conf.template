@@ -1930,7 +1930,7 @@ ModPagespeedMessagesDomains Allow localhost
 
   # Share a cache keyspace with embed-config-resources.example.com.
   ModPagespeedCacheFragment "embed-config"
-
+  ModPagespeedRewriteDeadlinePerFlushMs 5000
   ModPagespeedLoadFromFile "http://embed-config-resources.example.com/" \
       "@@APACHE_DOC_ROOT@@/mod_pagespeed_example/"
 </VirtualHost>
