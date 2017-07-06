@@ -83,5 +83,6 @@ OUT=$(cat $FETCH_UNTIL_OUTFILE)
 # First verify that the inliners are actually enabled.
 check_from "$OUT" fgrep "Inline Javascript"
 check_from "$OUT" fgrep "Inline Css"
+# Then check for the debug comments.
 check_from "$OUT" fgrep "JS not inlined because it appears to be gzip-encoded"
 check_from "$OUT" fgrep "CSS not inlined because it appears to be gzip-encoded"
