@@ -74,8 +74,9 @@ start_test inlining gzip-encoded resources
 #
 # compressed.css and compressed.js are gzipped on disk, but small enough that
 # PageSpeed would inline them if it were allowed to.  So fetch the page until we
-# see two .pagespeed. resources, then verify that we see the debug comments we
-# expect to see.
+# see 'gzip-encoded' two times, then verify that we see the debug comments we
+# expect to see. (We can't rely on .pagespeed. because we may get an
+# intermediate result, which will lack the debug comments we expect).
 URL="$TEST_ROOT/gzip_precompressed/?PageSpeedFilters=+debug"
 fetch_until -save $URL 'fgrep -c gzip-encoded' 2
 
