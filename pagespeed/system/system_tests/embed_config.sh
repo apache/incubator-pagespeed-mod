@@ -18,6 +18,10 @@ start_test Embed image configuration in rewritten image URL.
 # *xPuzzle.jpg.pagespeed.gp+jp+pj+js+rj+rp+rw+ri+cp+md+iq=73.ic.oFXPiLYMka.jpg
 # We use a regex matching "gp+jp+pj+js+rj+rp+rw+ri+cp+md+iq=73" rather than
 # spelling it out to avoid test regolds when we add image filter IDs.
+# TODO(oschaaf): I have observed xPuzzle.pagespeed. partially optimized here, 
+# served with a short cache ttl. This would cause this test to flake.
+# For now, the rewrite deadline has been bumped in the configuration of this
+# vhost.
 http_proxy=$SECONDARY_HOSTNAME fetch_until -save -recursive \
     http://embed-config-html.example.org/embed_config.html \
     'fgrep -c .pagespeed.' 3 --save-headers
