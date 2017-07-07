@@ -36,7 +36,7 @@ if [ $# -ne 0 ]; then
 fi
 
 binary_packages=(subversion apache2 g++ gperf devscripts fakeroot git-core
-  zlib1g-dev wget curl net-tools rsync ssl-cert psmisc)
+  zlib1g-dev wget curl net-tools rsync ssl-cert psmisc libexpat1-dev)
 src_packages=()
 
 if version_compare $(lsb_release -rs) -lt 14.04; then

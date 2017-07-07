@@ -141,6 +141,7 @@
                 'src/poll/unix/pollset.c',
                 'src/poll/unix/port.c',
                 'src/poll/unix/select.c',
+                'src/poll/unix/wakeup.c',
                 'src/random/unix/apr_random.c',
                 'src/random/unix/sha2.c',
                 'src/random/unix/sha2_glue.c',
