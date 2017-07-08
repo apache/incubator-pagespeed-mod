@@ -2178,7 +2178,8 @@ bool RewriteDriver::StartParseId(const StringPiece& url, const StringPiece& id,
 void RewriteDriver::ParseTextInternal(const char* content, int size) {
   num_bytes_in_ += size;
   if (ShouldSkipParsing()) {
-    writer()->Write(content, message_handler());
+    StringPiece sp(content, size);
+    writer()->Write(sp, message_handler());
   } else if (debug_filter_ != NULL) {
     debug_filter_->StartParse();
     HtmlParse::ParseTextInternal(content, size);
