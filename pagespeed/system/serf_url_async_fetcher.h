@@ -131,7 +131,7 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
 
   virtual bool SupportsHttps() const;
 
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* callback);
   // TODO(morlovich): Make private once non-thread mode concept removed.

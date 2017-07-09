@@ -70,7 +70,7 @@ class HttpDumpUrlFetcher : public UrlAsyncFetcher {
   }
 
   // This is a synchronous/blocking implementation.
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* fetch);
 

@@ -153,7 +153,7 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
 HttpDumpUrlAsyncWriter::~HttpDumpUrlAsyncWriter() {
 }
 
-void HttpDumpUrlAsyncWriter::Fetch(const GoogleString& url,
+void HttpDumpUrlAsyncWriter::FetchImpl(const GoogleString& url,
                                    MessageHandler* handler,
                                    AsyncFetch* base_fetch) {
   GoogleString filename;

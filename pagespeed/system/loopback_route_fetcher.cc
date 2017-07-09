@@ -51,7 +51,7 @@ LoopbackRouteFetcher::LoopbackRouteFetcher(
 LoopbackRouteFetcher::~LoopbackRouteFetcher() {
 }
 
-void LoopbackRouteFetcher::Fetch(const GoogleString& original_url,
+void LoopbackRouteFetcher::FetchImpl(const GoogleString& original_url,
                                  MessageHandler* message_handler,
                                  AsyncFetch* fetch) {
   GoogleString url = original_url;

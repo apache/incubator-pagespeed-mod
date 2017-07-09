@@ -45,7 +45,7 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
   virtual ~WaitUrlAsyncFetcher();
 
   // Initiate fetches that will finish when CallCallbacks is called.
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* handler,
                      AsyncFetch* fetch);
 

@@ -614,7 +614,7 @@ CacheUrlAsyncFetcher::~CacheUrlAsyncFetcher() {
   }
 }
 
-void CacheUrlAsyncFetcher::Fetch(
+void CacheUrlAsyncFetcher::FetchImpl(
     const GoogleString& url, MessageHandler* handler, AsyncFetch* base_fetch) {
   switch (base_fetch->request_headers()->method()) {
     case RequestHeaders::kHead:

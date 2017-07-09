@@ -1248,7 +1248,7 @@ bool SerfUrlAsyncFetcher::StartFetch(SerfFetch* fetch) {
   return started;
 }
 
-void SerfUrlAsyncFetcher::Fetch(const GoogleString& url,
+void SerfUrlAsyncFetcher::FetchImpl(const GoogleString& url,
                                 MessageHandler* message_handler,
                                 AsyncFetch* async_fetch) {
   async_fetch = EnableInflation(async_fetch);

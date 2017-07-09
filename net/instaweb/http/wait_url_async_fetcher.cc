@@ -53,7 +53,7 @@ class WaitUrlAsyncFetcher::DelayedFetch {
 
 WaitUrlAsyncFetcher::~WaitUrlAsyncFetcher() {}
 
-void WaitUrlAsyncFetcher::Fetch(const GoogleString& url,
+void WaitUrlAsyncFetcher::FetchImpl(const GoogleString& url,
                                 MessageHandler* handler,
                                 AsyncFetch* base_fetch) {
   DelayedFetch* delayed_fetch =

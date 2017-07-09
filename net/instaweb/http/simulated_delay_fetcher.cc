@@ -65,7 +65,7 @@ SimulatedDelayFetcher::~SimulatedDelayFetcher() {
   file_system_->Close(request_log_, message_handler_);
 }
 
-void SimulatedDelayFetcher::Fetch(const GoogleString& url,
+void SimulatedDelayFetcher::FetchImpl(const GoogleString& url,
                                   MessageHandler* message_handler,
                                   AsyncFetch* fetch) {
   fetch = EnableInflation(fetch);

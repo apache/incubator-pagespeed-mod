@@ -63,7 +63,7 @@ class SimulatedDelayFetcher : public UrlAsyncFetcher {
 
   virtual ~SimulatedDelayFetcher();
 
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* fetch);
 

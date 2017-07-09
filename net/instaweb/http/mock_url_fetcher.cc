@@ -125,7 +125,7 @@ void MockUrlFetcher::RemoveResponse(const StringPiece& url) {
   }
 }
 
-void MockUrlFetcher::Fetch(
+void MockUrlFetcher::FetchImpl(
     const GoogleString& url_in, MessageHandler* message_handler,
     AsyncFetch* fetch) {
   const RequestHeaders& request_headers = *fetch->request_headers();
