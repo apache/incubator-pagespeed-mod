@@ -68,6 +68,11 @@ if [ "$SECONDARY_HOSTNAME" != "" ]; then
   echo  http_proxy=$SECONDARY_HOSTNAME $WGET --save-headers -O - $FILTERED
   OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET --save-headers -O - $FILTERED 2>&1)
   check_200_http_response "$OUT"
+ 
+  start_test Disallow does not affect MapProxied resource reconstruction 
+  URL="mapproxy-vs-disallow.example.com/static/x1.gif.pagespeed.ic.zaZh-vXmDi.webp"
+  http_proxy=$SECONDARY_HOSTNAME fetch_until -save $URL \
+      "grep -c image/webp" 1 --save-headers
 fi
 
 start_test proxying from external domain should optimize images in-place.

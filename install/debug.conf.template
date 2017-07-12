@@ -2142,6 +2142,16 @@ Listen 127.0.0.2:@@APACHE_TERTIARY_PORT@@
   ModPagespeedEnableFilters core
 </VirtualHost>
 
+# Test MapProxyDomain vs Disallow in reconstruction
+<VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
+  ServerName mapproxy-vs-disallow.example.com
+  DocumentRoot "@@APACHE_DOC_ROOT@@"
+  ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
+  ModPagespeedDisallow *
+  ModPagespeedAllow http://www.gstatic.com/psa/static*
+  ModPagespeedMapProxyDomain http://mapproxy-vs-disallow.example.com/static http://www.gstatic.com/psa/static
+</VirtualHost>
+
 # In case the system has not added webp as an installed mimetype, this
 # is needed to allow automatic/system_tests/resource_content_type_html.sh
 # to work, as that is needed for

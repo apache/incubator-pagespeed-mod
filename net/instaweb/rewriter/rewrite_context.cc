@@ -2508,19 +2508,34 @@ bool RewriteContext::PrepareFetch(
         break;
       }
 
+      GoogleString mapped_url;
+      GoogleString host_header;
+      bool is_proxy = false;
+      GoogleUrl url_to_test(url->Spec());
+      if (driver->options()->domain_lawyer()->MapOriginUrl(*url, &mapped_url,
+						   &host_header, &is_proxy)) {
+	if (is_proxy) {
+	  url_to_test.Reset(mapped_url);
+	} 
+      } else {
+        is_valid = false;
+        message_handler->Message(kError, "MapOriginUrl failed %s",
+                                 url->spec_c_str());
+      }
+
       if (FindServerContext()->url_namer()->ProxyMode()
             == UrlNamer::ProxyExtent::kNone &&
-          !driver->MatchesBaseUrl(*url)) {
+          (!driver->MatchesBaseUrl(url_to_test) && !is_proxy)) {
         // Reject absolute url references unless we're proxying.
         is_valid = false;
         message_handler->Message(kError, "Rejected absolute url reference %s",
-                                 url->spec_c_str());
+                                 url_to_test.spec_c_str());
         break;
       }
 
       bool is_authorized;
       ResourcePtr resource(driver->CreateInputResource(
-          *url, RewriteDriver::InputRole::kReconstruction, &is_authorized));
+          url_to_test, RewriteDriver::InputRole::kReconstruction, &is_authorized));
       if (resource.get() == NULL) {
         // TODO(jmarantz): bump invalid-input-resource count
         // TODO(matterbury): Add DCHECK(is_authorized) ...
