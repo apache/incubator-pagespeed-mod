@@ -2512,11 +2512,11 @@ bool RewriteContext::PrepareFetch(
       GoogleString host_header;
       bool is_proxy = false;
       GoogleUrl url_to_test(url->Spec());
-      if (driver->options()->domain_lawyer()->MapOriginUrl(*url, &mapped_url,
-						   &host_header, &is_proxy)) {
-	if (is_proxy) {
-	  url_to_test.Reset(mapped_url);
-	} 
+      if (driver->options()->domain_lawyer()->MapOriginUrl(
+              *url, &mapped_url, &host_header, &is_proxy)) {
+        if (is_proxy) {
+          url_to_test.Reset(mapped_url);
+        }
       } else {
         is_valid = false;
         message_handler->Message(kError, "MapOriginUrl failed %s",

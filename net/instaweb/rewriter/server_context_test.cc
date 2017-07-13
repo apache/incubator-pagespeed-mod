@@ -571,6 +571,24 @@ TEST_F(ServerContextTest, TestOutputInputUrl) {
                           true, "foo();");
 }
 
+TEST_F(ServerContextTest, TestOutputInputUrlProxyMapped) {
+  options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
+  options()->Disallow("*");
+  options()->Allow("http://example.com/dir/123/*");
+  options()->WriteableDomainLawyer()->AddProxyDomainMapping("http://foo.com/dir/123/","http://example.com/dir/123/","",nullptr);
+  rewrite_driver()->AddFilters();
+  GoogleString url = Encode("http://foo.com/dir/123/",
+                            RewriteOptions::kJavascriptMinId,
+                            "0", "orig", "js");
+  SetResponseWithDefaultHeaders(
+      "http://example.com/dir/123/orig", kContentTypeJavascript,
+      "foo() /*comment */;", 100);
+
+  OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
+  TestFetchOutputResource(output_resource, RewriteOptions::kJavascriptMinId,
+                          true, "foo();");
+}
+
 // Test to make sure we do not let a crafted output resource URL to get us to
 // fetch and host things from a non-lawyer permitted external host; which could
 // lead to XSS vulnerabilities or a firewall bypass.
