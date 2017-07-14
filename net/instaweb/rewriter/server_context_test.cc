@@ -575,13 +575,58 @@ TEST_F(ServerContextTest, TestOutputInputUrlProxyMapped) {
   options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
   options()->Disallow("*");
   options()->Allow("http://example.com/dir/123/*");
-  options()->WriteableDomainLawyer()->AddProxyDomainMapping("http://foo.com/dir/123/","http://example.com/dir/123/","",nullptr);
+  options()->WriteableDomainLawyer()->AddProxyDomainMapping(
+      "http://foo.com/dir/123/", "http://example.com/dir/123/", "", message_handler());
   rewrite_driver()->AddFilters();
   GoogleString url = Encode("http://foo.com/dir/123/",
                             RewriteOptions::kJavascriptMinId,
                             "0", "orig", "js");
   SetResponseWithDefaultHeaders(
       "http://example.com/dir/123/orig", kContentTypeJavascript,
+      "foo() /*comment */;", 100);
+
+  OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
+  TestFetchOutputResource(output_resource, RewriteOptions::kJavascriptMinId,
+                          true, "foo();");
+}
+
+TEST_F(ServerContextTest, TestOutputInputUrlSharded) {
+  options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
+  options()->Disallow("*");
+  options()->Allow("http://foo.com/dir/123/*");
+  options()->WriteableDomainLawyer()->AddShard(
+      "foo.com", "shard.com,shard2,com", message_handler());
+  rewrite_driver()->AddFilters();
+  GoogleString url = Encode("http://foo.com/dir/123/",
+                            RewriteOptions::kJavascriptMinId,
+                            "0", "orig", "js");
+  SetResponseWithDefaultHeaders(
+      "http://shard.com/dir/123/orig", kContentTypeJavascript,
+      "foo() /*comment */;", 100);
+
+  OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));
+  TestFetchOutputResource(output_resource, RewriteOptions::kJavascriptMinId,
+                          true, "foo();");
+}
+
+TEST_F(ServerContextTest, TestOutputInputUrlRewritten) {
+  options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
+  options()->Disallow("*");
+  options()->Allow("http://foo.com/dir/123/*");
+  // TODO(oschaaf): this is troublesome, because we cannot determine the
+  // reverse map when rewritten.com comes in from the rules.
+  // The problem arises in PrepareFetch(), where we need the reverse map
+  // to be able to pass the check on Allow() in MatchesBaseUrl().
+  // The domain rewriter should output encoded absolute urls so we can
+  // trace back the origin when it comes back.
+  options()->WriteableDomainLawyer()->AddRewriteDomainMapping(
+      "http://rewritten.com", "http://*.com", message_handler());
+  rewrite_driver()->AddFilters();
+  GoogleString url = Encode("http://rewritten.com/dir/123/",
+                            RewriteOptions::kJavascriptMinId,
+                            "0", "orig", "js");
+  SetResponseWithDefaultHeaders(
+      "http://foo.com/dir/123/orig", kContentTypeJavascript,
       "foo() /*comment */;", 100);
 
   OutputResourcePtr output_resource(CreateOutputResourceForFetch(url));

@@ -1994,6 +1994,8 @@ bool RewriteDriver::MayRewriteUrl(
 }
 
 bool RewriteDriver::MatchesBaseUrl(const GoogleUrl& input_url) const {
+  message_handler()->Message(kError, "MatchesBaseUrl: %s vs %s",
+                           input_url.spec_c_str(), decoded_base_url_.spec_c_str());
   return (decoded_base_url_.IsWebValid() &&
           options()->IsAllowed(input_url.Spec()) &&
           decoded_base_url_.Origin() == input_url.Origin());

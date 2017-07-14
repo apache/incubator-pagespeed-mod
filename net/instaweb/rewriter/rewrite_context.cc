@@ -2512,6 +2512,7 @@ bool RewriteContext::PrepareFetch(
       GoogleString host_header;
       bool is_proxy = false;
       GoogleUrl url_to_test(url->Spec());
+
       if (driver->options()->domain_lawyer()->MapOriginUrl(
               *url, &mapped_url, &host_header, &is_proxy)) {
         if (is_proxy) {
@@ -2522,6 +2523,9 @@ bool RewriteContext::PrepareFetch(
         message_handler->Message(kError, "MapOriginUrl failed %s",
                                  url->spec_c_str());
       }
+
+      message_handler->Message(kError, "inspecting absolute url reference %s -> %s (p:%s)",
+                               url->spec_c_str(), url_to_test.spec_c_str(), is_proxy ? "1" : "0");
 
       if (FindServerContext()->url_namer()->ProxyMode()
             == UrlNamer::ProxyExtent::kNone &&
