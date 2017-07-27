@@ -17,7 +17,7 @@
 // Author: morlovich@google.com (Maksim Orlovich)
 //
 // This provides basic parsing and evaluation of a (subset of)
-// Content-Security-Policy that's relevant for PageSpeed Automatic
+// Content-Security-Policy that's relevant for PageSpeed Automatic.
 
 #include "net/instaweb/rewriter/public/csp.h"
 
@@ -80,6 +80,7 @@ bool CspSourceExpression::TryParseScheme(StringPiece* input) {
     kind_ = kSchemeSource;
     input->substr(0, pos).CopyToString(&mutable_url_data()->scheme_part);
     input->remove_prefix(pos + 1);
+    LowerString(&mutable_url_data()->scheme_part);
     return true;
   }
 
@@ -88,6 +89,7 @@ bool CspSourceExpression::TryParseScheme(StringPiece* input) {
        && ((*input)[pos + 1] == '/') && ((*input)[pos + 2] == '/')) {
     input->substr(0, pos).CopyToString(&mutable_url_data()->scheme_part);
     input->remove_prefix(pos + 3);
+    LowerString(&mutable_url_data()->scheme_part);
   }
 
   // Either way, it's not a valid scheme-source at this point, even if it's
@@ -136,6 +138,7 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
       result.mutable_url_data()->host_part.push_back(input[0]);
       input.remove_prefix(1);
     }
+    LowerString(&result.mutable_url_data()->host_part);
 
     // Verify accumulated host-part is valid.
     StringPiece host_part(result.url_data().host_part);
@@ -172,10 +175,158 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
       return CspSourceExpression();
     }
 
-    input.CopyToString(&result.mutable_url_data()->path_part);
+    // Normalize and tokenize the path.
+    StringPieceVector components;
+    SplitStringPieceToVector(input, "/", &components, true);
+
+    for (StringPiece c : components) {
+      GoogleString canon = GoogleUrl::CanonicalizePath(c);
+      if (canon.empty()) {
+        LOG(DFATAL) << "Path canonicalization returned empty string?" << c;
+        return CspSourceExpression();
+      }
+      result.mutable_url_data()->path_part.push_back(canon.substr(1));
+    }
+    result.mutable_url_data()->path_exact_match =
+        !input.empty() && !input.ends_with("/");
   }
 
   return result;
+}
+
+bool CspSourceExpression::Matches(
+    const GoogleUrl& origin_url, const GoogleUrl& url) const {
+  // Implementation of the "Does url match expression in origin with
+  // redirect count?" algorithm (where redirect count is 0 for our
+  // purposes, since we check the request).
+  // https://w3c.github.io/webappsec-csp/#match-url-to-source-list
+
+  if (kind_ != kSelf && kind_ != kSchemeSource && kind_ != kHostSource) {
+    return false;
+  }
+
+  if (!origin_url.IsAnyValid() || !url.IsAnyValid()) {
+    return false;
+  }
+
+  // Check for 'self' first, since that doesn't need/have url_data()
+  if (kind_ == kSelf) {
+    if (origin_url.Origin() == url.Origin()) {
+      return true;
+    }
+
+    if (origin_url.Host() != url.Host()) {
+      return false;
+    }
+
+    if (origin_url.SchemeIs("http") && url.SchemeIs("https")) {
+      // Using the same port is OK.
+      if (origin_url.EffectiveIntPort() == url.EffectiveIntPort()) {
+        return true;
+      }
+
+      // Using default ports for both is OK, too.
+      if (HasDefaultPortForScheme(origin_url) && HasDefaultPortForScheme(url)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Give our state some short names closer to those in the spec
+  StringPiece expr_scheme = url_data().scheme_part;
+  StringPiece expr_host = url_data().host_part;
+  StringPiece expr_port = url_data().port_part;
+  const std::vector<GoogleString>& expr_path = url_data().path_part;
+
+  // Some special handling of *, which for some reason handles some schemes
+  // a bit differently than other things with * host portion and no scheme
+  // specified.
+  if (kind_ == kHostSource &&
+      expr_scheme.empty() &&
+      expr_host == "*" &&
+      expr_port.empty() &&
+      expr_path.empty()) {
+    if (url.SchemeIs("http") ||
+        url.SchemeIs("https") ||
+        url.SchemeIs("ftp")) {
+      return true;
+    }
+    return (url.Scheme() == origin_url.Scheme());
+  }
+
+  if (!expr_scheme.empty()
+      && url.Scheme() != expr_scheme
+      && !(expr_scheme == "http" && url.SchemeIs("https"))) {
+    return false;
+  }
+
+  if (kind_ == kSchemeSource) {
+    return true;
+  }
+
+  if (url.Host().empty() || expr_host.empty()) {
+    return false;
+  }
+
+  if (expr_scheme.empty()
+      && url.Scheme() != origin_url.Scheme()
+      && !(origin_url.SchemeIs("http") && url.SchemeIs("https"))) {
+    return false;
+  }
+
+  if (expr_host[0] == '*') {
+    StringPiece remaining = expr_host.substr(1);
+    if (!url.Host().ends_with(remaining)) {
+      return false;
+    }
+  } else {
+    if (url.Host() != expr_host) {
+      return false;
+    }
+  }
+
+  // TODO(morlovich): Implement IP-address handling here, once appropriate
+  // spec has been read.
+
+  if (expr_port.empty()) {
+    if (!HasDefaultPortForScheme(url)) {
+      return false;
+    }
+  } else {
+    // TODO(morlovich): Check whether the :80/:443 case is about effective
+    // or explicit port.
+    if (expr_port != "*"
+        && expr_port != IntegerToString(url.EffectiveIntPort())
+        && !(expr_port == "80" && url.EffectiveIntPort() == 443)) {
+      return false;
+    }
+  }
+
+  // TODO(morlovich):Redirect following may require changes here ---
+  // this would also be skipped for redirects.
+  if (!expr_path.empty()) {
+    // TODO(morlovich): Verify that behavior for query here is what we want.
+    StringPieceVector url_path_list;
+    SplitStringPieceToVector(url.PathAndLeaf(), "/", &url_path_list, true);
+    if (expr_path.size() > url_path_list.size()) {
+      return false;
+    }
+
+    if (url_data().path_exact_match
+        && (url_path_list.size() != expr_path.size())) {
+      return false;
+    }
+
+    for (int i = 0, n = expr_path.size(); i < n; ++i) {
+      if (expr_path[i] != url_path_list[i]) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 CspSourceExpression CspSourceExpression::ParseQuoted(StringPiece input) {
@@ -202,6 +353,15 @@ CspSourceExpression CspSourceExpression::ParseQuoted(StringPiece input) {
     }
   }
   return CspSourceExpression(kUnknown);
+}
+
+bool CspSourceExpression::HasDefaultPortForScheme(const GoogleUrl& url) {
+  int url_scheme_port = GoogleUrl::DefaultPortForScheme(url.Scheme());
+  if (url_scheme_port == url::PORT_UNSPECIFIED) {
+    return false;
+  }
+
+  return (url_scheme_port == url.EffectiveIntPort());
 }
 
 std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
@@ -264,7 +424,8 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
       if (dir_name != CspDirective::kNumSourceListDirectives &&
           policy->policies_[static_cast<int>(dir_name)] == nullptr) {
         // Note: repeated directives are ignored per the "Parse a serialized
-        // CSP as disposition" algorith,
+        // CSP as disposition" algorithm.
+        // https://w3c.github.io/webappsec-csp/#parse-serialized-policy
         policy->policies_[static_cast<int>(dir_name)]
             = CspSourceList::Parse(value);
       }

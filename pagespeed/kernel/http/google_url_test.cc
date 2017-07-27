@@ -664,4 +664,18 @@ TEST_F(GoogleUrlTest, Sanitize) {
   EXPECT_STREQ(escaped_random, GoogleUrl::Sanitize(escaped_random));
 }
 
+TEST_F(GoogleUrlTest, DefaultPortForScheme) {
+  EXPECT_EQ(url::PORT_UNSPECIFIED, GoogleUrl::DefaultPortForScheme("chipmunk"));
+  EXPECT_EQ(80, GoogleUrl::DefaultPortForScheme("http"));
+  EXPECT_EQ(443, GoogleUrl::DefaultPortForScheme("https"));
+  EXPECT_EQ(80, GoogleUrl::DefaultPortForScheme("ws"));
+  EXPECT_EQ(443, GoogleUrl::DefaultPortForScheme("wss"));
+}
+
+TEST_F(GoogleUrlTest, CanonicalizePath) {
+  // Some cleverness around / vs. %2f, etc.
+  EXPECT_EQ("/foo%2fbar", GoogleUrl::CanonicalizePath("/foo%2fbar"));
+  EXPECT_EQ("/bar", GoogleUrl::CanonicalizePath("/b%61r"));
+}
+
 }  // namespace net_instaweb

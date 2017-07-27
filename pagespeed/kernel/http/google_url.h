@@ -182,6 +182,10 @@ class GoogleUrl {
   // Returns the effective port number, which is dependent on the scheme.
   int EffectiveIntPort() const { return gurl_.EffectiveIntPort(); }
 
+  // Returns the default port for given scheme, or url::PORT_UNSPECIFIED
+  // if the scheme isn't recognized. Scheme is expected to be in lowercase.
+  static int DefaultPortForScheme(StringPiece scheme);
+
   bool is_empty() const { return gurl_.is_empty(); }
   bool has_scheme() const { return gurl_.has_scheme(); }
   bool has_path() const { return gurl_.has_path(); }
@@ -247,6 +251,11 @@ class GoogleUrl {
   // Result will not contain: 0x00-0x1F SPC "<>\^`{|} 0x7F-0xFF
   // Result may contain: a-z A-Z 0-9 -._~:/?#[]@!$&'()*+,;=%
   static GoogleString Sanitize(StringPiece url);
+
+  // Returns the canonical representation of a given path component of URL.
+  // Will also prepend / if it's not there. This will follow the same rules for
+  // what's in %-encoded form and what isn't as GoogleUrl does.
+  static GoogleString CanonicalizePath(StringPiece path);
 
  private:
   // Returned by *Position methods when that position is not well-defined.

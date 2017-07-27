@@ -121,21 +121,29 @@ TEST(CspParseSourceTest, NonQuoted) {
       CspSourceExpression(
             CspSourceExpression::kHostSource,
             CspSourceExpression::UrlData("http", "www.example.com", "",
-                                         "/dir")),
+                                         "/dir", true)),
       CspSourceExpression::Parse("http://www.example.com/dir"));
 
   EXPECT_EQ(
       CspSourceExpression(
             CspSourceExpression::kHostSource,
             CspSourceExpression::UrlData("http", "www.example.com", "",
-                                         "/dir/file.js")),
+                                         "/dir", false)),
+      CspSourceExpression::Parse("http://www.example.com/dir/"));
+
+
+  EXPECT_EQ(
+      CspSourceExpression(
+            CspSourceExpression::kHostSource,
+            CspSourceExpression::UrlData("http", "www.example.com", "",
+                                         "/dir/file.js", true)),
       CspSourceExpression::Parse("http://www.example.com/dir/file.js"));
 
   EXPECT_EQ(
       CspSourceExpression(
             CspSourceExpression::kHostSource,
             CspSourceExpression::UrlData("", "www.example.com", "",
-                                         "/dir/file.js")),
+                                         "/dir/file.js", true)),
       CspSourceExpression::Parse("www.example.com/dir/file.js"));
 
   EXPECT_EQ(
@@ -170,7 +178,7 @@ TEST(CspParseSourceTest, NonQuoted) {
   EXPECT_EQ(
       CspSourceExpression(
           CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("https", "*", "*", "/foo.js")),
+          CspSourceExpression::UrlData("https", "*", "*", "/foo.js", true)),
       CspSourceExpression::Parse("https://*:*/foo.js"));
 
   // Test for no port after :. Note that this needs an explicit scheme, since
@@ -186,12 +194,221 @@ TEST(CspParseSourceTest, NonQuoted) {
   EXPECT_EQ(
       CspSourceExpression(
           CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("https", "*", "443", "/foo.js")),
+          CspSourceExpression::UrlData("https", "*", "443", "/foo.js", true)),
       CspSourceExpression::Parse("https://*:443/foo.js"));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnknown),
       CspSourceExpression::Parse("https://*:443?foo.js"));
+
+  // Case normalization.
+  EXPECT_EQ(
+      CspSourceExpression(
+          CspSourceExpression::kHostSource,
+          CspSourceExpression::UrlData("https", "www.example.com", "", "")),
+      CspSourceExpression::Parse(" HttPs://www.EXAMPLE.com"));
+}
+
+class CspMatchSourceTest : public ::testing::Test {
+ protected:
+  void CheckMatch(bool expectation,
+                  StringPiece expression,
+                  StringPiece origin,
+                  StringPiece url) {
+    GoogleUrl origin_gurl(origin);
+    GoogleUrl url_gurl(url);
+    ASSERT_TRUE(origin_gurl.IsAnyValid());
+    ASSERT_TRUE(url_gurl.IsAnyValid());
+
+    CspSourceExpression expr(CspSourceExpression::Parse(expression));
+    EXPECT_EQ(expectation, expr.Matches(origin_gurl, url_gurl))
+        << "Expression:" << expression << " Origin:" << origin
+        << " Url:" << url;
+  }
+};
+
+TEST_F(CspMatchSourceTest, Basic) {
+  CheckMatch(false, "'unsafe-inline'", "http://www.example.org",
+             "http://www.example.org/foo.js");
+  CheckMatch(true, "'self'", "http://www.example.org",
+             "http://www.example.org/foo.js");
+  CheckMatch(false, "'self'", "http://www.example.org",
+             "http://www.example.com/foo.js");
+  CheckMatch(true, "*.example.org", "http://www.modpagespeed.com/",
+             "http://www.example.org/foo.js");
+  CheckMatch(true, "*", "http://www.modpagespeed.com/",
+             "http://www.example.org/foo.js");
+  CheckMatch(false, "www.example.org/bar.js", "http://www.modpagespeed.com/",
+             "http://www.example.org/foo.js");
+}
+
+TEST_F(CspMatchSourceTest, Universal) {
+  // Any urls on a "network scheme" are OK with *
+  CheckMatch(true, "*", "gopher://origin", "http://www.example.com");
+  CheckMatch(true, "*", "gopher://origin", "https://www.example.com");
+  CheckMatch(true, "*", "gopher://origin", "ftp://www.example.com");
+
+  // Oddly, as spec'd, this doesn't include ws: and wss:
+  CheckMatch(false, "*", "gopher://origin", "ws://www.example.com");
+  CheckMatch(false, "*", "gopher://origin", "wss://www.example.com");
+
+  // Note that data: in particular is not intended to be matched by *
+  CheckMatch(false, "*", "http://www.example.com",
+                         "data:text/plain,stuff");
+
+  // Other schemes have to match origin to be permitted.
+  CheckMatch(true, "*", "gopher://origin", "gopher://www.example.com");
+  CheckMatch(false, "*", "gopher://origin", "weirder://www.example.com");
+}
+
+TEST_F(CspMatchSourceTest, Self) {
+  CheckMatch(false, "'self'", "http://www.example.org/a.html",
+             "http://www.example.com/b.js");
+  CheckMatch(true, "'self'", "http://www.example.com/a.html",
+             "http://www.example.com/b.js");
+  CheckMatch(true, "'self'", "gopher://www.example.com:123/a.html",
+             "gopher://www.example.com:123/b.js");
+
+  // Can upgrade from http to https, but not hop to arbitrary
+  // unrelated port.
+  CheckMatch(true, "'self'", "http://www.example.com/a.html",
+             "https://www.example.com/b.js");
+  CheckMatch(false, "'self'", "https://www.example.com/a.html",
+             "http://www.example.com/b.js");
+  CheckMatch(true, "'self'", "http://www.example.com/a.html",
+             "https://www.example.com:443/b.js");
+  CheckMatch(false, "'self'", "http://www.example.com/a.html",
+             "https://www.example.com:10443/b.js");
+  CheckMatch(true, "'self'", "http://www.example.com:10443/a.html",
+             "https://www.example.com:10443/b.js");
+}
+
+TEST_F(CspMatchSourceTest, Scheme) {
+  CheckMatch(true, "alpha:", "gopher://whatever", "alpha://example.com");
+  CheckMatch(false, "alpha:", "gopher://whatever", "beta://example.com");
+
+  CheckMatch(true, "data:", "http://www.example.com", "data:text/plain,stuff");
+  CheckMatch(false, "http:", "http://www.example.com", "data:text/plain,stuff");
+
+  // Protocol upgrade/switch special rules.
+  CheckMatch(true, "http:", "gopher://whatever", "https://example.com");
+  CheckMatch(false, "http:", "gopher://whatever", "ftp://example.com");
+
+  CheckMatch(false, "https:", "gopher://whatever", "http://example.com");
+  CheckMatch(false, "https:", "gopher://whatever", "ftp://example.com");
+}
+
+TEST_F(CspMatchSourceTest, Schemeless) {
+  // If there is no scheme in the CSP expression, one from origin matters.
+  CheckMatch(true, "www.example.com", "http://whatever",
+             "http://www.example.com/foo.js");
+  CheckMatch(false, "www.example.com", "http://whatever",
+             "http://other.example.com/foo.js");
+  CheckMatch(true, "www.example.com", "gopher://whatever",
+             "gopher://www.example.com/foo.js");
+  CheckMatch(false, "www.example.com", "alpha://whatever",
+             "beta://www.example.com/foo.js");
+
+  // Upgrades and some switches are OK, too.
+  CheckMatch(true, "www.example.com", "http://whatever",
+             "https://www.example.com/foo.js");
+  CheckMatch(false, "www.example.com", "https://whatever",
+             "ftp://www.example.com/foo.js");
+  CheckMatch(false, "www.example.com", "https://whatever",
+             "http://www.example.com/foo.js");
+}
+
+TEST_F(CspMatchSourceTest, Host) {
+  CheckMatch(true, "http://www.example.com", "http://whatever",
+             "http://www.example.com/foo.js");
+  CheckMatch(true, "http://www.exAmple.com", "http://whatever",
+             "http://www.example.com/foo.js");
+  CheckMatch(false, "http://www.example.com", "http://whatever",
+             "http://static.example.com/foo.js");
+  CheckMatch(true, "http://*.exAmple.com", "http://whatever",
+             "http://www.example.com/foo.js");
+  CheckMatch(false, "http://*.exAmple.com", "http://whatever",
+             "http://example.com/foo.js");
+  CheckMatch(true, "http://*", "http://whatever",
+             "http://example.com/foo.js");
+}
+
+TEST_F(CspMatchSourceTest, Port) {
+  CheckMatch(true, "http://www.example.com:123", "http://whatever",
+             "http://www.example.com:123/foo.js");
+  CheckMatch(true, "http://www.example.com:80", "http://whatever",
+             "http://www.example.com/foo.js");
+  CheckMatch(false, "http://www.example.com:123", "http://whatever",
+             "http://www.example.com:999/foo.js");
+
+  // No port doesn't mean anything goes --- it means only default is OK.
+  CheckMatch(false, "www.example.com", "http://whatever",
+             "http://www.example.com:999/foo.js");
+  CheckMatch(true, "www.example.com", "http://whatever",
+             "http://www.example.com:80/foo.js");
+  CheckMatch(false, "www.example.com", "http://whatever",
+             "http://www.example.com:443/foo.js");
+  CheckMatch(true, "www.example.com", "http://whatever",
+             "https://www.example.com:443/foo.js");
+
+  // With explicit ports, upgrading to 443 is OK...
+  CheckMatch(true, "www.example.com:80", "http://whatever",
+             "https://www.example.com:443/foo.js");
+
+  // * really does match anything, though.
+  CheckMatch(true, "http://www.example.com:*", "http://whatever",
+             "http://www.example.com:123/foo.js");
+  CheckMatch(true, "http://www.example.com:*", "http://whatever",
+             "http://www.example.com/foo.js");
+  CheckMatch(true, "http://www.example.com:*", "http://whatever",
+             "http://www.example.com:999/foo.js");
+}
+
+TEST_F(CspMatchSourceTest, Path) {
+  // Note that the trailing / distinguishes between path and file
+  // expressions.
+  CheckMatch(true, "www.example.com/css/", "http://whatever",
+             "http://www.example.com/css/pretty.css");
+  CheckMatch(false, "www.example.com/css", "http://whatever",
+             "http://www.example.com/css/pretty.css");
+  CheckMatch(true, "www.example.com/a/b/c/", "http://whatever",
+             "http://www.example.com/a/b/c/d/e/f/pretty.css");
+  CheckMatch(false, "www.example.com/css/pretty.css", "http://whatever",
+             "http://www.example.com/css/ugly.css");
+
+  // %-escapes are also supported.
+  CheckMatch(true, "www.example.com/%63ss/", "http://whatever",
+             "http://www.example.com/c%73s/pretty.css");
+
+  // Paths are case sensitive.
+  CheckMatch(false, "www.example.com/CSS/", "http://whatever",
+             "http://www.example.com/css/pretty.css");
+
+  // Making sure we always get consistent canonicalization rules.
+  // notably here %2f is / --- which GURL knows not to unescape, but simpler
+  // GoogleUrl::UnescapeIgnorePlus wouldn't.
+  CheckMatch(true, "www.example.com/cs%2f/", "http://whatever",
+             "http://www.example.com/cs%2f/pretty.css");
+}
+
+TEST_F(CspMatchSourceTest, CaseSensitivity) {
+  // Scheme is case-insensitive, so is host.
+  CheckMatch(true, "HTTP:", "gopher://whatever", "http://www.example.com");
+  CheckMatch(true, "http:", "gopher://whatever", "HTTP://www.example.com");
+  CheckMatch(true, "HTTP://WWW.EXAMPLE.COM", "gopher://whatever",
+             "http://www.example.com");
+  CheckMatch(true, "http://www.example.com", "gopher://whatever",
+             "HTTP://WWW.EXAMPLE.COM");
+
+  // Paths are case-sensitive, though.
+  CheckMatch(false, "http://www.example.com/a.js", "gopher://whatever",
+             "http://www.example.com/A.JS");
+
+
+  // Make sure the logic about default ports works correctly with
+  // weird case, too.
+  CheckMatch(true, "'self'", "http://www.example.com",
+             "HTTP://www.example.com:80/something");
 }
 
 TEST(CspParseSourceListTest, None) {
@@ -212,7 +429,7 @@ TEST(CspParseTest, Empty) {
 
 TEST(CspParseTest, Basic) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
-    "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"));
+      "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"));
   ASSERT_TRUE(policy != nullptr);
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kDefaultSrc) != nullptr);
   const std::vector<CspSourceExpression>& default_src =
@@ -233,7 +450,7 @@ TEST(CspParseTest, Basic) {
 TEST(CspParseTest, Repeated) {
   // Repeating within same policy doesn't do anything.
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
-    "script-src 'unsafe-inline' 'unsafe-eval'; script-src 'strict-dynamic'"));
+      "script-src 'unsafe-inline' 'unsafe-eval'; script-src 'strict-dynamic'"));
   ASSERT_TRUE(policy != nullptr);
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
   const std::vector<CspSourceExpression>& script_src =

@@ -19,6 +19,12 @@
 // This provides basic parsing and evaluation of a (subset of)
 // Content-Security-Policy that's relevant for PageSpeed Automatic.
 // CspContext is the main class.
+//
+// Limitations versus the full spec:
+// 1) We don't parse some kinds of source expressions, like nonce and hash ones.
+// 2) Only some of the directives are parsed.
+// 3) URL matching doesn't support WebSocket (ws: and wss:) schemes, since
+//    mod_pagespeed doesn't and they make for some really ugly conditionals.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
@@ -30,6 +36,7 @@
 #include "net/instaweb/rewriter/public/csp_directive.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
 
@@ -42,29 +49,50 @@ class CspSourceExpression {
   };
 
   struct UrlData {
-    UrlData() {}
+    UrlData() : path_exact_match(false) {}
+    // Constructor for tests, assumes already normalized.
     UrlData(StringPiece in_scheme, StringPiece in_host,
-            StringPiece in_port, StringPiece in_path)
+            StringPiece in_port, StringPiece in_path,
+            bool exact_match = false)
         : scheme_part(in_scheme.as_string()),
           host_part(in_host.as_string()),
           port_part(in_port.as_string()),
-          path_part(in_path.as_string()) {}
+          path_exact_match(exact_match) {
+      StringPieceVector portions;
+      SplitStringPieceToVector(in_path, "/", &portions, true);
+      for (StringPiece p : portions) {
+        path_part.push_back(p.as_string());
+      }
+    }
 
+    // All the components here are stored in a manner that matches the way
+    // GoogleUrl stores their corresponding portions, to make it easy to
+    // compare against incoming URLs:
+    // 1) The case-insensitive scheme and host portions are lowercased.
+    // 2) The case-sensitive path doesn't have its case changed, but the
+    //    % escaping is normalized. We also pre-split it since we have
+    //    to check per-component.
     GoogleString scheme_part;  // doesn't include :
     GoogleString host_part;
     GoogleString port_part;
-    GoogleString path_part;
+    // separated by /
+    std::vector<GoogleString> path_part;
+    bool path_exact_match;
 
     GoogleString DebugString() const {
       return StrCat("scheme:", scheme_part, " host:", host_part,
-                    " port:", port_part, " path:", path_part);
+                    " port:", port_part,
+                    " path:",  JoinCollection(path_part, "/"),
+                    " path_exact_match:", BoolToString(path_exact_match));
     }
 
+    // For convenience of unit testing.
     bool operator==(const UrlData& other) const {
       return scheme_part == other.scheme_part &&
              host_part == other.host_part &&
              port_part == other.port_part &&
-             path_part == other.path_part;
+             path_part == other.path_part &&
+             path_exact_match == other.path_exact_match;
     }
   };
 
@@ -75,6 +103,8 @@ class CspSourceExpression {
   }
 
   static CspSourceExpression Parse(StringPiece input);
+
+  bool Matches(const GoogleUrl& origin_url, const GoogleUrl& url) const;
 
   GoogleString DebugString() const {
     return StrCat("kind:", IntegerToString(kind_),
@@ -102,6 +132,8 @@ class CspSourceExpression {
   // scheme-part portion of a host-source, filling in url_data->scheme_part
   // appropriately. Returns true only if this is a scheme-source, however.
   bool TryParseScheme(StringPiece* input);
+
+  static bool HasDefaultPortForScheme(const GoogleUrl& url);
 
   UrlData* mutable_url_data() {
     if (url_data_.get() == nullptr) {

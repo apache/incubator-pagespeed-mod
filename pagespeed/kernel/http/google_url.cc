@@ -489,6 +489,10 @@ StringPiece GoogleUrl::UncheckedSpec() const {
   return StringPiece(spec.data(), spec.size());
 }
 
+int GoogleUrl::DefaultPortForScheme(StringPiece scheme) {
+  return url_canon::DefaultPortForScheme(scheme.data(), scheme.size());
+}
+
 UrlRelativity GoogleUrl::FindRelativity(StringPiece url) {
   GoogleUrl temp(url);
   if (temp.IsAnyValid()) {
@@ -675,6 +679,18 @@ GoogleString GoogleUrl::Sanitize(StringPiece url) {
     }
   }
   return escaped;
+}
+
+GoogleString GoogleUrl::CanonicalizePath(StringPiece path) {
+  GoogleString buffer;
+  url_canon::StdStringCanonOutput output(&buffer);
+  url_parse::Component in_range, out_range;
+  in_range.begin = 0;
+  in_range.len = path.size();
+
+  url_canon::CanonicalizePath(path.data(), in_range, &output, &out_range);
+  output.Complete();
+  return buffer.substr(out_range.begin, out_range.len);
 }
 
 }  // namespace net_instaweb
