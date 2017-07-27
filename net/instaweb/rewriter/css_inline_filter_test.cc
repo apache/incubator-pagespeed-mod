@@ -732,6 +732,47 @@ TEST_F(CssInlineFilterTest, DisabledForAmp) {
       "<style>/* pretend there is a @font-face here */</style>");
 }
 
+TEST_F(CssInlineFilterTest, NoInliningOfLinkStyleTagInBody) {
+  options()->EnableFilter(RewriteOptions::kInlineCss);
+  options()->EnableFilter(RewriteOptions::kPedantic);
+  rewrite_driver()->AddFilters();
+  SetResponseWithDefaultHeaders("foo.css", kContentTypeCss,
+                                "/* pretend there is a @font-face here */",
+                                100);
+  TurnOnDebug();
+
+  // dont inline css for style link element in body
+  // when pedantic is enabled and move_css_to_head is not enabled.
+  ValidateExpected(
+      "no_inlining_for_link_tag_in_body",
+      "<html><head></head><body><link property='stylesheet'"
+      "rel='stylesheet' href='foo.css'></body></html>",
+      "<html><head></head><body><link property='stylesheet' rel='stylesheet' "
+      "href='foo.css'><!--CSS not inlined because style link element "
+      "in html body--></body></html>");
+}
+
+TEST_F(CssInlineFilterTest, InliningOfLinkStyleTagInBody) {
+  options()->EnableFilter(RewriteOptions::kInlineCss);
+  options()->EnableFilter(RewriteOptions::kPedantic);
+  options()->EnableFilter(RewriteOptions::kMoveCssToHead);
+  rewrite_driver()->AddFilters();
+  SetResponseWithDefaultHeaders("foo.css", kContentTypeCss,
+                                "/* pretend there is a @font-face here */",
+                                100);
+  TurnOnDebug();
+
+  // inline css for style link element in body,with pedantic enabled,
+  // when move_css_to_head is enabled.
+  ValidateExpected(
+      "inlining_for_link_tag_in_body",
+      "<html><head></head><body><link property='stylesheet'"
+      "rel='stylesheet' href='foo.css'></body></html>",
+      "<html><head><style property='stylesheet' type=\"text/css\">"
+      "/* pretend there is a @font-face here */</style></head>"
+      "<body></body></html>");
+}
+
 }  // namespace
 
 }  // namespace net_instaweb

@@ -47,7 +47,7 @@ class CssInlineFilter : public CommonFilter {
   virtual ~CssInlineFilter();
 
   virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element) {}
+  virtual void StartElementImpl(HtmlElement* element);
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "InlineCss"; }
   // Inlining css from unauthorized domains into HTML is considered
@@ -93,6 +93,7 @@ class CssInlineFilter : public CommonFilter {
   GoogleString domain_;
 
   Variable* num_css_inlined_;
+  bool in_body_;
 
   DISALLOW_COPY_AND_ASSIGN(CssInlineFilter);
 };

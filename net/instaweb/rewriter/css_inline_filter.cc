@@ -97,7 +97,8 @@ class CssInlineFilter::Context : public InlineRewriteContext {
 CssInlineFilter::CssInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       id_(RewriteOptions::kCssInlineId),
-      size_threshold_bytes_(driver->options()->css_inline_max_bytes()) {
+      size_threshold_bytes_(driver->options()->css_inline_max_bytes()),
+      in_body_(false) {
   Statistics* stats = server_context()->statistics();
   num_css_inlined_ = stats->GetVariable(kNumCssInlined);
 }
@@ -111,11 +112,22 @@ void CssInlineFilter::StartDocumentImpl() {
 
 CssInlineFilter::~CssInlineFilter() {}
 
+void CssInlineFilter::StartElementImpl(HtmlElement* element) {
+  if (element->keyword() == HtmlName::kBody) {
+    in_body_ = true;
+  }
+}
+
 void CssInlineFilter::EndElementImpl(HtmlElement* element) {
   // Don't inline if the CSS element is under <noscript>.
   if (noscript_element() != NULL) {
     return;
   }
+
+  if (element->keyword() == HtmlName::kBody) {
+    in_body_ = false;
+  }
+
   HtmlElement::Attribute* href = NULL;
   const char* media = NULL;
   if (CssTagScanner::ParseCssElement(element, &href, &media) &&
@@ -138,6 +150,19 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
           "CSS not inlined because media does not match screen", element);
       return;
     }
+
+    // Dont inline if style <link> element is in html body AND
+    // move_css_to_head is not enabled. Pedantic used for html compatibility.
+    // This is to maintain w3c validation since style element is
+    // not recommended in html body. Issue fix #1153.
+    if (in_body_ &&
+        driver()->options()->Enabled(RewriteOptions::kPedantic) &&
+        !driver()->options()->Enabled(RewriteOptions::kMoveCssToHead)) {
+      driver()->InsertDebugComment(
+          "CSS not inlined because style link element in html body", element);
+      return;
+    }
+
     // Ask the LSC filter to work out how to handle this element. A return
     // value of true means we don't have to rewrite it so can skip that.
     // The state is carried forward to after we initiate rewriting since
