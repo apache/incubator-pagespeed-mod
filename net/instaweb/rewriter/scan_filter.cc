@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "net/instaweb/rewriter/public/common_filter.h"
+#include "net/instaweb/rewriter/public/csp.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -59,6 +60,16 @@ void ScanFilter::StartDocument() {
   const ResponseHeaders* headers = driver_->response_headers();
   driver_->set_containing_charset(headers == NULL ? "" :
                                   headers->DetermineCharset());
+
+  if (driver_->options()->honor_csp() && headers != nullptr) {
+    ConstStringStarVector values;
+    if (headers->Lookup(HttpAttributes::kContentSecurityPolicy, &values)) {
+      for (const GoogleString* policy : values) {
+        driver_->mutable_content_security_policy()->AddPolicy(
+            CspPolicy::Parse(*policy));
+      }
+    }
+  }
 }
 
 void ScanFilter::Cdata(HtmlCdataNode* cdata) {
@@ -125,6 +136,23 @@ void ScanFilter::StartElement(HtmlElement* element) {
             attributes[i].url->keyword() == HtmlName::kManifest)) {
         seen_refs_ = true;
       }
+    }
+  }
+
+  if (driver_->options()->honor_csp() &&
+      element->keyword() == HtmlName::kMeta) {
+    // Note: https://html.spec.whatwg.org/multipage/semantics.html#attr-meta-http-equiv-content-security-policy
+    // requires us to check whether the meta element is a child of a <head>.
+    // We cannot do it reliably since we don't do full HTML5 parsing (complete
+    // with inventing missing nodes), so we conservatively assume that the
+    // policy applies.
+    const char* equiv = element->AttributeValue(HtmlName::kHttpEquiv);
+    const char* content = element->AttributeValue(HtmlName::kContent);
+    if (equiv && content &&
+        StringCaseEqual(equiv, HttpAttributes::kContentSecurityPolicy) &&
+        !StringPiece(content).empty()) {
+      driver_->mutable_content_security_policy()->AddPolicy(
+          CspPolicy::Parse(content));
     }
   }
 

@@ -45,6 +45,7 @@ const char HttpAttributes::kContentDisposition[] = "Content-Disposition";
 const char HttpAttributes::kContentEncoding[] = "Content-Encoding";
 const char HttpAttributes::kContentLanguage[] = "Content-Language";
 const char HttpAttributes::kContentLength[] = "Content-Length";
+const char HttpAttributes::kContentSecurityPolicy[] = "Content-Security-Policy";
 const char HttpAttributes::kContentType[] = "Content-Type";
 const char HttpAttributes::kCookie[] = "Cookie";
 const char HttpAttributes::kCookie2[] = "Cookie2";

@@ -187,4 +187,43 @@ TEST_F(ScanFilterTest, CharsetFromMetaTagMissingQuotes) {
   EXPECT_STREQ("us-ascii", rewrite_driver()->containing_charset());
 }
 
+
+TEST_F(ScanFilterTest, CspParse) {
+  ResponseHeaders headers;
+  headers.Add("Content-Security-Policy", "img-src https:");
+  rewrite_driver()->set_response_headers_ptr(&headers);
+  ValidateNoChanges("csp_parse",
+                    "<meta http-equiv=\"Content-Security-Policy\" "
+                    "content=\"img-src www.example.com\">");
+  EXPECT_EQ(2, rewrite_driver()->content_security_policy().policies_size());
+  EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "https://www.example.com/foo.png"));
+  EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "http://www.example.com/foo.png"));
+  EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "https://www.example.org/foo.png"));
+  EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "http://www.example.org/foo.png"));
+}
+
+TEST_F(ScanFilterTest, CspParseOff) {
+  options()->set_honor_csp(false);
+
+  ResponseHeaders headers;
+  headers.Add("Content-Security-Policy", "img-src https:");
+  rewrite_driver()->set_response_headers_ptr(&headers);
+  ValidateNoChanges("csp_parse",
+                    "<meta http-equiv=\"Content-Security-Policy\" "
+                    "content=\"img-src www.example.com\">");
+  EXPECT_EQ(0, rewrite_driver()->content_security_policy().policies_size());
+  EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "https://www.example.com/foo.png"));
+  EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "http://www.example.com/foo.png"));
+  EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "https://www.example.org/foo.png"));
+  EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
+      CspDirective::kImgSrc, "http://www.example.org/foo.png"));
+}
+
 }  // namespace net_instaweb

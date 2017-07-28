@@ -485,6 +485,8 @@ void RewriteDriver::Clear() NO_THREAD_SAFETY_ANALYSIS {
   STLDeleteElements(&owned_url_async_fetchers_);
   ClearRequestProperties();
   user_agent_.clear();
+
+  csp_context_.Clear();
 }
 
 // Must be called with rewrite_mutex() held.
@@ -3533,6 +3535,14 @@ void RewriteDriver::SetIsAmpDocument(bool is_amp) {
   }
   is_amp_ = is_amp;
   set_buffer_events(false);
+}
+
+bool RewriteDriver::IsLoadPermittedByCsp(CspDirective role, StringPiece url) {
+  if (refs_before_base_ || !base_url().IsWebValid()) {
+    return false;
+  }
+  GoogleUrl abs_url(base_url(), url);
+  return csp_context_.CanLoadUrl(role, google_url(), abs_url);
 }
 
 }  // namespace net_instaweb

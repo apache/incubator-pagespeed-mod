@@ -31,6 +31,7 @@
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
+#include "net/instaweb/rewriter/public/csp.h"
 #include "net/instaweb/rewriter/public/downstream_cache_purger.h"
 #include "net/instaweb/rewriter/public/inline_attribute_slot.h"
 #include "net/instaweb/rewriter/public/inline_resource_slot.h"
@@ -1250,6 +1251,10 @@ class RewriteDriver : public HtmlParse {
   void SetIsAmpDocument(bool is_amp);
   bool is_amp_document() const { return is_amp_; }
 
+  const CspContext& content_security_policy() const { return csp_context_; }
+  CspContext* mutable_content_security_policy() { return &csp_context_; }
+  bool IsLoadPermittedByCsp(CspDirective role, StringPiece url);
+
  protected:
   virtual void DetermineFiltersBehaviorImpl();
 
@@ -1747,6 +1752,9 @@ class RewriteDriver : public HtmlParse {
 
   // Any PageSpeed option cookies from the original request.
   GoogleString pagespeed_option_cookies_;
+
+  // Currently active Content-Security-Policy
+  CspContext csp_context_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDriver);
 };
