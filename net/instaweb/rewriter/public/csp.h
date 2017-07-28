@@ -21,10 +21,11 @@
 // CspContext is the main class.
 //
 // Limitations versus the full spec:
-// 1) We don't parse some kinds of source expressions, like nonce and hash ones.
+// 1) We don't fully parse some kinds of source expressions, like nonce and
+//    hash ones.
 // 2) Only some of the directives are parsed.
 // 3) URL matching doesn't support WebSocket (ws: and wss:) schemes, since
-//    mod_pagespeed doesn't and they make for some really ugly conditionals.
+//    mod_pagespeed doesn't, and they make for some really ugly conditionals.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSP_H_
@@ -45,7 +46,7 @@ class CspSourceExpression {
   enum Kind {
     kSelf, kSchemeSource, kHostSource,
     kUnsafeInline, kUnsafeEval, kStrictDynamic, kUnsafeHashedAttributes,
-    kUnknown /* includes hash-or-nonce */
+    kHashOrNonce, kUnknown
   };
 
   struct UrlData {
@@ -128,6 +129,9 @@ class CspSourceExpression {
   // input here is without the quotes, and non-empty.
   static CspSourceExpression ParseQuoted(StringPiece input);
 
+  // Returns true if input matches the base64-value production in CSP spec.
+  static bool ParseBase64(StringPiece input);
+
   // Tries to see if the input is either an entire scheme-source, or the
   // scheme-part portion of a host-source, filling in url_data->scheme_part
   // appropriately. Returns true only if this is a scheme-source, however.
@@ -148,13 +152,34 @@ class CspSourceExpression {
 
 class CspSourceList {
  public:
+  CspSourceList()
+      : saw_unsafe_inline_(false), saw_unsafe_eval_(false),
+        saw_strict_dynamic_(false), saw_unsafe_hashed_attributes_(false),
+        saw_hash_or_nonce_(false) {}
+
   static std::unique_ptr<CspSourceList> Parse(StringPiece input);
   const std::vector<CspSourceExpression>& expressions() const {
     return expressions_;
   }
 
+  bool saw_unsafe_inline() const { return saw_unsafe_inline_; }
+  bool saw_unsafe_eval() const { return saw_unsafe_eval_; }
+  bool saw_strict_dynamic() const { return saw_strict_dynamic_; }
+  bool saw_unsafe_hashed_attributes() const {
+    return saw_unsafe_hashed_attributes_;
+  }
+
+  bool saw_hash_or_nonce() const { return saw_hash_or_nonce_; }
+
+  bool Matches(const GoogleUrl& origin_url, const GoogleUrl& url) const;
+
  private:
   std::vector<CspSourceExpression> expressions_;
+  bool saw_unsafe_inline_;
+  bool saw_unsafe_eval_;
+  bool saw_strict_dynamic_;
+  bool saw_unsafe_hashed_attributes_;
+  bool saw_hash_or_nonce_;
 };
 
 // An individual policy. Note that a page is constrained by an intersection
@@ -163,16 +188,27 @@ class CspPolicy {
  public:
   CspPolicy();
 
-  // Just an example for now...
-  bool UnsafeEval() const { return false; /* */ }
-
   // May return null.
   static std::unique_ptr<CspPolicy> Parse(StringPiece input);
 
   // May return null.
-  const CspSourceList* SourceListFor(CspDirective directive) {
+  const CspSourceList* SourceListFor(CspDirective directive) const {
     return policies_[static_cast<int>(directive)].get();
   }
+
+  bool PermitsEval() const;
+  bool PermitsInlineScript() const;
+  bool PermitsInlineScriptAttribute() const;
+  bool PermitsInlineStyle() const;
+  bool PermitsInlineStyleAttribute() const;
+
+  // Tests whether 'url' can be loaded within 'origin_url' as 'role', where
+  // 'role' should be kStyleSrc, kScriptSrc or kImgSrc.
+  bool CanLoadUrl(CspDirective role, const GoogleUrl& origin_url,
+                  const GoogleUrl& url) const;
+
+  bool IsBasePermitted(const GoogleUrl& previous_origin,
+                       const GoogleUrl& base_candidate) const;
 
  private:
   // The expectation is that some of these may be null.
@@ -184,9 +220,48 @@ class CspPolicy {
 // seems like it would keep the page author informed about our effects as it is.
 class CspContext {
  public:
-  bool UnsafeEval() const {
-    return AllPermit(&CspPolicy::UnsafeEval);
+  bool PermitsEval() const {
+    return AllPermit(&CspPolicy::PermitsEval);
   }
+
+  bool PermitsInlineScript() const {
+    return AllPermit(&CspPolicy::PermitsInlineScript);
+  }
+
+  bool PermitsInlineScriptAttribute() const {
+    return AllPermit(&CspPolicy::PermitsInlineScriptAttribute);
+  }
+
+  bool PermitsInlineStyle() const {
+    return AllPermit(&CspPolicy::PermitsInlineStyle);
+  }
+
+  bool PermitsInlineStyleAttribute() const {
+    return AllPermit(&CspPolicy::PermitsInlineStyleAttribute);
+  }
+
+  bool CanLoadUrl(CspDirective role, const GoogleUrl& origin_url,
+                  const GoogleUrl& url) {
+    // All policies must OK, with base case being 'true'.
+    for (const auto& policy : policies_) {
+      if (!policy->CanLoadUrl(role, origin_url, url)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool IsBasePermitted(const GoogleUrl& previous_origin,
+                       const GoogleUrl& base_candidate) const {
+    for (const auto& policy : policies_) {
+      if (!policy->IsBasePermitted(previous_origin, base_candidate)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void AddPolicy(std::unique_ptr<CspPolicy> policy);
 
  private:
   typedef bool (CspPolicy::*SimplePredicateFn)() const;

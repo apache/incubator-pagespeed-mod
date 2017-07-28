@@ -76,8 +76,35 @@ TEST(CspParseSourceTest, Quoted) {
       CspSourceExpression::Parse("'unsafe-hashed-attribUtes'"));
 
   EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression(CspSourceExpression::kHashOrNonce),
       CspSourceExpression::Parse("'nonce-qwertyu12345'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kHashOrNonce),
+      CspSourceExpression::Parse("'sha256-qwertyu12345='"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kHashOrNonce),
+      CspSourceExpression::Parse("'sha256-qwertyu12345/=='"));
+
+  // Some base64 errors.
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha256-'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha256-qwertyu12345========'"));
+
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha256-qwertyu1.2345'"));
+
+
+  // Not a valid hashing algorithm.
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kUnknown),
+      CspSourceExpression::Parse("'sha1-qwertyu12345'"));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kUnknown),
@@ -422,6 +449,56 @@ TEST(CspParseSourceListTest, None) {
   EXPECT_TRUE(n2->expressions().empty());
 }
 
+TEST(CspParseSourceListTest, Flags) {
+  {
+    std::unique_ptr<CspSourceList> s1(CspSourceList::Parse("'unsafe-eval'"));
+    EXPECT_FALSE(s1->saw_unsafe_inline());
+    EXPECT_TRUE(s1->saw_unsafe_eval());
+    EXPECT_FALSE(s1->saw_strict_dynamic());
+    EXPECT_FALSE(s1->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s1->saw_hash_or_nonce());
+  }
+
+  {
+    std::unique_ptr<CspSourceList> s2(CspSourceList::Parse("'unsafe-inline'"));
+    EXPECT_TRUE(s2->saw_unsafe_inline());
+    EXPECT_FALSE(s2->saw_unsafe_eval());
+    EXPECT_FALSE(s2->saw_strict_dynamic());
+    EXPECT_FALSE(s2->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s2->saw_hash_or_nonce());
+  }
+
+  {
+    std::unique_ptr<CspSourceList> s3(
+        CspSourceList::Parse("'unsafe-hashed-attributes'"));
+    EXPECT_FALSE(s3->saw_unsafe_inline());
+    EXPECT_FALSE(s3->saw_unsafe_eval());
+    EXPECT_FALSE(s3->saw_strict_dynamic());
+    EXPECT_TRUE(s3->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s3->saw_hash_or_nonce());
+  }
+
+  {
+    std::unique_ptr<CspSourceList> s4(
+        CspSourceList::Parse("'strict-dynamic'"));
+    EXPECT_FALSE(s4->saw_unsafe_inline());
+    EXPECT_FALSE(s4->saw_unsafe_eval());
+    EXPECT_TRUE(s4->saw_strict_dynamic());
+    EXPECT_FALSE(s4->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s4->saw_hash_or_nonce());
+  }
+
+  {
+    std::unique_ptr<CspSourceList> s5(
+        CspSourceList::Parse("'sha256-01234'"));
+    EXPECT_FALSE(s5->saw_unsafe_inline());
+    EXPECT_FALSE(s5->saw_unsafe_eval());
+    EXPECT_FALSE(s5->saw_strict_dynamic());
+    EXPECT_FALSE(s5->saw_unsafe_hashed_attributes());
+    EXPECT_TRUE(s5->saw_hash_or_nonce());
+  }
+}
+
 TEST(CspParseTest, Empty) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse("   "));
   EXPECT_EQ(policy, nullptr);
@@ -429,22 +506,38 @@ TEST(CspParseTest, Empty) {
 
 TEST(CspParseTest, Basic) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
-      "default-src *; script-src 'unsafe-inline' 'unsafe-eval'"));
+      "default-src *; script-src https: 'unsafe-inline' 'unsafe-eval'"));
   ASSERT_TRUE(policy != nullptr);
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kDefaultSrc) != nullptr);
+  const CspSourceList* default_list =
+      policy->SourceListFor(CspDirective::kDefaultSrc);
   const std::vector<CspSourceExpression>& default_src =
-      policy->SourceListFor(CspDirective::kDefaultSrc)->expressions();
+      default_list->expressions();
   ASSERT_EQ(1, default_src.size());
   EXPECT_EQ(CspSourceExpression::kHostSource, default_src[0].kind());
   EXPECT_EQ(CspSourceExpression::UrlData("", "*", "", ""),
             default_src[0].url_data());
+  EXPECT_FALSE(default_list->saw_unsafe_inline());
+  EXPECT_FALSE(default_list->saw_unsafe_eval());
+  EXPECT_FALSE(default_list->saw_strict_dynamic());
+  EXPECT_FALSE(default_list->saw_unsafe_hashed_attributes());
+  EXPECT_FALSE(default_list->saw_hash_or_nonce());
 
   ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
+  const CspSourceList* source_list =
+      policy->SourceListFor(CspDirective::kScriptSrc);
   const std::vector<CspSourceExpression>& script_src =
-      policy->SourceListFor(CspDirective::kScriptSrc)->expressions();
-  ASSERT_EQ(2, script_src.size());
-  EXPECT_EQ(CspSourceExpression::kUnsafeInline, script_src[0].kind());
-  EXPECT_EQ(CspSourceExpression::kUnsafeEval, script_src[1].kind());
+      source_list->expressions();
+  ASSERT_EQ(1, script_src.size());
+  EXPECT_EQ(
+      CspSourceExpression(CspSourceExpression::kSchemeSource,
+                          CspSourceExpression::UrlData("https", "", "", "")),
+      script_src[0]);
+  EXPECT_TRUE(source_list->saw_unsafe_inline());
+  EXPECT_TRUE(source_list->saw_unsafe_eval());
+  EXPECT_FALSE(source_list->saw_strict_dynamic());
+  EXPECT_FALSE(source_list->saw_unsafe_hashed_attributes());
+  EXPECT_FALSE(source_list->saw_hash_or_nonce());
 }
 
 TEST(CspParseTest, Repeated) {
@@ -452,12 +545,335 @@ TEST(CspParseTest, Repeated) {
   std::unique_ptr<CspPolicy> policy(CspPolicy::Parse(
       "script-src 'unsafe-inline' 'unsafe-eval'; script-src 'strict-dynamic'"));
   ASSERT_TRUE(policy != nullptr);
-  ASSERT_TRUE(policy->SourceListFor(CspDirective::kScriptSrc) != nullptr);
+  const CspSourceList* source_list =
+      policy->SourceListFor(CspDirective::kScriptSrc);
+  ASSERT_TRUE(source_list != nullptr);
   const std::vector<CspSourceExpression>& script_src =
-      policy->SourceListFor(CspDirective::kScriptSrc)->expressions();
-  ASSERT_EQ(2, script_src.size());
-  EXPECT_EQ(CspSourceExpression::kUnsafeInline, script_src[0].kind());
-  EXPECT_EQ(CspSourceExpression::kUnsafeEval, script_src[1].kind());
+      source_list->expressions();
+  ASSERT_EQ(0, script_src.size());
+  EXPECT_TRUE(source_list->saw_unsafe_inline());
+  EXPECT_TRUE(source_list->saw_unsafe_eval());
+  EXPECT_FALSE(source_list->saw_strict_dynamic());
+  EXPECT_FALSE(source_list->saw_unsafe_hashed_attributes());
+  EXPECT_FALSE(source_list->saw_hash_or_nonce());
+}
+
+TEST(CspPolicyTest, Eval) {
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
+    ASSERT_TRUE(p != nullptr);
+    // No default-src or script-src specified.
+    EXPECT_TRUE(p->PermitsEval());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("default-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsEval());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "default-src *; script-src 'unsafe-eval'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_TRUE(p->PermitsEval());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "default-src 'unsafe-eval'; script-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsEval());
+  }
+}
+
+TEST(CspPolicyTest, InlineScript) {
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_TRUE(p->PermitsInlineScript());
+    EXPECT_TRUE(p->PermitsInlineScriptAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("default-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_TRUE(p->PermitsInlineScript());
+    EXPECT_TRUE(p->PermitsInlineScriptAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("script-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineScript());
+    EXPECT_FALSE(p->PermitsInlineScriptAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "script-src 'unsafe-inline'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_TRUE(p->PermitsInlineScript());
+    EXPECT_TRUE(p->PermitsInlineScriptAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "script-src 'unsafe-inline' 'sha256-123467ab'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineScript());
+    EXPECT_FALSE(p->PermitsInlineScriptAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "script-src 'unsafe-inline' 'strict-dynamic'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineScript());
+    EXPECT_FALSE(p->PermitsInlineScriptAttribute());
+  }
+
+  {
+    // TODO(morlovich): This behavior seems to follow from the spec, but doesn't
+    // make much sense, verify and file spec feedback?
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "script-src 'unsafe-inline' 'strict-dynamic' "
+        "'unsafe-hashed-attributes'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineScript());
+    EXPECT_TRUE(p->PermitsInlineScriptAttribute());
+  }
+}
+
+TEST(CspPolicyTest, InlineStyle) {
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_TRUE(p->PermitsInlineStyle());
+    EXPECT_TRUE(p->PermitsInlineStyleAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("default-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_TRUE(p->PermitsInlineStyle());
+    EXPECT_TRUE(p->PermitsInlineStyleAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("style-src *"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineStyle());
+    EXPECT_FALSE(p->PermitsInlineStyleAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "style-src 'unsafe-inline'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_TRUE(p->PermitsInlineStyle());
+    EXPECT_TRUE(p->PermitsInlineStyleAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "style-src 'unsafe-inline' 'sha256-123467ab'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineStyle());
+    EXPECT_FALSE(p->PermitsInlineStyleAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "style-src 'unsafe-inline' 'strict-dynamic'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineStyle());
+    EXPECT_FALSE(p->PermitsInlineStyleAttribute());
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "style-src 'unsafe-inline' 'strict-dynamic' "
+        "'unsafe-hashed-attributes'"));
+    ASSERT_TRUE(p != nullptr);
+    EXPECT_FALSE(p->PermitsInlineStyle());
+    EXPECT_FALSE(p->PermitsInlineStyleAttribute());
+  }
+}
+
+TEST(CspPolicyTest, CanLoadUrl) {
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(p->CanLoadUrl(CspDirective::kImgSrc,
+                              GoogleUrl("http://www.example.com/"),
+                              GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src 'self'"));
+    EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com/"),
+                               GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("default-src *"));
+    EXPECT_TRUE(p->CanLoadUrl(CspDirective::kImgSrc,
+                              GoogleUrl("http://www.example.com/"),
+                              GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("child-src *"));
+    EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com/"),
+                               GoogleUrl("http://www.example.org/foo.png")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "default-src *; img-src 'self'"));
+    EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com/"),
+                               GoogleUrl("http://www.example.org/foo.png")));
+  }
+}
+
+TEST(CspParseTest, BaseUri) {
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri *"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri 'self'"));
+    EXPECT_FALSE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri 'self'"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://example.com")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("base-uri *.example.com"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://sub.example.com")));
+    EXPECT_FALSE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://sub.example.org")));
+  }
+
+  {
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
+        "base-uri *.example.com *.example.org"));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://sub.example.com")));
+    EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
+                                   GoogleUrl("https://sub.example.org")));
+  }
+}
+
+TEST(CspContextText, BitField) {
+  {
+    // Base case.
+    CspContext ctx;
+    EXPECT_TRUE(ctx.PermitsEval());
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("script-src 'unsafe-eval'"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(ctx.PermitsEval());
+  }
+
+  {
+    // default-src is relevant here.
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("script-src 'unsafe-eval'"));
+    ctx.AddPolicy(CspPolicy::Parse("default-src *"));
+    EXPECT_FALSE(ctx.PermitsEval());
+  }
+}
+
+TEST(CspContext, CanLoadUrl) {
+  {
+    // Base case.
+    CspContext ctx;
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("script-src 'unsafe-eval'"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                                GoogleUrl("http://www.example.com"),
+                                GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("default-src https:"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("img-src https:"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("img-src 'self'"));
+    ctx.AddPolicy(CspPolicy::Parse("img-src *"));
+    EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                                GoogleUrl("http://www.example.com"),
+                                GoogleUrl("https://www.example.org/foo.png")));
+  }
+}
+
+TEST(CspContext, BaseUri) {
+  {
+    // Base case.
+    CspContext ctx;
+    EXPECT_TRUE(ctx.IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://sub.example.com")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("base-uri https:"));
+    ctx.AddPolicy(CspPolicy::Parse("base-uri *.example.com"));
+    EXPECT_TRUE(ctx.IsBasePermitted(GoogleUrl("http://example.com"),
+                                    GoogleUrl("https://sub.example.com")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("base-uri https:"));
+    ctx.AddPolicy(CspPolicy::Parse("base-uri *.example.com"));
+    EXPECT_FALSE(ctx.IsBasePermitted(GoogleUrl("http://example.com"),
+                                     GoogleUrl("https://sub.example.org")));
+  }
 }
 
 }  // namespace

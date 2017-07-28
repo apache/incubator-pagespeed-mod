@@ -53,6 +53,12 @@ inline bool IsSchemeContinuation(char ch) {
   return IsAsciiAlphaNumeric(ch) || (ch == '+') || (ch == '-') || (ch == '.');
 }
 
+inline bool IsBase64Char(char ch) {
+  // ALPHA / DIGIT / "+" / "/" / "-" / "_"
+  return IsAsciiAlphaNumeric(ch) ||
+         (ch == '+') || (ch == '/') || (ch == '-') || (ch == '_');
+}
+
 }  // namespace
 
 bool CspSourceExpression::TryParseScheme(StringPiece* input) {
@@ -351,8 +357,38 @@ CspSourceExpression CspSourceExpression::ParseQuoted(StringPiece input) {
     if (StringCaseEqual(input, "strict-dynamic")) {
       return CspSourceExpression(kStrictDynamic);
     }
+    // TODO(morlovich): Test case sensitivity here and below against spec,
+    // potentially file feedback. What's a bit goofy is that the grammar, as
+    // interpreted by rules of RFC5234, calls for case-insensitive algorithm
+    // names, while the matching algorithm treats them case-sensitively.
+    if (StringCaseStartsWith(input, "sha256-") ||
+        StringCaseStartsWith(input, "sha384-") ||
+        StringCaseStartsWith(input, "sha512-")) {
+      input.remove_prefix(7);
+      return ParseBase64(input) ? CspSourceExpression(kHashOrNonce)
+                                : CspSourceExpression(kUnknown);
+    }
+  }
+
+  if (StringCaseStartsWith(input, "nonce-")) {
+    input.remove_prefix(6);
+    return ParseBase64(input) ? CspSourceExpression(kHashOrNonce)
+                              : CspSourceExpression(kUnknown);
   }
   return CspSourceExpression(kUnknown);
+}
+
+bool CspSourceExpression::ParseBase64(StringPiece input) {
+  // base64-value  = 1*( ALPHA / DIGIT / "+" / "/" / "-" / "_" )*2( "=" )
+  if (input.empty()) {
+    return false;
+  }
+
+  while (!input.empty() && IsBase64Char(input[0])) {
+    input.remove_prefix(1);
+  }
+
+  return input.empty() || (input == "=") || (input == "==");
 }
 
 bool CspSourceExpression::HasDefaultPortForScheme(const GoogleUrl& url) {
@@ -384,12 +420,42 @@ std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
   for (StringPiece token : tokens) {
     TrimCspWhitespace(&token);
     CspSourceExpression expr = CspSourceExpression::Parse(token);
-    if (expr.kind() != CspSourceExpression::kUnknown) {
-      result->expressions_.push_back(std::move(expr));
+    switch (expr.kind()) {
+      case CspSourceExpression::kUnknown:
+        // Skip over unknown stuff, it makes no difference anyway.
+        break;
+      case CspSourceExpression::kUnsafeInline:
+        result->saw_unsafe_inline_ = true;
+        break;
+      case CspSourceExpression::kUnsafeEval:
+        result->saw_unsafe_eval_ = true;
+        break;
+      case CspSourceExpression::kStrictDynamic:
+        result->saw_strict_dynamic_ = true;
+        break;
+      case CspSourceExpression::kUnsafeHashedAttributes:
+        result->saw_unsafe_hashed_attributes_ = true;
+        break;
+      case CspSourceExpression::kHashOrNonce:
+        result->saw_hash_or_nonce_ = true;
+        break;
+      default:
+        result->expressions_.push_back(std::move(expr));
+        break;
     }
   }
 
   return result;
+}
+
+bool CspSourceList::Matches(
+    const GoogleUrl& origin_url, const GoogleUrl& url) const {
+  for (const CspSourceExpression& expr : expressions_) {
+    if (expr.Matches(origin_url, url)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 CspPolicy::CspPolicy() {
@@ -433,6 +499,95 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
   }
 
   return policy;
+}
+
+bool CspPolicy::PermitsEval() const {
+  // AKA EnsureCSPDoesNotBlockStringCompilation() from the spec.
+  // https://w3c.github.io/webappsec-csp/#can-compile-strings
+  const CspSourceList* relevant_list = SourceListFor(CspDirective::kScriptSrc);
+  if (relevant_list == nullptr) {
+    relevant_list = SourceListFor(CspDirective::kDefaultSrc);
+  }
+
+  return (relevant_list == nullptr || relevant_list->saw_unsafe_eval());
+}
+
+bool CspPolicy::PermitsInlineScript() const {
+  const CspSourceList* script_src = SourceListFor(CspDirective::kScriptSrc);
+  if (script_src == nullptr) {
+    return true;
+  }
+
+  if (script_src->saw_strict_dynamic()) {
+    return false;
+  }
+
+  return (script_src->saw_unsafe_inline() && !script_src->saw_hash_or_nonce());
+}
+
+bool CspPolicy::PermitsInlineScriptAttribute() const {
+  const CspSourceList* script_src = SourceListFor(CspDirective::kScriptSrc);
+  if (script_src == nullptr) {
+    return true;
+  }
+
+  if (script_src->saw_strict_dynamic() &&
+      !script_src->saw_unsafe_hashed_attributes()) {
+    return false;
+  }
+
+  return (script_src->saw_unsafe_inline() && !script_src->saw_hash_or_nonce());
+}
+
+bool CspPolicy::PermitsInlineStyle() const {
+  const CspSourceList* style_src = SourceListFor(CspDirective::kStyleSrc);
+  if (style_src == nullptr) {
+    return true;
+  }
+
+  if (style_src->saw_strict_dynamic()) {
+    return false;
+  }
+
+  return (style_src->saw_unsafe_inline() && !style_src->saw_hash_or_nonce());
+}
+
+bool CspPolicy::PermitsInlineStyleAttribute() const {
+  return PermitsInlineStyle();
+}
+
+bool CspPolicy::CanLoadUrl(
+    CspDirective role, const GoogleUrl& origin_url,
+    const GoogleUrl& url) const {
+  // AKA: "Does url match source list in origin with redirect count?", combined
+  // with the various pre-request checks.
+  CHECK(role == CspDirective::kImgSrc || role == CspDirective::kStyleSrc ||
+        role == CspDirective::kScriptSrc);
+  const CspSourceList* source_list = SourceListFor(role);
+  if (source_list == nullptr) {
+    source_list = SourceListFor(CspDirective::kDefaultSrc);
+  }
+
+  if (source_list == nullptr) {
+    return false;
+  }
+
+  return source_list->Matches(origin_url, url);
+}
+
+bool CspPolicy::IsBasePermitted(
+    const GoogleUrl& previous_origin, const GoogleUrl& base_candidate) const {
+  const CspSourceList* source_list = SourceListFor(CspDirective::kBaseUri);
+  if (source_list != nullptr) {
+    if (!source_list->Matches(previous_origin, base_candidate)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void CspContext::AddPolicy(std::unique_ptr<CspPolicy> policy) {
+  policies_.push_back(std::move(policy));
 }
 
 }  // namespace net_instaweb
