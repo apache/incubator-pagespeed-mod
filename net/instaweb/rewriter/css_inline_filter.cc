@@ -98,7 +98,7 @@ CssInlineFilter::CssInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       id_(RewriteOptions::kCssInlineId),
       size_threshold_bytes_(driver->options()->css_inline_max_bytes()),
-      in_body_(false) {
+      inlining_not_pedantically_spec_(false) {
   Statistics* stats = server_context()->statistics();
   num_css_inlined_ = stats->GetVariable(kNumCssInlined);
 }
@@ -113,8 +113,11 @@ void CssInlineFilter::StartDocumentImpl() {
 CssInlineFilter::~CssInlineFilter() {}
 
 void CssInlineFilter::StartElementImpl(HtmlElement* element) {
-  if (element->keyword() == HtmlName::kBody) {
-    in_body_ = true;
+
+  // w3c incompatible when css inlining in body with pedantic enabled
+  if (element->keyword() == HtmlName::kBody &&
+      driver()->options()->Enabled(RewriteOptions::kPedantic)) {
+    inlining_not_pedantically_spec_ = true;
   }
 }
 
@@ -122,10 +125,6 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
   // Don't inline if the CSS element is under <noscript>.
   if (noscript_element() != NULL) {
     return;
-  }
-
-  if (element->keyword() == HtmlName::kBody) {
-    in_body_ = false;
   }
 
   HtmlElement::Attribute* href = NULL;
@@ -152,11 +151,10 @@ void CssInlineFilter::EndElementImpl(HtmlElement* element) {
     }
 
     // Dont inline if style <link> element is in html body AND
-    // move_css_to_head is not enabled. Pedantic used for html compatibility.
+    // move_css_to_head is not enabled.
     // This is to maintain w3c validation since style element is
     // not recommended in html body. Issue fix #1153.
-    if (in_body_ &&
-        driver()->options()->Enabled(RewriteOptions::kPedantic) &&
+    if (inlining_not_pedantically_spec_ &&
         !driver()->options()->Enabled(RewriteOptions::kMoveCssToHead)) {
       driver()->InsertDebugComment(
           "CSS not inlined because style link element in html body", element);

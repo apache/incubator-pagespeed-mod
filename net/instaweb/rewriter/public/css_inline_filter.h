@@ -93,7 +93,7 @@ class CssInlineFilter : public CommonFilter {
   GoogleString domain_;
 
   Variable* num_css_inlined_;
-  bool in_body_;
+  bool inlining_not_pedantically_spec_;
 
   DISALLOW_COPY_AND_ASSIGN(CssInlineFilter);
 };
