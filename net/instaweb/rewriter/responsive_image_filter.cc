@@ -434,7 +434,7 @@ void ResponsiveImageSecondFilter::EndDocument() {
   if (zoom_filter_enabled_ && srcsets_added_ && !driver()->is_amp_document()) {
     if (driver()->IsLoadPermittedByCsp(
           CspDirective::kScriptSrc, responsive_js_url_)) {
-      HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+      HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
       driver()->AddAttribute(script, HtmlName::kSrc, responsive_js_url_);
       InsertNodeAtBodyEnd(script);
     } else if (DebugMode()) {
