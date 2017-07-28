@@ -451,51 +451,51 @@ TEST(CspParseSourceListTest, None) {
 
 TEST(CspParseSourceListTest, Flags) {
   {
-    std::unique_ptr<CspSourceList> l1(CspSourceList::Parse("'unsafe-eval'"));
-    EXPECT_FALSE(l1->saw_unsafe_inline());
-    EXPECT_TRUE(l1->saw_unsafe_eval());
-    EXPECT_FALSE(l1->saw_strict_dynamic());
-    EXPECT_FALSE(l1->saw_unsafe_hashed_attributes());
-    EXPECT_FALSE(l1->saw_hash_or_nonce());
+    std::unique_ptr<CspSourceList> s1(CspSourceList::Parse("'unsafe-eval'"));
+    EXPECT_FALSE(s1->saw_unsafe_inline());
+    EXPECT_TRUE(s1->saw_unsafe_eval());
+    EXPECT_FALSE(s1->saw_strict_dynamic());
+    EXPECT_FALSE(s1->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s1->saw_hash_or_nonce());
   }
 
   {
-    std::unique_ptr<CspSourceList> l2(CspSourceList::Parse("'unsafe-inline'"));
-    EXPECT_TRUE(l2->saw_unsafe_inline());
-    EXPECT_FALSE(l2->saw_unsafe_eval());
-    EXPECT_FALSE(l2->saw_strict_dynamic());
-    EXPECT_FALSE(l2->saw_unsafe_hashed_attributes());
-    EXPECT_FALSE(l2->saw_hash_or_nonce());
+    std::unique_ptr<CspSourceList> s2(CspSourceList::Parse("'unsafe-inline'"));
+    EXPECT_TRUE(s2->saw_unsafe_inline());
+    EXPECT_FALSE(s2->saw_unsafe_eval());
+    EXPECT_FALSE(s2->saw_strict_dynamic());
+    EXPECT_FALSE(s2->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s2->saw_hash_or_nonce());
   }
 
   {
-    std::unique_ptr<CspSourceList> l3(
+    std::unique_ptr<CspSourceList> s3(
         CspSourceList::Parse("'unsafe-hashed-attributes'"));
-    EXPECT_FALSE(l3->saw_unsafe_inline());
-    EXPECT_FALSE(l3->saw_unsafe_eval());
-    EXPECT_FALSE(l3->saw_strict_dynamic());
-    EXPECT_TRUE(l3->saw_unsafe_hashed_attributes());
-    EXPECT_FALSE(l3->saw_hash_or_nonce());
+    EXPECT_FALSE(s3->saw_unsafe_inline());
+    EXPECT_FALSE(s3->saw_unsafe_eval());
+    EXPECT_FALSE(s3->saw_strict_dynamic());
+    EXPECT_TRUE(s3->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s3->saw_hash_or_nonce());
   }
 
   {
-    std::unique_ptr<CspSourceList> l4(
+    std::unique_ptr<CspSourceList> s4(
         CspSourceList::Parse("'strict-dynamic'"));
-    EXPECT_FALSE(l4->saw_unsafe_inline());
-    EXPECT_FALSE(l4->saw_unsafe_eval());
-    EXPECT_TRUE(l4->saw_strict_dynamic());
-    EXPECT_FALSE(l4->saw_unsafe_hashed_attributes());
-    EXPECT_FALSE(l4->saw_hash_or_nonce());
+    EXPECT_FALSE(s4->saw_unsafe_inline());
+    EXPECT_FALSE(s4->saw_unsafe_eval());
+    EXPECT_TRUE(s4->saw_strict_dynamic());
+    EXPECT_FALSE(s4->saw_unsafe_hashed_attributes());
+    EXPECT_FALSE(s4->saw_hash_or_nonce());
   }
 
   {
-    std::unique_ptr<CspSourceList> l5(
+    std::unique_ptr<CspSourceList> s5(
         CspSourceList::Parse("'sha256-01234'"));
-    EXPECT_FALSE(l5->saw_unsafe_inline());
-    EXPECT_FALSE(l5->saw_unsafe_eval());
-    EXPECT_FALSE(l5->saw_strict_dynamic());
-    EXPECT_FALSE(l5->saw_unsafe_hashed_attributes());
-    EXPECT_TRUE(l5->saw_hash_or_nonce());
+    EXPECT_FALSE(s5->saw_unsafe_inline());
+    EXPECT_FALSE(s5->saw_unsafe_eval());
+    EXPECT_FALSE(s5->saw_strict_dynamic());
+    EXPECT_FALSE(s5->saw_unsafe_hashed_attributes());
+    EXPECT_TRUE(s5->saw_hash_or_nonce());
   }
 }
 
