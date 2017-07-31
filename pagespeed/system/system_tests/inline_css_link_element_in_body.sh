@@ -26,7 +26,6 @@ $WGET -O $WGET_OUTPUT $TEST_ROOT/inline_style_link_in_body/inlining_style_link_b
 check [ $(grep -c "href=\"style.css\"" $WGET_OUTPUT) = 1 ]
 
 # css inlined and moved to head
-URL="http://localhost:8080/mod_pagespeed_test/inline_style_link_in_body/inlining_style_link_body.html?PageSpeedFilters=pedantic,inline_css,move_css_to_head"
+URL="$TEST_ROOT/inline_style_link_in_body/inlining_style_link_body.html?PageSpeedFilters=pedantic,inline_css,move_css_to_head"
 # checking contents of inlined css
-# check [ $(grep -c ".foo" $WGET_OUTPUT) = 1 ]
 http_proxy=$SECONDARY_HOSTNAME fetch_until -save "$URL" 'fgrep -c .foo' 1
