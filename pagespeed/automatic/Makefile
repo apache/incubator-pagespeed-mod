@@ -103,6 +103,7 @@ BASE_LIBS = \
   net/instaweb/libinstaweb_rewriter_css.a \
   net/instaweb/libinstaweb_rewriter_html.a \
   net/instaweb/libinstaweb_rewriter_html_gperf.a \
+  net/instaweb/libinstaweb_rewriter_csp_gperf.a \
   net/instaweb/libinstaweb_rewriter_image.a \
   net/instaweb/libinstaweb_rewriter_javascript.a \
   net/instaweb/libinstaweb_rewriter_pb.a \
