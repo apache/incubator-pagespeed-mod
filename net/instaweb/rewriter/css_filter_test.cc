@@ -2434,8 +2434,8 @@ TEST_F(CssFilterTest, BasicCsp) {
   SetResponseWithDefaultHeaders("uploads/sneaky.png",
                                 kContentTypeCss, kInputStyle, 100);
 
-  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                      "content=\"style-src */styles/ \">";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"style-src */styles/ \">";
   ValidateExpected(
       "basic_csp",
       StrCat(kCsp,
@@ -2453,10 +2453,10 @@ TEST_F(CssFilterTest, InlineCsp) {
   options()->ClearSignatureForTesting();
   options()->EnableFilter(RewriteOptions::kRewriteStyleAttributes);
 
-  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                      "content=\"style-src */styles/ \">";
-  const char kCss[] = "<style>* { display: stylish; }</style>";
-  const char kStyledDiv[] = "<div style='background-color: #f00; '/>";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"style-src */styles/ \">";
+  static const char kCss[] = "<style>* { display: stylish; }</style>";
+  static const char kStyledDiv[] = "<div style='background-color: #f00; '/>";
 
   ValidateExpected(
       "inline_css",

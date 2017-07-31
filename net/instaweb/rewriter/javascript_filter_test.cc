@@ -1423,7 +1423,7 @@ TEST_P(JavascriptFilterTest, BasicCsp) {
   SetResponseWithDefaultHeaders(
       "uploads/sneaky.png", kContentTypeJavascript, kJsData, 100);
 
-  const char kCsp[] =
+  static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"script-src */scripts/;  default-src */uploads/\">";
 

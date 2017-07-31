@@ -1306,8 +1306,8 @@ TEST_F(JsCombineFilterTest, Csp) {
   options()->SoftEnableFilterForTesting(RewriteOptions::kDebug);
   server_context()->ComputeSignature(options());
 
-  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                      "content=\"script-src *\">";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"script-src *\">";
   ValidateExpected(
       "csp",
       StrCat(kCsp,
@@ -1327,8 +1327,8 @@ TEST_F(JsCombineFilterTest, Csp2) {
   server_context()->ComputeSignature(options());
 
   // This one has unsafe-eval, so we can work.
-  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                      "content=\"script-src * 'unsafe-eval'\">";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"script-src * 'unsafe-eval'\">";
   ValidateExpected(
       "csp",
       StrCat(kCsp,
