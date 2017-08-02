@@ -242,12 +242,13 @@ TEST_F(JsInlineFilterTest, DoInlineJavascriptDifferentDomain) {
 TEST_F(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
   // Different domains:
   GoogleUrl gurl("http://scripts.example.org/script.js");
-  TestNoInlineJavascript("http://www.example.net/index.html",
-                         gurl.Spec().as_string(),
-                         "",
-                         "function id(x) { return x; }\n",
-                         RewriteDriver::GenerateUnauthorizedDomainDebugComment(
-                             gurl, RewriteDriver::InputRole::kScript));
+  TestNoInlineJavascript(
+      "http://www.example.net/index.html",
+      gurl.Spec().as_string(),
+      "",
+      "function id(x) { return x; }\n",
+      rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
+          gurl, RewriteDriver::InputRole::kScript));
   EXPECT_EQ(0, statistics()->GetVariable(JsInlineFilter::kNumJsInlined)->Get());
 }
 
@@ -303,12 +304,13 @@ TEST_F(JsInlineFilterTest, DontInlineDisallowed) {
 
   // The script is disallowed; can't be inlined.
   GoogleUrl gurl("http://www.example.com/script.js");
-  TestNoInlineJavascript("http://www.example.com/index.html",
-                         gurl.Spec().as_string(),
-                         "",
-                         "function close() { return 'inline!'; }\n",
-                         RewriteDriver::GenerateUnauthorizedDomainDebugComment(
-                             gurl, RewriteDriver::InputRole::kScript));
+  TestNoInlineJavascript(
+      "http://www.example.com/index.html",
+      gurl.Spec().as_string(),
+      "",
+      "function close() { return 'inline!'; }\n",
+      rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
+           gurl, RewriteDriver::InputRole::kScript));
 }
 
 TEST_F(JsInlineFilterTest, DoInlineDisallowedIfAllowedWhenInlining) {

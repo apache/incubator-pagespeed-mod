@@ -726,7 +726,8 @@ TEST_F(ResponsiveImageFilterTest, DebugCsp) {
   EnableDebug();
 
   ResponseHeaders headers;
-  headers.Add("Content-Security-Policy", "script-src https://modpagespeed.com");
+  headers.Add("Content-Security-Policy",
+              "script-src https://modpagespeed.com; img-src *;");
   rewrite_driver()->set_response_headers_ptr(&headers);
 
   ValidateExpected(

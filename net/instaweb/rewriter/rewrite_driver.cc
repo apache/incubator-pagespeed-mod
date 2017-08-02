@@ -2025,6 +2025,13 @@ ResourcePtr RewriteDriver::CreateInputResource(
     // to have bit-rotted since it was disabled.
     return resource;
   } else if (decoded_base_url_.IsAnyValid()) {
+    if (!IsLoadPermittedByCsp(input_url, role)) {
+      *is_authorized = false;
+      message_handler()->Message(kInfo, "CSP prevents use of '%s'",
+                                input_url.spec_c_str());
+      return resource;
+    }
+
     may_rewrite = MayRewriteUrl(decoded_base_url_, input_url,
                                 inline_authorization_policy,
                                 intended_for,
@@ -3271,6 +3278,8 @@ GoogleString RewriteDriver::GenerateUnauthorizedDomainDebugComment(
     StrAppend(&comment, "its domain (", gurl.Host(), ") is not authorized");
   } else if (gurl.IsWebOrDataValid()) {
     StrAppend(&comment, "it is a data URI");
+  } else if (!IsLoadPermittedByCsp(gurl, role)) {
+    StrAppend(&comment, "CSP disallows its fetch");
   } else {
     StrAppend(&comment, "it is not authorized");
   }
@@ -3537,12 +3546,41 @@ void RewriteDriver::SetIsAmpDocument(bool is_amp) {
   set_buffer_events(false);
 }
 
-bool RewriteDriver::IsLoadPermittedByCsp(CspDirective role, StringPiece url) {
+bool RewriteDriver::IsLoadPermittedByCsp(
+    const GoogleUrl& url, CspDirective role) {
+  if (csp_context_.empty()) {
+    return true;
+  }
+
+  return csp_context_.CanLoadUrl(role, google_url(), url);
+}
+
+bool RewriteDriver::IsRelativeUrlLoadPermittedByCsp(
+    StringPiece url, CspDirective role) {
   if (refs_before_base_ || !base_url().IsWebValid()) {
     return false;
   }
   GoogleUrl abs_url(base_url(), url);
-  return csp_context_.CanLoadUrl(role, google_url(), abs_url);
+  return IsLoadPermittedByCsp(abs_url, role);
+}
+
+bool RewriteDriver::IsLoadPermittedByCsp(const GoogleUrl& url, InputRole role) {
+  switch (role) {
+    case InputRole::kScript:
+      return IsLoadPermittedByCsp(url, CspDirective::kScriptSrc);
+    case InputRole::kStyle:
+      return IsLoadPermittedByCsp(url, CspDirective::kStyleSrc);
+    case InputRole::kImg:
+      return IsLoadPermittedByCsp(url, CspDirective::kImgSrc);
+    case InputRole::kUnknown:
+      // Weird type, not sure what policy to check.
+      return csp_context_.empty();
+    case InputRole::kReconstruction:
+      // All OK.
+      return true;
+  }
+  LOG(DFATAL) << "Weird input as role= to IsLoadPermittedByCsp";
+  return false;
 }
 
 }  // namespace net_instaweb

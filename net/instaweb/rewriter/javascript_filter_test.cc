@@ -86,6 +86,10 @@ const char kJsonMinData[] = "{'foo':['bar','baz']}";
 const char kOrigJsonName[] = "hello.json";
 const char kRewrittenJsonName[] = "hello.json";
 
+GoogleString ScriptSrc(const StringPiece& url) {
+  return net_instaweb::StrCat("<script src=\"", url, "\"></script>");
+}
+
 }  // namespace
 
 namespace net_instaweb {
@@ -227,7 +231,7 @@ TEST_P(JavascriptFilterTest, DebugForUnauthorizedDomain) {
   GoogleUrl gurl(kUnauthorizedJs);
   StrAppend(&html_output,
             "<!--",
-            RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+            rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
                 gurl, RewriteDriver::InputRole::kScript),
             "-->"
             "\n");
@@ -1408,6 +1412,49 @@ TEST_P(JavascriptFilterTest, ExternalAndNotInline) {
 
 TEST_P(JavascriptFilterTest, ContentTypeValidation) {
   ValidateFallbackHeaderSanitization(kFilterId);
+}
+
+TEST_P(JavascriptFilterTest, BasicCsp) {
+  InitFilters();
+  EnableDebug();
+
+  SetResponseWithDefaultHeaders(
+      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders(
+      "uploads/sneaky.png", kContentTypeJavascript, kJsData, 100);
+
+  static const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"script-src */scripts/;  default-src */uploads/\">";
+
+  ValidateExpected(
+      "basic_csp",
+      StrCat(kCsp,
+             ScriptSrc("scripts/a.js"),
+             ScriptSrc("uploads/sneaky.png")),
+      StrCat(kCsp,
+             ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")),
+             ScriptSrc("uploads/sneaky.png"),
+              "<!--The preceding resource was not rewritten "
+             "because CSP disallows its fetch-->"));
+}
+
+TEST_P(JavascriptFilterTest, InlineCsp) {
+  InitFilters();
+  EnableDebug();
+
+
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"script-src */scripts/;  default-src */uploads/\">";
+  const char kScript[] =
+      "<script> var a  = 42;</script>";
+
+  ValidateExpected(
+      "inline_csp",
+      StrCat(kCsp, kScript),
+      StrCat(kCsp, kScript,
+             "<!--Avoiding modifying inline script with CSP present-->"));
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.

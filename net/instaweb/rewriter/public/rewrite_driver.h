@@ -1146,7 +1146,7 @@ class RewriteDriver : public HtmlParse {
                                             HtmlElement* element);
 
   // Generates an unauthorized domain debug comment. Public for unit tests.
-  static GoogleString GenerateUnauthorizedDomainDebugComment(
+  GoogleString GenerateUnauthorizedDomainDebugComment(
       const GoogleUrl& gurl, InputRole role);
 
   // log_record() always returns a pointer to a valid AbstractLogRecord, owned
@@ -1253,7 +1253,9 @@ class RewriteDriver : public HtmlParse {
 
   const CspContext& content_security_policy() const { return csp_context_; }
   CspContext* mutable_content_security_policy() { return &csp_context_; }
-  bool IsLoadPermittedByCsp(CspDirective role, StringPiece url);
+  bool IsLoadPermittedByCsp(const GoogleUrl& url, InputRole role);
+  bool IsLoadPermittedByCsp(const GoogleUrl& url, CspDirective role);
+  bool IsRelativeUrlLoadPermittedByCsp(StringPiece url, CspDirective role);
 
  protected:
   virtual void DetermineFiltersBehaviorImpl();

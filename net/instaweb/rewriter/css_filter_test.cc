@@ -2287,7 +2287,7 @@ TEST_F(CssFilterTest, UnauthorizedCssResource) {
   GoogleUrl gurl("http://unauth.example.com/style.css");
   DebugWithMessage(StrCat(
       "<!--",
-      RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+      rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
           gurl, RewriteDriver::InputRole::kStyle),
       "-->"));
   ValidateRewriteExternalCssUrl("unauth", gurl.Spec(),
@@ -2425,6 +2425,46 @@ TEST_F(CssFilterTest, AbsolutifyServingFallback) {
 
   TestFallbackFetch(url, expected_output);
   TestFallbackFetch(url, expected_output);
+}
+
+TEST_F(CssFilterTest, BasicCsp) {
+  EnableDebug();
+  SetResponseWithDefaultHeaders("styles/a.css",
+                                kContentTypeCss, kInputStyle, 100);
+  SetResponseWithDefaultHeaders("uploads/sneaky.png",
+                                kContentTypeCss, kInputStyle, 100);
+
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"style-src */styles/ \">";
+  ValidateExpected(
+      "basic_csp",
+      StrCat(kCsp,
+             CssLinkHref("styles/a.css"),
+             CssLinkHref("uploads/sneaky.png")),
+      StrCat(kCsp,
+             CssLinkHref(Encode("styles/", "cf", "0", "a.css", "css")),
+             CssLinkHref("uploads/sneaky.png"),
+             "<!--The preceding resource was not rewritten "
+             "because CSP disallows its fetch-->"));
+}
+
+TEST_F(CssFilterTest, InlineCsp) {
+  EnableDebug();
+  options()->ClearSignatureForTesting();
+  options()->EnableFilter(RewriteOptions::kRewriteStyleAttributes);
+
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"style-src */styles/ \">";
+  static const char kCss[] = "<style>* { display: stylish; }</style>";
+  static const char kStyledDiv[] = "<div style='background-color: #f00; '/>";
+
+  ValidateExpected(
+      "inline_css",
+      StrCat(kCsp, kCss, kStyledDiv),
+      StrCat(kCsp, kCss,
+             "<!--Avoiding modifying inline style with CSP present-->",
+             kStyledDiv,
+             "<!--Avoiding modifying inline style with CSP present-->"));
 }
 
 class CssFilterTestUrlNamer : public CssFilterTest {

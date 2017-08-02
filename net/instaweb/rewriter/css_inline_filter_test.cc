@@ -341,7 +341,7 @@ TEST_F(CssInlineFilterTest, DoNotInlineCssDifferentDomain) {
   GoogleUrl gurl("http://unauth.com/styles.css");
   TestNoInlineCss("http://www.example.com/index.html", gurl.Spec().as_string(),
                   "", "BODY { color: red; }\n", "",
-                  RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+                  rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
                       gurl, RewriteDriver::InputRole::kStyle));
   EXPECT_EQ(0,
             statistics()->GetVariable(CssInlineFilter::kNumCssInlined)->Get());

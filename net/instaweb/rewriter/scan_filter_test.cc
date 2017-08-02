@@ -197,13 +197,13 @@ TEST_F(ScanFilterTest, CspParse) {
                     "content=\"img-src www.example.com\">");
   EXPECT_EQ(2, rewrite_driver()->content_security_policy().policies_size());
   EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "https://www.example.com/foo.png"));
+      GoogleUrl("https://www.example.com/foo.png"), CspDirective::kImgSrc));
   EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "http://www.example.com/foo.png"));
+      GoogleUrl("http://www.example.com/foo.png"), CspDirective::kImgSrc));
   EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "https://www.example.org/foo.png"));
+      GoogleUrl("https://www.example.org/foo.png"), CspDirective::kImgSrc));
   EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "http://www.example.org/foo.png"));
+      GoogleUrl("http://www.example.org/foo.png"), CspDirective::kImgSrc));
 }
 
 TEST_F(ScanFilterTest, CspParseOff) {
@@ -217,13 +217,13 @@ TEST_F(ScanFilterTest, CspParseOff) {
                     "content=\"img-src www.example.com\">");
   EXPECT_EQ(0, rewrite_driver()->content_security_policy().policies_size());
   EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "https://www.example.com/foo.png"));
+      GoogleUrl("https://www.example.com/foo.png"), CspDirective::kImgSrc));
   EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "http://www.example.com/foo.png"));
+      GoogleUrl("http://www.example.com/foo.png"), CspDirective::kImgSrc));
   EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "https://www.example.org/foo.png"));
+      GoogleUrl("https://www.example.org/foo.png"), CspDirective::kImgSrc));
   EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
-      CspDirective::kImgSrc, "http://www.example.org/foo.png"));
+      GoogleUrl("http://www.example.org/foo.png"), CspDirective::kImgSrc));
 }
 
 }  // namespace net_instaweb

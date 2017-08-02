@@ -4013,7 +4013,7 @@ TEST_F(ImageRewriteTest, DebugMessageUnauthorized) {
       "noise, and has no animation.-->"
       "<img src=", kUnauthorizedPath, ">",
       "<!--",
-      RewriteDriver::GenerateUnauthorizedDomainDebugComment(
+      rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
           unauth_gurl, RewriteDriver::InputRole::kImg),
       "-->");
 
@@ -4405,6 +4405,30 @@ TEST_F(ImageRewriteTest, IproAllowAutoNoSmallScreenSaveDataQualities) {
 
 TEST_F(ImageRewriteTest, ContentTypeValidation) {
   ValidateFallbackHeaderSanitization("ic");
+}
+
+TEST_F(ImageRewriteTest, BasicCsp) {
+  AddRecompressImageFilters();
+  rewrite_driver()->AddFilters();
+  EnableDebug();
+  AddFileToMockFetcher("images/a.jpg", kPuzzleJpgFile, kContentTypeJpeg, 100);
+  AddFileToMockFetcher("uploads/b.png", kPuzzleJpgFile, kContentTypeJpeg, 100);
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"img-src */images/;  default-src */uploads/\">";
+
+  ValidateExpected(
+      "basic_csp",
+      StrCat(kCsp,
+             "<img src=\"images/a.jpg\">",
+             "<img src=\"uploads/b.png\">"),
+      StrCat(kCsp,
+             "<img src=\"", Encode("images/", "ic", "0", "a.jpg", "jpg"), "\">",
+             "<!--Image http://test.com/images/a.jpg does not appear "
+             "to need resizing.-->"
+             "<img src=\"uploads/b.png\">",
+             "<!--The preceding resource was not rewritten "
+             "because CSP disallows its fetch-->"));
 }
 
 }  // namespace net_instaweb
