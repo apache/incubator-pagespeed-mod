@@ -1278,7 +1278,7 @@ TEST_F(BeaconTest, BasicPcacheSetup) {
 TEST_F(BeaconTest, HandleBeaconRenderedDimensionsofImages) {
   GoogleString img1 = "http://www.example.com/img1.png";
   GoogleString hash1 = IntegerToString(
-      HashString<CasePreserve, int>(img1.c_str(), img1.size()));
+      HashString<CasePreserve, unsigned>(img1.c_str(), img1.size()));
   options()->EnableFilter(RewriteOptions::kResizeToRenderedImageDimensions);
   RenderedImages rendered_images;
   RenderedImages_Image* images = rendered_images.add_image();
@@ -1301,9 +1301,9 @@ TEST_F(BeaconTest, HandleBeaconCritImages) {
   GoogleString img1 = "http://www.example.com/img1.png";
   GoogleString img2 = "http://www.example.com/img2.png";
   GoogleString hash1 = IntegerToString(
-      HashString<CasePreserve, int>(img1.c_str(), img1.size()));
+      HashString<CasePreserve, unsigned>(img1.c_str(), img1.size()));
   GoogleString hash2 = IntegerToString(
-      HashString<CasePreserve, int>(img2.c_str(), img2.size()));
+      HashString<CasePreserve, unsigned>(img2.c_str(), img2.size()));
 
   StringSet critical_image_hashes;
   critical_image_hashes.insert(hash1);
