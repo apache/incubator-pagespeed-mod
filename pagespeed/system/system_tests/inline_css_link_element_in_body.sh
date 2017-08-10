@@ -25,6 +25,11 @@ $WGET -O $WGET_OUTPUT $TEST_ROOT/inline_style_link_in_body/inlining_style_link_b
 # checking for no inlining of css
 check [ $(grep -c "href=\"style.css\"" $WGET_OUTPUT) = 1 ]
 
+# css inlined in html body because pedantic filter not enabled
+URL="$TEST_ROOT/inline_style_link_in_body/inlining_style_link_body.html?PageSpeedFilters=inline_css"
+# checking contents of inlined css
+http_proxy=$SECONDARY_HOSTNAME fetch_until -save "$URL" 'fgrep -c .foo' 1
+
 # css inlined and moved to head
 URL="$TEST_ROOT/inline_style_link_in_body/inlining_style_link_body.html?PageSpeedFilters=pedantic,inline_css,move_css_to_head"
 # checking contents of inlined css
