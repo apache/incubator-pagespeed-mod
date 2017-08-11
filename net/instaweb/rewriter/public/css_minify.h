@@ -123,12 +123,15 @@ class CssMinify {
   bool Equals(const Css::MediaExpression& a,
               const Css::MediaExpression& b) const;
 
+  bool UnitsRequiredForValueZero(const GoogleString& unit);
+
   Writer* writer_;
   Writer* error_writer_;
   MessageHandler* handler_;
   bool ok_;
 
   StringVector* url_collector_;
+  bool in_css_calc_function_;
 
   DISALLOW_COPY_AND_ASSIGN(CssMinify);
 };

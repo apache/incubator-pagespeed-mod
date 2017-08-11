@@ -76,6 +76,8 @@ SYSTEM_TEST_DIR="$(dirname "${BASH_SOURCE[0]}")/system_tests/"
 run_test check_headers
 run_test aris
 run_test css_combining_authorization
+run_test css_minify_calc_function_value_zero
+run_test css_minify_unicode_range_descriptor
 run_test add_instrumentation
 run_test type_attribute_pedantic
 run_test cache_partial_html
