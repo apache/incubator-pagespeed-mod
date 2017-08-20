@@ -49,7 +49,7 @@ SKIP_EXTERNAL_RESOURCE_TESTS=${SKIP_EXTERNAL_RESOURCE_TESTS:-false}
 SUDO=${SUDO:-}
 # TODO(jkarlin): Should we just use a vhost instead?  If so, remember to update
 # all scripts that use TEST_PROXY_ORIGIN.
-PAGESPEED_TEST_HOST=${PAGESPEED_TEST_HOST:-modpagespeed.com}
+PAGESPEED_TEST_HOST=${PAGESPEED_TEST_HOST:-selfsigned.modpagespeed.com}
 
 SERVER_NAME=apache
 
