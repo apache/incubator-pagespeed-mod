@@ -255,5 +255,36 @@ TEST_F(CssMinifyTest, StraySingleQuote3) {
   EXPECT_STREQ(".view_all a{display:block;margin:1px}", minified);
 }
 
+// checking whether unit is retained for zero value in calc function
+TEST_F(CssMinifyTest, CalcFunctionWithZeroValueAndUnit) {
+  static const char kCss[] =
+      "@font-face {\n"
+      " width: calc(600px - 0px)"
+      "}";
+
+  GoogleString minified;
+  StringWriter writer(&minified);
+  CssMinify minify(&writer, &handler_);
+
+  EXPECT_TRUE(minify.ParseStylesheet(kCss));
+  EXPECT_HAS_SUBSTR("width:calc(600px - 0px)", minified);
+}
+
+// checking unicode-range descriptor minification
+TEST_F(CssMinifyTest, CssUnicodeRangeDescriptor) {
+  static const char kCss[] =
+      "@font-face {\n"
+      " unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n"
+      "}";
+
+  GoogleString minified;
+  StringWriter writer(&minified);
+  CssMinify minify(&writer, &handler_);
+
+  EXPECT_TRUE(minify.ParseStylesheet(kCss));
+  EXPECT_HAS_SUBSTR("unicode-range:U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116",
+      minified);
+}
+
 }  // namespace
 }  // namespace net_instaweb

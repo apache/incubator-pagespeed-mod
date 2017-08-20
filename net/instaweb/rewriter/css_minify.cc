@@ -90,7 +90,7 @@ bool CssMinify::Declarations(const Css::Declarations& declarations,
 
 CssMinify::CssMinify(Writer* writer, MessageHandler* handler)
     : writer_(writer), error_writer_(NULL), handler_(handler), ok_(true),
-      url_collector_(NULL) {
+      url_collector_(NULL), in_css_calc_function_(false) {
 }
 
 CssMinify::~CssMinify() {
@@ -354,17 +354,21 @@ bool IsLength(const GoogleString& unit) {
                             unit);
 }
 
-bool UnitsRequiredForValueZero(const GoogleString& unit) {
+}  // namespace
+
+bool CssMinify::UnitsRequiredForValueZero(const GoogleString& unit) {
   // https://github.com/pagespeed/mod_pagespeed/issues/1164 : Chrome does not
   // allow abbreviating 0s or 0% as 0.  It only allows that abbreviation for
   // lengths.
   //
   // https://github.com/pagespeed/mod_pagespeed/issues/1261  See
   // https://www.w3.org/TR/CSS2/visudet.html#the-height-property
-  return (unit == "%") || !IsLength(unit);
+  //
+  // https://github.com/pagespeed/mod_pagespeed/issues/1538
+  // retaining unit for zero value in calc function
+  return (unit == "%") || !IsLength(unit) ||
+          in_css_calc_function_;
 }
-
-}  // namespace
 
 void CssMinify::MinifyFont(const Css::Values& font_values) {
   CHECK_LE(5U, font_values.size());
@@ -423,7 +427,15 @@ void CssMinify::Minify(const Css::Declaration& declaration) {
         }
         break;
       default:
-        JoinMinify(*declaration.values(), " ");
+        // TODO(ashishk):unicode-range should get resolved to css property
+        // enum.
+        if (declaration.prop_text() == "unicode-range") {
+          // https://github.com/pagespeed/mod_pagespeed/issues/1572
+          // space separator should not be there in unicode range value
+          JoinMinify(*declaration.values(), "");
+        } else {
+          JoinMinify(*declaration.values(), " ");
+        }
         break;
     }
     if (declaration.IsImportant()) {
@@ -477,10 +489,14 @@ void CssMinify::Minify(const Css::Value& value) {
       Write(")");
       break;
     case Css::Value::FUNCTION:
+      if (Css::EscapeIdentifier(value.GetFunctionName()) == "calc") {
+        in_css_calc_function_ = true;
+      }
       Write(Css::EscapeIdentifier(value.GetFunctionName()));
       Write("(");
       Minify(*value.GetParametersWithSeparators());
       Write(")");
+      in_css_calc_function_ = false;
       break;
     case Css::Value::RECT:
       Write("rect(");
