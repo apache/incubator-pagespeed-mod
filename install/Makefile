@@ -74,7 +74,7 @@ APACHE_PROGRAM           = /usr/sbin/apache2
 
 # For testing proxying of an external domain, this represents the domain we
 # are proxying from.
-PAGESPEED_TEST_HOST ?= modpagespeed.com
+PAGESPEED_TEST_HOST ?= selfsigned.modpagespeed.com
 export PAGESPEED_TEST_HOST
 
 # The installation directory for executables
