@@ -1464,8 +1464,8 @@ TEST_P(JavascriptFilterTest, RenderCsp) {
       "render_csp",
       StrCat(kCsp, ScriptSrc("scripts/a.js")),
       StrCat(kCsp, ScriptSrc("scripts/a.js"),
-             "<!--PageSpeed output not permitted by Content Security Policy"
-             "-->"));
+             "<!--PageSpeed output (by JavascriptFilter) not permitted by "
+             "Content Security Policy-->"));
 }
 
 TEST_P(JavascriptFilterTest, InlineCsp) {

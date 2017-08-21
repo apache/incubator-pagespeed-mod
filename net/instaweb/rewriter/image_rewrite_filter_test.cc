@@ -4468,7 +4468,7 @@ TEST_F(ImageRewriteTest, RenderCsp) {
              "<!--Image http://test.com/images/a.jpg does not appear "
              "to need resizing.-->"
              "<img src=\"uploads/b.png\">"
-             "<!--PageSpeed output not permitted by "
+             "<!--PageSpeed output (by ImageRewrite) not permitted by "
              "Content Security Policy-->"));
 }
 

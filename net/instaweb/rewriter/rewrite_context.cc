@@ -45,6 +45,7 @@
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -2038,8 +2039,14 @@ void RewriteContext::Propagate(RenderOp render_op) {
                                       slot(0)->element());
       }
       else if (render_op == RenderOp::kRenderOnlyCspWarning) {
+        StringPiece name = id();
+        RewriteFilter* filter = Driver()->FindFilter(id());
+        if (filter != nullptr) {
+          name = filter->Name();
+        }
         Driver()->InsertDebugComment(
-            "PageSpeed output not permitted by Content Security Policy",
+            StrCat("PageSpeed output (by ", name, ") not permitted by Content "
+                   "Security Policy"),
             slot(0)->element());
       }
     }

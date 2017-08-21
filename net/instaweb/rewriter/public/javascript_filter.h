@@ -68,7 +68,7 @@ class JavascriptFilter : public RewriteFilter {
   void EndElementImpl(HtmlElement* element) override;
   void IEDirective(HtmlIEDirectiveNode* directive) override;
 
-  const char* Name() const override { return "Javascript"; }
+  const char* Name() const override { return "JavascriptFilter"; }
   const char* id() const override { return RewriteOptions::kJavascriptMinId; }
   RewriteContext* MakeRewriteContext() override;
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }

@@ -2488,8 +2488,8 @@ TEST_F(CssFilterTest, RenderCsp) {
       "render_csp",
       StrCat(kCsp, CssLinkHref("styles/a.css")),
       StrCat(kCsp, CssLinkHref("styles/a.css"),
-             "<!--PageSpeed output not permitted by Content Security Policy"
-             "-->"));
+             "<!--PageSpeed output (by CssFilter) not permitted by "
+             "Content Security Policy-->"));
 }
 
 class CssFilterTestUrlNamer : public CssFilterTest {

@@ -1187,9 +1187,11 @@ TEST_F(CacheExtenderTest, RenderCsp) {
       StrCat(kCsp,
              "<img src=a.jpg.pagespeed.ce.0.jpg>"
              "<script src=b.js></script>"
-             "<!--PageSpeed output not permitted by Content Security Policy-->"
+             "<!--PageSpeed output (by CacheExtender) not permitted by Content "
+             "Security Policy-->"
              "<link rel=stylesheet href=c.css>"
-             "<!--PageSpeed output not permitted by Content Security Policy"
+             "<!--PageSpeed output (by CacheExtender) not permitted by Content "
+             "Security Policy"
              "-->"));
 }
 
