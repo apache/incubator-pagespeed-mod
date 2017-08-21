@@ -1157,6 +1157,38 @@ TEST_F(CacheExtenderTest, VaryOrigin) {
                    StringPrintf(kCssFormat, cache_extended_css.c_str()));
 }
 
+TEST_F(CacheExtenderTest, RenderCsp) {
+  InitTest(100);
+
+  InitResource("a.jpg", kContentTypeJpeg, kImageData, 100);
+  InitResource("b.js", kContentTypeJavascript, kJsData, 100);
+  InitResource("c.css", kContentTypeCss, "* {display:   block; }", 100);
+
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"img-src *; script-src b.js; style-src c.css;\">";
+
+  // First rewrite w/o CSP, everything is expanded.
+  ValidateExpected("no_csp",
+                   "<img src=a.jpg><script src=b.js></script>"
+                   "<link rel=stylesheet href=c.css>",
+                   "<img src=a.jpg.pagespeed.ce.0.jpg>"
+                   "<script src=b.js.pagespeed.ce.0.js></script>"
+                   "<link rel=stylesheet href=c.css.pagespeed.ce.0.css>");
+
+
+  // Now with CSP, script and style are blocked by it at render time
+  ValidateExpected(
+      "render_csp",
+      StrCat(kCsp,
+             "<img src=a.jpg><script src=b.js></script>"
+             "<link rel=stylesheet href=c.css>"),
+      StrCat(kCsp,
+             "<img src=a.jpg.pagespeed.ce.0.jpg>"
+             "<script src=b.js></script>"
+             "<link rel=stylesheet href=c.css>"));
+}
+
 }  // namespace
 
 }  // namespace net_instaweb

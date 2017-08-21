@@ -1439,6 +1439,30 @@ TEST_P(JavascriptFilterTest, BasicCsp) {
              "because CSP disallows its fetch-->"));
 }
 
+TEST_P(JavascriptFilterTest, RenderCsp) {
+  InitFilters();
+  EnableDebug();
+
+  SetResponseWithDefaultHeaders(
+      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders(
+      "uploads/sneaky.png", kContentTypeJavascript, kJsData, 100);
+
+  static const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"script-src */scripts/a.js;\">";
+
+  // First try w/o CSP, should rewrite.
+  ValidateExpected(
+      "no_csp",
+      ScriptSrc("scripts/a.js"),
+      ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")));
+
+  // Now render again w/CSP -- blocked since .pagespeed. resource isn't
+  //permitted.
+  ValidateNoChanges("render_csp", StrCat(kCsp, ScriptSrc("scripts/a.js")));
+}
+
 TEST_P(JavascriptFilterTest, InlineCsp) {
   InitFilters();
   EnableDebug();

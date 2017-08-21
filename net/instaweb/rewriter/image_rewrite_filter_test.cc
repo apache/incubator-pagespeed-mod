@@ -4431,4 +4431,43 @@ TEST_F(ImageRewriteTest, BasicCsp) {
              "because CSP disallows its fetch-->"));
 }
 
+TEST_F(ImageRewriteTest, RenderCsp) {
+  AddRecompressImageFilters();
+  rewrite_driver()->AddFilters();
+  EnableDebug();
+  AddFileToMockFetcher("images/a.jpg", kPuzzleJpgFile, kContentTypeJpeg, 100);
+  AddFileToMockFetcher("uploads/b.png", kPuzzleJpgFile, kContentTypeJpeg, 100);
+
+  // We want a policy that only affects output resources here (since the input
+  // one will apply at CreateInputResource time, before the cache lookup)
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"img-src */images/ */uploads/b.png\">";
+
+  // Rewrite without CSP, both should change.
+  ValidateExpected(
+      "no_csp",
+      StrCat("<img src=\"images/a.jpg\">",
+             "<img src=\"uploads/b.png\">"),
+      StrCat("<img src=\"", Encode("images/", "ic", "0", "a.jpg", "jpg"), "\">",
+             "<!--Image http://test.com/images/a.jpg does not appear "
+             "to need resizing.-->"
+             "<img src=\"", Encode("uploads/", "ic", "0", "b.png", "jpg"),
+             "\"><!--Image http://test.com/uploads/b.png does not appear "
+             "to need resizing.-->"));
+
+  // Rewrite with CSP policy --- reusing cached results from above ---
+  // only one should be optimized.
+  ValidateExpected(
+      "cached_csp",
+      StrCat(kCsp,
+             "<img src=\"images/a.jpg\">",
+             "<img src=\"uploads/b.png\">"),
+      StrCat(kCsp,
+             "<img src=\"", Encode("images/", "ic", "0", "a.jpg", "jpg"), "\">",
+             "<!--Image http://test.com/images/a.jpg does not appear "
+             "to need resizing.-->"
+             "<img src=\"uploads/b.png\">"));
+}
+
 }  // namespace net_instaweb

@@ -61,6 +61,7 @@ void ScanFilter::StartDocument() {
   driver_->set_containing_charset(headers == NULL ? "" :
                                   headers->DetermineCharset());
 
+  driver_->mutable_content_security_policy()->Clear();
   if (driver_->options()->honor_csp() && headers != nullptr) {
     ConstStringStarVector values;
     if (headers->Lookup(HttpAttributes::kContentSecurityPolicy, &values)) {

@@ -507,6 +507,28 @@ TEST_F(JsInlineFilterTest, NoFlushSplittingScriptTag) {
                output_buffer_);
 }
 
+TEST_F(JsInlineFilterTest, BasicCsp) {
+  SetHtmlMimetype();
+  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
+  rewrite_driver()->AddFilters();
+
+  const char kJs[] = "function id(x) { return x; }\n";
+  SetResponseWithDefaultHeaders("script.js", kContentTypeJavascript, kJs, 3000);
+
+  const char kCspNoInline[] =
+      "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src *;\">";
+  const char kCspYesInline[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"script-src * 'unsafe-inline';\">";
+
+  ValidateNoChanges("no_inline_csp",
+                    StrCat(kCspNoInline, "<script src=script.js></script>"));
+  ValidateExpected(
+      "inline_csp",
+      StrCat(kCspYesInline, "<script src=script.js></script>"),
+      StrCat(kCspYesInline, "<script>function id(x) { return x; }\n</script>"));
+}
+
 }  // namespace
 
 }  // namespace net_instaweb
