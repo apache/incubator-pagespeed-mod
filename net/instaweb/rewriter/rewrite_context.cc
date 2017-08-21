@@ -1126,7 +1126,7 @@ void RewriteContext::Start() {
             metadata_log_info->num_disabled_rewrites() + 1);
       }
       Cancel();
-      RetireRewriteForHtml(false /* no rendering*/);
+      RetireRewriteForHtml(RenderOp::kDontRender);
       return;
     }
   }
@@ -1830,10 +1830,11 @@ void RewriteContext::FinalizeRewriteForHtml() {
   Driver()->DeregisterForPartitionKey(partition_key_, this);
   WritePartition();
 
-  RetireRewriteForHtml(PolicyPermitsRendering());
+  RetireRewriteForHtml(PolicyPermitsRendering() ?
+                           RenderOp::kRender : RenderOp::kRenderOnlyCspWarning);
 }
 
-void RewriteContext::RetireRewriteForHtml(bool permit_render) {
+void RewriteContext::RetireRewriteForHtml(RenderOp permit_render) {
   DCHECK(driver_ != NULL);
   if (parent_ != NULL) {
     Propagate(permit_render);
@@ -2016,7 +2017,8 @@ void RewriteContext::WillNotRender() {
 void RewriteContext::Cancel() {
 }
 
-void RewriteContext::Propagate(bool render_slots) {
+void RewriteContext::Propagate(RenderOp render_op) {
+  bool render_slots = (render_op == RenderOp::kRender);
   DCHECK(rewrite_done_ && (num_pending_nested_ == 0));
   if (rewrite_done_ && (num_pending_nested_ == 0)) {
     if (render_slots) {
@@ -2030,10 +2032,18 @@ void RewriteContext::Propagate(bool render_slots) {
     if (has_parent()) {
       parent()->partitions()->mutable_debug_message()->MergeFrom(
           partitions_->debug_message());
-    } else if (render_slots && num_slots() >= 1) {
-      Driver()->InsertDebugComments(partitions_->debug_message(),
-                                    slot(0)->element());
+    } else if (num_slots() >= 1) {
+      if (render_slots) {
+        Driver()->InsertDebugComments(partitions_->debug_message(),
+                                      slot(0)->element());
+      }
+      else if (render_op == RenderOp::kRenderOnlyCspWarning) {
+        Driver()->InsertDebugComment(
+            "PageSpeed output not permitted by Content Security Policy",
+            slot(0)->element());
+      }
     }
+
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
       const CachedResult* partition = output_partition(p);
       int n = partition->input_size();

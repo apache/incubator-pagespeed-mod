@@ -2249,7 +2249,7 @@ void RewriteDriver::SignalIfRequired(bool result_of_prepare_should_signal) {
 }
 
 void RewriteDriver::RewriteComplete(RewriteContext* rewrite_context,
-                                    bool permit_render) {
+                                    RenderOp render_op) {
   {
     ScopedMutex lock(rewrite_mutex());
     DCHECK_EQ(0, ref_counts_.QueryCountMutexHeld(kRefFetchUserFacing));
@@ -2287,7 +2287,10 @@ void RewriteDriver::RewriteComplete(RewriteContext* rewrite_context,
     // release_driver_ should be false since we moved a count between
     // categories, and didn't change the total.
     DCHECK(!release_driver_) << ref_counts_.DebugStringMutexHeld();
-    rewrite_context->Propagate(attached && permit_render);
+    if (!attached) {
+      render_op = RenderOp::kDontRender;
+    }
+    rewrite_context->Propagate(render_op);
     SignalIfRequired(signal_cookie);
   }
 }

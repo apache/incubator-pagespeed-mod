@@ -1460,7 +1460,12 @@ TEST_P(JavascriptFilterTest, RenderCsp) {
 
   // Now render again w/CSP -- blocked since .pagespeed. resource isn't
   //permitted.
-  ValidateNoChanges("render_csp", StrCat(kCsp, ScriptSrc("scripts/a.js")));
+  ValidateExpected(
+      "render_csp",
+      StrCat(kCsp, ScriptSrc("scripts/a.js")),
+      StrCat(kCsp, ScriptSrc("scripts/a.js"),
+             "<!--PageSpeed output not permitted by Content Security Policy"
+             "-->"));
 }
 
 TEST_P(JavascriptFilterTest, InlineCsp) {

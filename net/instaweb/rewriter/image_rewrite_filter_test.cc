@@ -4467,7 +4467,9 @@ TEST_F(ImageRewriteTest, RenderCsp) {
              "<img src=\"", Encode("images/", "ic", "0", "a.jpg", "jpg"), "\">",
              "<!--Image http://test.com/images/a.jpg does not appear "
              "to need resizing.-->"
-             "<img src=\"uploads/b.png\">"));
+             "<img src=\"uploads/b.png\">"
+             "<!--PageSpeed output not permitted by "
+             "Content Security Policy-->"));
 }
 
 }  // namespace net_instaweb

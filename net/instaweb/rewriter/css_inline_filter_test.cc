@@ -822,8 +822,11 @@ TEST_F(CssInlineFilterTest, BasicCsp) {
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"style-src * 'unsafe-inline';\">";
 
-  ValidateNoChanges("no_inline_csp",
-                    StrCat(kCspNoInline, CssLinkHref("a.css")));
+  ValidateNoChanges(
+      "no_inline_csp",
+      StrCat(kCspNoInline, CssLinkHref("a.css"),
+             "<!--PageSpeed output not permitted by Content Security Policy"
+             "-->"));
   ValidateExpected("yes_inline_csp",
                    StrCat(kCspYesInline, CssLinkHref("a.css")),
                    StrCat(kCspYesInline, "<style>a{margin:0}</style>"));

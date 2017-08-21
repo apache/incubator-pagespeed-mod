@@ -1159,6 +1159,7 @@ TEST_F(CacheExtenderTest, VaryOrigin) {
 
 TEST_F(CacheExtenderTest, RenderCsp) {
   InitTest(100);
+  EnableDebug();
 
   InitResource("a.jpg", kContentTypeJpeg, kImageData, 100);
   InitResource("b.js", kContentTypeJavascript, kJsData, 100);
@@ -1166,7 +1167,7 @@ TEST_F(CacheExtenderTest, RenderCsp) {
 
   const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
-      "content=\"img-src *; script-src b.js; style-src c.css;\">";
+      "content=\"img-src *; script-src */b.js; style-src */c.css;\">";
 
   // First rewrite w/o CSP, everything is expanded.
   ValidateExpected("no_csp",
@@ -1186,7 +1187,10 @@ TEST_F(CacheExtenderTest, RenderCsp) {
       StrCat(kCsp,
              "<img src=a.jpg.pagespeed.ce.0.jpg>"
              "<script src=b.js></script>"
-             "<link rel=stylesheet href=c.css>"));
+             "<!--PageSpeed output not permitted by Content Security Policy-->"
+             "<link rel=stylesheet href=c.css>"
+             "<!--PageSpeed output not permitted by Content Security Policy"
+             "-->"));
 }
 
 }  // namespace

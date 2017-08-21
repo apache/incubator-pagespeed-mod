@@ -777,7 +777,7 @@ class RewriteDriver : public HtmlParse {
   //
   // If 'permit_render' is false, no rendering will be asked for even if
   // the context is still attached.
-  void RewriteComplete(RewriteContext* rewrite_context, bool permit_render);
+  void RewriteComplete(RewriteContext* rewrite_context, RenderOp permit_render);
 
   // Provides a mechanism for a RewriteContext to notify a
   // RewriteDriver that a certain number of rewrites have been discovered

@@ -2468,6 +2468,7 @@ TEST_F(CssFilterTest, InlineCsp) {
 }
 
 TEST_F(CssFilterTest, RenderCsp) {
+  EnableDebug();
   SetResponseWithDefaultHeaders("styles/a.css",
                                 kContentTypeCss, kInputStyle, 100);
   SetResponseWithDefaultHeaders("uploads/sneaky.png",
@@ -2483,7 +2484,12 @@ TEST_F(CssFilterTest, RenderCsp) {
       CssLinkHref(Encode("styles/", "cf", "0", "a.css", "css")));
 
   // CSP applied at render time, from cached result.
-  ValidateNoChanges("render_csp", StrCat(kCsp, CssLinkHref("styles/a.css")));
+  ValidateExpected(
+      "render_csp",
+      StrCat(kCsp, CssLinkHref("styles/a.css")),
+      StrCat(kCsp, CssLinkHref("styles/a.css"),
+             "<!--PageSpeed output not permitted by Content Security Policy"
+             "-->"));
 }
 
 class CssFilterTestUrlNamer : public CssFilterTest {

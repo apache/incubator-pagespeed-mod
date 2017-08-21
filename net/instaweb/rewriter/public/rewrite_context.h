@@ -54,6 +54,12 @@ class Statistics;
 class Variable;
 class FreshenMetadataUpdateManager;
 
+enum class RenderOp {
+  kDontRender,
+  kRenderOnlyCspWarning,
+  kRender
+};
+
 // RewriteContext manages asynchronous rewriting of some n >= 1 resources (think
 // CSS, JS, or images) into m >= 0 improved versions (typically, n = m = 1).
 // It also helps update the references in the containing document (called
@@ -767,7 +773,7 @@ class RewriteContext {
   // particular, each slot must be updated with any rewritten
   // resources, before the successors can be run, independent of
   // whether the slots can be rendered into HTML.
-  void Propagate(bool render_slots);
+  void Propagate(RenderOp render_op);
 
   // With all resources loaded, the rewrite can now be done, writing:
   //    The metadata into the cache
@@ -816,7 +822,7 @@ class RewriteContext {
   // successors if applicable. This is the tail portion of
   // FinalizeRewriteForHtml that must be called even if we didn't
   // actually get as far as computing a partition_key_.
-  void RetireRewriteForHtml(bool permit_render);
+  void RetireRewriteForHtml(RenderOp permit_render);
 
   // Marks this job and any dependents slow as appropriate, notifying the
   // RewriteDriver of any changes.

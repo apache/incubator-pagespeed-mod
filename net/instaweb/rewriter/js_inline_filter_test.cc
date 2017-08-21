@@ -511,6 +511,7 @@ TEST_F(JsInlineFilterTest, BasicCsp) {
   SetHtmlMimetype();
   options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
   rewrite_driver()->AddFilters();
+  EnableDebug();
 
   const char kJs[] = "function id(x) { return x; }\n";
   SetResponseWithDefaultHeaders("script.js", kContentTypeJavascript, kJs, 3000);
