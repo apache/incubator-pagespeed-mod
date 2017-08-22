@@ -509,8 +509,7 @@ TEST_F(JsInlineFilterTest, NoFlushSplittingScriptTag) {
 
 TEST_F(JsInlineFilterTest, BasicCsp) {
   SetHtmlMimetype();
-  options()->SoftEnableFilterForTesting(RewriteOptions::kInlineJavascript);
-  rewrite_driver()->AddFilters();
+  AddFilter(RewriteOptions::kInlineJavascript);
   EnableDebug();
 
   const char kJs[] = "function id(x) { return x; }\n";
@@ -522,8 +521,11 @@ TEST_F(JsInlineFilterTest, BasicCsp) {
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"script-src * 'unsafe-inline';\">";
 
-  ValidateNoChanges("no_inline_csp",
-                    StrCat(kCspNoInline, "<script src=script.js></script>"));
+  ValidateExpected("no_inline_csp",
+                   StrCat(kCspNoInline, "<script src=script.js></script>"),
+                   StrCat(kCspNoInline, "<script src=script.js></script>"
+                          "<!--PageSpeed output (by ji) not permitted by "
+                          "Content Security Policy-->"));
   ValidateExpected(
       "inline_csp",
       StrCat(kCspYesInline, "<script src=script.js></script>"),
