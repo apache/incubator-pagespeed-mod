@@ -222,7 +222,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
       ResourceSlotPtr slot(driver()->GetSlot(
           input_resource, element, attributes[i].url));
       Context* context = new Context(input_role, this, driver(),
-                                     NULL /* not nested */);
+                                     nullptr /* not nested */);
       context->AddSlot(slot);
       driver()->InitiateRewrite(context);
     }
@@ -418,13 +418,13 @@ RewriteResult CacheExtender::RewriteLoadedResource(
 
 RewriteContext* CacheExtender::MakeRewriteContext() {
   return new Context(RewriteDriver::InputRole::kReconstruction, this,
-                     driver(), NULL /*not nested*/);
+                     driver(), nullptr /*not nested*/);
 }
 
 RewriteContext* CacheExtender::MakeNestedContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
   Context* context = new Context(
-      RewriteDriver::InputRole::kUnknown, this, NULL /* driver*/, parent);
+      RewriteDriver::InputRole::kUnknown, this, nullptr /* driver*/, parent);
   context->AddSlot(slot);
   return context;
 }

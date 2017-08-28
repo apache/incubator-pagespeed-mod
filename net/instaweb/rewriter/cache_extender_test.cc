@@ -1158,12 +1158,13 @@ TEST_F(CacheExtenderTest, VaryOrigin) {
 }
 
 TEST_F(CacheExtenderTest, RenderCsp) {
-  InitTest(100);
+  InitTest(kShortTtlSec);
   EnableDebug();
 
-  InitResource("a.jpg", kContentTypeJpeg, kImageData, 100);
-  InitResource("b.js", kContentTypeJavascript, kJsData, 100);
-  InitResource("c.css", kContentTypeCss, "* {display:   block; }", 100);
+  InitResource("a.jpg", kContentTypeJpeg, kImageData, kShortTtlSec);
+  InitResource("b.js", kContentTypeJavascript, kJsData, kShortTtlSec);
+  InitResource("c.css", kContentTypeCss, "* {display:   block; }",
+               kShortTtlSec);
 
   const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "

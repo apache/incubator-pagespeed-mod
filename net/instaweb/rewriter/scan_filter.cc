@@ -110,8 +110,8 @@ void ScanFilter::StartElement(HtmlElement* element) {
     // See http://www.whatwg.org/specs/web-apps/current-work/multipage
     // /semantics.html#the-base-element
     //
-    if (href != NULL) {
-      if (href->DecodedValueOrNull() == NULL) {
+    if (href != nullptr) {
+      if (href->DecodedValueOrNull() == nullptr) {
         // Can't decode base well, so give up on using.
         driver_->set_other_base_problem();
         return;
