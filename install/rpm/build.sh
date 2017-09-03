@@ -26,25 +26,31 @@ stage_install_rpm() {
   prep_staging_rpm
   stage_install_common
   echo "Staging RPM install files in '${STAGEDIR}'..."
-  process_template "${BUILDDIR}/install/common/rpmrepo.cron" \
-    "${STAGEDIR}/etc/cron.daily/${PACKAGE}"
-  chmod 755 "${STAGEDIR}/etc/cron.daily/${PACKAGE}"
+  if [ "$CPANEL" = false ]; then
+    process_template "${BUILDDIR}/install/common/rpmrepo.cron" \
+      "${STAGEDIR}/etc/cron.daily/${PACKAGE}"
+    chmod 755 "${STAGEDIR}/etc/cron.daily/${PACKAGE}"
+  fi
 
   # For CentOS, the load and conf files are combined into a single
   # 'conf' file. So we install the load template as the conf file, and
   # then concatenate the actual conf file.
   process_template "${BUILDDIR}/install/common/pagespeed.load.template" \
-    "${STAGEDIR}${APACHE_CONFDIR}/pagespeed.conf"
+    "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
   process_template "${BUILDDIR}/install/common/pagespeed.conf.template" \
     "${BUILDDIR}/install/common/pagespeed.conf"
   cat "${BUILDDIR}/install/common/pagespeed.conf" >> \
-    "${STAGEDIR}${APACHE_CONFDIR}/pagespeed.conf"
+    "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
+  if [ "$CPANEL" = true ]; then
+    cat "${BUILDDIR}/install/rpm/pagespeed.cpanel.conf" >> \
+      "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
+  fi
   install -m 755 "${BUILDDIR}/js_minify" \
     "${STAGEDIR}/usr/bin/pagespeed_js_minify"
-  chmod 644 "${STAGEDIR}${APACHE_CONFDIR}/pagespeed.conf"
+  chmod 644 "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
   install -m 644 \
     "${BUILDDIR}/../../net/instaweb/genfiles/conf/pagespeed_libraries.conf" \
-    "${STAGEDIR}${APACHE_CONFDIR}/pagespeed_libraries.conf"
+    "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed_libraries.conf"
 }
 
 # Actually generate the package file.
@@ -73,8 +79,13 @@ do_package() {
   fi
 
   DEPENDS="httpd >= 2.2, \
-  libstdc++ >= 4.1.2, \
   at"
+  if [ "$CPANEL" = true ]; then
+    DEPENDS="ea-apache24 >= 2.4, \
+    ea-apache24-mod_version >= 2.4"
+  fi
+  DEPENDS="$DEPENDS, \
+  libstdc++ >= 4.1.2"
   gen_spec
 
   # Create temporary rpmbuild dirs.
@@ -102,11 +113,12 @@ cleanup() {
 }
 
 usage() {
-  echo "usage: $(basename $0) [-c channel] [-a target_arch] [-o 'dir'] [-b 'dir']"
+  echo "usage: $(basename $0) [-c channel] [-a target_arch] [-o 'dir'] [-b 'dir'] [-p]"
   echo "-c channel the package channel (unstable, beta, stable)"
   echo "-a arch    package architecture (ia32 or x64)"
   echo "-o dir     package output directory [${OUTPUTDIR}]"
   echo "-b dir     build input directory    [${BUILDDIR}]"
+  echo "-p         cPanel EasyApache 4 build"
   echo "-h         this help message"
 }
 
@@ -135,7 +147,7 @@ verify_channel() {
 }
 
 process_opts() {
-  while getopts ":o:b:c:a:h" OPTNAME
+  while getopts ":o:b:c:a:ph" OPTNAME
   do
     case $OPTNAME in
       o )
@@ -151,6 +163,9 @@ process_opts() {
         ;;
       a )
         TARGETARCH="$OPTARG"
+        ;;
+      p )
+        CPANEL=true
         ;;
       h )
         usage
@@ -186,6 +201,7 @@ else
   TARGETARCH="ia32"
 fi
 SPEC="${TMPFILEDIR}/mod-pagespeed.spec"
+CPANEL=false
 
 # call cleanup() on exit
 trap cleanup 0
@@ -212,18 +228,31 @@ APACHE_USER="apache"
 COMMENT_OUT_DEFLATE=
 SSL_CERT_DIR="/etc/pki/tls/certs"
 SSL_CERT_FILE_COMMAND="ModPagespeedSslCertFile /etc/pki/tls/cert.pem"
+APACHE_MODULEDIR_IA32="/usr/lib/httpd/modules"
+APACHE_MODULEDIR_X64="/usr/lib64/httpd/modules"
+CPANEL_CONF_PREFIX=""
+
+if [ "$CPANEL" = true ]; then
+  APACHE_CONFDIR="/etc/apache2/conf.modules.d"
+  APACHE_USER="nobody"
+  PACKAGE="ea-apache24-$(echo $PACKAGE | tr - _)"
+  APACHE_MODULEDIR_IA32="/usr/lib/apache2/modules"
+  APACHE_MODULEDIR_X64="/usr/lib64/apache2/modules"
+  CPANEL_CONF_PREFIX="456_"
+  COMMENT_OUT_CRON="\# "
+fi
 
 # Make everything happen in the OUTPUTDIR.
 cd "${OUTPUTDIR}"
 
 case "$TARGETARCH" in
   ia32 )
-    export APACHE_MODULEDIR="/usr/lib/httpd/modules"
+    export APACHE_MODULEDIR=$APACHE_MODULEDIR_IA32
     export HOST_ARCH="i386"
     stage_install_rpm
     ;;
   x64 )
-    export APACHE_MODULEDIR="/usr/lib64/httpd/modules"
+    export APACHE_MODULEDIR=$APACHE_MODULEDIR_X64
     export HOST_ARCH="x86_64"
     stage_install_rpm
     ;;

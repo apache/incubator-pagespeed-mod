@@ -41,6 +41,11 @@
           '<(install_path)/rpm/build.sh',
           '<(install_path)/rpm/mod-pagespeed.spec.template',
         ],
+        'packaging_files_cpanel': [
+          '<(install_path)/rpm/build.sh',
+          '<(install_path)/rpm/mod-pagespeed.spec.template',
+          '<(install_path)/rpm/pagespeed.cpanel.conf',
+        ],
         'packaging_files_binaries': [
           '<(PRODUCT_DIR)/libmod_pagespeed.so',
           '<(PRODUCT_DIR)/libmod_pagespeed_ap24.so',
@@ -48,6 +53,7 @@
         'flock_bash': ['flock', '--', '/tmp/linux_package_lock', 'bash'],
         'deb_build': '<(PRODUCT_DIR)/install/debian/build.sh',
         'rpm_build': '<(PRODUCT_DIR)/install/rpm/build.sh',
+        'cpanel_build': '<(PRODUCT_DIR)/install/rpm/build.sh',
         'deb_cmd': ['<@(flock_bash)', '<(deb_build)', '-o' '<(PRODUCT_DIR)',
                     '-b', '<(PRODUCT_DIR)', '-a', '<(target_arch)'],
         'rpm_cmd': ['<@(flock_bash)', '<(rpm_build)', '-o' '<(PRODUCT_DIR)',
@@ -79,7 +85,7 @@
             {
               'destination': '<(PRODUCT_DIR)/install/rpm/',
               'files': [
-                '<@(packaging_files_rpm)',
+                '<@(packaging_files_cpanel)',
               ]
             },
             {
@@ -149,6 +155,26 @@
           },
           'includes': [
             'linux_package_rpm.gypi',
+          ],
+        },
+        {
+          'target_name': 'linux_package_cpanel_stable',
+          'suppress_wildcard': 1,
+          'variables': {
+            'channel': 'stable',
+          },
+          'includes': [
+            'linux_package_cpanel.gypi',
+          ],
+        },
+        {
+          'target_name': 'linux_package_cpanel_beta',
+          'suppress_wildcard': 1,
+          'variables': {
+            'channel': 'beta',
+          },
+          'includes': [
+            'linux_package_cpanel.gypi',
           ],
         },
       ],
