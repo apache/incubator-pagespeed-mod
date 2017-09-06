@@ -48,6 +48,7 @@ class SystemRewriteOptions : public RewriteOptions {
   static const char kRedisServer[];
   static const char kRedisReconnectionDelayMs[];
   static const char kRedisTimeoutUs[];
+  static const char kRedisDatabaseIndex[];
 
   static constexpr int kMemcachedDefaultPort = 11211;
   static constexpr int kRedisDefaultPort = 6379;
@@ -186,6 +187,9 @@ class SystemRewriteOptions : public RewriteOptions {
   }
   int64 redis_timeout_us() const {
     return redis_timeout_us_.value();
+  }
+  int redis_database_index() const {
+    return redis_database_index_.value();
   }
   int64 slow_file_latency_threshold_us() const {
     return slow_file_latency_threshold_us_.value();
@@ -499,6 +503,7 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<int> memcached_timeout_us_;
   Option<int64> redis_reconnection_delay_ms_;
   Option<int64> redis_timeout_us_;
+  Option<int> redis_database_index_;
 
   Option<int64> slow_file_latency_threshold_us_;
   Option<int64> file_cache_clean_inode_limit_;

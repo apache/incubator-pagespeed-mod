@@ -47,6 +47,7 @@ namespace {
   static const int kReconnectionDelayMs = 10;
   static const int kTimeoutUs = 100 * Timer::kMsUs;
   static const int kSlaveNodesFlushingTimeoutMs = 1000;
+  static const int kDatabaseIndex = 0;
 
   // One can check following constants with CLUSTER KEYSLOT command.
   // For testing purposes, both KEY and {}KEY should be in the same slot range.
@@ -101,7 +102,7 @@ class RedisCacheClusterTest : public CacheTestBase {
     // Setting up cache.
     cache_.reset(new RedisCache("localhost", ports_[0], thread_system_.get(),
                                 &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_));
+                                kTimeoutUs, &statistics_, kDatabaseIndex));
     cache_->StartUp();
     return true;
   }

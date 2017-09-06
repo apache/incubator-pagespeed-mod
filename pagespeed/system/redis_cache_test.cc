@@ -45,6 +45,7 @@ namespace net_instaweb {
 namespace {
   static const int kReconnectionDelayMs = 10;
   static const int kTimeoutUs = 100 * Timer::kMsUs;
+  static const int kDatabaseIndex = 0;
   static const char kSomeKey[] = "SomeKey";
   static const char kSomeValue[] = "SomeValue";
 }
@@ -83,7 +84,7 @@ class RedisCacheTest : public CacheTestBase {
 
     cache_.reset(new RedisCache("localhost", port, thread_system_.get(),
                                 &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_));
+                                kTimeoutUs, &statistics_, kDatabaseIndex));
     cache_->StartUp();
     return true;
   }
@@ -92,7 +93,7 @@ class RedisCacheTest : public CacheTestBase {
     cache_.reset(new RedisCache("localhost", custom_server_port_,
                                 thread_system_.get(), &handler_, &timer_,
                                 kReconnectionDelayMs, kTimeoutUs,
-                                &statistics_));
+                                &statistics_, kDatabaseIndex));
   }
 
   void InitRedisWithUnreachableServer() {
@@ -101,7 +102,7 @@ class RedisCacheTest : public CacheTestBase {
     // machine should ever be routable in that subnet.
     cache_.reset(new RedisCache("192.0.2.1", 12345, thread_system_.get(),
                                 &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_));
+                                kTimeoutUs, &statistics_, kDatabaseIndex));
   }
 
   static void SetUpTestCase() {
@@ -268,6 +269,26 @@ class RedisGetRespondingServerThread : public TcpServerThreadForTesting {
   void HandleClientConnection(apr_socket_t* sock) override {
     // See http://redis.io/topics/protocol for details. Request is an array of
     // two bulk strings, answer for GET is a single bulk string.
+
+    // during redis cache startup, Select database command is fired
+    // being the first command, it is captured by the mock redis server
+    static const char kSelectRequest[] =
+        "*2\r\n"
+        "$6\r\nSELECT\r\n"
+        "$1\r\n0\r\n";
+    static const char kSelectAnswer[] = "+OK\r\n";
+    apr_size_t answer_size_select  = STATIC_STRLEN(kSelectAnswer);
+
+    char requestBuf[STATIC_STRLEN(kSelectRequest) + 1];
+    apr_size_t recvSize = sizeof(requestBuf) - 1;
+
+    apr_socket_recv(sock, requestBuf, &recvSize);
+    EXPECT_EQ(STATIC_STRLEN(kSelectRequest), recvSize);
+    requestBuf[recvSize] = 0;
+    EXPECT_STREQ(kSelectRequest, requestBuf);
+
+    apr_socket_send(sock, kSelectAnswer, &answer_size_select);
+
     static const char kRequest[] =
         "*2\r\n"
         "$3\r\nGET\r\n"
@@ -470,8 +491,12 @@ class GetRequestThread : public ThreadSystem::Thread {
 TEST_F(RedisCacheTest, IsHealthyDoesNotBlock) {
   InitRedisWithCustomServer();
   StartCustomServer<RedisGetRespondingServerThread>();
-  GetThreadSynchronizer()->EnableForPrefix("RedisCommand.After");
   cache_->StartUp();
+
+  // enabling thread synchronizer after cache start up because
+  // cache startup fires redis command to select redis database
+  // and this execution interferes with the test thread synchronization
+  GetThreadSynchronizer()->EnableForPrefix("RedisCommand.After");
 
   GetRequestThread thread(Cache(), thread_system_.get());
   ASSERT_TRUE(thread.Start());

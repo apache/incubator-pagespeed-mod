@@ -245,7 +245,7 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewRedis(
       server_spec.host, server_spec.port, factory_->thread_system(),
       factory_->message_handler(), factory_->timer(),
       config->redis_reconnection_delay_ms(), config->redis_timeout_us(),
-      factory_->statistics());
+      factory_->statistics(), config->redis_database_index());
   factory_->TakeOwnership(redis_server);
   redis_servers_.push_back(redis_server);
   if (redis_pool_.get() == NULL) {

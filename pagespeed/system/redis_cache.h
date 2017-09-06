@@ -80,7 +80,7 @@ class RedisCache : public CacheInterface {
   RedisCache(StringPiece host, int port, ThreadSystem* thread_system,
              MessageHandler* message_handler, Timer* timer,
              int64 reconnection_delay_ms, int64 timeout_us,
-             Statistics* stats);
+             Statistics* stats, int database_index);
   ~RedisCache() override { ShutDown(); }
 
   static void InitStats(Statistics* stats);
@@ -142,7 +142,8 @@ class RedisCache : public CacheInterface {
 
   class Connection {
    public:
-    Connection(RedisCache* redis_cache, StringPiece host, int port);
+    Connection(RedisCache* redis_cache, StringPiece host, int port,
+        int database_index);
 
     void StartUp(bool connect_now = true)
         LOCKS_EXCLUDED(redis_mutex_, state_mutex_);
@@ -179,7 +180,13 @@ class RedisCache : public CacheInterface {
     bool IsHealthyLockHeld() const EXCLUSIVE_LOCKS_REQUIRED(state_mutex_);
     void UpdateState() EXCLUSIVE_LOCKS_REQUIRED(redis_mutex_, state_mutex_);
 
+    // connects with redis as well as selects redis database
+    bool EnsureConnectionAndDatabaseSelection()
+        EXCLUSIVE_LOCKS_REQUIRED(redis_mutex_)
+        LOCKS_EXCLUDED(state_mutex_);
     bool EnsureConnection() EXCLUSIVE_LOCKS_REQUIRED(redis_mutex_)
+        LOCKS_EXCLUDED(state_mutex_);
+    bool EnsureDatabaseSelection() EXCLUSIVE_LOCKS_REQUIRED(state_mutex_)
         LOCKS_EXCLUDED(state_mutex_);
 
     RedisContext TryConnect() LOCKS_EXCLUDED(redis_mutex_, state_mutex_);
@@ -195,6 +202,10 @@ class RedisCache : public CacheInterface {
     RedisContext redis_ GUARDED_BY(redis_mutex_);
     State state_ GUARDED_BY(state_mutex_);
     int64 next_reconnect_at_ms_ GUARDED_BY(state_mutex_);
+
+    // selected database is a property of the connection,
+    // should re-select it on reconnection
+    const int database_index_;
 
     DISALLOW_COPY_AND_ASSIGN(Connection);
   };
@@ -233,7 +244,8 @@ class RedisCache : public CacheInterface {
 
   // Must not be called under Connection::GetOperationLock(), that will cause
   // lock inversion and potential theoretical deadlock.
-  Connection* GetOrCreateConnection(ExternalServerSpec spec);
+  Connection* GetOrCreateConnection(ExternalServerSpec spec,
+      const int database_index);
 
   // Ask redis what keys should go to which servers.
   void FetchClusterSlotMapping(Connection* connection)
@@ -266,6 +278,8 @@ class RedisCache : public CacheInterface {
 
   // Not guarded, but should only be modified in StartUp().
   Connection* main_connection_;
+
+  const int database_index_;
 
   friend class RedisCacheTest;
   DISALLOW_COPY_AND_ASSIGN(RedisCache);
