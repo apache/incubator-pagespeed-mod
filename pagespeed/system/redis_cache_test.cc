@@ -416,6 +416,26 @@ class RedisNotRespondingServerThread : public TcpServerThreadForTesting {
  protected:
   void HandleClientConnection(apr_socket_t* sock) override {
     // Do nothing, socket will be closed in destructor
+
+    // during redis cache startup, Select database command is fired
+    // being the first command, it is captured by the mock redis server
+    static const char kSelectRequest[] =
+        "*2\r\n"
+        "$6\r\nSELECT\r\n"
+        "$1\r\n0\r\n";
+    static const char kSelectAnswer[] = "+OK\r\n";
+    apr_size_t answer_size_select  = STATIC_STRLEN(kSelectAnswer);
+
+    char requestBuf[STATIC_STRLEN(kSelectRequest) + 1];
+    apr_size_t recvSize = sizeof(requestBuf) - 1;
+
+    apr_socket_recv(sock, requestBuf, &recvSize);
+    EXPECT_EQ(STATIC_STRLEN(kSelectRequest), recvSize);
+    requestBuf[recvSize] = 0;
+    EXPECT_STREQ(kSelectRequest, requestBuf);
+
+    apr_socket_send(sock, kSelectAnswer, &answer_size_select);
+
     connection_received_.Notify();
   }
 

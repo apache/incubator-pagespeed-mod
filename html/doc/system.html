@@ -475,6 +475,18 @@ total_items:           4166384
   <dt>Nginx:<dd><pre class="prettyprint"
      >pagespeed RedisReconnectionDelayMs timeout_in_milliseconds;</pre>
 </dl>
+    <p>
+      You can also select the Redis logical database having the specified numeric index.
+      This setting defaults to database index 0.
+      Note that the Redis clustering feature does not allow specifying a database index,
+      and therefore is incompatible with this setting:
+    </p>
+<dl>
+  <dt>Apache:<dd><pre class="prettyprint"
+     >ModPagespeedRedisDatabaseSelectIndex index</pre>
+  <dt>Nginx:<dd><pre class="prettyprint"
+     >pagespeed RedisDatabaseSelectIndex index;</pre>
+</dl>
 
     <h2 id="flush_cache">Flushing PageSpeed Server-Side Cache</h2>
     <p>
