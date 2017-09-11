@@ -97,7 +97,8 @@ class CssInlineFilter::Context : public InlineRewriteContext {
 CssInlineFilter::CssInlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       id_(RewriteOptions::kCssInlineId),
-      size_threshold_bytes_(driver->options()->css_inline_max_bytes()) {
+      size_threshold_bytes_(driver->options()->css_inline_max_bytes()),
+      in_body_(false) {
   Statistics* stats = server_context()->statistics();
   num_css_inlined_ = stats->GetVariable(kNumCssInlined);
 }
