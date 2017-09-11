@@ -51,6 +51,9 @@ fetch_until "$URL1" "grep -c image/webp" 1 --save-headers
 echo -n Waiting for quiescence by checking serf_fetch_active_count ...
 # The last check in this test was observed to flake.Let's see if waiting
 # for quiescence here stabilizes it.
+# TODO(oschaaf): It would be good to keep a count of active rewrite drivers as
+# well for this purpose. Serf is only one of the things that can finish
+# asynchronously; slow rewrites can as well.
 while [ $(scrape_stat serf_fetch_active_count) -gt 0 ]; do
   echo -n .
   sleep .1
