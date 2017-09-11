@@ -49,7 +49,7 @@ URL2="${URL}&PageSpeedNoop=$RANDOM2"
 fetch_until "$URL1" "grep -c image/webp" 1 --save-headers
 #NUM_REWRITES_URL1=$(scrape_stat image_rewrites)
 echo -n Waiting for quiescence by checking serf_fetch_active_count ...
-# The last check in this test was observed to flake.Let's see if waiting
+# The last check in this test was observed to flake. Let's see if waiting
 # for quiescence here stabilizes it.
 # TODO(oschaaf): It would be good to keep a count of active rewrite drivers as
 # well for this purpose. Serf is only one of the things that can finish
