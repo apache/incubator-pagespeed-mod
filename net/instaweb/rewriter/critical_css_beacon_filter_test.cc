@@ -139,7 +139,7 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
         "pagespeed.selectors=[", selectors, "];");
     StrAppend(&html,
               "pagespeed.criticalCssBeaconInit('",
-              options()->beacon_url().http, "','", kTestDomain,
+              options()->critical_images_beacon_url().http, "','", kTestDomain,
               "','0','", ExpectedNonce(), "',pagespeed.selectors);"
               "</script></body>");
     return html;

@@ -264,7 +264,6 @@ class RewriteOptions {
   static const char kContentExperimentID[];
   static const char kContentExperimentVariantID[];
   static const char kCriticalImagesBeaconEnabled[];
-  static const char kCriticalImagesBeaconUrl[];
   static const char kCssFlattenMaxBytes[];
   static const char kCssImageInlineMaxBytes[];
   static const char kCssInlineMaxBytes[];
@@ -2275,14 +2274,6 @@ class RewriteOptions {
     beacon_url_.SetFromString(beacon_url, &ignored_error_detail);
   }
 
-  const BeaconUrl& critical_images_beacon_url() const {
-    return critical_images_beacon_url_.value(); 
-  }
-  void set_critical_images_beacon_url(const GoogleString& beacon_url) {
-    GoogleString ignored_error_detail;
-    critical_images_beacon_url_.SetFromString(beacon_url, &ignored_error_detail);
-  }
-
   // Return false in a subclass if you want to disallow all URL trimming in CSS.
   virtual bool trim_urls_in_css() const { return true; }
 
@@ -3259,7 +3250,6 @@ class RewriteOptions {
 
   // Protected option values so that derived class can modify.
   Option<BeaconUrl> beacon_url_;
-  Option<BeaconUrl> critical_images_beacon_url_;
 
   // The value we put for the X-Mod-Pagespeed header. Default is our version.
   Option<GoogleString> x_header_value_;
