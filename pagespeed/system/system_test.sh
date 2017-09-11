@@ -80,6 +80,7 @@ run_test css_minify_calc_function_value_zero
 run_test css_minify_unicode_range_descriptor
 run_test add_instrumentation
 run_test type_attribute_pedantic
+run_test inline_css_link_element_in_body
 run_test cache_partial_html
 run_test flush_subresources
 run_test respect_custom_options
