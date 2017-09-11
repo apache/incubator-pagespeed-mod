@@ -137,7 +137,9 @@ ngx_pagespeed module by adding this to the top of your main nginx configuration:
 If you're using dynamic modules to integrate with an already-built nginx, make
 sure you pass <code>./configure</code> the same arguments you gave it when
 building nginx the first time.  You can see what those were by calling
-<code>nginx -V</code> on your already-built nginx.
+<code>nginx -V</code> on your already-built nginx. (Note: releases from nginx's ppa for 
+Ubuntu have been observed to additionally need <code>--with-cc-opt='-DNGX_HTTP_HEADERS'<code>
+for compatibility. This will not be listed in the output of <code>nginx -V</code>.)
 </p>
 
 <p>
