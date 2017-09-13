@@ -17,8 +17,8 @@
 
 start_test CSS minify for unicode-range descriptor.
 
-URL="$TEST_ROOT/css_minify_unicode_range_descriptor.html?PageSpeedFilters=+inline_css"
-RESPONSE_OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)
+URL="$TEST_ROOT/css_minify_unicode_range_descriptor.html?PageSpeedFilters=rewrite_css"
+RESPONSE_OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP --header 'X-PSA-Blocking-Rewrite: psatest' $URL)
 
 # checking for unicode range with valid construct 
 MATCHES=$(echo "$RESPONSE_OUT" | fgrep -c "unicode-range:U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116")
