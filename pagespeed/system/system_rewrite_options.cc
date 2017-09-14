@@ -50,7 +50,7 @@ const char SystemRewriteOptions::kRedisReconnectionDelayMs[] =
     "RedisReconnectionDelayMs";
 const char SystemRewriteOptions::kRedisTimeoutUs[] = "RedisTimeoutUs";
 const char SystemRewriteOptions::kRedisDatabaseIndex[] =
-    "RedisDatabaseSelectIndex";
+    "RedisDatabaseIndex";
 
 RewriteOptions::Properties* SystemRewriteOptions::system_properties_ = nullptr;
 

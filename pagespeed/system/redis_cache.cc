@@ -620,13 +620,16 @@ bool RedisCache::Connection::EnsureConnection() {
 }
 
 bool RedisCache::Connection::EnsureDatabaseSelection() {
-  RedisReply reply = RedisCommand(StrCat("SELECT ",
-          IntegerToString(database_index_)).c_str(), REDIS_REPLY_STRING);
-  if (reply == nullptr) {
-    ScopedMutex lock(state_mutex_.get());
-    state_ = kDisconnected;
-    redis_.reset();
-    return false;
+  // dont select database if database index property not specified in config
+  if (database_index_ != -1) {
+    RedisReply reply = RedisCommand(StrCat("SELECT ",
+            IntegerToString(database_index_)).c_str(), REDIS_REPLY_STRING);
+    if (reply == nullptr) {
+      ScopedMutex lock(state_mutex_.get());
+      state_ = kDisconnected;
+      redis_.reset();
+      return false;
+    }
   }
   return true;
 }

@@ -191,6 +191,9 @@ class SystemRewriteOptions : public RewriteOptions {
   int redis_database_index() const {
     return redis_database_index_.value();
   }
+  bool has_redis_database_index() const {
+    return redis_database_index_.was_set();
+  }
   int64 slow_file_latency_threshold_us() const {
     return slow_file_latency_threshold_us_.value();
   }
