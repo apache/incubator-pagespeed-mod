@@ -78,6 +78,7 @@ namespace net_instaweb {
 // TODO(yeputons): consider removing limit on amount of redirections.
 static const int kMaxRedirections = 1;
 static const int kDefaultDatabaseIndex = 0;
+static const int kRedisDatabaseIndexNotSet = -1;
 
 const char kRedisClusterRedirections[] = "redis_cluster_redirections";
 const char kRedisClusterSlotsFetches[] = "redis_cluster_slots_fetches";
@@ -621,7 +622,7 @@ bool RedisCache::Connection::EnsureConnection() {
 
 bool RedisCache::Connection::EnsureDatabaseSelection() {
   // dont select database if database index property not specified in config
-  if (database_index_ != -1) {
+  if (database_index_ != kRedisDatabaseIndexNotSet) {
     RedisReply reply = RedisCommand(StrCat("SELECT ",
             IntegerToString(database_index_)).c_str(), REDIS_REPLY_STRING);
     if (reply == nullptr) {
