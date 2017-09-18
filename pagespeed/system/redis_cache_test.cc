@@ -87,7 +87,7 @@ class RedisCacheTest : public CacheTestBase {
     return true;
   }
 
-  void InitRedisWithCustomDatabaseIndex(int database_index = 0) {
+  void InitRedisWithCustomDatabaseIndex(const int database_index) {
     cache_.emplace_back(new RedisCache("localhost", redis_port_env_,
                             thread_system_.get(), &handler_, &timer_,
                             kReconnectionDelayMs, kTimeoutUs, &statistics_,
@@ -161,7 +161,7 @@ TEST_F(RedisCacheTest, PutGetDelete) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckPut("Name", "Value");
   CheckGet("Name", "Value");
@@ -184,7 +184,7 @@ TEST_F(RedisCacheTest, CurlyBraces) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckPut("{1}NameA", "Value1A");
   CheckPut("{2}NameB", "Value2B");
@@ -200,7 +200,7 @@ TEST_F(RedisCacheTest, Spaces) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckPut("1 NameA", "Value1A");
   CheckPut("2 NameB", "Value2B");
@@ -215,7 +215,7 @@ TEST_F(RedisCacheTest, MultiGet) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
   TestMultiGet();  // Test from CacheTestBase is just fine.
 }
 
@@ -223,7 +223,7 @@ TEST_F(RedisCacheTest, BasicInvalid) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   // Check that we honor callback veto on validity.
   CheckPut("nameA", "valueA");
@@ -239,7 +239,7 @@ TEST_F(RedisCacheTest, GetStatus) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   GoogleString status;
   cache_[0]->GetStatus(&status);
@@ -258,7 +258,7 @@ TEST_F(RedisCacheTest, TestsAreIsolated1) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckNotFound(kSomeKey);
   CheckPut(kSomeKey, kSomeValue);
@@ -268,7 +268,7 @@ TEST_F(RedisCacheTest, TestsAreIsolated2) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckNotFound(kSomeKey);
   CheckPut(kSomeKey, kSomeValue);
@@ -427,7 +427,7 @@ TEST_F(RedisCacheTest, DoesNotReconnectAfterShutdown) {
   if (!PrepareRedisOrSkip()) {
     return;
   }
-  InitRedisWithCustomDatabaseIndex();
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckPut(kSomeKey, kSomeValue);
   CheckGet(kSomeKey, kSomeValue);
