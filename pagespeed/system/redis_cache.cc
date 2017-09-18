@@ -77,6 +77,8 @@ namespace net_instaweb {
 //
 // TODO(yeputons): consider removing limit on amount of redirections.
 static const int kMaxRedirections = 1;
+static const int kDefaultDatabaseIndex = 0;
+static const int kRedisDatabaseIndexNotSet = -1;
 
 const char kRedisClusterRedirections[] = "redis_cluster_redirections";
 const char kRedisClusterSlotsFetches[] = "redis_cluster_slots_fetches";
@@ -84,7 +86,7 @@ const char kRedisClusterSlotsFetches[] = "redis_cluster_slots_fetches";
 RedisCache::RedisCache(StringPiece host, int port, ThreadSystem* thread_system,
                        MessageHandler* message_handler, Timer* timer,
                        int64 reconnection_delay_ms, int64 timeout_us,
-                       Statistics* stats)
+                       Statistics* stats, int database_index)
     : main_host_(host.as_string()),
       main_port_(port),
       thread_system_(thread_system),
@@ -95,7 +97,8 @@ RedisCache::RedisCache(StringPiece host, int port, ThreadSystem* thread_system,
       thread_synchronizer_(new ThreadSynchronizer(thread_system)),
       connections_lock_(thread_system_->NewRWLock()),
       cluster_map_lock_(thread_system_->NewRWLock()),
-      main_connection_(nullptr) {
+      main_connection_(nullptr),
+      database_index_(database_index) {
   redirections_ = stats->GetVariable(kRedisClusterRedirections);
   cluster_slots_fetches_ = stats->GetVariable(kRedisClusterSlotsFetches);
 }
@@ -118,7 +121,7 @@ void RedisCache::StartUp(bool connect_now) {
     CHECK(connections_.empty());
     CHECK(!main_connection_);
     std::unique_ptr<Connection> conn(
-        new Connection(this, main_host_, main_port_));
+        new Connection(this, main_host_, main_port_, database_index_));
     main_connection_ = conn.get();
     connections_.emplace(StrCat(main_host_, ":", IntegerToString(main_port_)),
                          std::move(conn));
@@ -251,7 +254,7 @@ RedisCache::RedisReply RedisCache::RedisCommand(
   for (redirections = 0; redirections <= kMaxRedirections;
        redirections++,
            last_redirecting_connection = conn,
-           conn = GetOrCreateConnection(redirected_to),
+           conn = GetOrCreateConnection(redirected_to, kDefaultDatabaseIndex),
            redirections_->Add(1)) {
     ScopedMutex lock(conn->GetOperationMutex());
 
@@ -346,7 +349,7 @@ ExternalServerSpec RedisCache::ParseRedirectionError(StringPiece error) {
 }
 
 RedisCache::Connection* RedisCache::GetOrCreateConnection(
-    ExternalServerSpec spec) {
+    ExternalServerSpec spec, const int database_index) {
   Connection* result;
   bool should_start_up = false;
   {
@@ -356,7 +359,8 @@ RedisCache::Connection* RedisCache::GetOrCreateConnection(
     if (it == connections_.end()) {
       LOG(INFO) << "Initiating connection Redis server at " << spec.ToString();
       it = connections_.emplace(name, std::unique_ptr<Connection>(
-          new Connection(this, spec.host, spec.port))).first;
+          new Connection(this, spec.host, spec.port, database_index)))
+          .first;
       should_start_up = true;
     }
     result = it->second.get();
@@ -453,10 +457,11 @@ void RedisCache::FetchClusterSlotMapping(Connection* connection) {
       return;
     }
     // Everything is there and is the right type.  Store it.
+    // Using database 0 for cluster
     new_cluster_mappings.push_back(ClusterMapping(
         start_slot_range->integer, end_slot_range->integer,
         GetOrCreateConnection(ExternalServerSpec(
-            master_ip->str, master_port->integer))));
+            master_ip->str, master_port->integer), kDefaultDatabaseIndex)));
   }
 
   // Sort new_cluster_mappings based on start_slot_range_.
@@ -513,7 +518,7 @@ RedisCache::Connection* RedisCache::LookupConnection(StringPiece key) {
 }
 
 RedisCache::Connection::Connection(RedisCache* redis_cache, StringPiece host,
-                                   int port)
+                                   int port, int database_index)
     : redis_cache_(redis_cache),
       host_(host.as_string()),
       port_(port),
@@ -521,7 +526,8 @@ RedisCache::Connection::Connection(RedisCache* redis_cache, StringPiece host,
       state_mutex_(redis_cache_->thread_system_->NewMutex()),
       redis_(nullptr),
       state_(kShutDown),
-      next_reconnect_at_ms_(redis_cache_->timer_->NowMs()) {}
+      next_reconnect_at_ms_(redis_cache_->timer_->NowMs()),
+      database_index_(database_index) {}
 
 void RedisCache::Connection::StartUp(bool connect_now) {
   CHECK_NE("", host_);
@@ -533,7 +539,7 @@ void RedisCache::Connection::StartUp(bool connect_now) {
     state_ = kDisconnected;
   }
   if (connect_now) {
-    EnsureConnection();
+    EnsureConnectionAndDatabaseSelection();
   }
 }
 
@@ -557,6 +563,21 @@ void RedisCache::Connection::ShutDown() {
   // called while there are some unfinished requests, they should return.
   redis_.reset();
   state_ = kShutDown;
+}
+
+bool RedisCache::Connection::EnsureConnectionAndDatabaseSelection() {
+  {
+    ScopedMutex lock(state_mutex_.get());
+    if (state_ == kConnected) {
+      return true;
+    }
+  }
+
+  if (!EnsureConnection()) {
+    return false;
+  }
+
+  return EnsureDatabaseSelection();
 }
 
 bool RedisCache::Connection::EnsureConnection() {
@@ -597,6 +618,21 @@ bool RedisCache::Connection::EnsureConnection() {
     DCHECK_EQ(state_, kShutDown);
   }
   return state_ == kConnected;
+}
+
+bool RedisCache::Connection::EnsureDatabaseSelection() {
+  // dont select database if database index property not specified in config
+  if (database_index_ != kRedisDatabaseIndexNotSet) {
+    RedisReply reply = RedisCommand(StrCat("SELECT ",
+            IntegerToString(database_index_)).c_str(), REDIS_REPLY_STRING);
+    if (reply == nullptr) {
+      ScopedMutex lock(state_mutex_.get());
+      state_ = kDisconnected;
+      redis_.reset();
+      return false;
+    }
+  }
+  return true;
 }
 
 RedisCache::RedisContext RedisCache::Connection::TryConnect() {
@@ -655,7 +691,7 @@ void RedisCache::Connection::UpdateState() {
 
 RedisCache::RedisReply RedisCache::Connection::RedisCommand(const char* format,
                                                             va_list args) {
-  if (!EnsureConnection()) {
+  if (!EnsureConnectionAndDatabaseSelection()) {
     return nullptr;
   }
 

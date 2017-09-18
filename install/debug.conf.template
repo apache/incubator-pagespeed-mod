@@ -2251,6 +2251,7 @@ AddType application/javascript .js
 #ALL_DIRECTIVES ModPagespeedRedisServer localhost:55555
 #ALL_DIRECTIVES ModPagespeedRedisReconnectionDelayMs 1000
 #ALL_DIRECTIVES ModPagespeedRedisTimeoutUs 50000
+#ALL_DIRECTIVES ModPagespeedRedisDatabaseIndex 0
 #ALL_DIRECTIVES ModPagespeedReportUnloadTime true
 #ALL_DIRECTIVES ModPagespeedRespectVary true
 #ALL_DIRECTIVES ModPagespeedRespectXForwardedProto off

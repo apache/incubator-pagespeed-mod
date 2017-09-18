@@ -32,6 +32,7 @@ namespace net_instaweb {
 namespace {
 
 const int64 kDefaultCacheFlushIntervalSec = 5;
+const int64 kDefaultRedisDatabaseIndex = 0;
 
 const char kFetchHttps[] = "FetchHttps";
 
@@ -48,6 +49,8 @@ const char SystemRewriteOptions::kRedisServer[] = "RedisServer";
 const char SystemRewriteOptions::kRedisReconnectionDelayMs[] =
     "RedisReconnectionDelayMs";
 const char SystemRewriteOptions::kRedisTimeoutUs[] = "RedisTimeoutUs";
+const char SystemRewriteOptions::kRedisDatabaseIndex[] =
+    "RedisDatabaseIndex";
 
 RewriteOptions::Properties* SystemRewriteOptions::system_properties_ = nullptr;
 
@@ -122,6 +125,11 @@ void SystemRewriteOptions::AddProperties() {
                     &SystemRewriteOptions::redis_timeout_us_, "rdt",
                     SystemRewriteOptions::kRedisTimeoutUs,
                     "Timeout for all Redis operations and connection (us)",
+                    true);
+  AddSystemProperty(kDefaultRedisDatabaseIndex,
+                    &SystemRewriteOptions::redis_database_index_, "rdi",
+                    SystemRewriteOptions::kRedisDatabaseIndex,
+                    "Redis server database index selection",
                     true);
   AddSystemProperty(50 * Timer::kMsUs,  // 50 ms
                     &SystemRewriteOptions::slow_file_latency_threshold_us_,

@@ -45,6 +45,7 @@ namespace net_instaweb {
 namespace {
   static const int kReconnectionDelayMs = 10;
   static const int kTimeoutUs = 100 * Timer::kMsUs;
+  static const int kDatabaseIndex[] = {0, 1};
   static const char kSomeKey[] = "SomeKey";
   static const char kSomeValue[] = "SomeValue";
 }
@@ -58,11 +59,12 @@ class RedisCacheTest : public CacheTestBase {
   RedisCacheTest()
       : thread_system_(Platform::CreateThreadSystem()),
         statistics_(thread_system_.get()),
-        timer_(new NullMutex, 0) {
+        timer_(new NullMutex, 0),
+        redis_port_env_(0) {
     RedisCache::InitStats(&statistics_);
   }
 
-  bool InitRedisOrSkip() {
+  bool PrepareRedisOrSkip() {
     const char* portString = getenv("REDIS_PORT");
     int port;
     if (portString == nullptr || !StringToInt(portString, &port)) {
@@ -73,6 +75,8 @@ class RedisCacheTest : public CacheTestBase {
       return false;
     }
 
+    redis_port_env_ = port;
+
     {
       TcpConnectionForTesting conn;
       CHECK(conn.Connect("localhost", port))
@@ -80,28 +84,31 @@ class RedisCacheTest : public CacheTestBase {
       conn.Send("FLUSHALL\r\n");
       CHECK_EQ("+OK\r\n", conn.ReadLineCrLf());
     }
-
-    cache_.reset(new RedisCache("localhost", port, thread_system_.get(),
-                                &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_));
-    cache_->StartUp();
     return true;
   }
 
+  void InitRedisWithCustomDatabaseIndex(const int database_index) {
+    cache_.emplace_back(new RedisCache("localhost", redis_port_env_,
+                            thread_system_.get(), &handler_, &timer_,
+                            kReconnectionDelayMs, kTimeoutUs, &statistics_,
+                            database_index));
+    cache_.back()->StartUp();
+  }
+
   void InitRedisWithCustomServer() {
-    cache_.reset(new RedisCache("localhost", custom_server_port_,
+    cache_.emplace_back(new RedisCache("localhost", custom_server_port_,
                                 thread_system_.get(), &handler_, &timer_,
                                 kReconnectionDelayMs, kTimeoutUs,
-                                &statistics_));
+                                &statistics_, kDatabaseIndex[0]));
   }
 
   void InitRedisWithUnreachableServer() {
     // Try to connect to some definitely unreachable host.
     // 192.0.2.0/24 is reserved for documentation purposes in RFC5737 and no
     // machine should ever be routable in that subnet.
-    cache_.reset(new RedisCache("192.0.2.1", 12345, thread_system_.get(),
+    cache_.emplace_back(new RedisCache("192.0.2.1", 12345, thread_system_.get(),
                                 &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_));
+                                kTimeoutUs, &statistics_, kDatabaseIndex[0]));
   }
 
   static void SetUpTestCase() {
@@ -130,13 +137,13 @@ class RedisCacheTest : public CacheTestBase {
     apr_terminate();
   }
 
-  CacheInterface* Cache() override { return cache_.get(); }
+  CacheInterface* Cache() override { return cache_[0].get(); }
 
   ThreadSynchronizer* GetThreadSynchronizer() {
-    return cache_->GetThreadSynchronizerForTesting();
+    return cache_[0]->GetThreadSynchronizerForTesting();
   }
 
-  scoped_ptr<RedisCache> cache_;
+  std::vector<std::unique_ptr<RedisCache>> cache_;
   scoped_ptr<ThreadSystem> thread_system_;
   SimpleStats statistics_;
   MockTimer timer_;
@@ -144,15 +151,18 @@ class RedisCacheTest : public CacheTestBase {
 
   scoped_ptr<TcpServerThreadForTesting> custom_server_;
   static apr_port_t custom_server_port_;
+  int redis_port_env_;
 };
 
 apr_port_t RedisCacheTest::custom_server_port_ = 0;
 
 // Simple flow of putting in an item, getting it, deleting it.
 TEST_F(RedisCacheTest, PutGetDelete) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
+
   CheckPut("Name", "Value");
   CheckGet("Name", "Value");
   CheckNotFound("Another Name");
@@ -165,15 +175,17 @@ TEST_F(RedisCacheTest, PutGetDelete) {
 
   // We're not running against redis cluster, so we don't expect to ever be
   // redirected, and we should never ask for cluster slots.
-  EXPECT_EQ(0, cache_->Redirections());
-  EXPECT_EQ(0, cache_->ClusterSlotsFetches());
+  EXPECT_EQ(0, cache_[0]->Redirections());
+  EXPECT_EQ(0, cache_[0]->ClusterSlotsFetches());
 }
 
 // Make sure curly braces in keys aren't treated specially.
 TEST_F(RedisCacheTest, CurlyBraces) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
+
   CheckPut("{1}NameA", "Value1A");
   CheckPut("{2}NameB", "Value2B");
   CheckPut("{2}NameC", "Value2C");
@@ -185,9 +197,11 @@ TEST_F(RedisCacheTest, CurlyBraces) {
 
 // And spaces
 TEST_F(RedisCacheTest, Spaces) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
+
   CheckPut("1 NameA", "Value1A");
   CheckPut("2 NameB", "Value2B");
   CheckPut("2 NameC", "Value2C");
@@ -198,16 +212,18 @@ TEST_F(RedisCacheTest, Spaces) {
 }
 
 TEST_F(RedisCacheTest, MultiGet) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
   TestMultiGet();  // Test from CacheTestBase is just fine.
 }
 
 TEST_F(RedisCacheTest, BasicInvalid) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
 
   // Check that we honor callback veto on validity.
   CheckPut("nameA", "valueA");
@@ -220,15 +236,16 @@ TEST_F(RedisCacheTest, BasicInvalid) {
 }
 
 TEST_F(RedisCacheTest, GetStatus) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
 
   GoogleString status;
-  cache_->GetStatus(&status);
+  cache_[0]->GetStatus(&status);
 
   // Check that some reasonable info is present.
-  EXPECT_THAT(status, HasSubstr(cache_->ServerDescription()));
+  EXPECT_THAT(status, HasSubstr(cache_[0]->ServerDescription()));
   EXPECT_THAT(status, HasSubstr("redis_version:"));
   EXPECT_THAT(status, HasSubstr("connected_clients:"));
   EXPECT_THAT(status, HasSubstr("tcp_port:"));
@@ -238,21 +255,48 @@ TEST_F(RedisCacheTest, GetStatus) {
 // Two following tests are identical and ensure that no keys are leaked between
 // tests through shared running Redis server.
 TEST_F(RedisCacheTest, TestsAreIsolated1) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckNotFound(kSomeKey);
   CheckPut(kSomeKey, kSomeValue);
 }
 
 TEST_F(RedisCacheTest, TestsAreIsolated2) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckNotFound(kSomeKey);
   CheckPut(kSomeKey, kSomeValue);
+}
+
+// Test to check multiple redis database(with different index)
+TEST_F(RedisCacheTest, TestMultipleDatabases) {
+  if (!PrepareRedisOrSkip()) {
+    return;
+  }
+  InitRedisWithCustomDatabaseIndex(kDatabaseIndex[0]);
+  InitRedisWithCustomDatabaseIndex(kDatabaseIndex[1]);
+
+  CheckPut("key1", "value1");
+  // adding same key to second database
+  CheckPut(cache_[1].get(), "key1", "value2");
+
+  // checking key entries from databases
+  CheckGet("key1", "value1");
+  CheckGet(cache_[1].get(), "key1", "value2");
+
+  CheckDelete("key1");
+
+  // checking key deleted from first database
+  CheckNotFound("key1");
+
+  // check same key present in second database
+  CheckGet(cache_[1].get(), "key1", "value2");
 }
 
 class RedisGetRespondingServerThread : public TcpServerThreadForTesting {
@@ -268,6 +312,26 @@ class RedisGetRespondingServerThread : public TcpServerThreadForTesting {
   void HandleClientConnection(apr_socket_t* sock) override {
     // See http://redis.io/topics/protocol for details. Request is an array of
     // two bulk strings, answer for GET is a single bulk string.
+
+    // during redis cache startup, Select database command is fired
+    // being the first command, it is captured by the mock redis server
+    static const char kSelectRequest[] =
+        "*2\r\n"
+        "$6\r\nSELECT\r\n"
+        "$1\r\n0\r\n";
+    static const char kSelectAnswer[] = "+OK\r\n";
+    apr_size_t answer_size_select  = STATIC_STRLEN(kSelectAnswer);
+
+    char requestBuf[STATIC_STRLEN(kSelectRequest) + 1];
+    apr_size_t recvSize = sizeof(requestBuf) - 1;
+
+    apr_socket_recv(sock, requestBuf, &recvSize);
+    EXPECT_EQ(STATIC_STRLEN(kSelectRequest), recvSize);
+    requestBuf[recvSize] = 0;
+    EXPECT_STREQ(kSelectRequest, requestBuf);
+
+    apr_socket_send(sock, kSelectAnswer, &answer_size_select);
+
     static const char kRequest[] =
         "*2\r\n"
         "$3\r\nGET\r\n"
@@ -291,7 +355,7 @@ class RedisGetRespondingServerThread : public TcpServerThreadForTesting {
 TEST_F(RedisCacheTest, ReconnectsInstantly) {
   InitRedisWithCustomServer();
   ASSERT_TRUE(StartCustomServer<RedisGetRespondingServerThread>());
-  cache_->StartUp();
+  cache_[0]->StartUp();
 
   CheckGet(kSomeKey, kSomeValue);
   // Server closes connection after processing one request, but cache does not
@@ -312,7 +376,7 @@ TEST_F(RedisCacheTest, ReconnectsInstantly) {
 TEST_F(RedisCacheTest, ReconnectsUntilSuccessWithTimeout) {
   InitRedisWithCustomServer();
   ASSERT_TRUE(StartCustomServer<RedisGetRespondingServerThread>());
-  cache_->StartUp();
+  cache_[0]->StartUp();
 
   CheckGet(kSomeKey, kSomeValue);
   // Server closes connection after processing one request, but cache does not
@@ -341,7 +405,7 @@ TEST_F(RedisCacheTest, ReconnectsUntilSuccessWithTimeout) {
 
 TEST_F(RedisCacheTest, ReconnectsIfStartUpFailed) {
   InitRedisWithCustomServer();
-  cache_->StartUp();
+  cache_[0]->StartUp();
 
   // Client already knows that connection failed.
   EXPECT_FALSE(Cache()->IsHealthy());
@@ -360,9 +424,10 @@ TEST_F(RedisCacheTest, ReconnectsIfStartUpFailed) {
 }
 
 TEST_F(RedisCacheTest, DoesNotReconnectAfterShutdown) {
-  if (!InitRedisOrSkip()) {
+  if (!PrepareRedisOrSkip()) {
     return;
   }
+  InitRedisWithCustomDatabaseIndex(0);
 
   CheckPut(kSomeKey, kSomeValue);
   CheckGet(kSomeKey, kSomeValue);
@@ -402,6 +467,53 @@ class RedisNotRespondingServerThread : public TcpServerThreadForTesting {
   WorkerTestBase::SyncPoint connection_received_;
 };
 
+// This server always waits until connection is received to avoid race
+// condition between server destruction and accepting connection (like in
+// ShutDownDuringConnection). Other servers do not do that because tests
+// actually rely on their answers to client.
+class RedisNotRespondingOperationTimeoutServerThread :
+    public TcpServerThreadForTesting {
+ public:
+  RedisNotRespondingOperationTimeoutServerThread(apr_port_t listen_port,
+                                 ThreadSystem* thread_system)
+      : TcpServerThreadForTesting(listen_port, "redis_not_responding_server",
+                                  thread_system),
+        connection_received_(thread_system) {}
+
+  ~RedisNotRespondingOperationTimeoutServerThread() {
+    connection_received_.Wait();
+    ShutDown();
+  }
+
+ protected:
+  void HandleClientConnection(apr_socket_t* sock) override {
+    // Do nothing, socket will be closed in destructor
+
+    // during redis cache startup, Select database command is fired
+    // being the first command, it is captured by the mock redis server
+    static const char kSelectRequest[] =
+        "*2\r\n"
+        "$6\r\nSELECT\r\n"
+        "$1\r\n0\r\n";
+    static const char kSelectAnswer[] = "+OK\r\n";
+    apr_size_t answer_size_select  = STATIC_STRLEN(kSelectAnswer);
+
+    char requestBuf[STATIC_STRLEN(kSelectRequest) + 1];
+    apr_size_t recvSize = sizeof(requestBuf) - 1;
+
+    apr_socket_recv(sock, requestBuf, &recvSize);
+    EXPECT_EQ(STATIC_STRLEN(kSelectRequest), recvSize);
+    requestBuf[recvSize] = 0;
+    EXPECT_STREQ(kSelectRequest, requestBuf);
+
+    apr_socket_send(sock, kSelectAnswer, &answer_size_select);
+    connection_received_.Notify();
+  }
+
+ private:
+  WorkerTestBase::SyncPoint connection_received_;
+};
+
 // These constants are for timeout tests.
 namespace {
 // Experiments showed that I/O functions on Linux may sometimes time out
@@ -427,9 +539,9 @@ TEST_F(RedisCacheTest, ConnectionTimeout) {
   InitRedisWithUnreachableServer();
   PosixTimer timer;
   int64 started_at_us = timer.NowUs();
-  cache_->StartUp();  // Should try to connect as well.
+  cache_[0]->StartUp();  // Should try to connect as well.
   int64 waited_for_us = timer.NowUs() - started_at_us;
-  EXPECT_FALSE(cache_->IsHealthy());
+  EXPECT_FALSE(cache_[0]->IsHealthy());
   EXPECT_GE(waited_for_us, kTimedOutOperationMinTimeUs);
   EXPECT_LE(waited_for_us, kTimedOutOperationMaxTimeUs);
 }
@@ -470,8 +582,12 @@ class GetRequestThread : public ThreadSystem::Thread {
 TEST_F(RedisCacheTest, IsHealthyDoesNotBlock) {
   InitRedisWithCustomServer();
   StartCustomServer<RedisGetRespondingServerThread>();
+  cache_[0]->StartUp();
+
+  // enabling thread synchronizer after cache start up because
+  // cache startup fires redis command to select redis database
+  // and this execution interferes with the test thread synchronization
   GetThreadSynchronizer()->EnableForPrefix("RedisCommand.After");
-  cache_->StartUp();
 
   GetRequestThread thread(Cache(), thread_system_.get());
   ASSERT_TRUE(thread.Start());
@@ -488,7 +604,7 @@ TEST_F(RedisCacheTest, ConnectionFastFail) {
   InitRedisWithCustomServer();
   StartCustomServer<RedisGetRespondingServerThread>();
   GetThreadSynchronizer()->EnableForPrefix("RedisConnect.After");
-  cache_->StartUp(/* connect_now */ false);
+  cache_[0]->StartUp(/* connect_now */ false);
 
   EXPECT_TRUE(Cache()->IsHealthy());
   GetRequestThread thread(Cache(), thread_system_.get());
@@ -515,7 +631,7 @@ TEST_F(RedisCacheTest, ShutDownDuringConnection) {
   InitRedisWithCustomServer();
   StartCustomServer<RedisNotRespondingServerThread>();
   GetThreadSynchronizer()->EnableForPrefix("RedisConnect.After");
-  cache_->StartUp(/* connect_now */ false);
+  cache_[0]->StartUp(/* connect_now */ false);
 
   EXPECT_TRUE(Cache()->IsHealthy());
   GetRequestThread thread(Cache(), thread_system_.get());
@@ -542,8 +658,8 @@ class RedisCacheOperationTimeoutTest : public RedisCacheTest {
  protected:
   void SetUp() {
     InitRedisWithCustomServer();
-    CHECK(StartCustomServer<RedisNotRespondingServerThread>());
-    cache_->StartUp();
+    CHECK(StartCustomServer<RedisNotRespondingOperationTimeoutServerThread>());
+    cache_[0]->StartUp();
     started_at_us_ = timer_.NowUs();
   }
 

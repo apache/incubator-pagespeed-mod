@@ -241,11 +241,14 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewMemcached(
 SystemCaches::ExternalCacheInterfaces SystemCaches::NewRedis(
     SystemRewriteOptions* config) {
   const ExternalServerSpec& server_spec = config->redis_server();
+  // using database index -1 when property not specified in config
+  const int redis_database_index =
+      config->has_redis_database_index() ? config->redis_database_index() : -1;
   RedisCache* redis_server = new RedisCache(
       server_spec.host, server_spec.port, factory_->thread_system(),
       factory_->message_handler(), factory_->timer(),
       config->redis_reconnection_delay_ms(), config->redis_timeout_us(),
-      factory_->statistics());
+      factory_->statistics(), redis_database_index);
   factory_->TakeOwnership(redis_server);
   redis_servers_.push_back(redis_server);
   if (redis_pool_.get() == NULL) {
