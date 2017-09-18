@@ -419,10 +419,7 @@ request has the <code>Save-Data</code> header.
 This option sets the maximum size in bytes of any image that will be inlined
 into CSS. For inline CSS in HTML files, the value used is the smaller of
 <code>MaxBytes</code> or <code>ImageInlineMaxBytes</code>. The default value
-is 3072. This is higher than <code>ImageInlineMaxBytes</code> because external
-CSS resources are often cacheable and can be shared between multiple pages,
-increasing the benefit of a high inlining threshold compared to non-cacheable,
-non-shareable HTML files.
+is 0.
 </p>
 <dl>
   <dt>Apache:<dd><pre class="prettyprint"
