@@ -15,8 +15,10 @@ before_install:
   - sudo add-apt-repository -y ppa:git-core/ppa
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
+  # git.apache.org is the canonical repo but throttles network connections.
+  # using github.com seems to reduce network errors a lot.
+  - git config --global url.https://github.com/apache/.insteadOf git://git.apache.org/
   - git submodule update --init --recursive --jobs=6
-
 env:
   global:
     - MAKEFLAGS=-j3
