@@ -17,9 +17,7 @@
 
 start_test CSS minify with calc function and value 0.
 
-URL="$TEST_ROOT/css_minify_calc_function_value_zero.html?PageSpeedFilters=+inline_css"
-RESPONSE_OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)
-
+URL="$TEST_ROOT/css_minify_calc_function_value_zero.html?PageSpeedFilters=rewrite_css"
 # checking for minified css with unit retained for 0 value 
-MATCHES=$(echo "$RESPONSE_OUT" | fgrep -c "width:calc(50ex - 0px)")
-check [ $MATCHES -eq 1 ]
+http_proxy=$SECONDARY_HOSTNAME fetch_until $URL \
+  'grep -c width:calc(50ex.-.0px)' 1
