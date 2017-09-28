@@ -9,7 +9,21 @@
 
 
   <div id=content>
-<h1>PageSpeed Release Notes</h1>
+<h1>PageSpeed Release Notes</h1> 
+  <h2 id="release_1.12.34.3-stable">Release 1.12.34.3-stable</h2>
+  <p>
+    This nginx-only release made September 28th, 2017. As of nginx 1.13.4
+    building the module would fail. This release resolves the problem.    
+  </p>
+  <h4 class="hide-from-toc">Issues Affecting Nginx</h4>
+  <ul>
+    <li><strong>
+        <a href="https://github.com/pagespeed/ngx_pagespeed/issues/1451">
+          Issue 1451</a></strong>
+      nginx 1.13.4 ‘ngx_http_core_try_files_phase’ was not declared in this scope
+    </li>
+  </ul>
+    
   <h2 id="release_1.12.34.2-stable">Release 1.12.34.2-stable</h2>
   <p>
     This release was made June 19, 2017. It is a clone of
