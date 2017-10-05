@@ -96,7 +96,7 @@ while [[ -z "$SERVER_PORT" ]]; do
   SERVER_PORT=$((($RANDOM % 31744) + 1024))
 
   # First check netstat -tan to see if somone is already listening on this port.
-  if nenstat -tan 2>/dev/null | grep --quiet ":$SERVER_PORT .* LISTEN"; then
+  if netstat -tan 2>/dev/null | grep --quiet ":$SERVER_PORT .* LISTEN"; then
     continue
   fi
 
