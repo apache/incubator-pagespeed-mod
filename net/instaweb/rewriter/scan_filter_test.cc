@@ -230,10 +230,10 @@ TEST_F(ScanFilterTest, CspBase1) {
   rewrite_driver()->AddFilters();
   EnableDebug();
   // The default base (the URL) is overridden by a base tag.
-  const char kTestName[] = "set_base";
-  const char kNewBase[] = "http://example.com/index.html";
-  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                      "content=\"img-src www.example.com\">";
+  static const char kTestName[] = "set_base";
+  static const char kNewBase[] = "http://example.com/index.html";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"img-src www.example.com\">";
   ValidateNoChanges(kTestName,
                     StrCat("<head>",
                            kCsp,
@@ -247,10 +247,10 @@ TEST_F(ScanFilterTest, CspBase2) {
   rewrite_driver()->AddFilters();
   EnableDebug();
   // The default base (the URL) is overridden by a base tag.
-  const char kTestName[] = "set_base";
-  const char kNewBase[] = "http://example.com/index.html";
-  const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                      "content=\"base-uri www.example.com\">";
+  static const char kTestName[] = "set_base";
+  static const char kNewBase[] = "http://example.com/index.html";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"base-uri www.example.com\">";
   ValidateExpected(
       kTestName,
       StrCat("<head>",

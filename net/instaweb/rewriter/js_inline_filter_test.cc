@@ -512,12 +512,12 @@ TEST_F(JsInlineFilterTest, BasicCsp) {
   AddFilter(RewriteOptions::kInlineJavascript);
   EnableDebug();
 
-  const char kJs[] = "function id(x) { return x; }\n";
+  static const char kJs[] = "function id(x) { return x; }\n";
   SetResponseWithDefaultHeaders("script.js", kContentTypeJavascript, kJs, 3000);
 
-  const char kCspNoInline[] =
+  static const char kCspNoInline[] =
       "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src *;\">";
-  const char kCspYesInline[] =
+  static const char kCspYesInline[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"script-src * 'unsafe-inline';\">";
 

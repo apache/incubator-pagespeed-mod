@@ -1492,7 +1492,7 @@ TEST_P(JavascriptFilterTest, CspBaseUri) {
   SetResponseWithDefaultHeaders(
       "scripts/a.js", kContentTypeJavascript, kJsData, 100);
 
-  const char kCspAndBase[] =
+  static const char kCspAndBase[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"base-uri whatever; script-src *\">"
       "<base href=\"http://test.com/\">";

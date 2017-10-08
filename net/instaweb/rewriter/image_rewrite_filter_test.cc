@@ -4440,7 +4440,7 @@ TEST_F(ImageRewriteTest, RenderCsp) {
 
   // We want a policy that only affects output resources here (since the input
   // one will apply at CreateInputResource time, before the cache lookup)
-  const char kCsp[] =
+  static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"img-src */images/ */uploads/b.png\">";
 
