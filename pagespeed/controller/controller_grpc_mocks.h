@@ -75,7 +75,7 @@ class MockReaderWriterT
     EXPECT_CALL(*this, ReadInitialMetadata(_)).Times(0);
     EXPECT_CALL(*this, Finish(_, _)).Times(0);
     EXPECT_CALL(*this, Write(_, _)).Times(0);
-    EXPECT_CALL(*this, Write(_, _,_)).Times(0);
+    EXPECT_CALL(*this, Write(_, _, _)).Times(0);
     EXPECT_CALL(*this, Read(_, _)).Times(0);
   }
 
