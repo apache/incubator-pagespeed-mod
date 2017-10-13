@@ -75,6 +75,7 @@ class MockReaderWriterT
     EXPECT_CALL(*this, ReadInitialMetadata(_)).Times(0);
     EXPECT_CALL(*this, Finish(_, _)).Times(0);
     EXPECT_CALL(*this, Write(_, _)).Times(0);
+    EXPECT_CALL(*this, Write(_, _, _)).Times(0);
     EXPECT_CALL(*this, Read(_, _)).Times(0);
   }
 
@@ -136,6 +137,7 @@ class MockReaderWriterT
   MOCK_METHOD1(ReadInitialMetadata, void(void* tag));
   MOCK_METHOD2(Finish, void(::grpc::Status* status, void* tag));
   MOCK_METHOD2_T(Write, void(const RequestT& resp, void* tag));
+  MOCK_METHOD3_T(Write, void(const RequestT& resp, ::grpc::WriteOptions options, void* tag));
   MOCK_METHOD2_T(Read, void(ResponseT* resp, void* tag));
 
  private:
