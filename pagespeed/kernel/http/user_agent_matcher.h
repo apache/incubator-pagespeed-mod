@@ -92,10 +92,6 @@ class UserAgentMatcher {
   // only Android 4.0+ (excluding Firefox).
   bool LegacyWebp(const StringPiece& user_agent) const;
 
-  // Returns true if the user agent includes a browser that is Pagespeed
-  // Insights. We send webp to PSI, although it doesn't advertise it.
-  bool InsightsWebp(const StringPiece& user_agent) const;
-
   // Returns true if the user agent includes a string indicating WebP lossy
   // or WebP alpha support. If the browser does indeed support WebP, it also
   // needs to send out an "accept: webp" header.
@@ -141,7 +137,6 @@ class UserAgentMatcher {
   FastWildcardGroup defer_js_whitelist_;
   FastWildcardGroup defer_js_mobile_whitelist_;
   FastWildcardGroup legacy_webp_;
-  FastWildcardGroup pagespeed_insights_;
   FastWildcardGroup supports_webp_lossless_alpha_;
   FastWildcardGroup supports_webp_animated_;
   FastWildcardGroup supports_dns_prefetch_;
