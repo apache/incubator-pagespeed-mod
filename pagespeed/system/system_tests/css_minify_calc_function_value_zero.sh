@@ -21,4 +21,4 @@ URL="$TEST_ROOT/css_minify_calc_function_value_zero.html?PageSpeedFilters=+inlin
 function count_inline_calc() {
   fgrep -c "width:calc(50ex - 0px)"
 }
-http_proxy=$SECONDARY_HOSTNAME fetch_until -save "$URL" count_inline_calc 1
+http_proxy=$SECONDARY_HOSTNAME fetch_until "$URL" count_inline_calc 1

@@ -18,5 +18,5 @@
 start_test CSS minify for unicode-range descriptor.
 
 URL="$TEST_ROOT/css_minify_unicode_range_descriptor.html?PageSpeedFilters=+inline_css"
-http_proxy=$SECONDARY_HOSTNAME fetch_until -save "$URL" \
+http_proxy=$SECONDARY_HOSTNAME fetch_until "$URL" \
     "fgrep -c unicode-range:U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116" 1
