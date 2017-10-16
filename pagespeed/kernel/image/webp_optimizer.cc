@@ -371,8 +371,8 @@ ScanlineStatus WebpFrameWriter::PrepareImage(const ImageSpec* image_spec) {
     }
 
     options.anim_params.bgcolor = RgbaToPackedArgb(image_spec_->bg_color);
-    options.anim_params.loop_count =
-        static_cast<int>(image_spec_->loop_count - 1);
+    // Use Chrome M63+ interpretation of loop_count.
+    options.anim_params.loop_count = static_cast<int>(image_spec_->loop_count);
 
     options.minimize_size = 0;
     options.allow_mixed = 0;
