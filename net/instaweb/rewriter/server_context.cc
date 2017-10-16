@@ -1357,7 +1357,7 @@ GoogleString ServerContext::ShowCacheForm(StringPiece user_agent) {
       "  URL: <input id=metadata_text type=text name=url size=110 /><br>\n"
       "  User-Agent: <input id=user_agent type=text size=103 name=user_agent ",
       ua_default,
-      "/></br> \n",
+      "/><br> \n",
       "  <input id=metadata_submit type=submit "
       "   value='Show Metadata Cache Entry' />"
       "  <input id=metadata_clear type=reset value='Clear' />",
