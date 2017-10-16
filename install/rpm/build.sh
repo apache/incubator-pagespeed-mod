@@ -36,21 +36,21 @@ stage_install_rpm() {
   # 'conf' file. So we install the load template as the conf file, and
   # then concatenate the actual conf file.
   process_template "${BUILDDIR}/install/common/pagespeed.load.template" \
-    "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
+    "${STAGEDIR}${APACHE_CONFDIR}/${PAGESPEED_CONF_PREFIX}pagespeed.conf"
   process_template "${BUILDDIR}/install/common/pagespeed.conf.template" \
     "${BUILDDIR}/install/common/pagespeed.conf"
   cat "${BUILDDIR}/install/common/pagespeed.conf" >> \
-    "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
+    "${STAGEDIR}${APACHE_CONFDIR}/${PAGESPEED_CONF_PREFIX}pagespeed.conf"
   if [ "$CPANEL" = true ]; then
     cat "${BUILDDIR}/install/rpm/pagespeed.cpanel.conf" >> \
-      "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
+      "${STAGEDIR}${APACHE_CONFDIR}/${PAGESPEED_CONF_PREFIX}pagespeed.conf"
   fi
   install -m 755 "${BUILDDIR}/js_minify" \
     "${STAGEDIR}/usr/bin/pagespeed_js_minify"
-  chmod 644 "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed.conf"
+  chmod 644 "${STAGEDIR}${APACHE_CONFDIR}/${PAGESPEED_CONF_PREFIX}pagespeed.conf"
   install -m 644 \
     "${BUILDDIR}/../../net/instaweb/genfiles/conf/pagespeed_libraries.conf" \
-    "${STAGEDIR}${APACHE_CONFDIR}/${CPANEL_CONF_PREFIX}pagespeed_libraries.conf"
+    "${STAGEDIR}${APACHE_CONFDIR}/${PAGESPEED_CONF_PREFIX}pagespeed_libraries.conf"
 }
 
 # Actually generate the package file.
@@ -230,7 +230,7 @@ SSL_CERT_DIR="/etc/pki/tls/certs"
 SSL_CERT_FILE_COMMAND="ModPagespeedSslCertFile /etc/pki/tls/cert.pem"
 APACHE_MODULEDIR_IA32="/usr/lib/httpd/modules"
 APACHE_MODULEDIR_X64="/usr/lib64/httpd/modules"
-CPANEL_CONF_PREFIX=""
+PAGESPEED_CONF_PREFIX=""
 
 if [ "$CPANEL" = true ]; then
   APACHE_CONFDIR="/etc/apache2/conf.modules.d"
@@ -238,7 +238,7 @@ if [ "$CPANEL" = true ]; then
   PACKAGE="ea-apache24-$(echo $PACKAGE | tr - _)"
   APACHE_MODULEDIR_IA32="/usr/lib/apache2/modules"
   APACHE_MODULEDIR_X64="/usr/lib64/apache2/modules"
-  CPANEL_CONF_PREFIX="456_"
+  PAGESPEED_CONF_PREFIX="456_"
   COMMENT_OUT_CRON="\# "
 fi
 
