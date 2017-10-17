@@ -1010,7 +1010,7 @@ void CssFilter::EndElementImpl(HtmlElement* element) {
 
 void CssFilter::StartInlineRewrite(HtmlCharactersNode* char_node,
                                    HtmlElement* parent_element) {
-  if (driver()->content_security_policy().HasAnyOrDefault(
+  if (driver()->content_security_policy().HasDirectiveOrDefaultSrc(
         CspDirective::kStyleSrc)) {
     driver()->InsertDebugComment(kInlineCspMessage, parent_element);
     return;
@@ -1046,7 +1046,7 @@ void CssFilter::StartInlineRewrite(HtmlCharactersNode* char_node,
 void CssFilter::StartAttributeRewrite(HtmlElement* element,
                                       HtmlElement::Attribute* style,
                                       InlineCssKind inline_css_kind) {
-  if (driver()->content_security_policy().HasAnyOrDefault(
+  if (driver()->content_security_policy().HasDirectiveOrDefaultSrc(
         CspDirective::kStyleSrc)) {
     driver()->InsertDebugComment(kInlineCspMessage, element);
     return;

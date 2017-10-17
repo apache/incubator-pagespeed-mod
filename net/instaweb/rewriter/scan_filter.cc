@@ -120,7 +120,8 @@ void ScanFilter::StartElement(HtmlElement* element) {
       // It would be much better if we were to use IsBasePermitted here, but
       // we may not be able to set previous_origin accurately. So instead,
       // we act overly conservatively and handle
-      if (driver_->content_security_policy().HasAny(CspDirective::kBaseUri)) {
+      if (driver_->content_security_policy().HasDirective(
+              CspDirective::kBaseUri)) {
         driver_->InsertDebugComment(
             "Unable to check safety of a base with CSP base-uri, "
             "proceeding conservatively.",
