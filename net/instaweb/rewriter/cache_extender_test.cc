@@ -1157,6 +1157,45 @@ TEST_F(CacheExtenderTest, VaryOrigin) {
                    StringPrintf(kCssFormat, cache_extended_css.c_str()));
 }
 
+TEST_F(CacheExtenderTest, RenderCsp) {
+  InitTest(kShortTtlSec);
+  EnableDebug();
+
+  InitResource("a.jpg", kContentTypeJpeg, kImageData, kShortTtlSec);
+  InitResource("b.js", kContentTypeJavascript, kJsData, kShortTtlSec);
+  InitResource("c.css", kContentTypeCss, "* {display:   block; }",
+               kShortTtlSec);
+
+  const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"img-src *; script-src */b.js; style-src */c.css;\">";
+
+  // First rewrite w/o CSP, everything is expanded.
+  ValidateExpected("no_csp",
+                   "<img src=a.jpg><script src=b.js></script>"
+                   "<link rel=stylesheet href=c.css>",
+                   "<img src=a.jpg.pagespeed.ce.0.jpg>"
+                   "<script src=b.js.pagespeed.ce.0.js></script>"
+                   "<link rel=stylesheet href=c.css.pagespeed.ce.0.css>");
+
+
+  // Now with CSP, script and style are blocked by it at render time
+  ValidateExpected(
+      "render_csp",
+      StrCat(kCsp,
+             "<img src=a.jpg><script src=b.js></script>"
+             "<link rel=stylesheet href=c.css>"),
+      StrCat(kCsp,
+             "<img src=a.jpg.pagespeed.ce.0.jpg>"
+             "<script src=b.js></script>"
+             "<!--PageSpeed output (by CacheExtender) not permitted by Content "
+             "Security Policy-->"
+             "<link rel=stylesheet href=c.css>"
+             "<!--PageSpeed output (by CacheExtender) not permitted by Content "
+             "Security Policy"
+             "-->"));
+}
+
 }  // namespace
 
 }  // namespace net_instaweb

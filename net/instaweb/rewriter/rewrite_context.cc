@@ -45,6 +45,7 @@
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -1126,7 +1127,7 @@ void RewriteContext::Start() {
             metadata_log_info->num_disabled_rewrites() + 1);
       }
       Cancel();
-      RetireRewriteForHtml(false /* no rendering*/);
+      RetireRewriteForHtml(RenderOp::kDontRender);
       return;
     }
   }
@@ -1830,10 +1831,11 @@ void RewriteContext::FinalizeRewriteForHtml() {
   Driver()->DeregisterForPartitionKey(partition_key_, this);
   WritePartition();
 
-  RetireRewriteForHtml(true /* permit rendering, if attached */);
+  RetireRewriteForHtml(PolicyPermitsRendering() ?
+                           RenderOp::kRender : RenderOp::kRenderOnlyCspWarning);
 }
 
-void RewriteContext::RetireRewriteForHtml(bool permit_render) {
+void RewriteContext::RetireRewriteForHtml(RenderOp permit_render) {
   DCHECK(driver_ != NULL);
   if (parent_ != NULL) {
     Propagate(permit_render);
@@ -1996,13 +1998,28 @@ void RewriteContext::Harvest() {
 void RewriteContext::Render() {
 }
 
+bool RewriteContext::AreOutputsAllowedByCsp(CspDirective role) const {
+  if (Driver()->content_security_policy().empty()) {
+   return true;
+  }
+
+  for (const OutputResourcePtr& o : outputs_) {
+    if (o.get() != nullptr && o->has_hash() && o->has_url() &&
+        !Driver()->IsLoadPermittedByCsp(GoogleUrl(o->url()), role)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void RewriteContext::WillNotRender() {
 }
 
 void RewriteContext::Cancel() {
 }
 
-void RewriteContext::Propagate(bool render_slots) {
+void RewriteContext::Propagate(RenderOp render_op) {
+  bool render_slots = (render_op == RenderOp::kRender);
   DCHECK(rewrite_done_ && (num_pending_nested_ == 0));
   if (rewrite_done_ && (num_pending_nested_ == 0)) {
     if (render_slots) {
@@ -2016,10 +2033,24 @@ void RewriteContext::Propagate(bool render_slots) {
     if (has_parent()) {
       parent()->partitions()->mutable_debug_message()->MergeFrom(
           partitions_->debug_message());
-    } else if (render_slots && num_slots() >= 1) {
-      Driver()->InsertDebugComments(partitions_->debug_message(),
-                                    slot(0)->element());
+    } else if (num_slots() >= 1) {
+      if (render_slots) {
+        Driver()->InsertDebugComments(partitions_->debug_message(),
+                                      slot(0)->element());
+      }
+      else if (render_op == RenderOp::kRenderOnlyCspWarning) {
+        StringPiece name = id();
+        RewriteFilter* filter = Driver()->FindFilter(id());
+        if (filter != nullptr) {
+          name = filter->Name();
+        }
+        Driver()->InsertDebugComment(
+            StrCat("PageSpeed output (by ", name, ") not permitted by Content "
+                   "Security Policy"),
+            slot(0)->element());
+      }
     }
+
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
       const CachedResult* partition = output_partition(p);
       int n = partition->input_size();

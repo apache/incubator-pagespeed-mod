@@ -334,6 +334,10 @@ class JsCombineFilter::Context : public RewriteContext {
     RewriteDone(result, partition_index);
   }
 
+  bool PolicyPermitsRendering() const {
+    return AreOutputsAllowedByCsp(CspDirective::kScriptSrc);
+  }
+
   // For every partition, write a new script tag that points to the
   // combined resource.  Then create new script tags for each slot
   // in the partition that evaluate the variable that refers to the

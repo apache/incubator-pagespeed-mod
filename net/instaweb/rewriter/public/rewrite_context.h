@@ -25,6 +25,7 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/input_info.pb.h"
+#include "net/instaweb/rewriter/public/csp_directive.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
@@ -52,6 +53,12 @@ class RewriteOptions;
 class Statistics;
 class Variable;
 class FreshenMetadataUpdateManager;
+
+enum class RenderOp {
+  kDontRender,
+  kRenderOnlyCspWarning,
+  kRender
+};
 
 // RewriteContext manages asynchronous rewriting of some n >= 1 resources (think
 // CSS, JS, or images) into m >= 0 improved versions (typically, n = m = 1).
@@ -415,6 +422,16 @@ class RewriteContext {
   // overriding this method -- the empty default implementation is fine.
   virtual void Harvest();
 
+  // This method gives the context a chance to verify that rendering the
+  // result is consistent with the current document's (Content Security) Policy,
+  // which may be different than that of the page for which the result was first
+  // computed + cached. Most subclasses can just call AreOutputsAllowedByCsp(),
+  // with appropriate role.
+  virtual bool PolicyPermitsRendering() const = 0;
+
+  // Helper that checks that all output resources are OK with CSP as given role.
+  bool AreOutputsAllowedByCsp(CspDirective role) const;
+
   // Performs rendering activities that span multiple HTML slots.  For
   // example, in a filter that combines N slots to 1, N-1 of the HTML
   // elements might need to be removed.  That can be performed in
@@ -756,7 +773,7 @@ class RewriteContext {
   // particular, each slot must be updated with any rewritten
   // resources, before the successors can be run, independent of
   // whether the slots can be rendered into HTML.
-  void Propagate(bool render_slots);
+  void Propagate(RenderOp render_op);
 
   // With all resources loaded, the rewrite can now be done, writing:
   //    The metadata into the cache
@@ -805,7 +822,7 @@ class RewriteContext {
   // successors if applicable. This is the tail portion of
   // FinalizeRewriteForHtml that must be called even if we didn't
   // actually get as far as computing a partition_key_.
-  void RetireRewriteForHtml(bool permit_render);
+  void RetireRewriteForHtml(RenderOp permit_render);
 
   // Marks this job and any dependents slow as appropriate, notifying the
   // RewriteDriver of any changes.

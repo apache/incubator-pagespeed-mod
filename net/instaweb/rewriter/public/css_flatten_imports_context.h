@@ -172,6 +172,11 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     }
   }
 
+  bool PolicyPermitsRendering() const {
+    // We apply CSP policy for flattening at top-level, not here.
+    return true;
+  }
+
   virtual void Render() {
     // If we have flattened the imported file ...
     if (num_output_partitions() == 1 && output_partition(0)->optimizable()) {

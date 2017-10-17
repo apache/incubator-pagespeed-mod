@@ -56,6 +56,11 @@ class JsInlineFilter::Context : public InlineRewriteContext {
   }
 
   virtual const char* id() const { return RewriteOptions::kJavascriptInlineId; }
+
+  bool PolicyPermitsRendering() const override {
+    return Driver()->content_security_policy().PermitsInlineScript();
+  }
+
   RewriteDriver::InputRole InputRole() const override {
     return RewriteDriver::InputRole::kScript;
   }

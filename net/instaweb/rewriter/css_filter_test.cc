@@ -2467,6 +2467,31 @@ TEST_F(CssFilterTest, InlineCsp) {
              "<!--Avoiding modifying inline style with CSP present-->"));
 }
 
+TEST_F(CssFilterTest, RenderCsp) {
+  EnableDebug();
+  SetResponseWithDefaultHeaders("styles/a.css",
+                                kContentTypeCss, kInputStyle, 100);
+  SetResponseWithDefaultHeaders("uploads/sneaky.png",
+                                kContentTypeCss, kInputStyle, 100);
+
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"style-src */styles/a.css \">";
+
+  // No CSP -> fine.
+  ValidateExpected(
+      "no_csp",
+      CssLinkHref("styles/a.css"),
+      CssLinkHref(Encode("styles/", "cf", "0", "a.css", "css")));
+
+  // CSP applied at render time, from cached result.
+  ValidateExpected(
+      "render_csp",
+      StrCat(kCsp, CssLinkHref("styles/a.css")),
+      StrCat(kCsp, CssLinkHref("styles/a.css"),
+             "<!--PageSpeed output (by CssFilter) not permitted by "
+             "Content Security Policy-->"));
+}
+
 class CssFilterTestUrlNamer : public CssFilterTest {
  public:
   CssFilterTestUrlNamer() {

@@ -1439,6 +1439,35 @@ TEST_P(JavascriptFilterTest, BasicCsp) {
              "because CSP disallows its fetch-->"));
 }
 
+TEST_P(JavascriptFilterTest, RenderCsp) {
+  InitFilters();
+  EnableDebug();
+
+  SetResponseWithDefaultHeaders(
+      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders(
+      "uploads/sneaky.png", kContentTypeJavascript, kJsData, 100);
+
+  static const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"script-src */scripts/a.js;\">";
+
+  // First try w/o CSP, should rewrite.
+  ValidateExpected(
+      "no_csp",
+      ScriptSrc("scripts/a.js"),
+      ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")));
+
+  // Now render again w/CSP -- blocked since .pagespeed. resource isn't
+  //permitted.
+  ValidateExpected(
+      "render_csp",
+      StrCat(kCsp, ScriptSrc("scripts/a.js")),
+      StrCat(kCsp, ScriptSrc("scripts/a.js"),
+             "<!--PageSpeed output (by JavascriptFilter) not permitted by "
+             "Content Security Policy-->"));
+}
+
 TEST_P(JavascriptFilterTest, InlineCsp) {
   InitFilters();
   EnableDebug();
@@ -1455,6 +1484,29 @@ TEST_P(JavascriptFilterTest, InlineCsp) {
       StrCat(kCsp, kScript),
       StrCat(kCsp, kScript,
              "<!--Avoiding modifying inline script with CSP present-->"));
+}
+
+TEST_P(JavascriptFilterTest, CspBaseUri) {
+  InitFilters();
+  EnableDebug();
+  SetResponseWithDefaultHeaders(
+      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+
+  static const char kCspAndBase[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"base-uri whatever; script-src *\">"
+      "<base href=\"http://test.com/\">";
+
+  ValidateExpected(
+      "base_uri_csp",
+      StrCat(kCspAndBase,
+             ScriptSrc("scripts/a.js"),
+             ScriptSrc("http://test.com/scripts/a.js")),
+      StrCat(kCspAndBase,
+             "<!--Unable to check safety of a base with CSP base-uri, "
+             "proceeding conservatively.-->",
+             ScriptSrc("scripts/a.js"),
+             ScriptSrc("http://test.com/scripts/a.js.pagespeed.jm.0.js")));
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.

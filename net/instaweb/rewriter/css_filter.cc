@@ -290,6 +290,10 @@ bool CssFilter::Context::SendFallbackResponse(
   return ret;
 }
 
+bool CssFilter::Context::PolicyPermitsRendering() const {
+  return AreOutputsAllowedByCsp(CspDirective::kStyleSrc);
+}
+
 void CssFilter::Context::Render() {
   if (num_output_partitions() == 0) {
     return;

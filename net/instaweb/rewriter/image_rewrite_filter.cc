@@ -405,6 +405,7 @@ class ImageRewriteFilter::Context : public SingleRewriteContext {
             is_resized_using_rendered_dimensions) {}
   virtual ~Context() {}
 
+  bool PolicyPermitsRendering() const override;
   virtual void Render();
   virtual void RewriteSingle(const ResourcePtr& input,
                              const OutputResourcePtr& output);
@@ -561,6 +562,10 @@ void ImageRewriteFilter::Context::RewriteSingle(
   FindServerContext()->central_controller()->ScheduleExpensiveOperation(
       new InvokeRewriteFunction(this, filter_, input_resource,
                                 output_resource));
+}
+
+bool ImageRewriteFilter::Context::PolicyPermitsRendering() const {
+  return AreOutputsAllowedByCsp(CspDirective::kImgSrc);
 }
 
 void ImageRewriteFilter::Context::Render() {

@@ -244,6 +244,10 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     RewriteDone(RewriteJavascript(input, output), 0);
   }
 
+  bool PolicyPermitsRendering() const override {
+    return AreOutputsAllowedByCsp(CspDirective::kScriptSrc);
+  }
+
   void Render() override {
     if (num_output_partitions() != 1) {
       return;

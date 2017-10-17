@@ -837,6 +837,10 @@ class ImageCombineFilter::Context : public RewriteContext {
     RewriteDone(result, partition_index);
   }
 
+  bool PolicyPermitsRendering() const {
+    return AreOutputsAllowedByCsp(CspDirective::kImgSrc);
+  }
+
   // Finalize the declarations for the sprited slots.
   // TODO(nforman): be smarter about when to sprite and when not.
   // e.g. if it turns out all the divs are too big to use the sprite

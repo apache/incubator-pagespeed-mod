@@ -703,13 +703,17 @@ class RewriteDriver : public HtmlParse {
   RewriteFilter* FindFilter(const StringPiece& id) const;
 
   // Returns refs_before_base.
-  bool refs_before_base() { return refs_before_base_; }
+  bool refs_before_base() const { return refs_before_base_; }
+  bool other_base_problem() const { return other_base_problem_; }
 
   // Sets whether or not there were references to urls before the
   // base tag (if there is a base tag).  This variable has document-level
   // scope.  It is reset at the beginning of every document by
   // ScanFilter.
   void set_refs_before_base() { refs_before_base_ = true; }
+
+  // Sets if we had other difficulty handling <base> tag.
+  void set_other_base_problem() { other_base_problem_ = true; }
 
   // Get/set the charset of the containing HTML page. See scan_filter.cc for
   // an explanation of how this is determined, but NOTE that the determined
@@ -773,7 +777,7 @@ class RewriteDriver : public HtmlParse {
   //
   // If 'permit_render' is false, no rendering will be asked for even if
   // the context is still attached.
-  void RewriteComplete(RewriteContext* rewrite_context, bool permit_render);
+  void RewriteComplete(RewriteContext* rewrite_context, RenderOp permit_render);
 
   // Provides a mechanism for a RewriteContext to notify a
   // RewriteDriver that a certain number of rewrites have been discovered
@@ -1255,7 +1259,6 @@ class RewriteDriver : public HtmlParse {
   CspContext* mutable_content_security_policy() { return &csp_context_; }
   bool IsLoadPermittedByCsp(const GoogleUrl& url, InputRole role);
   bool IsLoadPermittedByCsp(const GoogleUrl& url, CspDirective role);
-  bool IsRelativeUrlLoadPermittedByCsp(StringPiece url, CspDirective role);
 
  protected:
   virtual void DetermineFiltersBehaviorImpl();
@@ -1441,6 +1444,9 @@ class RewriteDriver : public HtmlParse {
   // no base tag, this should be false.  If the base tag is before all
   // other url references, this should also be false.
   bool refs_before_base_;
+
+  // Stores if we had to reject the <base> tag for some reason.
+  bool other_base_problem_;
 
   // The charset of the containing HTML page.
   GoogleString containing_charset_;

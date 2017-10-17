@@ -60,6 +60,10 @@ class CssInlineFilter::Context : public InlineRewriteContext {
     return filter_->ShouldInline(resource, attrs_charset_, reason);
   }
 
+  bool PolicyPermitsRendering() const override {
+    return Driver()->content_security_policy().PermitsInlineStyle();
+  }
+
   virtual void Render() {
     if (num_output_partitions() < 1 ||
         !output_partition(0)->has_inlined_data()) {

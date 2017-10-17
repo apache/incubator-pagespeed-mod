@@ -283,6 +283,7 @@ class CssFilter::Context : public SingleRewriteContext {
   CssHierarchy* mutable_hierarchy() { return &hierarchy_; }
 
  protected:
+  bool PolicyPermitsRendering() const override;
   void Render() override;
   virtual void Harvest();
   virtual bool Partition(OutputPartitions* partitions,

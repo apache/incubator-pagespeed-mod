@@ -86,6 +86,9 @@ class SimpleTextFilter : public RewriteFilter {
     virtual bool OptimizationOnly() const {
       return rewriter_->OptimizationOnly();
     }
+    bool PolicyPermitsRendering() const override {
+      return true;
+    }
 
    private:
     RewriterPtr rewriter_;

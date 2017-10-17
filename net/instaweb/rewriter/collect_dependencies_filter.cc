@@ -192,6 +192,10 @@ class CollectDependenciesFilter::Context : public RewriteContext {
     return "cdf";
   }
 
+  bool PolicyPermitsRendering() const {
+    return true;  // We don't alter the doc...
+  }
+
   void Render() override {
     Report();
   }

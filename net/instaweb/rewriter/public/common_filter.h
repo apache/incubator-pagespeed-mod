@@ -113,6 +113,8 @@ class CommonFilter : public EmptyHtmlFilter {
   // out_url. If resolution fails, the resulting URL may be invalid.
   void ResolveUrl(StringPiece input_url, GoogleUrl* out_url);
 
+  bool IsRelativeUrlLoadPermittedByCsp(StringPiece url, CspDirective role);
+
   // Returns whether or not the base url is valid.  This value will change
   // as a filter processes the document.  E.g. If there are url refs before
   // the base tag is reached, it will return false until the filter sees the

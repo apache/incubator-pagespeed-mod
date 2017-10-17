@@ -226,4 +226,44 @@ TEST_F(ScanFilterTest, CspParseOff) {
       GoogleUrl("http://www.example.org/foo.png"), CspDirective::kImgSrc));
 }
 
+TEST_F(ScanFilterTest, CspBase1) {
+  rewrite_driver()->AddFilters();
+  EnableDebug();
+  // The default base (the URL) is overridden by a base tag.
+  static const char kTestName[] = "set_base";
+  static const char kNewBase[] = "http://example.com/index.html";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"img-src www.example.com\">";
+  ValidateNoChanges(kTestName,
+                    StrCat("<head>",
+                           kCsp,
+                           "<base href=\"", kNewBase, "\">"
+                           "</head>"));
+  EXPECT_FALSE(rewrite_driver()->other_base_problem());
+}
+
+
+TEST_F(ScanFilterTest, CspBase2) {
+  rewrite_driver()->AddFilters();
+  EnableDebug();
+  // The default base (the URL) is overridden by a base tag.
+  static const char kTestName[] = "set_base";
+  static const char kNewBase[] = "http://example.com/index.html";
+  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
+                             "content=\"base-uri www.example.com\">";
+  ValidateExpected(
+      kTestName,
+      StrCat("<head>",
+            kCsp,
+            "<base href=\"", kNewBase, "\">"
+            "</head>"),
+      StrCat("<head>",
+            kCsp,
+            "<base href=\"", kNewBase, "\">"
+            "<!--Unable to check safety of a base with CSP base-uri, "
+            "proceeding conservatively.-->"
+            "</head>"));
+  EXPECT_TRUE(rewrite_driver()->other_base_problem());
+}
+
 }  // namespace net_instaweb

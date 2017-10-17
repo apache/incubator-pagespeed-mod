@@ -68,6 +68,11 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
   void SetupExternalRewrite(HtmlElement* element);
 
  protected:
+  bool PolicyPermitsRendering() const override {
+    // Subclasses are responsible for dealing with CSP.
+    return true;
+  }
+
   virtual void Render();
   virtual void WillNotRender();
   virtual void Cancel();
