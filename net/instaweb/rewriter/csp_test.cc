@@ -450,9 +450,9 @@ TEST(CspParseSourceListTest, None) {
 }
 
 TEST(CspParseSourceListTest, Empty) {
-  std::unique_ptr<CspSourceList> l(CspSourceList::Parse(""));
-  ASSERT_TRUE(l != nullptr);
-  EXPECT_TRUE(l->expressions().empty());
+  std::unique_ptr<CspSourceList> empty_list(CspSourceList::Parse(""));
+  ASSERT_TRUE(empty_list != nullptr);
+  EXPECT_TRUE(empty_list->expressions().empty());
 }
 
 TEST(CspParseSourceListTest, Flags) {

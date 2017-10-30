@@ -487,21 +487,21 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
       StringPiece name = token.substr(0, pos);
       StringPiece value = token.substr(pos + 1);
       CspDirective dir_name = LookupCspDirective(name);
+      int dir_name_num = static_cast<int>(dir_name);
       if (dir_name != CspDirective::kNumSourceListDirectives &&
-          policy->policies_[static_cast<int>(dir_name)] == nullptr) {
+          policy->policies_[dir_name_num] == nullptr) {
         // Note: repeated directives are ignored per the "Parse a serialized
         // CSP as disposition" algorithm.
         // https://w3c.github.io/webappsec-csp/#parse-serialized-policy
-        policy->policies_[static_cast<int>(dir_name)]
-            = CspSourceList::Parse(value);
+        policy->policies_[dir_name_num] = CspSourceList::Parse(value);
       }
     } else {
       // Empty policy
       CspDirective dir_name = LookupCspDirective(token);
+      int dir_name_num = static_cast<int>(dir_name);
       if (dir_name != CspDirective::kNumSourceListDirectives &&
-          policy->policies_[static_cast<int>(dir_name)] == nullptr) {
-        policy->policies_[static_cast<int>(dir_name)].reset(
-            new CspSourceList());
+          policy->policies_[dir_name_num] == nullptr) {
+        policy->policies_[dir_name_num].reset(new CspSourceList());
       }
     }
   }

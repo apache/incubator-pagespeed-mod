@@ -1475,7 +1475,7 @@ TEST_P(JavascriptFilterTest, CspIrrelevant) {
   SetResponseWithDefaultHeaders(
       "scripts/a.js", kContentTypeJavascript, kJsData, 100);
 
-  const char kCsp[] =
+  static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"img-src https:\">";
 
@@ -1491,10 +1491,10 @@ TEST_P(JavascriptFilterTest, InlineCsp) {
   InitFilters();
   EnableDebug();
 
-  const char kCsp[] =
+  static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"script-src */scripts/;  default-src */uploads/\">";
-  const char kScript[] =
+  static const char kScript[] =
       "<script> var a  = 42;</script>";
 
   ValidateExpected(
@@ -1508,10 +1508,10 @@ TEST_P(JavascriptFilterTest, InlineCsp2) {
   InitFilters();
   EnableDebug();
 
-  const char kCsp[] =
+  static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"default-src */uploads/\">";
-  const char kScript[] =
+  static const char kScript[] =
       "<script> var a  = 42;</script>";
 
   ValidateExpected(
@@ -1526,12 +1526,12 @@ TEST_P(JavascriptFilterTest, InlineCsp3) {
   EnableDebug();
 
   // This one doesn't restrict scripts.
-  const char kCsp[] =
+  static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"img-src */uploads/\">";
-  const char kScript[] =
+  static const char kScript[] =
       "<script> var a  = 42;</script>";
-  const char kScriptMin[] =
+  static const char kScriptMin[] =
       "<script>var a=42;</script>";
 
   ValidateExpected(
