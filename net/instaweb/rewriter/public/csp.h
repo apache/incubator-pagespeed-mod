@@ -261,9 +261,19 @@ class CspContext {
     return true;
   }
 
-  bool HasAny(CspDirective directive) const {
+  bool HasDirective(CspDirective directive) const {
     for (const auto& policy : policies_) {
       if (policy->SourceListFor(directive) != nullptr) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool HasDirectiveOrDefaultSrc(CspDirective directive) const {
+    for (const auto& policy : policies_) {
+      if (policy->SourceListFor(directive) != nullptr ||
+          policy->SourceListFor(CspDirective::kDefaultSrc) != nullptr) {
         return true;
       }
     }

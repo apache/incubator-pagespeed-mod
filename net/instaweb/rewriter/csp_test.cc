@@ -449,6 +449,12 @@ TEST(CspParseSourceListTest, None) {
   EXPECT_TRUE(n2->expressions().empty());
 }
 
+TEST(CspParseSourceListTest, Empty) {
+  std::unique_ptr<CspSourceList> empty_list(CspSourceList::Parse(""));
+  ASSERT_TRUE(empty_list != nullptr);
+  EXPECT_TRUE(empty_list->expressions().empty());
+}
+
 TEST(CspParseSourceListTest, Flags) {
   {
     std::unique_ptr<CspSourceList> s1(CspSourceList::Parse("'unsafe-eval'"));
@@ -556,6 +562,20 @@ TEST(CspParseTest, Repeated) {
   EXPECT_FALSE(source_list->saw_strict_dynamic());
   EXPECT_FALSE(source_list->saw_unsafe_hashed_attributes());
   EXPECT_FALSE(source_list->saw_hash_or_nonce());
+}
+
+TEST(CspPolicyTest, ParseEmpty) {
+  std::unique_ptr<CspPolicy> p1(CspPolicy::Parse("img-src"));
+  ASSERT_TRUE(p1 != nullptr);
+  ASSERT_TRUE(p1->SourceListFor(CspDirective::kImgSrc) != nullptr);
+  EXPECT_TRUE(p1->SourceListFor(CspDirective::kScriptSrc) == nullptr);
+  EXPECT_TRUE(p1->SourceListFor(CspDirective::kImgSrc)->expressions().empty());
+
+  std::unique_ptr<CspPolicy> p2(CspPolicy::Parse("img-src  ;"));
+  ASSERT_TRUE(p2 != nullptr);
+  ASSERT_TRUE(p2->SourceListFor(CspDirective::kImgSrc) != nullptr);
+  EXPECT_TRUE(p2->SourceListFor(CspDirective::kScriptSrc) == nullptr);
+  EXPECT_TRUE(p2->SourceListFor(CspDirective::kImgSrc)->expressions().empty());
 }
 
 TEST(CspPolicyTest, Eval) {
@@ -725,9 +745,9 @@ TEST(CspPolicyTest, CanLoadUrl) {
 
   {
     std::unique_ptr<CspPolicy> p(CspPolicy::Parse("child-src *"));
-    EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
-                               GoogleUrl("http://www.example.com/"),
-                               GoogleUrl("http://www.example.org/foo.png")));
+    EXPECT_TRUE(p->CanLoadUrl(CspDirective::kImgSrc,
+                              GoogleUrl("http://www.example.com/"),
+                              GoogleUrl("http://www.example.org/foo.png")));
   }
 
   {
@@ -818,9 +838,9 @@ TEST(CspContext, CanLoadUrl) {
     CspContext ctx;
     ctx.AddPolicy(CspPolicy::Parse("script-src 'unsafe-eval'"));
     ctx.AddPolicy(CspPolicy::Parse("img-src *"));
-    EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kImgSrc,
-                                GoogleUrl("http://www.example.com"),
-                                GoogleUrl("https://www.example.org/foo.png")));
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kImgSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("https://www.example.org/foo.png")));
   }
 
   {
@@ -848,6 +868,32 @@ TEST(CspContext, CanLoadUrl) {
     EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kImgSrc,
                                 GoogleUrl("http://www.example.com"),
                                 GoogleUrl("https://www.example.org/foo.png")));
+  }
+
+  {
+    // Only irrelevant policy
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("img-src https:"));
+    EXPECT_TRUE(ctx.CanLoadUrl(CspDirective::kScriptSrc,
+                               GoogleUrl("http://www.example.com"),
+                               GoogleUrl("http://www.example.org/foo.js")));
+  }
+
+  {
+    // Empty relevant policy
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("script-src"));
+    EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kScriptSrc,
+                                GoogleUrl("http://www.example.com"),
+                                GoogleUrl("http://www.example.org/foo.js")));
+  }
+
+  {
+    CspContext ctx;
+    ctx.AddPolicy(CspPolicy::Parse("img-src https:; default-src https:"));
+    EXPECT_FALSE(ctx.CanLoadUrl(CspDirective::kScriptSrc,
+                                GoogleUrl("http://www.example.com"),
+                                GoogleUrl("http://www.example.org/foo.png")));
   }
 }
 

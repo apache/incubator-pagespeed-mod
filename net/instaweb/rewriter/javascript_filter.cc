@@ -446,7 +446,8 @@ void JavascriptFilter::InitializeConfigIfNecessary() {
 }
 
 void JavascriptFilter::RewriteInlineScript(HtmlCharactersNode* body_node) {
-  if (!driver()->content_security_policy().empty()) {
+  if (driver()->content_security_policy().HasDirectiveOrDefaultSrc(
+        CspDirective::kScriptSrc)) {
     driver()->InsertDebugComment(kInlineCspMessage, body_node->parent());
     return;
   }
