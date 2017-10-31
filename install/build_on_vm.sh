@@ -99,7 +99,7 @@ if [ -z "$machine_name" ]; then
   machine_name+="-${sanitized_branch}-mps-build${bit_suffix}"
 fi
 
-instances=$(gcloud compute instances list -q "$machine_name")
+instances=$(gcloud compute instances list --filter="name=( '$machine_name' )")
 if [ -n "$instances" ]; then
   if $delete_existing_machine; then
     gcloud -q compute instances delete "$machine_name"
