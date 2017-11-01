@@ -2068,7 +2068,7 @@ void RewriteOptions::AddProperties() {
   AddBaseProperty("", &RewriteOptions::amp_link_pattern_, "alp",
                   kAmpLinkPattern, kDirectoryScope, nullptr,
                   true);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(true, &RewriteOptions::honor_csp_, "hcsp",
+  AddBaseProperty(false, &RewriteOptions::honor_csp_, "hcsp",
                   kHonorCsp, kServerScope,
                   "Controls whether PageSpeed should pay attention to "
                   "Content-Security-Policy directives",
