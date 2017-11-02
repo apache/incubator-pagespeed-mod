@@ -251,6 +251,9 @@ RewriteOptions* TestRewriteDriverFactory::NewRewriteOptions() {
   // as otherwise when running under Valgrind some tests will finish
   // with different HTML headers than expected.
   options->set_rewrite_deadline_ms(20);
+  // In this release branch, we've defaulted honoring of CSP directives to off.
+  // However, the tests assume the default is on. So we fix that here.
+  options->set_honor_csp(true);
   return options;
 }
 
