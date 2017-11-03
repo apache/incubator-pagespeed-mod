@@ -19,11 +19,31 @@ if [ $# -lt 2 ]; then
   exit 1
 fi
 
-error_log="$1"
-stop_file="$2"
+patterns="$1"
+error_log="$2"
+stop_file="$3"
+cmd="tail -f $error_log"
 
-(tail -f $error_log | egrep "exit signal|CRASH") & background_pid=$!
+# Figure out what the PIDs are of outstanding calls to tail the error
+# log.  Note: this would this kill those manually opened as well, but
+# I couldn't find up with a better way to find the one we want because
+# it becomes detached the way we run it.
+function get_tail_pids() {
+  ps auxw | grep "$cmd" | grep -v grep | awk '{print $2}'
+}
+
+# Kill all the outstanding calls to 'tail'.  Note that "killall tail"
+# would kill unrelated 'tail' calls, and "killall tail $error_log"
+# does not work.
+function kill_tails() {
+  echo Killing \'tail\' commands ...
+  for pid in $(get_tail_pids); do
+    (set -x; kill "$pid")
+  done
+}
+
+($cmd | egrep "$patterns") &
+trap kill_tails EXIT
 while [ ! -e "$stop_file" ]; do sleep 10; done
-kill $background_pid
 
 rm -f "$stop_file"

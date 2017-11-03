@@ -87,6 +87,7 @@ if [[ $# -ge 1 && "$1" = "-start_apache_then_exit" ]]; then
   shift
 fi
 
+failure_patterns="exit signal|CRASH|leaked_rewrite"
 custom_so=
 if [[ $# -ge 2 && "$1" = "-custom_so" ]]; then
   custom_so=$2
@@ -238,10 +239,12 @@ rm -f "$stop_crash_scraper"
 
 echo starting test ...
 "$src/devel/scrape_error_log_for_crashes.sh" \
-    "$error_log" "$stop_crash_scraper" &
+    "$failure_patterns" "$error_log" "$stop_crash_scraper" &
+trap "touch $stop_crash_scraper" EXIT
 echo "$cmd ..."
 $cmd
 touch "$stop_crash_scraper"
+trap "" EXIT
 
 # Print some interesting statistics from the server
 statsfile=/tmp/mps_load_test_stats.$$
@@ -264,8 +267,8 @@ egrep "num_css|num_js" $statsfile
 rm -f $statsfile
 
 set +e
-echo 'egrep "exit signal|CRASH" $error_log'
-egrep "exit signal|CRASH" $error_log
+echo "egrep \"$failure_patterns\" $error_log"
+egrep "$failure_patterns" "$error_log"
 if [ $? = 0 ]; then
   echo "*** $error_log has dangerous looking errors.  Please investigate."
   exit 1
