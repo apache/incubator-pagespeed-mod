@@ -23,8 +23,7 @@
     </dd>
     <dt>Allow UrlValuedAttribute:image on elements with children</dt>
     <dd>
-        @@TODO@@
-        https://github.com/pagespeed/mod_pagespeed/issues/1308
+       Tag that have children are now considered acceptable targets for image optimization.
     </dd>
     <dt>Sync with WebP change in Chromium</dt>
     <dd>
@@ -32,10 +31,10 @@
     </dd>
     <dt><a href="faq#warning-fetch-rate">Log errors if serf error rate seems too high.</a></dt>
     <dd>
-      When over 50% of http fetch attempts inside a 30-minute period fail, emit an error entry
-      to the logs.
+      When over 50% of http fetch attempts inside a 30-minute period fail, pagespeed will now emit
+      an error entry to the logs.
     </dd>
-    <dt>standby: add standby mode</dt>
+    <dt>Standb mode</dt>
     <dd>
         In standby mode PageSpeed is off, except it serves .pagespeed. resources and
         PageSpeed query parameters are interpreted. This is equivalent to "off" in
@@ -54,6 +53,8 @@
   <dl>
     <dt>InheritVHostConfig @@TODO@@ </dt>
     <dd>@@TODO@@ Something with vhost inheritance changing this release</dd>
+    <dt>pagespeed 'off'</dt>
+    <dd>pagespeed off has been replaced with pagespeed standby</dd>
   </dl>
 
   <h3 class="hide-from-toc">Issues Resolved</h3>
