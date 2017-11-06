@@ -9,7 +9,125 @@
 
 
   <div id=content>
-<h1>PageSpeed Release Notes</h1> 
+  <h1>PageSpeed Release Notes</h1>
+
+  <h2 id="release_1.13.35.1-beta">Release 1.13.35.1-beta</h2>
+  <p>This release was made November @XXX@, 2017.</p>
+
+  <h3 class="hide-from-toc">New Features</h3>
+  <dl>
+    <dt><a href="configuration#honor-csp">Content Security Policy Support</a></dt>
+    <dd>
+      Opt-in feature enabling optimizations to adapt to Content Security Policies.
+    </dd>
+    <dt><a href="system#redis">Support specifying a Redis Database</a></dt>
+    <dd>
+      It is now possible to specify which database will be used when configuring Redis as a
+      cache.
+    </dd>
+    <dt><a href="https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Sync with WebP change in Chromium</a></dt>
+    <dd>
+      <p>
+      The webp decoder is being updated to correct an issue where it can't play an animation exactly once,
+      and requires an encoder update.
+      </p>
+      Background:
+      <ul>
+        <li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1294490">Mozilla WebP Bug</a></li>
+        <li><a href="https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Chrome WebP Bug</a></li>
+        <li><a href="https://groups.google.com/a/webmproject.org/forum/#!msg/webp-discuss/rJ2a0j1BNQI/XXqK918ZEQAJ">WebM discussion</a></li>
+      </ul>
+    </dd>
+    <dt><a href="faq#warning-fetch-rate">Log errors if serf error rate seems too high.</a></dt>
+    <dd>
+      When over 50% of http fetch attempts inside a 30-minute period fail, pagespeed will now emit
+      an error entry to the logs.
+    </dd>
+    <dt><a href="">Off</a> has been replaced by<a href="configuration#standby">Standby</a></dt>
+    <dd>
+        In standby mode PageSpeed is off, except it serves .pagespeed. resources and
+        PageSpeed query parameters are interpreted. This is equivalent to "off" in
+        mod_pagespeed. Previously, ngx_pagespeed had no equivalent.
+        
+        With this change, "off" in mod_pagespeed is deprecated, and "standby" should be used instead.
+    </dd>
+    <dt><a href="https://github.com/pagespeed/mod_pagespeed/issues/1308"
+           >Allow UrlValuedAttribute:image on elements with children</a></dt>
+    <dd>
+       Tags that have children are now considered acceptable targets for image optimization.
+    </dd>
+  </dl>
+
+  <h3 class="hide-from-toc">Deprecations</h3>
+  <dl>
+    <dt><a href="configuration#standby">standby</a> has replaced </dt>
+    <dd>pagespeed off has been replaced with pagespeed standby</dd>
+  </dl>
+
+  <h3 class="hide-from-toc">Issues Resolved</h3>
+  <h4 class="hide-from-toc">Issues Affecting both Nginx and Apache</h4>
+  <ul>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1207">
+         #1207</a></strong>
+          Don't emit type=text/javascript on script tags.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1609">
+         #1609</a></strong>
+         Specify which Redis DB to use when confiuring Redis as a caching backend.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1153">
+         #1153</a></strong>
+         Pedantic filter should prevent inlining CSS into the body.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1538">
+         #1538</a></strong>
+         CSS Minification - 0 followed by a unit is rewritten to 0 without a unit .</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1572">
+         #1572</a></strong>
+         CSS minifier breaks unicode-range values.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1585">
+         #1585</a></strong>
+         Don't special-case sending webp to PSI.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1553">
+         #1553</a></strong>
+         Debug builds may abort() when revalidating expired output resources.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/ngx_pagespeed/issues/1418">
+         #1418</a></strong>
+         LoadFromFileCacheTtlMs is not honored after first request.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/ngx_pagespeed/issues/1382">
+         #1382</a></strong>
+         In amp pages inline_google_font_css must be disabled.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1496">
+         #1496</a></strong>
+         Attempting to extend cache for SVGs returns bad headers/content.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/mod_pagespeed/issues/1405">
+         #1405</a></strong>
+         ERROR: Invalid inlined_image_type in cached_result.</li>
+  </ul>
+  <h4 class="hide-from-toc">Issues Affecting only Nginx</h4>
+  <ul>
+    <li><strong>
+        <a href="https://github.com/pagespeed/ngx_pagespeed/issues/1380">
+         #1380</a></strong>
+         Nginx worker 100% cpu usage (spinning on write returning EAGAIN).</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/ngx_pagespeed/issues/1375">
+         #1375</a></strong>
+         Don't respond with an entity body to HEAD requests for html.</li>
+    <li><strong>
+        <a href="https://github.com/pagespeed/ngx_pagespeed/issues/1465">
+         #1465</a></strong>
+         Fix ignored return code in ps_simple_handler().</li>
+  </ul>
+
   <h2 id="release_1.12.34.3-stable">Release 1.12.34.3-stable</h2>
   <p>
     This nginx-only release made September 28th, 2017. As of nginx 1.13.4

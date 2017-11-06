@@ -196,6 +196,18 @@ with that version family, and will always produce a single module named
 <code>mod_pagespeed.so</code>.
 </p>
 
+<h2 id="honor-csp">Honoring Content-Security-Policy Headers</h2>
+<p>
+  As of 1.13.35.1 PageSpeed is able to adapt its optimizations according to any
+  Content Security Policies specified in the response headers. In this release
+  you need to opt-in into this feature, future releases may turn it on by
+  default.
+</p>
+<dl>
+  <dt>Apache:<dd><pre class="prettyprint">ModPagespeedHonorCsp on</pre>
+  <dt>Nginx:<dd><pre class="prettyprint">pagespeed HonorCsp on;</pre>
+</dl>
+
 <h2 id="respectvary">Respecting Vary Headers</h2>
 <p>
 In order to maximize the number of resources that PageSpeed can rewrite, by
