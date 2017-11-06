@@ -166,7 +166,7 @@
       Acting as an HTTPS client, PageSpeed must be configured to point to a
       directory identifying trusted
       <a href="http://en.wikipedia.org/wiki/Certificate_authority"
-         >Certificate Authorities</a>.  These settings will be automatically
+         >Certificate Authorities</a> (not SSL keys for your domain).  These settings will be automatically
       applied to configuration files for new binary installations on Debian,
       Ubuntu, and CentOS systems.  Upgrades, source-installs, and other
       distributions may require manual configuration updates to identify the
@@ -175,7 +175,9 @@
       <dl>
         <dt>Apache:<dd>
 <pre class="prettyprint">
+  # Certificate Authorities directory, not your domain SSL keys
   ModPagespeedSslCertDirectory directory
+  # Web Server's HTTPS client SSL key, not your domain SSL keys
   ModPagespeedSslCertFile file
 </pre>
       </dd></dt>
