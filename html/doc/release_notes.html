@@ -23,7 +23,7 @@
     </dd>
     <dt>Allow UrlValuedAttribute:image on elements with children</dt>
     <dd>
-       Tag that have children are now considered acceptable targets for image optimization.
+       Tags that have children are now considered acceptable targets for image optimization.
     </dd>
     <dt><a href="system#redis">Support specifying a Redis Database</a></dt>
     <dd>
@@ -32,7 +32,12 @@
     </dd>
     <dt>Sync with WebP change in Chromium</dt>
     <dd>
-        @@TODO@@
+      Background:
+      <ul>
+        <li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1294490">Mozilla WebP Bug</a></li>
+        <li><a href=" https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Chrome WebP Bug</a></li>
+        <li><a href="https://groups.google.com/a/webmproject.org/forum/#!msg/webp-discuss/rJ2a0j1BNQI/XXqK918ZEQAJ">WebM discussion</a></li>
+      </ul>
     </dd>
     <dt><a href="faq#warning-fetch-rate">Log errors if serf error rate seems too high.</a></dt>
     <dd>
@@ -45,8 +50,7 @@
         PageSpeed query parameters are interpreted. This is equivalent to "off" in
         mod_pagespeed. Previously, ngx_pagespeed had no equivalent.
         
-        With this change, "off" in mod_pagespeed is deprecated, and people should use
-        "standby" instead.
+        With this change, "off" in mod_pagespeed is deprecated, and "standby" should be used instead.
 
         @@TODO@@ mention this in deprecations below.
         @@TODO@@ ensure that the docs we will deploy are up-to-date with this.
