@@ -16,26 +16,25 @@
 
   <h3 class="hide-from-toc">New Features</h3>
   <dl>
-    <!-- @@TODO@@: Link future CSP doc -- or remove the anchor. -->
+    @@TODO@@: Link future CSP doc (or remove the anchor).<br/>
     <dt><a href="system#csp">Content Security Policy Support</a></dt>
     <dd>
       Opt-in feature enabling optimizations to adapt to Content Security Policies.
-    </dd>
-    <dt>Allow UrlValuedAttribute:image on elements with children</dt>
-    <dd>
-       Tags that have children are now considered acceptable targets for image optimization.
     </dd>
     <dt><a href="system#redis">Support specifying a Redis Database</a></dt>
     <dd>
       It is now possible to specify which database will be used when configuring Redis as a
       cache.
     </dd>
-    <dt>Sync with WebP change in Chromium</dt>
+    <dt><a href="https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Sync with WebP change in Chromium</a></dt>
     <dd>
+      The webp decoder in Chrome is being updated to correct an issue where it can’t play an animation exactly once,
+      and requires an encoder update.
+      
       Background:
       <ul>
         <li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1294490">Mozilla WebP Bug</a></li>
-        <li><a href=" https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Chrome WebP Bug</a></li>
+        <li><a href="https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Chrome WebP Bug</a></li>
         <li><a href="https://groups.google.com/a/webmproject.org/forum/#!msg/webp-discuss/rJ2a0j1BNQI/XXqK918ZEQAJ">WebM discussion</a></li>
       </ul>
     </dd>
@@ -51,6 +50,11 @@
         mod_pagespeed. Previously, ngx_pagespeed had no equivalent.
         
         With this change, "off" in mod_pagespeed is deprecated, and "standby" should be used instead.
+    </dd>
+    <dt><a href="https://github.com/pagespeed/mod_pagespeed/issues/1308"
+           >Allow UrlValuedAttribute:image on elements with children</a></dt>
+    <dd>
+       Tags that have children are now considered acceptable targets for image optimization.
     </dd>
   </dl>
 
