@@ -16,7 +16,6 @@
 
   <h3 class="hide-from-toc">New Features</h3>
   <dl>
-    @@TODO@@: Link future CSP doc (or remove the anchor).<br/>
     <dt><a href="system#csp">Content Security Policy Support</a></dt>
     <dd>
       Opt-in feature enabling optimizations to adapt to Content Security Policies.
@@ -28,10 +27,11 @@
     </dd>
     <dt><a href="https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Sync with WebP change in Chromium</a></dt>
     <dd>
-      The webp decoder in Chrome is being updated to correct an issue where it can’t play an animation exactly once,
+      <p>
+      The webp decoder is being updated to correct an issue where it can't play an animation exactly once,
       and requires an encoder update.
-      
-      Background:
+      </p>
+      <b>Background:</b>
       <ul>
         <li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1294490">Mozilla WebP Bug</a></li>
         <li><a href="https://bugs.chromium.org/p/chromium/issues/detail?id=649264">Chrome WebP Bug</a></li>
@@ -43,7 +43,7 @@
       When over 50% of http fetch attempts inside a 30-minute period fail, pagespeed will now emit
       an error entry to the logs.
     </dd>
-    <dt><a href="configuration#standby">Standby Mode</a></dt>
+    <dt><a href="">Off</a> has been replaced by<a href="configuration#standby">Standby</a></dt>
     <dd>
         In standby mode PageSpeed is off, except it serves .pagespeed. resources and
         PageSpeed query parameters are interpreted. This is equivalent to "off" in
@@ -60,7 +60,7 @@
 
   <h3 class="hide-from-toc">Deprecations</h3>
   <dl>
-    <dt>pagespeed 'off'</dt>
+    <dt><a href="configuration#standby">standby</a> has replaced </dt>
     <dd>pagespeed off has been replaced with pagespeed standby</dd>
   </dl>
 
