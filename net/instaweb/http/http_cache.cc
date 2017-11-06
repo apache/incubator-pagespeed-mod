@@ -375,6 +375,12 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
       content = &new_content;
     }
     hash = hasher_->Hash(*content);
+    const char* content_encoding = headers->Lookup1(HttpAttributes::kContentEncoding);
+    if (content_encoding != nullptr) {
+      hash.append("-");
+      hash.append(content_encoding);
+    }
+    
     headers->Add(HttpAttributes::kEtag, FormatEtag(hash));
     headers_mutated = true;
   }
