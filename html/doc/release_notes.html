@@ -17,13 +17,18 @@
   <h3 class="hide-from-toc">New Features</h3>
   <dl>
     <!-- @@TODO@@: Link future CSP doc -- or remove the anchor. -->
-    <dt><a href="system#csp">Content Security Policy support</a></dt>
+    <dt><a href="system#csp">Content Security Policy Support</a></dt>
     <dd>
       Opt-in feature enabling optimizations to adapt to Content Security Policies.
     </dd>
     <dt>Allow UrlValuedAttribute:image on elements with children</dt>
     <dd>
        Tag that have children are now considered acceptable targets for image optimization.
+    </dd>
+    <dt><a href="system#redis">Support specifying a Redis Database</a></dt>
+    <dd>
+      It is now possible to specify which database will be used when configuring Redis as a
+      cache.
     </dd>
     <dt>Sync with WebP change in Chromium</dt>
     <dd>
@@ -34,7 +39,7 @@
       When over 50% of http fetch attempts inside a 30-minute period fail, pagespeed will now emit
       an error entry to the logs.
     </dd>
-    <dt>Standb mode</dt>
+    <dt>Standby Mode</dt>
     <dd>
         In standby mode PageSpeed is off, except it serves .pagespeed. resources and
         PageSpeed query parameters are interpreted. This is equivalent to "off" in
