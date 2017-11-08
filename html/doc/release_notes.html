@@ -43,12 +43,12 @@
       When over 50% of http fetch attempts inside a 30-minute period fail, pagespeed will now emit
       an error entry to the logs.
     </dd>
-    <dt><a href="">Off</a> has been replaced by<a href="configuration#standby">Standby</a></dt>
+    <dt><a href="configuration#on_off">Off</a> has been replaced by <a href="configuration#standby">Standby</a></dt>
     <dd>
         In standby mode PageSpeed is off, except it serves .pagespeed. resources and
         PageSpeed query parameters are interpreted. This is equivalent to "off" in
         mod_pagespeed. Previously, ngx_pagespeed had no equivalent.
-        
+
         With this change, "off" in mod_pagespeed is deprecated, and "standby" should be used instead.
     </dd>
     <dt><a href="https://github.com/pagespeed/mod_pagespeed/issues/1308"
