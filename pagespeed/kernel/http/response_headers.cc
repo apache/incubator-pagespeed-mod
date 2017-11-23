@@ -821,6 +821,9 @@ GoogleString ResponseHeaders::CacheControlValuesToPreserve() {
   if (HasValue(HttpAttributes::kCacheControl, "no-store")) {
     to_preserve += ", no-store";
   }
+  if (HasValue(HttpAttributes::kCacheControl, "immutable")) {
+    to_preserve += ", immutable";
+  }
 
   ConstStringStarVector cc_values;
   Lookup(HttpAttributes::kCacheControl, &cc_values);

@@ -361,8 +361,9 @@ void ServerContext::SetDefaultLongCacheHeaders(
   }
 
   int64 now_ms = timer()->NowMs();
-  header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs, suffix);
-
+  GoogleString s_suffix(suffix.as_string());
+  StrAppend(&s_suffix, ",immutable");
+  header->SetDateAndCaching(now_ms, kGeneratedMaxAgeMs, s_suffix);
   // While PageSpeed claims the "Vary" header is needed to avoid proxy cache
   // issues for clients where some accept gzipped content and some don't, it
   // should not be done here.  It should instead be done by whatever code is
@@ -375,7 +376,6 @@ void ServerContext::SetDefaultLongCacheHeaders(
   // we sign URLs, there is no reason to have a unique signature in
   // the ETag.
   header->Replace(HttpAttributes::kEtag, kResourceEtagValue);
-
   // TODO(jmarantz): Replace last-modified headers by default?
   ConstStringStarVector v;
   if (!header->Lookup(HttpAttributes::kLastModified, &v)) {

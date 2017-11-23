@@ -1588,8 +1588,9 @@ TEST_F(ServerContextCacheControlTest, ImplicitPublic) {
   resources_.push_back(implicit_public_100_);
   resources_.push_back(implicit_public_200_);
   server_context()->ApplyInputCacheControl(resources_, &response_headers_);
-  EXPECT_STREQ(LongCacheTtl(),
-               response_headers_.Lookup1(HttpAttributes::kCacheControl));
+  EXPECT_TRUE(response_headers_.HasValue(HttpAttributes::kCacheControl,
+                                         "max-age=31536000"));
+  EXPECT_STREQ(LongCacheTtl(), "max-age=31536000");
 }
 
 TEST_F(ServerContextCacheControlTest, ExplicitPublic) {

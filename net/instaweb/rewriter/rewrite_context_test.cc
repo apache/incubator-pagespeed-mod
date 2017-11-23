@@ -1442,8 +1442,8 @@ TEST_F(RewriteContextTest, TestRewritesOnEmptyPublicResources) {
     EXPECT_TRUE(FetchResource(
         kTestDomain, "ce", "test.css", "css", &content, &headers));
     EXPECT_EQ("", content);
-    EXPECT_STREQ("max-age=31536000",
-                 headers.Lookup1(HttpAttributes::kCacheControl));
+    EXPECT_TRUE(headers.HasValue(HttpAttributes::kCacheControl,
+                "max-age=31536000"));
   }
 }
 
@@ -1529,8 +1529,8 @@ TEST_F(RewriteContextTest, EmptyOutputResources) {
         kTestDomain, "cf", "test.css", "css", &content, &headers));
     EXPECT_EQ("", content);  // Result is empty. That's fine.
     // And serves with full public 1year cache lifetime.
-    EXPECT_STREQ("max-age=31536000",
-                 headers.Lookup1(HttpAttributes::kCacheControl));
+    EXPECT_TRUE(headers.HasValue(HttpAttributes::kCacheControl,
+                "max-age=31536000"));
   }
 }
 
@@ -1797,11 +1797,13 @@ TEST_F(RewriteContextTest, CacheExtendCacheableResource) {
                               "css",
                               &content,
                               &headers));
-    EXPECT_EQ("a", content);
+    EXPECT_EQ("a", content);        
+    EXPECT_TRUE(headers.HasValue(HttpAttributes::kCacheControl,
+                "max-age=31536000"));
     EXPECT_STREQ(StringPrintf("max-age=%lld",
                               static_cast<long long int>(
                                   ServerContext::kGeneratedMaxAgeMs / 1000)),
-                 headers.Lookup1(HttpAttributes::kCacheControl));
+                 "max-age=31536000");
   }
 }
 
