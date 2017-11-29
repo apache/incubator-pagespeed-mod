@@ -123,6 +123,10 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
     DCHECK(gurl_.IsWebValid() || !success);
 
     if (!received_redirect_status_code_) {
+      for (auto it = urls_seen_->begin(); it != urls_seen_->end(); ++it) {
+        response_headers()->Add("@Redirects-Followed", *it);
+      }
+      response_headers()->ComputeCaching();
       SharedAsyncFetch::HandleDone(success);
       delete this;
       return;

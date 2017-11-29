@@ -175,7 +175,8 @@ void ResourceFetch::HandleHeadersComplete() {
         driver_->options()->resource_header(i);
     response_headers()->Add(nv->name, nv->value);
   }
-
+  response_headers()->RemoveAll("@Redirects-Followed");
+    
   // "Vary: Accept-Encoding" for all resources that are transmitted compressed.
   // Server ought to set these, I suppose.
   // response_headers()->Add(HttpAttributes::kVary, "Accept-Encoding");
@@ -197,6 +198,8 @@ void ResourceFetch::HandleDone(bool success) {
       response_headers()->SetStatusAndReason(HttpStatus::kNotFound);
     }
   }
+  response_headers()->RemoveAll("@Redirects-Followed");
+        
   RewriteStats* stats = driver_->server_context()->rewrite_stats();
   stats->fetch_latency_histogram()->Add(timer_->NowMs() - start_time_ms_);
   stats->total_fetch_count()->IncBy(1);

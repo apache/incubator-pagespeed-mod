@@ -90,6 +90,7 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
     return writer_->Flush(handler);
   }
   virtual void HandleHeadersComplete() {
+    response_headers()->RemoveAll("@Redirects-Followed");
   }
 
  private:

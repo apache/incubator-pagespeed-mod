@@ -103,6 +103,8 @@ RecordingFetch::~RecordingFetch() {}
 void RecordingFetch::HandleHeadersComplete() {
   can_in_place_rewrite_ = CanInPlaceRewrite();
   streaming_ = ShouldStream();
+  response_headers()->RemoveAll("@Redirects-Followed");
+  response_headers()->ComputeCaching();
   if (can_in_place_rewrite_) {
     // Save the headers, and wait to finalize them in HandleDone().
     saved_headers_.reset(new ResponseHeaders(*response_headers()));
@@ -414,6 +416,7 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
         Options()->load_from_file_cache_ttl_ms() :
         Options()->implicit_cache_ttl_ms();
 
+    headers->RemoveAll("@Redirects-Followed");
     headers->RemoveAll(HttpAttributes::kLastModified);
     headers->set_implicit_cache_ttl_ms(implicit_ttl_ms);
     headers->ComputeCaching();

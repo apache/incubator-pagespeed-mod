@@ -309,8 +309,8 @@ void SystemServerContext::ApplySessionFetchers(
   // Note that these fetchers are applied in the opposite order of how they are
   // added: the last one added here is the first one applied and vice versa.
   //
-  // Currently, we want AddHeadersFetcher running first, then
-  // RedirectFollowingUrlAsyncFetcher, then LoopbackRouteFetcher (and then Serf).
+  // Currently, we want RedirectFollowingUrlAsyncFetcher running first, then
+  // AddHeadersFetcher, then LoopbackRouteFetcher (and then Serf).
   SystemRewriteOptions* options = global_system_rewrite_options();
   if (!options->disable_loopback_routing() &&
       !options->slurping_enabled() &&

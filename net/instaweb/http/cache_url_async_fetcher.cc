@@ -95,7 +95,8 @@ class CachePutFetch : public SharedAsyncFetch {
         !headers->Has(HttpAttributes::kExpires)) {
       headers->Add(HttpAttributes::kCacheControl,
           "max-age=" + Integer64ToString(headers->implicit_cache_ttl_ms()));
-    }
+    } 
+    headers->RemoveAll("@Redirects-Followed");
     headers->ComputeCaching();
     cacheable_ = headers->IsProxyCacheable(req_properties_, respect_vary_,
                                            ResponseHeaders::kHasValidator);
@@ -104,7 +105,6 @@ class CachePutFetch : public SharedAsyncFetch {
       // cache_value_writer_ later.
       saved_headers_.CopyFrom(*headers);
     }
-
     SharedAsyncFetch::HandleHeadersComplete();
   }
 
@@ -288,13 +288,14 @@ class CacheFindCallback : public HTTPCache::Callback {
   }
 
   void Finish(HTTPCache::FindResult find_result) {
+
     switch (find_result.status) {
       case HTTPCache::kFound: {
         VLOG(1) << "Found in cache: " << url_ << " (" << fragment_ << ")";
         http_value()->ExtractHeaders(response_headers(), handler_);
 
         bool is_imminently_expiring = false;
-
+        response_headers()->RemoveAll("@Redirects-Followed");
         // Respond with a 304 if the If-Modified-Since / If-None-Match values
         // are equal to those in the request.
         if (ShouldReturn304()) {
@@ -315,6 +316,7 @@ class CacheFindCallback : public HTTPCache::Callback {
           StringPiece contents;
           http_value()->ExtractContents(&contents);
           base_fetch_->set_content_length(contents.size());
+
           response_headers()->ComputeCaching();
           is_imminently_expiring = IsImminentlyExpiring(*response_headers());
           base_fetch_->HeadersComplete();
@@ -432,6 +434,7 @@ class CacheFindCallback : public HTTPCache::Callback {
       response_headers->Clear();
       return false;
     }
+    response_headers->RemoveAll("@Redirects-Followed");
     response_headers->ComputeCaching();
     const int64 expiry_ms = response_headers->CacheExpirationTimeMs();
     const int64 now_ms = cache_->timer()->NowMs();
