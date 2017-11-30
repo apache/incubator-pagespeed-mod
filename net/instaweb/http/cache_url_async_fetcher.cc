@@ -95,8 +95,7 @@ class CachePutFetch : public SharedAsyncFetch {
         !headers->Has(HttpAttributes::kExpires)) {
       headers->Add(HttpAttributes::kCacheControl,
           "max-age=" + Integer64ToString(headers->implicit_cache_ttl_ms()));
-    } 
-    headers->RemoveAll("@Redirects-Followed");
+    }
     headers->ComputeCaching();
     cacheable_ = headers->IsProxyCacheable(req_properties_, respect_vary_,
                                            ResponseHeaders::kHasValidator);
@@ -295,7 +294,6 @@ class CacheFindCallback : public HTTPCache::Callback {
         http_value()->ExtractHeaders(response_headers(), handler_);
 
         bool is_imminently_expiring = false;
-        response_headers()->RemoveAll("@Redirects-Followed");
         // Respond with a 304 if the If-Modified-Since / If-None-Match values
         // are equal to those in the request.
         if (ShouldReturn304()) {
@@ -434,7 +432,6 @@ class CacheFindCallback : public HTTPCache::Callback {
       response_headers->Clear();
       return false;
     }
-    response_headers->RemoveAll("@Redirects-Followed");
     response_headers->ComputeCaching();
     const int64 expiry_ms = response_headers->CacheExpirationTimeMs();
     const int64 now_ms = cache_->timer()->NowMs();

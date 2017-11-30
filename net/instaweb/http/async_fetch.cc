@@ -276,6 +276,30 @@ void SharedAsyncFetch::HandleHeadersComplete() {
   base_fetch_->HeadersComplete();
 }
 
+OutputSanitizingAsyncFetch::OutputSanitizingAsyncFetch(AsyncFetch* base_fetch)
+    : SharedAsyncFetch(base_fetch) {
+  DCHECK(base_fetch != nullptr);
+}
+
+OutputSanitizingAsyncFetch::~OutputSanitizingAsyncFetch() {
+}
+
+void OutputSanitizingAsyncFetch::HandleHeadersComplete() {
+  if (response_headers() != nullptr) {
+    response_headers()->RemoveAll("@Redirects-Followed");
+    response_headers()->ComputeCaching();
+  }
+  SharedAsyncFetch::HandleHeadersComplete();
+}
+
+void OutputSanitizingAsyncFetch::HandleDone(bool success) {
+  if (response_headers() != nullptr) {
+    response_headers()->RemoveAll("@Redirects-Followed");
+    response_headers()->ComputeCaching();
+  }
+  SharedAsyncFetch::HandleDone(success);
+}
+
 void AsyncFetch::FixCacheControlForGoogleCache() {
   ConstStringStarVector values;
   if (request_headers()->Lookup(HttpAttributes::kVia, &values)) {

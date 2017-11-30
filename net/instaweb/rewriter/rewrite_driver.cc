@@ -1829,7 +1829,8 @@ bool RewriteDriver::FetchResource(const StringPiece& url,
   bool handled = false;
 
   fetch_url_ = url.as_string();
-
+  OutputSanitizingAsyncFetch* sanitizer = new OutputSanitizingAsyncFetch(async_fetch);
+  async_fetch = sanitizer;
   // Set the request headers if they haven't been yet.
   if (request_headers_ == NULL && async_fetch->request_headers() != NULL) {
     SetRequestHeaders(*async_fetch->request_headers());
@@ -1870,6 +1871,10 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
                                          AsyncFetch* async_fetch) {
   CHECK(gurl.IsWebValid()) << "Invalid URL " << gurl.spec_c_str();
   CHECK(request_headers_.get() != NULL);
+
+  OutputSanitizingAsyncFetch* sanitizer = new OutputSanitizingAsyncFetch(async_fetch);
+  async_fetch = sanitizer;
+
   gurl.Spec().CopyToString(&fetch_url_);
   StringPiece base = gurl.AllExceptLeaf();
   ResourceNamer namer;

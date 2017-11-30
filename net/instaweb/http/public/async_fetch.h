@@ -316,6 +316,19 @@ class SharedAsyncFetch : public AsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(SharedAsyncFetch);
 };
 
+class OutputSanitizingAsyncFetch : public SharedAsyncFetch {
+ public:
+  explicit OutputSanitizingAsyncFetch(AsyncFetch* base_fetch);
+  virtual ~OutputSanitizingAsyncFetch();
+
+ protected:
+  virtual void HandleHeadersComplete();
+  virtual void HandleDone(bool success);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(OutputSanitizingAsyncFetch);
+};
+
 // Creates a SharedAsyncFetch object using an existing AsyncFetch and a fallback
 // value that is used in case the fetched response is an error. Note that in
 // case the fetched response is an error and we have a non-empty fallback value,

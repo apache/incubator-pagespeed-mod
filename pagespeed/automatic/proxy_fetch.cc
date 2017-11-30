@@ -96,7 +96,8 @@ ProxyFetch* ProxyFetchFactory::CreateNewProxyFetch(
     ProxyFetchPropertyCallbackCollector* property_callback,
     AsyncFetch* original_content_fetch) {
   const GoogleString* url_to_fetch = &url_in;
-
+  OutputSanitizingAsyncFetch* sanitizer = new OutputSanitizingAsyncFetch(async_fetch);
+  async_fetch = sanitizer;
   // Check whether this an encoding of a non-rewritten resource served
   // from a non-transparently proxied domain.
   UrlNamer* namer = server_context_->url_namer();
@@ -630,14 +631,12 @@ void ProxyFetch::HandleHeadersComplete() {
   if (response_headers() != NULL) {
     GoogleUrl gurl(url_);
     driver_->SetOrClearPageSpeedOptionCookies(gurl, response_headers());
-    response_headers()->RemoveAll("@Redirects-Followed");
   }
 
   // Figure out semantic info from response_headers_
   claims_html_ = response_headers()->IsHtmlLike();
   if (original_content_fetch_ != NULL && !trusted_input_) {
     ResponseHeaders* headers = original_content_fetch_->response_headers();
-    headers->RemoveAll("@Redirects-Followed");
     headers->CopyFrom(*response_headers());
 
     if (!server_context_->ProxiesHtml() && claims_html_) {
@@ -654,7 +653,6 @@ void ProxyFetch::HandleHeadersComplete() {
     sanitize = true;
   }
 
-  response_headers()->RemoveAll("@Redirects-Followed");
   response_headers()->ComputeCaching();
   // Make sure we never serve cookies if the domain we are serving
   // under isn't the domain of the origin.
@@ -867,7 +865,6 @@ void ProxyFetch::PropertyCacheComplete(
 
 bool ProxyFetch::HandleWrite(const StringPiece& str,
                              MessageHandler* message_handler) {
-  response_headers()->RemoveAll("@Redirects-Followed");
   if (claims_html_ && !server_context_->ProxiesHtml() && !trusted_input_) {
     return true;
   }
@@ -966,7 +963,6 @@ bool ProxyFetch::HandleFlush(MessageHandler* message_handler) {
 }
 
 void ProxyFetch::HandleDone(bool success) {
-  response_headers()->RemoveAll("@Redirects-Followed");
   // TODO(jmarantz): check if the server is being shut down and punt,
   // possibly by calling Finish(false).
   if (original_content_fetch_ != NULL) {
