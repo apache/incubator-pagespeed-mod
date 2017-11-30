@@ -123,7 +123,14 @@ class RedirectFollowingUrlAsyncFetcher::RedirectFollowingFetch
     DCHECK(gurl_.IsWebValid() || !success);
 
     if (!received_redirect_status_code_) {
-      for (auto it = urls_seen_->begin(); it != urls_seen_->end(); ++it) {
+      // For honoring Csp later on, we will have to know which urls
+      // have been involved into getting to this resource. We store
+      // that into the response headers here using an internal header.
+      auto it = urls_seen_->begin();
+      // Skip the initial url, we are only interested in actual redirects
+      // followed.
+      it++;
+      for (; it != urls_seen_->end(); ++it) {
         response_headers()->Add("@Redirects-Followed", *it);
       }
       response_headers()->ComputeCaching();

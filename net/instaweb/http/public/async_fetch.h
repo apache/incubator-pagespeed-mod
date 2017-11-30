@@ -316,6 +316,9 @@ class SharedAsyncFetch : public AsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(SharedAsyncFetch);
 };
 
+// Can be used to sanitize headers and data before forwarding them on
+// to the base fetch. Used to ensure that internal headers, starting
+// with '@', will never be visible outside of PSOL.
 class OutputSanitizingAsyncFetch : public SharedAsyncFetch {
  public:
   explicit OutputSanitizingAsyncFetch(AsyncFetch* base_fetch);
@@ -326,6 +329,9 @@ class OutputSanitizingAsyncFetch : public SharedAsyncFetch {
   virtual void HandleDone(bool success);
 
  private:
+  // Removes any headers starting with '@' from the response.
+  // returns true if any changes have been made.
+  bool SanitizeResponseHeaders();
   DISALLOW_COPY_AND_ASSIGN(OutputSanitizingAsyncFetch);
 };
 

@@ -284,19 +284,22 @@ OutputSanitizingAsyncFetch::OutputSanitizingAsyncFetch(AsyncFetch* base_fetch)
 OutputSanitizingAsyncFetch::~OutputSanitizingAsyncFetch() {
 }
 
-void OutputSanitizingAsyncFetch::HandleHeadersComplete() {
-  if (response_headers() != nullptr) {
-    response_headers()->RemoveAll("@Redirects-Followed");
+bool OutputSanitizingAsyncFetch::SanitizeResponseHeaders() {  
+  if (response_headers() != nullptr &&
+      response_headers()->RemoveAllWithPrefix("@")) {
     response_headers()->ComputeCaching();
+    return true;
   }
+  return false;
+}
+
+void OutputSanitizingAsyncFetch::HandleHeadersComplete() {
+  SanitizeResponseHeaders();
   SharedAsyncFetch::HandleHeadersComplete();
 }
 
 void OutputSanitizingAsyncFetch::HandleDone(bool success) {
-  if (response_headers() != nullptr) {
-    response_headers()->RemoveAll("@Redirects-Followed");
-    response_headers()->ComputeCaching();
-  }
+  SanitizeResponseHeaders();
   SharedAsyncFetch::HandleDone(success);
 }
 

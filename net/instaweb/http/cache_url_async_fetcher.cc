@@ -104,6 +104,7 @@ class CachePutFetch : public SharedAsyncFetch {
       // cache_value_writer_ later.
       saved_headers_.CopyFrom(*headers);
     }
+
     SharedAsyncFetch::HandleHeadersComplete();
   }
 
@@ -287,13 +288,13 @@ class CacheFindCallback : public HTTPCache::Callback {
   }
 
   void Finish(HTTPCache::FindResult find_result) {
-
     switch (find_result.status) {
       case HTTPCache::kFound: {
         VLOG(1) << "Found in cache: " << url_ << " (" << fragment_ << ")";
         http_value()->ExtractHeaders(response_headers(), handler_);
 
         bool is_imminently_expiring = false;
+
         // Respond with a 304 if the If-Modified-Since / If-None-Match values
         // are equal to those in the request.
         if (ShouldReturn304()) {
@@ -314,7 +315,6 @@ class CacheFindCallback : public HTTPCache::Callback {
           StringPiece contents;
           http_value()->ExtractContents(&contents);
           base_fetch_->set_content_length(contents.size());
-
           response_headers()->ComputeCaching();
           is_imminently_expiring = IsImminentlyExpiring(*response_headers());
           base_fetch_->HeadersComplete();
