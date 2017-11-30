@@ -820,26 +820,6 @@ TEST_F(RedirectFollowingUrlAsyncFetcherTest,
   EXPECT_EQ(1, counting_fetcher_->fetch_count());
 }
 
-TEST_F(RedirectFollowingUrlAsyncFetcherTest, SingleRedirectWithBasicCsp) {
-  ResponseHeaders headers;
-  headers.set_major_version(1);
-  headers.set_minor_version(1);
-  headers.SetStatusAndReason(HttpStatus::kMovedPermanently);
-  headers.Add("Location", "http://context.url/test");
-  headers.Add(HttpAttributes::kCacheControl, "private");
-  mock_fetcher_.SetResponse("http://context.url/uncacheable", headers, "redir");
-
-  MockFetch fetch(RequestContext::NewTestRequestContext(thread_system_.get()),
-                  true);
-  NullMessageHandler handler;
-  redirect_following_fetcher_->Fetch("http://context.url/uncacheable",
-                                     &handler_, &fetch);
-
-  EXPECT_TRUE(fetch.done());
-  EXPECT_FALSE(fetch.success());
-  EXPECT_EQ(1, counting_fetcher_->fetch_count());
-}
-
 
 }  // namespace
 

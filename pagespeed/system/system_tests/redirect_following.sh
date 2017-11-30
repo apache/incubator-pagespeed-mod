@@ -1,3 +1,7 @@
+function count_blue_css_cache_extend() {
+  fgrep -c "blue.css.pagespeed.ce"
+}
+
 start_test single redirect works
 # Test single redirect
 URL=http://redirecting-fetch.example.com/redir_to_test/
@@ -9,6 +13,10 @@ check_from "$OUT" fgrep -qi '200 OK'
 check_from "$OUT" fgrep -qi 'content-type: text/css'
 check_from "$OUT" fgrep -qi '.yellow{'
 check_not_from "$OUT" fgrep -qi 'location:'
+
+URL=http://redirecting-fetch.example.com/redir_to_test/
+URL+=inline_css.html?PageSpeedFilters=extend_cache
+http_proxy=$SECONDARY_HOSTNAME fetch_until "$URL" count_blue_css_cache_extend 1
 
 start_test multi redirect works
 URL=http://redirecting-fetch.example.com/redir_to_test/
@@ -46,3 +54,21 @@ check_from "$OUT" fgrep -qi '200 OK'
 check_from "$OUT" fgrep -qi 'content-type: text/css'
 check_from "$OUT" fgrep -qi '.yellow{'
 check_not_from "$OUT" fgrep -qi 'location:'
+
+start_test simple csp honored
+# Test single redirect
+URL=http://redirecting-fetch-csp.example.com/redir_to_test/
+URL+=styles/A.blue.css.pagespeed.cf.0.css
+echo "$URL"
+echo "http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL"
+OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL 2>&1)
+check_from "$OUT" fgrep -qi '200 OK'
+check_from "$OUT" fgrep -qi 'content-type: text/css'
+check_from "$OUT" fgrep -qi '.yellow{'
+check_not_from "$OUT" fgrep -qi 'location:'
+
+URL=http://redirecting-fetch-csp.example.com/redir_to_test/
+URL+=inline_css.html?PageSpeedFilters=extend_cache
+http_proxy=$SECONDARY_HOSTNAME fetch_until "$URL" count_blue_css_cache_extend 1
+
+exit 1
