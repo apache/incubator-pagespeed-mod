@@ -68,7 +68,7 @@ check_from "$OUT" fgrep -qi '.yellow{'
 check_not_from "$OUT" fgrep -qi 'location:'
 
 URL=http://redirecting-fetch-csp.example.com/redir_to_test/
-URL+=inline_css.html?PageSpeedFilters=extend_cache
+URL+=csp.php?PageSpeedFilters=extend_cache
 echo "$URL"
 OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL 2>&1)
 check_from "$OUT" fgrep -qi '200 OK'
@@ -76,5 +76,13 @@ check_from "$OUT" fgrep -qi 'blue.css'
 check_from "$OUT" fgrep -qi 'The preceding resource was not rewritten because CSP disallows its fetch'
 
 # TODO(oschaaf): ^^ test expectation should be more specific.
+# TODO(oschaaf): test below fails, html seems to work differently.
 
+URL=http://redirecting-fetch-csp.example.com/redir_to_test/
+URL+=inline_css.html?PageSpeedFilters=extend_cache
+echo "$URL"
+OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL 2>&1)
+check_from "$OUT" fgrep -qi '200 OK'
+check_from "$OUT" fgrep -qi 'blue.css'
+check_from "$OUT" fgrep -qi 'The preceding resource was not rewritten because CSP disallows its fetch'
 exit 1
