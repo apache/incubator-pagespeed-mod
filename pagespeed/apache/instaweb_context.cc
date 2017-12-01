@@ -175,7 +175,10 @@ InstawebContext::InstawebContext(request_rec* request,
 
   response_headers_.reset(
       new ResponseHeaders(rewrite_driver_->options()->ComputeHttpOptions()));
+  err_response_headers_.reset(
+      new ResponseHeaders(rewrite_driver_->options()->ComputeHttpOptions()));
   rewrite_driver_->set_response_headers_ptr(response_headers_.get());
+  rewrite_driver_->set_err_response_headers_ptr(err_response_headers_.get());
   // TODO(lsong): Bypass the string buffer, write data directly to the next
   // apache bucket.
   rewrite_driver_->SetWriter(&string_writer_);
@@ -225,7 +228,8 @@ void InstawebContext::Finish() {
 
 void InstawebContext::PopulateHeaders(request_rec* request) {
   if (!populated_headers_) {
-    ApacheRequestToResponseHeaders(*request, response_headers_.get(), NULL);
+    ApacheRequestToResponseHeaders(*request, response_headers_.get(),
+                                   err_response_headers_.get());
     populated_headers_ = true;
   }
 }

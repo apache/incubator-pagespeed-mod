@@ -47,6 +47,18 @@ ScanFilter::ScanFilter(RewriteDriver* driver)
 ScanFilter::~ScanFilter() {
 }
 
+void ScanFilter::SetCspFromHeaders(const ResponseHeaders* headers) {
+  if (driver_->options()->honor_csp() && headers != nullptr) {
+    ConstStringStarVector values;
+    if (headers->Lookup(HttpAttributes::kContentSecurityPolicy, &values)) {
+      for (const GoogleString* policy : values) {
+        driver_->mutable_content_security_policy()->AddPolicy(
+            CspPolicy::Parse(*policy));
+      }
+    }
+  }
+}
+
 void ScanFilter::StartDocument() {
   // TODO(jmarantz): consider having rewrite_driver access the url in this
   // class, rather than poking it into rewrite_driver.
@@ -62,15 +74,8 @@ void ScanFilter::StartDocument() {
                                   headers->DetermineCharset());
 
   driver_->mutable_content_security_policy()->Clear();
-  if (driver_->options()->honor_csp() && headers != nullptr) {
-    ConstStringStarVector values;
-    if (headers->Lookup(HttpAttributes::kContentSecurityPolicy, &values)) {
-      for (const GoogleString* policy : values) {
-        driver_->mutable_content_security_policy()->AddPolicy(
-            CspPolicy::Parse(*policy));
-      }
-    }
-  }
+  SetCspFromHeaders(headers);
+  SetCspFromHeaders(driver_->err_response_headers());
 }
 
 void ScanFilter::Cdata(HtmlCdataNode* cdata) {

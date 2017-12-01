@@ -29,6 +29,7 @@ class HtmlCommentNode;
 class HtmlDirectiveNode;
 class HtmlElement;
 class HtmlIEDirectiveNode;
+class ResponseHeaders;
 class RewriteDriver;
 
 // Filter that is run before any other, to help track base-tag usage and
@@ -41,7 +42,7 @@ class ScanFilter : public EmptyHtmlFilter {
  public:
   explicit ScanFilter(RewriteDriver* driver);
   virtual ~ScanFilter();
-
+  void SetCspFromHeaders(const ResponseHeaders* headers);
   virtual void StartDocument();
   virtual void StartElement(HtmlElement* element);
   virtual void EndElement(HtmlElement* element);

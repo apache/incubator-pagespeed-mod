@@ -94,6 +94,9 @@ class InstawebContext {
   ResponseHeaders* response_headers() {
     return response_headers_.get();
   }
+  ResponseHeaders* err_response_headers() {
+    return err_response_headers_.get();
+  }
 
   bool sent_headers() { return sent_headers_; }
   void set_sent_headers(bool sent) { sent_headers_ = sent; }
@@ -135,6 +138,7 @@ class InstawebContext {
   GoogleString absolute_url_;
   scoped_ptr<RequestHeaders> request_headers_;
   scoped_ptr<ResponseHeaders> response_headers_;
+  scoped_ptr<ResponseHeaders> err_response_headers_;
   bool started_parse_;
   bool sent_headers_;
   bool populated_headers_;
