@@ -225,7 +225,8 @@ void InstawebContext::Finish() {
 
 void InstawebContext::PopulateHeaders(request_rec* request) {
   if (!populated_headers_) {
-    ApacheRequestToResponseHeaders(*request, response_headers_.get(), NULL);
+    ApacheRequestToResponseHeaders(*request, response_headers_.get(),
+                                   response_headers_.get());
     populated_headers_ = true;
   }
 }
