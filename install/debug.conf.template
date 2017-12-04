@@ -1630,22 +1630,21 @@ ModPagespeedMessagesDomains Allow localhost
 </VirtualHost>
 
 <VirtualHost localhost:@@APACHE_SECONDARY_PORT@@>
-  ServerName redirecting-fetch-csp.example.com
+  ServerName redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@
   DocumentRoot "@@APACHE_DOC_ROOT@@"
   ModPagespeedFileCachePath "@@MOD_PAGESPEED_CACHE@@"
   ModPagespeedDomain redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@
   ModPagespeedDomain redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@
 
   ModPagespeedMapOriginDomain 127.0.0.1:@@APACHE_SECONDARY_PORT@@ \
+    redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@ \
     redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@
   ModPagespeedMapOriginDomain 127.0.0.1:@@APACHE_SECONDARY_PORT@@ \
+    redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@\
     redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@
 
   Alias "/redir_to_test" "@@APACHE_DOC_ROOT@@/mod_pagespeed_example"
   Redirect permanent /redir_to_test/styles/blue.css http://redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/styles/yellow.css
-
-  #Header set Content-Security-Policy "style-src http://foo.com/"
-  Header set Content-Security-Policy "default-src https:"
   ModPagespeedHonorCsp on
 </VirtualHost>
 

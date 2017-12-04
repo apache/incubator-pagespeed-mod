@@ -2005,7 +2005,8 @@ bool RewriteContext::AreOutputsAllowedByCsp(CspDirective role) const {
 
   for (const OutputResourcePtr& o : outputs_) {
     if (o.get() != nullptr && o->has_hash() && o->has_url()) {
-      if (!Driver()->IsLoadPermittedByCsp(GoogleUrl(o->url()), role)) {        
+      if (!Driver()->IsLoadPermittedByCsp(GoogleUrl(o->url()), role)) {
+        std::cerr << "Flag url: " << o->url() << "\n";
         return false;
       } else {
         ConstStringStarVector v;
@@ -2342,6 +2343,11 @@ bool RewriteContext::CreateOutputResourceForCachedOutput(
       ret = true;
     }
   }
+
+  for (int i = 0; i < cached_result->followed_redirects_size(); i++) {
+    output_resource->get()->response_headers()->Add("@Redirects-Followed", cached_result->followed_redirects(i));
+  }
+
   return ret;
 }
 

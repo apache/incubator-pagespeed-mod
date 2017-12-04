@@ -145,6 +145,7 @@ message CachedResult {
 
   // Used by CollectDependenciesFilter
   repeated Dependency collected_dependency = 26;
+  repeated string followed_redirects = 27;
 }
 
 // Contains the mapping of input URLs to output URLs.  In the general

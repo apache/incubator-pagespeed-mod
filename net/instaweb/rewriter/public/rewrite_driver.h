@@ -267,7 +267,10 @@ class RewriteDriver : public HtmlParse {
     return response_headers_;
   }
 
-  // TODO(oschaaf): Doc.
+  // Apache has a separate response header structure that will contain headers
+  // that always need to be send, even on error.
+  // A copy of these headers will be stored here for reference.
+  // Any headers set by PHP may end up here.
   const ResponseHeaders* err_response_headers() {
     return err_response_headers_;
   }
@@ -279,7 +282,7 @@ class RewriteDriver : public HtmlParse {
     response_headers_ = headers;
   }
 
-  // TODO(oschaaf): Doc.
+  // Like set_response_headers_ptr above, but instead sets err_response_headers
   void set_err_response_headers_ptr(ResponseHeaders* headers) {
     err_response_headers_ = headers;
   }

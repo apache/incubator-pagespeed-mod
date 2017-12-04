@@ -284,7 +284,7 @@ OutputSanitizingAsyncFetch::OutputSanitizingAsyncFetch(AsyncFetch* base_fetch)
 OutputSanitizingAsyncFetch::~OutputSanitizingAsyncFetch() {
 }
 
-bool OutputSanitizingAsyncFetch::SanitizeResponseHeaders() {  
+bool OutputSanitizingAsyncFetch::SanitizeResponseHeaders() {
   if (response_headers() != nullptr &&
       response_headers()->RemoveAllWithPrefix("@")) {
     response_headers()->ComputeCaching();

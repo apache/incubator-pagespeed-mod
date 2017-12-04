@@ -27,7 +27,6 @@
 #include <set>
 #include <utility>  // for std::pair
 #include <vector>
-
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
@@ -2274,7 +2273,7 @@ void RewriteDriver::RewriteComplete(RewriteContext* rewrite_context,
             log_record()->logging_info()->mutable_metadata_cache_info();
         metadata_log_info->set_num_successful_rewrites_on_miss(
             metadata_log_info->num_successful_rewrites_on_miss() + 1);
-      }
+      } 
       initiated_rewrites_.erase(p);
       attached = true;
 
@@ -3338,6 +3337,7 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
     meta_data->RemoveAll(HttpAttributes::kLastModified);
   }
   meta_data->SetStatusAndReason(HttpStatus::kOK);
+
   server_context_->ApplyInputCacheControl(inputs, meta_data);
   server_context_->AddOriginalContentLengthHeader(inputs, meta_data);
 
@@ -3348,6 +3348,7 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
   MessageHandler* handler = message_handler();
   Writer* writer = output->BeginWrite(handler);
   bool ret = (writer != NULL);
+  
   if (ret) {
     ret = writer->Write(contents, handler);
     output->EndWrite(handler);
@@ -3377,6 +3378,15 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
       CachedResult* cached = output->EnsureCachedResultCreated();
       cached->set_optimizable(true);
       cached->set_url(output->url());  // Note: output->url() will be sharded.
+      for (size_t i = 0; i < inputs.size(); i++)
+      {
+        ConstStringStarVector followed;
+        if (inputs[i]->response_headers()->Lookup("@Redirects-Followed", &followed)) {
+          for (size_t j = 0; j < followed.size(); j++) {
+            cached->add_followed_redirects(followed[j]->c_str());
+          }
+        }
+      }
     }
   } else {
     // Note that we've already gotten a "could not open file" message;
