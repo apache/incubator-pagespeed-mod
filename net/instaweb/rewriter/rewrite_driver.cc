@@ -3379,6 +3379,7 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
       CachedResult* cached = output->EnsureCachedResultCreated();
       cached->set_optimizable(true);
       cached->set_url(output->url());  // Note: output->url() will be sharded.
+      cached->clear_followed_redirects();
       for (size_t i = 0; i < inputs.size(); i++)
       {
         ConstStringStarVector followed;

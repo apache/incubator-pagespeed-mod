@@ -267,16 +267,32 @@ void CacheExtender::Context::RewriteSingle(
 }
 
 bool CacheExtender::Context::PolicyPermitsRendering() const {
+  bool csp_ok = true;
+
   if (num_output_partitions() == 1 && output(0).get() != nullptr
       && output(0)->has_hash()) {
+    ResourceSlotPtr the_slot = slot(0);
+    if (the_slot->resource().get() != NULL &&
+        the_slot->resource()->type() != NULL) {
+      const ContentType* type = the_slot->resource()->type();
+
+      if (type->type() == ContentType::kCss) {
+        csp_ok = AreOutputsAllowedByCsp(CspDirective::kStyleSrc);
+      } else if (type->type() == ContentType::kJavascript) {
+        csp_ok = AreOutputsAllowedByCsp(CspDirective::kScriptSrc);
+      } else if (type->IsImage()) {
+        csp_ok = AreOutputsAllowedByCsp(CspDirective::kImgSrc);
+      }
+    }
+
     // This uses the InputRole rather than CspDirective variant to
     // handle kUnknown (and to get bonus handling of kReconstruction,
     // which wouldn't actually call this, but for which we still need to
     // override).
-    return Driver()->IsLoadPermittedByCsp(
+    csp_ok = csp_ok && Driver()->IsLoadPermittedByCsp(
         GoogleUrl(output(0)->url()), input_role_);
   }
-  return true;  // e.g. failure cases -> still want to permit error to render.
+  return csp_ok;  // e.g. failure cases -> still want to permit error to render.
 }
 
 void CacheExtender::Context::Render() {
