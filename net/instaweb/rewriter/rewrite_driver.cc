@@ -2873,6 +2873,7 @@ bool RewriteDriver::InitiateRewrite(RewriteContext* rewrite_context) {
   // us with a partially constructed slot-graph.
   if (!can_rewrite_resources_) {
     if (rewrites_.empty()) {
+      srcset_collections_.clear();
       rewrite_context->DetachSlots();
       delete rewrite_context;
       return false;
