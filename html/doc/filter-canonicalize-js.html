@@ -215,7 +215,11 @@ The canonical library is <em>not</em> combined with the other two JavaScript
 files, since this would lose the bandwidth and caching benefits of fetching it
 from the canonical URL.
 </p>
-
+<p>
+If <a href="filter-js-defer">defer_javascript</a> is enabled, <em>and</em> library 
+is <em>not</em> tagged with <code>data-pagespeed-no-defer</code>,
+the canonicalized library is deferred.
+</p>
 <h2>Requirements</h2>
 <p>
 Only complete, unmodified libraries referenced by <code>&lt;script&gt;</code>
