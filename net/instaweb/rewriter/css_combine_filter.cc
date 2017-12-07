@@ -89,6 +89,20 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
   virtual bool ResourceCombinable(Resource* resource,
                                   GoogleString* failure_reason,
                                   MessageHandler* handler) {
+    // If any of the inputs was loaded via a redirect location that violatse
+    // Content-Security-Policy, it's not combinable.
+    ConstStringStarVector v;
+    if (!rewrite_driver_->content_security_policy().empty()) {
+      if (resource->response_headers()->Lookup("@Redirects-Followed", &v)) {
+        for (int i = 0, n = v.size(); i < n; ++i) {
+          if (!rewrite_driver_->IsLoadPermittedByCsp(GoogleUrl(*(v[i])), CspDirective::kStyleSrc)) {
+            *failure_reason = "Redirect location not allowed by Content-Security-Policy";
+            return false;
+          }
+        }
+      }
+    }
+
     // If this CSS file is not parseable it may have errors that will break
     // the rest of the files combined with this one. So we should not include
     // it in the combination.
@@ -100,7 +114,6 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
       // with this as the first of a new combination.
       return false;
     }
-
     // styles containing @import cannot be appended to others, as any
     // @import in the middle will be ignored.
     // TODO(sligocki): Do CSS parsing and rewriting here so that we can

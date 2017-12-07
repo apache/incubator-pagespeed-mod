@@ -1620,7 +1620,9 @@ ModPagespeedMessagesDomains Allow localhost
     redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@
   ModPagespeedDisallow *styles/disallowed.css
 
-  Alias "/redir_to_test" "@@APACHE_DOC_ROOT@@/mod_pagespeed_example"
+
+  Alias "/redir_to_test/inline_css.html" "@@APACHE_DOC_ROOT@@/mod_pagespeed_example/inline_css.html" 
+  Alias "/redir_to_test" "@@APACHE_DOC_ROOT@@/mod_pagespeed_test"
   Redirect permanent /redir_to_test/styles/blue.css /mod_pagespeed_example/styles/yellow.css
   Redirect permanent /redir_to_test/styles/1.css /redir_to_test/styles/2.css
   Redirect permanent /redir_to_test/styles/2.css /mod_pagespeed_example/styles/yellow.css
@@ -1643,9 +1645,9 @@ ModPagespeedMessagesDomains Allow localhost
     redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@\
     redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@
 
-  Alias "/redir_to_test" "@@APACHE_DOC_ROOT@@/mod_pagespeed_example"
+  Alias "/redir_to_test" "@@APACHE_DOC_ROOT@@/mod_pagespeed_test"
   Redirect permanent /redir_to_test/styles/blue.css http://redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/styles/yellow.css
-  ModPagespeedHonorCsp on
+  Redirect permanent /redir_to_test/styles/yellow.css http://redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/styles/yellow.css
 </VirtualHost>
 
 
