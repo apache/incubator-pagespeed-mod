@@ -1645,9 +1645,13 @@ ModPagespeedMessagesDomains Allow localhost
     redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@\
     redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@
 
-  Alias "/redir_to_test" "@@APACHE_DOC_ROOT@@/mod_pagespeed_test"
+  Redirect permanent /redir_to_test/combine_javascript1.js http://redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/combine_javascript1.js
+  Redirect permanent /redir_to_test/combine_javascript2.js http://redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/combine_javascript2.js
   Redirect permanent /redir_to_test/styles/blue.css http://redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/styles/yellow.css
   Redirect permanent /redir_to_test/styles/yellow.css http://redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/styles/yellow.css
+  Redirect permanent /redir_to_test/images/BikeCrashIcn.png http://redirecting-fetch.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/images/BikeCrashIcn.png
+  Redirect permanent /redir_to_test/styles/rewrite_css_images.css http://redirecting-fetch-csp.example.com:@@APACHE_SECONDARY_PORT@@/mod_pagespeed_example/styles/rewrite_css_images.css
+  Alias "/redir_to_test" "@@APACHE_DOC_ROOT@@/mod_pagespeed_test"
 </VirtualHost>
 
 

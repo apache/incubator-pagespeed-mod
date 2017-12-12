@@ -91,6 +91,22 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     StringPiece this_charset = RewriteFilter::GetCharsetForScript(
         resource, attribute_charset_, rewrite_driver_->containing_charset());
 
+
+    // TODO(oschaaf): de-duplicate this code with the css combiner code
+    // If any of the inputs was loaded via a redirect location that violatse
+    // Content-Security-Policy, it's not combinable.
+    ConstStringStarVector v;
+    if (!rewrite_driver_->content_security_policy().empty()) {
+      if (resource->response_headers()->Lookup("@Redirects-Followed", &v)) {
+        for (int i = 0, n = v.size(); i < n; ++i) {
+          if (!rewrite_driver_->IsLoadPermittedByCsp(GoogleUrl(*(v[i])), CspDirective::kScriptSrc)) {
+            *failure_reason = "Redirect location not allowed by Content-Security-Policy";
+            return false;
+          }
+        }
+      }
+    }
+
     // This resource's charset must match that of the combination so far.
     // TODO(matterbury): Correctly handle UTF-16 and UTF-32 without the BE/LE
     // suffixes, which are legal if we can determine endianness some other way.
@@ -219,6 +235,12 @@ class JsCombineFilter::Context : public RewriteContext {
 
   // Create and add the slot that corresponds to this element.
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
+    /* if (Driver()->response_headers() != nullptr) {
+      ConstStringStarVector csp;
+      bool ok = Driver()->err_response_headers()->Lookup("Content-Security-Policy", &csp);
+      if (!ok || csp == nullptr) csp = "";
+      std::cerr << "## PREFIX CSP: " << csp << "\n";
+      }*/
     ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
         href->DecodedValueOrNull(), RewriteDriver::InputRole::kScript,
         element));
@@ -386,7 +408,19 @@ class JsCombineFilter::Context : public RewriteContext {
   virtual GoogleString CacheKeySuffix() const {
     // Updated to make sure certain bugfixes actually deploy, and we don't
     // end up using old broken cached version.
-    return "v4";
+    GoogleString s("v4");
+    ConstStringStarVector csp;
+
+    // TODO(oschaaf): discuss. Can we use a hash of the CSP? Is a theoretical
+    // chance at collisions acceptable?
+    // The potentially large keys are probably expensive to look up, and may break
+    // on larger policies.
+    if (Driver()->err_response_headers()->Lookup("Content-Security-Policy", &csp)) {
+      for (size_t i = 0; i < csp.size(); i++) {
+        s = StrCat(s, "-", *(csp[i]));
+      }
+    }
+    return s;
   }
 
  private:

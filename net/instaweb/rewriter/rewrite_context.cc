@@ -1293,7 +1293,6 @@ void RewriteContext::SetPartitionKey() {
     encoder()->Encode(url_keys, resource_context_.get(), &url_key);
     url_key = HashSplit(hasher, url_key);
   }
-
   partition_key_ = StrCat(ServerContext::kCacheKeyResourceNamePrefix,
                           id(), "_", signature, "/",
                           url_key, "@", suffix);
