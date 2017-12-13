@@ -49,7 +49,7 @@ URL+=styles/A.1.css.pagespeed.cf.0.css
 echo "$URL"
 OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL 2>&1)
 check_from "$OUT" fgrep -qi 'content-type: text/css'
-check_from "$OUT" fgrep -qi '.yellow{'
+check_from "$OUT" fgrep -qi '.yellow'
 check_not_from "$OUT" fgrep -qi 'location:'
 
 start_test simple csp honored
@@ -60,7 +60,7 @@ echo "$URL"
 echo "http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL"
 OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL 2>&1)
 check_from "$OUT" fgrep -qi 'content-type: text/css'
-check_from "$OUT" fgrep -qi '.yellow{'
+check_from "$OUT" fgrep -qi '.yellow'
 check_not_from "$OUT" fgrep -qi 'location:'
 
 
