@@ -301,6 +301,7 @@ void OutputSanitizingAsyncFetch::HandleHeadersComplete() {
 void OutputSanitizingAsyncFetch::HandleDone(bool success) {
   SanitizeResponseHeaders();
   SharedAsyncFetch::HandleDone(success);
+  delete this;
 }
 
 void AsyncFetch::FixCacheControlForGoogleCache() {
