@@ -49,6 +49,78 @@ class CspSourceExpression {
     kHashOrNonce, kUnknown
   };
 
+  static const GoogleString KindAsString(Kind kind) {
+    const GoogleString kGsSelf("self");
+    const GoogleString kGsSchemeSource("scheme-source");
+    const GoogleString kGsHostSource("host-source");
+    const GoogleString kGsUnsafeInline("unsafe-inline");
+    const GoogleString kGsUnsafeEval("unsafe-eval");
+    const GoogleString kGsStrictDynamic("strict-dynamic");
+    const GoogleString kGsUnsafeHashedAttributes("unsafe-hashed-attributes");
+    const GoogleString kGsHashOrNonce("hash-or-nonce");
+    const GoogleString kGsUnknown("unknown");
+
+    switch(kind) {
+      case kSelf:
+        return kGsSelf;
+      case kSchemeSource:
+        return kGsSchemeSource;
+      case kHostSource:
+        return kGsHostSource;
+      case kUnsafeInline:
+        return kGsUnsafeInline;
+      case kUnsafeEval:
+        return kGsUnsafeEval;
+      case kStrictDynamic:
+        return kGsStrictDynamic;
+      case kUnsafeHashedAttributes:
+        return kGsUnsafeHashedAttributes;
+      case kHashOrNonce:
+        return kGsHashOrNonce;
+      case kUnknown:
+        return kGsUnknown;
+      default:
+        DCHECK(false) << "unmapped CSP Source Expression kind";
+        return kGsUnknown;
+    }
+  }
+
+  static const GoogleString DirectiveToString(CspDirective directive) {
+    const GoogleString kGsChildSrc("child-src");
+    const GoogleString kGsConnectSrc("connect-src");
+    const GoogleString kGsDefaultSrc("default-src");
+    const GoogleString kGsFrameSrc("frame-src");
+    const GoogleString kGsImgSrc("img-src");
+    const GoogleString kGsScriptSrc("script-src");
+    const GoogleString kGsStyleSrc("style-src");
+    const GoogleString kGsBaseUri("base-uri");
+    const GoogleString kGsOther("other");
+
+    switch(directive) {
+      case CspDirective::kChildSrc:
+        return kGsChildSrc;
+      case CspDirective::kConnectSrc:
+        return kGsConnectSrc;
+      case CspDirective::kDefaultSrc:
+        return kGsDefaultSrc;
+      case CspDirective::kFrameSrc:
+        return kGsFrameSrc;
+      case CspDirective::kImgSrc:
+        return kGsImgSrc;
+      case CspDirective::kScriptSrc:
+        return kGsScriptSrc;
+      case CspDirective::kStyleSrc:
+        return kGsStyleSrc;
+      case CspDirective::kBaseUri:
+        return kGsBaseUri;
+      case CspDirective::kNumSourceListDirectives:
+        return kGsOther;
+      default:
+        DCHECK(false) << "unmapped CSP directive";
+        return kGsOther;
+    }
+  }
+  
   struct UrlData {
     UrlData() : path_exact_match(false) {}
     // Constructor for tests, assumes already normalized.
@@ -87,6 +159,12 @@ class CspSourceExpression {
                     " path_exact_match:", BoolToString(path_exact_match));
     }
 
+    GoogleString ToString() const {
+      return StrCat(scheme_part, "://", host_part, ":", port_part,
+                    "/", JoinCollection(path_part, "/"), ":",
+                    BoolToString(path_exact_match));
+    }
+
     // For convenience of unit testing.
     bool operator==(const UrlData& other) const {
       return scheme_part == other.scheme_part &&
@@ -110,6 +188,14 @@ class CspSourceExpression {
   GoogleString DebugString() const {
     return StrCat("kind:", IntegerToString(kind_),
                   " url_data:{", url_data().DebugString(), "}");
+  }
+
+  GoogleString ToString() const {
+    GoogleString url(" ");
+    if (kind_ == kHostSource) {
+      url.append(url_data().ToString());
+    }
+    return StrCat(KindAsString(kind_), " ", url);
   }
 
   bool operator==(const CspSourceExpression& other) const {
@@ -172,7 +258,14 @@ class CspSourceList {
   bool saw_hash_or_nonce() const { return saw_hash_or_nonce_; }
 
   bool Matches(const GoogleUrl& origin_url, const GoogleUrl& url) const;
-
+  GoogleString ToString() const {
+    GoogleString res;
+    for (/*const*/ auto& expression : expressions_) {
+      res.append(expression.ToString());
+      res.append(" ");
+    }
+    return res;
+  }
  private:
   std::vector<CspSourceExpression> expressions_;
   bool saw_unsafe_inline_;
@@ -209,6 +302,18 @@ class CspPolicy {
 
   bool IsBasePermitted(const GoogleUrl& previous_origin,
                        const GoogleUrl& base_candidate) const;
+  GoogleString ToString() const {
+    GoogleString res;
+    for (size_t i = 0; i < policies_.size(); i++) {
+      const auto& policy = policies_[i];
+      if (policy.get() != nullptr) {
+        res.append(CspSourceExpression::DirectiveToString((CspDirective)i));
+        res.append(":");
+        res.append(policy->ToString() + " ");
+      }
+    }
+    return res;
+  }
 
  private:
   // The expectation is that some of these may be null.
@@ -284,7 +389,15 @@ class CspContext {
   void Clear() { policies_.clear(); }
   size_t policies_size() const { return policies_.size(); }
   bool empty() const { return policies_.empty(); }
-
+  GoogleString ToString() const {
+    GoogleString res;
+    for (const auto& policy : policies_) {
+      if (policy.get() != nullptr) {
+        res.append(policy->ToString() + ";");
+      }
+    }
+    return res;
+  }
  private:
   typedef bool (CspPolicy::*SimplePredicateFn)() const;
 
@@ -299,7 +412,6 @@ class CspContext {
     }
     return true;
   }
-
   std::vector<std::unique_ptr<CspPolicy>> policies_;
 };
 

@@ -192,6 +192,7 @@ OUT=$(csp_query "default-src *; script-src 'self' 'unsafe-eval'" "$html" "combin
 check_from "$OUT"  grep "/redir_to_test/combine_javascript1.js?a=1"
 check_from "$OUT"  grep "/redir_to_test/combine_javascript2.js?a=2"
 
+# OUT=$(csp_query "default-src *; script-src http://redirecting-fetch-csp.example.com:$APACHE_SECONDARY_PORT 'unsafe-eval'" "$html" "combine_javascript")
 
 
 # start_test Rewrite CSS with images redirection

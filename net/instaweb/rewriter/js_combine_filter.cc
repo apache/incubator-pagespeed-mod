@@ -235,12 +235,6 @@ class JsCombineFilter::Context : public RewriteContext {
 
   // Create and add the slot that corresponds to this element.
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
-    /* if (Driver()->response_headers() != nullptr) {
-      ConstStringStarVector csp;
-      bool ok = Driver()->err_response_headers()->Lookup("Content-Security-Policy", &csp);
-      if (!ok || csp == nullptr) csp = "";
-      std::cerr << "## PREFIX CSP: " << csp << "\n";
-      }*/
     ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
         href->DecodedValueOrNull(), RewriteDriver::InputRole::kScript,
         element));
@@ -406,21 +400,15 @@ class JsCombineFilter::Context : public RewriteContext {
   virtual OutputResourceKind kind() const { return kRewrittenResource; }
 
   virtual GoogleString CacheKeySuffix() const {
-    // Updated to make sure certain bugfixes actually deploy, and we don't
-    // end up using old broken cached version.
-    GoogleString s("v4");
-    ConstStringStarVector csp;
-
-    // TODO(oschaaf): discuss. Can we use a hash of the CSP? Is a theoretical
-    // chance at collisions acceptable?
-    // The potentially large keys are probably expensive to look up, and may break
-    // on larger policies.
-    if (Driver()->err_response_headers()->Lookup("Content-Security-Policy", &csp)) {
-      for (size_t i = 0; i < csp.size(); i++) {
-        s = StrCat(s, "-", *(csp[i]));
-      }
-    }
-    return s;
+    // TODO(oschaaf): check if we don't exceed any size thresholds of cache backed
+    // when appending this longer prefix.
+    // TODO(oschaaf): check that the has will not contain any invalid characters
+    // for certain cache backends
+    // TODO(oschaaf): verify collision chance looks like something we can live with
+    // considering the use case
+    auto hash = Driver()->server_context()->hasher()->Hash(
+        Driver()->content_security_policy().ToString());
+    return hash;
   }
 
  private:
