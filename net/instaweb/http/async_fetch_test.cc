@@ -139,6 +139,19 @@ TEST_F(AsyncFetchTest, ViaHandling) {
   EXPECT_FALSE(CheckCacheControlPublicWithVia("NotReallyGoogle"));
 }
 
+TEST_F(AsyncFetchTest, OutputSanitizingAsyncFetch) {
+  ConstStringStarVector foo_headers;
+  OutputSanitizingAsyncFetch fetch(&string_fetch_);
+  fetch.response_headers()->set_status_code(HttpStatus::kOK);
+  fetch.response_headers()->Add("@foo", "bar");
+  EXPECT_TRUE(fetch.response_headers()->Lookup("@foo", &foo_headers));
+  EXPECT_EQ(1, foo_headers.size());
+  foo_headers.clear();
+  fetch.HeadersComplete();
+  EXPECT_FALSE(string_fetch_.response_headers()->Lookup("@foo", &foo_headers));
+  EXPECT_EQ(0, foo_headers.size());
+}
+
 }  // namespace
 
 }  // namespace net_instaweb

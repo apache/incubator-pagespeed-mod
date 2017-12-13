@@ -106,6 +106,7 @@ ProxyFetch* ProxyFetchFactory::CreateNewProxyFetch(
       << "expect ResourceFetch called for pagespeed resources, not ProxyFetch";
 
   bool cross_domain = false;
+  async_fetch = new OutputSanitizingAsyncFetch(async_fetch);
   if (gurl.IsWebValid()) {
     if (namer->Decode(gurl, driver->options(), &decoded_resource)) {
       const RewriteOptions* options = driver->options();
