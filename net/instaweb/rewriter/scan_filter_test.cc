@@ -206,6 +206,24 @@ TEST_F(ScanFilterTest, CspParse) {
       GoogleUrl("http://www.example.org/foo.png"), CspDirective::kImgSrc));
 }
 
+TEST_F(ScanFilterTest, CspParseInternal) {
+  ResponseHeaders headers;
+  headers.Add("@Content-Security-Policy", "img-src https:");
+  rewrite_driver()->set_response_headers_ptr(&headers);
+  ValidateNoChanges("csp_parse",
+                    "<meta http-equiv=\"Content-Security-Policy\" "
+                    "content=\"img-src www.example.com\">");
+  EXPECT_EQ(2, rewrite_driver()->content_security_policy().policies_size());
+  EXPECT_TRUE(rewrite_driver()->IsLoadPermittedByCsp(
+      GoogleUrl("https://www.example.com/foo.png"), CspDirective::kImgSrc));
+  EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
+      GoogleUrl("http://www.example.com/foo.png"), CspDirective::kImgSrc));
+  EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
+      GoogleUrl("https://www.example.org/foo.png"), CspDirective::kImgSrc));
+  EXPECT_FALSE(rewrite_driver()->IsLoadPermittedByCsp(
+      GoogleUrl("http://www.example.org/foo.png"), CspDirective::kImgSrc));
+}
+
 TEST_F(ScanFilterTest, CspParseOff) {
   options()->set_honor_csp(false);
 

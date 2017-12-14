@@ -226,6 +226,19 @@ void InstawebContext::Finish() {
 void InstawebContext::PopulateHeaders(request_rec* request) {
   if (!populated_headers_) {
     ApacheRequestToResponseHeaders(*request, response_headers_.get(), NULL);
+    // Using php and/or using "Headers always" in configuration to set up CSP
+    // headers in httpd is probably pretty common. These will both end up in
+    // err_headers_out, a httpd-only concept meaning that the headers should
+    // always be emitted, even on error statusses. We want to consider these
+    // CSP headers living in this collection when rewriting content, but leave
+    // them alone otherwise.
+    // Instead of introducing an err_headers_out (like) concept in RewriteDriver
+    // to model this, we will rely on the internal headers concept. ScanFilter
+    // will also look at kInternalContentSecurityPolicy. This header will be
+    // sanitized from our own output.
+    const char* csp = apr_table_get(request->err_headers_out,
+                                    HttpAttributes::kContentSecurityPolicy);
+    response_headers_->Add(HttpAttributes::kInternalContentSecurityPolicy, csp);
     populated_headers_ = true;
   }
 }

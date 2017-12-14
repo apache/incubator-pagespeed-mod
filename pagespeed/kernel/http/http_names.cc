@@ -111,6 +111,8 @@ const char HttpAttributes::kXUACompatible[] = "X-UA-Compatible";
 const char HttpAttributes::kXSendfile[] = "X-Sendfile";
 const char HttpAttributes::kXAccelRedirect[] = "X-Accel-Redirect";
 const char HttpAttributes::kXPageSpeedLoop[] = "X-PageSpeed-Loop";
+const char HttpAttributes::kInternalContentSecurityPolicy[] =
+    "@Content-Security-Policy";
 
 const char* HttpStatus::GetReasonPhrase(HttpStatus::Code rc) {
   switch (rc) {

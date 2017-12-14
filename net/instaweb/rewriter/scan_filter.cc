@@ -31,7 +31,6 @@
 #include "pagespeed/kernel/base/charset_util.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/html/html_node.h"
@@ -45,6 +44,14 @@ ScanFilter::ScanFilter(RewriteDriver* driver)
 }
 
 ScanFilter::~ScanFilter() {
+}
+
+void ScanFilter::UpdateCspFromHeaderValues(
+    const ConstStringStarVector& values) {
+  for (const GoogleString* policy : values) {
+    driver_->mutable_content_security_policy()->AddPolicy(
+        CspPolicy::Parse(*policy));
+  }
 }
 
 void ScanFilter::StartDocument() {
@@ -65,10 +72,11 @@ void ScanFilter::StartDocument() {
   if (driver_->options()->honor_csp() && headers != nullptr) {
     ConstStringStarVector values;
     if (headers->Lookup(HttpAttributes::kContentSecurityPolicy, &values)) {
-      for (const GoogleString* policy : values) {
-        driver_->mutable_content_security_policy()->AddPolicy(
-            CspPolicy::Parse(*policy));
-      }
+      UpdateCspFromHeaderValues(values);
+    }
+    values.clear();
+    if (headers->Lookup(HttpAttributes::kInternalContentSecurityPolicy, &values)) {
+      UpdateCspFromHeaderValues(values);
     }
   }
 }

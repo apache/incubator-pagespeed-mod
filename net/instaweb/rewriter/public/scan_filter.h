@@ -20,6 +20,7 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_SCAN_FILTER_H_
 
 #include "pagespeed/kernel/html/empty_html_filter.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -55,6 +56,7 @@ class ScanFilter : public EmptyHtmlFilter {
   virtual const char* Name() const { return "Scan"; }
 
  private:
+  void UpdateCspFromHeaderValues(const ConstStringStarVector& values);
   RewriteDriver* driver_;
   bool seen_any_nodes_;
   bool seen_refs_;

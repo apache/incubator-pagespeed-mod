@@ -126,6 +126,8 @@ struct HttpAttributes {
   static const char kXAccelRedirect[];
   // PageSpeed Loop detection for proxy mode.
   static const char kXPageSpeedLoop[];
+  // Any CSP httpd hands to us in err_response_headers will be stored here.
+  static const char kInternalContentSecurityPolicy[];
 
   // Gets a sorted StringPieceVector containing all the end-to-end headers.
   // Any fields listed in here should be ignored during sanitization when they
