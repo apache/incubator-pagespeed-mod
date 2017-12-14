@@ -922,6 +922,18 @@ TEST(CspContext, BaseUri) {
   }
 }
 
+TEST(CspIdentityStringTest, Quoted) {
+  CspContext ctx;
+  ctx.AddPolicy(CspPolicy::Parse("default-src https:; img-src *"));
+  ctx.AddPolicy(CspPolicy::Parse(""));
+  ctx.AddPolicy(CspPolicy::Parse("style-src *.example.com"));
+  ctx.AddPolicy(CspPolicy::Parse("script-src script.example.com 'unsafe-eval'"
+                                 " 'unsafe-inline'"));
+  const GoogleString expected = "2:1:https_:/:;4:2:_*:/:;@6:2:_*.example.com:/"
+      ":;@5:2:_script.example.com:/:;@E:|I:1|A:1|S:|T:|";
+  EXPECT_STREQ(expected, ctx.ToIdentityString());
+}
+
 }  // namespace
 
 }  // namespace net_instaweb

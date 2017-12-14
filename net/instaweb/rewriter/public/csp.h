@@ -87,6 +87,12 @@ class CspSourceExpression {
                     " path_exact_match:", BoolToString(path_exact_match));
     }
 
+    GoogleString ToIdentityString() const {
+      return StrCat(scheme_part, "_", host_part, ":", port_part,
+                    "/", JoinCollection(path_part, "/"), ":",
+                    path_exact_match ? "_": "");
+    }
+
     // For convenience of unit testing.
     bool operator==(const UrlData& other) const {
       return scheme_part == other.scheme_part &&
@@ -110,6 +116,10 @@ class CspSourceExpression {
   GoogleString DebugString() const {
     return StrCat("kind:", IntegerToString(kind_),
                   " url_data:{", url_data().DebugString(), "}");
+  }
+
+  GoogleString ToIdentityString() const {
+    return StrCat(IntegerToString(kind_), ":", url_data().ToIdentityString());
   }
 
   bool operator==(const CspSourceExpression& other) const {
@@ -173,6 +183,17 @@ class CspSourceList {
 
   bool Matches(const GoogleUrl& origin_url, const GoogleUrl& url) const;
 
+  GoogleString ToIdentityString() const {
+    GoogleString res;
+    for (auto& expression : expressions_) {
+      res.append(expression.ToIdentityString());
+    }
+    if (res.size() > 0) {
+      res.substr(0, res.size()-1);
+    }
+    return res;
+  }
+
  private:
   std::vector<CspSourceExpression> expressions_;
   bool saw_unsafe_inline_;
@@ -209,6 +230,18 @@ class CspPolicy {
 
   bool IsBasePermitted(const GoogleUrl& previous_origin,
                        const GoogleUrl& base_candidate) const;
+
+  GoogleString ToIdentityString() const {
+    GoogleString res;
+    for (size_t i = 0; i < policies_.size(); i++) {
+      const auto& policy = policies_[i];
+      if (policy.get() != nullptr) {
+        res.append(
+            StrCat(IntegerToString(i), ":", policy->ToIdentityString(), ";"));
+      }
+    }
+    return res;
+  }
 
  private:
   // The expectation is that some of these may be null.
@@ -284,6 +317,24 @@ class CspContext {
   void Clear() { policies_.clear(); }
   size_t policies_size() const { return policies_.size(); }
   bool empty() const { return policies_.empty(); }
+
+  // Provide a string that will be unique for each CspContext, favoring short
+  // string length over readability. The resulting string can be used for
+  // hashing purposes.
+  GoogleString ToIdentityString() const {
+    GoogleString res;
+    for (const auto& policy : policies_) {
+      if (policy.get() != nullptr) {
+        res.append(policy->ToIdentityString() + "@");
+      }
+    }
+    res.append(StrCat("E:", PermitsEval() ? "1" : "", "|"));
+    res.append(StrCat("I:", PermitsInlineScript() ? "1" : "", "|"));
+    res.append(StrCat("A:", PermitsInlineScriptAttribute() ? "1" : "", "|"));
+    res.append(StrCat("S:", PermitsInlineStyle() ? "1" : "", "|"));
+    res.append(StrCat("T:", PermitsInlineStyleAttribute() ? "1" : "", "|"));
+    return res;
+  }
 
  private:
   typedef bool (CspPolicy::*SimplePredicateFn)() const;
