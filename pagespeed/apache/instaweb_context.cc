@@ -238,7 +238,9 @@ void InstawebContext::PopulateHeaders(request_rec* request) {
     // sanitized from our own output.
     const char* csp = apr_table_get(request->err_headers_out,
                                     HttpAttributes::kContentSecurityPolicy);
-    response_headers_->Add(HttpAttributes::kInternalContentSecurityPolicy, csp);
+    if (csp != nullptr) {
+      response_headers_->Add(HttpAttributes::kInternalContentSecurityPolicy, csp);
+    }
     populated_headers_ = true;
   }
 }
