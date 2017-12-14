@@ -386,7 +386,10 @@ class JsCombineFilter::Context : public RewriteContext {
   virtual GoogleString CacheKeySuffix() const {
     // Updated to make sure certain bugfixes actually deploy, and we don't
     // end up using old broken cached version.
-    return "v4";
+    MD5Hasher hasher;
+    auto id = StrCat("v4|",
+                       Driver()->content_security_policy().ToIdentityString());
+    return hasher.Hash(id);
   }
 
  private:
