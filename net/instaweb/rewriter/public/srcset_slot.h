@@ -52,7 +52,7 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
 
     // The slot owns us. Note that some of these may be nullptr if a resource
     // couldn't be created.
-    SrcSetSlot* slot;
+    RefCountedPtr<SrcSetSlot> slot;
   };
 
   // Note: you need to separately call Initialize() to actually create all the
@@ -69,7 +69,7 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
   int num_image_candidates() { return candidates_.size(); }
 
   // may be nullptr.
-  SrcSetSlot* slot(int idx) { return candidates_[idx].slot; }
+  SrcSetSlot* slot(int idx) { return candidates_[idx].slot.get(); }
   const GoogleString& url(int idx) { return candidates_[idx].url; }
   void set_url(int idx, GoogleString new_url) {
     candidates_[idx].url = new_url;
@@ -93,6 +93,12 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
   //  more practical than trying to coordinate).
   void Commit();
 
+  void Detach() {
+    for (int i = 0; i < num_image_candidates(); i++) {
+      candidates_[i].slot.reset(nullptr);
+    }
+  }
+
   // Parses the input srcset attribute into *out (replacing its contents),
   // filling in the url and descriptor fields (but not trying to create
   // resources or fill in slot).
@@ -101,7 +107,9 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
   static GoogleString Serialize(const std::vector<ImageCandidate>& in);
 
  protected:
-  virtual ~SrcSetSlotCollection() {}
+  virtual ~SrcSetSlotCollection() {
+    Detach();
+  }
   REFCOUNT_FRIEND_DECLARATION(SrcSetSlotCollection);
 
  private:
