@@ -69,9 +69,9 @@ rm -rf "$RPM_BUILD_ROOT"
 %defattr(-,root,root)
 @@APACHE_MODULEDIR@@/mod_pagespeed.so
 @@APACHE_MODULEDIR@@/mod_pagespeed_ap24.so
-%config(noreplace) @@APACHE_CONFDIR@@/pagespeed.conf
-%config(noreplace) @@APACHE_CONFDIR@@/pagespeed_libraries.conf
-/etc/cron.daily/mod-pagespeed
+%config(noreplace) @@APACHE_CONFDIR@@/@@PAGESPEED_CONF_PREFIX@@pagespeed.conf
+%config(noreplace) @@APACHE_CONFDIR@@/@@PAGESPEED_CONF_PREFIX@@pagespeed_libraries.conf
+@@COMMENT_OUT_CRON@@/etc/cron.daily/@@PACKAGE@@
 /usr/bin/pagespeed_js_minify
 %attr(-, @@APACHE_USER@@, @@APACHE_USER@@) @@MOD_PAGESPEED_CACHE@@
 %attr(-, @@APACHE_USER@@, @@APACHE_USER@@) @@MOD_PAGESPEED_LOG@@

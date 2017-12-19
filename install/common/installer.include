@@ -80,6 +80,8 @@ process_template() (
     -e "s#@@COMMENT_OUT_DEFLATE@@#${COMMENT_OUT_DEFLATE}#g" \
     -e "s#@@SSL_CERT_DIR@@#${SSL_CERT_DIR}#g" \
     -e "s#@@SSL_CERT_FILE_COMMAND@@#${SSL_CERT_FILE_COMMAND}#g" \
+    -e "s#@@PAGESPEED_CONF_PREFIX@@#${PAGESPEED_CONF_PREFIX}#g" \
+    -e "s#@@COMMENT_OUT_CRON@@#${COMMENT_OUT_CRON}#g" \
     > "$TMPLOUT" <<< "$TMPLINCL"
 
   if grep "@@" "$TMPLOUT"; then
