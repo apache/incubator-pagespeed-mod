@@ -50,7 +50,9 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
     GoogleString url;
     GoogleString descriptor;
 
-    // The slot owns us. Note that some of these may be nullptr if a resource
+    // These reference are released by SrcSetSlotCollection::Detach(),
+    // which is called in RewriteDriver::FlushAsyncDone.
+    // Note that some of these may not be set if a resource
     // couldn't be created.
     RefCountedPtr<SrcSetSlot> slot;
   };
@@ -93,6 +95,7 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
   //  more practical than trying to coordinate).
   void Commit();
 
+  // Releases any references we have to SrcSetSlots.
   void Detach() {
     for (int i = 0; i < num_image_candidates(); i++) {
       candidates_[i].slot.reset(nullptr);
@@ -107,9 +110,7 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
   static GoogleString Serialize(const std::vector<ImageCandidate>& in);
 
  protected:
-  virtual ~SrcSetSlotCollection() {
-    Detach();
-  }
+  virtual ~SrcSetSlotCollection() {}
   REFCOUNT_FRIEND_DECLARATION(SrcSetSlotCollection);
 
  private:

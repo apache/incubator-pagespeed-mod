@@ -2328,18 +2328,16 @@ class DriverCleanupWithUnhealthyCacheTest : public RewriteDriverTest {
 // Regression test for https://github.com/pagespeed/ngx_pagespeed/issues/1514
 // This shouldn't segfailt
 TEST_F(DriverCleanupWithUnhealthyCacheTest, NoLeakNoSegfault) {
-  // Setup request headers since the subsequent purge request needs this.
+  lru_cache()->ShutDown();
   RequestHeaders request_headers;
   rewrite_driver()->SetRequestHeaders(request_headers);
-
+  // Set up a arbitrary response for the png we reference in the html.
+  SetResponseWithDefaultHeaders("1.png", kContentTypePng, "doesnotmatter", 100);
+  GoogleString input_html("<img src=1.png  srcset='1.png 1.5x, 1.png 2x,1.png'/>");
   // Since we want to call both FinishParse() and WaitForCompletion() (it's
   // inside CallFetcherCallbacksForDriver) on a managed rewrite driver,
   // we have to pin it, since otherwise FinishParse will drop our last
   // reference.
- 
-  SetResponseWithDefaultHeaders("1.png", kContentTypePng, "blah", 100);
-  GoogleString input_html("<img src=1.png  srcset='1.png 1.5x, 1.png 2x,1.png'/>");
-  lru_cache()->ShutDown();
   rewrite_driver()->AddUserReference();
   ParseUrl(kTestDomain, input_html);
   rewrite_driver()->Cleanup();
