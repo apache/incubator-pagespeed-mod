@@ -51,7 +51,8 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
     GoogleString descriptor;
 
     // These reference are released by SrcSetSlotCollection::Detach(),
-    // which is called in RewriteDriver::FlushAsyncDone.
+    // which is called in RewriteDriver::FlushAsyncDone to break the
+    // reference count cycle.
     // Note that some of these may not be set if a resource
     // couldn't be created.
     RefCountedPtr<SrcSetSlot> slot;
