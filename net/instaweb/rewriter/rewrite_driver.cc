@@ -816,6 +816,9 @@ void RewriteDriver::FlushAsyncDone(int num_rewrites, Function* callback) {
     slots_.clear();
     inline_slots_.clear();
     inline_attribute_slots_.clear();
+    for(auto c : srcset_collections_) {
+      c->Detach();
+    }
     srcset_collections_.clear();
   }
 
