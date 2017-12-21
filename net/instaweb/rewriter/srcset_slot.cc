@@ -60,7 +60,7 @@ void SrcSetSlotCollection::Initialize(CommonFilter* filter) {
       ResourcePtr resource(filter->CreateInputResourceOrInsertDebugComment(
           candidates_[i].url, RewriteDriver::InputRole::kImg, element_));
       if (resource.get() != nullptr) {
-        candidates_[i].slot = new SrcSetSlot(resource, this, i);
+        candidates_[i].slot.reset(new SrcSetSlot(resource, this, i));
       }
     }
   }

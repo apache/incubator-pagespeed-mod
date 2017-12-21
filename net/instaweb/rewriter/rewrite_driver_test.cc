@@ -2307,6 +2307,42 @@ TEST_F(DownstreamCacheWithNoPossiblePurgeTest, DownstreamCacheNoInitRewrites) {
                    downstream_cache_purge_attempts()->Get());
 }
 
+class DriverCleanupWithUnhealthyCacheTest : public RewriteDriverTest {
+ protected:
+  void SetUp() override {
+    options()->SetRewriteLevel(RewriteOptions::kCoreFilters);
+    options()->set_honor_csp(true);
+    SetUseManagedRewriteDrivers(true);
+    RewriteDriverTest::SetUp();
+  }
+
+  void TearDown() override {
+    // We need to clean up the other rewrite driver manually since we don't
+    // parse anything through it --- NewRewriteDriver is called, but nothing
+    // else is done otherwise.
+    other_rewrite_driver()->Cleanup();
+    RewriteDriverTest::TearDown();
+  }
+};
+
+// Regression test for https://github.com/pagespeed/ngx_pagespeed/issues/1514
+// This shouldn't segfailt
+TEST_F(DriverCleanupWithUnhealthyCacheTest, NoLeakNoSegfault) {
+  lru_cache()->ShutDown();
+  RequestHeaders request_headers;
+  rewrite_driver()->SetRequestHeaders(request_headers);
+  // Set up a arbitrary response for the png we reference in the html.
+  SetResponseWithDefaultHeaders("1.png", kContentTypePng, "doesnotmatter", 100);
+  GoogleString input_html("<img src=1.png  srcset='1.png 1.5x, 1.png 2x,1.png'/>");
+  // Since we want to call both FinishParse() and WaitForCompletion() (it's
+  // inside CallFetcherCallbacksForDriver) on a managed rewrite driver,
+  // we have to pin it, since otherwise FinishParse will drop our last
+  // reference.
+  rewrite_driver()->AddUserReference();
+  ParseUrl(kTestDomain, input_html);
+  rewrite_driver()->Cleanup();
+}
+
 }  // namespace
 
 }  // namespace net_instaweb

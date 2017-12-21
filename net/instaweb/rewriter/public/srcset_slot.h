@@ -50,9 +50,12 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
     GoogleString url;
     GoogleString descriptor;
 
-    // The slot owns us. Note that some of these may be nullptr if a resource
+    // These reference are released by SrcSetSlotCollection::Detach(),
+    // which is called in RewriteDriver::FlushAsyncDone to break the
+    // reference count cycle.
+    // Note that some of these may not be set if a resource
     // couldn't be created.
-    SrcSetSlot* slot;
+    RefCountedPtr<SrcSetSlot> slot;
   };
 
   // Note: you need to separately call Initialize() to actually create all the
@@ -69,7 +72,7 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
   int num_image_candidates() { return candidates_.size(); }
 
   // may be nullptr.
-  SrcSetSlot* slot(int idx) { return candidates_[idx].slot; }
+  SrcSetSlot* slot(int idx) { return candidates_[idx].slot.get(); }
   const GoogleString& url(int idx) { return candidates_[idx].url; }
   void set_url(int idx, GoogleString new_url) {
     candidates_[idx].url = new_url;
@@ -92,6 +95,13 @@ class SrcSetSlotCollection : public RefCounted<SrcSetSlotCollection> {
   // (Which is sadly quadratic, but the size should be small enough that it's
   //  more practical than trying to coordinate).
   void Commit();
+
+  // Releases any references we have to SrcSetSlots.
+  void Detach() {
+    for (int i = 0; i < num_image_candidates(); i++) {
+      candidates_[i].slot.reset(nullptr);
+    }
+  }
 
   // Parses the input srcset attribute into *out (replacing its contents),
   // filling in the url and descriptor fields (but not trying to create
