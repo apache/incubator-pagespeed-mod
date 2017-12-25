@@ -172,6 +172,7 @@ TEST_F(SrcSetSlotTest, BasicOperation) {
 
   EXPECT_EQ("<img srcset=\"a.jpg, b.pagespeed.webp 100w, c.png 1000w\"/>",
             GetHtmlDomAsString());
+  collection->Detach();
 }
 
 }  // namespace net_instaweb
