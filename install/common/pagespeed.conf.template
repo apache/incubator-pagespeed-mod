@@ -321,15 +321,19 @@
     # and change server state, such as statistics, caches, and
     # messages.  This might be appropriate in an experimental setup.
     <Location /pagespeed_admin>
-        Order allow,deny
-        Allow from localhost
-        Allow from 127.0.0.1
+        Require all granted
+        Require local
+        #Require ip myremoteip
+        #Require host mydomain.tld
+        #Require forward-dns user.domain.tld
         SetHandler pagespeed_admin
     </Location>
     <Location /pagespeed_global_admin>
-        Order allow,deny
-        Allow from localhost
-        Allow from 127.0.0.1
+        Require all granted
+        Require local
+        #Require ip myremoteip
+        #Require host mydomain.tld
+        #Require forward-dns user.domain.tld
         SetHandler pagespeed_global_admin
     </Location>
 
