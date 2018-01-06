@@ -408,7 +408,7 @@ apache_debug_stop : stop
 # used to test connection-refused handling via modpagespeed.com.  We don't
 # actually create a VirtualHost on 1023.
 enable_ports_and_file_access :
-	if [ -x /usr/sbin/semanage ]; then \
+	if [[ -x /usr/sbin/semanage && ! -f /tmp/semanage.set ]]; then \
 	  set -x; \
 	  for port in 1023 8081 8082 $(APACHE_SECONDARY_PORT) \
 	      $(APACHE_TERTIARY_PORT) $(CONTROLLER_PORT); do \
@@ -423,6 +423,7 @@ enable_ports_and_file_access :
 	    sudo chcon -R --reference=$(APACHE_DOC_ROOT) $$dir || true; \
 	  done; \
 	  /usr/sbin/setsebool httpd_can_network_connect on; \
+	  touch /tmp/semanage.set; \
 	fi
 
 # Hooks for tests we can only run in development due to needing extensive
