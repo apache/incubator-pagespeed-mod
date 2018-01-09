@@ -54,6 +54,13 @@ class MessageHandler;
 // we'll set it back to 3:00:00 exactly in FixDateHeaders.
 const int64 kMaxAllowedDateDriftMs = 3L * net_instaweb::Timer::kMinuteMs;
 
+// This is illegal from a protocol perspective, see
+// https://tools.ietf.org/html/rfc2616#page-31
+// Basic Rules for 'token' excludes separators, including "@".
+// That's why we can use it as an in-memory sentinal as long as it is
+// never serialized.
+const char ResponseHeaders::kInternalPrefix[] = "@";
+
 ResponseHeaders::ResponseHeaders(const ResponseHeaders& other) {
   CopyFrom(other);
 }

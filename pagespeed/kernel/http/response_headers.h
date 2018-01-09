@@ -39,6 +39,8 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   enum VaryOption { kRespectVaryOnResources, kIgnoreVaryOnResources };
   enum ValidatorOption { kHasValidator, kNoValidator };
 
+  static const char kInternalPrefix[];
+
   // This constructor with options explicitly set should be used by all callers.
   explicit ResponseHeaders(const HttpOptions& options) { Init(options); }
 
