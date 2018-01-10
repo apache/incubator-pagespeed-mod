@@ -3,7 +3,7 @@
 
 |CI|Status|
 |---|---|
-|Travis|[![Build Status](https://travis-ci.org/pagespeed/mod_pagespeed.svg?branch=master)](https://travis-ci.org/pagespeed/mod_pagespeed)|
+|Travis|[![Build Status](https://travis-ci.org/apache/incubator-pagespeed-mod.svg?branch=master)](https://travis-ci.org/apache/incubator-pagespeed-mod)|
 
 `mod_pagespeed` is an open-source Apache module created by Google to help Make the Web Faster by rewriting web pages to reduce latency and bandwidth.
 
