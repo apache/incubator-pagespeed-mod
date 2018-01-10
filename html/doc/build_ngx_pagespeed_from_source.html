@@ -100,7 +100,7 @@ NPS_VERSION=1.13.35.1-beta
 cd
 wget https://github.com/pagespeed/ngx_pagespeed/archive/v${NPS_VERSION}.zip
 unzip v${NPS_VERSION}.zip
-nps_dir=$(find *pagespeed-ngx-${NPS_VERSION}/ | head -n 1)
+nps_dir=$(find . -name "*pagespeed-ngx-${NPS_VERSION}" -type d)
 cd "$nps_dir"
 NPS_RELEASE_NUMBER=${NPS_VERSION/beta/}
 NPS_RELEASE_NUMBER=${NPS_VERSION/stable/}
