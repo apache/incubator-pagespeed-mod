@@ -64,7 +64,7 @@ if "$additional_dev_packages"; then
   if version_compare $(lsb_release -sr) -ge 16.04; then
     binary_packages+=(openjdk-8-jre redis-server)
   else
-    binary_packages+=(openjdk-7-rje)
+    binary_packages+=(openjdk-7-jre)
     src_packages+=(redis-server)
   fi
 
