@@ -260,7 +260,7 @@ void InPlaceResourceRecorder::DoneAndSetHeaders(
     ResponseHeaders* response_headers, bool entire_response_received) {
   if (!entire_response_received) {
     // To record successfully, we must have a complete response.  Otherwise you
-    // get https://github.com/pagespeed/mod_pagespeed/issues/1081.
+    // get https://github.com/apache/incubator-pagespeed-mod/issues/1081.
     Fail();
   }
 
@@ -270,7 +270,7 @@ void InPlaceResourceRecorder::DoneAndSetHeaders(
 
   if (status_code_ == HttpStatus::kOK && resource_value_.contents_size() == 0) {
     // Ignore Empty 200 responses.
-    // https://github.com/pagespeed/mod_pagespeed/issues/1050
+    // https://github.com/apache/incubator-pagespeed-mod/issues/1050
     if (!failure_) {
       cache_->RememberFailure(url_, fragment_, kFetchStatusEmpty, handler_);
     }

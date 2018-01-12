@@ -414,7 +414,7 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
     // to put in ids when they're not actually referenced and we've gotten
     // several mailing list questions about why we don't combine in this case.
     // Is there actually javascript referencing css link tags by id?
-    // Tracked in https://github.com/pagespeed/mod_pagespeed/issues/1385
+    // Tracked in https://github.com/apache/incubator-pagespeed-mod/issues/1385
     if (driver()->options()->CssCombiningMayPermitIds()) {
       const char* value = element->AttributeValue(HtmlName::kId);
       if (value != nullptr &&

@@ -844,7 +844,7 @@ TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
                    StringPrintf(xhtml_script_format.c_str(), kJsMinData));
 }
 
-// http://github.com/pagespeed/mod_pagespeed/issues/324
+// http://github.com/apache/incubator-pagespeed-mod/issues/324
 TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
   InitFilters();
   GoogleString url = StrCat(kTestDomain, kOrigJsName);
@@ -852,7 +852,7 @@ TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
   TestRetainExtraHeaders(kOrigJsName, kFilterId, "js");
 }
 
-// http://github.com/pagespeed/mod_pagespeed/issues/327 -- we were
+// http://github.com/apache/incubator-pagespeed-mod/issues/327 -- we were
 // previously busting regexps with backslashes in them.
 TEST_P(JavascriptFilterTest, BackslashInRegexp) {
   InitFilters();
@@ -933,7 +933,7 @@ TEST_P(JavascriptFilterTest, NoReuseInline) {
   EXPECT_EQ(1, num_uses_->Get());
 }
 
-// See http://github.com/pagespeed/mod_pagespeed/issues/542
+// See http://github.com/apache/incubator-pagespeed-mod/issues/542
 TEST_P(JavascriptFilterTest, ExtraCdataOnMalformedInput) {
   InitFiltersAndTest(100);
 
@@ -1255,7 +1255,7 @@ TEST_P(JavascriptFilterTest, SourceMapUnsanitaryUrl) {
 // For non-pagespeed input JS, we must add ?PageSpeed=off to the source URL
 // to avoid IPRO rewriting the source. However, we should not add ?PageSpeed=off
 // for .pagespeed. input files, because that doesn't make any sense.
-// https://github.com/pagespeed/mod_pagespeed/issues/1043
+// https://github.com/apache/incubator-pagespeed-mod/issues/1043
 TEST_P(JavascriptFilterTest, ProperSourceMapForPagespeedInput) {
   if (!options()->use_experimental_js_minifier()) return;
 

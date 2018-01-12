@@ -79,7 +79,7 @@ FetchResponseStatus HttpCacheFailure::ClassifyFailure(
     if (contents.empty() && !headers.IsRedirectStatus()) {
       // Do not cache empty 200 responses, but remember that they were empty
       // to avoid fetching too often.
-      // https://github.com/pagespeed/mod_pagespeed/issues/1050
+      // https://github.com/apache/incubator-pagespeed-mod/issues/1050
       classification = kFetchStatusEmpty;
     } else if (!external_cacheable) {
       classification = (status_code == 200 ? kFetchStatusUncacheable200

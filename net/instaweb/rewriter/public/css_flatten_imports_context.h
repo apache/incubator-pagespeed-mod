@@ -194,7 +194,7 @@ class CssFlattenImportsContext : public SingleRewriteContext {
             output_partition(0)->inlined_data());
         hierarchy_->set_input_contents(hierarchy_->minified_contents());
         // Parse() will compute flattening_succeeded_, which needs to be
-        // restored.  See https://github.com/pagespeed/mod_pagespeed/issues/1092
+        // restored.  See https://github.com/apache/incubator-pagespeed-mod/issues/1092
         hierarchy_->Parse();
       }
     } else {

@@ -566,7 +566,7 @@ class FakeMemcacheServerThread : public TcpServerThreadForTesting {
 TEST_F(AprMemCacheTest, HangingMultigetTest) {
   // Test that we do not hang in the case of corrupted responses from memcached,
   // as seen in bug report 1048
-  // https://github.com/pagespeed/mod_pagespeed/issues/1048
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1048
   scoped_ptr<FakeMemcacheServerThread> thread(new FakeMemcacheServerThread(
       fake_memcache_listen_port_, thread_system_.get()));
   ASSERT_TRUE(thread->Start());

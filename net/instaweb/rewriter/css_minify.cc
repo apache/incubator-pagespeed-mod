@@ -357,14 +357,14 @@ bool IsLength(const GoogleString& unit) {
 }  // namespace
 
 bool CssMinify::UnitsRequiredForValueZero(const GoogleString& unit) {
-  // https://github.com/pagespeed/mod_pagespeed/issues/1164 : Chrome does not
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1164 : Chrome does not
   // allow abbreviating 0s or 0% as 0.  It only allows that abbreviation for
   // lengths.
   //
-  // https://github.com/pagespeed/mod_pagespeed/issues/1261  See
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1261  See
   // https://www.w3.org/TR/CSS2/visudet.html#the-height-property
   //
-  // https://github.com/pagespeed/mod_pagespeed/issues/1538
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1538
   // retaining unit for zero value in calc function
   return (unit == "%") || !IsLength(unit) ||
           in_css_calc_function_;
@@ -430,7 +430,7 @@ void CssMinify::Minify(const Css::Declaration& declaration) {
         // TODO(ashishk):unicode-range should get resolved to css property
         // enum.
         if (declaration.prop_text() == "unicode-range") {
-          // https://github.com/pagespeed/mod_pagespeed/issues/1572
+          // https://github.com/apache/incubator-pagespeed-mod/issues/1572
           // space separator should not be there in unicode range value
           JoinMinify(*declaration.values(), "");
         } else {

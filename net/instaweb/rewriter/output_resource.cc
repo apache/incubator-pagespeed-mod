@@ -224,7 +224,7 @@ void OutputResource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
   // TODO(oschaaf): Output resources shouldn't be loaded via LoadAsync, but
   // rather through FetchResource. Yet 
   // ProxyInterfaceTest.TestNoDebugAbortAfterMoreThenOneYear does manage to hit
-  // this code. See https://github.com/pagespeed/mod_pagespeed/issues/1553
+  // this code. See https://github.com/apache/incubator-pagespeed-mod/issues/1553
   callback->Done(false /* lock_failure */, writing_complete_);
 }
 

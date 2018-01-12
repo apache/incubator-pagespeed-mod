@@ -146,7 +146,7 @@ void SystemServerContext::CheckLegacyGlobalCacheFlushFile() {
         // The multiple child processes each must independently
         // discover a fresh cache.flush and update the options. However,
         // as shown in
-        //     http://github.com/pagespeed/mod_pagespeed/issues/568
+        //     http://github.com/apache/incubator-pagespeed-mod/issues/568
         // we should only bump the flush-count and print a warning to
         // the log once per new timestamp.
         if (flushed &&

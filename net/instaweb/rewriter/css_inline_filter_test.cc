@@ -282,7 +282,7 @@ TEST_F(CssInlineFilterTest, DoInlineCssWithMediaQuery) {
 
 TEST_F(CssInlineFilterTest, Empty) {
   // Don't inline empty resources. This is defensive programming against
-  // issues like: https://github.com/pagespeed/mod_pagespeed/issues/1050
+  // issues like: https://github.com/apache/incubator-pagespeed-mod/issues/1050
   const GoogleString css = "";
   TestNoInlineCss("http://www.example.com/index.html",
                   "http://www.example.com/styles.css",
@@ -354,7 +354,7 @@ TEST_F(CssInlineFilterTest, CorrectlyInlineCssWithImports) {
                 "@import \"dir/foo.css\"; BODY { color: red; }\n");
 }
 
-// https://github.com/pagespeed/mod_pagespeed/issues/252
+// https://github.com/apache/incubator-pagespeed-mod/issues/252
 TEST_F(CssInlineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
   // XHTML text should not have unclosed links.  But if they do, like
   // in Issue 252, then we should leave them alone.

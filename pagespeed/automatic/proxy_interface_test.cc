@@ -381,7 +381,7 @@ TEST_F(ProxyInterfaceTest, LoggingInfo) {
   EXPECT_TRUE(logging_info()->is_request_disabled());
 }
 
-// Regression test for https://github.com/pagespeed/mod_pagespeed/issues/1553
+// Regression test for https://github.com/apache/incubator-pagespeed-mod/issues/1553
 TEST_F(ProxyInterfaceTest, TestNoDebugAbortAfterMoreThenOneYear) {
   GoogleString text;
   RequestHeaders request_headers;

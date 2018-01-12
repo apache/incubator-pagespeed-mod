@@ -1935,7 +1935,7 @@ TEST_F(ParserTest, CharsetError) {
 }
 
 TEST_F(ParserTest, AcceptCorrectValues) {
-  // http://github.com/pagespeed/mod_pagespeed/issues/128
+  // http://github.com/apache/incubator-pagespeed-mod/issues/128
   Parser p("list-style-type: none");
   scoped_ptr<Declarations> declarations(p.ParseDeclarations());
   EXPECT_EQ(1, declarations->size());

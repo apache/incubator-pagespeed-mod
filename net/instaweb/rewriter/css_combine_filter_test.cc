@@ -661,14 +661,14 @@ TEST_F(CssCombineFilterTest, CombineCssRecombine) {
 }
 
 
-// https://github.com/pagespeed/mod_pagespeed/issues/39
+// https://github.com/apache/incubator-pagespeed-mod/issues/39
 TEST_F(CssCombineFilterTest, DealWithParams) {
   SetHtmlMimetype();
   CombineCssWithNames("with_params", "", "", false, "a.css?U", "b.css?rev=138",
                       true);
 }
 
-// https://github.com/pagespeed/mod_pagespeed/issues/252
+// https://github.com/apache/incubator-pagespeed-mod/issues/252
 TEST_F(CssCombineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
   // XHTML text should not have unclosed links.  But if they do, like
   // in Issue 252, then we should leave them alone.
@@ -701,7 +701,7 @@ TEST_F(CssCombineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
                    StringPrintf(html_format, kXhtmlDtd, combination.c_str()));
 }
 
-// http://github.com/pagespeed/mod_pagespeed/issues/306
+// http://github.com/apache/incubator-pagespeed-mod/issues/306
 TEST_F(CssCombineFilterTest, XhtmlCombineLinkClosed) {
   // XHTML text should not have unclosed links.  But if they do, like
   // in Issue 252, then we should leave them alone.
