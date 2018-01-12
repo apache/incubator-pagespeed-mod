@@ -404,7 +404,7 @@ pagespeed DisableFilters prioritize_critical_css;</pre>
   supported by which browsers in the version of PageSpeed you're using and craft
   regular expressions to match exactly those ones.  This is very difficult to do
   in general because it involves duplicating the code in
-  <a href="https://github.com/pagespeed/mod_pagespeed/blob/latest-stable/pagespeed/kernel/http/user_agent_matcher.cc"><code>user_agent_matcher.cc</code></a>
+  <a href="https://github.com/apache/incubator-pagespeed-mod/blob/latest-stable/pagespeed/kernel/http/user_agent_matcher.cc"><code>user_agent_matcher.cc</code></a>
   as regexes, but a simple division is:
   <ul>
     <li>Chrome 32+: <code>ll,ii,dj,jw,wa,ws</code>
