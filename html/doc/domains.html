@@ -655,7 +655,7 @@ pagespeed LoadFromFileMatch "^https?://example.com/~([^/]*)/static/"
   upon only the filename extension and only for common filename extensions we
   recognize (<code>.html</code>, <code>.css</code>, <code>.js</code>,
   <code>.jpg</code>, <code>.jpeg</code>, ... see full
-  list: <a href="https://github.com/pagespeed/mod_pagespeed/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
+  list: <a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
   Before 1.9.32.1, filenames with unrecognized extensions were served with no
   <code>Content-Type</code> header; in 1.9.32.1 and later such filenames will
   not be loaded from file and instead will fall back to ordinary fetching.
@@ -928,7 +928,7 @@ http {
   be used without applying SSI includes, CGI generation, etc.
   Furthermore, all the resources should have filenames with common
   extensions for their Content-Type (Ex: .html, .css, .js, .jpg, .jpeg, ... see
-  full list: <a href="https://github.com/pagespeed/mod_pagespeed/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
+  full list: <a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
 </p>
 
 <h2 id="inline_without_auth">Inlining resources without explicit authorization

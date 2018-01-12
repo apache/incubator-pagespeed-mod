@@ -44,9 +44,9 @@ detailed technical questions!)
 <p>
 While we have no dates to announce for upcoming releases, we definitely want to
 know what you think we should be working
-on. Please <a href="https://github.com/pagespeed/mod_pagespeed/issues">search
+on. Please <a href="https://github.com/apache/incubator-pagespeed-mod/issues">search
 our issues</a> for your feature. If you don't find
-it, <a href="https://github.com/pagespeed/mod_pagespeed/issues/new">open a new
+it, <a href="https://github.com/apache/incubator-pagespeed-mod/issues/new">open a new
 issue</a> and tag it "Type-Enhancement". To get updates on an issue, click the
 "star" icon for it.  This also lets us know how many people are interested in
 the issue.  If your issue is Nginx-specific, consider posting on
@@ -139,7 +139,7 @@ optimizing anything.  There are several reasons that could happen:
       HTML must have the resource domain authorized. See
       <a href="domains">Domains</a>.</li>
   <li>Your CSS has new CSS3 syntax or other constructions we don't support.
-      See <a href="http://github.com/pagespeed/mod_pagespeed/issues/108"
+      See <a href="http://github.com/apache/incubator-pagespeed-mod/issues/108"
       >issue 108</a>.
       The <a href="filter-css-rewrite#configuration"
       >fallback_rewrite_css_urls</a> filter may be able to help. You can also
@@ -198,7 +198,7 @@ Second, please upgrade to the latest version; we are continually working on
 bug-fixes and turning off filters that break pages.
 </p>
 If it's still breaking your site, please post a bug
-(<a href="https://github.com/pagespeed/mod_pagespeed/issues/new">Apache</a>,
+(<a href="https://github.com/apache/incubator-pagespeed-mod/issues/new">Apache</a>,
  <a href="https://github.com/pagespeed/ngx_pagespeed/issues/new">Nginx</a>). If
 you can, including the following information will make it much easier to
 diagnose:
@@ -304,7 +304,7 @@ js_tinyMCE?</h2>
 <p>
 Some JavaScript is introspective, being sensitive to its own name or the path
 it's loaded from.  While PageSpeed has an internal list
-(<a href="https://github.com/pagespeed/mod_pagespeed/blob/master/net/instaweb/rewriter/rewrite_options.cc">DisallowTroublesomeResources</a>)
+(<a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/net/instaweb/rewriter/rewrite_options.cc">DisallowTroublesomeResources</a>)
 hardcoded with filenames of JavaScript libraries that are known to be
 problematic, and <a href="restricting_urls#aris">inspects the source of
 others</a> looking for dangerous constructs, it doesn't always correctly

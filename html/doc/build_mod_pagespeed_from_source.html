@@ -87,7 +87,7 @@ path. In <code>bash</code> you would run:
 <p>
 <p>For building version 1.12 and later:</p>
 <pre>
-  git clone -b latest-stable --recursive https://github.com/pagespeed/mod_pagespeed.git
+  git clone -b latest-stable --recursive https://github.com/apache/incubator-pagespeed-mod.git
   cd mod_pagespeed
   python build/gyp_chromium --depth=.
   make BUILDTYPE=Release mod_pagespeed_test pagespeed_automatic_test
@@ -102,8 +102,8 @@ the <code>depot_tools</code>) will do this for you.
 <pre>
   mkdir ~/mod_pagespeed    # Any directory is fine.
   cd ~/mod_pagespeed
-  gclient config https://github.com/pagespeed/mod_pagespeed.git --unmanaged --name=src
-  git clone https://github.com/pagespeed/mod_pagespeed.git src
+  gclient config https://github.com/apache/incubator-pagespeed-mod.git --unmanaged --name=src
+  git clone https://github.com/apache/incubator-pagespeed-mod.git src
   cd src
   git checkout latest-stable
   cd ..
@@ -134,7 +134,7 @@ CentOS, these settings should work:
 </pre>
 <p>
 If you get any other errors while running
-tests, <a href="https://github.com/pagespeed/mod_pagespeed/issues/new">report a
+tests, <a href="https://github.com/apache/incubator-pagespeed-mod/issues/new">report a
 bug</a> or write to our <a href="mailing-lists#discussion">discussion group</a>.
 
 <h2 id="compile">Compile</h2>
