@@ -26,7 +26,7 @@ FETCHED=$WGET_DIR/$FILE
 check run_wget_with_args $URL
 check [ $(fgrep -o '<script' $FETCHED | wc -l) -eq 0 ]
 
-# http://github.com/pagespeed/mod_pagespeed/issues/170
+# http://github.com/apache/incubator-pagespeed-mod/issues/170
 start_test "Make sure 404s aren't rewritten"
 # Note: We run this in the add_instrumentation section because that is the
 # easiest to detect which changes every page

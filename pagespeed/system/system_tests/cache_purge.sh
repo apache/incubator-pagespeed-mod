@@ -18,7 +18,7 @@ cache_purge_test http://purge.example.com
 
 # Run a simple cache_purge test but in a vhost with ModPagespeed off, and
 # a subdirectory with htaccess file turning it back on, addressing
-# https://github.com/pagespeed/mod_pagespeed/issues/1077
+# https://github.com/apache/incubator-pagespeed-mod/issues/1077
 #
 # TODO(jefftk): Uncomment this and delete uncomment the same test in
 # apache/system_test.sh once nginx_system_test suppressions &/or
