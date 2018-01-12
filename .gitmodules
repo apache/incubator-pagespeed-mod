@@ -22,7 +22,7 @@
 	url = https://github.com/google/re2.git
 [submodule "third_party/icu"]
 	path = third_party/icu
-	url = https://github.com/pagespeed/icu.git
+	url = https://github.com/apache/incubator-pagespeed-icu.git
 [submodule "third_party/libjpeg_turbo/src"]
 	path = third_party/libjpeg_turbo/src
 	url = https://chromium.googlesource.com/chromium/deps/libjpeg_turbo
@@ -42,7 +42,7 @@
 	url = git://git.apache.org/apr.git
 [submodule "third_party/optipng"]
 	path = third_party/optipng
-	url = https://github.com/pagespeed/optipng.git
+	url = https://github.com/apache/incubator-pagespeed-optipng.git
 [submodule "third_party/libwebp"]
 	path = third_party/libwebp
 	url = https://chromium.googlesource.com/webm/libwebp.git
@@ -65,7 +65,7 @@
 	url = https://boringssl.googlesource.com/boringssl.git
 [submodule "third_party/zlib"]
 	path = third_party/zlib
-	url = https://github.com/pagespeed/zlib.git
+	url = https://github.com/apache/incubator-pagespeed-zlib.git
 [submodule "third_party/chromium/src/base"]
 	path = third_party/chromium/src/base
 	url = https://chromium.googlesource.com/chromium/src/base
@@ -82,7 +82,7 @@
 	url = https://github.com/google/sparsehash.git
 [submodule "third_party/domain_registry_provider"]
 	path = third_party/domain_registry_provider
-	url = https://github.com/pagespeed/domain-registry-provider.git
+	url = https://github.com/apache/incubator-pagespeed-drp.git
 [submodule "third_party/jsoncpp/src"]
 	path = third_party/jsoncpp/src
 	url = https://github.com/open-source-parsers/jsoncpp.git
