@@ -126,7 +126,7 @@ class CachePutFetch : public SharedAsyncFetch {
   virtual void HandleDone(bool success) {
     DCHECK_EQ(request_headers()->method(), RequestHeaders::kGet);
     // We do not cache empty 200 responses. (Empty 404, 500 are fine.)
-    // https://github.com/pagespeed/mod_pagespeed/issues/1050
+    // https://github.com/apache/incubator-pagespeed-mod/issues/1050
     const bool empty_200 =
         (response_headers()->status_code() == HttpStatus::kOK &&
          cache_value_.contents_size() == 0);

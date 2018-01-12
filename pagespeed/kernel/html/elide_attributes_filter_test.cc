@@ -94,7 +94,7 @@ TEST_F(ElideAttributesFilterTest, RemoveScriptTypeInHtml5) {
                    "</script></head><body></body>");
 }
 
-// See http://github.com/pagespeed/mod_pagespeed/issues/59
+// See http://github.com/apache/incubator-pagespeed-mod/issues/59
 TEST_F(ElideAttributesFilterTest, DoNotRemoveScriptTypeInHtml4) {
   SetDoctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" "
              "\"http://www.w3.org/TR/html4/strict.dtd\">");

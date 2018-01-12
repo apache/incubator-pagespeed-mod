@@ -888,7 +888,7 @@ apr_status_t instaweb_in_place_check_headers_filter(ap_filter_t* filter,
       recorder->DoneAndSetHeaders(&response_headers,
                                   !request->connection->aborted);
 
-      // https://github.com/pagespeed/mod_pagespeed/issues/1191 identifies
+      // https://github.com/apache/incubator-pagespeed-mod/issues/1191 identifies
       // a case where there must have been two EOS markers passed into
       // this function, either because there were two in the brigade
       // or because this filter was called twice.  To defend against
@@ -1140,7 +1140,7 @@ void mod_pagespeed_register_hooks(apr_pool_t* pool) {
 
   // We register our output filter at (AP_FTYPE_RESOURCE + 1) so that
   // mod_pagespeed runs after mod_include.  See Issue
-  // http://github.com/pagespeed/mod_pagespeed/issues/182
+  // http://github.com/apache/incubator-pagespeed-mod/issues/182
   // and httpd/src/modules/filters/mod_include.c, which initializes
   // server-side-includes with ap_register_output_filter(...AP_FTYPE_RESOURCE).
   ap_register_output_filter(

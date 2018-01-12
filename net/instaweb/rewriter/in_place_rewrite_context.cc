@@ -141,7 +141,7 @@ void RecordingFetch::HandleHeadersComplete() {
       if (!response_headers()->IsErrorStatus()) {
         // Clear the response headers to ensure stray headers do not end up
         // being put on the wire:
-        // https://github.com/pagespeed/mod_pagespeed/issues/1496
+        // https://github.com/apache/incubator-pagespeed-mod/issues/1496
         response_headers()->Clear();
         response_headers()->set_status_code(
             CacheUrlAsyncFetcher::kNotInCacheStatus);

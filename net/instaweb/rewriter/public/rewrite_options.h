@@ -866,7 +866,7 @@ class RewriteOptions {
 
   static const int kDefaultImageMaxRewritesAtOnce;
 
-  // See http://github.com/pagespeed/mod_pagespeed/issues/9
+  // See http://github.com/apache/incubator-pagespeed-mod/issues/9
   // Apache evidently limits each URL path segment (between /) to
   // about 256 characters.  This is not fundamental URL limitation
   // but is Apache specific.

@@ -209,7 +209,7 @@ void SerfFetch::CallCallback(SerfCompletionResult result) {
   } else if (ssl_error_message_ == NULL) {
     LOG(FATAL) << "BUG: Serf callback called more than once on same fetch "
                << DebugInfo() << " (" << this << ").  Please report this "
-               << "at https://github.com/pagespeed/mod_pagespeed/issues/new";
+               << "at https://github.com/apache/incubator-pagespeed-mod/issues/new";
   }
 }
 

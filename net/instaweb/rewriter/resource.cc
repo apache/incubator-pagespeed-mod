@@ -110,7 +110,7 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
         StrAppend(reason, "Uncacheable content, ");
         break;
       case kFetchStatusEmpty:
-        // https://github.com/pagespeed/mod_pagespeed/issues/1050
+        // https://github.com/apache/incubator-pagespeed-mod/issues/1050
         StrAppend(reason, "Resource is empty, ");
         break;
       case kFetchStatusOtherError:
@@ -138,7 +138,7 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
              response_headers_.Lookup1(HttpAttributes::kXAccelRedirect)) {
     StrAppend(reason, "Sendfile in header, unsafe to rewrite! ");
   } else if (IsContentsEmpty()) {
-    // https://github.com/pagespeed/mod_pagespeed/issues/1050
+    // https://github.com/apache/incubator-pagespeed-mod/issues/1050
     StrAppend(reason, "Resource is empty, ");
   } else {
     // Safe.

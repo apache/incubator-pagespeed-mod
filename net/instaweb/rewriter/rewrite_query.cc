@@ -493,7 +493,7 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     MessageHandler* handler) {
   Status status = kNoneFound;
 
-  // See https://github.com/pagespeed/mod_pagespeed/issues/627
+  // See https://github.com/apache/incubator-pagespeed-mod/issues/627
   // Evidently bots and other clients may not properly resolve the quoted
   // URLs we send into noscript links, so remove any excess quoting we
   // see around the value.

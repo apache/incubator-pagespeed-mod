@@ -1195,7 +1195,7 @@ TEST_F(CssFlattenImportsTest, NoFlattenMediaQueriesChild) {
                              kFlattenImportsComplexQueries);
 }
 
-// See https://github.com/pagespeed/mod_pagespeed/issues/1092
+// See https://github.com/apache/incubator-pagespeed-mod/issues/1092
 TEST_F(CssFlattenImportsTest, FlattenTooComplexNested) {
   GoogleString css_in = StrCat("@import url(http://test.com/",
                                kComplexCssFile, ");");

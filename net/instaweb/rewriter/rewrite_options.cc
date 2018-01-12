@@ -478,12 +478,12 @@ const int64 RewriteOptions::kDefaultImageWebpTimeoutMs = -1;
 const int64 RewriteOptions::kDefaultMaxCacheableResponseContentLength =
     16777216;  // 16 MB in bytes
 
-// See http://github.com/pagespeed/mod_pagespeed/issues/9.  By
+// See http://github.com/apache/incubator-pagespeed-mod/issues/9.  By
 // default, Apache evidently limits each URL path segment (between /)
 // to about 256 characters.  This is not a fundamental URL limitation
 // but is Apache specific.  Ben Noordhuis has provided a workaround
 // of hooking map_to_storage to skip the directory-mapping phase in
-// Apache.  See http://github.com/pagespeed/mod_pagespeed/issues/176
+// Apache.  See http://github.com/apache/incubator-pagespeed-mod/issues/176
 const int RewriteOptions::kDefaultMaxUrlSegmentSize = 1024;
 
 // Expiration limit for cookies that set PageSpeed options: 10 minutes.
@@ -2558,36 +2558,36 @@ GoogleString RewriteOptions::GetExperimentStateStr() const {
 }
 
 void RewriteOptions::DisallowTroublesomeResources() {
-  // http://github.com/pagespeed/mod_pagespeed/issues/38
+  // http://github.com/apache/incubator-pagespeed-mod/issues/38
   Disallow("*js_tinyMCE*");  // js_tinyMCE.js
   // Official tinyMCE URLs: tiny_mce.js, tiny_mce_src.js, tiny_mce_gzip.php, ...
   Disallow("*tiny_mce*");
   // I've also seen tinymce.js
   Disallow("*tinymce*");
 
-  // http://github.com/pagespeed/mod_pagespeed/issues/352
+  // http://github.com/apache/incubator-pagespeed-mod/issues/352
   Disallow("*scriptaculous.js*");
 
-  // http://github.com/pagespeed/mod_pagespeed/issues/186
+  // http://github.com/apache/incubator-pagespeed-mod/issues/186
   // ckeditor.js, ckeditor_basic.js, ckeditor_basic_source.js, ...
   Disallow("*ckeditor*");
 
-  // https://github.com/pagespeed/mod_pagespeed/issues/1405
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1405
   Disallow("*/wp-admin/*");
 
-  // http://github.com/pagespeed/mod_pagespeed/issues/207
+  // http://github.com/apache/incubator-pagespeed-mod/issues/207
   // jquery-ui-1.8.2.custom.min.js, jquery-1.4.4.min.js, jquery.fancybox-...
   //
   // TODO(sligocki): Is jquery actually a problem? Perhaps specific
   // jquery libraries (like tiny MCE). Investigate before disabling.
   // Disallow("*jquery*");
 
-  // http://github.com/pagespeed/mod_pagespeed/issues/216
+  // http://github.com/apache/incubator-pagespeed-mod/issues/216
   // Appears to be an issue with old version of jsminify.
   // Disallow("*swfobject*");  // swfobject.js
 
   // TODO(sligocki): Add disallow for the JS broken in:
-  // http://github.com/pagespeed/mod_pagespeed/issues/142
+  // http://github.com/apache/incubator-pagespeed-mod/issues/142
   // Not clear which JS file is broken and proxying is not working correctly.
 
   // Disable lazyload_images if there is another known lazyloader present.

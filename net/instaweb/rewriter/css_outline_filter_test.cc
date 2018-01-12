@@ -250,7 +250,7 @@ TEST_F(CssOutlineFilterTest, DoNotOutlineScoped) {
   ValidateNoChanges("scoped", "<style scoped>* {display: none;}</style>");
 }
 
-// http://github.com/pagespeed/mod_pagespeed/issues/416
+// http://github.com/apache/incubator-pagespeed-mod/issues/416
 TEST_F(CssOutlineFilterTest, RewriteDomain) {
   SetupOutliner();
   AddRewriteDomainMapping("cdn.com", kTestDomain);

@@ -132,7 +132,7 @@ bool DeviceProperties::SupportsCriticalImagesBeacon() const {
   // For now this script has the same user agent requirements as image inlining,
   // however that could change in the future if more advanced JS is used by the
   // beacon. Also disable for bots. See
-  // https://github.com/pagespeed/mod_pagespeed/issues/813.
+  // https://github.com/apache/incubator-pagespeed-mod/issues/813.
   return SupportsImageInlining() && !IsBot();
 }
 

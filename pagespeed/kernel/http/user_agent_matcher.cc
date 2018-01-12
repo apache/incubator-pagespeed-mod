@@ -75,7 +75,7 @@ const char* kImageInliningBlacklist[] = {
 // http://supportforums.blackberry.com/t5/Web-and-WebWorks-Development/How-to-detect-the-BlackBerry-Browser/ta-p/559862
 // for details on BlackBerry UAs.
 // Exclude all Opera Mini: see bug #1070.
-// https://github.com/pagespeed/mod_pagespeed/issues/1070
+// https://github.com/apache/incubator-pagespeed-mod/issues/1070
 const char* kLazyloadImagesBlacklist[] = {
   "BlackBerry*CLDC*",
   "*Opera Mini*",
@@ -129,7 +129,7 @@ const char* kLegacyWebpWhitelist[] = {
   "*Android *",
 };
 
-// Based on https://github.com/pagespeed/mod_pagespeed/issues/978,
+// Based on https://github.com/apache/incubator-pagespeed-mod/issues/978,
 // Desktop IE11 will start masquerading as Chrome soon, and according to
 // https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/mod-pagespeed-discuss/HYzzdOzJu_k/ftdV8koVgUEJ
 // a browser called Midori might (at some point) masquerade as Chrome as well.
@@ -367,7 +367,7 @@ UserAgentMatcher::UserAgentMatcher()
     defer_js_whitelist_.Allow(kDeferJSWhitelist[i]);
   }
 
-  // https://github.com/pagespeed/mod_pagespeed/issues/982
+  // https://github.com/apache/incubator-pagespeed-mod/issues/982
   defer_js_whitelist_.Disallow("* MSIE 9.*");
 
   for (int i = 0, n = arraysize(kDeferJSBlacklist); i < n; ++i) {

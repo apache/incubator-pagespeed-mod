@@ -79,7 +79,7 @@ TEST_F(DevicePropertiesTest, WebpUserAgentIdentificationNoAccept) {
   EXPECT_TRUE(device_properties_.SupportsWebpLosslessAlpha());
 }
 
-// See https://github.com/pagespeed/mod_pagespeed/issues/978
+// See https://github.com/apache/incubator-pagespeed-mod/issues/978
 //
 // Microsoft (v-evgena@microsoft.com and tobint@microsoft.com)
 // suggests that they are planning to start masquerading IE11 on
