@@ -44,7 +44,7 @@ check_from "$OUT" fgrep -q a=0
 # Clear out the file-cache.  Note that with a shared-memory cache, there is
 # no L1 copy of the optimized or origin resource in the cache.  The optimized
 # js will now 404.  This is not desired, and this testcase captures the bugs:
-#     https://github.com/pagespeed/mod_pagespeed/issues/1145
+#     https://github.com/apache/incubator-pagespeed-mod/issues/1145
 #     https://github.com/pagespeed/ngx_pagespeed/issues/1319
 echo removing "$CACHE_DIR"
 ls -l "$CACHE_DIR"

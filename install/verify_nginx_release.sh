@@ -58,7 +58,7 @@ cd "$WORKDIR"
 
 mkdir mod_pagespeed
 cd mod_pagespeed
-git clone https://github.com/pagespeed/mod_pagespeed.git src/
+git clone https://github.com/apache/incubator-pagespeed-mod.git src/
 cd src/
 git checkout $VERSION
 

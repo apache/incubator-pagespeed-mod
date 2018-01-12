@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# http://github.com/pagespeed/mod_pagespeed/issues/494 -- test
+# http://github.com/apache/incubator-pagespeed-mod/issues/494 -- test
 # that fetching a css with embedded relative images from a different
 # VirtualHost, accessing the same content, and rewrite-mapped to the
 # primary domain, delivers results that are cached for a year, which

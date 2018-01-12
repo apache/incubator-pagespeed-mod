@@ -404,7 +404,7 @@ stress_test_prepare :
 
 # This test checks that when ProxyPass is set on a host with mod_pagespeed
 # enabled, URLs are rewritten correctly. (See install/debug.conf.template)
-#   See: http://github.com/pagespeed/mod_pagespeed/issues/74
+#   See: http://github.com/apache/incubator-pagespeed-mod/issues/74
 #
 # TODO(sligocki): Lock Apache.
 .PHONY : apache_debug_proxy_test proxy_test_prepare

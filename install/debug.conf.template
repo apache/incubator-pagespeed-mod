@@ -421,7 +421,7 @@ FcgidOutputBufferSize 0
 # Helps tests that extra headers supplied by the apache conf
 # survive single-resource rewrites
 #
-# http://github.com/pagespeed/mod_pagespeed/issues/324
+# http://github.com/apache/incubator-pagespeed-mod/issues/324
 Header append 'X-Extra-Header' '1'
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/nostore" >
@@ -1146,7 +1146,7 @@ NameVirtualHost 127.0.0.1:@@APACHE_TERTIARY_PORT@@
     # or made equivalent to ModPagespeedInPlaceRewriteDeadlineMs -1, which waits
     # forever.  Otherwise ModPagespeedInPlaceRewriteDeadlineMs should just have
     # the specified deadline.
-    # # See https://github.com/pagespeed/mod_pagespeed/issues/1171 for more
+    # # See https://github.com/apache/incubator-pagespeed-mod/issues/1171 for more
     # detailed discussion.
     ModPagespeedInPlaceWaitForOptimized on
 </Directory>
@@ -1769,7 +1769,7 @@ ModPagespeedMessagesDomains Allow localhost
 
 
 #PROXY # This is used for ProxyPass testing.
-#PROXY #   See: http://github.com/pagespeed/mod_pagespeed/issues/74
+#PROXY #   See: http://github.com/apache/incubator-pagespeed-mod/issues/74
 #PROXY # We use 2 servers for it, one doing rewriting and fetching
 #PROXY # from the other one which does not have mod_pagespeed enabled.
 #PROXY Listen 8081
