@@ -98,7 +98,7 @@ First download ngx_pagespeed:
 #[check the <a href="release_notes">release notes</a> for the latest version</a>]
 NPS_VERSION=1.13.35.1-beta
 cd
-wget https://github.com/pagespeed/ngx_pagespeed/archive/v${NPS_VERSION}.zip
+wget https://github.com/apache/incubator-pagespeed-ngx/archive/v${NPS_VERSION}.zip
 unzip v${NPS_VERSION}.zip
 nps_dir=$(find . -name "*pagespeed-ngx-${NPS_VERSION}" -type d)
 cd "$nps_dir"
@@ -159,7 +159,7 @@ setarch i686 ./configure --add-module=$HOME/ngx_pagespeed-release-${NPS_VERSION}
 <p>
 If this doesn't work for you, please let us know.  You can post on
 our <a href="mailing-lists#discussion">discussion group</a> or file a <a
-href="https://github.com/pagespeed/ngx_pagespeed/issues/new">bug</a>.
+href="https://github.com/apache/incubator-pagespeed-ngx/issues/new">bug</a>.
 </p>
 
 <p>

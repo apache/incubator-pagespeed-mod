@@ -45,7 +45,7 @@ check_from "$OUT" fgrep -q a=0
 # no L1 copy of the optimized or origin resource in the cache.  The optimized
 # js will now 404.  This is not desired, and this testcase captures the bugs:
 #     https://github.com/apache/incubator-pagespeed-mod/issues/1145
-#     https://github.com/pagespeed/ngx_pagespeed/issues/1319
+#     https://github.com/apache/incubator-pagespeed-ngx/issues/1319
 echo removing "$CACHE_DIR"
 ls -l "$CACHE_DIR"
 rm -rf "$CACHE_DIR"

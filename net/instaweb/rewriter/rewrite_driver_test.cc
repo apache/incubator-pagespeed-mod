@@ -2325,7 +2325,7 @@ class DriverCleanupWithUnhealthyCacheTest : public RewriteDriverTest {
   }
 };
 
-// Regression test for https://github.com/pagespeed/ngx_pagespeed/issues/1514
+// Regression test for https://github.com/apache/incubator-pagespeed-ngx/issues/1514
 // This shouldn't segfailt
 TEST_F(DriverCleanupWithUnhealthyCacheTest, NoLeakNoSegfault) {
   lru_cache()->ShutDown();
