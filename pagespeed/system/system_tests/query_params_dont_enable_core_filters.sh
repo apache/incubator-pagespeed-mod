@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 start_test query params dont turn on core filters
-# See https://github.com/pagespeed/ngx_pagespeed/issues/1190
+# See https://github.com/apache/incubator-pagespeed-ngx/issues/1190
 URL="debug-filters.example.com/mod_pagespeed_example/"
 URL+="rewrite_javascript.html?PageSpeedFilters=-rewrite_css"
 OUT=$(http_proxy=$SECONDARY_HOSTNAME $WGET_DUMP $URL)

@@ -23,6 +23,6 @@ cache_purge_test http://purge.example.com
 # TODO(jefftk): Uncomment this and delete uncomment the same test in
 # apache/system_test.sh once nginx_system_test suppressions &/or
 # "pagespeed off;" in server block allow location-overrides in ngx_pagespeed.
-# See https://github.com/pagespeed/ngx_pagespeed/issues/968
+# See https://github.com/apache/incubator-pagespeed-ngx/issues/968
 # start_test Cache purging with PageSpeed off in vhost, but on in directory.
 # cache_purge_test http://psoff-dir-on.example.com

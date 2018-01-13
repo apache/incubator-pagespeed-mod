@@ -22,7 +22,7 @@
 #endif
 
 // If you are considering adding another gRPC header to this file, see:
-// https://github.com/pagespeed/ngx_pagespeed/issues/1237
+// https://github.com/apache/incubator-pagespeed-ngx/issues/1237
 
 #include <grpc++/grpc++.h>
 

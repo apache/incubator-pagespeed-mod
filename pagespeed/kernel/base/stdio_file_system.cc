@@ -518,7 +518,7 @@ bool StdioFileSystem::Stat(const StringPiece& path, struct stat* statbuf,
   if (stat(path_str, statbuf) == 0) {
     return true;
   } else if (errno != ENOENT) {  // Not an error if file doesn't exist see #972.
-    // https://github.com/pagespeed/ngx_pagespeed/issues/972
+    // https://github.com/apache/incubator-pagespeed-ngx/issues/972
     handler->Message(kError, "Failed to stat %s: %s", path_str,
                      strerror(errno));
   }

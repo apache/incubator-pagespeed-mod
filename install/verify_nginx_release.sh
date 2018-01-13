@@ -63,7 +63,7 @@ cd src/
 git checkout $VERSION
 
 cd $WORKDIR
-git clone https://github.com/pagespeed/ngx_pagespeed.git
+git clone https://github.com/apache/incubator-pagespeed-ngx.git
 cd ngx_pagespeed
 git checkout release-$VERSION-beta
 

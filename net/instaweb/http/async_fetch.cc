@@ -280,7 +280,7 @@ void AsyncFetch::FixCacheControlForGoogleCache() {
   ConstStringStarVector values;
   if (request_headers()->Lookup(HttpAttributes::kVia, &values)) {
     for (int i = 0, n = values.size(); i < n; ++i) {
-      // See https://github.com/pagespeed/ngx_pagespeed/issues/1149
+      // See https://github.com/apache/incubator-pagespeed-ngx/issues/1149
       // In general, it is not necessary to include a specific 'public'
       // in a cache-control entry to allow a proxy-cache to cache it;
       // it's sufficient to specify a max-age, as long as 'private'
