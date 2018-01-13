@@ -22,11 +22,11 @@
 #include <cstdlib>
 #include "base/logging.h"
 #ifdef USE_SYSTEM_ZLIB
-#include "zlib.h"  // NOLINT
+#include "src/zlib.h"  // NOLINT
 #include "zconf.h"  // NOLINT
 #else
-#include "third_party/zlib/zlib.h"
-#include "third_party/zlib/zconf.h"
+#include "third_party/zlib/src/zlib.h"
+#include "third_party/zlib/src/zconf.h"
 #endif
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/stack_buffer.h"

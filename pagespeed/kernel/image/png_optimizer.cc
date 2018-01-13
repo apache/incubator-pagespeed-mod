@@ -38,7 +38,7 @@ extern "C" {
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"  // NOLINT
 #else
-#include "third_party/zlib/zlib.h"
+#include "third_party/zlib/src/zlib.h"
 #endif
 
 #include "third_party/optipng/src/opngreduc/opngreduc.h"

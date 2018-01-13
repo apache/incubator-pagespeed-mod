@@ -63,9 +63,6 @@
 [submodule "third_party/boringssl/src"]
 	path = third_party/boringssl/src
 	url = https://boringssl.googlesource.com/boringssl.git
-[submodule "third_party/zlib"]
-	path = third_party/zlib
-	url = https://github.com/apache/incubator-pagespeed-zlib.git
 [submodule "third_party/chromium/src/base"]
 	path = third_party/chromium/src/base
 	url = https://chromium.googlesource.com/chromium/src/base
@@ -111,3 +108,6 @@
 [submodule "third_party/mod_fcgid"]
 	path = third_party/mod_fcgid
 	url = https://github.com/pagespeed/mod_fcgid.git
+[submodule "third_party/zlib/src"]
+	path = third_party/zlib/src
+	url = https://github.com/madler/zlib.git
