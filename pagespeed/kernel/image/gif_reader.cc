@@ -34,7 +34,7 @@ extern "C" {
 #include "third_party/libpng/src/png.h"
 #endif
 
-#include "third_party/giflib/lib/gif_lib.h"
+#include "third_party/giflib/src/lib/gif_lib.h"
 }
 
 #if GIFLIB_MAJOR < 5 || (GIFLIB_MAJOR == 5 && GIFLIB_MINOR == 0)
