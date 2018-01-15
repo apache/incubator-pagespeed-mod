@@ -17,7 +17,7 @@
  * under the License.
  */
 
-
+// Simple HTML minifier, based on pagespeed's minify_html.cc
 #include <cstdio>
 #include <fstream>
 
