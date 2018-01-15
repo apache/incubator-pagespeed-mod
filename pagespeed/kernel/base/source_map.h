@@ -17,6 +17,10 @@
  * under the License.
  */
 
+// Encoder for Source Map Revision 3. Specification and other info:
+// * https://docs.google.com/document/d/1U1RGAehQwRypUTovF1KRlpiOFze0b-_2gc6fAH0KY0k/edit
+// * http://www.html5rocks.com/en/tutorials/developertools/sourcemaps/
+// * http://en.wikipedia.org/wiki/Variable-length_quantity
 
 #ifndef PAGESPEED_KERNEL_UTIL_SOURCE_MAP_H_
 #define PAGESPEED_KERNEL_UTIL_SOURCE_MAP_H_
