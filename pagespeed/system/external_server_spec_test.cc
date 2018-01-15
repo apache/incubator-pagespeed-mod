@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/system/external_server_spec.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 

@@ -17,6 +17,7 @@
  * under the License.
  */
 
+// This contains very basic smoke tests for ThreadSystem subclass operation
 
 #include "pagespeed/kernel/thread/thread_system_test_base.h"
 

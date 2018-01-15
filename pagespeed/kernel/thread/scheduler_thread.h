@@ -17,6 +17,8 @@
  * under the License.
  */
 
+// Contains SchedulerThread, used to run the Scheduler dispatch loop for
+// non-blocking servers.
 
 #ifndef PAGESPEED_KERNEL_THREAD_SCHEDULER_THREAD_H_
 #define PAGESPEED_KERNEL_THREAD_SCHEDULER_THREAD_H_
