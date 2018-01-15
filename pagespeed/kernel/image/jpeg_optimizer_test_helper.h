@@ -18,6 +18,10 @@
  */
 
 
+// This header only exists to avoid including jpeglib.h, etc directly
+// in jpeg_optimizer_test.cc, since doing so causes symbol collisions on
+// Windows.
+
 #ifndef PAGESPEED_KERNEL_IMAGE_JPEG_OPTIMIZER_TEST_HELPER_H_
 #define PAGESPEED_KERNEL_IMAGE_JPEG_OPTIMIZER_TEST_HELPER_H_
 
