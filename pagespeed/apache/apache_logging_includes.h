@@ -17,6 +17,9 @@
  * under the License.
  */
 
+// Makes sure we include Apache's http_log.h without conflicting with
+// Google LOG() macros, and with proper per-module logging support in
+// Apache 2.4
 
 #ifndef PAGESPEED_APACHE_APACHE_LOGGING_INCLUDES_H_
 #define PAGESPEED_APACHE_APACHE_LOGGING_INCLUDES_H_
