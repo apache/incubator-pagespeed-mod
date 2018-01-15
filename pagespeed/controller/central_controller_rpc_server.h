@@ -15,6 +15,9 @@
 //
 // Author: cheesy@google.com (Steve Hill)
 
+#ifndef PAGESPEED_CONTROLLER_CENTRAL_CONTROLLER_RPC_SERVER_H_
+#define PAGESPEED_CONTROLLER_CENTRAL_CONTROLLER_RPC_SERVER_H_
+
 #include <memory>
 
 #include "base/macros.h"
