@@ -17,6 +17,7 @@
  * under the License.
  */
 
+// Include Apache's httpd.h without conflicting with grpc OK enum.
 
 #ifndef PAGESPEED_APACHE_APACHE_HTTPD_INCLUDES_H_
 #define PAGESPEED_APACHE_APACHE_HTTPD_INCLUDES_H_
