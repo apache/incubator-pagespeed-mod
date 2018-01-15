@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/apache/mock_apache.h"
 
 #include <cstdlib>
 #include <vector>
