@@ -8,9 +8,6 @@
 [submodule "third_party/brotli/src"]
 	path = third_party/brotli/src
 	url = https://github.com/google/brotli.git
-[submodule "third_party/giflib"]
-	path = third_party/giflib
-	url = https://github.com/pagespeed/giflib.git
 [submodule "third_party/closure_library"]
 	path = third_party/closure_library
 	url = https://github.com/google/closure-library.git
@@ -111,3 +108,6 @@
 [submodule "third_party/zlib/src"]
 	path = third_party/zlib/src
 	url = https://github.com/madler/zlib.git
+[submodule "third_party/giflib/src"]
+	path = third_party/giflib/src
+	url = https://git.code.sf.net/p/giflib/code
