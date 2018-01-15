@@ -17,6 +17,8 @@
  * under the License.
  */
 
+// This tests the operation of the various SHM modules under
+// the inprocess not-really-shared implementation.
 
 #include "pagespeed/kernel/sharedmem/inprocess_shared_mem.h"
 
