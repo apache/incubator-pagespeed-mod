@@ -17,6 +17,7 @@
  * under the License.
  */
 
+// The Apache handler for rewritten resources and a couple other Apache hooks.
 
 #ifndef PAGESPEED_APACHE_INSTAWEB_HANDLER_H_
 #define PAGESPEED_APACHE_INSTAWEB_HANDLER_H_
