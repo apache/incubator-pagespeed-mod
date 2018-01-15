@@ -1,5 +1,3 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
-// Author: atulvasu@google.com (Atul Vasu)
 
 #include <algorithm>
 #include <cstdlib>

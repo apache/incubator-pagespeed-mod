@@ -1,5 +1,3 @@
-#ifndef PAGESPEED_CONTROLLER_RPC_HANDLER_H_
-#define PAGESPEED_CONTROLLER_RPC_HANDLER_H_
 
 // Copyright 2016 Google Inc.
 //
