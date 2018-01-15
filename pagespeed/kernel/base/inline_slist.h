@@ -17,6 +17,9 @@
  * under the License.
  */
 
+// This contains a simple linked list that's optimized for memory usage,
+// cheap appends and traversals (including removals). Links
+// are stored within elements rather than externally.
 
 #ifndef PAGESPEED_KERNEL_BASE_INLINE_SLIST_H_
 #define PAGESPEED_KERNEL_BASE_INLINE_SLIST_H_
