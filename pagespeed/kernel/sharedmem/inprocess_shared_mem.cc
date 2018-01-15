@@ -17,6 +17,11 @@
  * under the License.
  */
 
+// The InProcessSharedMem class emulates the normally cross-process shared
+// memory API within a single process on top of threading APIs, in order to
+// permit deploying classes built for shared memory into single-process
+// servers or tests. Also living here are the ::Segment and ::Mutex classes
+// InProcessSharedMem returns from its factory methods.
 
 #include "pagespeed/kernel/sharedmem/inprocess_shared_mem.h"
 
