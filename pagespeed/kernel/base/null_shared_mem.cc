@@ -17,6 +17,8 @@
  * under the License.
  */
 
+// A stub implementation of shared memory for systems where unavailable.
+// Fails all the operations.
 
 #include "pagespeed/kernel/base/null_shared_mem.h"
 
