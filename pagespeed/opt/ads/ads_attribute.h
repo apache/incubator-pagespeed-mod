@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#ifndef PAGESPEED_KERNEL_ADS_ADS_ATTRIBUTE_H_
 #define PAGESPEED_KERNEL_ADS_ADS_ATTRIBUTE_H_
 
 #include "pagespeed/kernel/base/string.h"

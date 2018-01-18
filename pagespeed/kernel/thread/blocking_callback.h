@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#ifndef PAGESPEED_KERNEL_THREAD_BLOCKING_CALLBACK_H_
 #define PAGESPEED_KERNEL_THREAD_BLOCKING_CALLBACK_H_
 
 #include "pagespeed/kernel/base/cache_interface.h"

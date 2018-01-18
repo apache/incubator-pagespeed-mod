@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#ifndef PAGESPEED_SYSTEM_EXTERNAL_SERVER_SPEC_H_
 #define PAGESPEED_SYSTEM_EXTERNAL_SERVER_SPEC_H_
 
 #include <vector>
