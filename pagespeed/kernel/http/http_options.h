@@ -18,7 +18,6 @@
  */
 
 
-// Author: sligocki@google.com (Shawn Ligocki)
 
 #ifndef PAGESPEED_KERNEL_HTTP_HTTP_OPTIONS_H_
 #define PAGESPEED_KERNEL_HTTP_HTTP_OPTIONS_H_

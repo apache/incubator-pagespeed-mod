@@ -18,7 +18,6 @@
  */
 
 
-// Author: morlovich@google.com (Maksim Orlovich)
 
 #ifndef PAGESPEED_KERNEL_HTTP_USER_AGENT_NORMALIZER_H_
 #define PAGESPEED_KERNEL_HTTP_USER_AGENT_NORMALIZER_H_

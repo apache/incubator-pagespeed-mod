@@ -18,7 +18,6 @@
  */
 
 
-// Author: jmarantz@google.com (Joshua Marantz)
 
 #include "pagespeed/kernel/http/headers.h"
 

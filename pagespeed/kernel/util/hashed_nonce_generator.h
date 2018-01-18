@@ -18,7 +18,6 @@
  */
 
 
-// Author: jmaessen@google.com (Jan-Willem Maessen)
 
 #ifndef PAGESPEED_KERNEL_UTIL_HASHED_NONCE_GENERATOR_H_
 #define PAGESPEED_KERNEL_UTIL_HASHED_NONCE_GENERATOR_H_

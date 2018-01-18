@@ -18,7 +18,6 @@
  */
 
 
-// Author: jmarantz@google.com (Joshua Marantz)
 
 #ifndef PAGESPEED_KERNEL_BASE_PROTO_UTIL_H_
 #define PAGESPEED_KERNEL_BASE_PROTO_UTIL_H_

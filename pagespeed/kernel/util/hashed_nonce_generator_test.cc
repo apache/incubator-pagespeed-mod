@@ -18,7 +18,6 @@
  */
 
 
-// Author: jmaessen@google.com (Jan-Willem Maessen)
 
 #include "pagespeed/kernel/util/hashed_nonce_generator.h"
 

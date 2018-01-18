@@ -18,7 +18,6 @@
  */
 
 
-// Author: Mark Cogan (marq@google.com)
 
 #ifndef PAGESPEED_OPT_LOGGING_LOGGING_PROTO_H_
 #define PAGESPEED_OPT_LOGGING_LOGGING_PROTO_H_

@@ -18,7 +18,6 @@
  */
 
 
-// Author: jmarantz@google.com (Joshua Marantz)
 
 #ifndef PAGESPEED_KERNEL_HTTP_HEADERS_H_
 #define PAGESPEED_KERNEL_HTTP_HEADERS_H_

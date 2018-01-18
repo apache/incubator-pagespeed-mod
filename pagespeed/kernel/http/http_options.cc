@@ -18,7 +18,6 @@
  */
 
 
-// Author: sligocki@google.com (Shawn Ligocki)
 
 #include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/base/timer.h"

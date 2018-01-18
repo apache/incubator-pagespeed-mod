@@ -676,7 +676,6 @@ JsKeywords::Type JsMinifyingTokenizer::NextTokenHelper(
     } else if (type == JsKeywords::kComment) {
       // Emit comments that look like they might be IE conditional compilation
       // comments; treat all other comments as whitespace.
-      // TODO(mdsteele): We should retain copyrights by default, and/or retain
       //   all comments matching a user-specified pattern.  It might also be
       //   nice to make retaining of IE conditional compilation comments
       //   optional, so we can turn it off for non-IE browsers.

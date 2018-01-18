@@ -18,7 +18,6 @@
  */
 
 
-// Author: sligocki@google.com (Shawn Ligocki)
 
 #include "pagespeed/apache/apache_message_handler.h"
 

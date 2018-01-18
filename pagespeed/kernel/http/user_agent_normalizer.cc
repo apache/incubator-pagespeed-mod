@@ -18,7 +18,6 @@
  */
 
 
-// Author: morlovich@google.com (Maksim Orlovich)
 
 #include "pagespeed/kernel/http/user_agent_normalizer.h"
 

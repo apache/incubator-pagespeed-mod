@@ -18,7 +18,6 @@
  */
 
 
-// Author: sligocki@google.com (Shawn Ligocki)
 
 #ifndef PAGESPEED_APACHE_APACHE_MESSAGE_HANDLER_H_
 #define PAGESPEED_APACHE_APACHE_MESSAGE_HANDLER_H_
