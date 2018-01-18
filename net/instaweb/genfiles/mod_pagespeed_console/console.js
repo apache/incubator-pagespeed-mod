@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 (function(){var f=Object,g=document,h="appendChild",l="evaluate",n="createElement",p="setAttribute",q="propertyIsEnumerable",r="push",s="length",t="prototype",u="call",v="",w=" != ",x="#.###%",y="#4ECDC4",z="#556270",A="#C7F464",B="#E5E5E5",C="#F2F2F2",D="% (",E="&end_time=",aa="&granularity=",ba="&start_time=",ca="&var_titles=",F=")",da=",",ea=": ",fa="?json",ga="CSS files not rewritten because of parse errors",ha="Cache lookups that were expired",ia="Cache misses",ja="Data failed to load for graph ",ka="GET",
 la="Image rewrite failures",ma="JSON data missing required variable.",na="JSON response is malformed. (",oa="JavaScript minification failures",pa="MMM d, y hh:mma",qa="Resources not loaded because of fetch failures",ra="Resources not rewritten because domain wasn't authorized",sa="Resources not rewritten because of restrictive Cache-Control headers",ta="Time",ua="XHR request failed.",va="[object Array]",wa="[object Function]",xa="[object Window]",ya="a",G="array",za="bottom",Aa="cache-control",Ba=
 "cache-expired",Ca="cache-miss",Da="cache_backend_hits",H="cache_backend_misses",Ea="cache_expirations",Fa="call",I="class",Ga="css-error",Ha="css_filter_blocks_rewritten",Ia="css_filter_parse_failures",Ja="datetime",J="div",Ka="doc",La="explicit",Ma="fetch-failure",K="function",Na="href",Oa="https://modpagespeed.com/doc/console#",Pa="id",Qa="image-error",Ra="image_norewrites_high_resolution",Sa="image_rewrites",Ta="image_rewrites_dropped_decode_failure",Ua="image_rewrites_dropped_due_to_load",

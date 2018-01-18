@@ -18,7 +18,6 @@
  */
 
 
-// Author: morlovich@google.com (Maksim Orlovich)
 
 // Test the blocking w/timeout callback helper.
 

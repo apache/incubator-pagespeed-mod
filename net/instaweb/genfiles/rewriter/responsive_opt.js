@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 (function(){for(var h="function"==typeof Object.defineProperties?Object.defineProperty:function(a,c,b){if(b.get||b.set)throw new TypeError("ES3 does not support getters and setters.");a!=Array.prototype&&a!=Object.prototype&&(a[c]=b.value)},k="undefined"!=typeof window&&window===this?this:"undefined"!=typeof global&&null!=global?global:this,l=["String","prototype","repeat"],m=0;m<l.length-1;m++){var n=l[m];n in k||(k[n]={});k=k[n]}
 var p=l[l.length-1],q=k[p],r=q?q:function(a){var c;if(null==this)throw new TypeError("The 'this' value for String.prototype.repeat must not be null or undefined");c=this+"";if(0>a||1342177279<a)throw new RangeError("Invalid count value");a|=0;for(var b="";a;)if(a&1&&(b+=c),a>>>=1)c+=c;return b};r!=q&&null!=r&&h(k,p,{configurable:!0,writable:!0,value:r});function t(a,c,b){return a.call.apply(a.bind,arguments)}
 function u(a,c,b){if(!a)throw Error();if(2<arguments.length){var e=Array.prototype.slice.call(arguments,2);return function(){var b=Array.prototype.slice.call(arguments);Array.prototype.unshift.apply(b,e);return a.apply(c,b)}}return function(){return a.apply(c,arguments)}}function v(a,c,b){v=Function.prototype.bind&&-1!=Function.prototype.bind.toString().indexOf("native code")?t:u;return v.apply(null,arguments)};function w(a){var c=Number(a);return!c&&/^[\s\xa0]*$/.test(a)?NaN:c};function x(a){return window.matchMedia("(min-resolution: "+a+"dppx),(min--moz-device-pixel-ratio: "+a+"),(min-resolution: "+96*a+"dpi)").matches?a:0};function y(a,c){this.a=a;this.b=c}function z(a){this.c=a;this.b=0;this.a=[]}function A(){this.a=[]}function B(a,c){var b=new Image;b.onload=function(){a.src=c};b.src=c}

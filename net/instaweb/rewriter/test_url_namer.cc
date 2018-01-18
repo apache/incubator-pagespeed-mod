@@ -18,7 +18,6 @@
  */
 
 
-// Author: matterbury@google.com (Matt Atterbury)
 
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 

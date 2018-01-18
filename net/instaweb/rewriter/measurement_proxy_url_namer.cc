@@ -18,7 +18,6 @@
  */
 
 
-// Author: matterbury@google.com (Matt Atterbury),
 //         morlovich@google.com (Maksim Orlovich)
 
 #include "net/instaweb/rewriter/public/measurement_proxy_url_namer.h"

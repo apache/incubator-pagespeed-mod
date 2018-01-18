@@ -18,7 +18,6 @@
  */
 
 
-// Author: mdsteele@google.com (Matthew D. Steele)
 
 #include "net/instaweb/rewriter/public/js_inline_filter.h"
 

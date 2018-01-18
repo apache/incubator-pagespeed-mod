@@ -18,7 +18,6 @@
  */
 
 
-// Author: jmarantz@google.com (Joshua Marantz)
 //         lsong@google.com (Libo Song)
 
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"

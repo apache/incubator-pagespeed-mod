@@ -18,7 +18,6 @@
  */
 
 
-// Author: morlovich@google.com (Maksim Orlovich)
 
 #include "net/instaweb/rewriter/public/js_replacer.h"
 
