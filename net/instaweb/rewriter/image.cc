@@ -21,6 +21,14 @@
 #include <algorithm>
 #include <cstddef>
 
+extern "C" {
+#ifdef USE_SYSTEM_ZLIB
+#include "zlib.h"
+#else
+#include "third_party/zlib/src/zlib.h"
+#endif
+}  // extern "C"
+
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/image_data_lookup.h"

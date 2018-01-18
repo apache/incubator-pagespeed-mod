@@ -30,6 +30,12 @@ extern "C" {
 #else
 #include "third_party/libpng/src/png.h"
 #endif
+
+#ifdef USE_SYSTEM_ZLIB
+#include "zlib.h"
+#else
+#include "third_party/zlib/src/zlib.h"
+#endif
 }  // extern "C"
 
 #include "base/logging.h"
