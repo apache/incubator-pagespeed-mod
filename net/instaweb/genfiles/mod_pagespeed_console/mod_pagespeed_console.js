@@ -1,22 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 (function(){var aa=window,ca=Object,da=Infinity,ea=chartsOfflineJS,fa=Function,ga=chartsOfflineCSS,h=document,ia=isNaN,l=Math,ja=Array,ka=NaN,la=JSON,m=Error,ma=parseInt,na=parseFloat,oa=String;function pa(a,b){return a.width=b}function qa(a,b){return a.floor=b}function ra(a,b){return a.toString=b}function sa(a,b){return a.altKey=b}function ta(a,b){return a.selectedIndex=b}function ua(a,b){return a.clone=b}function va(a,b){return a.bottom=b}function wa(a,b){return a.contains=b}
 function n(a,b){return a.display=b}function xa(a,b){return a.height=b}function ya(a,b){return a.right=b}function za(a,b){return a.round=b}function p(a,b){return a.innerHTML=b}function Aa(a,b){return a.value=b}function Ba(a,b){return a.left=b}function Ca(a,b){return a.type=b}function Ea(a,b){return a.tabIndex=b}function Fa(a,b){return a.clientX=b}function Ga(a,b){return a.clientY=b}function Ha(a,b){return a.visibility=b}function Ia(a,b){return a.length=b}function r(a,b){return a.className=b}
 function Ja(a,b){return a.target=b}function Ka(a,b){return a.colSpan=b}function La(a,b){return a.onclick=b}

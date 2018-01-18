@@ -1,22 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 (function(){function g(a,b,c){if(a.addEventListener)a.addEventListener(b,c,!1);else if(a.attachEvent)a.attachEvent("on"+b,c);else{var d=a["on"+b];a["on"+b]=function(){c.call(this);d&&d.call(this)}}};window.pagespeed=window.pagespeed||{};var h=window.pagespeed;h.deferJsNs={};var l=h.deferJsNs;
 function m(){this.s=[];this.m=[];this.w=this.o=0;this.A=[];this.i="";this.u={};this.L="application/ecmascript application/javascript application/x-ecmascript application/x-javascript text/ecmascript text/javascript text/javascript1.0 text/javascript1.1 text/javascript1.2 text/javascript1.3 text/javascript1.4 text/javascript1.5 text/jscript text/livescript text/x-ecmascript text/x-javascript".split(" ");this.f=!0;this.W=document.getElementById;this.H=document.getElementsByTagName;this.V=document.write;
 this.U=document.open;this.T=document.close;this.R=document.addEventListener;this.X=window.addEventListener;this.S=document.attachEvent;this.Y=window.attachEvent;this.j=document.createElement;this.a=n;this.I=p;this.l=this.G=!0;this.c=null;this.B=0;this.C=[];this.b=this.g="";this.D=-1}var q=!1,n=0,p=0;m.prototype.log=function(a,b){this.m&&(this.m.push(""+a),b&&(this.m.push(b.message),"undefined"!=typeof console&&"undefined"!=typeof console.log&&console.log("PSA ERROR: "+a+b.message)))};
