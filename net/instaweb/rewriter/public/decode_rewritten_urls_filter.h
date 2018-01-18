@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#ifndef NET_INSTAWEB_REWRITER_PUBLIC_DECODE_REWRITTEN_URLS_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DECODE_REWRITTEN_URLS_FILTER_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
