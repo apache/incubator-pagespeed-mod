@@ -28,7 +28,7 @@
 #include <utility>                      // for pair
 #include <vector>
 
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"

@@ -27,7 +27,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/input_info.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"

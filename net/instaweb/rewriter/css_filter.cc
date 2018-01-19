@@ -27,7 +27,7 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/association_transformer.h"
 #include "net/instaweb/rewriter/public/css_absolutify.h"

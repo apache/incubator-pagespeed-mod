@@ -24,7 +24,7 @@
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/log_record_test_helper.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"

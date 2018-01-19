@@ -23,7 +23,7 @@
 #include <map>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/critical_images.pb.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"

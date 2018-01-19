@@ -20,7 +20,7 @@
 
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"

@@ -25,7 +25,7 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"

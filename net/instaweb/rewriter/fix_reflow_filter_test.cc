@@ -20,7 +20,7 @@
 
 #include "net/instaweb/rewriter/public/fix_reflow_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/public/global_constants.h"

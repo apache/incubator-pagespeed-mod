@@ -21,7 +21,7 @@
 // Unit-test the cache extender.
 
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"

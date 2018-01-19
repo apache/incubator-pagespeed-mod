@@ -21,7 +21,7 @@
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"

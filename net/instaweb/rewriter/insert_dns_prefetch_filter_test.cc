@@ -20,7 +20,7 @@
 #include "net/instaweb/rewriter/public/insert_dns_prefetch_filter.h"
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"

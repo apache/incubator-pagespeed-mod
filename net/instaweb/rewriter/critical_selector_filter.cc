@@ -27,7 +27,7 @@
 #include <set>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/css_minify.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"

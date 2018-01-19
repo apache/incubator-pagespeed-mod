@@ -26,7 +26,7 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/http_value_writer.h"
-#include "net/instaweb/http/public/log_record.h"  // for AbstractLogRecord
+#include "pagespeed/opt/logging/log_record.h"  // for AbstractLogRecord
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
