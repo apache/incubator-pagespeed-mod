@@ -31,8 +31,8 @@
 #include "pagespeed/kernel/base/string.h"
 
 
-#include "google/protobuf/util/message_differencer.h"
 #include "gmock/gmock-matchers.h"
+#include "google/protobuf/util/message_differencer.h"
 
 using google::protobuf::util::MessageDifferencer;
 

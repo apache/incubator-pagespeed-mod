@@ -21,8 +21,8 @@
 #ifndef PAGESPEED_KERNEL_BASE_NULL_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_NULL_WRITER_H_
 
-#include "pagespeed/kernel/base/writer.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/writer.h"
 
 namespace net_instaweb {
 class MessageHandler;

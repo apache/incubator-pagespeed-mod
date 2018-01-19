@@ -20,7 +20,6 @@
 
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 #include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
@@ -35,6 +34,7 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

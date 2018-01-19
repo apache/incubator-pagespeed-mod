@@ -20,7 +20,6 @@
 
 #include "net/instaweb/rewriter/public/critical_selector_filter.h"
 
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
@@ -45,6 +44,7 @@
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

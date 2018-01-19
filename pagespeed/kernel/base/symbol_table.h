@@ -26,11 +26,11 @@
 #include <list>
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/atom.h"
+#include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/dense_hash_map.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/dense_hash_map.h"
 
 namespace net_instaweb {
 

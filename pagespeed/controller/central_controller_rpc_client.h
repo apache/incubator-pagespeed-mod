@@ -25,19 +25,19 @@
 #include <unordered_set>
 
 #include "base/macros.h"
-#include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/central_controller.h"
+#include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/expensive_operation_callback.h"
 #include "pagespeed/controller/schedule_rewrite_callback.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/util/grpc.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
+#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
+#include "pagespeed/kernel/base/timer.h"
+#include "pagespeed/kernel/util/grpc.h"
 
 namespace net_instaweb {
 

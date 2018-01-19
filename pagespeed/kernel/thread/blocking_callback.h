@@ -21,10 +21,10 @@
 #define PAGESPEED_KERNEL_THREAD_BLOCKING_CALLBACK_H_
 
 #include "pagespeed/kernel/base/cache_interface.h"
-#include "pagespeed/kernel/base/thread_system.h"
+#include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/shared_string.h"
+#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {

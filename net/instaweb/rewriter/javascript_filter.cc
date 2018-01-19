@@ -23,7 +23,6 @@
 #include <cstddef>
 
 #include "base/logging.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
@@ -51,6 +50,7 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

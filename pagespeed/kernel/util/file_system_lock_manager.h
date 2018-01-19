@@ -22,9 +22,9 @@
 #define PAGESPEED_KERNEL_UTIL_FILE_SYSTEM_LOCK_MANAGER_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/thread/scheduler_based_abstract_lock.h"
 
 namespace net_instaweb {

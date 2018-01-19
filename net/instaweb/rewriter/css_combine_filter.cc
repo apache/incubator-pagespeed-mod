@@ -27,7 +27,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/input_info.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -54,6 +53,7 @@
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {

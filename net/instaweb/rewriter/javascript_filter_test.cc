@@ -23,7 +23,6 @@
 #include "net/instaweb/rewriter/public/javascript_filter.h"
 
 #include "net/instaweb/http/public/http_cache.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
@@ -52,6 +51,7 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace {
 

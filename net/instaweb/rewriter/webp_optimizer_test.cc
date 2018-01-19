@@ -28,8 +28,8 @@
 #include "pagespeed/kernel/image/test_utils.h"
 
 #ifdef USE_SYSTEM_LIBWEBP
-#include "webp/encode.h"
 #include "webp/decode.h"
+#include "webp/encode.h"
 #else
 #include "third_party/libwebp/src/webp/decode.h"
 #endif

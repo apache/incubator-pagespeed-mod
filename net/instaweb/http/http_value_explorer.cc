@@ -23,11 +23,11 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_value.h"
+#include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/stdio_file_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/gflags.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
 
 
 namespace net_instaweb {

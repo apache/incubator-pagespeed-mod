@@ -30,7 +30,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -79,6 +78,7 @@
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

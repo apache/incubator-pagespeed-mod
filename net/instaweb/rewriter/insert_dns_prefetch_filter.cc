@@ -28,7 +28,6 @@
 #include <utility>                      // for pair
 #include <vector>
 
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -43,6 +42,7 @@
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace {
 // Maximum number of DNS prefetch tags inserted in an HTML page.

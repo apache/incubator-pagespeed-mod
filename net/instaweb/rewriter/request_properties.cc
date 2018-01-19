@@ -20,12 +20,12 @@
 
 #include "net/instaweb/rewriter/public/request_properties.h"
 
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/rewriter/public/downstream_caching_directives.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

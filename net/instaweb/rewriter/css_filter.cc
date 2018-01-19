@@ -27,7 +27,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/association_transformer.h"
 #include "net/instaweb/rewriter/public/css_absolutify.h"
@@ -75,6 +74,7 @@
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {

@@ -28,10 +28,10 @@
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_statistics.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
+#include "pagespeed/kernel/sharedmem/shared_mem_statistics.h"
+#include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 
 namespace net_instaweb {
 

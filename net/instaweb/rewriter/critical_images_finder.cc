@@ -23,7 +23,6 @@
 #include <map>
 
 #include "base/logging.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/critical_images.pb.h"
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
@@ -41,6 +40,7 @@
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

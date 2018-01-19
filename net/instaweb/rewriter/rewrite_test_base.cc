@@ -31,7 +31,6 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_cache_failure.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/log_record_test_helper.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -81,6 +80,7 @@
 #include "pagespeed/kernel/util/gzip_inflater.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "pagespeed/kernel/util/url_multipart_encoder.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 
