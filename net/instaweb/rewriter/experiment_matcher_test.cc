@@ -31,10 +31,10 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/time_util.h"
 #include "pagespeed/kernel/http/http_names.h"  // for HttpAttributes, etc
-#include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"  // for User Agent constants
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
+#include "pagespeed/kernel/http/user_agent_matcher.h"
+#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"  // for User Agent constants
 
 namespace net_instaweb {
 

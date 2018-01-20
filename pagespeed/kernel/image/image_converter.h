@@ -22,7 +22,6 @@
 #define PAGESPEED_KERNEL_IMAGE_IMAGE_CONVERTER_H_
 
 #include <cstddef>
-#include "third_party/optipng/src/opngreduc/opngreduc.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_frame_interface.h"
@@ -30,6 +29,7 @@
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
 #include "pagespeed/kernel/image/webp_optimizer.h"
+#include "third_party/optipng/src/opngreduc/opngreduc.h"
 
 namespace net_instaweb {
 class MessageHandler;

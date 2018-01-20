@@ -23,8 +23,8 @@
 
 #include <cstdarg>
 
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/message_handler.h"
+#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 

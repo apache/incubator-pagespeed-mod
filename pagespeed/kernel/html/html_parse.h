@@ -29,8 +29,8 @@
 #include <utility>
 #include <vector>
 
-#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/arena.h"
+#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/printf_format.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"

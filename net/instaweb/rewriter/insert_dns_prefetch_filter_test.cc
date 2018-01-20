@@ -20,7 +20,6 @@
 #include "net/instaweb/rewriter/public/insert_dns_prefetch_filter.h"
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/flush_early.pb.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -36,6 +35,7 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 // TODO(bharathbhushan): Test interaction with the flush early flow and related
 // filters.

@@ -19,7 +19,6 @@
 
 #include "net/instaweb/rewriter/public/decode_rewritten_urls_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -27,6 +26,7 @@
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

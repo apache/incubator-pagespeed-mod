@@ -23,7 +23,6 @@
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
@@ -45,6 +44,7 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/delay_cache.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

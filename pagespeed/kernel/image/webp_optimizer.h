@@ -22,8 +22,6 @@
 #define PAGESPEED_KERNEL_IMAGE_WEBP_OPTIMIZER_H_
 
 #include <cstddef>
-#include "third_party/libwebp/src/webp/encode.h"
-#include "third_party/libwebp/src/webp/mux.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -31,6 +29,8 @@
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
+#include "third_party/libwebp/src/webp/encode.h"
+#include "third_party/libwebp/src/webp/mux.h"
 
 namespace net_instaweb {
 class MessageHandler;

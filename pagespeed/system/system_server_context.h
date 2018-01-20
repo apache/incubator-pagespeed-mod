@@ -23,7 +23,6 @@
 
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/system/admin_site.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -31,6 +30,7 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/writer.h"
 #include "pagespeed/kernel/util/copy_on_write.h"
+#include "pagespeed/system/admin_site.h"
 
 namespace net_instaweb {
 

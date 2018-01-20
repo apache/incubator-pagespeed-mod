@@ -24,9 +24,9 @@
 #include <map>
 #include <set>
 
+#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/html/empty_html_filter.h"
 #include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {
 class HtmlElement;

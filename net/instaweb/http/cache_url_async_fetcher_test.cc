@@ -27,7 +27,6 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_cache_failure.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -57,6 +56,7 @@
 #include "pagespeed/kernel/util/file_system_lock_manager.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

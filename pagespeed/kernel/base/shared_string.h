@@ -30,9 +30,9 @@
 #include <cstddef>                     // for size_t
 
 #include "base/logging.h"
+#include "pagespeed/kernel/base/ref_counted_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
 
 namespace net_instaweb {
 

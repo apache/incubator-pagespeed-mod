@@ -35,7 +35,6 @@
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
@@ -157,6 +156,7 @@
 #include "pagespeed/kernel/thread/scheduler.h"
 #include "pagespeed/kernel/thread/scheduler_sequence.h"
 #include "pagespeed/kernel/util/statistics_logger.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

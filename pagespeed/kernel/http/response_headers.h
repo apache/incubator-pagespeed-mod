@@ -27,8 +27,8 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/headers.h"
-#include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/http/http_names.h"
+#include "pagespeed/kernel/http/http_options.h"
 #include "pagespeed/kernel/http/request_headers.h"
 
 namespace net_instaweb {

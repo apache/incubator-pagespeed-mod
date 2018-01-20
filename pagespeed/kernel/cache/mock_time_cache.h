@@ -30,8 +30,8 @@
 #define PAGESPEED_KERNEL_CACHE_MOCK_TIME_CACHE_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/shared_string.h"
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
 

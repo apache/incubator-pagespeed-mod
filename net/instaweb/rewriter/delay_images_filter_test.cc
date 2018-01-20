@@ -18,7 +18,6 @@
  */
 
 
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/log_record_test_helper.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -43,6 +42,7 @@
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace {
 const char kSampleJpgFile[] = "Sample.jpg";

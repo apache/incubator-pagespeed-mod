@@ -25,8 +25,8 @@
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/shared_string.h"
+#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 

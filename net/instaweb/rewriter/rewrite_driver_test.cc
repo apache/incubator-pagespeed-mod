@@ -22,7 +22,6 @@
 
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
@@ -64,6 +63,7 @@
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/kernel/thread/worker_test_base.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

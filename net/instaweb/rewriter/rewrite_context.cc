@@ -36,7 +36,6 @@
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_cache_failure.h"
 #include "net/instaweb/http/public/http_value.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -78,6 +77,7 @@
 #include "pagespeed/kernel/thread/queued_alarm.h"
 #include "pagespeed/kernel/thread/sequence.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

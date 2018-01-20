@@ -25,8 +25,8 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/http/image_types.pb.h"
 #include "pagespeed/opt/logging/enums.pb.h"
-#include "pagespeed/opt/logging/logging_proto.h"
 #include "pagespeed/opt/logging/log_record.h"
+#include "pagespeed/opt/logging/logging_proto.h"
 
 using ::testing::_;
 using ::testing::Matcher;

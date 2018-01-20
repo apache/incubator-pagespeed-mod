@@ -31,8 +31,8 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/content_type.h"
-#include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 

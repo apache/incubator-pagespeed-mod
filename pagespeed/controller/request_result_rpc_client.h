@@ -28,8 +28,8 @@
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
+#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/grpc.h"
 
 // RequestResultRpcClient manages the client portion of a gRPC connection. It is

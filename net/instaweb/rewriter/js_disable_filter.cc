@@ -20,7 +20,6 @@
 
 #include "net/instaweb/rewriter/public/js_disable_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -32,6 +31,7 @@
 #include "pagespeed/kernel/html/html_node.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

@@ -28,7 +28,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
@@ -41,6 +40,7 @@
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

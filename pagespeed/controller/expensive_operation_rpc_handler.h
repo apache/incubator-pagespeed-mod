@@ -21,14 +21,14 @@
 #ifndef PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_HANDLER_H_
 #define PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_HANDLER_H_
 
-#include "pagespeed/controller/controller.pb.h"
 #include "pagespeed/controller/controller.grpc.pb.h"
+#include "pagespeed/controller/controller.pb.h"
+#include "pagespeed/controller/expensive_operation_controller.h"
+#include "pagespeed/controller/request_result_rpc_handler.h"
 #include "pagespeed/controller/rpc_handler.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/util/grpc.h"
-#include "pagespeed/controller/expensive_operation_controller.h"
-#include "pagespeed/controller/request_result_rpc_handler.h"
 
 namespace net_instaweb {
 

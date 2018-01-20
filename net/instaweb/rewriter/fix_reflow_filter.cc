@@ -25,7 +25,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -37,6 +36,7 @@
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace {
 

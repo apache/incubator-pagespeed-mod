@@ -25,10 +25,10 @@
 #include <vector>
 
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/sparse_hash_map.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/sparse_hash_map.h"
 #include "pagespeed/kernel/html/html_name.h"
 
 namespace net_instaweb {

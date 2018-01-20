@@ -20,11 +20,11 @@
 
 // Unit-test the FlushHtmlFilter.
 
-#include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
+#include "net/instaweb/rewriter/public/server_context.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"

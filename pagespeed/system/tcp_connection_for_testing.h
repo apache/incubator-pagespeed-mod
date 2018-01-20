@@ -21,8 +21,8 @@
 #ifndef PAGESPEED_SYSTEM_TCP_CONNECTION_FOR_TESTING_H_
 #define PAGESPEED_SYSTEM_TCP_CONNECTION_FOR_TESTING_H_
 
-#include "apr_pools.h"
 #include "apr_network_io.h"
+#include "apr_pools.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"

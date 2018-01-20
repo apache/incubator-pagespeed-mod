@@ -23,8 +23,8 @@
 
 #include <pthread.h>
 
-#include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/pthread_mutex.h"
 

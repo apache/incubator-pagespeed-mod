@@ -23,16 +23,16 @@
 
 #include <unordered_set>
 
-#include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/controller/schedule_rewrite_controller.h"
+#include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
+#include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/rde_hash_map.h"
+#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
 

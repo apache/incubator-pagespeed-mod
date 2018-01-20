@@ -20,7 +20,6 @@
 
 #include "net/instaweb/rewriter/public/fix_reflow_filter.h"
 
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/public/global_constants.h"
@@ -39,6 +38,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
 

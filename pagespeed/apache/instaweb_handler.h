@@ -22,11 +22,11 @@
 #ifndef PAGESPEED_APACHE_INSTAWEB_HANDLER_H_
 #define PAGESPEED_APACHE_INSTAWEB_HANDLER_H_
 
-#include "pagespeed/apache/apache_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
+#include "pagespeed/apache/apache_fetch.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"

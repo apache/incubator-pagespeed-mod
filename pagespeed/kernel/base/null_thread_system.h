@@ -31,9 +31,9 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/condvar.h"
-#include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {
 
