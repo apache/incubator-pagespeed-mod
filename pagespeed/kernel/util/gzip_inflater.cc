@@ -24,7 +24,7 @@
 #include <cstdlib>
 #include "base/logging.h"
 #ifdef USE_SYSTEM_ZLIB
-#include "src/zlib.h"  // NOLINT
+#include "zlib.h"  // NOLINT
 #include "zconf.h"  // NOLINT
 #else
 #include "third_party/zlib/src/zlib.h"
