@@ -31,7 +31,7 @@
                 'cp',
                 '-f',
                 '<(DEPTH)/third_party/libpng/src/scripts/pnglibconf.h.prebuilt',
-                '<(SHARED_INTERMEDIATE_DIR)/pnglibconf.h',
+                '<(DEPTH)/third_party/libpng/src/pnglibconf.h',
               ],
             },
           ],
