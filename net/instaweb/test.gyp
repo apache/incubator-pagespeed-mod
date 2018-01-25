@@ -62,6 +62,7 @@
         '<(DEPTH)/third_party/aprutil/aprutil.gyp:aprutil',
         '<(DEPTH)/third_party/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+        '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_message_differencer',
         '<(DEPTH)/third_party/re2/re2.gyp:re2',
       ],
