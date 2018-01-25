@@ -45,7 +45,7 @@ class AddHeadersFetcher : public UrlAsyncFetcher {
     return backend_fetcher_->SupportsHttps();
   }
 
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* callback);
 

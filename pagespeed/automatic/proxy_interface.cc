@@ -154,7 +154,7 @@ bool ProxyInterface::UrlAndPortMatchThisServer(const GoogleUrl& url) {
   return ret;
 }
 
-void ProxyInterface::Fetch(const GoogleString& requested_url_string,
+void ProxyInterface::FetchImpl(const GoogleString& requested_url_string,
                            MessageHandler* handler,
                            AsyncFetch* async_fetch) {
   GoogleUrl requested_url(requested_url_string);

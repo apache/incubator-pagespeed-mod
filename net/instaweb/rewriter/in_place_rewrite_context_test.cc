@@ -364,6 +364,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     EXPECT_EQ(expected_body, notifying_fetch.content()) << url;
     EXPECT_EQ(expected_ttl, response_headers_.cache_ttl_ms()) << url;
     EXPECT_STREQ(etag, response_headers_.Lookup1(HttpAttributes::kEtag)) << url;
+    std::cerr << response_headers_.ToString() << std::endl;
     EXPECT_EQ(date_ms, response_headers_.date_ms()) << url;
   }
 

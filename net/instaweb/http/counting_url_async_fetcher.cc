@@ -67,7 +67,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
 CountingUrlAsyncFetcher::~CountingUrlAsyncFetcher() {
 }
 
-void CountingUrlAsyncFetcher::Fetch(const GoogleString& url,
+void CountingUrlAsyncFetcher::FetchImpl(const GoogleString& url,
                                     MessageHandler* message_handler,
                                     AsyncFetch* base_fetch) {
   {

@@ -162,12 +162,12 @@ class DelayedMockUrlFetcher : public MockUrlFetcher {
   explicit DelayedMockUrlFetcher(ThreadSynchronizer* sync)
       : MockUrlFetcher(),
         sync_(sync) {}
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* fetch) {
     sync_->Signal(kFetchTriggeredPrefix);
     sync_->Wait(kStartFetchPrefix);
-    MockUrlFetcher::Fetch(url, message_handler, fetch);
+    MockUrlFetcher::FetchImpl(url, message_handler, fetch);
   }
 
  private:

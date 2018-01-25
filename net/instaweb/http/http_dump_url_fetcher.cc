@@ -187,7 +187,7 @@ class HttpResponseWriter : public Writer {
   DISALLOW_COPY_AND_ASSIGN(HttpResponseWriter);
 };
 
-void HttpDumpUrlFetcher::Fetch(
+void HttpDumpUrlFetcher::FetchImpl(
     const GoogleString& url, MessageHandler* handler, AsyncFetch* fetch) {
   bool ret = false;
   GoogleString filename;

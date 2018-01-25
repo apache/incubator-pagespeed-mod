@@ -45,7 +45,7 @@ RateControllingUrlAsyncFetcher::RateControllingUrlAsyncFetcher(
 RateControllingUrlAsyncFetcher::~RateControllingUrlAsyncFetcher() {
 }
 
-void RateControllingUrlAsyncFetcher::Fetch(const GoogleString& url,
+void RateControllingUrlAsyncFetcher::FetchImpl(const GoogleString& url,
                                            MessageHandler* message_handler,
                                            AsyncFetch* fetch) {
   rate_controller_->Fetch(base_fetcher_, url, message_handler, fetch);

@@ -157,7 +157,7 @@ class BackgroundFetchCheckingUrlAsyncFetcher : public UrlAsyncFetcher {
         num_background_fetches_(0) {}
   virtual ~BackgroundFetchCheckingUrlAsyncFetcher() {}
 
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* fetch) {
     if (fetch->IsBackgroundFetch()) {

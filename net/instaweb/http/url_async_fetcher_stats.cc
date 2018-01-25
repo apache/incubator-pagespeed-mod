@@ -123,7 +123,7 @@ bool UrlAsyncFetcherStats::SupportsHttps() const {
 }
 
 
-void UrlAsyncFetcherStats::Fetch(const GoogleString& url,
+void UrlAsyncFetcherStats::FetchImpl(const GoogleString& url,
                                  MessageHandler* message_handler,
                                  AsyncFetch* fetch) {
   fetch = EnableInflation(fetch);

@@ -44,7 +44,7 @@ class ReflectingTestFetcher : public UrlAsyncFetcher {
   ReflectingTestFetcher() {}
   virtual ~ReflectingTestFetcher() {}
 
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* fetch) {
     RequestHeaders* in = fetch->request_headers();

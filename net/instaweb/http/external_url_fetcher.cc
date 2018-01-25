@@ -77,7 +77,7 @@ void ExternalUrlFetcher::AppendHeaders(const RequestHeaders& request_headers,
   }
 }
 
-void ExternalUrlFetcher::Fetch(
+void ExternalUrlFetcher::FetchImpl(
     const GoogleString& url, MessageHandler* handler, AsyncFetch* fetch) {
   const RequestHeaders& request_headers = *fetch->request_headers();
   ResponseHeaders* response_headers = fetch->response_headers();

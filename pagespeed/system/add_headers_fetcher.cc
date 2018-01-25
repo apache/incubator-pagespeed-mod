@@ -33,7 +33,7 @@ AddHeadersFetcher::AddHeadersFetcher(const RewriteOptions* options,
 
 AddHeadersFetcher::~AddHeadersFetcher() {}
 
-void AddHeadersFetcher::Fetch(const GoogleString& original_url,
+void AddHeadersFetcher::FetchImpl(const GoogleString& original_url,
                               MessageHandler* message_handler,
                               AsyncFetch* fetch) {
   RequestHeaders* request_headers = fetch->request_headers();

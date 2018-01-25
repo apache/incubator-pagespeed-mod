@@ -36,6 +36,8 @@ class UrlAsyncFetcher {
  public:
   static const int64 kUnspecifiedTimeout;
 
+  static int64 fetchId;
+
   virtual ~UrlAsyncFetcher();
 
   // Asynchronously fetch a URL, set the response headers and stream the
@@ -47,9 +49,9 @@ class UrlAsyncFetcher {
   //
   // TODO(sligocki): GoogleString -> GoogleUrl or at least StringPiece.
   // TODO(sligocki): Include the URL in the fetch, like the request headers.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch) = 0;
+  void Fetch(const GoogleString& url,
+             MessageHandler* message_handler,
+             AsyncFetch* fetch);
 
   // Determine if the fetcher supports fetching using HTTPS. By default we
   // assume a fetcher can.
@@ -77,10 +79,14 @@ class UrlAsyncFetcher {
  protected:
   // Put this in protected to make sure nobody constructs this class except
   // for subclasses.
-  UrlAsyncFetcher() : fetch_with_gzip_(false) {}
+  UrlAsyncFetcher() : fetch_with_gzip_(false), trace_(true) {}
 
+  virtual void FetchImpl(const GoogleString& url,
+                     MessageHandler* message_handler,
+                     AsyncFetch* fetch) = 0;
  private:
   bool fetch_with_gzip_;
+  bool trace_;
 
   DISALLOW_COPY_AND_ASSIGN(UrlAsyncFetcher);
 };

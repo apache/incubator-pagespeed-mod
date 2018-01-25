@@ -41,7 +41,7 @@ UserAgentSensitiveTestFetcher::UserAgentSensitiveTestFetcher(
     UrlAsyncFetcher* base_fetcher)
     : base_fetcher_(base_fetcher) {}
 
-void UserAgentSensitiveTestFetcher::Fetch(const GoogleString& url,
+void UserAgentSensitiveTestFetcher::FetchImpl(const GoogleString& url,
                                           MessageHandler* message_handler,
                                           AsyncFetch* fetch) {
   GoogleUrl parsed_url(url);

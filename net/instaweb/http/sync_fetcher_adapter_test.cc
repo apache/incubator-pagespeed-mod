@@ -88,7 +88,7 @@ class DelayedFetcher : public UrlAsyncFetcher {
         sync_(NULL) {
   }
 
-  virtual void Fetch(const GoogleString& url, MessageHandler* handler,
+  virtual void FetchImpl(const GoogleString& url, MessageHandler* handler,
                      AsyncFetch* fetch) {
     CHECK(!fetch_pending_);
     fetch_ = fetch;

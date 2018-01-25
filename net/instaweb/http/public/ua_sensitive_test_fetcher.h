@@ -40,7 +40,7 @@ class MessageHandler;
 class UserAgentSensitiveTestFetcher : public UrlAsyncFetcher {
  public:
   explicit UserAgentSensitiveTestFetcher(UrlAsyncFetcher* base_fetcher);
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* fetch);
 

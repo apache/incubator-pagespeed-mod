@@ -65,7 +65,7 @@ class MockUrlFetcher : public UrlAsyncFetcher {
                               const StringPiece& response_body);
 
   // Fetching unset URLs will cause EXPECT failures as well as Done(false).
-  virtual void Fetch(const GoogleString& url,
+  virtual void FetchImpl(const GoogleString& url,
                      MessageHandler* message_handler,
                      AsyncFetch* fetch);
 
