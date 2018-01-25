@@ -50,7 +50,7 @@ source net/instaweb/public/VERSION
 RELEASE="$MAJOR.$MINOR.$BUILD.$PATCH"
 CHANNEL="$1"
 
-deps="libpng12-dev libicu-dev libssl-dev libjpeg-dev realpath build-essential
+deps="libpng16-dev libicu-dev libssl-dev libjpeg-dev realpath build-essential
       pkg-config gperf unzip libapr1-dev libaprutil1-dev apache2-dev"
 if dpkg-query -Wf '${Status}\n' $deps 2>&1 | \
      grep -v "install ok installed"; then
