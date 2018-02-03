@@ -136,7 +136,7 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   install/build_release.sh $@
 EOF
 
-gcloud compute copy-files "${machine_name}:mod_pagespeed/release/*" ~/release/
+gcloud compute scp --recurse "${machine_name}:mod_pagespeed/release/*" ~/release/
 
 if ! $keep_machine; then
   gcloud -q compute instances delete "$machine_name"
