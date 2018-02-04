@@ -29,6 +29,7 @@
               'outputs': [''],
               'action': [
                 'cp',
+                '-f',
                 '<(DEPTH)/third_party/libpng/src/scripts/pnglibconf.h.prebuilt',
                 '<(DEPTH)/third_party/libpng/src/pnglibconf.h',
               ],
