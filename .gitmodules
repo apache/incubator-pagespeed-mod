@@ -18,6 +18,7 @@
 	path = third_party/re2/src
 	url = https://github.com/google/re2.git
 [submodule "third_party/icu"]
+    ignore = untracked
 	path = third_party/icu
 	url = https://github.com/apache/incubator-pagespeed-icu.git
 [submodule "third_party/libjpeg_turbo/src"]
@@ -31,6 +32,8 @@
 [submodule "third_party/libpng/src"]
 	path = third_party/libpng/src
 	url = https://github.com/glennrp/libpng.git
+# We copy a prebuild header during the build process.
+   ignore = untracked
 [submodule "third_party/hiredis/src"]
 	path = third_party/hiredis/src
 	url = https://github.com/redis/hiredis.git
@@ -40,6 +43,7 @@
 [submodule "third_party/optipng"]
 	path = third_party/optipng
 	url = https://github.com/apache/incubator-pagespeed-optipng.git
+    ignore = untracked
 [submodule "third_party/libwebp"]
 	path = third_party/libwebp
 	url = https://chromium.googlesource.com/webm/libwebp.git
