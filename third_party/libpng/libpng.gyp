@@ -25,8 +25,8 @@
           'actions': [
             {
               'action_name': 'copy_libpngconf_prebuilt',
-              'inputs' : ['<(DEPTH)/third_party/libpng/src/scripts/pnglibconf.h.prebuilt'],
-              'outputs': ['<(DEPTH)/third_party/libpng/src/pnglibconf.h'],
+              'inputs' : [],
+              'outputs': [''],
               'action': [
                 'cp',
                 '<(DEPTH)/third_party/libpng/src/scripts/pnglibconf.h.prebuilt',
