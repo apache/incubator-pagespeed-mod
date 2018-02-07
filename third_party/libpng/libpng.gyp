@@ -18,7 +18,7 @@
       'targets': [
         {
           'target_name': 'libpng',
-          'type': '<(component)',
+          'type': 'static_library',
           'dependencies': [
             '../zlib/zlib.gyp:zlib',
           ],
