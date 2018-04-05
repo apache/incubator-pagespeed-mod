@@ -76,5 +76,5 @@ echo Debug end: $(date +"%T")
 #
 IMAGE="/xPageSpeedAnimationSmall.gif.pagespeed.ic.*.webp"
 check_from "$(< $HTML_FETCHED)" grep -q $IMAGE
-check_file_size "$WGET_DIR$IMAGE" -ge 7232
+check_file_size "$WGET_DIR$IMAGE" -ge 7222
 check_file_size "$WGET_DIR$IMAGE" -lt 26251
