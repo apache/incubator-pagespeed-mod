@@ -52,6 +52,7 @@ class ResourceFetchTest : public RewriteTestBase {
 
 TEST_F(ResourceFetchTest, BlockingFetch) {
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent, 100);
+
   // Make this actually happen asynchronously.
   SetupWaitFetcher();
   mock_scheduler()->AddAlarmAtUs(
