@@ -288,6 +288,7 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewExternalCache(
   if (use_redis) {
     spec_signature =
         StrCat("r;", config->redis_server().ToString(), ";",
+               IntegerToString(config->redis_database_index()), ";",
                IntegerToString(config->redis_reconnection_delay_ms()), ";",
                IntegerToString(config->redis_timeout_us()));
   } else if (use_memcached) {
