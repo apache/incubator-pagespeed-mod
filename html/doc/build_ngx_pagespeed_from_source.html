@@ -92,9 +92,9 @@ instructions for some popular distributions:
 <dd>Scientific Linux 5 provides gcc-4.8 packages that work on CentOS 5.
 First, make sure all your packages are up-to-date, via yum update. Then:
 <pre class="prettyprint lang-sh"
->sudo wget https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/slc6X/i386/RPM-GPG-KEY-cern
+>sudo wget http://linuxsoft.cern.ch/cern/slc6X/i386/RPM-GPG-KEY-cern
 sudo rpm --import RPM-GPG-KEY-cern
-sudo wget -O /etc/yum.repos.d/slc5-devtoolset.repo https://linux.web.cern.ch/linux/scientific5/docs/repository/cern/devtoolset/slc5-devtoolset.repo
+sudo wget -O /etc/yum.repos.d/slc5-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc5-devtoolset.repo
 sudo yum install devtoolset-2-gcc-c++ devtoolset-2-binutils</pre>
 Set the following variable before you build:
    <pre class="prettyprint lang-sh"
@@ -105,8 +105,8 @@ Set the following variable before you build:
 <dt><b>CentOS 6</b></dt>
 <dd>Scientific Linux 6 provides gcc-4.8 packages that work on CentOS 6.
 <pre class="prettyprint lang-sh"
->sudo rpm --import https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/slc6X/i386/RPM-GPG-KEY-cern
-sudo wget -O /etc/yum.repos.d/slc6-devtoolset.repo https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/devtoolset/slc6-devtoolset.repo
+>sudo rpm --import http://linuxsoft.cern.ch/cern/slc6X/i386/RPM-GPG-KEY-cern
+sudo wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
 sudo yum install devtoolset-2-gcc-c++ devtoolset-2-binutils</pre>
 Set the following variable before you build:
    <pre class="prettyprint lang-sh"
