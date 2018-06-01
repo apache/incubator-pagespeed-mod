@@ -62,6 +62,12 @@ TEST_F(CollapseWhitespaceFilterTest, NewlineTakesPrecedence) {
                    "is good to see you</body>");
 }
 
+TEST_F(CollapseWhitespaceFilterTest, DoNotCollapseWithinCode) {
+  ValidateNoChanges("do_not_collapse_within_code",
+                    "<body><code>hello   world,   it\n"
+                    "    is good  to     see you   </code></body>");
+}
+
 TEST_F(CollapseWhitespaceFilterTest, DoNotCollapseWithinPre) {
   ValidateNoChanges("do_not_collapse_within_pre",
                     "<body><pre>hello   world,   it\n"
