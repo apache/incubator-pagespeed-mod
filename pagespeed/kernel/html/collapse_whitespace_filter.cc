@@ -39,7 +39,7 @@ namespace {
 // Tags within which we should never try to collapse whitespace (note that this
 // is not _quite_ the same thing as kLiteralTags in html_lexer.cc):
 const HtmlName::Keyword kSensitiveTags[] = {
-  HtmlName::kPre, HtmlName::kScript, HtmlName::kStyle, HtmlName::kTextarea
+  HtmlName::kCode, HtmlName::kPre, HtmlName::kScript, HtmlName::kStyle, HtmlName::kTextarea
 };
 
 bool IsSensitiveKeyword(HtmlName::Keyword keyword) {
