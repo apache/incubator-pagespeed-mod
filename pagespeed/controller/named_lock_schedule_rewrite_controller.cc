@@ -94,7 +94,6 @@ void NamedLockScheduleRewriteController::LockObtained(Function* callback,
                                                       const GoogleString key,
                                                       NamedLock* named_lock) {
   locks_granted_->IncBy(1);
-  locks_currently_held_->Add(1);
   bool shut_down;
   {
     ScopedMutex mutex_lock(mutex_.get());
@@ -104,7 +103,6 @@ void NamedLockScheduleRewriteController::LockObtained(Function* callback,
     // This lock may have been held by someone else, but it isn't any more!
     if (info->lock.get() != NULL) {
       locks_stolen_->IncBy(1);
-      locks_currently_held_->Add(-1);
     }
     // This function may delete a lock thats in the middle of being stolen.
     // Your NamedLock implementation must support that, see
@@ -196,7 +194,6 @@ void NamedLockScheduleRewriteController::NotifyRewriteComplete(
   // routines, so we must not hold mutex_ when unlocking. Holding "info" outside
   // the mutex is perfectly safe because we prevented it from being deleted by
   // incrementing pin_count above.
-  locks_currently_held_->Add(-1);
   named_lock->Unlock();
   {
     ScopedMutex mutex_lock(mutex_.get());
