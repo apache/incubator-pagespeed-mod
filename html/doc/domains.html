@@ -138,10 +138,9 @@ can only specify http, e.g.</p>
 
 <p>This directive lets the server accept https requests for
 <code>www.example.com</code> without requiring a SSL certificate to fetch
-resources - in fact, this is the only way PageSpeed can service https requests
-as currently it cannot use https to fetch resources. For example, given the
-above mapping, and assuming the server is configured for https support,
-PageSpeed will fetch and optimize resources accessed using
+resources. For example, given the above mapping, and assuming the server is 
+configured for https support, PageSpeed will fetch and optimize resources
+accessed using
 <code>https://www.example.com</code>, fetching the resources from
 <code>http://localhost</code>, which can be the same server process or a
 different server process.
