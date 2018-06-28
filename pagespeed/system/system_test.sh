@@ -174,3 +174,10 @@ run_test long_url_handling
 run_test controller_process_handling
 run_test strip_subresources
 run_test protocol_relative_urls
+
+# TODO(oschaaf): REDIS_PORT seems to be set when
+# redis actually isn't used in the system tests.
+# Fix that, and enable this test.
+#if [ "${REDIS_PORT:-0}" -ne 0 ]; then
+#    run_test redis
+#fi

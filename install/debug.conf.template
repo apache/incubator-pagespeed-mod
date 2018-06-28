@@ -28,6 +28,7 @@ AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER application/xhtml+xml
 #REDIS
 #REDIS # Do testing using redis instead of file cache
 #REDIS ModPagespeedRedisServer localhost:@@REDIS_PORT@@
+#REDIS ModPagespeedRedisDatabaseIndex 2
 #EXTCACHE
 # If X-PSA-Blocking-Rewrite request header is present and its value matches the
 # value of ModPagespeedBlockingRewriteKey below, the response will be fully
@@ -534,7 +535,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeed on
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@_secondary"
   ModPagespeedCompressMetadataCache false
-
   ModPagespeedMapProxyDomain secondary.example.com/gstatic_images \
                              http://www.gstatic.com/psa/static
 
@@ -542,6 +542,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   # but with a different file-cache path.
 #MEMCACHED  ModPagespeedMemcachedServers localhost:@@MEMCACHED_PORT@@
 #REDIS  ModPagespeedRedisServer localhost:@@REDIS_PORT@@
+#REDIS  ModPagespeedRedisDatabaseIndex 3
 
   ModPagespeedCacheFlushFilename cache.flush
   # If you uncomment this, the test will fail, proving we can disable
@@ -1368,7 +1369,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_with_shm" 8
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@_lrud_lrum"
 #MEMCACHED  ModPagespeedMemcachedServers localhost:@@MEMCACHED_PORT@@
 #REDIS  ModPagespeedRedisServer localhost:@@REDIS_PORT@@
-
   ModPagespeedLRUCacheKbPerProcess 1024
   ModPagespeedLRUCacheByteLimit 2000
   ModPagespeedEnableFilters rewrite_images
