@@ -284,7 +284,14 @@ under the License.
       URLs and thus avoid mixed content warnings. Note, that you should only
       enable this option if you are behind a load-balancer that will set this
       header, otherwise your users will be able to set the protocol
-      PageSpeed uses to interpret the request.
+      PageSpeed uses to interpret the request. Also, note that by default 
+      PageSpeed will loop back to the inbound ip/port for fetching resources
+      on behalf of a html response using http(s). When X-Forwarded-Proto is in
+      effect and the protocol is changed in front of the PageSpeed-enabled server,
+      a mismatch may arise when performing loopback fetches, leading up to fetching
+      failures. Explicitly authorizing the domain used to fetch resources will
+      resolve this problem, because doing so allows the oopback fetching mechanism
+      to be bypassed.
     </p>
 
     <p>
