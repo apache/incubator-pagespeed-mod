@@ -751,7 +751,7 @@ class RewriteContext::FetchContext {
         kInfo, "Deadline exceeded for rewrite of resource %s with %s.",
         input->UrlForDebug().c_str(), rewrite_context_->id());
     FetchFallbackDoneImpl(input->ExtractUncompressedContents(),
-                          input->response_headers());
+                          input->UncompressedHeaders());
   }
 
   // Note that the callback is called from the RewriteThread.

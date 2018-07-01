@@ -162,8 +162,10 @@ class Resource : public RefCounted<Resource> {
 
   // Returns the uncompressed contents stored in value_. Although this is marked
   // as const, it mutates the internal state of this object and is not thread
-  // safe.
+  // safe. If you need headers at the same time, make sure to use
+  // UncompressedHeaders() at the same time.
   StringPiece ExtractUncompressedContents() const;
+  const ResponseHeaders* UncompressedHeaders() const;
 
   // Returns the size of the the ExtractUncompressedContents(). Like
   // ExtractUncompressedContents(), this method can mutate the internal state of
@@ -330,6 +332,9 @@ class Resource : public RefCounted<Resource> {
   Resource();
   friend class DummyResource;
 
+  // Returns true if the value was compressed.
+  bool EnsureExtractedIfNeeded() const;
+
   // The status of the fetched response.
   FetchResponseStatus fetch_response_status_;
 
@@ -344,8 +349,13 @@ class Resource : public RefCounted<Resource> {
   bool disable_rewrite_on_no_transform_;
   bool is_authorized_domain_;
   ResponseHeaders::VaryOption respect_vary_;
+  mutable enum ExtractState {
+    kExtractNotComputed,
+    kExtractUseBase,
+    kExtractUseExtracted
+  } extracted_state_;
   mutable GoogleString extracted_contents_;
-  mutable bool extracted_;
+  mutable std::unique_ptr<ResponseHeaders> extracted_headers_;
 
   DISALLOW_COPY_AND_ASSIGN(Resource);
 };
