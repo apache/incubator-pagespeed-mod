@@ -474,7 +474,7 @@ void CacheableResourceBase::LoadHttpCacheCallback::Done(
     case HTTPCache::kFound:
       resource_->hits_->Add(1);
       resource_->Link(http_value(), handler);
-      resource_->response_headers()->CopyFrom(*response_headers());
+      resource_->mutable_response_headers()->CopyFrom(*response_headers());
       resource_->DetermineContentType();
       resource_->RefreshIfImminentlyExpiring();
       resource_->set_fetch_response_status(

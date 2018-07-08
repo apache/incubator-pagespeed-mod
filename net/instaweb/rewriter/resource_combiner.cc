@@ -268,7 +268,7 @@ bool ResourceCombiner::WriteCombination(
   }
   if (written) {
     // Intersect the response headers from each input.
-    ResponseHeaders* output_headers = combination->response_headers();
+    ResponseHeaders* output_headers = combination->mutable_response_headers();
     DCHECK_EQ(0, output_headers->NumAttributes());
 
     // We don't copy over all the resources from [0] because we don't

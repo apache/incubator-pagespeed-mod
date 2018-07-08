@@ -590,7 +590,7 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
   // Construct a resource with an incompatible charset.
   ResourcePtr resource(
       DataUrlInputResource::Make("data:text/css,test", rewrite_driver()));
-  ResponseHeaders* response_headers = resource->response_headers();
+  ResponseHeaders* response_headers = resource->mutable_response_headers();
   response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
                                             "; charset=utf-8"));
 

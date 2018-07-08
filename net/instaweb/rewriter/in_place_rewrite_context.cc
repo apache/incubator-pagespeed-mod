@@ -348,7 +348,7 @@ void InPlaceRewriteContext::Harvest() {
         // If we're waiting for the optimized version before responding,
         // prepare the output here. Most of this is translated from
         // RewriteContext::FetchContext::FetchDone
-        output_resource_->response_headers()->CopyFrom(
+        output_resource_->mutable_response_headers()->CopyFrom(
             *(nested_resource->response_headers()));
         Writer* writer = output_resource_->BeginWrite(
             Driver()->message_handler());
@@ -364,7 +364,7 @@ void InPlaceRewriteContext::Harvest() {
         // TODO(jkarlin): Is ApplyInputCacheControl needed here?
         ResourceVector rv(1, input_resource_);
         FindServerContext()->ApplyInputCacheControl(
-            rv, output_resource_->response_headers());
+            rv, output_resource_->mutable_response_headers());
       }
       RewriteDone(kRewriteOk, 0);
       return;

@@ -496,7 +496,7 @@ class ServerContext {
   void MergeNonCachingResponseHeaders(const ResourcePtr& input,
                                       const OutputResourcePtr& output) {
     MergeNonCachingResponseHeaders(*input->response_headers(),
-                                   output->response_headers());
+                                   output->mutable_response_headers());
   }
 
   // Entry-point with the same functionality, exposed for easier testing.

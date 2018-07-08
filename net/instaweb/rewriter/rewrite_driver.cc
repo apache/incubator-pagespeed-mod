@@ -3316,7 +3316,7 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
                           OutputResource* output) {
   output->SetType(type);
   output->set_charset(charset);
-  ResponseHeaders* meta_data = output->response_headers();
+  ResponseHeaders* meta_data = output->mutable_response_headers();
   bool clear_last_modified = false;
 
   // Transfer Last-Modified from the input for single-input on-the-fly

@@ -232,6 +232,10 @@ void Resource::SetType(const ContentType* type) {
   type_ = type;
 }
 
+ResponseHeaders* Resource::mutable_response_headers() {
+  return &response_headers_;
+}
+
 // Try to determine the content type from the URL extension, or
 // the response headers.
 void Resource::DetermineContentType() {

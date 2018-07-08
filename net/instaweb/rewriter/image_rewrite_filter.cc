@@ -560,7 +560,8 @@ void ImageRewriteFilter::Context::RewriteSingle(
   }
   bool is_ipro = IsNestedIn(RewriteOptions::kInPlaceRewriteId);
   AttachDependentRequestTrace(is_ipro ? "IproProcessImage" : "ProcessImage");
-  AddLinkRelCanonical(input_resource, output_resource->response_headers());
+  AddLinkRelCanonical(input_resource,
+                      output_resource->mutable_response_headers());
   FindServerContext()->central_controller()->ScheduleExpensiveOperation(
       new InvokeRewriteFunction(this, filter_, input_resource,
                                 output_resource));

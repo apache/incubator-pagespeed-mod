@@ -261,7 +261,8 @@ void CacheExtender::Context::RewriteSingle(
     const ResourcePtr& input_resource,
     const OutputResourcePtr& output_resource) {
   if (ShouldAddCanonical(input_resource)) {
-    AddLinkRelCanonical(input_resource, output_resource->response_headers());
+    AddLinkRelCanonical(input_resource,
+                        output_resource->mutable_response_headers());
   }
   RewriteDone(
       extender_->RewriteLoadedResource(

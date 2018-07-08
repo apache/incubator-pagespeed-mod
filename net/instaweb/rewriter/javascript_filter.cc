@@ -337,10 +337,10 @@ class JavascriptFilter::Context : public SingleRewriteContext {
   bool WriteSourceMapTo(const ResourcePtr& input_resource,
                         StringPiece contents,
                         const OutputResourcePtr& source_map) {
-    source_map->response_headers()->Add(HttpAttributes::kXContentTypeOptions,
-                                        HttpAttributes::kNosniff);
-    source_map->response_headers()->Add(HttpAttributes::kContentDisposition,
-                                        HttpAttributes::kAttachment);
+    source_map->mutable_response_headers()->Add(
+        HttpAttributes::kXContentTypeOptions, HttpAttributes::kNosniff);
+    source_map->mutable_response_headers()->Add(
+        HttpAttributes::kContentDisposition, HttpAttributes::kAttachment);
     return Driver()->Write(ResourceVector(1, input_resource),
                            contents,
                            &kContentTypeSourceMap,

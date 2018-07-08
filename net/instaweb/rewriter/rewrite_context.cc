@@ -566,7 +566,7 @@ class RewriteContext::ResourceReconstructCallback
         driver_(driver),
         delegate_(rc, ResourcePtr(resource), slot_index),
         resource_(resource) {
-    set_response_headers(resource->response_headers());
+    set_response_headers(resource->mutable_response_headers());
   }
 
   virtual ~ResourceReconstructCallback() {
@@ -850,7 +850,7 @@ class RewriteContext::FetchContext {
   // serve the original. In this case, we serve it out, but with shorter headers
   // than usual.
   void FetchFallbackDone(const StringPiece& contents,
-                         ResponseHeaders* headers) {
+                         const ResponseHeaders* headers) {
     CancelDeadlineAlarm();
     if (detached_) {
       rewrite_context_->Driver()->DetachedFetchComplete();
@@ -1481,7 +1481,7 @@ bool RewriteContext::CreateOutputResourceFromContent(
     const CachedResult& cached_result, const ResponseHeaders& response_headers,
     StringPiece content, OutputResourcePtr* output_resource) {
   if (CreateOutputResourceForCachedOutput(&cached_result, output_resource)) {
-    (*output_resource)->response_headers()->CopyFrom(response_headers);
+    (*output_resource)->mutable_response_headers()->CopyFrom(response_headers);
     MessageHandler* message_handler = Driver()->message_handler();
     Writer* writer = (*output_resource)->BeginWrite(message_handler);
     writer->Write(content, message_handler);
@@ -2307,7 +2307,7 @@ bool RewriteContext::CreateOutputResourceForCachedOutput(
       ret = writer->Write(cached_result->inlined_data(), handler);
       (*output_resource)->EndWrite(handler);
       // Needed to indicate that this resource is loaded.
-      ResponseHeaders* headers = (*output_resource)->response_headers();
+      ResponseHeaders* headers = (*output_resource)->mutable_response_headers();
       headers->set_status_code(HttpStatus::kOK);
       headers->ComputeCaching();
     }

@@ -183,7 +183,7 @@ class Resource : public RefCounted<Resource> {
     return val;
   }
 
-  ResponseHeaders* response_headers() { return &response_headers_; }
+  ResponseHeaders* mutable_response_headers();
   const ResponseHeaders* response_headers() const { return &response_headers_; }
   const ContentType* type() const { return type_; }
   virtual void SetType(const ContentType* type);

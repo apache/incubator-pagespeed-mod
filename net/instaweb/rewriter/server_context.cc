@@ -433,7 +433,8 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
   for (int i = 0, n = inputs.size(); i < n; ++i) {
     const ResourcePtr& input_resource(inputs[i]);
     if (input_resource.get() != NULL && input_resource->HttpStatusOk()) {
-      ResponseHeaders* input_headers = input_resource->response_headers();
+      ResponseHeaders* input_headers =
+          input_resource->mutable_response_headers();
       input_headers->ComputeCaching();
       if (input_headers->cache_ttl_ms() < max_age) {
         max_age = input_headers->cache_ttl_ms();
@@ -479,7 +480,7 @@ void ServerContext::AddOriginalContentLengthHeader(
   bool all_known = !inputs.empty();
   for (int i = 0, n = inputs.size(); i < n; ++i) {
     const ResourcePtr& input_resource(inputs[i]);
-    ResponseHeaders* input_headers = input_resource->response_headers();
+    const ResponseHeaders* input_headers = input_resource->response_headers();
     const char* original_content_length_header = input_headers->Lookup1(
         HttpAttributes::kXOriginalContentLength);
     int64 original_content_length;
