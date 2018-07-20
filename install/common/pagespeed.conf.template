@@ -321,10 +321,10 @@
     # and change server state, such as statistics, caches, and
     # messages.  This might be appropriate in an experimental setup.
     # Attempt to load mod_version if it wasn't loaded or compiled in (eg on Debian)
-<IfModule !mod_version.c>
-LoadModule version_module /usr/lib/httpd/modules/mod_version.so
-</IfModule>
-<Location /pagespeed_admin>
+    <IfModule !mod_version.c>
+      LoadModule version_module /usr/lib/httpd/modules/mod_version.so
+    </IfModule>
+    <Location /pagespeed_admin>
         <IfVersion <2.4>
             Order allow,deny
             Allow from localhost
@@ -338,7 +338,7 @@ LoadModule version_module /usr/lib/httpd/modules/mod_version.so
             </IfVersion>
         SetHandler pagespeed_admin
     </Location>
- <Location /pagespeed_global_admin>
+    <Location /pagespeed_global_admin>
         <IfVersion <2.4>
             Order allow,deny
             Allow from localhost
