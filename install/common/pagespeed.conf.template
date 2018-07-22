@@ -329,13 +329,13 @@
             Order allow,deny
             Allow from localhost
             Allow from 127.0.0.1
-            </IfVersion>
+        </IfVersion>
         <IfVersion >= 2.4>
             Require local
             # see https://httpd.apache.org/docs/current/en/mod/mod_authz_host.html - Require all granted,
             # Require ip, Require host or Require forward-dns,
             # if access must be granted to other than local.
-            </IfVersion>
+        </IfVersion>
         SetHandler pagespeed_admin
     </Location>
     <Location /pagespeed_global_admin>
@@ -346,8 +346,8 @@
             </IfVersion>
         <IfVersion >= 2.4>
             Require local            
-            </IfVersion>
-          SetHandler pagespeed_global_admin
+        </IfVersion>
+        SetHandler pagespeed_global_admin
     </Location>
 
     # Enable logging of mod_pagespeed statistics, needed for the console.
