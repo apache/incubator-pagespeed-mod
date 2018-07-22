@@ -332,9 +332,9 @@
             </IfVersion>
         <IfVersion >= 2.4>
             Require local
-            #see https://httpd.apache.org/docs/current/fr/mod/mod_authz_host.html - Require all granted,
-            #Require ip, Require host or Require forward-dns,
-            #if access must be granted to other than local.
+            # see https://httpd.apache.org/docs/current/en/mod/mod_authz_host.html - Require all granted,
+            # Require ip, Require host or Require forward-dns,
+            # if access must be granted to other than local.
             </IfVersion>
         SetHandler pagespeed_admin
     </Location>
