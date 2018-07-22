@@ -325,11 +325,11 @@
       LoadModule version_module /usr/lib/httpd/modules/mod_version.so
     </IfModule>
     <Location /pagespeed_admin>
-        <IfVersion <2.4>
+        <IfVersion < 2.4>
             Order allow,deny
             Allow from localhost
             Allow from 127.0.0.1
-            <IfVersion>
+            </IfVersion>
         <IfVersion >= 2.4>
             Require local
             #see https://httpd.apache.org/docs/current/fr/mod/mod_authz_host.html - Require all granted,
@@ -339,11 +339,11 @@
         SetHandler pagespeed_admin
     </Location>
     <Location /pagespeed_global_admin>
-        <IfVersion <2.4>
+        <IfVersion < 2.4>
             Order allow,deny
             Allow from localhost
             Allow from 127.0.0.1
-            <IfVersion>
+            </IfVersion>
         <IfVersion >= 2.4>
             Require local            
             </IfVersion>
