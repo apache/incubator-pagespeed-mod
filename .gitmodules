@@ -114,5 +114,5 @@
 	url = https://github.com/madler/zlib.git
 [submodule "third_party/giflib/src"]
 	path = third_party/giflib/src
-	url = https://git.code.sf.net/p/giflib/code
+	url = https://github.com/We-Amp/giflib-mirror.git
 
