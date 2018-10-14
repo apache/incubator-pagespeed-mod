@@ -97,16 +97,16 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
       firstPaintTime = timingApi['msFirstPaint'];
     } else if (winPerf['timeOrigin'] &&
         winPerf['getEntriesByType'] &&
-        winPerf['getEntriesByType']('paint').length > 0) {
+        (paintEntries = winPerf['getEntriesByType']('paint')).length > 0) {
         // Paint Timing API
         // Note that getEntriesByType('paint') is sorted chronologically
         firstPaintTime = Math.floor(
             winPerf['timeOrigin'] +
-            winPerf['getEntriesByType']('paint')[0]['startTime']);
-    } else if (window['chrome'] && window['chrome']['loadTimes']) {
+            paintEntries[0]['startTime']);
+    } else if ((loadTimes = window['chrome']) && (loadTimes = loadTimes['loadTimes'])) {
       // Chrome. Note that window.chrome.loadTimes returns a time in seconds.
       firstPaintTime = Math.floor(
-          window['chrome']['loadTimes']()['firstPaintTime'] * 1000);
+          loadTimes()['firstPaintTime'] * 1000);
     }
     timeToFirstPaint = firstPaintTime - requestStartTime;
     if (timeToFirstPaint >= 0) {
