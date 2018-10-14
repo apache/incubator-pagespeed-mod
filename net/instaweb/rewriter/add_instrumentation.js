@@ -75,7 +75,7 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
     var timingApi = window['performance']['timing'];
     var navStartTime = timingApi['navigationStart'];
     var requestStartTime = timingApi['requestStart'];
-    url += (timingApi[this.event_ + 'EventStart'] - navStartTime);
+    url += timingApi[this.event_ + 'EventStart'] - navStartTime;
     url += '&nav=' + (timingApi['fetchStart'] - navStartTime);
     url += '&dns=' + (
         timingApi['domainLookupEnd'] - timingApi['domainLookupStart']);
