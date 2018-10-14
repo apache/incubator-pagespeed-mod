@@ -71,8 +71,8 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   }
 
   url += '&r' + this.event_ + '=';
-  if (window['performance']) {
-    var timingApi = window['performance']['timing'];
+  if (winPerf = window['performance']) {
+    var timingApi = winPerf['timing'];
     var navStartTime = timingApi['navigationStart'];
     var requestStartTime = timingApi['requestStart'];
     url += timingApi[this.event_ + 'EventStart'] - navStartTime;
@@ -88,21 +88,21 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
         timingApi['responseEnd'] - timingApi['responseStart']);
     url += '&dom_c=' + (timingApi['domContentLoadedEventStart'] - navStartTime);
 
-    if (window['performance']['navigation']) {
-      url += '&nt=' + window['performance']['navigation']['type'];
+    if (winPerf['navigation']) {
+      url += '&nt=' + winPerf['navigation']['type'];
     }
     var firstPaintTime = -1;
     if (timingApi['msFirstPaint']) {
       // IE.
       firstPaintTime = timingApi['msFirstPaint'];
-    } else if (window['performance']['timeOrigin'] &&
-        window['performance']['getEntriesByType'] &&
-        window['performance']['getEntriesByType']('paint').length > 0) {
+    } else if (winPerf['timeOrigin'] &&
+        winPerf['getEntriesByType'] &&
+        winPerf['getEntriesByType']('paint').length > 0) {
         // Paint Timing API
         // Note that getEntriesByType('paint') is sorted chronologically
         firstPaintTime = Math.floor(
-            window['performance']['timeOrigin'] +
-            window['performance']['getEntriesByType']('paint')[0]['startTime']);
+            winPerf['timeOrigin'] +
+            winPerf['getEntriesByType']('paint')[0]['startTime']);
     } else if (window['chrome'] && window['chrome']['loadTimes']) {
       // Chrome. Note that window.chrome.loadTimes returns a time in seconds.
       firstPaintTime = Math.floor(
