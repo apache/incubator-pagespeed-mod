@@ -71,9 +71,8 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   }
 
   url += '&r' + this.event_ + '=';
-  var winPerf;
-  if (winPerf = window['performance']) {
-    var timingApi = winPerf['timing'];
+  var winPerf, timingApi;
+  if ((winPerf = window['performance']) && (timingApi = winPerf['timing'])) {
     var navStartTime = timingApi['navigationStart'];
     var requestStartTime = timingApi['requestStart'];
     url += timingApi[this.event_ + 'EventStart'] - navStartTime;
