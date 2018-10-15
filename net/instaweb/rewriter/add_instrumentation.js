@@ -71,6 +71,7 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   }
 
   url += '&r' + this.event_ + '=';
+  var winPerf;
   if (winPerf = window['performance']) {
     var timingApi = winPerf['timing'];
     var navStartTime = timingApi['navigationStart'];
@@ -92,6 +93,7 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
       url += '&nt=' + winPerf['navigation']['type'];
     }
     var firstPaintTime = -1;
+    var paintEntries, loadTimes;
     if (timingApi['msFirstPaint']) {
       // IE.
       firstPaintTime = timingApi['msFirstPaint'];
