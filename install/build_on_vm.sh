@@ -112,7 +112,8 @@ fi
 
 if [ -z "$instances" ] || ! $use_existing_machine; then
   gcloud compute instances create "$machine_name" \
-    --image-family="$image_family" --image-project="$image_project"
+	 --image-family="$image_family" --image-project="$image_project" \
+	 --machine-type="n1-standard-4"
 fi
 
 mkdir -p ~/release
@@ -131,6 +132,8 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   set -e
   set -x
   if $use_rpms; then
+    sudo sed -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/google-cloud.repo
+    sudo sed -i 's/gpgcheck=1/gpgcheck=0/g' /etc/yum.repos.d/google-cloud.repo
     sudo yum upgrade
     sudo yum update
     sudo yum -y install git redhat-lsb
