@@ -145,12 +145,14 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   git checkout "$branch"
   git pull  
   # hack, pnglibconf.h build copy action doesn't always fire timely.
-  cp third_party/libpng/src/scripts/pnglibconf.h.prebuilt third_party/libpng/src/pnglibconf.h
+  cp third_party/libpng/src/scripts/pnglibconf.h.prebuilt third_party/libpng/src/pnglibconf.h || true
   [[ -d log ]] && rm -rf log
   [[ -d release ]] && rm -rf release
+  [[ -d out/Release ]] && rm -r out/Release/*.deb
   install/build_release.sh $@
 EOF
 
+read -p "Press enter to continue"
 gcloud compute scp --recurse "${machine_name}:mod_pagespeed/release/*" ~/release/
 
 if ! $keep_machine; then
