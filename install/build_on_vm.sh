@@ -120,11 +120,19 @@ mkdir -p ~/release
 # Display an error including the machine name if we die in the script below.
 trap '[ $? -ne 0 ] && echo -e "\nBuild failed on $machine_name"' EXIT
 
-sleep 5
+
+until gcloud compute ssh "$machine_name" -- "echo connected"
+do
+    echo "trying to connect via ssh"
+    sleep 1
+done
+
 gcloud compute ssh "$machine_name" -- bash << EOF
   set -e
   set -x
   if $use_rpms; then
+    sudo yum upgrade
+    sudo yum update
     sudo yum -y install git redhat-lsb
   else
     sudo apt-get update
@@ -132,9 +140,14 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   fi
   # CentOS 6's git is old enough that git clone -b <tag> doesn't work and
   # silently checks out HEAD. To be safe we use an explicit checkout below.
-  git clone https://github.com/apache/incubator-pagespeed-mod.git mod_pagespeed
+  [[ -d mod_pagespeed ]] || git clone https://github.com/apache/incubator-pagespeed-mod.git mod_pagespeed
   cd mod_pagespeed
   git checkout "$branch"
+  git pull  
+  # hack, pnglibconf.h build copy action doesn't always fire timely.
+  cp third_party/libpng/src/scripts/pnglibconf.h.prebuilt third_party/libpng/src/pnglibconf.h
+  [[ -d log ]] && rm -rf log
+  [[ -d release ]] && rm -rf release
   install/build_release.sh $@
 EOF
 
