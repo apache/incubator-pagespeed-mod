@@ -106,7 +106,7 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
       firstPaintTime = Math.round(
           loadTimes()['firstPaintTime'] * 1000);
     }
-    timeToFirstPaint = firstPaintTime - requestStartTime;
+    var timeToFirstPaint = firstPaintTime - requestStartTime;
     if (timeToFirstPaint >= 0) {
       url += '&fp=' + timeToFirstPaint;
     }
