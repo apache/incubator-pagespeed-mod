@@ -71,7 +71,8 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   }
 
   url += '&r' + this.event_ + '=';
-  var winPerf, timingApi;
+  var winPerf, timingApi, paintEntries, loadTimes;
+  var firstPaintTime = -1;
   if ((winPerf = window['performance']) && (timingApi = winPerf['timing'])) {
     var navStartTime = timingApi['navigationStart'];
     var requestStartTime = timingApi['requestStart'];
@@ -91,8 +92,6 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
     if (winPerf['navigation']) {
       url += '&nt=' + winPerf['navigation']['type'];
     }
-    var firstPaintTime = -1;
-    var paintEntries, loadTimes;
     if (timingApi['msFirstPaint']) {
       // IE.
       firstPaintTime = timingApi['msFirstPaint'];
