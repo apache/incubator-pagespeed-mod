@@ -115,7 +115,7 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   }
 
   if (pagespeed['getResourceTimingData'] && window.parent == window) {
-    url += pagespeed.getResourceTimingData();
+    url += pagespeed['getResourceTimingData']();
   }
 
   url += (window.parent != window) ? '&ifr=1' : '&ifr=0';
