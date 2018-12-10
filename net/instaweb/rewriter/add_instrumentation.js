@@ -71,7 +71,7 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   }
 
   url += '&r' + this.event_ + '=';
-  var winPerf, timingApi, paintEntries, loadTimes;
+  var winPerf, timingApi, paintEntries, loadTimes, timeOrigin;
   var firstPaintTime = -1;
   if ((winPerf = window['performance']) && (timingApi = winPerf['timing'])) {
     var navStartTime = timingApi['navigationStart'];
@@ -95,14 +95,12 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
     if (timingApi['msFirstPaint']) {
       // IE.
       firstPaintTime = timingApi['msFirstPaint'];
-    } else if (winPerf['timeOrigin'] &&
+    } else if (winPerf['timeOrigin'] && (timeOrigin = winPerf['timeOrigin']) &&
         winPerf['getEntriesByType'] &&
         (paintEntries = winPerf['getEntriesByType']('paint')).length > 0) {
         // Paint Timing API
         // Note that getEntriesByType('paint') is sorted chronologically
-        firstPaintTime = Math.round(
-            winPerf['timeOrigin'] +
-            paintEntries[0]['startTime']);
+        firstPaintTime = Math.round(timeOrigin + paintEntries[0]['startTime']);
     } else if ((loadTimes = window['chrome']) && (loadTimes = loadTimes['loadTimes'])) {
       // Chrome. Note that window.chrome.loadTimes returns a time in seconds.
       firstPaintTime = Math.round(
