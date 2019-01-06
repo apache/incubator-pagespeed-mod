@@ -155,13 +155,13 @@ struct OptimizedImageInfoListInputs {
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUa = {
   // [Save-Data: no, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 33108},
+  {&kContentTypeWebp, "Accept,Save-Data", 33814},
   // [Save-Data: no, Via: no]: Convert to WebP mobile quality.
-  {&kContentTypeWebp, "User-Agent,Save-Data", 25774},
+  {&kContentTypeWebp, "User-Agent,Save-Data", 26420},
   // [Save-Data: yes, Via: yes]: Convert to WebP Save-Data quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 19124},
+  {&kContentTypeWebp, "Accept,Save-Data", 19654},
   // [Save-Data: yes, Via: no]: Convert to WebP Save-Data quality.
-  {&kContentTypeWebp, "User-Agent,Save-Data", 19124},
+  {&kContentTypeWebp, "User-Agent,Save-Data", 19654},
 };
 
 const OptimizedImageInfoList kPuzzleOptimizedForSafariUa = {
@@ -304,35 +304,35 @@ const OptimizedImageInfoListInputs kOptimizedImageInfoList[] {
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUaAllowSaveDataAccept = {
   // [Save-Data: no, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 33108},
+  {&kContentTypeWebp, "Accept,Save-Data", 33814},
   // [Save-Data: no, Via: no]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 33108},
+  {&kContentTypeWebp, "Accept,Save-Data", 33814},
   // [Save-Data: yes, Via: yes]: Convert to WebP Save-Data quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 19124},
+  {&kContentTypeWebp, "Accept,Save-Data", 19654},
   // [Save-Data: yes, Via: no]: Convert to WebP Save-Data quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 19124},
+  {&kContentTypeWebp, "Accept,Save-Data", 19654},
 };
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUaAllowUserAgent = {
   // [Save-Data: no, Via: yes]: Convert to WebP mobile quality.
-  {&kContentTypeWebp, "User-Agent", 25774},
+  {&kContentTypeWebp, "User-Agent", 26420},
   // [Save-Data: no, Via: no]: Convert to WebP mobile quality.
-  {&kContentTypeWebp, "User-Agent", 25774},
+  {&kContentTypeWebp, "User-Agent", 26420},
   // [Save-Data: yes, Via: yes]: Convert to WebP mobile quality.
-  {&kContentTypeWebp, "User-Agent", 25774},
+  {&kContentTypeWebp, "User-Agent", 26420},
   // [Save-Data: yes, Via: no]: Convert to WebP mobile quality.
-  {&kContentTypeWebp, "User-Agent", 25774},
+  {&kContentTypeWebp, "User-Agent", 26420},
 };
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUaAllowAccept = {
   // [Save-Data: no, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
   // [Save-Data: no, Via: no]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
   // [Save-Data: yes, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
   // [Save-Data: yes, Via: no]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
 };
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUaAllowSaveData = {
@@ -359,35 +359,35 @@ const OptimizedImageInfoList kPuzzleOptimizedForWebpUaAllowNone = {
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUaNoSaveDataQualities = {
   // [Save-Data: no, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
   // [Save-Data: no, Via: no]: Convert to WebP mobile quality.
-  {&kContentTypeWebp, "User-Agent", 25774},
+  {&kContentTypeWebp, "User-Agent", 26420},
   // [Save-Data: yes, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
   // [Save-Data: yes, Via: no]: Convert to WebP mobile quality.
-  {&kContentTypeWebp, "User-Agent", 25774},
+  {&kContentTypeWebp, "User-Agent", 26420},
 };
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUaNoSmallScreenQualities = {
   // [Save-Data: no, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 33108},
+  {&kContentTypeWebp, "Accept,Save-Data", 33814},
   // [Save-Data: no, Via: no]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "User-Agent,Save-Data", 33108},
+  {&kContentTypeWebp, "User-Agent,Save-Data", 33814},
   // [Save-Data: yes, Via: yes]: Convert to WebP Save-Data quality.
-  {&kContentTypeWebp, "Accept,Save-Data", 19124},
+  {&kContentTypeWebp, "Accept,Save-Data", 19654},
   // [Save-Data: yes, Via: no]: Convert to WebP Save-Data quality.
-  {&kContentTypeWebp, "User-Agent,Save-Data", 19124},
+  {&kContentTypeWebp, "User-Agent,Save-Data", 19654},
 };
 
 const OptimizedImageInfoList kPuzzleOptimizedForWebpUaNoSpecialQualities = {
   // [Save-Data: no, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
   // [Save-Data: no, Via: no]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "User-Agent", 33108},
+  {&kContentTypeWebp, "User-Agent", 33814},
   // [Save-Data: yes, Via: yes]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "Accept", 33108},
+  {&kContentTypeWebp, "Accept", 33814},
   // [Save-Data: yes, Via: no]: Convert to WebP desktop quality.
-  {&kContentTypeWebp, "User-Agent", 33108},
+  {&kContentTypeWebp, "User-Agent", 33814},
 };
 
 // A callback for HTTP cache that stores body and string representation
