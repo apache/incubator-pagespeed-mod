@@ -64,7 +64,7 @@ Resource::Resource(const RewriteDriver* driver, const ContentType* type)
       disable_rewrite_on_no_transform_(true),
       is_authorized_domain_(true),
       respect_vary_(ResponseHeaders::kRespectVaryOnResources),
-      extracted_(false) {
+      extracted_state_(kExtractNotComputed) {
 }
 
 Resource::Resource() : server_context_(NULL), type_(NULL),
@@ -76,7 +76,7 @@ Resource::Resource() : server_context_(NULL), type_(NULL),
                        disable_rewrite_on_no_transform_(true),
                        is_authorized_domain_(true),
                        respect_vary_(ResponseHeaders::kRespectVaryOnResources),
-                       extracted_(false) {
+                       extracted_state_(kExtractNotComputed)  {
 }
 
 Resource::~Resource() {
@@ -258,8 +258,9 @@ bool Resource::Link(HTTPValue* value, MessageHandler* handler) {
   DCHECK(UseHttpCache());
   const SharedString& contents_and_headers = value->share();
   // Invalidate extracted_contents_.
-  extracted_ = false;
+  extracted_state_ = kExtractNotComputed;
   extracted_contents_.clear();
+  extracted_headers_ = nullptr;
   return value_.Link(contents_and_headers, &response_headers_, handler);
 }
 
@@ -271,17 +272,38 @@ void Resource::LinkFallbackValue(HTTPValue* value) {
 }
 
 StringPiece Resource::ExtractUncompressedContents() const {
-  ResponseHeaders headers;
-  if (!extracted_ && value_.ExtractHeaders(&headers, NULL)) {
-    if (headers.IsGzipped()) {
-      StringWriter inflate_writer(&extracted_contents_);
-      if (GzipInflater::Inflate(raw_contents(), GzipInflater::kGzip,
-                                &inflate_writer)) {
-        extracted_ = true;
-      }
+  bool use_extracted = EnsureExtractedIfNeeded();
+  return use_extracted ? extracted_contents_ : raw_contents();
+}
+
+const ResponseHeaders* Resource::UncompressedHeaders() const {
+  bool use_extracted = EnsureExtractedIfNeeded();
+  return use_extracted ? extracted_headers_.get() : response_headers();
+}
+
+bool Resource::EnsureExtractedIfNeeded() const {
+  if (extracted_state_ == kExtractNotComputed) {
+    if (!response_headers_.IsGzipped()) {
+      extracted_state_ = kExtractUseBase;
+      return false;
+    }
+
+    StringWriter inflate_writer(&extracted_contents_);
+    if (GzipInflater::Inflate(raw_contents(), GzipInflater::kGzip,
+                              &inflate_writer)) {
+      extracted_state_ = kExtractUseExtracted;
+      extracted_headers_.reset(new ResponseHeaders());
+      extracted_headers_->CopyFrom(response_headers_);
+      extracted_headers_->Remove(HttpAttributes::kContentEncoding,
+                                 HttpAttributes::kGzip);
+      extracted_headers_->SetContentLength(extracted_contents_.length());
+      extracted_headers_->ComputeCaching();
+    } else {
+      // Prevent repeated attempts on broken input.
+      extracted_state_ = kExtractUseBase;
     }
   }
-  return extracted_ ? extracted_contents_ : raw_contents();
+  return (extracted_state_ == kExtractUseExtracted);
 }
 
 void Resource::Freshen(FreshenCallback* callback, MessageHandler* handler) {

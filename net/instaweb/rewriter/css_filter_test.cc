@@ -414,6 +414,38 @@ TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsNoPreemptiveRewrite) {
   EXPECT_EQ(kOutputStyle, out_css);
 }
 
+
+TEST_F(CssFilterTestCustomOptions, FallbackWithGzipData) {
+  const char kCss[] = " hello { display: block; border: 1px solid fuchsia; }";
+  options()->set_http_cache_compression_level(6);
+  // Force the fallback since rewrite is taking too long" path.
+  options()->set_test_instant_fetch_rewrite_deadline(true);
+  CssFilterTest::SetUp();
+
+  // Store an already-gzipped version of the resource in the cace.
+  ResponseHeaders headers;
+  DefaultResponseHeaders(kContentTypeCss, 5000, &headers);
+  HTTPValue value;
+  value.SetHeaders(&headers);
+  value.Write(kCss, message_handler());
+  http_cache()->Put("http://test.com/a.css", rewrite_driver()->CacheFragment(),
+                    RequestHeaders::Properties(),  kDefaultHttpOptionsForTests,
+                    &value, message_handler());
+
+  // Fetch with deadline exceeded. Should get uncompressed bits with proper
+  // content-length. (Consistency of compression, Content-Encoding and
+  // Content-Length is what's important here).
+  GoogleString out_css_url = Encode(kTestDomain, "cf", "0", "a.css", "css");
+  GoogleString out_css;
+  ResponseHeaders out_headers;
+  EXPECT_TRUE(FetchResourceUrl(out_css_url, &out_css, &out_headers));
+  EXPECT_EQ(kCss, out_css);
+  int64 content_length = 0;
+  EXPECT_TRUE(out_headers.FindContentLength(&content_length));
+  EXPECT_EQ(STATIC_STRLEN(kCss), content_length);
+  EXPECT_FALSE(out_headers.IsGzipped());
+}
+
 TEST_F(CssFilterTest, LinkHrefCaseInsensitive) {
   // Make sure we check rel value case insensitively.
   // http://github.com/apache/incubator-pagespeed-mod/issues/354
