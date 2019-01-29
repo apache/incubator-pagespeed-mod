@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -50,6 +50,7 @@ namespace {
   static const int kTimeoutUs = 100 * Timer::kMsUs;
   static const int kSlaveNodesFlushingTimeoutMs = 1000;
   static const int kDatabaseIndex = 0;
+  static const int kTTLSec = -1;
 
   // One can check following constants with CLUSTER KEYSLOT command.
   // For testing purposes, both KEY and {}KEY should be in the same slot range.
@@ -104,7 +105,8 @@ class RedisCacheClusterTest : public CacheTestBase {
     // Setting up cache.
     cache_.reset(new RedisCache("localhost", ports_[0], thread_system_.get(),
                                 &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_, kDatabaseIndex));
+                                kTimeoutUs, &statistics_, kDatabaseIndex,
+                                kTTLSec));
     cache_->StartUp();
     return true;
   }

@@ -506,6 +506,16 @@ total_items:           4166384
   <dt>Nginx:<dd><pre class="prettyprint"
      >pagespeed RedisDatabaseIndex index;</pre>
 </dl>
+    <p>
+      You can set an expiration time (or TTL) in seconds for the Redis keys.
+      The setting defaults to -1 meaning that the keys will never expire and can be specified like this:
+    </p>
+<dl>
+  <dt>Apache:<dd><pre class="prettyprint"
+    >ModPagespeedRedisTTLSec ttl_in_seconds</pre>
+  <dt>Nginx:<dd><pre class="prettyprint"
+    >pagespeed RedisTTLSec ttl_in_seconds;</pre>
+</dl>
 
     <h2 id="flush_cache">Flushing PageSpeed Server-Side Cache</h2>
     <p>

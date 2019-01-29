@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -81,6 +81,7 @@ namespace net_instaweb {
 static const int kMaxRedirections = 1;
 static const int kDefaultDatabaseIndex = 0;
 static const int kRedisDatabaseIndexNotSet = -1;
+static const int kRedisTTLNotSet = -1;
 
 const char kRedisClusterRedirections[] = "redis_cluster_redirections";
 const char kRedisClusterSlotsFetches[] = "redis_cluster_slots_fetches";
@@ -88,7 +89,7 @@ const char kRedisClusterSlotsFetches[] = "redis_cluster_slots_fetches";
 RedisCache::RedisCache(StringPiece host, int port, ThreadSystem* thread_system,
                        MessageHandler* message_handler, Timer* timer,
                        int64 reconnection_delay_ms, int64 timeout_us,
-                       Statistics* stats, int database_index)
+                       Statistics* stats, int database_index, int ttl_sec)
     : main_host_(host.as_string()),
       main_port_(port),
       thread_system_(thread_system),
@@ -100,7 +101,8 @@ RedisCache::RedisCache(StringPiece host, int port, ThreadSystem* thread_system,
       connections_lock_(thread_system_->NewRWLock()),
       cluster_map_lock_(thread_system_->NewRWLock()),
       main_connection_(nullptr),
-      database_index_(database_index) {
+      database_index_(database_index),
+      ttl_sec_(ttl_sec) {
   redirections_ = stats->GetVariable(kRedisClusterRedirections);
   cluster_slots_fetches_ = stats->GetVariable(kRedisClusterSlotsFetches);
 }
@@ -177,12 +179,25 @@ void RedisCache::Get(const GoogleString& key, Callback* callback) {
 }
 
 void RedisCache::Put(const GoogleString& key, const SharedString& value) {
-  RedisReply reply = RedisCommand(
+  RedisReply reply;
+
+  if (ttl_sec_ == kRedisTTLNotSet) {
+    reply = RedisCommand(
       LookupConnection(key),
       "SET %b %b",
       {REDIS_REPLY_STATUS},
       key.data(), key.length(),
       value.data(), static_cast<size_t>(value.size()));
+  } else {
+    GoogleString s_ttl = IntegerToString(ttl_sec_);
+    reply = RedisCommand(
+      LookupConnection(key),
+      "SETEX %b %b %b",
+      {REDIS_REPLY_STATUS},
+      key.data(), key.length(),
+      s_ttl.data(), s_ttl.length(),
+      value.data(), static_cast<size_t>(value.size()));
+  }
 
   if (!reply) {
     return;
