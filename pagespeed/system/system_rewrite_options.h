@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,6 +53,7 @@ class SystemRewriteOptions : public RewriteOptions {
   static const char kRedisReconnectionDelayMs[];
   static const char kRedisTimeoutUs[];
   static const char kRedisDatabaseIndex[];
+  static const char kRedisTTLSec[];
 
   static constexpr int kMemcachedDefaultPort = 11211;
   static constexpr int kRedisDefaultPort = 6379;
@@ -197,6 +198,12 @@ class SystemRewriteOptions : public RewriteOptions {
   }
   bool has_redis_database_index() const {
     return redis_database_index_.was_set();
+  }
+  int redis_ttl_sec() const {
+    return redis_ttl_sec_.value();
+  }
+  bool has_redis_ttl_sec() const {
+    return redis_ttl_sec_.was_set();
   }
   int64 slow_file_latency_threshold_us() const {
     return slow_file_latency_threshold_us_.value();
@@ -511,6 +518,7 @@ class SystemRewriteOptions : public RewriteOptions {
   Option<int64> redis_reconnection_delay_ms_;
   Option<int64> redis_timeout_us_;
   Option<int> redis_database_index_;
+  Option<int> redis_ttl_sec_;
 
   Option<int64> slow_file_latency_threshold_us_;
   Option<int64> file_cache_clean_inode_limit_;

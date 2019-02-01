@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -82,7 +82,7 @@ class RedisCache : public CacheInterface {
   RedisCache(StringPiece host, int port, ThreadSystem* thread_system,
              MessageHandler* message_handler, Timer* timer,
              int64 reconnection_delay_ms, int64 timeout_us,
-             Statistics* stats, int database_index);
+             Statistics* stats, int database_index, int ttl_sec);
   ~RedisCache() override { ShutDown(); }
 
   static void InitStats(Statistics* stats);
@@ -282,6 +282,7 @@ class RedisCache : public CacheInterface {
   Connection* main_connection_;
 
   const int database_index_;
+  const int ttl_sec_;
 
   friend class RedisCacheTest;
   DISALLOW_COPY_AND_ASSIGN(RedisCache);
