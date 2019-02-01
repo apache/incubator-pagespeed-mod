@@ -29,6 +29,7 @@ AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER application/xhtml+xml
 #REDIS # Do testing using redis instead of file cache
 #REDIS ModPagespeedRedisServer localhost:@@REDIS_PORT@@
 #REDIS ModPagespeedRedisDatabaseIndex 2
+#REDIS ModPagespeedRedisTTLSec 300
 #EXTCACHE
 # If X-PSA-Blocking-Rewrite request header is present and its value matches the
 # value of ModPagespeedBlockingRewriteKey below, the response will be fully
@@ -2252,6 +2253,7 @@ AddType application/javascript .js
 #ALL_DIRECTIVES ModPagespeedRedisReconnectionDelayMs 1000
 #ALL_DIRECTIVES ModPagespeedRedisTimeoutUs 50000
 #ALL_DIRECTIVES ModPagespeedRedisDatabaseIndex 0
+#ALL_DIRECTIVES ModPagespeedRedisTTLSec -1
 #ALL_DIRECTIVES ModPagespeedReportUnloadTime true
 #ALL_DIRECTIVES ModPagespeedRespectVary true
 #ALL_DIRECTIVES ModPagespeedRespectXForwardedProto off
