@@ -149,7 +149,7 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
 REGISTER_TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate, TestCreate,
                            TestSet, TestClear, TestAdd,
                            TestSetReturningPrevious,
-                           TestHistogram, TestHistogramRender,
+                           TestHistogram, /*TestHistogramRender,*/
                            TestHistogramNoExtraClear,
                            TestHistogramExtremeBuckets,
                            TestTimedVariableEmulation);
