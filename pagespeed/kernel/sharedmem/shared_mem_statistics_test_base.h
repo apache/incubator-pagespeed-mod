@@ -130,7 +130,7 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestHistogram) {
   SharedMemStatisticsTestBase::TestHistogram();
 }
 
-TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestHistogramRender) {
+TYPED_TEST_P(SharedMemStatisticsTestTemplate, DISABLED_TestHistogramRender) {
   SharedMemStatisticsTestBase::TestHistogramRender();
 }
 
