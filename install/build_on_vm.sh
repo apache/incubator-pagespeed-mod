@@ -134,11 +134,11 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   if $use_rpms; then
     sudo sed -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/google-cloud.repo
     sudo sed -i 's/gpgcheck=1/gpgcheck=0/g' /etc/yum.repos.d/google-cloud.repo
-    sudo yum upgrade
-    sudo yum update
+    sudo yum -y upgrade
+    sudo yum -y update
     sudo yum -y install git redhat-lsb
   else
-    sudo apt-get update
+    sudo apt-get -y update
     sudo apt-get -y install git
   fi
   # CentOS 6's git is old enough that git clone -b <tag> doesn't work and
@@ -151,7 +151,8 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   cp third_party/libpng/src/scripts/pnglibconf.h.prebuilt third_party/libpng/src/pnglibconf.h || true
   [[ -d log ]] && rm -rf log
   [[ -d release ]] && rm -rf release
-  [[ -d out/Release ]] && rm -r out/Release/*.deb
+  [[ -d out/Release ]] && touch out/Release/foo.deb && rm -r out/Release/*.deb
+  export MAKEFLAGS=-j8
   install/build_release.sh $@
 EOF
 
