@@ -141,6 +141,10 @@ tar cj --dereference --exclude='.git' --exclude='.svn' --exclude='.hg' -f $TARBA
     --exclude='*.mk' --exclude='*.pyc' \
     --exclude=$DIR/net/instaweb/genfiles/*/*.cc \
     $WRAPPER_DIR/generate.sh \
+    $DIR/DISCLAIMER \
+    $DIR/LICENSE \
+    $DIR/NOTICE \
+    $DIR/README.md \
     $DIR/LASTCHANGE.in \
     $DIR/base \
     $DIR/build \
