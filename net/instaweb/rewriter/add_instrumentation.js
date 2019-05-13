@@ -71,11 +71,12 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
   }
 
   url += '&r' + this.event_ + '=';
-  if (window['performance']) {
-    var timingApi = window['performance']['timing'];
+  var winPerf, timingApi, paintEntries, loadTimes, timeOrigin;
+  var firstPaintTime = -1;
+  if ((winPerf = window['performance']) && (timingApi = winPerf['timing'])) {
     var navStartTime = timingApi['navigationStart'];
     var requestStartTime = timingApi['requestStart'];
-    url += (timingApi[this.event_ + 'EventStart'] - navStartTime);
+    url += timingApi[this.event_ + 'EventStart'] - navStartTime;
     url += '&nav=' + (timingApi['fetchStart'] - navStartTime);
     url += '&dns=' + (
         timingApi['domainLookupEnd'] - timingApi['domainLookupStart']);
@@ -88,28 +89,33 @@ pagespeed.AddInstrumentation.prototype.sendBeacon = function() {
         timingApi['responseEnd'] - timingApi['responseStart']);
     url += '&dom_c=' + (timingApi['domContentLoadedEventStart'] - navStartTime);
 
-    if (window['performance']['navigation']) {
-      url += '&nt=' + window['performance']['navigation']['type'];
+    if (winPerf['navigation']) {
+      url += '&nt=' + winPerf['navigation']['type'];
     }
-    var firstPaintTime = -1;
     if (timingApi['msFirstPaint']) {
       // IE.
       firstPaintTime = timingApi['msFirstPaint'];
-    } else if (window['chrome'] && window['chrome']['loadTimes']) {
+    } else if (winPerf['timeOrigin'] && (timeOrigin = winPerf['timeOrigin']) &&
+        winPerf['getEntriesByType'] &&
+        (paintEntries = winPerf['getEntriesByType']('paint')).length > 0) {
+        // Paint Timing API
+        // Note that getEntriesByType('paint') is sorted chronologically
+        firstPaintTime = Math.round(timeOrigin + paintEntries[0]['startTime']);
+    } else if ((loadTimes = window['chrome']) && (loadTimes = loadTimes['loadTimes'])) {
       // Chrome. Note that window.chrome.loadTimes returns a time in seconds.
-      firstPaintTime = Math.floor(
-          window['chrome']['loadTimes']()['firstPaintTime'] * 1000);
+      firstPaintTime = Math.round(
+          loadTimes()['firstPaintTime'] * 1000);
     }
-    firstPaintTime = firstPaintTime - requestStartTime;
-    if (firstPaintTime >= 0) {
-      url += '&fp=' + firstPaintTime;
+    var timeToFirstPaint = firstPaintTime - requestStartTime;
+    if (timeToFirstPaint >= 0) {
+      url += '&fp=' + timeToFirstPaint;
     }
   } else {
    url += traditionalPLT;
   }
 
   if (pagespeed['getResourceTimingData'] && window.parent == window) {
-    url += pagespeed.getResourceTimingData();
+    url += pagespeed['getResourceTimingData']();
   }
 
   url += (window.parent != window) ? '&ifr=1' : '&ifr=0';
