@@ -55,7 +55,6 @@
         '<(DEPTH)/third_party/libwebp/src/dsp/dec_sse2.c',
         '<(DEPTH)/third_party/libwebp/src/dsp/dec_sse41.c',
         '<(DEPTH)/third_party/libwebp/src/dsp/enc.c',
-        '<(DEPTH)/third_party/libwebp/src/dsp/enc_avx2.c',
         '<(DEPTH)/third_party/libwebp/src/dsp/enc_mips32.c',
         '<(DEPTH)/third_party/libwebp/src/dsp/enc_mips_dsp_r2.c',
         '<(DEPTH)/third_party/libwebp/src/dsp/enc_msa.c',
@@ -90,6 +89,7 @@
         '<(DEPTH)/third_party/libwebp/src/dsp/yuv_mips32.c',
         '<(DEPTH)/third_party/libwebp/src/dsp/yuv_mips_dsp_r2.c',
         '<(DEPTH)/third_party/libwebp/src/dsp/yuv_sse2.c',
+        '<(DEPTH)/third_party/libwebp/src/dsp/yuv_sse41.c',
       ],
       'include_dirs': [
         '<(DEPTH)/third_party/libwebp',
@@ -133,7 +133,6 @@
         '<(DEPTH)/third_party/libwebp/src/enc/backward_references_enc.c',
         '<(DEPTH)/third_party/libwebp/src/enc/config_enc.c',
         '<(DEPTH)/third_party/libwebp/src/enc/cost_enc.c',
-        '<(DEPTH)/third_party/libwebp/src/enc/delta_palettization_enc.c',
         '<(DEPTH)/third_party/libwebp/src/enc/filter_enc.c',
         '<(DEPTH)/third_party/libwebp/src/enc/frame_enc.c',
         '<(DEPTH)/third_party/libwebp/src/enc/histogram_enc.c',
