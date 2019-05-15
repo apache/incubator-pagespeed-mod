@@ -25,9 +25,14 @@
           'actions': [
             {
               'action_name': 'copy_libpngconf_prebuilt',
-              'inputs' : ['<(DEPTH)/third_party/libpng/src/scripts/pnglibconf.h.prebuilt'],
-              'outputs': ['<(DEPTH)/third_party/libpng/src/pnglibconf.h'],
-              'action': ['cp', '-f', '<@(_inputs)','<@(_outputs)'],
+              'inputs' : [],
+              'outputs': [''],
+              'action': [
+                'cp',
+                '-f',
+                '<(DEPTH)/third_party/libpng/src/scripts/pnglibconf.h.prebuilt',
+                '<(DEPTH)/third_party/libpng/src/pnglibconf.h',
+              ],
             },
           ],
           'msvs_guid': 'C564F145-9172-42C3-BFCB-6014CA97DBCD',
