@@ -46,11 +46,11 @@ pagespeed.CriticalCssLoader.addAllStyles = function() {
       div.innerHTML = e.textContent;
       var children = div.childNodes;
       for (var v = 0; v < children.length; ++v) {
-    children[v].removeAttribute('id');
-    }  
-    document.body.appendChild(div);
+        children[v].removeAttribute('id');
+      }  
+      document.body.appendChild(div);
     }
- }
+  }
 };
 
 
