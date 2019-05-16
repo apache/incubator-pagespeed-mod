@@ -683,7 +683,7 @@ TEST_F(SerfUrlAsyncFetcherTest, TestHttpsFailsForSelfSignedCert) {
 TEST_F(SerfUrlAsyncFetcherTest, TestHttpsSucceedsForGoogleCom) {
   serf_url_async_fetcher_->SetHttpsOptions("enable");
   EXPECT_TRUE(serf_url_async_fetcher_->SupportsHttps());
-  TestHttpsSucceeds("https://www.google.com/intl/en/about/", "<!DOCTYPE html>");
+  TestHttpsSucceeds("https://about.google/intl/en/", "<!DOCTYPE html>");
   ValidateMonitoringStats(1, 0);
 }
 
