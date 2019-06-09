@@ -22,6 +22,7 @@
           'dependencies': [
             '../zlib/zlib.gyp:zlib',
           ],
+          'hard_dependency': 1,
           'actions': [
             {
               'action_name': 'copy_libpngconf_prebuilt',
