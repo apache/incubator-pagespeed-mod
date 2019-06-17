@@ -13,4 +13,4 @@ tools/closure/
 release/
 log/
 bazel-*
-.vscode
+.vscode/ipch
