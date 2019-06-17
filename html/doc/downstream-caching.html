@@ -105,15 +105,15 @@ sub vcl_recv {
   }
 }
 
-# Mark HTML as uncacheable.  If we can't send them purge requests they can't
+# Optionally when additional intermediary caching proxy/CDN used: mark HTML as uncacheable.  If we can't send them purge requests they can't
 # cache our html.
-sub vcl_fetch {
-   if (beresp.http.Content-Type ~ "text/html") {
-     remove beresp.http.Cache-Control;
-     set beresp.http.Cache-Control = "no-cache, max-age=0";
-   }
-   return (deliver);
-}
+#sub vcl_fetch {
+#   if (beresp.http.Content-Type ~ "text/html") {
+#     remove beresp.http.Cache-Control;
+#     set beresp.http.Cache-Control = "no-cache, max-age=0";
+#   }
+#   return (deliver);
+#}
 
 sub vcl_hit {
   # Make purging happen in response to a PURGE request.  This happens
@@ -168,15 +168,15 @@ sub vcl_recv {
   }
 }
 
-# Mark HTML as uncacheable.  If we can't send them purge requests they can't
+# Optionally when additional intermediary caching proxy/CDN used: mark HTML as uncacheable.  If we can't send them purge requests they can't
 # cache our html.
-sub vcl_backend_response {
-   if (beresp.http.Content-Type ~ "text/html") {
-     unset beresp.http.Cache-Control;
-     set beresp.http.Cache-Control = "no-cache, max-age=0";
-   }
-   return (deliver);
-}
+#sub vcl_backend_response {
+#   if (beresp.http.Content-Type ~ "text/html") {
+#     unset beresp.http.Cache-Control;
+#     set beresp.http.Cache-Control = "no-cache, max-age=0";
+#   }
+#   return (deliver);
+#}
 
 sub vcl_hit {
   # 5% of the time ignore that we got a cache hit and send the request to the
