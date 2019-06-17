@@ -2143,7 +2143,7 @@ void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
     if (srcset != nullptr) {
       BeginRewriteSrcSet(element, srcset);
     }
-	  if (datasrcset != nullptr) {
+    if (datasrcset != nullptr) {
       srcset = datasrcset ;
       BeginRewriteSrcSet(element, srcset);
     }
