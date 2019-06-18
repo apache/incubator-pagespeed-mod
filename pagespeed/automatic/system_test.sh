@@ -66,6 +66,7 @@ run_test outliners
 run_test char_tweaks
 run_test rewrite_css
 run_test rewrite_images
+run_test rewrite_images_datasrcset
 run_test image_quality_generic
 run_test image_quality_jpeg
 run_test image_quality_webp
