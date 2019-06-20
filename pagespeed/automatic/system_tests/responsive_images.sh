@@ -37,5 +37,5 @@ fetch_until -save $URL 'grep -c xPuzzle.*1x.*xCuppa.*2x' 1
 
 start_test rewrite_images_datasrcset can rewrite data-srcset itself
 URL=$TEST_ROOT/image_rewriting/data-srcset.html?PageSpeedFilters=+rewrite_images,+debug
-fetch_until -save $URL 'grep -c xPuzzle.*1x.*xCuppa.*2x' 1
+fetch_until -save $URL 'grep -c srcset.*xPuzzle.*1x.*xCuppa.*2x' 2
 
