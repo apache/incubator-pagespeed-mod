@@ -2138,11 +2138,13 @@ void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
     BeginRewriteImageUrl(element, attributes[i].url);
    
   
-    HtmlElement::Attribute* srcset = element->FindAttribute(HtmlName::kSrcset);
-    HtmlElement::Attribute* datasrcset = element->FindAttribute(HtmlName::kDataSrcset);
-    ( srcset == nullptr)? : BeginRewriteSrcSet(element, srcset);
-    ( datasrcset == nullptr)? : BeginRewriteSrcSet(element, datasrcset);
-
+    HtmlElement::Attribute* srcset[0] = element->FindAttribute(HtmlName::kSrcset);
+    HtmlElement::Attribute* srcset[1] = element->FindAttribute(HtmlName::kDataSrcset);
+    for (int i = 0; i == 1; i++){
+       if (srcset[i] != nullptr){
+	       BeginRewriteSrcSet(element, srcset[i]);
+        }
+    }
   }
 }
 
