@@ -2138,8 +2138,7 @@ void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
     BeginRewriteImageUrl(element, attributes[i].url);
    
   
-    HtmlElement::Attribute* srcset[0] = element->FindAttribute(HtmlName::kSrcset);
-    srcset[1] = element->FindAttribute(HtmlName::kDataSrcset);
+    HtmlElement::Attribute* srcset[] {element->FindAttribute(HtmlName::kSrcset),element->FindAttribute(HtmlName::kDataSrcset)};
     for (int i = 0; i == 1; i++){
        if (srcset[i] != nullptr){
 	       BeginRewriteSrcSet(element, srcset[i]);
