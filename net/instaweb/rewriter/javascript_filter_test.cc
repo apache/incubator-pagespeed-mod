@@ -1,27 +1,28 @@
 /*
- * Copyright 2010 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: jmarantz@google.com (Joshua Marantz)
 
 // Unit-test the javascript filter
 
 #include "net/instaweb/rewriter/public/javascript_filter.h"
 
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
@@ -50,6 +51,7 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
+#include "pagespeed/opt/logging/log_record.h"
 
 namespace {
 
@@ -844,7 +846,7 @@ TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
                    StringPrintf(xhtml_script_format.c_str(), kJsMinData));
 }
 
-// http://github.com/pagespeed/mod_pagespeed/issues/324
+// http://github.com/apache/incubator-pagespeed-mod/issues/324
 TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
   InitFilters();
   GoogleString url = StrCat(kTestDomain, kOrigJsName);
@@ -852,7 +854,7 @@ TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
   TestRetainExtraHeaders(kOrigJsName, kFilterId, "js");
 }
 
-// http://github.com/pagespeed/mod_pagespeed/issues/327 -- we were
+// http://github.com/apache/incubator-pagespeed-mod/issues/327 -- we were
 // previously busting regexps with backslashes in them.
 TEST_P(JavascriptFilterTest, BackslashInRegexp) {
   InitFilters();
@@ -933,7 +935,7 @@ TEST_P(JavascriptFilterTest, NoReuseInline) {
   EXPECT_EQ(1, num_uses_->Get());
 }
 
-// See http://github.com/pagespeed/mod_pagespeed/issues/542
+// See http://github.com/apache/incubator-pagespeed-mod/issues/542
 TEST_P(JavascriptFilterTest, ExtraCdataOnMalformedInput) {
   InitFiltersAndTest(100);
 
@@ -1255,7 +1257,7 @@ TEST_P(JavascriptFilterTest, SourceMapUnsanitaryUrl) {
 // For non-pagespeed input JS, we must add ?PageSpeed=off to the source URL
 // to avoid IPRO rewriting the source. However, we should not add ?PageSpeed=off
 // for .pagespeed. input files, because that doesn't make any sense.
-// https://github.com/pagespeed/mod_pagespeed/issues/1043
+// https://github.com/apache/incubator-pagespeed-mod/issues/1043
 TEST_P(JavascriptFilterTest, ProperSourceMapForPagespeedInput) {
   if (!options()->use_experimental_js_minifier()) return;
 

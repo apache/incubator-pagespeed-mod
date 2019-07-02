@@ -1,20 +1,22 @@
 /*
- * Copyright 2011 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: jmarantz@google.com (Joshua Marantz)
 //         sligocki@google.com (Shawn Ligocki)
 
 #include "net/instaweb/http/public/async_fetch.h"
@@ -280,7 +282,7 @@ void AsyncFetch::FixCacheControlForGoogleCache() {
   ConstStringStarVector values;
   if (request_headers()->Lookup(HttpAttributes::kVia, &values)) {
     for (int i = 0, n = values.size(); i < n; ++i) {
-      // See https://github.com/pagespeed/ngx_pagespeed/issues/1149
+      // See https://github.com/apache/incubator-pagespeed-ngx/issues/1149
       // In general, it is not necessary to include a specific 'public'
       // in a cache-control entry to allow a proxy-cache to cache it;
       // it's sufficient to specify a max-age, as long as 'private'

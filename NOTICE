@@ -1,0 +1,110 @@
+Apache PageSpeed
+Copyright 2018 The Apache Software Foundation
+
+This product includes software developed at
+  - The Apache Software Foundation (http://www.apache.org/).
+  - Google Inc.
+
+~~
+
+Codebase originally donated by Google Inc:
+
+Copyright (C) 2010-2017 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+~~
+
+Files: *
+Copyright: 2016 Google Inc.
+License: Apache-2.0
+
+Files: src/third_party/aprutil/apr_memcache2.*
+Copyright: Apache Software Foundation
+License: Apache-2.0
+
+Files: src/third_party/base64/*
+Copyright: 2004-2008 René Nyffenegger
+License: Zlib
+
+Files: src/third_party/chromium/*
+Copyright: 2014 The Chromium Authors
+License: BSD-3-clause
+
+Files: src/third_party/chromium/src/base/third_party/dmg_fp/*
+Copyright: 1991, 2000, 2001 by Lucent Technologies
+License: dtoac
+
+Files: src/third_party/chromium/src/base/third_party/dynamic_annotations/*
+Copyright: 2008-2009 Google Inc.
+License: BSD-variant
+
+Files: src/third_party/chromium/src/base/third_party/icu/*
+       src/third_party/chromium/src/base/i18n/icu_string_conversions.cc
+Copyright: 1995-2009 International Business Machines Corporation and others
+License: ICU
+
+Files: src/third_party/chromium/src/base/third_party/nspr/*
+Copyright: 1998-2000 Netscape Communications Corporation
+           2011 Google Inc.
+License: MPL-1.1 or GPL-2+ or LGPL-2.1+
+
+Files: src/third_party/chromium/src/base/third_party/superfasthash/*
+Copyright: 2010 Paul Hsieh
+License: BSD-3-clause
+
+Files: src/third_party/chromium/src/base/third_party/symbolize/*
+Copyright: 2006 Google Inc.
+License: BSD-3-clause
+
+Files: src/third_party/chromium/src/base/third_party/valgrind/*
+Copyright: 2000-2010 Julian Seward
+License: libbz2
+
+Files: src/third_party/chromium/src/googleurl/*
+Copyright: 2007 Google Inc.
+License: BSD-3-clause
+
+Files: src/third_party/chromium/src/googleurl/src/url_parse.cc
+Copyright: 1998 Netscape Communications Corporation
+License: MPL-1.1 or GPL-2+ or LGPL-2.1+
+
+Files: src/third_party/closure_library/*
+Copyright: 2006-2013 The Closure Library Authors
+License: Apache-2.0
+
+Files: src/third_party/domain_registry_provider/*
+Copyright: 2011 Google Inc.
+License: Apache-2.0
+
+Files: src/third_party/domain_registry_provider/src/third_party/effective_tld_names/*
+Copyright: 2007–16 Mozilla Foundation
+License: MPL-2.0
+
+Files: src/third_party/google-sparsehash/*
+Copyright: 2005 Google Inc.
+License: BSD-3-clause
+
+Files: src/third_party/libwebp/*
+Copyright: 2010 Google Inc.
+License: BSD-3-clause
+
+Files: src/third_party/modp_b64/*
+Copyright: 2005, 2006  Nick Galbreath -- nickg [at] modp [dot] com
+License: BSD-3-clause
+
+Files: src/third_party/optipng/*
+Copyright: 2001-2012 Cosmin Truta and the Contributing Authors
+License: Zlib
+
+Files: src/third_party/rdestl/*
+Copyright: 2007 Maciej Sinilo
+License: Expat
+
+Files: src/third_party/serf/*
+Copyright: 2002-2012 Justin Erenkrantz and Greg Stein
+License: Apache-2.0

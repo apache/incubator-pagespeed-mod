@@ -1,20 +1,22 @@
-// Copyright 2010 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// Author: jmarantz@google.com (Joshua Marantz)
-//         lsong@google.com (Libo Song)
-//
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 // Register handlers, define configuration options and set up other things
 // that mod_pagespeed needs to do to be an Apache module.
 
@@ -888,7 +890,7 @@ apr_status_t instaweb_in_place_check_headers_filter(ap_filter_t* filter,
       recorder->DoneAndSetHeaders(&response_headers,
                                   !request->connection->aborted);
 
-      // https://github.com/pagespeed/mod_pagespeed/issues/1191 identifies
+      // https://github.com/apache/incubator-pagespeed-mod/issues/1191 identifies
       // a case where there must have been two EOS markers passed into
       // this function, either because there were two in the brigade
       // or because this filter was called twice.  To defend against
@@ -1140,7 +1142,7 @@ void mod_pagespeed_register_hooks(apr_pool_t* pool) {
 
   // We register our output filter at (AP_FTYPE_RESOURCE + 1) so that
   // mod_pagespeed runs after mod_include.  See Issue
-  // http://github.com/pagespeed/mod_pagespeed/issues/182
+  // http://github.com/apache/incubator-pagespeed-mod/issues/182
   // and httpd/src/modules/filters/mod_include.c, which initializes
   // server-side-includes with ap_register_output_filter(...AP_FTYPE_RESOURCE).
   ap_register_output_filter(

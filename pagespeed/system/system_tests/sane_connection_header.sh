@@ -1,6 +1,5 @@
 #!/bin/bash
 #
-# Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Test to make sure we have a sane Connection Header.  See
-# https://github.com/pagespeed/mod_pagespeed/issues/664
+# https://github.com/apache/incubator-pagespeed-mod/issues/664
 #
 # Note that this bug is dependent on seeing a resource for the first time in
 # the InPlaceResourceOptimization path, because in that flow we are caching

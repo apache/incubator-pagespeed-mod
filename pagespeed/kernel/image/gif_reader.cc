@@ -1,20 +1,22 @@
 /*
- * Copyright 2009 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: Bryan McQuade
 
 #include "pagespeed/kernel/image/gif_reader.h"
 
@@ -34,7 +36,7 @@ extern "C" {
 #include "third_party/libpng/src/png.h"
 #endif
 
-#include "third_party/giflib/lib/gif_lib.h"
+#include "third_party/giflib/src/lib/gif_lib.h"
 }
 
 #if GIFLIB_MAJOR < 5 || (GIFLIB_MAJOR == 5 && GIFLIB_MINOR == 0)
@@ -411,8 +413,8 @@ bool ReadGifToPng(GifFileType* gif_file,
   png_uint_32 height = png_get_image_height(paletted_png_ptr,
                                             paletted_info_ptr);
   for (png_uint_32 row = 1; row < height; ++row) {
-    memcpy(paletted_info_ptr->row_pointers[row],
-           paletted_info_ptr->row_pointers[0],
+    memcpy(row_pointers[row],
+           row_pointers[0],
            row_size);
   }
 

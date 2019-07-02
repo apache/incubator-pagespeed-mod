@@ -1,6 +1,5 @@
 #!/bin/bash
 #
-# Copyright 2012 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +37,7 @@ function usage {
    You can also set environment variable NUM_VHOSTS to control the number of
    virtual hosts produced.
 
- See also https://github.com/pagespeed/mod_pagespeed/wiki/Memory-Profiling
+ See also https://github.com/apache/incubator-pagespeed-mod/wiki/Memory-Profiling
 EOF
 }
 

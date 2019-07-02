@@ -1,6 +1,5 @@
 #!/bin/bash
 #
-# Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +27,7 @@ this_dir=$(dirname "${BASH_SOURCE[0]}")
 source "$this_dir/../pagespeed/automatic/system_test_helpers.sh" \
        "$APACHE_SERVER"
 
-EXTEND_CACHE_URL="http://www.modpagespeed.com/extend_cache.html"
+EXTEND_CACHE_URL="http://selfsigned.modpagespeed.com/mod_pagespeed_example/extend_cache.html"
 
 DEVEL_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
@@ -49,7 +48,7 @@ OUT="$(http_proxy="$APACHE_SERVER" "$WGET" -q -O - \
 check_from "$OUT" fgrep '"images/Puzzle.jpg"'
 
 start_test "Testing slurping (dns mode, mimicing webpagetest)"
-OUT="$("$WGET" --header="Host: www.modpagespeed.com" -q -O - --save-headers \
+OUT="$("$WGET" --header="Host: selfsigned.modpagespeed.com" -q -O - --save-headers \
   "$EXTEND_CACHE_URL?PageSpeedFilters=extend_cache")"
 check_from "$OUT" grep -q 'HTTP/1.[01] 200 OK'
 

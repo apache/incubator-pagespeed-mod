@@ -1,3 +1,22 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -48,7 +67,7 @@ optimization than can be provided by PageSpeed.</li>
 </ul>
 <p>
 In Apache the default set of libraries can be found in
-the <code><a href="https://github.com/pagespeed/mod_pagespeed/blob/master/net/instaweb/genfiles/conf/pagespeed_libraries.conf">pagespeed_libraries.conf</a></code>
+the <code><a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/net/instaweb/genfiles/conf/pagespeed_libraries.conf">pagespeed_libraries.conf</a></code>
 file, which is loaded along with <code>pagespeed.conf</code> when Apache starts
 up. It contains signatures for all the <a href="/speed/libraries/">Google Hosted
 Libraries</a>.  In Nginx you need to
@@ -128,9 +147,9 @@ the old and new minifiers.
 </p>
 <p>
 This filter is based on the best practices of
-<a href="/speed/docs/best-practices/caching#LeverageBrowserCaching">
+<a target="_blank" href="https://developers.google.com/speed/docs/best-practices/caching#LeverageBrowserCaching">
 optimizing browser caching</a>
-and <a href="/speed/docs/best-practices/payload#MinifyJS">reducing payload
+and <a target="_blank" href="https://developers.google.com/speed/docs/best-practices/payload#MinifyJS">reducing payload
 size</a>.
 </p>
 
@@ -150,7 +169,7 @@ does not need to do so.
 <h3>Examples</h3>
 <p>
 You can see the filter in action at <code>www.modpagespeed.com</code> on this
-<a href="http://www.modpagespeed.com/canonicalize_javascript_libraries.html?ModPagespeed=on&amp;ModPagespeedFilters=canonicalize_javascript_libraries">example</a>.
+<a href="https://www.modpagespeed.com/examples/canonicalize_javascript_libraries.html?ModPagespeed=on&amp;ModPagespeedFilters=canonicalize_javascript_libraries">example</a>.
 </p>
 <p>
 If the HTML document looks like this:
@@ -216,7 +235,7 @@ files, since this would lose the bandwidth and caching benefits of fetching it
 from the canonical URL.
 </p>
 <p>
-If <a href="filter-js-defer">defer_javascript</a> is enabled, <em>and</em> library 
+If <a href="filter-js-defer">defer_javascript</a> is enabled, <em>and</em> library
 is <em>not</em> tagged with <code>data-pagespeed-no-defer</code>,
 the canonicalized library is deferred.
 </p>

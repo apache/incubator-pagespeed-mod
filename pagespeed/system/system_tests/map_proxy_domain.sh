@@ -1,6 +1,5 @@
 #!/bin/bash
 #
-# Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +24,7 @@ check_from "$PAGESPEED_GIF" grep "gif$"
 echo "If the next line fails, look in $WGET_DIR/wget_output.txt and you should"
 echo "see a 404.  This represents a failed attempt to download the proxied gif."
 # TODO(jefftk): debug why this test sometimes fails with the native fetcher in
-# ngx_pagespeed.  https://github.com/pagespeed/ngx_pagespeed/issues/774
+# ngx_pagespeed.  https://github.com/apache/incubator-pagespeed-ngx/issues/774
 check test -f "$WGET_DIR$PAGESPEED_GIF"
 
 # To make sure that we can reconstruct the proxied content by going back

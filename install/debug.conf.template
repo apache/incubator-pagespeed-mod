@@ -28,6 +28,8 @@ AddOutputFilterByType MOD_PAGESPEED_OUTPUT_FILTER application/xhtml+xml
 #REDIS
 #REDIS # Do testing using redis instead of file cache
 #REDIS ModPagespeedRedisServer localhost:@@REDIS_PORT@@
+#REDIS ModPagespeedRedisDatabaseIndex 2
+#REDIS ModPagespeedRedisTTLSec 300
 #EXTCACHE
 # If X-PSA-Blocking-Rewrite request header is present and its value matches the
 # value of ModPagespeedBlockingRewriteKey below, the response will be fully
@@ -421,7 +423,7 @@ FcgidOutputBufferSize 0
 # Helps tests that extra headers supplied by the apache conf
 # survive single-resource rewrites
 #
-# http://github.com/pagespeed/mod_pagespeed/issues/324
+# http://github.com/apache/incubator-pagespeed-mod/issues/324
 Header append 'X-Extra-Header' '1'
 
 <Directory "@@APACHE_DOC_ROOT@@/mod_pagespeed_test/nostore" >
@@ -534,7 +536,6 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   ModPagespeed on
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@_secondary"
   ModPagespeedCompressMetadataCache false
-
   ModPagespeedMapProxyDomain secondary.example.com/gstatic_images \
                              http://www.gstatic.com/psa/static
 
@@ -542,6 +543,7 @@ NameVirtualHost localhost:@@APACHE_SECONDARY_PORT@@
   # but with a different file-cache path.
 #MEMCACHED  ModPagespeedMemcachedServers localhost:@@MEMCACHED_PORT@@
 #REDIS  ModPagespeedRedisServer localhost:@@REDIS_PORT@@
+#REDIS  ModPagespeedRedisDatabaseIndex 3
 
   ModPagespeedCacheFlushFilename cache.flush
   # If you uncomment this, the test will fail, proving we can disable
@@ -1146,7 +1148,7 @@ NameVirtualHost 127.0.0.1:@@APACHE_TERTIARY_PORT@@
     # or made equivalent to ModPagespeedInPlaceRewriteDeadlineMs -1, which waits
     # forever.  Otherwise ModPagespeedInPlaceRewriteDeadlineMs should just have
     # the specified deadline.
-    # # See https://github.com/pagespeed/mod_pagespeed/issues/1171 for more
+    # # See https://github.com/apache/incubator-pagespeed-mod/issues/1171 for more
     # detailed discussion.
     ModPagespeedInPlaceWaitForOptimized on
 </Directory>
@@ -1368,7 +1370,6 @@ ModPagespeedCreateSharedMemoryMetadataCache "@@MOD_PAGESPEED_CACHE@@_with_shm" 8
   ModPagespeedFileCachePath            "@@MOD_PAGESPEED_CACHE@@_lrud_lrum"
 #MEMCACHED  ModPagespeedMemcachedServers localhost:@@MEMCACHED_PORT@@
 #REDIS  ModPagespeedRedisServer localhost:@@REDIS_PORT@@
-
   ModPagespeedLRUCacheKbPerProcess 1024
   ModPagespeedLRUCacheByteLimit 2000
   ModPagespeedEnableFilters rewrite_images
@@ -1769,7 +1770,7 @@ ModPagespeedMessagesDomains Allow localhost
 
 
 #PROXY # This is used for ProxyPass testing.
-#PROXY #   See: http://github.com/pagespeed/mod_pagespeed/issues/74
+#PROXY #   See: http://github.com/apache/incubator-pagespeed-mod/issues/74
 #PROXY # We use 2 servers for it, one doing rewriting and fetching
 #PROXY # from the other one which does not have mod_pagespeed enabled.
 #PROXY Listen 8081
@@ -2252,6 +2253,7 @@ AddType application/javascript .js
 #ALL_DIRECTIVES ModPagespeedRedisReconnectionDelayMs 1000
 #ALL_DIRECTIVES ModPagespeedRedisTimeoutUs 50000
 #ALL_DIRECTIVES ModPagespeedRedisDatabaseIndex 0
+#ALL_DIRECTIVES ModPagespeedRedisTTLSec -1
 #ALL_DIRECTIVES ModPagespeedReportUnloadTime true
 #ALL_DIRECTIVES ModPagespeedRespectVary true
 #ALL_DIRECTIVES ModPagespeedRespectXForwardedProto off

@@ -130,13 +130,13 @@ gcloud compute ssh "$machine_name" -- bash << EOF
   fi
   # CentOS 6's git is old enough that git clone -b <tag> doesn't work and
   # silently checks out HEAD. To be safe we use an explicit checkout below.
-  git clone https://github.com/pagespeed/mod_pagespeed.git
+  git clone https://github.com/apache/incubator-pagespeed-mod.git mod_pagespeed
   cd mod_pagespeed
   git checkout "$branch"
   install/build_release.sh $@
 EOF
 
-gcloud compute copy-files "${machine_name}:mod_pagespeed/release/*" ~/release/
+gcloud compute scp --recurse "${machine_name}:mod_pagespeed/release/*" ~/release/
 
 if ! $keep_machine; then
   gcloud -q compute instances delete "$machine_name"

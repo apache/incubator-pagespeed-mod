@@ -1,3 +1,22 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,6 +29,12 @@
 
   <div id=content>
 <h1>Build ngx_pagespeed From Source</h1>
+
+<p class="note">
+   Any releases offered here are pre-apache releases. The incubating project
+   is working to produce its first release.
+</p>
+
 <h2>Automated Install</h2>
 
 <p>
@@ -42,11 +67,11 @@ To install our basic dependencies, run:
 <dl>
 <dt><b>RedHat, CentOS, or Fedora</b></dt>
 <dd><pre class="prettyprint lang-sh"
-  >sudo yum install gcc-c++ pcre-devel zlib-devel make unzip</pre>
+  >sudo yum install gcc-c++ pcre-devel zlib-devel make unzip libuuid-devel</pre>
 
 <dt><b>Ubuntu or Debian</b></dt>
 <dd><pre class="prettyprint lang-sh"
-  >sudo apt-get install build-essential zlib1g-dev libpcre3 libpcre3-dev unzip</pre>
+  >sudo apt-get install build-essential zlib1g-dev libpcre3 libpcre3-dev unzip uuid-dev</pre>
 </dl>
 
 <p> Starting from version 1.10.33.0, we also require a modern C++ compiler,
@@ -67,9 +92,9 @@ instructions for some popular distributions:
 <dd>Scientific Linux 5 provides gcc-4.8 packages that work on CentOS 5.
 First, make sure all your packages are up-to-date, via yum update. Then:
 <pre class="prettyprint lang-sh"
->sudo wget https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/slc6X/i386/RPM-GPG-KEY-cern
+>sudo wget http://linuxsoft.cern.ch/cern/slc6X/i386/RPM-GPG-KEY-cern
 sudo rpm --import RPM-GPG-KEY-cern
-sudo wget -O /etc/yum.repos.d/slc5-devtoolset.repo https://linux.web.cern.ch/linux/scientific5/docs/repository/cern/devtoolset/slc5-devtoolset.repo
+sudo wget -O /etc/yum.repos.d/slc5-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc5-devtoolset.repo
 sudo yum install devtoolset-2-gcc-c++ devtoolset-2-binutils</pre>
 Set the following variable before you build:
    <pre class="prettyprint lang-sh"
@@ -80,8 +105,8 @@ Set the following variable before you build:
 <dt><b>CentOS 6</b></dt>
 <dd>Scientific Linux 6 provides gcc-4.8 packages that work on CentOS 6.
 <pre class="prettyprint lang-sh"
->sudo rpm --import https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/slc6X/i386/RPM-GPG-KEY-cern
-sudo wget -O /etc/yum.repos.d/slc6-devtoolset.repo https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/devtoolset/slc6-devtoolset.repo
+>sudo rpm --import http://linuxsoft.cern.ch/cern/slc6X/i386/RPM-GPG-KEY-cern
+sudo wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
 sudo yum install devtoolset-2-gcc-c++ devtoolset-2-binutils</pre>
 Set the following variable before you build:
    <pre class="prettyprint lang-sh"
@@ -98,7 +123,7 @@ First download ngx_pagespeed:
 #[check the <a href="release_notes">release notes</a> for the latest version</a>]
 NPS_VERSION=1.13.35.1-beta
 cd
-wget https://github.com/pagespeed/ngx_pagespeed/archive/v${NPS_VERSION}.zip
+wget https://github.com/apache/incubator-pagespeed-ngx/archive/v${NPS_VERSION}.zip
 unzip v${NPS_VERSION}.zip
 nps_dir=$(find . -name "*pagespeed-ngx-${NPS_VERSION}" -type d)
 cd "$nps_dir"
@@ -159,7 +184,7 @@ setarch i686 ./configure --add-module=$HOME/ngx_pagespeed-release-${NPS_VERSION}
 <p>
 If this doesn't work for you, please let us know.  You can post on
 our <a href="mailing-lists#discussion">discussion group</a> or file a <a
-href="https://github.com/pagespeed/ngx_pagespeed/issues/new">bug</a>.
+href="https://github.com/apache/incubator-pagespeed-ngx/issues/new">bug</a>.
 </p>
 
 <p>

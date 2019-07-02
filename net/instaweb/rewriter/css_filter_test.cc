@@ -1,27 +1,28 @@
 /*
- * Copyright 2010 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: jmarantz@google.com (Joshua Marantz)
 //     and sligocki@google.com (Shawn Ligocki)
 
 #include "net/instaweb/rewriter/public/css_filter.h"
 
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -47,6 +48,7 @@
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -412,9 +414,41 @@ TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsNoPreemptiveRewrite) {
   EXPECT_EQ(kOutputStyle, out_css);
 }
 
+
+TEST_F(CssFilterTestCustomOptions, FallbackWithGzipData) {
+  const char kCss[] = " hello { display: block; border: 1px solid fuchsia; }";
+  options()->set_http_cache_compression_level(6);
+  // Force the fallback since rewrite is taking too long" path.
+  options()->set_test_instant_fetch_rewrite_deadline(true);
+  CssFilterTest::SetUp();
+
+  // Store an already-gzipped version of the resource in the cace.
+  ResponseHeaders headers;
+  DefaultResponseHeaders(kContentTypeCss, 5000, &headers);
+  HTTPValue value;
+  value.SetHeaders(&headers);
+  value.Write(kCss, message_handler());
+  http_cache()->Put("http://test.com/a.css", rewrite_driver()->CacheFragment(),
+                    RequestHeaders::Properties(),  kDefaultHttpOptionsForTests,
+                    &value, message_handler());
+
+  // Fetch with deadline exceeded. Should get uncompressed bits with proper
+  // content-length. (Consistency of compression, Content-Encoding and
+  // Content-Length is what's important here).
+  GoogleString out_css_url = Encode(kTestDomain, "cf", "0", "a.css", "css");
+  GoogleString out_css;
+  ResponseHeaders out_headers;
+  EXPECT_TRUE(FetchResourceUrl(out_css_url, &out_css, &out_headers));
+  EXPECT_EQ(kCss, out_css);
+  int64 content_length = 0;
+  EXPECT_TRUE(out_headers.FindContentLength(&content_length));
+  EXPECT_EQ(STATIC_STRLEN(kCss), content_length);
+  EXPECT_FALSE(out_headers.IsGzipped());
+}
+
 TEST_F(CssFilterTest, LinkHrefCaseInsensitive) {
   // Make sure we check rel value case insensitively.
-  // http://github.com/pagespeed/mod_pagespeed/issues/354
+  // http://github.com/apache/incubator-pagespeed-mod/issues/354
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kInputStyle, 100);
   ValidateExpected(
       "case_insensitive", "<link rel=StyleSheet href=a.css>",
@@ -611,7 +645,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     "a{-moz-border-radius-topleft:0}",  // Browser-specific (-moz)
     ".ds{display:-moz-inline-box}",
     "a{background:none}",  // CSS Parser used to expand this.
-    // http://github.com/pagespeed/mod_pagespeed/issues/121
+    // http://github.com/apache/incubator-pagespeed-mod/issues/121
     "a{color:inherit}",
     // Added for code coverage.
     "@import url(http://www.example.com);",
@@ -629,16 +663,16 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     "p.normal::selection{background:#c00;color:#fff}",
     "::-moz-focus-inner{border:0}",
     "input::-webkit-input-placeholder{color:#ababab}"
-    // http://github.com/pagespeed/mod_pagespeed/issues/51
+    // http://github.com/apache/incubator-pagespeed-mod/issues/51
     "a{box-shadow:-1px -2px 2px rgba(0,0,0,.15)}",  // CSS3 rgba
-    // http://github.com/pagespeed/mod_pagespeed/issues/66
+    // http://github.com/apache/incubator-pagespeed-mod/issues/66
     "a{-moz-transform:rotate(7deg)}",
     // Microsoft syntax values.
     "a{filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=80)}",
     // Make sure we keep "\," distinguished from ",".
     "body{font-family:font\\,1,font\\,2}",
     // Distinguish \. from ., etc.
-    // http://github.com/pagespeed/mod_pagespeed/issues/574
+    // http://github.com/apache/incubator-pagespeed-mod/issues/574
     "#MyForm\\.myfield{property:value}",
     "\\*{color:red}",
     "a{property\\:more:value\\;more}"
@@ -659,7 +693,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     // Slashes in value list.
     ".border8{border-radius: 36px / 12px }",
 
-    // http://github.com/pagespeed/mod_pagespeed/issues/220
+    // http://github.com/apache/incubator-pagespeed-mod/issues/220
     // See https://developer.mozilla.org/en/CSS/-moz-transition-property
     // and http://www.webkit.org/blog/138/css-animation/
     // TODO(sligocki): rm spaces around COMMA token.
@@ -685,7 +719,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
     "@import \"styles.css\"...;a{color:red}",
 
     // CSS3 media queries.
-    // http://github.com/pagespeed/mod_pagespeed/issues/50
+    // http://github.com/apache/incubator-pagespeed-mod/issues/50
     "@media screen and (max-width:290px){a{color:red}}",
     "@media only print and (color){a{color:red}}",
 
@@ -991,7 +1025,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "-moz-transform:scale(.5);-webkit-transform:scale(.5);"
       "-moz-transform:translate(3em,0);-webkit-transform:translate(3em,0)}" },
 
-    // http://github.com/pagespeed/mod_pagespeed/issues/5
+    // http://github.com/apache/incubator-pagespeed-mod/issues/5
     // Keep space between trebuchet and ms.
     // TODO(sligocki): Print as font-family:"trebuchet ms" instead.
     // According to the CSS spec:
@@ -1002,20 +1036,20 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // to fail to read the escaped space than a proper string.
     { "a { font-family: trebuchet ms; }", "a{font-family:trebuchet\\ ms}" },
 
-    // http://github.com/pagespeed/mod_pagespeed/issues/121
+    // http://github.com/apache/incubator-pagespeed-mod/issues/121
     { "body { font: 2em sans-serif; }", "body{font:2em sans-serif}" },
     { "body { font: 0.75em sans-serif; }", "body{font:.75em sans-serif}" },
 
-    // http://github.com/pagespeed/mod_pagespeed/issues/128
+    // http://github.com/apache/incubator-pagespeed-mod/issues/128
     { "#breadcrumbs ul { list-style-type: none; }",
       "#breadcrumbs ul{list-style-type:none}" },
 
-    // http://github.com/pagespeed/mod_pagespeed/issues/126
+    // http://github.com/apache/incubator-pagespeed-mod/issues/126
     // Extra spaces assure that we actually rewrite the first arg even if
     // font: is expanded by parser.
     { ".menu { font: menu; }               ", ".menu{font:menu}" },
 
-    // http://github.com/pagespeed/mod_pagespeed/issues/211
+    // http://github.com/apache/incubator-pagespeed-mod/issues/211
     { "#some_id {\n"
       "background: #cccccc url(images/picture.png) 50% 50% repeat-x;\n"
       "}\n",
@@ -1131,7 +1165,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "@charset \"UTF-8\";a{color:red}" },
 
     // Recovered parse errors:
-    // http://github.com/pagespeed/mod_pagespeed/issues/220
+    // http://github.com/apache/incubator-pagespeed-mod/issues/220
     { ".mui-navbar-wrap, .mui-navbar-clone {"
       "opacity:1;-webkit-transform:translateX(0);"
       "-webkit-transition-property:opacity,-webkit-transform;"
@@ -1483,7 +1517,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "src:url(fonts/tiefontello.svg?88026028#fontello) format('svg')}}" },
 
     // CSS3 media queries.
-    // http://github.com/pagespeed/mod_pagespeed/issues/50
+    // http://github.com/apache/incubator-pagespeed-mod/issues/50
     { "@media only screen and (min-device-width: 320px) and"
       " (max-device-width: 480px) {\n"
       "        body {"
@@ -1512,7 +1546,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "@media not screen{.c{color:#00f}}"
       "@media only screen{.d{color:#0ff}}" },
 
-    // http://github.com/pagespeed/mod_pagespeed/issues/575
+    // http://github.com/apache/incubator-pagespeed-mod/issues/575
     { "[class^=\"icon-\"],[class*=\" icon-\"] { color: red }",
       "[class^=\"icon-\"],[class*=\" icon-\"]{color:red}" },
 
@@ -1544,7 +1578,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "AAG4AAAAfCAA\\ AAAAjTqdDAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZS) no-repeat}" },
 
     // Noticed from YUI minification.
-    // https://github.com/pagespeed/mod_pagespeed/issues/614
+    // https://github.com/apache/incubator-pagespeed-mod/issues/614
     { "td { line-height: 0.8em; margin: -0.9in; }",
       "td{line-height:.8em;margin:-.9in}" },
 
@@ -1557,7 +1591,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
     // DIM(0, ff) and then serialized as 0ff, but browsers will parse both
     // of these values as quirks-mode colors and thus we would be changing
     // the links from blue to cyan.
-    // https://github.com/pagespeed/mod_pagespeed/issues/639
+    // https://github.com/apache/incubator-pagespeed-mod/issues/639
     { "A:link, A:visited { color: 0000ff }",
       "A:link,A:visited{color: 0000ff }" },
 
@@ -1580,7 +1614,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
       "body{font:13px/1.231,clean;*font-size:small;*font:x-small;"
       "font-family:Arial!important}" },
 
-    // https://github.com/pagespeed/mod_pagespeed/issues/722
+    // https://github.com/apache/incubator-pagespeed-mod/issues/722
     { ".a { color: red; }\n"
       "@import url('foo.css');\n"
       ".b { color: blue; }\n",
@@ -1807,7 +1841,7 @@ TEST_F(CssFilterTest, NoQuirksModeFixes) {
   // from the HTML case and thus not record accurate savings.
 }
 
-// http://github.com/pagespeed/mod_pagespeed/issues/324
+// http://github.com/apache/incubator-pagespeed-mod/issues/324
 TEST_F(CssFilterTest, RetainExtraHeaders) {
   GoogleString url = StrCat(kTestDomain, "retain.css");
   SetResponseWithDefaultHeaders(url, kContentTypeCss, kInputStyle, 300);
@@ -2259,7 +2293,7 @@ TEST_F(CssFilterTest, SimpleFetchUnhealthy) {
 }
 
 // Make sure we correctly decode the previously unexpected I.. format.
-// http://github.com/pagespeed/mod_pagespeed/issues/427
+// http://github.com/apache/incubator-pagespeed-mod/issues/427
 TEST_F(CssFilterTest, EmptyLeafFetch) {
   // CSS URL ends in /
   SetResponseWithDefaultHeaders(StrCat(kTestDomain, "style/"),
@@ -2276,7 +2310,7 @@ TEST_F(CssFilterTest, EmptyLeafFetch) {
 }
 
 // Make sure we correctly rewrite, encode and decode a CSS URL with empty leaf.
-// http://github.com/pagespeed/mod_pagespeed/issues/427
+// http://github.com/apache/incubator-pagespeed-mod/issues/427
 TEST_F(CssFilterTest, EmptyLeafFull) {
   // CSS URL ends in /
   ValidateRewriteExternalCssUrl("empty_leaf", StrCat(kTestDomain, "style/"),

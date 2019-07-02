@@ -11,7 +11,7 @@ apr_memcache2.c started out as an almost-exact clone of apr_memcache.c
 from the Apache HTTPD distribution.  It was initially checked in with
 only some (char*) casts to avoid const-errors in the blaze build.
 
-Local Modifications (https://github.com/pagespeed/mod_pagespeed/commit/...)
+Local Modifications (https://github.com/apache/incubator-pagespeed-mod/commit/...)
 7c51262   Clone apr_memcache.c into apr_memcache2.c, with trivial cleanups.
 a8c41fd   Add polling & timeouts to apr_memcache.
 58aceed   Test/fix a case where MultiGet is called with no servers available,

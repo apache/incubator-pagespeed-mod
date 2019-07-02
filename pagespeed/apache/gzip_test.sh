@@ -1,6 +1,5 @@
 #!/bin/bash
 #
-# Copyright 2010 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: morlovich@google.com (Maks Orlovich)
 #
 # Runs the measurement proxy tests.  This is isolated in a separate file
 # because this is also testing a deprecated feature of enabling gzip

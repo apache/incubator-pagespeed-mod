@@ -1,20 +1,22 @@
 /*
- * Copyright 2010 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: jmarantz@google.com (Joshua Marantz)
 
 // Unit-test the html reader/writer to ensure that a few tricky
 // constructs come through without corruption.
@@ -1361,7 +1363,7 @@ TEST_F(HandlerCalledTest, IEDirectiveCalled1) {
 }
 
 TEST_F(HandlerCalledTest, IEDirectiveCalled2) {
-  // See http://github.com/pagespeed/mod_pagespeed/issues/136 and
+  // See http://github.com/apache/incubator-pagespeed-mod/issues/136 and
   // http://msdn.microsoft.com/en-us/library/ms537512(VS.85).aspx#dlrevealed
   Parse("ie_directive_called", "<!--[if lte IE 8]>...<![endif]-->");
   EXPECT_FALSE(handler_called_filter_.called_comment_.Test());

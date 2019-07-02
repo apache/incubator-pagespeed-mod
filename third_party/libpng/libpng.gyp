@@ -18,18 +18,29 @@
       'targets': [
         {
           'target_name': 'libpng',
-          'type': '<(component)',
+          'type': 'static_library',
           'dependencies': [
             '../zlib/zlib.gyp:zlib',
           ],
+          'hard_dependency': 1,
+          'actions': [
+            {
+              'action_name': 'copy_libpngconf_prebuilt',
+              'inputs' : ['<(DEPTH)/third_party/libpng/src/scripts/pnglibconf.h.prebuilt'],
+              'outputs': ['<(DEPTH)/third_party/libpng/src/pnglibconf.h'],
+              'action': ['cp', '-f', '<@(_inputs)','<@(_outputs)'],
+            },
+          ],
           'msvs_guid': 'C564F145-9172-42C3-BFCB-6014CA97DBCD',
           'sources': [
+            'src/pngpriv.h',
             'src/png.c',
             'src/png.h',
             'src/pngconf.h',
+            'src/pngdebug.h',
             'src/pngerror.c',
-            'src/pnggccrd.c',
             'src/pngget.c',
+            'src/pnginfo.h',
             'src/pngmem.c',
             'src/pngpread.c',
             'src/pngread.c',
@@ -37,9 +48,8 @@
             'src/pngrtran.c',
             'src/pngrutil.c',
             'src/pngset.c',
+            'src/pngstruct.h',
             'src/pngtrans.c',
-            'src/pngusr.h',
-            'src/pngvcrd.c',
             'src/pngwio.c',
             'src/pngwrite.c',
             'src/pngwtran.c',
@@ -54,6 +64,12 @@
               # doesn't like that. This define tells libpng to not
               # complain about our inclusion of setjmp.h.
               'PNG_SKIP_SETJMP_CHECK',
+
+              # The PNG_FREE_ME_SUPPORTED define was dropped in libpng
+              # 1.4.0beta78, with its behavior becoming the default
+              # behavior.
+              # Hence, we define it ourselves for version >= 1.4.0
+              'PNG_FREE_ME_SUPPORTED',
             ],
           },
           'export_dependent_settings': [

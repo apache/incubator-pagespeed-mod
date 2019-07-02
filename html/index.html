@@ -1,0 +1,291 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PageSpeed Modules</title></head>
+<link rel="stylesheet" type="text/css" href="doc/doc.css"/>
+<style>
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+#content p {
+  max-width: 40em;
+}
+
+a {
+  color: #0288d1;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#header, #navline {
+  color: white;
+}
+
+#logoline {
+  background-color: #0061ff;
+  padding: 1em;
+}
+
+#logo {
+  display: inline-block;
+  position: relative;
+  top: 4px;
+}
+
+#logotext {
+  font-size: 32px;
+  display: inline-block;
+}
+
+#content {
+  margin: 1em;
+  margin-top: 2em;
+}
+
+#banner {
+  height: 9em;
+  position: relative;
+  text-align: justify;
+  margin-left: auto;
+  margin-right: auto;
+  border-top: 1px solid silver;
+}
+
+#banner::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  opacity: .3;
+  content: "";
+  z-index: -1;
+  background-image: url(network-loading.png);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+
+
+#banner-logo-container {
+  height: 8em;
+
+  margin-top: 0.5em;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  position:relative;
+  width: 150px;
+
+  background-image: url(pagespeed+nginx+apache.svg);
+  background-size: contain;
+  background-position: center center;
+}
+
+
+#grey-stripe {
+  height: 0.5em;
+  background-color: #888;
+}
+
+#resources p {
+  max-width: 33em;
+}
+
+#resources h2, #resources h3 {
+  color: #757575;
+  font-weight: normal;
+}
+
+#resources a {
+  margin-right: 2em;
+  white-space: nowrap;
+}
+
+@media (min-width: 37em) {
+  .resource {
+    width: 35em;
+    display: inline-block;
+    vertical-align: top;
+  }
+}
+
+h2 {
+  border-bottom: 1px dashed silver;
+}
+
+</style>
+
+<body>
+
+<div id=header>
+  <div id=logoline>
+    <div id=logo>
+      <img src="https://www.gstatic.com/images/branding/product/1x/pagespeed_32dp.png"
+           srcset="https://www.gstatic.com/images/branding/product/2x/pagespeed_32dp.png"
+           width=32 height=32 alt="pagespeed logo">
+    </div>
+    <div id=logotext>Apache PageSpeed (Incubating)</div>
+  </div>
+</div>
+
+<div id=banner>
+  <div id="banner-logo-container"></div>
+</div>
+
+<div id=grey-stripe></div>
+  <img src="/incubator.png" height="80" align="right">
+
+<div id=content-wrapper>
+<div id=content>
+
+  <p>
+    The PageSpeed Modules, <a href="https://github.com/apache/incubator-pagespeed-mod" target="_blank">mod_pagespeed</a> and
+    <a href="https://github.com/apache/incubator-pagespeed-ngx" target="_blank">ngx_pagespeed</a>, are open-source
+    webserver modules that <a href="/doc/filters">optimize your site automatically</a>.
+  </p>
+
+  <p class="note">
+    <strong>Disclaimer</strong>:
+    Apache PageSpeed is an effort undergoing incubation at The
+    Apache Software Foundation (ASF), sponsored by the Apache Incubator.
+    Incubation is required of all newly accepted projects until a further
+    review indicates that the infrastructure, communications, and
+    decision making process have stabilized in a manner consistent with
+    other successful ASF projects. While incubation status is not
+    necessarily a reflection of the completeness or stability of
+    the code, it does indicate that the project has yet to be fully
+    endorsed by the ASF.</p>
+</div>
+
+  <div id=resources>
+    <h2>Install on your webserver</h2>
+
+    <div class=resource-group>
+    <div class=resource>
+      <h3>Packages for Apache</h3>
+      <p>Pre-built binary packages for Apache</p>
+      <a href="doc/download">Download Packages</a>
+    </div>
+
+    <div class=resource>
+      <h3>Source for Nginx</h3>
+      <p>Build from source on Nginx</p>
+      <a href="doc/build_ngx_pagespeed_from_source">Download Source</a>
+    </div>
+    <div>
+
+    <h2>Read Documentation</h2>
+
+    <div class=resource-group>
+    <div class=resource>
+      <h3>Configuring PageSpeed for your site</h3>
+      <p>Read how to enable the module and adjust it for your system</p>
+      <a href="doc/">Documentation</a>
+      <a href="doc/release_notes">Release Notes</a>
+    </div>
+    <div class=resource>
+      <h3>Examples</h3>
+      <p>Examples of PageSpeed optimization filters in action.</p>
+      <a target="_blank" href="examples/">Examples</a>
+    </div>
+    </div>
+
+    <h2>Get Support</h2>
+
+    <div class=resource-group>
+    <div class=resource>
+      <h3>Ask a question on the mailing list</h3>
+      <p>On our discussion mailing lists you can ask questions and get help from
+         the developers and other users.</p>
+      <a href="https://groups.google.com/group/mod-pagespeed-discuss">Apache</a>
+      <a href="https://groups.google.com/group/ngx-pagespeed-discuss">Nginx</a>
+      <h3>IRC</h3>
+      <p>Join our <strong>#pagespeed</strong> channel on irc.freenode.net</p>
+    </div>
+
+    <div class=resource>
+      <h3>File a bug</h3>
+      <p>If PageSpeed isn't working correctly on your site, file a bug and we'll
+         look into it.</p>
+      <a href="https://github.com/apache/incubator-pagespeed-mod/issues/new">Apache</a>
+      <a href="https://github.com/apache/incubator-pagespeed-ngx/issues/new">Nginx</a>
+    </div>
+    </div>
+
+    <h2>Make Changes</h2>
+    <div class=resource-group>
+    <div class=resource>
+      <h3>Get the source</h3>
+      <p>Download the source code, to build on your machine.</p>
+      <a href="https://github.com/apache/incubator-pagespeed-mod">Apache</a>
+      <a href="https://github.com/apache/incubator-pagespeed-ngx">Nginx</a>
+    </div>
+
+    <div class=resource>
+      <h3>Join the project mailing list</h3>
+      <p>Talk about code changes, designs, refactoring, and new features.  If
+         you're interested in getting started with PageSpeed development,
+         introduce yourself here!</p>
+      <a href="https://lists.apache.org/list.html?dev@pagespeed.apache.org">pagespeed-dev@</a>
+    </div>
+
+    <div class=resource>
+      <h3>Read the wiki</h3>
+      <p>All our developer-focused documentation, from how to get started with
+         a development environment, to running tests, to our list of
+         priorities.</p>
+      <a href="https://github.com/apache/incubator-pagespeed-mod/wiki">Wiki</a>
+    </div>
+
+    <div class=resource>
+      <h3>API Documentation</h3>
+      <p>Documentation for the PageSpeed optimization libraries.</p>
+      <a target="_blank" href="/psol/annotated.html">API Documentation</a>
+    </div>
+    </div>
+
+    <h2>Related Projects</h2>
+
+    <div class=resource-group>
+    <div class=resource>
+      <h3>Other PageSpeed integrations</h3>
+      <p>While mod_pagespeed (Apache) and ngx_pagesped (Nginx) are the only two
+         server integrations developed by the core PageSpeed team, people have
+         ported PageSpeed to other servers as well.</p>
+      <a href="https://www.iiswebspeed.com/">IIS</a>
+      <a href="https://github.com/apache/trafficserver/tree/master/plugins/experimental/ats_pagespeed">Traffic Server</a>
+      <a href="http://open.litespeedtech.com/mediawiki/index.php/Help:Modules:PageSpeed">OpenLiteSpeed</a>
+    </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+</body></html>

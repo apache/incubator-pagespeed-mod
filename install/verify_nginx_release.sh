@@ -58,12 +58,12 @@ cd "$WORKDIR"
 
 mkdir mod_pagespeed
 cd mod_pagespeed
-git clone https://github.com/pagespeed/mod_pagespeed.git src/
+git clone https://github.com/apache/incubator-pagespeed-mod.git src/
 cd src/
 git checkout $VERSION
 
 cd $WORKDIR
-git clone https://github.com/pagespeed/ngx_pagespeed.git
+git clone https://github.com/apache/incubator-pagespeed-ngx.git
 cd ngx_pagespeed
 git checkout release-$VERSION-beta
 

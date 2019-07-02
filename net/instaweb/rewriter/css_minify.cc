@@ -1,20 +1,22 @@
 /*
- * Copyright 2010 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: sligocki@google.com (Shawn Ligocki)
 
 #include "net/instaweb/rewriter/public/css_minify.h"
 
@@ -357,14 +359,14 @@ bool IsLength(const GoogleString& unit) {
 }  // namespace
 
 bool CssMinify::UnitsRequiredForValueZero(const GoogleString& unit) {
-  // https://github.com/pagespeed/mod_pagespeed/issues/1164 : Chrome does not
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1164 : Chrome does not
   // allow abbreviating 0s or 0% as 0.  It only allows that abbreviation for
   // lengths.
   //
-  // https://github.com/pagespeed/mod_pagespeed/issues/1261  See
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1261  See
   // https://www.w3.org/TR/CSS2/visudet.html#the-height-property
   //
-  // https://github.com/pagespeed/mod_pagespeed/issues/1538
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1538
   // retaining unit for zero value in calc function
   return (unit == "%") || !IsLength(unit) ||
           in_css_calc_function_;
@@ -430,7 +432,7 @@ void CssMinify::Minify(const Css::Declaration& declaration) {
         // TODO(ashishk):unicode-range should get resolved to css property
         // enum.
         if (declaration.prop_text() == "unicode-range") {
-          // https://github.com/pagespeed/mod_pagespeed/issues/1572
+          // https://github.com/apache/incubator-pagespeed-mod/issues/1572
           // space separator should not be there in unicode range value
           JoinMinify(*declaration.values(), "");
         } else {

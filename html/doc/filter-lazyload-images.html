@@ -1,3 +1,22 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,8 +45,8 @@ in the configuration file.
 Optimize browser rendering and reduce number of HTTP round-trips by deferring
 the loading of images which are not in the client's viewport.  This filter
 implements the PageSpeed rules for <a
-  href="/speed/docs/best-practices/rendering" target="_blank">optimizing browser
-  rendering</a> and <a href="/speed/docs/best-practices/rtt" target="_blank">minimizing round
+  target="_blank" href="https://developers.google.com/speed/docs/best-practices/rendering" target="_blank">optimizing browser
+  rendering</a> and <a target="_blank" href="https://developers.google.com/speed/docs/best-practices/rtt" target="_blank">minimizing round
   trip times</a>.
 </a>
 </p>
@@ -112,7 +131,7 @@ are:
     Plus <a href="https://developers.google.com/+/web/snippet/">thumbnail
     fetcher</a></li>
   <li>Web Spiders
-    (<a href="https://github.com/pagespeed/mod_pagespeed/blob/master/pagespeed/kernel/http/bot_checker.gperf">full
+    (<a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/pagespeed/kernel/http/bot_checker.gperf">full
     list</a>)</li>
 </ul>
 </p>
@@ -138,10 +157,10 @@ JavaScript and will revert to lazily loading all images.
 <p>
 The effect of this filter can be observed by comparing the
 number of requests <a
-  href="http://www.modpagespeed.com/lazyload_images.html?ModPagespeed=off">
+  href="https://www.modpagespeed.com/examples/lazyload_images.html?ModPagespeed=off">
   before</a>
 and <a
-  href="http://www.modpagespeed.com/lazyload_images.html?ModPagespeed=on&ModPagespeedFilters=lazyload_images">
+  href="https://www.modpagespeed.com/examples/lazyload_images.html?ModPagespeed=on&ModPagespeedFilters=lazyload_images">
   after</a> rewriting.
 As you scroll down, you will notice that images below the fold are only
 requested after they become visible in the viewport.

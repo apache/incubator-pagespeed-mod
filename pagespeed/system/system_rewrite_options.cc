@@ -1,18 +1,22 @@
-// Copyright 2013 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// Author: jmarantz@google.com (Joshua Marantz)
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 
 #include "pagespeed/system/system_rewrite_options.h"
 
@@ -33,6 +37,7 @@ namespace {
 
 const int64 kDefaultCacheFlushIntervalSec = 5;
 const int64 kDefaultRedisDatabaseIndex = 0;
+const int64 kDefaultRedisTTLSec = -1;
 
 const char kFetchHttps[] = "FetchHttps";
 
@@ -51,6 +56,7 @@ const char SystemRewriteOptions::kRedisReconnectionDelayMs[] =
 const char SystemRewriteOptions::kRedisTimeoutUs[] = "RedisTimeoutUs";
 const char SystemRewriteOptions::kRedisDatabaseIndex[] =
     "RedisDatabaseIndex";
+const char SystemRewriteOptions::kRedisTTLSec[] = "RedisTTLSec";
 
 RewriteOptions::Properties* SystemRewriteOptions::system_properties_ = nullptr;
 
@@ -130,6 +136,11 @@ void SystemRewriteOptions::AddProperties() {
                     &SystemRewriteOptions::redis_database_index_, "rdi",
                     SystemRewriteOptions::kRedisDatabaseIndex,
                     "Redis server database index selection",
+                    true);
+  AddSystemProperty(kDefaultRedisTTLSec,
+                    &SystemRewriteOptions::redis_ttl_sec_, "rdx",
+                    SystemRewriteOptions::kRedisTTLSec,
+                    "Redis key TTL to use (seconds)",
                     true);
   AddSystemProperty(50 * Timer::kMsUs,  // 50 ms
                     &SystemRewriteOptions::slow_file_latency_threshold_us_,

@@ -1,20 +1,22 @@
 /*
- * Copyright 2016 Google Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: yeputons@google.com (Egor Suvorov)
 
 // Unit-test the redis interface in conjunction with Redis Cluster
 
@@ -48,6 +50,7 @@ namespace {
   static const int kTimeoutUs = 100 * Timer::kMsUs;
   static const int kSlaveNodesFlushingTimeoutMs = 1000;
   static const int kDatabaseIndex = 0;
+  static const int kTTLSec = -1;
 
   // One can check following constants with CLUSTER KEYSLOT command.
   // For testing purposes, both KEY and {}KEY should be in the same slot range.
@@ -102,7 +105,8 @@ class RedisCacheClusterTest : public CacheTestBase {
     // Setting up cache.
     cache_.reset(new RedisCache("localhost", ports_[0], thread_system_.get(),
                                 &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_, kDatabaseIndex));
+                                kTimeoutUs, &statistics_, kDatabaseIndex,
+                                kTTLSec));
     cache_->StartUp();
     return true;
   }

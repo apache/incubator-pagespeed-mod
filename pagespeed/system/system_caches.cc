@@ -1,19 +1,22 @@
-// Copyright 2013 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// Author: jmarantz@google.com (Joshua Marantz)
-//         lsong@google.com (Libo Song)
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 
 #include "pagespeed/system/system_caches.h"
 
@@ -244,11 +247,13 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewRedis(
   // using database index -1 when property not specified in config
   const int redis_database_index =
       config->has_redis_database_index() ? config->redis_database_index() : -1;
+  const int redis_ttl_sec =
+      config->has_redis_ttl_sec() ? config->redis_ttl_sec() : -1;
   RedisCache* redis_server = new RedisCache(
       server_spec.host, server_spec.port, factory_->thread_system(),
       factory_->message_handler(), factory_->timer(),
       config->redis_reconnection_delay_ms(), config->redis_timeout_us(),
-      factory_->statistics(), redis_database_index);
+      factory_->statistics(), redis_database_index, redis_ttl_sec);
   factory_->TakeOwnership(redis_server);
   redis_servers_.push_back(redis_server);
   if (redis_pool_.get() == NULL) {
@@ -285,8 +290,10 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewExternalCache(
   if (use_redis) {
     spec_signature =
         StrCat("r;", config->redis_server().ToString(), ";",
+               IntegerToString(config->redis_database_index()), ";",
                IntegerToString(config->redis_reconnection_delay_ms()), ";",
-               IntegerToString(config->redis_timeout_us()));
+               IntegerToString(config->redis_timeout_us()), ";",
+               IntegerToString(config->redis_ttl_sec()));
   } else if (use_memcached) {
     spec_signature = StrCat("m;", config->memcached_servers().ToString(), ";",
                             IntegerToString(config->memcached_threads()), ";",

@@ -320,16 +320,33 @@
     # file, to allow any client that can reach your server to access
     # and change server state, such as statistics, caches, and
     # messages.  This might be appropriate in an experimental setup.
+    # Attempt to load mod_version if it wasn't loaded or compiled in (eg on Debian)
+    <IfModule !mod_version.c>
+      LoadModule version_module /usr/lib/httpd/modules/mod_version.so
+    </IfModule>
     <Location /pagespeed_admin>
-        Order allow,deny
-        Allow from localhost
-        Allow from 127.0.0.1
+        <IfVersion < 2.4>
+            Order allow,deny
+            Allow from localhost
+            Allow from 127.0.0.1
+        </IfVersion>
+        <IfVersion >= 2.4>
+            Require local
+            # see https://httpd.apache.org/docs/current/en/mod/mod_authz_host.html - Require all granted,
+            # Require ip, Require host or Require forward-dns,
+            # if access must be granted to other than local.
+        </IfVersion>
         SetHandler pagespeed_admin
     </Location>
     <Location /pagespeed_global_admin>
-        Order allow,deny
-        Allow from localhost
-        Allow from 127.0.0.1
+        <IfVersion < 2.4>
+            Order allow,deny
+            Allow from localhost
+            Allow from 127.0.0.1
+        </IfVersion>
+        <IfVersion >= 2.4>
+            Require local            
+        </IfVersion>
         SetHandler pagespeed_global_admin
     </Location>
 

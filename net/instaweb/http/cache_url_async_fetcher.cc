@@ -1,20 +1,22 @@
 /*
- * Copyright 2011 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: sligocki@google.com (Shawn Ligocki)
 
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 
@@ -24,7 +26,6 @@
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/http_value_writer.h"
-#include "net/instaweb/http/public/log_record.h"  // for AbstractLogRecord
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
@@ -39,6 +40,7 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/thread/sequence.h"
+#include "pagespeed/opt/logging/log_record.h"  // for AbstractLogRecord
 
 
 namespace net_instaweb {
@@ -126,7 +128,7 @@ class CachePutFetch : public SharedAsyncFetch {
   virtual void HandleDone(bool success) {
     DCHECK_EQ(request_headers()->method(), RequestHeaders::kGet);
     // We do not cache empty 200 responses. (Empty 404, 500 are fine.)
-    // https://github.com/pagespeed/mod_pagespeed/issues/1050
+    // https://github.com/apache/incubator-pagespeed-mod/issues/1050
     const bool empty_200 =
         (response_headers()->status_code() == HttpStatus::kOK &&
          cache_value_.contents_size() == 0);

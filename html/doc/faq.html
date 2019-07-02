@@ -1,3 +1,22 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -44,13 +63,13 @@ detailed technical questions!)
 <p>
 While we have no dates to announce for upcoming releases, we definitely want to
 know what you think we should be working
-on. Please <a href="https://github.com/pagespeed/mod_pagespeed/issues">search
+on. Please <a href="https://github.com/apache/incubator-pagespeed-mod/issues">search
 our issues</a> for your feature. If you don't find
-it, <a href="https://github.com/pagespeed/mod_pagespeed/issues/new">open a new
+it, <a href="https://github.com/apache/incubator-pagespeed-mod/issues/new">open a new
 issue</a> and tag it "Type-Enhancement". To get updates on an issue, click the
 "star" icon for it.  This also lets us know how many people are interested in
 the issue.  If your issue is Nginx-specific, consider posting on
-the <a href="https://github.com/pagespeed/ngx_pagespeed/issues">ngx_pagespeed
+the <a href="https://github.com/apache/incubator-pagespeed-ngx/issues">ngx_pagespeed
 bug tracker</a>.
 </p>
 
@@ -139,7 +158,7 @@ optimizing anything.  There are several reasons that could happen:
       HTML must have the resource domain authorized. See
       <a href="domains">Domains</a>.</li>
   <li>Your CSS has new CSS3 syntax or other constructions we don't support.
-      See <a href="http://github.com/pagespeed/mod_pagespeed/issues/108"
+      See <a href="http://github.com/apache/incubator-pagespeed-mod/issues/108"
       >issue 108</a>.
       The <a href="filter-css-rewrite#configuration"
       >fallback_rewrite_css_urls</a> filter may be able to help. You can also
@@ -172,7 +191,7 @@ optimizing anything.  There are several reasons that could happen:
 <p>
 cPanel installs Apache httpd server from source via the built-in EasyApache setup
 and build process. In order to enable mod_pagespeed on your server, download
-and install the <a href="https://github.com/pagespeed/cpanel">mod_pagespeed module
+and install the <a href="https://github.com/apache/incubator-pagespeed-cpanel">mod_pagespeed module
  for cPanel WHM</a> - once the module is installed, you can select "mod_pagespeed" as
 one of the modules during the regular EasyApache build (via the online tool, or from
 the command line). Do not install mod_pagespeed from .deb. or .rpm packages - cPanel
@@ -198,8 +217,8 @@ Second, please upgrade to the latest version; we are continually working on
 bug-fixes and turning off filters that break pages.
 </p>
 If it's still breaking your site, please post a bug
-(<a href="https://github.com/pagespeed/mod_pagespeed/issues/new">Apache</a>,
- <a href="https://github.com/pagespeed/ngx_pagespeed/issues/new">Nginx</a>). If
+(<a href="https://github.com/apache/incubator-pagespeed-mod/issues/new">Apache</a>,
+ <a href="https://github.com/apache/incubator-pagespeed-ngx/issues/new">Nginx</a>). If
 you can, including the following information will make it much easier to
 diagnose:
 <ol>
@@ -304,7 +323,7 @@ js_tinyMCE?</h2>
 <p>
 Some JavaScript is introspective, being sensitive to its own name or the path
 it's loaded from.  While PageSpeed has an internal list
-(<a href="https://github.com/pagespeed/mod_pagespeed/blob/master/net/instaweb/rewriter/rewrite_options.cc">DisallowTroublesomeResources</a>)
+(<a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/net/instaweb/rewriter/rewrite_options.cc">DisallowTroublesomeResources</a>)
 hardcoded with filenames of JavaScript libraries that are known to be
 problematic, and <a href="restricting_urls#aris">inspects the source of
 others</a> looking for dangerous constructs, it doesn't always correctly
@@ -399,7 +418,7 @@ because we package up a binary distribution of the PageSpeed Optimization
 Library and a "<a href="build_ngx_pagespeed_from_source">source</a>"
 installation only builds the ngx_pagespeed-specific files from source.  When you
 want
-to <a href="https://github.com/pagespeed/ngx_pagespeed/wiki/Building-PSOL-From-Source">build
+to <a href="https://github.com/apache/incubator-pagespeed-ngx/wiki/Building-PSOL-From-Source">build
 PSOL from source along with ngx_pagespeed</a> you still need to
 use <code>gclient</code>.
 </p>

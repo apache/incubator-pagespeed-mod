@@ -1,18 +1,22 @@
-// Copyright 2013 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// Author: sligocki@google.com (Shawn Ligocki)
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 
 #include "pagespeed/system/in_place_resource_recorder.h"
 
@@ -260,7 +264,7 @@ void InPlaceResourceRecorder::DoneAndSetHeaders(
     ResponseHeaders* response_headers, bool entire_response_received) {
   if (!entire_response_received) {
     // To record successfully, we must have a complete response.  Otherwise you
-    // get https://github.com/pagespeed/mod_pagespeed/issues/1081.
+    // get https://github.com/apache/incubator-pagespeed-mod/issues/1081.
     Fail();
   }
 
@@ -270,7 +274,7 @@ void InPlaceResourceRecorder::DoneAndSetHeaders(
 
   if (status_code_ == HttpStatus::kOK && resource_value_.contents_size() == 0) {
     // Ignore Empty 200 responses.
-    // https://github.com/pagespeed/mod_pagespeed/issues/1050
+    // https://github.com/apache/incubator-pagespeed-mod/issues/1050
     if (!failure_) {
       cache_->RememberFailure(url_, fragment_, kFetchStatusEmpty, handler_);
     }

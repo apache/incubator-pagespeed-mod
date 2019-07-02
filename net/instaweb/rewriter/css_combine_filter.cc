@@ -1,20 +1,22 @@
 /*
- * Copyright 2010 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: jmarantz@google.com (Joshua Marantz)
 //
 // Contains implementation of CssCombineFilter, which concatenates multiple
 // CSS files into one. Implemented in part via delegating to
@@ -25,7 +27,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/http/public/log_record.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/input_info.pb.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -52,6 +53,7 @@
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/opt/logging/enums.pb.h"
+#include "pagespeed/opt/logging/log_record.h"
 #include "webutil/css/parser.h"
 
 namespace net_instaweb {
@@ -414,7 +416,7 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
     // to put in ids when they're not actually referenced and we've gotten
     // several mailing list questions about why we don't combine in this case.
     // Is there actually javascript referencing css link tags by id?
-    // Tracked in https://github.com/pagespeed/mod_pagespeed/issues/1385
+    // Tracked in https://github.com/apache/incubator-pagespeed-mod/issues/1385
     if (driver()->options()->CssCombiningMayPermitIds()) {
       const char* value = element->AttributeValue(HtmlName::kId);
       if (value != nullptr &&

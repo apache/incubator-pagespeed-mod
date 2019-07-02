@@ -24,7 +24,7 @@ case "$1" in
         # files into /etc/apache2/conf-available and then use a2enconf to
         # symlink it into /etc/apache2/conf-enabled.  On older systems there's
         # just /etc/apache2/conf.d/, so we manually symlink it there instead.
-        # See https://github.com/pagespeed/mod_pagespeed/issues/1389
+        # See https://github.com/apache/incubator-pagespeed-mod/issues/1389
         if hash a2enconf 2> /dev/null; then
           # a2enconf is available; use it.
           a2enconf pagespeed_libraries

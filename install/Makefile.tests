@@ -319,7 +319,7 @@ apache_debug_vhost_only_test :
 
 # Regression test for serf fetching something with an empty header.
 # We use a slurp-serving server to produce that.
-EMPTY_HEADER_URL=http://www.modpagespeed.com/empty_header.html
+EMPTY_HEADER_URL=http://selfsigned.modpagespeed.com/mod_pagespeed_example/empty_header.html
 apache_debug_serf_empty_header_test :
 	$(MAKE) apache_install_conf \
 	  OPTIONS="$(OPTIONS) LOADTEST_TEST=1 STRESS_TEST=1" \

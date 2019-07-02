@@ -1,3 +1,22 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -119,10 +138,9 @@ can only specify http, e.g.</p>
 
 <p>This directive lets the server accept https requests for
 <code>www.example.com</code> without requiring a SSL certificate to fetch
-resources - in fact, this is the only way PageSpeed can service https requests
-as currently it cannot use https to fetch resources. For example, given the
-above mapping, and assuming the server is configured for https support,
-PageSpeed will fetch and optimize resources accessed using
+resources. For example, given the above mapping, and assuming the server is 
+configured for https support, PageSpeed will fetch and optimize resources
+accessed using
 <code>https://www.example.com</code>, fetching the resources from
 <code>http://localhost</code>, which can be the same server process or a
 different server process.
@@ -181,7 +199,7 @@ resources.  Examples of why this might be desirable include:</p>
 <ol>
   <li>Serving static content from cookieless domains, to reduce the size of
     HTTP requests from the browser.  See
-    <a href="/speed/docs/best-practices/payload">Minimizing Payload</a>
+    <a target="_blank" href="https://developers.google.com/speed/docs/best-practices/payload">Minimizing Payload</a>
   <li>To move content to a Content Delivery Network (CDN)</li>
 </ol>
 
@@ -292,9 +310,9 @@ subdirectory.</p>
 
 <h2 id="shard">Sharding domains</h2>
 
-<p>Best practices suggest <a href="/speed/docs/best-practices/rtt"
+<p>Best practices suggest <a target="_blank" href="https://developers.google.com/speed/docs/best-practices/rtt"
 >minimizing round-trip times</a> by <a
-  href="/speed/docs/best-practices/rtt#ParallelizeDownloads"
+  target="_blank" href="https://developers.google.com/speed/docs/best-practices/rtt#ParallelizeDownloads"
 >parallelizing downloads across hostnames</a>.  PageSpeed can partially
 automate this for resources that it rewrites, using the directive:
 </p>
@@ -441,7 +459,7 @@ optimized resources proxied from an external origin to a CDN.
 <h3>Example</h3>
 <p>
 You can see proxy-mapping in action at <code>www.modpagespeed.com</code> on this
-<a href="http://www.modpagespeed.com/proxy_external_resource.html">example</a>.
+<a href="https://www.modpagespeed.com/examples/proxy_external_resource.html">example</a>.
 </p>
 
 <h2 id="fetch_servers">Fetch server restrictions</h2>
@@ -655,7 +673,7 @@ pagespeed LoadFromFileMatch "^https?://example.com/~([^/]*)/static/"
   upon only the filename extension and only for common filename extensions we
   recognize (<code>.html</code>, <code>.css</code>, <code>.js</code>,
   <code>.jpg</code>, <code>.jpeg</code>, ... see full
-  list: <a href="https://github.com/pagespeed/mod_pagespeed/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
+  list: <a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
   Before 1.9.32.1, filenames with unrecognized extensions were served with no
   <code>Content-Type</code> header; in 1.9.32.1 and later such filenames will
   not be loaded from file and instead will fall back to ordinary fetching.
@@ -928,7 +946,7 @@ http {
   be used without applying SSI includes, CGI generation, etc.
   Furthermore, all the resources should have filenames with common
   extensions for their Content-Type (Ex: .html, .css, .js, .jpg, .jpeg, ... see
-  full list: <a href="https://github.com/pagespeed/mod_pagespeed/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
+  full list: <a href="https://github.com/apache/incubator-pagespeed-mod/blob/master/pagespeed/kernel/http/content_type.cc">content_type.cc</a>).
 </p>
 
 <h2 id="inline_without_auth">Inlining resources without explicit authorization

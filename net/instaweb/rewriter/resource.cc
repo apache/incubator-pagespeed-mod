@@ -1,20 +1,22 @@
 /*
- * Copyright 2010 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
-// Author: sligocki@google.com (Shawn Ligocki)
 //         jmarantz@google.com (Joshua Marantz)
 
 #include "net/instaweb/rewriter/public/resource.h"
@@ -62,7 +64,7 @@ Resource::Resource(const RewriteDriver* driver, const ContentType* type)
       disable_rewrite_on_no_transform_(true),
       is_authorized_domain_(true),
       respect_vary_(ResponseHeaders::kRespectVaryOnResources),
-      extracted_(false) {
+      extracted_state_(kExtractNotComputed) {
 }
 
 Resource::Resource() : server_context_(NULL), type_(NULL),
@@ -74,7 +76,7 @@ Resource::Resource() : server_context_(NULL), type_(NULL),
                        disable_rewrite_on_no_transform_(true),
                        is_authorized_domain_(true),
                        respect_vary_(ResponseHeaders::kRespectVaryOnResources),
-                       extracted_(false) {
+                       extracted_state_(kExtractNotComputed)  {
 }
 
 Resource::~Resource() {
@@ -110,7 +112,7 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
         StrAppend(reason, "Uncacheable content, ");
         break;
       case kFetchStatusEmpty:
-        // https://github.com/pagespeed/mod_pagespeed/issues/1050
+        // https://github.com/apache/incubator-pagespeed-mod/issues/1050
         StrAppend(reason, "Resource is empty, ");
         break;
       case kFetchStatusOtherError:
@@ -138,7 +140,7 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
              response_headers_.Lookup1(HttpAttributes::kXAccelRedirect)) {
     StrAppend(reason, "Sendfile in header, unsafe to rewrite! ");
   } else if (IsContentsEmpty()) {
-    // https://github.com/pagespeed/mod_pagespeed/issues/1050
+    // https://github.com/apache/incubator-pagespeed-mod/issues/1050
     StrAppend(reason, "Resource is empty, ");
   } else {
     // Safe.
@@ -256,8 +258,9 @@ bool Resource::Link(HTTPValue* value, MessageHandler* handler) {
   DCHECK(UseHttpCache());
   const SharedString& contents_and_headers = value->share();
   // Invalidate extracted_contents_.
-  extracted_ = false;
+  extracted_state_ = kExtractNotComputed;
   extracted_contents_.clear();
+  extracted_headers_ = nullptr;
   return value_.Link(contents_and_headers, &response_headers_, handler);
 }
 
@@ -269,17 +272,38 @@ void Resource::LinkFallbackValue(HTTPValue* value) {
 }
 
 StringPiece Resource::ExtractUncompressedContents() const {
-  ResponseHeaders headers;
-  if (!extracted_ && value_.ExtractHeaders(&headers, NULL)) {
-    if (headers.IsGzipped()) {
-      StringWriter inflate_writer(&extracted_contents_);
-      if (GzipInflater::Inflate(raw_contents(), GzipInflater::kGzip,
-                                &inflate_writer)) {
-        extracted_ = true;
-      }
+  bool use_extracted = EnsureExtractedIfNeeded();
+  return use_extracted ? extracted_contents_ : raw_contents();
+}
+
+const ResponseHeaders* Resource::UncompressedHeaders() const {
+  bool use_extracted = EnsureExtractedIfNeeded();
+  return use_extracted ? extracted_headers_.get() : response_headers();
+}
+
+bool Resource::EnsureExtractedIfNeeded() const {
+  if (extracted_state_ == kExtractNotComputed) {
+    if (!response_headers_.IsGzipped()) {
+      extracted_state_ = kExtractUseBase;
+      return false;
+    }
+
+    StringWriter inflate_writer(&extracted_contents_);
+    if (GzipInflater::Inflate(raw_contents(), GzipInflater::kGzip,
+                              &inflate_writer)) {
+      extracted_state_ = kExtractUseExtracted;
+      extracted_headers_.reset(new ResponseHeaders());
+      extracted_headers_->CopyFrom(response_headers_);
+      extracted_headers_->Remove(HttpAttributes::kContentEncoding,
+                                 HttpAttributes::kGzip);
+      extracted_headers_->SetContentLength(extracted_contents_.length());
+      extracted_headers_->ComputeCaching();
+    } else {
+      // Prevent repeated attempts on broken input.
+      extracted_state_ = kExtractUseBase;
     }
   }
-  return extracted_ ? extracted_contents_ : raw_contents();
+  return (extracted_state_ == kExtractUseExtracted);
 }
 
 void Resource::Freshen(FreshenCallback* callback, MessageHandler* handler) {
