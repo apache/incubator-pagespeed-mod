@@ -13,5 +13,6 @@ envoy_cc_binary(
     repository = "@envoy",
     deps = [
         "//net/instaweb:net_instaweb_lib",
+        "//third_party:all_third_party", # for test
     ],
 )
