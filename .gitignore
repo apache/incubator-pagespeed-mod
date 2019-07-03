@@ -12,3 +12,5 @@ tools/closure/
 !devel/Makefile
 release/
 log/
+bazel-*
+.vscode/ipch
