@@ -9,10 +9,8 @@ load(
 envoy_package()
 
 envoy_cc_library(
-    name = "net_instaweb_lib",
-    srcs = [
-        "foo.cc", # for test
-    ],
+    name = "all_third_party",
     repository = "@envoy",
     visibility = ["//visibility:public"],
+    deps = ["//third_party/base64:base64", "@brotli//:brotli_common"]
 )

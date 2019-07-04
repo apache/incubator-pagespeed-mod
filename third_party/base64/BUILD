@@ -9,10 +9,16 @@ load(
 envoy_package()
 
 envoy_cc_library(
-    name = "net_instaweb_lib",
+    name = "base64",
     srcs = [
-        "foo.cc", # for test
+        "base64.cc",
     ],
+    hdrs = [
+        "base64.h",
+    ],
+    copts = [
+        "-Wno-error",
+    ],    
     repository = "@envoy",
     visibility = ["//visibility:public"],
 )
