@@ -12,5 +12,5 @@ envoy_cc_library(
     name = "all_third_party",
     repository = "@envoy",
     visibility = ["//visibility:public"],
-    deps = ["//third_party/base64:base64", "@brotli//:brotli_common"]
+    deps = ["//third_party/base64:base64", "@brotli//:brotli_common", "@zlib//:zlib"],
 )
