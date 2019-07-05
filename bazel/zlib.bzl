@@ -27,9 +27,8 @@ cc_library(
         "src/gzguts.h",
     ]),
     copts = [
-        "-std=gnu99",
-        "-Wno-implicit-function-declaration",
-        "-Wno-error",
+        "-w",
+        "-Dverbose=-1",
     ],
     visibility = ["//visibility:public"],
 )
