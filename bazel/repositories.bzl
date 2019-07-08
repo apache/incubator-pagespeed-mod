@@ -19,9 +19,11 @@ def mod_pagespeed_dependencies():
     )
 
     http_archive(
+        # TODO : Rename library as per bazel naming conventions
         name = "zlib",
         strip_prefix = "zlib-%s" % ZLIB_COMMIT,
         url = "https://github.com/madler/zlib/archive/%s.tar.gz" % ZLIB_COMMIT,
         build_file_content = zlib_build_rule,
+        sha256 = "6d4d6640ca3121620995ee255945161821218752b551a1a180f4215f7d124d45",
     )
 
