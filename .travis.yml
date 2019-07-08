@@ -18,7 +18,11 @@ before_install:
   # git.apache.org is the canonical repo but throttles network connections.
   # using github.com seems to reduce network errors a lot.
   - git config --global url.https://github.com/apache/.insteadOf git://git.apache.org/
-  - git submodule update --init --recursive --jobs=2
+  - git submodule update --init
+  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3
+  - wget https://github.com/bazelbuild/bazel/releases/download/0.27.1/bazel-0.27.1-installer-linux-x86_64.sh
+  - chmod +x bazel-0.27.1-installer-linux-x86_64.sh
+  - ./bazel-0.27.1-installer-linux-x86_64.sh --user
 env:
   global:
     - MAKEFLAGS=-j3
@@ -35,7 +39,7 @@ script:
   # for longer, but has the downside of not producing output if we timeout. See:
   # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
   # For now, stick with --verbose and keep an eye on the logs.
-  - install/build_release.sh --verbose --skip_psol --debug $BIT_FLAG
+  - bazel build //:mod_pagespeed
 
 notifications:
   email:
