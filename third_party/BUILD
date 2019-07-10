@@ -18,5 +18,6 @@ envoy_cc_library(
         "@brotli//:brotli_enc",
         "@brotli//:brotli_dec",
         "@zlib//:zlib",
+        "@hiredis//:hiredis",
     ],
 )
