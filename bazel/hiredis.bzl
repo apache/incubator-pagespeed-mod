@@ -9,6 +9,7 @@ cc_library(
         "sds.c",
     ],
     hdrs = [
+        # adding dict.c here since async.c includes it
         "dict.c",
         "async.h",
         "dict.h",
