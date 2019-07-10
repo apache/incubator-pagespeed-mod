@@ -19,5 +19,6 @@ envoy_cc_library(
         "@brotli//:brotli_dec",
         "@zlib//:zlib",
         "@hiredis//:hiredis",
+        "@jsoncpp//:jsoncpp",
     ],
 )
