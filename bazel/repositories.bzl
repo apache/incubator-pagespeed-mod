@@ -1,11 +1,13 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load(":zlib.bzl", "zlib_build_rule")
 load(":hiredis.bzl", "hiredis_build_rule")
+load(":jsoncpp.bzl", "jsoncpp_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
 ZLIB_COMMIT = "cacf7f1d4e3d44d871b605da3b647f07d718623f"
 HIREDIS_COMMIT = "010756025e8cefd1bc66c6d4ed3b1648ef6f1f95"
+JSONCPP_COMMIT = "7165f6ac4c482e68475c9e1dac086f9e12fff0d0"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -35,5 +37,13 @@ def mod_pagespeed_dependencies():
         url = "https://github.com/redis/hiredis/archive/%s.tar.gz" % HIREDIS_COMMIT,
         build_file_content = hiredis_build_rule,
         sha256 = "b239f8de6073e4eaea4be6ba4bf20516f33d7bedef1fc89287de60a0512f13bd",
+    )
+
+    http_archive(
+        name = "jsoncpp",
+        strip_prefix = "jsoncpp-%s" % JSONCPP_COMMIT,
+        url = "https://github.com/open-source-parsers/jsoncpp/archive/%s.tar.gz" % JSONCPP_COMMIT,
+        build_file_content = jsoncpp_build_rule,
+        sha256 = "9757f515b42b86ebd08b13bdfde7c27ca7436186d9b01ef1fa5cbc194e1f2764",
     )
 
