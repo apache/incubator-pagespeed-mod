@@ -1342,6 +1342,35 @@ TEST_F(ImageRewriteTest, ImgSrcSet) {
       "<img src=\"xa.png.pagespeed.ic.0.png\" "
       "srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
 }
+  
+TEST_F(ImageRewriteTest, ImgDataSrcSet) {
+  AddFileToMockFetcher("a.png", kBikePngFile, kContentTypePng, 100);
+  AddFileToMockFetcher("b.png", kCuppaPngFile, kContentTypePng, 100);
+
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  rewrite_driver()->AddFilters();
+
+  ValidateExpected(
+      "data-srcset",
+      "<img src=\"a.png\" data-srcset=\"a.png 1x, b.png 2x\">",
+      "<img src=\"xa.png.pagespeed.ic.0.png\" "
+      "data-srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
+}
+
+TEST_F(ImageRewriteTest, ImgAmpSrcSet) {
+  AddFileToMockFetcher("a.png", kBikePngFile, kContentTypePng, 100);
+  AddFileToMockFetcher("b.png", kCuppaPngFile, kContentTypePng, 100);
+
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->AddUrlValuedAttribute("amp-img", "src", semantic_type::kImage);
+  rewrite_driver()->AddFilters();
+
+  ValidateExpected(
+      "srcset",
+      "<amp-img src=\"a.png\" srcset=\"a.png 1x, b.png 2x\">",
+      "<amp-img src=\"xa.png.pagespeed.ic.0.png\" "
+      "srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
+}
 
 TEST_F(ImageRewriteTest, ImgSrcSetWithCacheExtender) {
   // Makes sure cache extender properly shares the slot.
