@@ -126,6 +126,7 @@ struct KeywordMap {const char* name; net_instaweb::HtmlName::Keyword keyword;};
 "data-pagespeed-size",                HtmlName::kDataPagespeedSize
 "data-pagespeed-url-hash",            HtmlName::kDataPagespeedUrlHash
 "data-src",                           HtmlName::kDataSrc
+"data-srcset",                        HtmlName::kDataSrcset
 "dd",                                 HtmlName::kDd
 "declare",                            HtmlName::kDeclare
 "defaultchecked",                     HtmlName::kDefaultchecked
