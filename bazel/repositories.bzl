@@ -2,12 +2,14 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load(":zlib.bzl", "zlib_build_rule")
 load(":hiredis.bzl", "hiredis_build_rule")
 load(":jsoncpp.bzl", "jsoncpp_build_rule")
+load(":re2.bzl", "re2_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
 ZLIB_COMMIT = "cacf7f1d4e3d44d871b605da3b647f07d718623f"
 HIREDIS_COMMIT = "010756025e8cefd1bc66c6d4ed3b1648ef6f1f95"
 JSONCPP_COMMIT = "7165f6ac4c482e68475c9e1dac086f9e12fff0d0"
+RE2_COMMIT = "e2deff36afd0a71adbf71cb11fba71ed2a407e4f"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -45,5 +47,13 @@ def mod_pagespeed_dependencies():
         url = "https://github.com/open-source-parsers/jsoncpp/archive/%s.tar.gz" % JSONCPP_COMMIT,
         build_file_content = jsoncpp_build_rule,
         sha256 = "9757f515b42b86ebd08b13bdfde7c27ca7436186d9b01ef1fa5cbc194e1f2764",
+    )
+
+    http_archive(
+        name = "re2",
+        strip_prefix = "re2-%s" % RE2_COMMIT,
+        url = "https://github.com/google/re2/archive/%s.tar.gz" % RE2_COMMIT,
+        build_file_content = re2_build_rule,
+        sha256 = "0bfd43ced702fea1adbf575161a05c0ca3ad8a4b4a69e89ef115a1b79b8fa781",
     )
 

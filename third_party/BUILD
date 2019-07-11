@@ -20,5 +20,7 @@ envoy_cc_library(
         "@zlib//:zlib",
         "@hiredis//:hiredis",
         "@jsoncpp//:jsoncpp",
+        "@re2//:re2",
+        "@re2//:re2_bench_util",
     ],
 )
