@@ -14,6 +14,7 @@ envoy_cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//third_party/base64:base64",
+        "//third_party/rdestl:rdestl",
         "@brotli//:brotli_common",
         "@brotli//:brotli_enc",
         "@brotli//:brotli_dec",
