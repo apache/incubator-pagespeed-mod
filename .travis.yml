@@ -4,21 +4,13 @@ compiler:
   - gcc
 
 git:
-  # It takes a while to clone our submodules, so we'd like to use --jobs to
-  # speed it up. Here we prevent travis from using git clone --recursive, so
-  # below in before_install we can manually update including --jobs.
+  # Dependencies will be fetched via bazel. So no submodules here.
   submodules: false
 
 before_install:
-  # Unfortunately, the version of git we get by default is too low to support
-  # --jobs on subdmodule, so update git before pulling in the submodules.
   - sudo add-apt-repository -y ppa:git-core/ppa
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
-  # git.apache.org is the canonical repo but throttles network connections.
-  # using github.com seems to reduce network errors a lot.
-  - git config --global url.https://github.com/apache/.insteadOf git://git.apache.org/
-  - git submodule update --init
   - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3
   - wget https://github.com/bazelbuild/bazel/releases/download/0.27.1/bazel-0.27.1-installer-linux-x86_64.sh
   - chmod +x bazel-0.27.1-installer-linux-x86_64.sh
