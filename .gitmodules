@@ -1,10 +1,10 @@
 # The two httpds are the longest syncs, so we'd like to start them first.
 [submodule "third_party/httpd/src"]
 	path = third_party/httpd/src
-	url = git://git.apache.org/httpd.git
+	url = https://git.apache.org/httpd.git
 [submodule "third_party/httpd24/src"]
 	path = third_party/httpd24/src
-	url = git://git.apache.org/httpd.git
+	url = https://git.apache.org/httpd.git
 [submodule "third_party/brotli/src"]
 	path = third_party/brotli/src
 	url = https://github.com/google/brotli.git
@@ -13,7 +13,7 @@
 	url = https://github.com/google/closure-library.git
 [submodule "third_party/aprutil/src"]
 	path = third_party/aprutil/src
-	url = git://git.apache.org/apr-util.git
+	url = https://git.apache.org/apr-util.git
 [submodule "third_party/re2/src"]
 	path = third_party/re2/src
 	url = https://github.com/google/re2.git
@@ -39,7 +39,7 @@
 	url = https://github.com/redis/hiredis.git
 [submodule "third_party/apr/src"]
 	path = third_party/apr/src
-	url = git://git.apache.org/apr.git
+	url = https://git.apache.org/apr.git
 [submodule "third_party/optipng"]
 	path = third_party/optipng
 	url = https://github.com/apache/incubator-pagespeed-optipng.git

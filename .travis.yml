@@ -23,7 +23,7 @@ addons:
 before_install:
   # git.apache.org is the canonical repo but throttles network connections.
   # using github.com seems to reduce network errors a lot.
-  - git config --global url.https://github.com/apache/.insteadOf git://git.apache.org/
+  - git config --global url.https://github.com/apache/.insteadOf https://git.apache.org/
   - git submodule update --init --recursive --jobs=2
 env:
   global:
