@@ -22,5 +22,6 @@ envoy_cc_library(
         "@hiredis//:hiredis",
         "@jsoncpp//:jsoncpp",
         "@re2//:re2",
+        "@libpng//:libpng"
     ],
 )
