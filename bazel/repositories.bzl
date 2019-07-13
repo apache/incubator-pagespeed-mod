@@ -3,6 +3,7 @@ load(":zlib.bzl", "zlib_build_rule")
 load(":hiredis.bzl", "hiredis_build_rule")
 load(":jsoncpp.bzl", "jsoncpp_build_rule")
 load(":icu.bzl", "icu_build_rule")
+load(":libpng.bzl", "libpng_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -11,6 +12,7 @@ HIREDIS_COMMIT = "010756025e8cefd1bc66c6d4ed3b1648ef6f1f95"
 JSONCPP_COMMIT = "7165f6ac4c482e68475c9e1dac086f9e12fff0d0"
 RE2_COMMIT = "848dfb7e1d7ba641d598cb66f81590f3999a555a"
 ICU_COMMIT = "46a834e2ebcd7c5b60f49350a166d8b9e4a24c0e"
+LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -66,3 +68,10 @@ def mod_pagespeed_dependencies():
         sha256 = "e596ba1ff6feb7179733b71cbc793a777a388d1f6882a4d8656b74cb381c8e22",
     )
 
+    http_archive(
+        name = "libpng",
+        strip_prefix = "libpng-%s" % LIBPNG_COMMIT,
+        url = "https://github.com/glennrp/libpng/archive/%s.tar.gz" % LIBPNG_COMMIT,
+        build_file_content = libpng_build_rule,
+        sha256 = "b82a964705b5f32fa7c0b2c5a78d264c710f8c293fe7e60763b3381f8ff38d42",
+    )
