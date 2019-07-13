@@ -11,6 +11,8 @@ git:
 
 cache:
   ccache: true
+  directories:
+    - .git/modules/
 
 addons:
   # Unfortunately, the version of git we get by default is too low to support
