@@ -8,6 +8,9 @@ git:
   # below in before_install we can manually update including --jobs.
   submodules: false
 
+cache:
+  ccache: true
+
 addons:
   # Unfortunately, the version of git we get by default is too low to support
   # --jobs on subdmodule, so update git before pulling in the submodules.
@@ -25,6 +28,7 @@ before_install:
 env:
   global:
     - MAKEFLAGS=-j3
+    - PATH="/usr/lib/ccache/:$PATH"
   matrix:
     - BIT_FLAG=
     # This would do another build for 32-bit, but we're already borderline
