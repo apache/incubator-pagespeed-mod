@@ -7,6 +7,7 @@ git:
   # speed it up. Here we prevent travis from using git clone --recursive, so
   # below in before_install we can manually update including --jobs.
   submodules: false
+  depth: 10
 
 cache:
   ccache: true
