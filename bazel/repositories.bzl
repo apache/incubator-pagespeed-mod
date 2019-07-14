@@ -14,7 +14,7 @@ JSONCPP_COMMIT = "7165f6ac4c482e68475c9e1dac086f9e12fff0d0"
 RE2_COMMIT = "848dfb7e1d7ba641d598cb66f81590f3999a555a"
 ICU_COMMIT = "46a834e2ebcd7c5b60f49350a166d8b9e4a24c0e"
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
-LIBWEBP_COMMIT = "0.6.1"
+LIBWEBP_COMMIT = "v0.6.1"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -80,7 +80,7 @@ def mod_pagespeed_dependencies():
 
     http_archive(
         name = "libwebp",
-        url = "https://chromium.googlesource.com/webm/libwebp/+archive/refs/heads/%s.tar.gz" % LIBWEBP_COMMIT,
+        url = "https://chromium.googlesource.com/webm/libwebp/+archive/refs/tags/%s.tar.gz" % LIBWEBP_COMMIT,
         build_file_content = libwebp_build_rule,
         sha256 = "b350385fe4d07bb95ce72259ce4cef791fb2d1ce1d77af1acea164c6c53f2907",
     )
