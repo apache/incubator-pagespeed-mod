@@ -27,11 +27,11 @@ class MessageHandler;
 NullWriter::~NullWriter() {
 }
 
-bool NullWriter::Write(const StringPiece& str, MessageHandler* handler) {
+bool NullWriter::Write(const StringPiece&, MessageHandler*) {
   return true;
 }
 
-bool NullWriter::Flush(MessageHandler* handler) {
+bool NullWriter::Flush(MessageHandler*) {
   return true;
 }
 

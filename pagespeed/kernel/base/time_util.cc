@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/base/time_util.h"
 #include <ctime>
-#include "prtime.h"  // NOLINT
+//#include "prtime.h"  // NOLINT
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -112,6 +112,7 @@ bool ConvertStringToTime(const StringPiece& time_string, int64 *time_ms) {
     *time_ms = 0;
     return false;
   }
+  /* 
   PRTime result_time_us = 0;
   PRStatus result = PR_ParseTimeString(time_string.as_string().c_str(),
                                        PR_FALSE, &result_time_us);
@@ -119,7 +120,7 @@ bool ConvertStringToTime(const StringPiece& time_string, int64 *time_ms) {
     return false;
   }
 
-  *time_ms = result_time_us / 1000;
+  *time_ms = result_time_us / 1000;*/
   return true;
 }
 

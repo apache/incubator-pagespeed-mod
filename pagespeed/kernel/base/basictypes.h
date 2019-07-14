@@ -21,9 +21,28 @@
 #ifndef PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 #define PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 
+//#include "base/basictypes.h"
+//#include "base/macros.h"
 
-#include "base/basictypes.h"
-#include "base/macros.h"
+#include <inttypes.h>
+
+typedef int64_t int64;
+typedef uint64_t uint64;
+typedef uint32_t uint32;
+typedef int32_t int32;
+
+
+// XXX(oschaaf): from https://chromium.googlesource.com/chromium/src/base/+/master/macros.h
+// Put this in the declarations for a class to be uncopyable.
+#define DISALLOW_COPY(TypeName) \
+  TypeName(const TypeName&) = delete
+// Put this in the declarations for a class to be unassignable.
+#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
+// Put this in the declarations for a class to be uncopyable and unassignable.
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  DISALLOW_COPY(TypeName);                 \
+  DISALLOW_ASSIGN(TypeName)
+
 
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
 // between switch labels:

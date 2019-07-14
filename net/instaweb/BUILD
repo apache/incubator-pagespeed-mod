@@ -15,4 +15,5 @@ envoy_cc_library(
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
+    deps = ["//pagespeed/kernel/base:pagespeed_base_core"]
 )

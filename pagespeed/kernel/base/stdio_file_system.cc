@@ -39,7 +39,7 @@
 #include <cstdlib>
 #include <limits>
 
-#include "base/logging.h"
+//#include "base/logging.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/debug.h"

@@ -24,6 +24,7 @@ envoy_cc_library(
         "@re2//:re2",
         "@icu//:icu",
         "@libpng//:libpng",
-        "@libwebp//:libwebp"
+        "@libwebp//:libwebp",
+        "@google_sparsehash//:google_sparsehash",
     ],
 )

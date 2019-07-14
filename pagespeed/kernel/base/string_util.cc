@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <vector>
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {

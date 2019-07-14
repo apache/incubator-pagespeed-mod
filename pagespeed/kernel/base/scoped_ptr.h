@@ -22,23 +22,21 @@
 #define PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
 
 
-// Chromium has moved scoped_ptr.h from base directory to base/memory.
-// Thankfully, even older version we built against had it available in
-// base/memory, just with the compatibility alias still available.
-#include "base/memory/scoped_ptr.h"
+// XXX(oschaaf): absl
+#include <memory>
 
 namespace net_instaweb {
 
-template<typename T> class scoped_ptr : public ::scoped_ptr<T> {
+template<typename T> class scoped_ptr : public ::unique_ptr<T> {
  public:
   scoped_ptr() {}
-  explicit scoped_ptr(T* ptr) : ::scoped_ptr<T>(ptr) {}
+  explicit scoped_ptr(T* ptr) : ::unique_ptr<T>(ptr) {}
 };
 
-template<class C> class scoped_ptr<C[]> : public ::scoped_ptr<C[]> {
+template<class C> class scoped_ptr<C[]> : public ::unique_ptr<C[]> {
  public:
   scoped_ptr() {}
-  explicit scoped_ptr(C* array) : ::scoped_ptr<C[]>(array) {}
+  explicit scoped_ptr(C* array) : ::unique_ptr<C[]>(array) {}
 };
 
 }  // namespace net_instaweb
@@ -46,10 +44,10 @@ template<class C> class scoped_ptr<C[]> : public ::scoped_ptr<C[]> {
 
 namespace net_instaweb {
 
-template<typename T> class scoped_array : public scoped_ptr<T[]> {
+template<typename T> class scoped_array : public unique_ptr<T[]> {
  public:
-  scoped_array() : scoped_ptr<T[]>() {}
-  explicit scoped_array(T* t) : scoped_ptr<T[]>(t) {}
+  scoped_array() : unique_ptr<T[]>() {}
+  explicit scoped_array(T* t) : unique_ptr<T[]>(t) {}
 };
 
 }

@@ -5,6 +5,8 @@ load(":jsoncpp.bzl", "jsoncpp_build_rule")
 load(":icu.bzl", "icu_build_rule")
 load(":libpng.bzl", "libpng_build_rule")
 load(":libwebp.bzl", "libwebp_build_rule")
+load(":google_sparsehash.bzl", "google_sparsehash_build_rule")
+
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -15,6 +17,7 @@ RE2_COMMIT = "848dfb7e1d7ba641d598cb66f81590f3999a555a"
 ICU_COMMIT = "46a834e2ebcd7c5b60f49350a166d8b9e4a24c0e"
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
 LIBWEBP_COMMIT = "v0.6.1"
+GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -84,4 +87,12 @@ def mod_pagespeed_dependencies():
         build_file_content = libwebp_build_rule,
         # TODO(oschaaf): fix sha256, fails in CI
         # sha256 = "b350385fe4d07bb95ce72259ce4cef791fb2d1ce1d77af1acea164c6c53f2907",
+    )
+
+    http_archive(
+        name = "google_sparsehash",
+        strip_prefix = "sparsehash-%s" % GOOGLE_SPARSEHASH_COMMIT,
+        url = "https://github.com/sparsehash/sparsehash/archive/%s.tar.gz" % GOOGLE_SPARSEHASH_COMMIT,
+        build_file_content = google_sparsehash_build_rule,
+        sha256 = "4ae105acb6b53f957b6005fa103a9fd342c39dbc7c87673663e782325b8296b3",
     )

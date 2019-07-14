@@ -27,17 +27,23 @@
 #include <set>
 #include <vector>
 
-#include "base/logging.h"
+#include "absl/strings/string_view.h"
+#include "absl/strings/internal/memutil.h"
+
+//#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 
 
 #include <cstdlib>  // NOLINT
 #include <string>  // NOLINT
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
-#include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
+
+typedef absl::string_view StringPiece;
+
+//#include "base/strings/string_number_conversions.h"
+//#include "base/strings/string_piece.h"
+//#include "base/strings/string_util.h"
+//#include "base/strings/stringprintf.h"
 
 using base::StringAppendF;
 using base::StringAppendV;
@@ -559,9 +565,9 @@ inline char IsHtmlSpace(char c) {
   return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n') || (c == '\f');
 }
 
-inline char* strdup(const char* str) {
-  return base::strdup(str);
-}
+/* inline char* strdup(const char* str) {
+  return absl::strdup(str);
+}*/
 
 // Case-insensitive string comparison that is locale-independent.
 int StringCaseCompare(StringPiece s1, StringPiece s2);
@@ -612,7 +618,7 @@ inline void TrimWhitespace(StringPiece in, GoogleString* output) {
       << "Illegal argument aliasing in TrimWhitespace";
   StringPiece temp(in);   // Mutable copy
   TrimWhitespace(&temp);  // Modifies temp
-  temp.CopyToString(output);
+  *output = GoogleString(temp);
 }
 
 // Accumulates a decimal value from 'c' into *value.
