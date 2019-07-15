@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 #define PAGESPEED_KERNEL_BASE_BASICTYPES_H_
@@ -31,18 +30,20 @@ typedef uint64_t uint64;
 typedef uint32_t uint32;
 typedef int32_t int32;
 
-
-// XXX(oschaaf): from https://chromium.googlesource.com/chromium/src/base/+/master/macros.h
-// Put this in the declarations for a class to be uncopyable.
-#define DISALLOW_COPY(TypeName) \
-  TypeName(const TypeName&) = delete
+// XXX(oschaaf): from
+// https://chromium.googlesource.com/chromium/src/base/+/master/macros.h Put
+// this in the declarations for a class to be uncopyable.
+#define DISALLOW_COPY(TypeName) TypeName(const TypeName &) = delete
 // Put this in the declarations for a class to be unassignable.
-#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
+#define DISALLOW_ASSIGN(TypeName) TypeName &operator=(const TypeName &) = delete
 // Put this in the declarations for a class to be uncopyable and unassignable.
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  DISALLOW_COPY(TypeName);                 \
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)                                     \
+  DISALLOW_COPY(TypeName);                                                     \
   DISALLOW_ASSIGN(TypeName)
 
+#define arraysize(a)                                                           \
+  ((sizeof(a) / sizeof(*(a))) /                                                \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
 // between switch labels:
@@ -78,20 +79,17 @@ typedef int32_t int32;
 //  of code.
 #if defined(__clang__) && __cplusplus >= 201103L && defined(__has_warning)
 #if __has_feature(cxx_attributes) && __has_warning("-Wimplicit-fallthrough")
-#define FALLTHROUGH_INTENDED [[clang::fallthrough]]  // NOLINT
+#define FALLTHROUGH_INTENDED [[clang::fallthrough]] // NOLINT
 #endif
 #endif
 
 #ifndef FALLTHROUGH_INTENDED
-#define FALLTHROUGH_INTENDED do { } while (0)
+#define FALLTHROUGH_INTENDED                                                   \
+  do {                                                                         \
+  } while (0)
 #endif
 
-
 // Lazily-initialized boolean value
-enum LazyBool {
-  kNotSet = -1,
-  kFalse = 0,
-  kTrue = 1
-};
+enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
 
-#endif  // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
+#endif // PAGESPEED_KERNEL_BASE_BASICTYPES_H_

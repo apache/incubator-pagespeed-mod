@@ -14,6 +14,18 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "test",
+            "type": "shell",
+            "command": "bazel test  -c dbg //pagespeed/kernel/base:pagespeed_base_core_test",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }

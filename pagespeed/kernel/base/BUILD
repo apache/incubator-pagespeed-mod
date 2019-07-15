@@ -3,6 +3,7 @@ licenses(["notice"])  # Apache 2
 load(
     "@envoy//bazel:envoy_build_system.bzl",
     "envoy_cc_library",
+    "envoy_cc_test",
     "envoy_package",
 )
 
@@ -26,8 +27,8 @@ envoy_cc_library(
         #'print_message_handler.cc',
         #'statistics.cc',
         #'stdio_file_system.cc',
-        'string_convert.cc',
-        'string_util.cc',
+        "string_convert.cc",
+        "string_util.cc",
         #'string_writer.cc',
         #'symbol_table.cc',
         #'time_util.cc',
@@ -51,7 +52,7 @@ envoy_cc_library(
         #'print_message_handler.h',
         #'statistics.h',
         #'stdio_file_system.h',
-        'string_util.h',
+        "string_util.h",
         #'string_writer.h',
         #'symbol_table.h',
         #'time_util.h',
@@ -62,12 +63,36 @@ envoy_cc_library(
         #"printf_format.h",
         "string.h",
         #"thread_annotations.h",
-        #"stack_buffer.h",
+        "stack_buffer.h",
         #"dense_hash_map.h",
         #"abstract_shared_mem.h",
         #"scoped_ptr.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
-    deps = ["@google_sparsehash//:google_sparsehash"],
+    deps = ["@google_sparsehash"],
+)
+
+envoy_cc_library(
+    name = "pagespeed_gtest",
+    srcs = ["gtest.cc"],
+    hdrs = ["gtest.h"],
+    repository = "@envoy",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":pagespeed_base_core",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+envoy_cc_test(
+    name = "pagespeed_base_core_test",
+    srcs = [
+        "string_util_test.cc",
+    ],
+    repository = "@envoy",
+    deps = [
+        ":pagespeed_base_core",
+        ":pagespeed_gtest",
+    ],
 )

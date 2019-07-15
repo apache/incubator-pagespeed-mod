@@ -31,7 +31,8 @@ script:
   # for longer, but has the downside of not producing output if we timeout. See:
   # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
   # For now, stick with --verbose and keep an eye on the logs.
-  - bazel build //:mod_pagespeed
+  - bazel build -c dbg //:mod_pagespeed
+  - bazel test  -c dbg //...
 
 notifications:
   email:
