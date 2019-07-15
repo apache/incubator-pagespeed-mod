@@ -29,7 +29,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-// XXX(oschaaf):
+// XXX(oschaaf): internal util
 #include "absl/strings/internal/memutil.h"
 #include "absl/strings/match.h"
 
@@ -85,7 +85,7 @@ inline std::string StringPrintf(const char *format, const Args &... args) {
 
 // typedef StringPiece::size_type stringpiece_ssize_type;
 typedef StringPiece::size_type size_t;
-// XXX(oschaaf):
+// XXX(oschaaf): check where ssize_t is used (!!)
 // typedef StringPiece::size_type ssize_t;
 
 namespace strings {
@@ -298,10 +298,9 @@ bool TrimTrailingWhitespace(StringPiece *str);
 // Non-destructive TrimWhitespace.
 // WARNING: in should not point inside output!
 inline void TrimWhitespace(StringPiece in, GoogleString *output) {
-  // XXX(oschaaf):
-  // DCHECK((in.data() < output->data()) ||
-  //       (in.data() >= (output->data() + output->length())))
-  //    << "Illegal argument aliasing in TrimWhitespace";
+  DCHECK((in.data() < output->data()) ||
+         (in.data() >= (output->data() + output->length())))
+      << "Illegal argument aliasing in TrimWhitespace";
   StringPiece temp(in);  // Mutable copy
   TrimWhitespace(&temp); // Modifies temp
   *output = GoogleString(temp);

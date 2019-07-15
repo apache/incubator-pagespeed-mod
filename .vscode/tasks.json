@@ -18,12 +18,12 @@
         {
             "label": "test",
             "type": "shell",
-            "command": "bazel test  -c dbg //pagespeed/kernel/base:pagespeed_base_core_test",
+            "command": "bazel test -c dbg //...",
             "problemMatcher": [
                 "$gcc"
             ],
             "group": {
-                "kind": "build",
+                "kind": "test",
                 "isDefault": true
             }
         }

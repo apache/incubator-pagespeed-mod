@@ -17,6 +17,8 @@ ICU_COMMIT = "46a834e2ebcd7c5b60f49350a166d8b9e4a24c0e"
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
 LIBWEBP_COMMIT = "v0.6.1"
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
+GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
+GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -95,3 +97,18 @@ def mod_pagespeed_dependencies():
         build_file_content = google_sparsehash_build_rule,
         sha256 = "4ae105acb6b53f957b6005fa103a9fd342c39dbc7c87673663e782325b8296b3",
     )
+
+    http_archive(
+        name = "glog",
+        strip_prefix = "glog-%s" % GLOG_COMMIT,
+        url = "https://github.com/google/glog/archive/%s.tar.gz" % GLOG_COMMIT,
+        sha256 = "a72da1c10f4f1f678ec3e77aeaf9b3026ec0d2f66d20ded33753ab5940ed218e",
+    )
+
+    http_archive(
+        name = "com_github_gflags_gflags",
+        strip_prefix = "gflags-%s" % GFLAGS_COMMIT,
+        url = "https://github.com/gflags/gflags/archive/%s.tar.gz" % GFLAGS_COMMIT,
+        sha256 = "b20f58e7f210ceb0e768eb1476073d0748af9b19dfbbf53f4fd16e3fb49c5ac8",
+    )
+

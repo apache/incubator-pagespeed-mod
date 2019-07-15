@@ -45,6 +45,10 @@ typedef int32_t int32;
   ((sizeof(a) / sizeof(*(a))) /                                                \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 
+// XXX(oschaaf):
+#define CHECK void()
+#define DCHECK void()
+
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
 // between switch labels:
 //  switch (x) {

@@ -153,8 +153,7 @@ void LowerString(GoogleString* s) {
 // ----------------------------------------------------------------------
 int GlobalReplaceSubstring(StringPiece substring, StringPiece replacement,
                            GoogleString* s) {
-  // XXX(oschaaf):
-  //CHECK(s != NULL);
+  CHECK(s != NULL);
   if (s->empty())
     return 0;
   GoogleString tmp;

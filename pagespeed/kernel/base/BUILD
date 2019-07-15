@@ -75,6 +75,7 @@ envoy_cc_library(
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
         "@google_sparsehash",
+        "@glog"
     ],
 )
 
