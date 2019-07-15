@@ -23,6 +23,7 @@ envoy_cc_library(
         "@jsoncpp//:jsoncpp",
         "@re2//:re2",
         "@icu//:icu",
-        "@libpng//:libpng"
+        "@libpng//:libpng",
+        "@libwebp//:libwebp"
     ],
 )
