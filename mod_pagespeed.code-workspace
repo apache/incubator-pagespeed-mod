@@ -65,7 +65,8 @@
 			"utility": "cpp",
 			"valarray": "cpp",
 			"variant": "cpp",
-			"algorithm": "cpp"
+			"algorithm": "cpp",
+			"dense_hash_map": "cpp"
 		}
 	}
 }

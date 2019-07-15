@@ -14,7 +14,7 @@ envoy_cc_library(
     srcs = [
         #'abstract_mutex.cc',
         #'annotated_message_handler.cc',
-        #'atom.cc',
+        "atom.cc",
         #'debug.cc',
         #'file_message_handler.cc',
         #'file_system.cc',
@@ -30,7 +30,7 @@ envoy_cc_library(
         "string_convert.cc",
         "string_util.cc",
         #'string_writer.cc',
-        #'symbol_table.cc',
+        "symbol_table.cc",
         #'time_util.cc',
         #'timer.cc',
         #'thread_system.cc',
@@ -39,7 +39,7 @@ envoy_cc_library(
     hdrs = [
         #'abstract_mutex.h',
         #'annotated_message_handler.h',
-        #'atom.h',
+        "atom.h",
         #'debug.h',
         #'file_message_handler.h',
         #'file_system.h',
@@ -54,7 +54,7 @@ envoy_cc_library(
         #'stdio_file_system.h',
         "string_util.h",
         #'string_writer.h',
-        #'symbol_table.h',
+        "symbol_table.h",
         #'time_util.h',
         #'timer.h',
         #'thread_system.h',
@@ -62,15 +62,20 @@ envoy_cc_library(
         "basictypes.h",
         #"printf_format.h",
         "string.h",
+        "string_hash.h",
         #"thread_annotations.h",
         "stack_buffer.h",
-        #"dense_hash_map.h",
+        "dense_hash_map.h",
         #"abstract_shared_mem.h",
         #"scoped_ptr.h",
     ],
+    #copts = ["-Ithird_party/google-sparsehash/gen/arch/linux/x64/include"],
     repository = "@envoy",
     visibility = ["//visibility:public"],
-    deps = ["@google_sparsehash"],
+    deps = [
+        "//third_party/google-sparsehash:google_sparsehash_gen",
+        "@google_sparsehash",
+    ],
 )
 
 envoy_cc_library(
@@ -89,6 +94,7 @@ envoy_cc_test(
     name = "pagespeed_base_core_test",
     srcs = [
         "string_util_test.cc",
+        "symbol_table_test.cc",
     ],
     repository = "@envoy",
     deps = [

@@ -7,7 +7,6 @@ load(":libpng.bzl", "libpng_build_rule")
 load(":libwebp.bzl", "libwebp_build_rule")
 load(":google_sparsehash.bzl", "google_sparsehash_build_rule")
 
-
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
 ZLIB_COMMIT = "cacf7f1d4e3d44d871b605da3b647f07d718623f"
