@@ -29,6 +29,7 @@ GoogleString GetCategoryString(Category category) {
   switch (category) {
     case kScript: return "Script";
     case kImage: return "Image";
+    case kSrcSetImage: return "Srcset";
     case kStylesheet: return "Stylesheet";
     case kOtherResource: return "OtherResource";
     case kHyperlink: return "Hyperlink";
@@ -42,6 +43,8 @@ bool ParseCategory(const StringPiece& category_str, Category* category) {
     *category = kScript;
   } else if (StringCaseEqual("Image", category_str)) {
     *category = kImage;
+  } else if (StringCaseEqual("Srcset", category_str)) {
+    *category = kSrcSetImage;
   } else if (StringCaseEqual("Stylesheet", category_str)) {
     *category = kStylesheet;
   } else if (StringCaseEqual("OtherResource", category_str)) {

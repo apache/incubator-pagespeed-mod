@@ -68,6 +68,7 @@ void RewrittenContentScanningFilter::StartElement(HtmlElement* element) {
     }
     switch (attributes[i].category) {
       case semantic_type::kImage:
+      case semantic_type::kSrcSetImage:
       case semantic_type::kScript:
       case semantic_type::kStylesheet:
       case semantic_type::kOtherResource: {

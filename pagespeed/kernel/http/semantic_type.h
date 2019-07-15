@@ -43,6 +43,7 @@ namespace semantic_type {
 enum Category {
   kHyperlink,
   kImage,
+  kSrcSetImage,
   kOtherResource,
   kPrefetch,
   kScript,

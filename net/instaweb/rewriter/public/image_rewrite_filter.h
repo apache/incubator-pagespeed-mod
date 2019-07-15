@@ -43,6 +43,7 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/image_types.pb.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
+#include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 
 namespace net_instaweb {
 
@@ -232,6 +233,9 @@ class ImageRewriteFilter : public RewriteFilter {
                                         Image* image);
   void BeginRewriteImageUrl(HtmlElement* element, HtmlElement::Attribute* src);
   void BeginRewriteSrcSet(HtmlElement* element, HtmlElement::Attribute* srcset);
+  void handleSemanticSrcSet(HtmlElement* element, HtmlElement::Attribute* datasrcset);
+  void handleSemanticImage(HtmlElement* element, resource_tag_scanner::UrlCategoryPair attribute);
+
 
   void ComputePreserveUrls(const RewriteOptions* options, ResourceSlot* slot);
 

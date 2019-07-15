@@ -146,6 +146,7 @@ void InsertDnsPrefetchFilter::StartElementImpl(HtmlElement* element) {
       // The categories below are downloaded by the browser to display the page.
       // So DNS prefetch hints are useful.
       case semantic_type::kImage:
+      case semantic_type::kSrcSetImage:
       case semantic_type::kScript:
       case semantic_type::kStylesheet:
       case semantic_type::kOtherResource:
