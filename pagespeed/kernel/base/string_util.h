@@ -84,6 +84,7 @@ inline std::string StringPrintf(const char *format, const Args &... args) {
 // using base::StringPrintf;
 
 // typedef StringPiece::size_type stringpiece_ssize_type;
+#define stringpiece_ssize_type ssize_t;
 typedef StringPiece::size_type size_t;
 // XXX(oschaaf): check where ssize_t is used (!!)
 // typedef StringPiece::size_type ssize_t;

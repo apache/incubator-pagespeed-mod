@@ -336,8 +336,8 @@ StringPiece::size_type FindIgnoreCase(
 // In-place StringPiece whitespace trimming.  This mutates the StringPiece.
 bool TrimLeadingWhitespace(StringPiece* str) {
   // We use stringpiece_ssize_type to avoid signedness problems.
-  StringPiece::size_type size = str->size();
-  StringPiece::size_type trim = 0;
+  stringpiece_ssize_type size = str->size();
+  stringpiece_ssize_type trim = 0;
   while (trim != size && IsHtmlSpace(str->data()[trim])) {
     ++trim;
   }
@@ -347,7 +347,7 @@ bool TrimLeadingWhitespace(StringPiece* str) {
 
 bool TrimTrailingWhitespace(StringPiece* str) {
   // We use stringpiece_ssize_type to avoid signedness problems.
-  StringPiece::size_type rightmost = str->size();
+  stringpiece_ssize_type rightmost = str->size();
   while (rightmost != 0 && IsHtmlSpace(str->data()[rightmost - 1])) {
     --rightmost;
   }

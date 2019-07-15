@@ -70,3 +70,5 @@ test --test_env=HEAPCHECK=normal --test_env=PPROF_PATH
 # TODO(oschaaf): For brotli, back this out and apply more locally once
 # we figured out how.
 build --copt -Wno-implicit-fallthrough
+# TODO(oschaaf): clean this up in pagespeed?
+build --copt -Wno-unused-parameter
