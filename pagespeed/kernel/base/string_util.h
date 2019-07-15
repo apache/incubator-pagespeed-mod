@@ -28,7 +28,10 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/strings/numbers.h"
+// XXX(oschaaf):
 #include "absl/strings/internal/memutil.h"
+#include "absl/strings/match.h"
 
 //#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -39,26 +42,59 @@
 #include <string>  // NOLINT
 
 typedef absl::string_view StringPiece;
+using namespace absl;
 
+
+#include "fmt/format.h"
 //#include "base/strings/string_number_conversions.h"
 //#include "base/strings/string_piece.h"
 //#include "base/strings/string_util.h"
 //#include "base/strings/stringprintf.h"
 
-using base::StringAppendF;
-using base::StringAppendV;
-using base::SStringPrintf;
-using base::StringPiece;
-using base::StringPrintf;
+std::string vformats(const char *format, fmt::format_args args) {
+  return fmt::vformat(format, args);
+}
 
-typedef StringPiece::size_type stringpiece_ssize_type;
+template <typename... Args>
+void StringAppendF(std::string* dst, const char* format, const Args & ... args) {
+  *dst+= vformats(format, fmt::make_format_args(args...));
+}
+
+// XXX(oschaaf):
+void StringAppendV(std::string*, const char*, va_list) {
+  //FMT_VSNPRINTF(buffer, SIZE, format, args);
+  //*dst+= vformats(format, fmt::make_format_args(ap));
+}
+
+// TODO(oschaaf): changed return type, its never used. voided it.
+template <typename... Args>
+void SStringPrintf(std::string* dst, const char* format, const Args & ... args) {
+  *dst = vformats(format, fmt::make_format_args(args...));
+}
+
+template <typename... Args>
+std::string StringPrintf(const char* format, const Args & ... args) {
+  return vformats(format, fmt::make_format_args(args...));
+}
+
+//using base::StringAppendF;
+//using base::StringAppendV;
+//using base::SStringPrintf;
+//using base::StringPiece;
+//using base::StringPrintf;
+
+//typedef StringPiece::size_type stringpiece_ssize_type;
+typedef StringPiece::size_type size_t;
+// XXX(oschaaf):
+//typedef StringPiece::size_type ssize_t;
+
 
 namespace strings {
 inline bool StartsWith(StringPiece a, StringPiece b) {
-  return a.starts_with(b);
+  return absl::StartsWith(a, b);
 }
 inline bool EndsWith(StringPiece a, StringPiece b) {
-  return a.ends_with(b);
+  return absl::EndsWith(a, b);
 }
 }
 
@@ -82,37 +118,37 @@ typedef std::vector<GoogleString*> StringStarVector;
 typedef std::vector<const char*> CharStarVector;
 
 inline GoogleString IntegerToString(int i) {
-  return base::IntToString(i);
+  return fmt::format("{}", i);
 }
 
 inline GoogleString UintToString(unsigned int i) {
-  return base::UintToString(i);
+  return fmt::format("{}", i);
 }
 
 inline GoogleString Integer64ToString(int64 i) {
-  return base::Int64ToString(i);
+  return fmt::format("{}", i);
 }
 
 inline GoogleString PointerToString(void* pointer) {
-  return StringPrintf("%p", pointer);
+  return fmt::format("{}", pointer);
 }
 
 // NOTE: For a string of the form "45x", this sets *out = 45 but returns false.
 // It sets *out = 0 given "Junk45" or "".
-inline bool StringToInt(const char* in, int* out) {
-  return base::StringToInt(in, out);
+inline bool StringToInt(absl::string_view in, int* out) {
+  return absl::SimpleAtoi<int>(in, out);
 }
 
-inline bool StringToInt64(const char* in, int64* out) {
-  return base::StringToInt64(in, out);
+inline bool StringToInt64(absl::string_view in, int64* out) {
+  return absl::SimpleAtoi<int64>(in, out);
 }
 
 inline bool StringToInt(const GoogleString& in, int* out) {
-  return base::StringToInt(in, out);
+  return absl::SimpleAtoi<int>(in, out);
 }
 
 inline bool StringToInt64(const GoogleString& in, int64* out) {
-  return base::StringToInt64(in, out);
+  return absl::SimpleAtoi<int64>(in, out);
 }
 
 
@@ -131,7 +167,7 @@ inline bool StringToDouble(GoogleString in, double* out) {
 }
 
 inline bool StringToDouble(StringPiece in, double* out) {
-  return StringToDouble(in.as_string(), out);
+  return StringToDouble(GoogleString(in), out);
 }
 
 // Returns the part of the piece after the first '=', trimming any
@@ -456,27 +492,6 @@ inline GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c,
                                     &w, &x, &y, &z, null_stringpiece);
 }
 
-inline void StrAppend(GoogleString* target, StringPiece a) {
-  a.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b);
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c);
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d);
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e);
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f);
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g);
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g, StringPiece h);
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g, StringPiece h, StringPiece i);
 
 // Split sp into pieces that are separated by any character in the given string
 // of separators, and push those pieces in order onto components.
@@ -505,7 +520,7 @@ void UpperString(GoogleString* str);
 void LowerString(GoogleString* str);
 
 inline bool OnlyWhitespace(const GoogleString& str) {
-  return ContainsOnlyWhitespaceASCII(str);
+  return absl::StripAsciiWhitespace(str).empty();
 }
 
 // Replaces all instances of 'substring' in 's' with 'replacement'.
@@ -518,7 +533,7 @@ int GlobalReplaceSubstring(StringPiece substring, StringPiece replacement,
 
 // Returns the index of the start of needle in haystack, or
 // StringPiece::npos if it's not present.
-stringpiece_ssize_type FindIgnoreCase(StringPiece haystack, StringPiece needle);
+StringPiece::size_type FindIgnoreCase(StringPiece haystack, StringPiece needle);
 
 
 // Erase shortest substrings in string bracketed by left and right, working
@@ -613,9 +628,10 @@ bool TrimTrailingWhitespace(StringPiece* str);
 // Non-destructive TrimWhitespace.
 // WARNING: in should not point inside output!
 inline void TrimWhitespace(StringPiece in, GoogleString* output) {
-  DCHECK((in.data() < output->data()) ||
-         (in.data() >= (output->data() + output->length())))
-      << "Illegal argument aliasing in TrimWhitespace";
+  // XXX(oschaaf):
+  //DCHECK((in.data() < output->data()) ||
+  //       (in.data() >= (output->data() + output->length())))
+  //    << "Illegal argument aliasing in TrimWhitespace";
   StringPiece temp(in);   // Mutable copy
   TrimWhitespace(&temp);  // Modifies temp
   *output = GoogleString(temp);
