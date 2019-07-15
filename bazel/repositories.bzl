@@ -31,6 +31,7 @@ def mod_pagespeed_dependencies():
         name = "brotli",
         strip_prefix = "brotli-%s" % BROTLI_COMMIT,
         url = "https://github.com/google/brotli/archive/%s.tar.gz" % BROTLI_COMMIT,
+        sha256 = "0090aab052b515e1f35390aca5979d2665c88581a3930b06205cf2646a4f5b68",
     )
 
     http_archive(

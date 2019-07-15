@@ -30,6 +30,9 @@ typedef uint64_t uint64;
 typedef uint32_t uint32;
 typedef int32_t int32;
 
+// this gets us check/dcheck/(v)log etc
+#include "glog/logging.h"
+
 // XXX(oschaaf): from
 // https://chromium.googlesource.com/chromium/src/base/+/master/macros.h Put
 // this in the declarations for a class to be uncopyable.
@@ -44,10 +47,6 @@ typedef int32_t int32;
 #define arraysize(a)                                                           \
   ((sizeof(a) / sizeof(*(a))) /                                                \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
-
-// XXX(oschaaf):
-#define CHECK void()
-#define DCHECK void()
 
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
 // between switch labels:
