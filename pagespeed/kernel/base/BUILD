@@ -71,6 +71,7 @@ envoy_cc_library(
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
+    copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
         "@google_sparsehash",
@@ -93,8 +94,10 @@ envoy_cc_library(
 envoy_cc_library (
     name = "pagespeed_test_base",
     hdrs = ["message_handler_test_base.h"],
+    srcs = ["message_handler_test_base.cc"],
     repository = "@envoy",
     visibility = ["//visibility:public"],
+    deps = [":pagespeed_base_core"]
 )
 
 envoy_cc_test(

@@ -26,6 +26,8 @@
 #include <set>
 #include <vector>
 
+#include <iostream>
+
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -44,10 +46,6 @@ typedef absl::string_view StringPiece;
 using namespace absl;
 
 #include "fmt/format.h"
-//#include "base/strings/string_number_conversions.h"
-//#include "base/strings/string_piece.h"
-//#include "base/strings/string_util.h"
-//#include "base/strings/stringprintf.h"
 
 inline std::string vformats(const char *format, fmt::format_args args) {
   return fmt::vformat(format, args);
@@ -56,13 +54,17 @@ inline std::string vformats(const char *format, fmt::format_args args) {
 template <typename... Args>
 inline void StringAppendF(std::string *dst, const char *format,
                           const Args &... args) {
-  *dst += vformats(format, fmt::make_format_args(args...));
+  dst->append(vformats(format, fmt::make_format_args(args...)));
+  std::cerr << "1 " << *dst << std::endl;
 }
 
-// XXX(oschaaf):
-inline void StringAppendV(std::string *, const char *, va_list) {
-  // FMT_VSNPRINTF(buffer, SIZE, format, args);
-  //*dst+= vformats(format, fmt::make_format_args(ap));
+
+// XXX(oschaaf): check this one carefully.
+inline void StringAppendV(std::string* dst, const char* format, va_list args) {
+  char dest[1024 * 16];
+  vsnprintf(dest, (1024 * 16) - 1, format, args);
+  std::cerr << "2 " << dest << std::endl;
+  dst->append(dest);
 }
 
 // TODO(oschaaf): changed return type, its never used. voided it.
@@ -70,6 +72,7 @@ template <typename... Args>
 inline void SStringPrintf(std::string *dst, const char *format,
                           const Args &... args) {
   *dst = vformats(format, fmt::make_format_args(args...));
+  std::cerr << "3  "  << *dst << std::endl;
 }
 
 template <typename... Args>
@@ -77,15 +80,8 @@ inline std::string StringPrintf(const char *format, const Args &... args) {
   return vformats(format, fmt::make_format_args(args...));
 }
 
-// using base::StringAppendF;
-// using base::StringAppendV;
-// using base::SStringPrintf;
-// using base::StringPiece;
-// using base::StringPrintf;
+typedef size_t stringpiece_ssize_type;
 
-// typedef StringPiece::size_type stringpiece_ssize_type;
-#define stringpiece_ssize_type ssize_t;
-typedef StringPiece::size_type size_t;
 // XXX(oschaaf): check where ssize_t is used (!!)
 // typedef StringPiece::size_type ssize_t;
 
