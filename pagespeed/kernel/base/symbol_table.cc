@@ -95,8 +95,7 @@ Atom SymbolTable<CharTransform>::Intern(const StringPiece &src) {
       storage_.push_back(storage_[last_pos]);
       storage_[last_pos] = new_symbol_storage;
     } else {
-      // XXX(oschaaf):
-      // DCHECK_GE(next_ptr_, storage_.back());
+      DCHECK_GE(next_ptr_, storage_.back());
       size_t bytes_used = next_ptr_ - storage_.back();
       size_t bytes_remaining = kChunkSize - bytes_used;
       if (bytes_remaining < bytes_required) {

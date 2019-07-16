@@ -81,6 +81,7 @@ envoy_cc_library(
         "//third_party/google-sparsehash:google_sparsehash_gen",
         "@google_sparsehash",
         "@glog",
+        "//third_party/nspr:prtime"
     ],
 )
 

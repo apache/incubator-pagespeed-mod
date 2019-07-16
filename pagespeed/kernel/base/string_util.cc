@@ -106,8 +106,7 @@ GoogleString CEscape(StringPiece src) {
       case '\\': dest[used++] = '\\'; dest[used++] = '\\'; break;
       default:
         if (ch < 32 || ch >= 127) {
-          // XXX(oschaaf):
-          // base::snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
+          snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
           used += 4;
         } else {
           dest[used++] = ch;

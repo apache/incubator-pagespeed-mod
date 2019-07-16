@@ -130,13 +130,12 @@ inline void StringAppendF(std::string *dst, const char *format,
 template <typename... Args>
 inline void SStringPrintf(std::string *dst, const char *format,
                           const Args &... args) {
-  *dst = fmt::vformat(format, fmt::make_format_args(args...));
-  std::cerr << "3  "  << *dst << std::endl;
+  *dst = fmt::sprintf(format, args...);
 }
 
 template <typename... Args>
 inline std::string StringPrintf(const char *format, const Args &... args) {
-  return fmt::vformat(format, fmt::make_format_args(args...));
+  return fmt::sprintf(format, args...);
 }
 
 // XXX(oschaaf): check where ssize_t is used (!!)

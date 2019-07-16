@@ -562,15 +562,12 @@ TEST(BasicUtilsTest, JoinCollection) {
 }
 
 TEST(BasicUtilsTest, CEscape) {
-  // XXX(oschaaf):
-  /*
   EXPECT_EQ("Hello,\\n\\tWorld.\\n", CEscape("Hello,\n\tWorld.\n"));
 
   char not_ascii_1 = 30;
-  char not_ascii_2 = 200;
+  char not_ascii_2 = static_cast<char>(200);
   EXPECT_EQ("abc\\036\\310",
             CEscape(GoogleString("abc") + not_ascii_1 + not_ascii_2));
-            */
 }
 
 TEST(BasicUtilsTest, SplitStringUsingSubstr1) {

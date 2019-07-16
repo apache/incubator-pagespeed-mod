@@ -21,8 +21,6 @@
 #ifndef PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
 #define PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
 
-
-// XXX(oschaaf): absl
 #include <memory>
 
 namespace net_instaweb {
