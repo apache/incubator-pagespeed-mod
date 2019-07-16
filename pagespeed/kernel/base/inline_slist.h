@@ -26,7 +26,7 @@
 
 #include <cstddef>
 
-#include "base/logging.h"  // for DCHECK
+#include "glog/logging.h"  // for DCHECK
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {

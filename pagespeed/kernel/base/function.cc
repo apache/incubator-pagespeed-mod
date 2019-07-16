@@ -19,7 +19,7 @@
 
 
 #include "pagespeed/kernel/base/function.h"
-#include "base/logging.h"
+#include "glog/logging.h"
 
 namespace net_instaweb {
 

@@ -66,7 +66,10 @@
 			"valarray": "cpp",
 			"variant": "cpp",
 			"algorithm": "cpp",
-			"dense_hash_map": "cpp"
+			"dense_hash_map": "cpp",
+			"hash_map": "cpp",
+			"hash_set": "cpp",
+			"new": "cpp"
 		}
 	}
 }

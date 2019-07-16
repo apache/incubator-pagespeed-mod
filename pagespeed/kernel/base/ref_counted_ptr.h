@@ -33,7 +33,7 @@
 #ifndef PAGESPEED_KERNEL_UTIL_REF_COUNTED_PTR_H_
 #define PAGESPEED_KERNEL_UTIL_REF_COUNTED_PTR_H_
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/atomic_int32.h"
 #include "pagespeed/kernel/base/basictypes.h"
 

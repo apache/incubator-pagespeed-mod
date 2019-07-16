@@ -22,7 +22,7 @@
 
 #include <cstddef>
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 

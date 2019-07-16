@@ -24,6 +24,8 @@
 #include "pagespeed/kernel/base/atomicops.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
+#include <atomic>
+
 namespace net_instaweb {
 
 // An int32 flag that can be set atomically and be visible to other threads.
@@ -71,6 +73,7 @@ namespace net_instaweb {
 // operations on *other* memory locations.  All the operations on the
 // AtomicInt32 behave as you would probably expect, though several of them
 // (increment, CompareAndSwap) occur as atomic actions.
+
 class AtomicInt32 {
  public:
   explicit AtomicInt32(int32 value) {
@@ -83,25 +86,27 @@ class AtomicInt32 {
 
   // Return the value currently stored.  Has acquire semantics (see above).
   int32 value() const {
-    return base::subtle::Acquire_Load(&value_);
+    return value_;
   }
 
   // Store value.  Has release semantics (see above).
   void set_value(int32 value) {
-    base::subtle::Release_Store(&value_, value);
+    value_ = value;
   }
 
   // Atomically add an amount to the value currently stored, return the new
   // value. Has *no ordering semantics* with respect to operations on other
   // memory locations.
   int32 NoBarrierIncrement(int32 amount) {
-    return base::subtle::NoBarrier_AtomicIncrement(&value_, amount);
+    value_ += amount;
+    return value_;
   }
 
   // Atomically add an amount to the value stored, return the new value.
   // Provides a full barrier --- both acquire and release.
   int32 BarrierIncrement(int32 amount) {
-    return base::subtle::Barrier_AtomicIncrement(&value_, amount);
+    value_ += amount;
+    return value_;
   }
 
   // Atomic compare and swap.  If current value == expected_value, atomically
@@ -115,15 +120,17 @@ class AtomicInt32 {
   // semantics, use the value() method and validate its result when you
   // CompareAndSwap.
   int32 CompareAndSwap(int32 expected_value, int32 new_value) {
-    return base::subtle::Release_CompareAndSwap(
-        &value_, expected_value, new_value);
+    return value_.compare_exchange_strong(expected_value, new_value, std::memory_order::memory_order_acquire);
+    return expected_value;
+    //base::subtle::Release_CompareAndSwap(
+    //    &value_, expected_value, new_value);
   }
 
  private:
-  base::subtle::AtomicWord value_;
+  std::atomic<int32_t> value_;
   DISALLOW_COPY_AND_ASSIGN(AtomicInt32);
 };
-
+ 
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_

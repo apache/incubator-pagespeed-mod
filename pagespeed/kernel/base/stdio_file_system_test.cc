@@ -21,7 +21,7 @@
 
 #include "pagespeed/kernel/base/stdio_file_system.h"
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/file_system_test_base.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
@@ -57,13 +57,13 @@ class StdioFileSystemTest : public FileSystemTest {
 
   virtual void DeleteRecursively(const StringPiece& filename) {
     GoogleString filename_string;
-    filename.CopyToString(&filename_string);
+    filename_string = GoogleString(filename);
     if (stdio_file_system_.Exists(
         filename_string.c_str(), &handler_).is_false()) {
       // OK if just not there.
       return;
     }
-    DeleteRecursivelyImpl(filename.as_string());
+    DeleteRecursivelyImpl(GoogleString(filename));
   }
   virtual FileSystem* file_system() {
     return &stdio_file_system_;
@@ -88,7 +88,7 @@ class StdioFileSystemTest : public FileSystemTest {
       // Remove everything inside first.
       StringVector files;
       stdio_file_system_.ListContents(filename, &files, &handler_);
-      for (int i = 0; i < files.size(); ++i) {
+      for (uint64_t i = 0; i < files.size(); ++i) {
         ASSERT_TRUE(strings::StartsWith(files[i], "/"));
         DeleteRecursivelyImpl(files[i]);
       }

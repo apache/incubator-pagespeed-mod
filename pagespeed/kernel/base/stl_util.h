@@ -42,4 +42,11 @@ bool STLFind(const T& collection, const typename T::value_type& value) {
       collection.end();
 }
 
+template <class T>
+void STLDeleteElements(T *container) {
+  if (!container) return;
+  STLDeleteContainerPointers(container->begin(), container->end());
+  container->clear();
+}
+
 #endif  // PAGESPEED_KERNEL_BASE_STL_UTIL_H_

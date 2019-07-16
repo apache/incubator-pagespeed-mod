@@ -19,6 +19,8 @@ cc_library(
         "include/json/reader.h",
         "include/json/forwards.h",
         "include/json/features.h",
+        "include/json/json.h",
+        "include/json/autolink.h",
     ],
     includes = ["include"],
     visibility = ["//visibility:public"],

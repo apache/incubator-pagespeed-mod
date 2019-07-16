@@ -33,7 +33,7 @@ class IntElement : public InlineSListElement<IntElement> {
  public:
   explicit IntElement(int n) : num_(n) { }
 
-  const int num() const { return num_; }
+  int num() const { return num_; }
   void set_num(int num) { num_ = num; }
 
  private:

@@ -156,7 +156,7 @@ bool FileSystem::WriteTempFile(const StringPiece& prefix_name,
 bool FileSystem::WriteFileAtomic(const StringPiece& filename_sp,
                                  const StringPiece& buffer,
                                  MessageHandler* message_handler) {
-  const GoogleString filename(filename_sp.as_string());
+  const GoogleString filename(filename_sp);
   GoogleString tempfilename;
   bool ok = false;
 
@@ -182,7 +182,7 @@ bool FileSystem::Close(File* file, MessageHandler* message_handler) {
 bool FileSystem::RecursivelyMakeDir(const StringPiece& full_path_const,
                                     MessageHandler* handler) {
   bool ret = true;
-  GoogleString full_path = full_path_const.as_string();
+  GoogleString full_path = GoogleString(full_path_const);
   EnsureEndsInSlash(&full_path);
   GoogleString subpath;
   subpath.reserve(full_path.size());
@@ -227,7 +227,7 @@ void FileSystem::GetDirInfoWithProgress(
   dirinfo->inode_count = 0;
 
   StringVector dirs_to_traverse;
-  dirs_to_traverse.push_back(path.as_string());
+  dirs_to_traverse.push_back(GoogleString(path));
   while (!dirs_to_traverse.empty()) {
     notifier->Notify();
     GoogleString dir = dirs_to_traverse.back();
@@ -276,7 +276,7 @@ void FileSystem::SetupFileDir(const StringPiece& filename,
     if (!RecursivelyMakeDir(directory_name, handler)) {
       // TODO(sligocki): Specify where dir creation failed?
       handler->Message(kError, "Could not create directories for file %s",
-                       filename.as_string().c_str());
+                       GoogleString(filename).c_str());
     }
   }
 }

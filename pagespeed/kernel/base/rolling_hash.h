@@ -21,7 +21,7 @@
 #define PAGESPEED_KERNEL_BASE_ROLLING_HASH_H_
 
 #include <cstddef>
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {
@@ -31,7 +31,7 @@ namespace net_instaweb {
 
 // Per character hash values.  Exported for use in NextRollingHash.
 extern const uint64 kRollingHashCharTable[256];
-
+typedef uint8_t uint8;
 // Compute the rolling hash of buf[start : start + n - 1]
 uint64 RollingHash(const char* buf, size_t start, size_t n);
 

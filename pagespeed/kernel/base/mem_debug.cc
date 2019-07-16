@@ -56,7 +56,7 @@
 #ifndef NDEBUG
 
 #include <cstdlib>
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace {

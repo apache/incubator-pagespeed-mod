@@ -21,7 +21,7 @@
 // Implementation of the Thread class, which routes things to an underlying
 // ThreadImpl.
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread.h"
@@ -35,7 +35,7 @@ ThreadSystem::Thread::Thread(ThreadSystem* runtime, StringPiece name,
       flags_(flags),
       started_(false),
       join_called_(false) {
-  name.CopyToString(&name_);
+  name_ = GoogleString(name);
 }
 
 ThreadSystem::Thread::~Thread() {

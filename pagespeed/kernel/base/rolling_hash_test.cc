@@ -43,14 +43,14 @@ TEST(RollingHashTest, EmptyString) {
 }
 
 TEST(RollingHashTest, SingleChar) {
-  EXPECT_EQ(kRollingHashCharTable[' '], RollingHash(" ", 0, 1));
+  EXPECT_EQ(kRollingHashCharTable[static_cast<int>(' ')], RollingHash(" ", 0, 1));
 }
 
 TEST(RollingHashTest, SingleRoll) {
   static const char kCSpace[] = "C ";
   uint64 h0 = RollingHash(kCSpace, 0, 1);
-  EXPECT_EQ(kRollingHashCharTable['C'], h0);
-  EXPECT_EQ(kRollingHashCharTable[' '], NextRollingHash(kCSpace, 1, 1, h0));
+  EXPECT_EQ(kRollingHashCharTable[static_cast<int>('C')], h0);
+  EXPECT_EQ(kRollingHashCharTable[static_cast<int>(' ')], NextRollingHash(kCSpace, 1, 1, h0));
 }
 
 TEST(RollingHashTest, RollShakedown) {

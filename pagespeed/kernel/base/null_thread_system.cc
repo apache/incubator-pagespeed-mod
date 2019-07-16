@@ -22,7 +22,7 @@
 
 #include <vector>
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/timer.h"
@@ -31,7 +31,9 @@ namespace net_instaweb {
 
 namespace {
 
-const int64 kMockThreadId = 6765;
+// XXX(oschaaf): unused
+
+//const int64 kMockThreadId = 6765;
 
 // Mock read-write-lock.  This does no locking.
 class NullRWLock : public ThreadSystem::RWLock {

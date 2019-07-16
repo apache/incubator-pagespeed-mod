@@ -24,6 +24,8 @@
 #include "pagespeed/kernel/base/atomicops.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
+#include <atomic>
+
 namespace net_instaweb {
 
 // A boolean flag that can be set atomically and be visible to other
@@ -40,15 +42,15 @@ class AtomicBool {
   ~AtomicBool() {}
 
   bool value() const {
-    return base::subtle::Acquire_Load(&value_);
+    return value_;
   }
 
   void set_value(bool v) {
-    base::subtle::Release_Store(&value_, v);
+    value_ = v;
   }
 
  private:
-  base::subtle::AtomicWord value_;
+  std::atomic<bool> value_;
   DISALLOW_COPY_AND_ASSIGN(AtomicBool);
 };
 

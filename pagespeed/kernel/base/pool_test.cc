@@ -35,7 +35,7 @@ class IntElement : public PoolElement<IntElement> {
  public:
   IntElement() { }
 
-  const int num() const { return num_; }
+  int num() const { return num_; }
   void set_num(int num) { num_ = num; }
 
  private:
@@ -50,7 +50,7 @@ typedef PoolElement<IntElement>::Position PoolPosition;
 class PoolTest : public testing::Test {
  protected:
   PoolTest() {
-    for (int i = 0; i < arraysize(elements_); ++i) {
+    for (uint64_t i = 0; i < arraysize(elements_); ++i) {
       elements_[i].set_num(i);
     }
   }

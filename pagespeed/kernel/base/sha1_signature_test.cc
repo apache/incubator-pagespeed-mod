@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/base/sha1_signature.h"
 
-#include "testing/base/public/gunit.h"
+#include "gtest/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {

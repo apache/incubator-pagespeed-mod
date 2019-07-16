@@ -58,7 +58,7 @@ TEST_F(CharsetUtilTest, StripUtf8Bom) {
   StringPiece originalContents("<!DOCTYPE yadda yadda>");
   GoogleString contents;
 
-  originalContents.CopyToString(&contents);
+  contents = GoogleString(originalContents);
   StringPiece noBomContents(contents);
   EXPECT_FALSE(StripUtf8Bom(&noBomContents));
   EXPECT_STREQ(originalContents, noBomContents);

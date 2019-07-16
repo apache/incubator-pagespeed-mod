@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
-#include "base/logging.h"
+/*
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -110,3 +110,4 @@ BENCHMARK(BM_1MStreamingFile);
 }  // namespace
 
 }  // namespace net_instaweb
+ */

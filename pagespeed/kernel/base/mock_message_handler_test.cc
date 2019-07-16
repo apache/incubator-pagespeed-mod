@@ -165,7 +165,7 @@ TEST_F(MockMessageHandlerTest, Dump) {
     StringPieceVector pieces;
     SplitStringPieceToVector(data, "\n", &pieces, true);
     for (auto p : pieces) {
-      lines.push_back(p.as_string());
+      lines.push_back(GoogleString(p));
     }
   }
 

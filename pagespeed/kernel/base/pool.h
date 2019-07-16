@@ -22,7 +22,7 @@
 #define PAGESPEED_KERNEL_BASE_POOL_H_
 #include <cstddef>
 #include <list>
-#include "base/logging.h"  // for DCHECK
+#include "glog/logging.h"  // for DCHECK
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool_element.h"
 #include "pagespeed/kernel/base/stl_util.h"
