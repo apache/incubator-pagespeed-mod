@@ -106,7 +106,7 @@ semantic_type::Category CategorizeAttributeBySpec(
       // specify "UrlValuedAttribute img data-src image".
       //
       // Also see LazyloadImagesFilter where we disable lazyloading if data-src
-      // is already present on an image.
+      // is already present on an  image.
       if (attribute_name == HtmlName::kDataSrc) {
         return semantic_type::kImage;
       }
