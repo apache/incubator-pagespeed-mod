@@ -80,7 +80,7 @@ def mod_pagespeed_dependencies():
         sha256 = "b82a964705b5f32fa7c0b2c5a78d264c710f8c293fe7e60763b3381f8ff38d42",
     )
     
-    http_archive(  
+    http_archive(
         name = "libwebp",
         url = "https://chromium.googlesource.com/webm/libwebp/+archive/refs/tags/%s.tar.gz" % LIBWEBP_COMMIT,
         build_file_content = libwebp_build_rule,
