@@ -24,7 +24,17 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/stl_util.h"
+// XXX(oschaaf): do we need this?
+// #include "base/stl_util.h"
+
+template <class ForwardIterator>
+void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
+  while (begin != end) {
+    ForwardIterator temp = begin;
+    ++begin;
+    delete *temp;
+  }
+}
 
 template<class T>
 bool STLFind(const T& collection, const typename T::value_type& value) {

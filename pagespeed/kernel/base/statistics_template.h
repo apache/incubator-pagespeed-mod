@@ -58,8 +58,8 @@ template<class Var, class UpDown, class Hist,
     if (var == NULL) {
       var = NewVariable(name);
       variables_.push_back(var);
-      variable_names_.push_back(name.as_string());
-      variable_map_[name.as_string()] = var;
+      variable_names_.push_back(GoogleString(name));
+      variable_map_[GoogleString(name)] = var;
     }
     return var;
   }
@@ -69,8 +69,8 @@ template<class Var, class UpDown, class Hist,
     if (var == NULL) {
       var = NewUpDownCounter(name);
       up_downs_.push_back(var);
-      up_down_names_.push_back(name.as_string());
-      up_down_map_[name.as_string()] = var;
+      up_down_names_.push_back(GoogleString(name));
+      up_down_map_[GoogleString(name)] = var;
     }
     return var;
   }
@@ -80,14 +80,14 @@ template<class Var, class UpDown, class Hist,
     if (var == NULL) {
       var = NewGlobalUpDownCounter(name);
       up_downs_.push_back(var);
-      up_down_names_.push_back(name.as_string());
-      up_down_map_[name.as_string()] = var;
+      up_down_names_.push_back(GoogleString(name));
+      up_down_map_[GoogleString(name)] = var;
     }
     return var;
   }
 
   virtual Var* FindVariable(const StringPiece& name) const {
-    typename VarMap::const_iterator p = variable_map_.find(name.as_string());
+    typename VarMap::const_iterator p = variable_map_.find(GoogleString(name));
     Var* var = NULL;
     if (p != variable_map_.end()) {
       var = p->second;
@@ -96,7 +96,7 @@ template<class Var, class UpDown, class Hist,
   }
 
   virtual UpDown* FindUpDownCounter(const StringPiece& name) const {
-    typename UpDownMap::const_iterator p = up_down_map_.find(name.as_string());
+    typename UpDownMap::const_iterator p = up_down_map_.find(GoogleString(name));
     UpDown* var = NULL;
     if (p != up_down_map_.end()) {
       var = p->second;
@@ -109,14 +109,14 @@ template<class Var, class UpDown, class Hist,
     if (hist == NULL) {
       hist = NewHistogram(name);
       histograms_.push_back(hist);
-      histogram_names_.push_back(name.as_string());
-      histogram_map_[name.as_string()] = hist;
+      histogram_names_.push_back(GoogleString(name));
+      histogram_map_[GoogleString(name)] = hist;
     }
     return hist;
   }
 
   virtual Hist* FindHistogram(const StringPiece& name) const {
-    typename HistMap::const_iterator p = histogram_map_.find(name.as_string());
+    typename HistMap::const_iterator p = histogram_map_.find(GoogleString(name));
     Hist* hist = NULL;
     if (p != histogram_map_.end()) {
       hist = p->second;
@@ -130,15 +130,15 @@ template<class Var, class UpDown, class Hist,
     if (timedvar == NULL) {
       timedvar = NewTimedVariable(name);
       timed_vars_.push_back(timedvar);
-      timed_var_map_[name.as_string()] = timedvar;
-      timed_var_group_map_[group.as_string()].push_back(name.as_string());
+      timed_var_map_[GoogleString(name)] = timedvar;
+      timed_var_group_map_[GoogleString(group)].push_back(GoogleString(name));
     }
     return timedvar;
   }
 
   virtual TimedVar* FindTimedVariable(const StringPiece& name) const {
     typename TimedVarMap::const_iterator p =
-        timed_var_map_.find(name.as_string());
+        timed_var_map_.find(GoogleString(name));
     TimedVar* timedvar = NULL;
     if (p != timed_var_map_.end()) {
       timedvar = p->second;

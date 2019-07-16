@@ -25,6 +25,7 @@
 namespace net_instaweb {
 
 GoogleString StackTraceString() {
+  // XXX(oschaaf): check if envoy has an equivalent of this.
   //base::debug::StackTrace trace;
   //std::ostringstream ostream;
   //trace.OutputToStream(&ostream);
