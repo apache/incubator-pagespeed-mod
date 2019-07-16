@@ -70,7 +70,11 @@ cc_library(
     ],
     includes = ["src/"],
     visibility = ["//visibility:public"],
-    copts =  ["-DHAVE_PTHREAD",],
+    copts = [
+          '-DHAVE_PTHREAD',
+          '-DGOOGLE_PROTOBUF_NO_RTTI',
+          '-DGOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+    ],
 )
 
 cc_library(
