@@ -24,6 +24,9 @@ envoy_cc_library(
         "@re2//:re2",
         "@icu//:icu",
         "@libpng//:libpng",
-        "@libwebp//:libwebp"
+        "@libwebp//:libwebp",
+        "@protobuf//:protobuf_lite",
+        "@protobuf//:protobuf_full_do_not_use",
+        "@protobuf//:protobuf_message_differencer",
     ],
 )
