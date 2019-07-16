@@ -1363,6 +1363,7 @@ TEST_F(ImageRewriteTest, ImgAmpSrcSet) {
 
   options()->EnableFilter(RewriteOptions::kRecompressPng);
   options()->AddUrlValuedAttribute("amp-img", "src", semantic_type::kImage);
+  options()->AddUrlValuedAttribute("amp-img", "srcset", semantic_type::kSrcSetImage);
   rewrite_driver()->AddFilters();
 
   ValidateExpected(
