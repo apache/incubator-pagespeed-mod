@@ -27,7 +27,7 @@
 #include <cstddef>                     // for size_t
 #include <vector>
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"

@@ -36,7 +36,8 @@ namespace {
 const int kBufferSize = 10;
 const char kPrefix[] = "/prefix/";
 const char kPostfix[] = "postfix";
-const char kString[] = "012";
+// XXX(oschaaf): unused?
+//const char kString[] = "012";
 }  // namespace
 
 SharedCircularBufferTestBase::SharedCircularBufferTestBase(

@@ -104,7 +104,7 @@ class SharedMemStatisticsTestTemplate : public SharedMemStatisticsTestBase {
   }
 };
 
-TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate);
 
 TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestCreate) {
   SharedMemStatisticsTestBase::TestCreate();
@@ -146,7 +146,7 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
   SharedMemStatisticsTestBase::TestTimedVariableEmulation();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate, TestCreate,
+REGISTER_TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate, TestCreate,
                            TestSet, TestClear, TestAdd,
                            TestSetReturningPrevious,
                            TestHistogram, TestHistogramRender,

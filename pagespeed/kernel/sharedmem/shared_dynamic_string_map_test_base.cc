@@ -24,7 +24,7 @@
 #include <cstddef>
 #include <cstdlib>
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"

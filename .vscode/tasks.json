@@ -16,7 +16,7 @@
             }
         },
         {
-            "label": "test",
+            "label": "test-all",
             "type": "shell",
             "command": "bazel test -c dbg //...",
             "problemMatcher": [
@@ -26,6 +26,90 @@
                 "kind": "test",
                 "isDefault": true
             }
-        }
+        },
+        {
+            "label": "test-base",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/base/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-cache",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/cache/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-html",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/html/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-http",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/http/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-sharedmem",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/sharedmem/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-thread",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/thread/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-util",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/util/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
     ]
 }

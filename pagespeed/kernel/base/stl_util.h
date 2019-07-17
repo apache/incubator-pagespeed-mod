@@ -49,4 +49,17 @@ void STLDeleteElements(T *container) {
   container->clear();
 }
 
+template <typename T>
+void STLDeleteValues(T* container) {
+  if (!container) return;
+  auto it = container->begin();
+  while (it != container->end()) {
+    auto temp = it;
+    ++it;
+    delete temp->second;
+  }
+  container->clear();
+}
+
+
 #endif  // PAGESPEED_KERNEL_BASE_STL_UTIL_H_

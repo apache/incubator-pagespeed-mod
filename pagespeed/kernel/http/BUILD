@@ -11,15 +11,12 @@ load(
 envoy_package()
 
 envoy_cc_library(
-    name = "util",
+    name = "http",
     srcs = [
-        "statistics_logger.cc",
-        #"url_to_filename_encoder.cc",
+        #"google_url.cc",
     ],
     hdrs = [
-        "statistics_logger.h",
-        "url_to_filename_encoder.h",
-        "platform.h",
+        #"google_url.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
@@ -27,33 +24,30 @@ envoy_cc_library(
     deps = [
         "@glog",
         "//pagespeed/kernel/base:pagespeed_base",
-        "//pagespeed/kernel/html:html",
-        "//pagespeed/kernel/http:http",
+        #"@url//:url",
     ],
 )
 
 envoy_cc_test_library (
-    name = "util_test_base",
+    name = "http_test_base",
     srcs = [
-        "simple_stats.cc",
     ],
     hdrs = [
-        "simple_stats.h",
     ],
     repository = "@envoy",
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
-        ":util",
+        ":http",
     ]
 )
 
 envoy_cc_test(
-    name = "util_test",
+    name = "http_test",
     repository = "@envoy",
     copts = ["-Wno-error=unused-private-field", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
-        ":util",
+        ":http",
         "//pagespeed/kernel/base:pagespeed_gtest",
-        ":util_test_base"
+        ":http_test_base"
     ],
 )

@@ -29,9 +29,9 @@
 #include "pagespeed/kernel/base/string_util.h"
 
 
-#include "third_party/chromium/src/googleurl/src/gurl.h"
-#include "third_party/chromium/src/googleurl/src/url_parse.h"
-#include "third_party/chromium/src/googleurl/src/url_util.h"
+#include "url/gurl.h"
+#include "url/url_parse.h"
+#include "url/url_util.h"
 
 namespace net_instaweb {
 

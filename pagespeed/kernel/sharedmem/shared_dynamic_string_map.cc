@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/sharedmem/shared_dynamic_string_map.h"
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/rolling_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -33,7 +33,9 @@ namespace {
 
 const int kTableFactor = 2;
 const char kSharedDynamicStringMapSegmentName[] = "SharedDynamicStringMap";
-const size_t kPointerSize = sizeof(char*); // NOLINT
+
+// XXX(oschaaf): not used
+//const size_t kPointerSize = sizeof(char*); // NOLINT
 const size_t kOffsetSize = sizeof(size_t); // NOLINT
 const size_t kIntSize = sizeof(int); // NOLINT
 const size_t kEntrySize = sizeof(Entry); // NOLINT

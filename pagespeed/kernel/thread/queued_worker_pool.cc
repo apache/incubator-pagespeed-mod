@@ -24,7 +24,7 @@
 #include <set>
 #include <vector>
 
-#include "base/logging.h"
+#include "glog/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/function.h"
@@ -56,7 +56,7 @@ QueuedWorkerPool::QueuedWorkerPool(
       shutdown_(false),
       queue_size_(NULL),
       load_shedding_threshold_(kNoLoadShedding) {
-  thread_name_base.CopyToString(&thread_name_base_);
+  thread_name_base_ = GoogleString(thread_name_base);
 }
 
 QueuedWorkerPool::~QueuedWorkerPool() {
