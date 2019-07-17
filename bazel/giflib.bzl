@@ -11,7 +11,6 @@ cc_library(
         'lib/gif_lib_private.h',
         'lib/gif_hash.h',
     ],
-    
     visibility = ["//visibility:public"],
 )
 
