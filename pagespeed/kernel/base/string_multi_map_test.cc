@@ -28,7 +28,7 @@
 
 namespace {
 
-const char kQueryString[] = "a=1&b&c=2&d=&a=3";
+//const char kQueryString[] = "a=1&b&c=2&d=&a=3";
 
 }  // namespace
 
@@ -214,7 +214,7 @@ TEST_F(StringMultiMapStartEmptyTest, TestAddEmpty) {
   // key having the same address.
   StringPiece empty;
   GoogleString empty_string;
-  empty.CopyToString(&empty_string);
+  empty_string = GoogleString(empty);
   string_map_.Add(empty_string, "100");
   string_map_.Add(empty_string, "200");
   ASSERT_EQ(1, string_map_.num_names());

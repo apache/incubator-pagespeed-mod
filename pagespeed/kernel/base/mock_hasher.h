@@ -28,8 +28,6 @@
 
 namespace net_instaweb {
 
-static const int32 kint32max = 0x7FFFFFFF;
-
 
 class MockHasher : public Hasher {
  public:

@@ -267,7 +267,7 @@ template<class StringCompare> class StringMultiMap {
     // However, the persistent entry we put in the map must duplicate
     // the key into key_storage and change key to point to that.
     void SaveKey() {
-      key_storage_.append(GoogleString(key));
+      key_storage_.append(GoogleString(key_));
       key_ = key_storage_;
     }
 

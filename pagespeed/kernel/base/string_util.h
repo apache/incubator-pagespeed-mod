@@ -44,6 +44,9 @@
 #include <cstdlib> // NOLINT
 #include <string>  // NOLINT
 
+static const int32 kint32max = 0x7FFFFFFF;
+static const int32 kint32min = -kint32max - 1;
+
 typedef absl::string_view StringPiece;
 using namespace absl;
 

@@ -165,7 +165,7 @@ envoy_cc_library(
         "pool_element.h",
         #"proto_matcher_impl.h",
         #"proto_util.h",
-        #"string_multi_map.h"
+        "string_multi_map.h"
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
@@ -265,12 +265,12 @@ envoy_cc_test(
         "ref_counted_ptr_test.cc",
         "rolling_hash_test.cc",
         "shared_string_test.cc",
-        #"source_map_test.cc",
+        "source_map_test.cc",
         #"split_statistics_test.cc",
         "split_writer_test.cc",
         "stdio_file_system_test.cc",
         "string_multi_map_speed_test.cc",
-        #"string_multi_map_test.cc",
+        "string_multi_map_test.cc",
     ],
     repository = "@envoy",
     copts = ["-Wno-error=unused-private-field", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
