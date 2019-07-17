@@ -102,6 +102,7 @@ class HtmlName {
     kDataPagespeedSize,
     kDataPagespeedUrlHash,
     kDataSrc,
+    kDataSrcset,
     kDd,
     kDeclare,
     kDefaultchecked,
