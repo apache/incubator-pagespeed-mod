@@ -28,5 +28,8 @@ envoy_cc_library(
         "@protobuf//:protobuf_lite",
         "@protobuf//:protobuf_full_do_not_use",
         "@protobuf//:protobuf_message_differencer",
+        "@giflib//:giflib_core",
+        "@giflib//:dgiflib",
+        "@giflib//:egiflib",
     ],
 )
