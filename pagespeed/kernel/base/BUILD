@@ -88,6 +88,17 @@ envoy_cc_library(
     ],
 )
 
+proto_library(
+    name = "proto_matcher_test_proto",
+    srcs = ["proto_matcher_test.proto"],
+)
+
+cc_proto_library(
+    name = "proto_matcher_test_proto_cc",
+    deps = [":proto_matcher_test_proto"],
+)
+
+
 envoy_cc_library(
     name = "pagespeed_base",
     srcs = [
@@ -163,8 +174,8 @@ envoy_cc_library(
         "inline_slist.h",
         "pool.h",
         "pool_element.h",
-        #"proto_matcher_impl.h",
-        #"proto_util.h",
+        "proto_matcher_impl.h",
+        "proto_util.h",
         "string_multi_map.h"
     ],
     repository = "@envoy",
@@ -174,6 +185,7 @@ envoy_cc_library(
         ":pagespeed_base_core",
         "//third_party/base64:base64",
         "@jsoncpp//:jsoncpp",
+        ":proto_matcher_test_proto_cc"
     ],
 )
 
@@ -261,7 +273,7 @@ envoy_cc_test(
         "mock_message_handler_test.cc",
         "mock_timer_test.cc",
         "pool_test.cc",
-        #"proto_matcher_test.cc",
+        "proto_matcher_test.cc",
         "ref_counted_ptr_test.cc",
         "rolling_hash_test.cc",
         "shared_string_test.cc",
