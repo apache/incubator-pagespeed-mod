@@ -6,6 +6,7 @@ load(":icu.bzl", "icu_build_rule")
 load(":libpng.bzl", "libpng_build_rule")
 load(":libwebp.bzl", "libwebp_build_rule")
 load(":protobuf.bzl", "protobuf_build_rule")
+load(":giflib.bzl", "giflib_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -17,6 +18,7 @@ ICU_COMMIT = "46a834e2ebcd7c5b60f49350a166d8b9e4a24c0e"
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
 LIBWEBP_COMMIT = "v0.6.1"
 PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
+GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -94,4 +96,12 @@ def mod_pagespeed_dependencies():
         url = "https://github.com/protocolbuffers/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
         build_file_content = protobuf_build_rule,
         sha256 = "c8d3fde0c3f4c5958f31f501f84d4d313f0577609aabce2ab6f58da2e4c6fbbc",
+    )
+
+    http_archive(
+        name = "giflib",
+        strip_prefix = "giflib-mirror-%s" % GIFLIB_COMMIT,
+        url = "https://github.com/We-Amp/giflib-mirror/archive/%s.tar.gz" % GIFLIB_COMMIT,
+        build_file_content = giflib_build_rule,
+        sha256 = "90452882419956d8005b0b6cc51e02488e3016e809431d794f42ab1173a5df02",
     )
