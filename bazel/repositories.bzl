@@ -6,6 +6,7 @@ load(":icu.bzl", "icu_build_rule")
 load(":libpng.bzl", "libpng_build_rule")
 load(":libwebp.bzl", "libwebp_build_rule")
 load(":google_sparsehash.bzl", "google_sparsehash_build_rule")
+load(":protobuf.bzl", "protobuf_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -19,6 +20,7 @@ LIBWEBP_COMMIT = "v0.6.1"
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
 GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
+PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -113,3 +115,10 @@ def mod_pagespeed_dependencies():
         sha256 = "b20f58e7f210ceb0e768eb1476073d0748af9b19dfbbf53f4fd16e3fb49c5ac8",
     )
 
+    http_archive(
+        name = "protobuf",
+        strip_prefix = "protobuf-%s" % PROTOBUF_COMMIT,
+        url = "https://github.com/protocolbuffers/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
+        build_file_content = protobuf_build_rule,
+        sha256 = "c8d3fde0c3f4c5958f31f501f84d4d313f0577609aabce2ab6f58da2e4c6fbbc",
+    )
