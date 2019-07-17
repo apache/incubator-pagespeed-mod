@@ -10,10 +10,18 @@ load(
 
 envoy_package()
 
+genrule(
+    name = "html_name_gperf",
+    srcs = ["html_name.gperf"],
+    outs = ["html_name.gp.cc"],
+    cmd = ("gperf -m10 $< > $@"),
+)
+
 envoy_cc_library(
     name = "html",
     srcs = [
         "html_keywords.cc",
+        ":html_name_gperf",
     ],
     hdrs = [
         "html_keywords.h",
@@ -21,11 +29,15 @@ envoy_cc_library(
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
-    copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
+    copts = [
+        "-Wno-error=old-style-cast",
+        "-Wno-error=missing-field-initializers",
+        "-Wno-error=unused-parameter"],
     deps = [
         "@glog",
+        "@mod_pagespeed//base:log_shim",
         "//pagespeed/kernel/base:pagespeed_base",
-        "//net/instaweb/genfiles:htmlparse",
+#        "//net/instaweb/genfiles:htmlparse",
     ],
 )
 

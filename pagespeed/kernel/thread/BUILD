@@ -22,6 +22,10 @@ envoy_cc_library(
         "scheduler_sequence.cc",
         "queued_worker.cc",
         "pthread_shared_mem.cc",
+        "pthread_thread_system.cc",
+        "pthread_mutex.cc",
+        "pthread_condvar.cc",
+        "pthread_rw_lock.cc",
     ],
     hdrs = [
         "slow_worker.h",
@@ -33,12 +37,17 @@ envoy_cc_library(
         "scheduler_sequence.h",
         "queued_worker.h",
         "pthread_shared_mem.h",
+        "pthread_thread_system.h",
+        "pthread_mutex.h",
+        "pthread_condvar.h",
+        "pthread_rw_lock.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
         "@glog",
+        "@mod_pagespeed//base:log_shim",
         "//pagespeed/kernel/base:pagespeed_base",
     ],
 )

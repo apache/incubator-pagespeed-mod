@@ -15,6 +15,7 @@ envoy_cc_library(
     srcs = [
         "statistics_logger.cc",
         #"url_to_filename_encoder.cc",
+        "platform.cc",
     ],
     hdrs = [
         "statistics_logger.h",
@@ -29,6 +30,7 @@ envoy_cc_library(
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/html:html",
         "//pagespeed/kernel/http:http",
+        "//pagespeed/kernel/thread:thread",
     ],
 )
 
