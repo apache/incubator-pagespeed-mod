@@ -7,6 +7,7 @@ load(":libpng.bzl", "libpng_build_rule")
 load(":libwebp.bzl", "libwebp_build_rule")
 load(":protobuf.bzl", "protobuf_build_rule")
 load(":giflib.bzl", "giflib_build_rule")
+load(":optipng.bzl", "optipng_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -19,6 +20,7 @@ LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
 LIBWEBP_COMMIT = "v0.6.1"
 PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
 GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
+OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -104,4 +106,12 @@ def mod_pagespeed_dependencies():
         url = "https://github.com/We-Amp/giflib-mirror/archive/%s.tar.gz" % GIFLIB_COMMIT,
         build_file_content = giflib_build_rule,
         sha256 = "90452882419956d8005b0b6cc51e02488e3016e809431d794f42ab1173a5df02",
+    )
+
+    http_archive(
+        name = "optipng",
+        strip_prefix = "incubator-pagespeed-optipng-%s" % OPTIPNG_COMMIT,
+        url = "https://github.com/apache/incubator-pagespeed-optipng/archive/%s.tar.gz" % OPTIPNG_COMMIT,
+        build_file_content = optipng_build_rule,
+        sha256 = "e7e937b8c3085ca82389018fcb6a8bf3cb4ba2556921826e634614e1c7e0edd2",
     )
