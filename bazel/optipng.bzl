@@ -7,6 +7,7 @@ cc_library(
     hdrs = [
         "src/opngreduc/opngreduc.h"
     ],
+    # NOTE:export_dependent_settings not included.
     deps = ["@libpng//:libpng",],
     visibility = ["//visibility:public"],
 )
