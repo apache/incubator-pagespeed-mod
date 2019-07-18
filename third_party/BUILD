@@ -31,5 +31,6 @@ envoy_cc_library(
         "@giflib//:giflib_core",
         "@giflib//:dgiflib",
         "@giflib//:egiflib",
+        "@optipng//:opngreduc",
     ],
 )
