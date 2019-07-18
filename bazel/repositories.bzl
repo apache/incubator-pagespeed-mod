@@ -21,7 +21,7 @@ LIBWEBP_COMMIT = "v0.6.1"
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
 GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
-PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
+PROTOBUF_COMMIT = "6a59a2ad1f61d9696092f79b6d74368b4d7970a3"
 GURL_COMMIT = "77.0.3855.1"
 
 def mod_pagespeed_dependencies():
@@ -122,12 +122,12 @@ def mod_pagespeed_dependencies():
         strip_prefix = "protobuf-%s" % PROTOBUF_COMMIT,
         url = "https://github.com/protocolbuffers/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
         build_file_content = protobuf_build_rule,
-        sha256 = "c8d3fde0c3f4c5958f31f501f84d4d313f0577609aabce2ab6f58da2e4c6fbbc",
+        sha256 = "69d4d1fa02eab7c6838c8f11571cfd5509afa661b3944b3f7d24fef79a18d49d",
     )
 
     http_archive(
         name = "url",
         url = "https://chromium.googlesource.com/chromium/src/+archive/refs/tags/%s/url.tar.gz" % GURL_COMMIT,
         build_file_content = gurl_build_rule,
-        sha256 = "642891ab55b707dc20ee50389ee857359c47b29a96517208cabd85481a8369b5",
+        sha256 = "",
     )
