@@ -22,6 +22,8 @@
 #ifndef PAGESPEED_KERNEL_HTTP_GOOGLE_URL_H_
 #define PAGESPEED_KERNEL_HTTP_GOOGLE_URL_H_
 
+#ifdef notdef
+
 #include <cstddef>
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -290,5 +292,6 @@ class GoogleUrl {
 
 }  // namespace net_instaweb
 
+#endif//notdef
 
 #endif  // PAGESPEED_KERNEL_HTTP_GOOGLE_URL_H_

@@ -27,8 +27,8 @@
 #include "zlib.h"  // NOLINT
 #include "zconf.h"  // NOLINT
 #else
-#include "third_party/zlib/src/zlib.h"
-#include "third_party/zlib/src/zconf.h"
+#include "external/zlib/zlib.h"
+#include "external/zlib/zconf.h"
 #endif
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
@@ -52,12 +52,12 @@ struct ZlibSnapshot {
   Bytef* const next_in;
 };
 
-bool IsValidZlibStreamHeaderByte(uint8 first_byte) {
+bool IsValidZlibStreamHeaderByte(uint8_t first_byte) {
   // The first byte of a zlib stream contains the compression method
   // and the compression info. See http://www.ietf.org/rfc/rfc1950.txt
   // for more details.
-  const uint8 compression_method = first_byte & 0xf;
-  const uint8 compression_info = first_byte >> 4;
+  const uint8_t compression_method = first_byte & 0xf;
+  const uint8_t compression_info = first_byte >> 4;
   // Zlib RFC states that compression method must be 8, and that
   // compression info must be 7 or less. If either of these does not
   // hold, we do not have a valid zlib stream.
@@ -184,7 +184,7 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
 
   if (format_ == FORMAT_ZLIB_STREAM &&
       zlib_->total_in == 0 &&
-      !IsValidZlibStreamHeaderByte(static_cast<const uint8*>(in)[0])) {
+      !IsValidZlibStreamHeaderByte(static_cast<const uint8_t*>(in)[0])) {
     // Special case: Content-Encoding: deflate can sometimes be zlib
     // stream and sometimes be raw deflate. The header byte is not a
     // valid zlib stream header byte, so try to decode as raw deflate

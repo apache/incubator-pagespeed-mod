@@ -71,8 +71,9 @@ class SchedulerTest : public WorkerTestBase {
 
 namespace {
 
-const int64 kDsUs = Timer::kSecondUs / 10;
-const int64 kYearUs = Timer::kYearMs * Timer::kMsUs;
+// XXX(oschaaf): unused
+//const int64 kDsUs = Timer::kSecondUs / 10;
+//const int64 kYearUs = Timer::kYearMs * Timer::kMsUs;
 
 TEST_F(SchedulerTest, AlarmsGetRun) {
   int64 start_us = timer_->NowUs();

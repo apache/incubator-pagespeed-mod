@@ -22,8 +22,7 @@
 #ifndef PAGESPEED_KERNEL_BASE_BENCHMARK_H_
 #define PAGESPEED_KERNEL_BASE_BENCHMARK_H_
 
-/*
-#include "third_party/re2/src/util/benchmark.h"
+#include "external/re2/util/benchmark.h"
 
 #undef BENCHMARK
 #define BENCHMARK(f) \
@@ -36,5 +35,4 @@
         (new ::testing::Benchmark(#f, f, lo, hi))->ThreadRange(1, 1)
 
 
- */
 #endif  // PAGESPEED_KERNEL_BASE_BENCHMARK_H_

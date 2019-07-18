@@ -199,7 +199,7 @@ envoy_cc_test_library(
     repository = "@envoy",
     deps = [
         ":pagespeed_base_core",
-        "@com_google_googletest//:gtest"
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -212,6 +212,8 @@ envoy_cc_test_library (
             "mock_timer.h",
             'mem_file_system.h',        
             "null_thread_system.h",
+            "benchmark.h",
+            "named_lock_tester.h",
         ],
     srcs = 
         [
@@ -220,36 +222,21 @@ envoy_cc_test_library (
             "mock_message_handler.cc",
             "mock_timer.cc",
             'mem_file_system.cc',
-            "null_thread_system.cc",
+            "null_thread_system.cc"
         ],
     repository = "@envoy",
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
-        ":pagespeed_base_core", ":pagespeed_base", ":pagespeed_gtest"
+        ":pagespeed_base_core",
+        ":pagespeed_base",
+        ":pagespeed_gtest",
+
     ]
 )
 
-envoy_cc_test(
-    name = "pagespeed_base_core_test",
-    srcs = [
-        "annotated_message_handler_test.cc",
-        "message_handler_test.cc",
-        "string_util_test.cc",
-        "symbol_table_test.cc",
-        "null_statistics_test.cc",
-        "time_util_test.cc",
-    ],
-    repository = "@envoy",
-    copts = ["-Wno-error=unused-private-field", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
-    deps = [
-        ":pagespeed_base_core",
-        ":pagespeed_gtest",
-        ":kernel_test_util"
-    ],
-)
 
 envoy_cc_test(
-    name = "pagespeed_base_test",
+    name = "base_test",
     srcs = [
         "annotated_message_handler_test.cc",
         "message_handler_test.cc",

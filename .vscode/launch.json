@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "preLaunchTask": "",
-            "program": "${workspaceRoot}/bazel-bin/pagespeed/kernel/base/pagespeed_base_core_test",
+            "program": "${workspaceRoot}/bazel-bin/pagespeed/kernel/base/base_test",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -16,7 +16,7 @@ envoy_cc_library(
         #"google_url.cc",
     ],
     hdrs = [
-        #"google_url.h",
+        "google_url.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],

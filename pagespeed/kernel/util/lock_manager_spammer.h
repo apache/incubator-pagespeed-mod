@@ -93,7 +93,7 @@ class LockManagerSpammer : public ThreadSystem::Thread {
   ThreadSafeLockManager* lock_manager_;
   bool expecting_denials_;
   bool delay_unlocks_;
-  int index_;
+  //int index_;
   int num_iters_;
   int num_names_;
   scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;

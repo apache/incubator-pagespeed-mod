@@ -13,7 +13,7 @@ envoy_package()
 envoy_cc_library(
     name = "cache",
     srcs = [
-        "file_cache.cc",
+        #"file_cache.cc",
     ],
     hdrs = [
         "file_cache.h",
@@ -50,7 +50,7 @@ envoy_cc_test_library (
 envoy_cc_test(
     name = "cache_test",
     repository = "@envoy",
-    copts = ["-Wno-error=unused-private-field", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
+    copts = ["-Wno-error=unused-parameter"],
     deps = [
         ":cache",
         ":cache_test_base"

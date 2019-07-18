@@ -26,6 +26,8 @@ envoy_cc_library(
         "pthread_mutex.cc",
         "pthread_condvar.cc",
         "pthread_rw_lock.cc",
+        "queued_alarm.cc",
+        "scheduler_thread.cc",
     ],
     hdrs = [
         "slow_worker.h",
@@ -41,6 +43,8 @@ envoy_cc_library(
         "pthread_mutex.h",
         "pthread_condvar.h",
         "pthread_rw_lock.h",
+        "queued_alarm.h",
+        "scheduler_thread.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
@@ -56,9 +60,16 @@ envoy_cc_test_library (
     name = "thread_test_base",
     srcs = [
         "mock_scheduler.cc",
+        "thread_synchronizer.cc",
+        "thread_system_test_base.cc",
+        "worker_test_base.cc",
     ],
     hdrs = [
         "mock_scheduler.h",
+        "thread_synchronizer.h",
+        "thread_system_test_base.h",
+        "worker_test_base.h",
+        "condvar_test_base.h",
     ],
     repository = "@envoy",
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
@@ -66,12 +77,14 @@ envoy_cc_test_library (
         ":thread",
         "//pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/base:pagespeed_gtest",
+        "//pagespeed/kernel/util:util",
     ]
 )
 
 envoy_cc_test(
     name = "thread_test",
     repository = "@envoy",
+    srcs = glob(["*_test.cc"]),
     copts = ["-Wno-error=unused-private-field", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
         ":thread_test_base"

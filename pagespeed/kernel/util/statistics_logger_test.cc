@@ -413,7 +413,7 @@ TEST_F(StatisticsLoggerTest, FromStats) {
   SplitStringPieceToVector(logger_output, "\n", &lines, true);
   ASSERT_LE(2, lines.size());
   EXPECT_EQ("timestamp: 1270493486000", lines[0]);
-  for (int i = 1; i < lines.size(); ++i) {
+  for (uint32_t i = 1; i < lines.size(); ++i) {
     std::vector<StringPiece> parts;
     SplitStringPieceToVector(lines[i], ":", &parts, false);
     ASSERT_EQ(2, parts.size()) << lines[i];
