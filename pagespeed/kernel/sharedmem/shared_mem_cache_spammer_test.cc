@@ -22,7 +22,7 @@
 
 #include "pagespeed/kernel/sharedmem/shared_mem_cache.h"
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"

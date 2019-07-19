@@ -34,7 +34,7 @@ envoy_cc_library(
     visibility = ["//visibility:public"],
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
-        "@glog",
+        "//gurl:url",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/cache:cache",
         "//pagespeed/kernel/util:util",

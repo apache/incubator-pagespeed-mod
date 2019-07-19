@@ -24,7 +24,7 @@
 #include <vector>
 #include <cstddef>
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {

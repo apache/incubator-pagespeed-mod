@@ -26,7 +26,7 @@
 
 #include <vector>
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"

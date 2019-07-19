@@ -328,7 +328,7 @@ class HtmlParseTestNoBodyNoHtml : public HtmlParseTestNoBody {
       html_parse()->set_size_limit(i);
       html_parse()->StartParse("http://test.com/in.html");
       // Flush after every character.
-      for (int j = 0; j < input.size(); ++j) {
+      for (uint32_t j = 0; j < input.size(); ++j) {
         GoogleString x;
         x.push_back(input[j]);
         html_parse()->ParseText(StringPiece(x));
@@ -1212,7 +1212,7 @@ class Bool {
  public:
   Bool() : value_(false) {}
   Bool(bool value) : value_(value) {}  // Copy constructor // NOLINT
-  const bool Test() const { return value_; }
+  bool Test() const { return value_; }
 
  private:
   bool value_;

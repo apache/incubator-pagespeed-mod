@@ -25,7 +25,7 @@
 
 #include <memory>
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/string.h"

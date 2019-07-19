@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/base/hasher.h"
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {

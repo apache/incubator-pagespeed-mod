@@ -22,7 +22,7 @@
 
 #include "pagespeed/kernel/thread/queued_worker.h"
 
-#include "glog/logging.h"
+#include "base/logging.h"
 
 namespace net_instaweb {
 

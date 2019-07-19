@@ -8,6 +8,8 @@ load(":libwebp.bzl", "libwebp_build_rule")
 load(":google_sparsehash.bzl", "google_sparsehash_build_rule")
 load(":protobuf.bzl", "protobuf_build_rule")
 load(":gurl.bzl", "gurl_build_rule")
+load(":drp.bzl", "drp_build_rule")
+
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -23,6 +25,7 @@ GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
 GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
 PROTOBUF_COMMIT = "6a59a2ad1f61d9696092f79b6d74368b4d7970a3"
 GURL_COMMIT = "77.0.3855.1"
+DRP_COMMIT = "f353346a9087538cd8e30a04b51e3f961c4a8fd8"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -380,3 +383,14 @@ cc_binary(
         build_file_content = gurl_build_rule,
         sha256 = "",
     )
+
+
+    http_archive(
+        name = "drp",
+        url = "https://github.com/apache/incubator-pagespeed-drp/archive/%s.tar.gz" % DRP_COMMIT,
+        build_file_content = drp_build_rule,
+        strip_prefix = "incubator-pagespeed-drp-%s" % DRP_COMMIT,
+        sha256 = "",
+    )
+
+    

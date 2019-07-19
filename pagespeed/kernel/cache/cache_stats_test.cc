@@ -41,8 +41,8 @@
 
 namespace {
 const int kMaxSize = 100;
-const int kNumThreads = 4;
-const int kNumInserts = 10;
+//const int kNumThreads = 4;
+//const int kNumInserts = 10;
 }
 
 namespace net_instaweb {

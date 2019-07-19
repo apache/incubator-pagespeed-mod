@@ -41,7 +41,7 @@
 #endif  // HOST_NAME_MAX
 #endif  // WIN32
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 

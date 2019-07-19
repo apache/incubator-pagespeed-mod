@@ -24,7 +24,7 @@
 #include <map>
 #include <utility>
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/file_system.h"

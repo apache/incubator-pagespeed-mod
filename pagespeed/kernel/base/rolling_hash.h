@@ -21,7 +21,7 @@
 #define PAGESPEED_KERNEL_BASE_ROLLING_HASH_H_
 
 #include <cstddef>
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {

@@ -22,7 +22,7 @@
 
 #include <vector>
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/timer.h"

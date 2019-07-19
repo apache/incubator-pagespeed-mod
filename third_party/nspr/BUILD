@@ -12,6 +12,6 @@ cc_library(
         "prtime.h",
     ],
     visibility = ["//visibility:public"],
-    deps = ["@glog"]
+    deps = ["//gurl:url"]
 )
 

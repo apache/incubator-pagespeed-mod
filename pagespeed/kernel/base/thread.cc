@@ -21,7 +21,7 @@
 // Implementation of the Thread class, which routes things to an underlying
 // ThreadImpl.
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread.h"

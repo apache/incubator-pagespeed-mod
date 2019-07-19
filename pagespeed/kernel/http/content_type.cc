@@ -260,7 +260,7 @@ bool ParseContentType(const StringPiece& content_type_str,
   if (semi_split.size() == 0) {
     return false;
   }
-  semi_split[0].CopyToString(mime_type);
+  *mime_type = GoogleString(semi_split[0]);
   for (int i = 1, n = semi_split.size(); i < n; ++i) {
     StringPieceVector eq_split;
     SplitStringPieceToVector(semi_split[i], "=", &eq_split, false);
@@ -268,7 +268,7 @@ bool ParseContentType(const StringPiece& content_type_str,
       TrimWhitespace(&eq_split[0]);
       if (StringCaseEqual(eq_split[0], "charset")) {
         TrimWhitespace(&eq_split[1]);
-        eq_split[1].CopyToString(charset);
+        *charset = GoogleString(eq_split[1]);
         break;
       }
     }

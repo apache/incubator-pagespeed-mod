@@ -21,7 +21,7 @@
 
 #include <vector>
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/condvar.h"
 //#include "pagespeed/kernel/base/dynamic_annotations.h"

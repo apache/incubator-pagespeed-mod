@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/atomic_int32.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/stl_util.h"

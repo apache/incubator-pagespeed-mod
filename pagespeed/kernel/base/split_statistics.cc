@@ -21,7 +21,7 @@
 
 #include "pagespeed/kernel/base/split_statistics.h"
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/thread_system.h"

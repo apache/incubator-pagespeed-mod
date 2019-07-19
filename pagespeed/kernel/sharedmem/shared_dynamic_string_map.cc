@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/sharedmem/shared_dynamic_string_map.h"
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/rolling_hash.h"
 #include "pagespeed/kernel/base/string_util.h"

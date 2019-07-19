@@ -31,7 +31,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 
 
 namespace net_instaweb {

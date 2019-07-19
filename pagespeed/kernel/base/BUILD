@@ -75,6 +75,7 @@ envoy_cc_library(
         "stack_buffer.h",
         "dense_hash_map.h",
         "sparse_hash_map.h",
+        "rde_hash_map.h",
         "scoped_ptr.h",
         #"dynamic_annotations.h",
         "vector_deque.h",
@@ -85,8 +86,9 @@ envoy_cc_library(
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
         "@google_sparsehash",
-        "@glog",
+        "//gurl:url",
         "//third_party/nspr:prtime",
+        "@mod_pagespeed//base:log_shim",
         #"//pagespeed/kernel/sharedmem:shared_mem",
         #"//pagespeed/kernel/util:util",
     ],
@@ -102,7 +104,6 @@ cc_proto_library(
     deps = [":proto_matcher_test_proto"],
 )
 
-
 envoy_cc_library(
     name = "pagespeed_base",
     srcs = [
@@ -114,6 +115,7 @@ envoy_cc_library(
         'condvar.cc',
         'countdown_timer.cc',
         'escaping.cc',
+        "wildcard_group.cc",
         'fast_wildcard_group.cc',
         'file_writer.cc',
         'function.cc',
@@ -157,6 +159,7 @@ envoy_cc_library(
         "chunking_writer.h",
         "posix_timer.h",
         "hostname_util.h",
+        "wildcard_group.h",
         "fast_wildcard_group.h",
         "function.h",
         "countdown_timer.h",
@@ -212,7 +215,6 @@ envoy_cc_test_library (
             "mock_timer.h",
             'mem_file_system.h',        
             "null_thread_system.h",
-            "benchmark.h",
             "named_lock_tester.h",
         ],
     srcs = 
@@ -230,56 +232,38 @@ envoy_cc_test_library (
         ":pagespeed_base_core",
         ":pagespeed_base",
         ":pagespeed_gtest",
+        ":benchmark",
+        "//pagespeed/kernel/util:util",
+    ]
+)
 
+
+envoy_cc_test_library (
+    name = "benchmark",
+    hdrs = [
+            "benchmark.h",
+        ],
+    srcs = 
+        [
+        ],
+    repository = "@envoy",
+    copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
+    deps = [
+        "@re2//:benchmark"
     ]
 )
 
 
 envoy_cc_test(
     name = "base_test",
-    srcs = [
-        "annotated_message_handler_test.cc",
-        "message_handler_test.cc",
-        "string_util_test.cc",
-        "symbol_table_test.cc",
-        "null_statistics_test.cc",
-        "time_util_test.cc",
-        "charset_util_test.cc",
-        "arena_test.cc",
-        "base64_test.cc",
-        "callback_test.cc",
-        "chunking_writer_test.cc",
-        "circular_buffer_test.cc",
-        "countdown_timer_test.cc",
-        "fast_wildcard_group_test.cc",
-        "fast_wildcard_group_speed_test.cc",
-        "file_system_speed_test.cc",
-        "function_test.cc",
-        "hasher_test.cc",
-        "hostname_util_test.cc",
-        "inline_slist_test.cc",
-        "md5_hasher_test.cc",
-        "mem_file_system_test.cc",
-        "mock_message_handler_test.cc",
-        "mock_timer_test.cc",
-        "pool_test.cc",
-        "proto_matcher_test.cc",
-        "ref_counted_ptr_test.cc",
-        "rolling_hash_test.cc",
-        "shared_string_test.cc",
-        "source_map_test.cc",
-        #"split_statistics_test.cc",
-        "split_writer_test.cc",
-        "stdio_file_system_test.cc",
-        "string_multi_map_speed_test.cc",
-        "string_multi_map_test.cc",
-    ],
+    srcs = glob(["*_test.cc"]),
     repository = "@envoy",
     copts = ["-Wno-error=unused-private-field", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
         ":pagespeed_base",
         ":pagespeed_gtest",
-        ":kernel_test_util"
+        ":kernel_test_util",
+        "//pagespeed/kernel/sharedmem:shared_mem"
     ],
 )
 

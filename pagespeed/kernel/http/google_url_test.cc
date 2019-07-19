@@ -463,11 +463,11 @@ TEST_F(GoogleUrlTest, RelativeUrls) {
     "//example.com/foo.html",
   };
 
-  for (int i = 0; i < arraysize(reproducible_urls); ++i) {
+  for (uint32_t i = 0; i < arraysize(reproducible_urls); ++i) {
     UrlRelativity url_relativity =
         GoogleUrl::FindRelativity(reproducible_urls[i]);
 
-    for (int j = 0; j < arraysize(base_urls); ++j) {
+    for (uint32_t j = 0; j < arraysize(base_urls); ++j) {
       GoogleUrl base(base_urls[j]);
       GoogleUrl url(base, reproducible_urls[i]);
       EXPECT_EQ(reproducible_urls[i], url.Relativize(url_relativity, base));
@@ -498,11 +498,11 @@ TEST_F(GoogleUrlTest, RelativeUrls) {
     { ".",
       "", "https://example.com/foo/bar/", "file:///dir/sub/", "", },
   };
-  for (int i = 0; i < arraysize(non_reproducible_urls); ++i) {
+  for (uint32_t i = 0; i < arraysize(non_reproducible_urls); ++i) {
     StringPiece in_url = non_reproducible_urls[i][0];
     UrlRelativity url_relativity = GoogleUrl::FindRelativity(in_url);
 
-    for (int j = 0; j < arraysize(base_urls); ++j) {
+    for (uint32_t j = 0; j < arraysize(base_urls); ++j) {
       GoogleUrl base(base_urls[j]);
       GoogleUrl url(base, in_url);
 

@@ -66,7 +66,7 @@ class CompressedCache : public CacheInterface {
 
  private:
   CacheInterface* cache_;
-  Histogram* compressed_cache_savings_;
+  //Histogram* compressed_cache_savings_;
   Variable* corrupt_payloads_;
   Variable* original_size_;
   Variable* compressed_size_;

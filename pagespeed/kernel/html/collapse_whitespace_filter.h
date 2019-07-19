@@ -53,7 +53,7 @@ class CollapseWhitespaceFilter : public EmptyHtmlFilter {
   virtual const char* Name() const { return "CollapseWhitespace"; }
 
  private:
-  HtmlParse* html_parse_;
+  //HtmlParse* html_parse_;
   std::vector<HtmlName::Keyword> keyword_stack_;
 
   DISALLOW_COPY_AND_ASSIGN(CollapseWhitespaceFilter);

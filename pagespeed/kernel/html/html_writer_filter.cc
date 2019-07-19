@@ -79,7 +79,7 @@ void HtmlWriterFilter::EmitBytes(const StringPiece& str) {
 
 void HtmlWriterFilter::EmitName(const HtmlName& name) {
   if (case_fold_) {
-    name.value().CopyToString(&case_fold_buffer_);
+    case_fold_buffer_ = GoogleString(name.value());
     LowerString(&case_fold_buffer_);
     EmitBytes(case_fold_buffer_);
   } else {

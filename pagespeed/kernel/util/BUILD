@@ -11,10 +11,20 @@ load(
 envoy_package()
 
 envoy_cc_library(
+    name = "util_re2",
+    hdrs = [
+        "re2.h",
+    ],
+    repository = "@envoy",
+    visibility = ["//visibility:public"],
+    copts = ["-Wno-error=old-style-cast", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
+)
+
+envoy_cc_library(
     name = "util",
     srcs = [
         "statistics_logger.cc",
-        #"url_to_filename_encoder.cc",
+        "url_to_filename_encoder.cc",
         "url_escaper.cc",
         "platform.cc",
         "brotli_inflater.cc",
@@ -26,14 +36,14 @@ envoy_cc_library(
         "threadsafe_lock_manager.cc",
         "mem_lock.cc",
         "nonce_generator.cc",
-        "simple_random.cc",
         "mem_lock_state.cc",
         "url_multipart_encoder.cc",
         "url_segment_encoder.cc",
+        "simple_stats.cc",
     ],
     hdrs = [
         "statistics_logger.h",
-        #"url_to_filename_encoder.h",
+        "url_to_filename_encoder.h",
         "url_escaper.h",
         "brotli_inflater.h",
         "platform.h",
@@ -47,38 +57,38 @@ envoy_cc_library(
         "threadsafe_lock_manager.h",
         "mem_lock.h",
         "nonce_generator.h",
-        "simple_random.h",
         "mem_lock_state.h",
         "url_multipart_encoder.h",
         "url_segment_encoder.h",
+        "simple_stats.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
     copts = ["-Wno-error=old-style-cast", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
     deps = [
-        "@glog",
+        "//gurl:url",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/html:html",
-        "//pagespeed/kernel/http:http",
         "//pagespeed/kernel/thread:thread",
+        "//pagespeed/kernel/http:http",
         "@brotli//:brotli_enc",
         "@brotli//:brotli_dec",
         "@zlib//:zlib",
+        ":util_re2",
     ],
 )
 
 envoy_cc_test_library (
     name = "util_test_base",
     srcs = [
-        "simple_stats.cc",
         "nonce_generator_test_base.cc",
         "lock_manager_spammer.cc",
+        "simple_random.cc",
     ],
     hdrs = [
-        "simple_stats.h",
-        "re2.h",
         "nonce_generator_test_base.h",
         "lock_manager_spammer.h",
+        "simple_random.h",
     ],
     repository = "@envoy",
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],

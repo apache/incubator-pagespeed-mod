@@ -63,7 +63,7 @@
  * Unit tests are in base/time/pr_time_unittest.cc.
  */
 #include <limits.h>
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "third_party/nspr/prtime.h"
 //#include "build/build_config.h"
 #include <errno.h>  /* for EINVAL */

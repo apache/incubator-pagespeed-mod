@@ -69,7 +69,7 @@ class TestPayload {
   TestPayload(int key_size, int payload_size, int num_keys, bool do_puts)
       : random_(new net_instaweb::NullMutex),
         cache_size_((key_size + payload_size) * num_keys),
-        key_size_(key_size),
+        //key_size_(key_size),
         num_keys_(num_keys),
         start_index_(0),
         lru_cache_(cache_size_),
@@ -94,7 +94,7 @@ class TestPayload {
 
   void OverwriteIndexAtEndOfString(GoogleString* buffer, int index) {
     GoogleString index_string =
-        net_instaweb::StrCat("_", net_instaweb::IntegerToString(index));
+        StrCat("_", net_instaweb::IntegerToString(index));
     DCHECK_LT(index_string.size(), buffer->size());
     char* ptr = &(*buffer)[buffer->size() - index_string.size()];
     memcpy(ptr, index_string.data(), index_string.size());
@@ -124,7 +124,7 @@ class TestPayload {
  private:
   net_instaweb::SimpleRandom random_;
   int cache_size_;
-  int key_size_;
+  //int key_size_;
   int num_keys_;
   int start_index_;
   net_instaweb::LRUCache lru_cache_;

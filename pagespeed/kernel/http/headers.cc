@@ -72,7 +72,7 @@ bool RemoveCookieString(const StringPiece& cookie_name,
           // For the first cookie, trim the whitespace off the front.
           TrimLeadingWhitespace(&pieces[i]);
         }
-        pieces[i].AppendToString(new_cookie_header);
+        new_cookie_header->append(GoogleString(pieces[i]));// pieces[i].AppendToString(new_cookie_header);
       }
     }
   }
@@ -179,7 +179,7 @@ template<class Proto> const GoogleString& Headers<Proto>::Value(int i) const {
 }
 
 template<class Proto> void Headers<Proto>::SetValue(int i, StringPiece value) {
-  value.CopyToString(proto_->mutable_header(i)->mutable_value());
+  *proto_->mutable_header(i)->mutable_value() = GoogleString(value);
   map_.reset(NULL);
   cookies_.reset(NULL);
 }
@@ -390,7 +390,7 @@ template<class Proto> bool Headers<Proto>::Remove(const StringPiece& name,
               StrAppend(&combined, separator, val);
               separator = ", ";
             } else {
-              new_vals.push_back(val.as_string());
+              new_vals.push_back(GoogleString(val));
             }
           }
         }

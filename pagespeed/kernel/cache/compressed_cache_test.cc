@@ -59,7 +59,7 @@ class CompressedCacheTest : public CacheTestBase {
     callback->Wait();
     EXPECT_TRUE(callback->called());
     GoogleString ret;
-    callback->value().Value().CopyToString(&ret);
+    ret = GoogleString(callback->value().Value());
     PostOpCleanup();
     return ret;
   }

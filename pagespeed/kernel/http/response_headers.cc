@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/escaping.h"
 #include "pagespeed/kernel/base/string.h"
@@ -613,7 +613,7 @@ void ResponseHeaders::GetSanitizedProto(HttpResponseHeaders* proto) const {
 
         // Insert when the entry is not already contained.
         if (up == more_names.end() || !StringCaseEqual(*up, val)) {
-          more_names.insert(up, val.as_string());
+          more_names.insert(up, GoogleString(val));
         }
       }
     }
@@ -950,8 +950,9 @@ void ResponseHeaders::ParseFirstLineHelper(const StringPiece& first_line) {
   // We reserve enough to avoid buffer overflow on sscanf command.
   GoogleString reason_phrase(first_line.size(), '\0');
   char* reason_phrase_cstr = &reason_phrase[0];
+  GoogleString tmp(first_line);
   int num_scanned = sscanf(
-      first_line.as_string().c_str(), "%d.%d %d %[^\n\t]s",
+      tmp.c_str(), "%d.%d %d %[^\n\t]s",
       &major_version, &minor_version, &status,
       reason_phrase_cstr);
   if (num_scanned < 3) {
@@ -1021,7 +1022,7 @@ void ResponseHeaders::DebugPrint() const {
 
 bool ResponseHeaders::FindContentLength(int64* content_length) const {
   const char* val = Lookup1(HttpAttributes::kContentLength);
-  return (val != NULL) && StringToInt64(val, content_length);
+  return (val != NULL) && StringToInt64(StringPiece(val), content_length);
 }
 
 void ResponseHeaders::ForceCaching(int64 ttl_ms) {

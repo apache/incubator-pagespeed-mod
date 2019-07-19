@@ -21,7 +21,7 @@
 #include "pagespeed/kernel/base/source_map.h"
 
 
-#include "glog/logging.h"
+#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/json.h"
 #include "pagespeed/kernel/base/string.h"
