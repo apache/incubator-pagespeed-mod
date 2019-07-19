@@ -32,5 +32,9 @@ envoy_cc_library(
         "@giflib//:dgiflib",
         "@giflib//:egiflib",
         "@optipng//:opngreduc",
+        "@grpc//:grpc++",
+        "@grpc//:grpc",
+        "@grpc//:gpr",
+        "@grpc//:grpc_cpp_plugin",
     ],
 )

@@ -21,6 +21,7 @@ LIBWEBP_COMMIT = "v0.6.1"
 PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
 GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
+GRPC_COMMIT = "08fd59f039c7cf62614ab7741b3f34527af103c7"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -114,4 +115,16 @@ def mod_pagespeed_dependencies():
         url = "https://github.com/apache/incubator-pagespeed-optipng/archive/%s.tar.gz" % OPTIPNG_COMMIT,
         build_file_content = optipng_build_rule,
         sha256 = "e7e937b8c3085ca82389018fcb6a8bf3cb4ba2556921826e634614e1c7e0edd2",
+    )
+
+    http_archive(
+        name = "grpc",
+        strip_prefix = "grpc-%s" % GRPC_COMMIT,
+        url = "https://github.com/grpc/grpc/archive/%s.tar.gz" % GRPC_COMMIT,
+        sha256 = "9dbb44a934d87faa8482c911e294a9f843a6c04d3936df8be116b1241bf475d9",
+    )
+
+    native.bind(
+        name = "madler_zlib",
+        actual = "@zlib//:zlib",
     )
