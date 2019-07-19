@@ -36,13 +36,13 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"                                               // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
-#include "third_party/zlib/src/zlib.h"
+#include "external/zlib/zlib.h"
 #endif
 }
 
@@ -277,8 +277,8 @@ void AssertReadersMatch(ScanlineReaderInterface* reader1,
   const int num_channels =
     GetNumChannelsFromPixelFormat(reader1->GetPixelFormat(),
                                   &message_handler);
-  uint8* pixels1 = NULL;
-  uint8* pixels2 = NULL;
+  uint8_t* pixels1 = NULL;
+  uint8_t* pixels2 = NULL;
 
   // Decode and check the image a scanline at a time.
   while (reader1->HasMoreScanLines() &&
@@ -1059,8 +1059,8 @@ TEST_F(PngScanlineReaderRawTest, ValidPngsRow) {
     const int num_channels =
       GetNumChannelsFromPixelFormat(per_row_reader.GetPixelFormat(),
                                     &message_handler_);
-    uint8* buffer_per_row = NULL;
-    uint8* buffer_entire = NULL;
+    uint8_t* buffer_per_row = NULL;
+    uint8_t* buffer_entire = NULL;
 
     // Decode and check the image a row at a time.
     while (per_row_reader.HasMoreScanLines() &&
@@ -1108,13 +1108,13 @@ TEST_F(PngScanlineReaderRawTest, ValidPngsEntire) {
                           image_string.data(), image_string.length(),
                           &buffer_for_raw_reader, &pixel_format, &width, NULL,
                           &bytes_per_row, &message_handler_));
-    uint8* buffer_per_row = static_cast<uint8*>(buffer_for_raw_reader);
+    uint8_t* buffer_per_row = static_cast<uint8_t*>(buffer_for_raw_reader);
     int num_channels = GetNumChannelsFromPixelFormat(pixel_format,
                                                      &message_handler_);
 
     // Check the image row by row.
     while (entire_image_reader.HasMoreScanLines()) {
-      uint8* buffer_entire = NULL;
+      uint8_t* buffer_entire = NULL;
       ASSERT_TRUE(entire_image_reader.ReadNextScanline(
         reinterpret_cast<void**>(&buffer_entire)));
 
@@ -1129,7 +1129,7 @@ TEST_F(PngScanlineReaderRawTest, ValidPngsEntire) {
 }
 
 TEST_F(PngScanlineReaderRawTest, PartialRead) {
-  uint8* buffer = NULL;
+  uint8_t* buffer = NULL;
   GoogleString image_string;
   ReadTestFile(kPngSuiteTestDir, kValidImages[0].filename, "png",
                &image_string);
@@ -1164,7 +1164,7 @@ TEST_F(PngScanlineReaderRawTest, PartialRead) {
 }
 
 TEST_F(PngScanlineReaderRawTest, ReadAfterReset) {
-  uint8* buffer = NULL;
+  uint8_t* buffer = NULL;
   GoogleString image_string;
   ReadTestFile(kPngSuiteTestDir, kValidImages[0].filename, "png",
                &image_string);
@@ -1185,13 +1185,13 @@ TEST_F(PngScanlineReaderRawTest, ReadAfterReset) {
                         image_string.data(), image_string.length(),
                         &buffer_for_raw_reader, &pixel_format, &width, NULL,
                         &bytes_per_row, &message_handler_));
-  uint8* buffer_entire = static_cast<uint8*>(buffer_for_raw_reader);
+  uint8_t* buffer_entire = static_cast<uint8_t*>(buffer_for_raw_reader);
   int num_channels = GetNumChannelsFromPixelFormat(pixel_format,
                                                    &message_handler_);
 
   // Compare the image row by row.
   while (reader.HasMoreScanLines()) {
-    uint8* buffer_row = NULL;
+    uint8_t* buffer_row = NULL;
     ASSERT_TRUE(reader.ReadNextScanline(
       reinterpret_cast<void**>(&buffer_row)));
 
@@ -1288,7 +1288,7 @@ void PngScanlineWriterTest::TestRewritePng(bool best_compression,
 
     // Read the scanlines from the original image and write them to the new one.
     while (original_reader.HasMoreScanLines()) {
-      uint8* scanline = NULL;
+      uint8_t* scanline = NULL;
       ASSERT_TRUE(original_reader.ReadNextScanline(
           reinterpret_cast<void**>(&scanline)));
       ASSERT_TRUE(writer_->WriteNextScanline(

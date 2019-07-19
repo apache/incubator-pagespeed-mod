@@ -141,7 +141,7 @@ TEST_F(FrameScanlineAdapterWithPaddingTest, ReaderPadsLines) {
   EXPECT_EQ(RGBA_8888, reader->GetPixelFormat());
 
   uint32_t* scanline = NULL;
-  for (int j = 0; j < kHeight; ++j) {
+  for (uint32_t j = 0; j < kHeight; ++j) {
     EXPECT_TRUE(reader->HasMoreScanLines());
     reader->ReadNextScanlineWithStatus(reinterpret_cast<void **>(&scanline));
     EXPECT_TRUE(status.Success()) << status.ToString();

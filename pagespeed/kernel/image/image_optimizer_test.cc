@@ -305,7 +305,7 @@ class ImageOptimizerTest : public testing::Test {
       const ImageFormat expected_format,
       bool compare_to_rewritten_dimensions,
       bool expected_uses_lossy_format) {
-    for (size_t i = 0; i < num_images; ++i) {
+    for (int i = 0; i < num_images; ++i) {
       // Load test image.
       const TestingImageInfo& image = images[i];
       GoogleString original_image;
@@ -399,7 +399,7 @@ class ImageOptimizerTest : public testing::Test {
       } else {
         EXPECT_TRUE(
             pagespeed::image_compression::CompareAnimatedImages(
-                net_instaweb::StrCat(dir, images[i].file_name),
+                StrCat(dir, images[i].file_name),
                 rewritten_image, &message_handler_));
       }
     }

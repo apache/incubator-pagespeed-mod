@@ -123,7 +123,7 @@ class FakeReader : public MultipleFrameReader {
     scanline_.reset(new uint8_t[frame.width * bytes_per_pixel]);
     PixelRgbaChannels foreground_color;
     GetForegroundColor(image_spec_.bg_color, foreground_color);
-    for (int i = 0; i < frame.width; ++i) {
+    for (uint32_t i = 0; i < frame.width; ++i) {
       memcpy(&scanline_[i * bytes_per_pixel],
              foreground_color,
              bytes_per_pixel);

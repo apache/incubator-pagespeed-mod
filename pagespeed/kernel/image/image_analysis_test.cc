@@ -144,7 +144,7 @@ class ImageAnalysisTest : public testing::Test {
   void VerifyKeyInformation(ImageFormat image_format, const char* dir,
                             const char* ext, const ImageInfo* images,
                             int num_images) {
-    for (size_t i = 0; i < num_images; ++i) {
+    for (int i = 0; i < num_images; ++i) {
       GoogleString image_string;
       ASSERT_TRUE(ReadTestFile(dir, images[i].file_name, ext, &image_string));
 

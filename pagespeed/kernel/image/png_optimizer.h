@@ -41,7 +41,7 @@ extern "C" {
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
-#include "third_party/optipng/src/opngreduc/opngreduc.h"
+#include "external/optipng/src/opngreduc/opngreduc.h"
 
 namespace net_instaweb {
 class MessageHandler;

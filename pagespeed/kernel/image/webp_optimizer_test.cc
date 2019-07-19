@@ -128,7 +128,7 @@ class WebpScanlineOptimizerTest : public testing::Test {
 
     // Read the scanlines from the original image and write them to the new one.
     while (png_reader.HasMoreScanLines()) {
-      uint8* scanline = NULL;
+      uint8_t* scanline = NULL;
       ASSERT_TRUE(png_reader.ReadNextScanline(
           reinterpret_cast<void**>(&scanline)));
       ASSERT_TRUE(webp_writer->WriteNextScanline(
@@ -296,7 +296,7 @@ class AnimatedWebpTest : public testing::Test {
 
   void CheckGifVsWebP(const char* filename, WebpConfiguration* webp_config,
                       bool check_pixels) {
-    GoogleString input_path = net_instaweb::StrCat(net_instaweb::GTestSrcDir(),
+    GoogleString input_path = StrCat(net_instaweb::GTestSrcDir(),
                                                    kTestRootDir, filename);
 
     GoogleString input_image;
@@ -307,7 +307,7 @@ class AnimatedWebpTest : public testing::Test {
     ConvertGifToWebp(filename, input_image, webp_config, &output_image);
 
     GoogleString output_path =
-        net_instaweb::StrCat(net_instaweb::GTestTempDir(),
+        StrCat(net_instaweb::GTestTempDir(),
                              kTestRootDir,
                              filename, ".webp");
 
@@ -475,7 +475,7 @@ TEST_F(AnimatedWebpTest, RejectExtraScanlines) {
 
   uint8_t scanline[300];
   memset(scanline, 0x80, GetBytesPerPixel(RGB_888)*frame_spec.width);
-  for (int j = 0; j < frame_spec.height; ++j) {
+  for (uint32_t j = 0; j < frame_spec.height; ++j) {
     EXPECT_TRUE(writer_->WriteNextScanline(scanline, &status));
   }
 #ifndef NDEBUG

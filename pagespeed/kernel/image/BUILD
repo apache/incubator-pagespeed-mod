@@ -42,6 +42,9 @@ envoy_cc_library(
         "scanline_interface.h",
         "scanline_utils.h",
         "png_optimizer.h",
+        "scanline_interface_frame_adapter.h",
+        "webp_optimizer.h",
+        "gif_square.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
@@ -53,6 +56,9 @@ envoy_cc_library(
     deps = [
         ":image_optimizer_proto_cc",
         "@libpng//:libpng",
+        "@optipng//:opngreduc",
+        "@giflib//:giflib_core",
+        "@libwebp//:libwebp",
         "//pagespeed/kernel/base:pagespeed_base",
     ],
 )
@@ -65,6 +71,7 @@ envoy_cc_test_library(
     ],
     hdrs = [
         "test_utils.h",
+        "jpeg_optimizer_test_helper.h",
     ],
     data = [
         
@@ -82,7 +89,12 @@ envoy_cc_test(
     repository = "@envoy",
     srcs = glob(["*_test.cc"]),
     data = glob(["testdata/*"]),
-    copts = ["-Wno-error=unused-parameter","-Wno-error=unused-private-field","-Wno-error=unused-function"],
+    copts = ["-Wno-error=unused-parameter",
+        "-Wno-error=unused-private-field",
+        "-Wno-error=unused-function",
+        "-Wno-error=old-style-cast",
+        "-Wno-error=missing-field-initializers",
+    ],
     deps = [
         ":image_test_base",
     ],

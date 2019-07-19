@@ -28,7 +28,7 @@
 #include "pagespeed/kernel/image/image_util.h"
 
 extern "C" {
-#include "third_party/giflib/src/lib/gif_lib.h"
+#include "external/giflib/lib/gif_lib.h"
 }
 
 namespace net_instaweb {

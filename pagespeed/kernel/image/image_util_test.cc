@@ -26,7 +26,7 @@
 namespace {
 
 static const char kInvalidImageFormat[] = "Invalid image format";
-static const char kInvalidPixelFormat[] = "Invalid pixel format";
+//static const char kInvalidPixelFormat[] = "Invalid pixel format";
 
 const char kGifImage[] = "transparent.gif";
 const char kPngImage[] = "this_is_a_test.png";
