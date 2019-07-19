@@ -9,7 +9,8 @@ load(":google_sparsehash.bzl", "google_sparsehash_build_rule")
 load(":protobuf.bzl", "protobuf_build_rule")
 load(":gurl.bzl", "gurl_build_rule")
 load(":drp.bzl", "drp_build_rule")
-
+load(":giflib.bzl", "giflib_build_rule")
+load(":optipng.bzl", "optipng_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -23,9 +24,12 @@ LIBWEBP_COMMIT = "v0.6.1"
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
 GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
-PROTOBUF_COMMIT = "6a59a2ad1f61d9696092f79b6d74368b4d7970a3"
 GURL_COMMIT = "77.0.3855.1"
 DRP_COMMIT = "f353346a9087538cd8e30a04b51e3f961c4a8fd8"
+PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
+GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
+OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
+GRPC_COMMIT = "08fd59f039c7cf62614ab7741b3f34527af103c7"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -394,3 +398,30 @@ cc_binary(
     )
 
     
+    http_archive(
+        name = "giflib",
+        strip_prefix = "giflib-mirror-%s" % GIFLIB_COMMIT,
+        url = "https://github.com/We-Amp/giflib-mirror/archive/%s.tar.gz" % GIFLIB_COMMIT,
+        build_file_content = giflib_build_rule,
+        sha256 = "90452882419956d8005b0b6cc51e02488e3016e809431d794f42ab1173a5df02",
+    )
+
+    http_archive(
+        name = "optipng",
+        strip_prefix = "incubator-pagespeed-optipng-%s" % OPTIPNG_COMMIT,
+        url = "https://github.com/apache/incubator-pagespeed-optipng/archive/%s.tar.gz" % OPTIPNG_COMMIT,
+        build_file_content = optipng_build_rule,
+        sha256 = "e7e937b8c3085ca82389018fcb6a8bf3cb4ba2556921826e634614e1c7e0edd2",
+    )
+
+    http_archive(
+        name = "grpc",
+        strip_prefix = "grpc-%s" % GRPC_COMMIT,
+        url = "https://github.com/grpc/grpc/archive/%s.tar.gz" % GRPC_COMMIT,
+        sha256 = "9dbb44a934d87faa8482c911e294a9f843a6c04d3936df8be116b1241bf475d9",
+    )
+
+    native.bind(
+        name = "madler_zlib",
+        actual = "@zlib//:zlib",
+    )
