@@ -121,12 +121,19 @@
         {
             "label": "test-js",
             "type": "shell",
-            "options": {
-                "env": {
-                    "TEST_SRCDIR": "${workspaceRoot}/nighthawk",
-                }
-            },
             "command": "bazel test -c dbg //pagespeed/kernel/js/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-image",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/image/...",
             "problemMatcher": [
                 "$gcc"
             ],

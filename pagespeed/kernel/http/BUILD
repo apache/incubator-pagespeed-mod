@@ -19,7 +19,7 @@ genrule(
 
 proto_library(
     name = "http_proto",
-    srcs = ["http.proto"],
+    srcs = ["http.proto", "image_types.proto"],
 )
 
 cc_proto_library(
