@@ -21,7 +21,7 @@
 #include "pagespeed/kernel/js/js_minify.h"
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/source_map.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -155,7 +155,7 @@ class StringConsumer {
     output_->push_back(character);
   }
   void append(const StringPiece& str) {
-    str.AppendToString(output_);
+    output_->append(GoogleString(str));
   }
   GoogleString* output_;
 };
@@ -765,10 +765,10 @@ bool MinifyUtf8JsWithSourceMap(
         return true;
       case JsKeywords::kError:
         DCHECK(tokenizer.has_error());
-        token.AppendToString(output);
+        output->append(GoogleString(token));
         return false;
       default:
-        token.AppendToString(output);
+        output->append(GoogleString(token));
         break;
     }
   }

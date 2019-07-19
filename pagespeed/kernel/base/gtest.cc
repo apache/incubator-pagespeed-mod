@@ -49,7 +49,8 @@ GoogleString GTestSrcDir() {
       found = false;
     }
   }
-  CHECK(found) << "You must run this test from the root of the checkout";
+  // XXX(oschaaf): now that we run with bazel this is no longer a thing?
+  // CHECK(found) << "You must run this test from the root of the checkout" << cwd;
   return cwd;
 }
 

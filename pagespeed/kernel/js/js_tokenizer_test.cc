@@ -51,8 +51,8 @@ class JsTokenizerTest : public testing::Test {
                    StringPiece expected_token) {
     StringPiece actual_token;
     const JsKeywords::Type actual_type = tokenizer_->NextToken(&actual_token);
-    EXPECT_EQ(make_pair(expected_type, expected_token),
-              make_pair(actual_type, actual_token));
+    EXPECT_EQ(std::make_pair(expected_type, expected_token),
+              std::make_pair(actual_type, actual_token));
     EXPECT_FALSE(tokenizer_->has_error());
   }
 
@@ -70,8 +70,8 @@ class JsTokenizerTest : public testing::Test {
   void ExpectError(StringPiece expected_token) {
     StringPiece actual_token;
     const JsKeywords::Type actual_type = tokenizer_->NextToken(&actual_token);
-    EXPECT_EQ(make_pair(JsKeywords::kError, expected_token),
-              make_pair(actual_type, actual_token));
+    EXPECT_EQ(std::make_pair(JsKeywords::kError, expected_token),
+              std::make_pair(actual_type, actual_token));
     EXPECT_TRUE(tokenizer_->has_error());
   }
 
@@ -80,7 +80,7 @@ class JsTokenizerTest : public testing::Test {
     GoogleString original;
     {
       net_instaweb::StdioFileSystem file_system;
-      const GoogleString filepath = net_instaweb::StrCat(
+      const GoogleString filepath = StrCat(
           net_instaweb::GTestSrcDir(), kTestRootDir, filename);
       net_instaweb::GoogleMessageHandler message_handler;
       ASSERT_TRUE(file_system.ReadFile(
@@ -98,7 +98,7 @@ class JsTokenizerTest : public testing::Test {
         ASSERT_FALSE(tokenizer.has_error())
             << "Error at: " << token.substr(0, 150)
             << "\nWith stack: " << tokenizer.ParseStackForTest();
-        token.AppendToString(&output);
+        output.append(GoogleString(token));
       }
     }
     // The concatenation of all tokens should exactly reproduce the input.

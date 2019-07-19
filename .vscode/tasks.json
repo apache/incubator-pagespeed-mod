@@ -2,6 +2,13 @@
     // See https://go.microsoft.com/fwlink/?LinkId=733558
     // for the documentation about the tasks.json format
     "version": "2.0.0",
+    "options": {
+        "env": {
+            "TEST_SRCDIR": "${workspaceRoot}",
+            "TEST_TMPDIR": "/tmp/foo",
+            "TEST_WORKSPACE": "mod_pagespeed",
+        }
+    },    
     "tasks": [
         {
             "label": "debug-build",
@@ -103,6 +110,23 @@
             "label": "test-util",
             "type": "shell",
             "command": "bazel test -c dbg //pagespeed/kernel/util/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-js",
+            "type": "shell",
+            "options": {
+                "env": {
+                    "TEST_SRCDIR": "${workspaceRoot}/nighthawk",
+                }
+            },
+            "command": "bazel test -c dbg //pagespeed/kernel/js/...",
             "problemMatcher": [
                 "$gcc"
             ],
