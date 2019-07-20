@@ -398,7 +398,7 @@ class HTTPCache {
   // Used by constructor and tests.
   void SetVersion(int version_number);
   void set_version_prefix(StringPiece version_prefix) {
-    version_prefix.CopyToString(&version_prefix_);
+    version_prefix_ = GoogleString(version_prefix);
   }
 
   bool MayCacheUrl(const GoogleString& url, const ResponseHeaders& headers);

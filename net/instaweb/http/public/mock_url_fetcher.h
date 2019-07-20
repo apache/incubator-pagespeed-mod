@@ -187,7 +187,7 @@ class MockUrlFetcher : public UrlAsyncFetcher {
       header_.CopyFrom(in_header);
     }
 
-    const int64 last_modified_time() const { return last_modified_time_; }
+    int64 last_modified_time() const { return last_modified_time_; }
     const GoogleString& etag() const { return etag_; }
     const ResponseHeaders& header() const { return header_; }
     ResponseHeaders* mutable_header() { return &header_; }

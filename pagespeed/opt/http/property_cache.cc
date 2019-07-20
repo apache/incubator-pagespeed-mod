@@ -181,7 +181,7 @@ void PropertyValue::SetValue(const StringPiece& value, int64 now_ms) {
   if (!valid_ || (value != proto_->body())) {
     valid_ = true;
     changed_ = true;
-    value.CopyToString(proto_->mutable_body());
+    *proto_->mutable_body() = GoogleString(value);
   }
   proto_->set_update_mask((proto_->update_mask() << 1) | changed_);
   proto_->set_num_writes(proto_->num_writes() + 1);
@@ -286,7 +286,7 @@ const PropertyCache::Cohort* PropertyCache::AddCohort(
 const PropertyCache::Cohort* PropertyCache::GetCohort(
     const StringPiece& cohort_name) const {
   GoogleString cohort_string;
-  cohort_name.CopyToString(&cohort_string);
+  cohort_string = GoogleString(cohort_name);
   CohortMap::const_iterator p = cohorts_.find(cohort_string);
   if (p == cohorts_.end()) {
     return NULL;
@@ -316,8 +316,8 @@ PropertyPage::PropertyPage(
     AbstractMutex* mutex,
     PropertyCache* property_cache)
     : mutex_(mutex),
-      url_(url.as_string()),
-      options_signature_hash_(options_signature_hash.as_string()),
+      url_(GoogleString(url)),
+      options_signature_hash_(GoogleString(options_signature_hash)),
       cache_key_suffix_(
           StrCat(cache_key_suffix, PageTypeSuffix(page_type))),
       request_context_(request_context),
@@ -363,7 +363,7 @@ PropertyValue* PropertyPage::GetProperty(
   PropertyMap* pmap = &pmap_struct->pmap;
   property = (*pmap)[property_name_str];
   log_record()->AddRetrievedPropertyToCohortInfo(
-      page_type_, cohort->name(), property_name.as_string());
+      page_type_, cohort->name(), GoogleString(property_name));
   if (property == NULL) {
     property = new PropertyValue;
     (*pmap)[property_name_str] = property;
@@ -447,7 +447,7 @@ void PropertyPage::DeleteProperty(
   }
   PropertyMapStruct* pmap_struct = cohort_itr->second;
   PropertyMap* pmap = &pmap_struct->pmap;
-  PropertyMap::iterator pmap_itr = pmap->find(property_name.as_string());
+  PropertyMap::iterator pmap_itr = pmap->find(GoogleString(property_name));
   if (pmap_itr == pmap->end()) {
     return;
   }

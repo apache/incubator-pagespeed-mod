@@ -79,7 +79,7 @@ bool HttpDumpUrlFetcher::GetFilenameFromUrl(const StringPiece& root_dir,
   if (!EndsInSlash(root_dir)) {
     handler->Message(kError,
                      "GetFilenameFromUrl: root_dir must end in slash, was %s",
-                     root_dir.as_string().c_str());
+                     GoogleString(root_dir).c_str());
   } else if (!gurl.IsWebValid()) {
     handler->MessageS(kError, "GetFilenameFromUrl: gurl is invalid");
   } else {
@@ -89,7 +89,7 @@ bool HttpDumpUrlFetcher::GetFilenameFromUrl(const StringPiece& root_dir,
     // password, port and ref (stuff after '#').
     // TODO(sligocki): Perhaps we should include these (except ref).
     StringPiece domain = gurl.Host();
-    GoogleString path = gurl.PathAndLeaf().as_string();
+    GoogleString path = GoogleString(gurl.PathAndLeaf());
 
     const GoogleString prefix = StrCat(root_dir, domain);
     // Writes encoded filename.

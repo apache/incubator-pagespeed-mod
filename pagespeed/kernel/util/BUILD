@@ -40,6 +40,7 @@ envoy_cc_library(
         "url_multipart_encoder.cc",
         "url_segment_encoder.cc",
         "simple_stats.cc",
+        "gflags.cc", # XXX
     ],
     hdrs = [
         "statistics_logger.h",
@@ -61,6 +62,7 @@ envoy_cc_library(
         "url_multipart_encoder.h",
         "url_segment_encoder.h",
         "simple_stats.h",
+        "gflags.h", # XXX
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],

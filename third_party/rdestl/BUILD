@@ -38,5 +38,7 @@ cc_library(
     ],
     # moved default_copts from package into cc_library
     # and renamed it to copts instead of default_copts
-    copts = ["-DDISABLE_GOOGLE_GLOBAL_USING_DECLARATIONS"],
+    copts = [
+        "-DDISABLE_GOOGLE_GLOBAL_USING_DECLARATIONS",
+    ],
 )

@@ -182,7 +182,8 @@ envoy_cc_library(
         "pool_element.h",
         "proto_matcher_impl.h",
         "proto_util.h",
-        "string_multi_map.h"
+        "string_multi_map.h",
+        "gtest_prod.h", # hmm, is this right?
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
@@ -191,7 +192,8 @@ envoy_cc_library(
         ":pagespeed_base_core",
         "//third_party/base64:base64",
         "@jsoncpp//:jsoncpp",
-        ":proto_matcher_test_proto_cc"
+        ":proto_matcher_test_proto_cc",
+        "@com_google_googletest//:gtest",# for gtest_prod.h        
     ],
 )
 
@@ -213,6 +215,7 @@ envoy_cc_test_library (
             "file_system_test_base.h",
             "mock_message_handler.h",
             "mock_timer.h",
+            "mock_hasher.h",
             'mem_file_system.h',        
             "null_thread_system.h",
             "named_lock_tester.h",
@@ -223,6 +226,7 @@ envoy_cc_test_library (
             "file_system_test_base.cc",
             "mock_message_handler.cc",
             "mock_timer.cc",
+            "mock_hasher.cc",
             'mem_file_system.cc',
             "null_thread_system.cc"
         ],

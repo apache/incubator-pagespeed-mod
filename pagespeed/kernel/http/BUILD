@@ -67,7 +67,11 @@ envoy_cc_library(
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
-    copts = ["-Wno-error=unused-parameter","-Wno-error=unused-private-field","-Wno-error=unused-function"],
+    copts = [
+        "-Wno-error=unused-parameter",
+        "-Wno-error=unused-private-field",
+        "-Wno-error=unused-function"
+    ],
     deps = [
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/util:util_re2",

@@ -91,7 +91,7 @@ int FetcherTest::CountFetchesAsync(
   CheckCallback* fetch = new CheckCallback(
       RequestContext::NewTestRequestContext(thread_system_.get()),
       expect_success, check_error_message, callback_called);
-  fetcher->Fetch(url.as_string(), &message_handler_, fetch);
+  fetcher->Fetch(GoogleString(url), &message_handler_, fetch);
   return counting_fetcher_.fetch_start_count() - starting_fetches;
 }
 

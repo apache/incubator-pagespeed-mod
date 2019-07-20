@@ -143,9 +143,9 @@ class CachePutFetch : public SharedAsyncFetch {
       // saved headers.
       const char* orig_content_length = extra_response_headers()->Lookup1(
           HttpAttributes::kXOriginalContentLength);
-      int64 ocl;
+      int64_t ocl;
       if (orig_content_length != NULL &&
-          StringToInt64(orig_content_length, &ocl)) {
+          StringToInt64(GoogleString(orig_content_length), &ocl)) {
         saved_headers_.SetOriginalContentLength(ocl);
       }
       // Finalize the headers.

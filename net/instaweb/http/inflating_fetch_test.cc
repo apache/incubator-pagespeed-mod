@@ -66,7 +66,7 @@ class MockFetch : public StringAsyncFetch {
   virtual ~MockFetch() {}
 
   void ExpectAcceptEncoding(const StringPiece& encoding) {
-    encoding.CopyToString(&accept_encoding_);
+    accept_encoding_ = GoogleString(encoding);
   }
 
   virtual void HandleHeadersComplete() {

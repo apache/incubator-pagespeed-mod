@@ -142,5 +142,17 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "instaweb_http_test",
+            "type": "shell",
+            "command": "bazel test -c dbg //net/instaweb/http/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
     ]
 }
