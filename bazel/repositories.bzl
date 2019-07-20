@@ -380,7 +380,7 @@ cc_binary(
         strip_prefix = "protobuf-%s" % PROTOBUF_COMMIT,
         url = "https://github.com/protocolbuffers/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
         build_file_content = protobuf_build_rule,
-        sha256 = "69d4d1fa02eab7c6838c8f11571cfd5509afa661b3944b3f7d24fef79a18d49d",
+        sha256 = "c8d3fde0c3f4c5958f31f501f84d4d313f0577609aabce2ab6f58da2e4c6fbbc",
     )
 
     http_archive(
