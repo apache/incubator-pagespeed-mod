@@ -12,13 +12,12 @@ before_install:
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
   - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake
-  - wget https://github.com/bazelbuild/bazel/releases/download/0.27.1/bazel-0.27.1-installer-linux-x86_64.sh
-  - chmod +x bazel-0.27.1-installer-linux-x86_64.sh
-  - ./bazel-0.27.1-installer-linux-x86_64.sh --user
+  - wget https://github.com/bazelbuild/bazel/releases/download/0.28.1/bazel-0.28.1-installer-linux-x86_64.sh
+  - chmod +x bazel-0.28.1-installer-linux-x86_64.sh
+  - ./bazel-0.28.1-installer-linux-x86_64.sh --user
 env:
   global:
     - MAKEFLAGS=-j3
-    - PATH="/usr/lib/ccache/:$PATH"
   matrix:
     - BIT_FLAG=
     # This would do another build for 32-bit, but we're already borderline
@@ -33,7 +32,7 @@ script:
   # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
   # For now, stick with --verbose and keep an eye on the logs.
   - bazel build -c dbg //:mod_pagespeed
-  - bazel test  -c dbg //...
+  - bazel test  -c dbg //pagespeed/...
 
 notifications:
   email:
