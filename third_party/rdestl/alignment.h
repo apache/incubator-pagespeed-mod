@@ -29,7 +29,7 @@ namespace internal
 		typedef char err_invalid_alignment[N > 0 ? -1 : 1];
 	};
 	template<> struct type_with_alignment<0> {};
-	template<> struct type_with_alignment<1> { uint8 member; };
+	template<> struct type_with_alignment<1> { uint8_t member; };
 	template<> struct type_with_alignment<2> { uint16 member; };
 	template<> struct type_with_alignment<4> { uint32 member; };
 	template<> struct type_with_alignment<8> { uint64 member; };

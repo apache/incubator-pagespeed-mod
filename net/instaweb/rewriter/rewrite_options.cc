@@ -905,14 +905,14 @@ void CheckFilterSetOrdering(const RewriteOptions::Filter* filters, int num) {
 // configuration is set to preserve resource URLs.  The table is initialized
 // once in RewriteOptions::Initialize.
 struct FilterProperties {
-  uint8 level_core : 1;
-  uint8 level_optimize_for_bandwidth : 1;
-  uint8 level_mobilize : 1;
-  uint8 level_test : 1;
-  uint8 level_dangerous : 1;
-  uint8 preserve_image_urls : 1;
-  uint8 preserve_js_urls : 1;
-  uint8 preserve_css_urls : 1;
+  uint8_t level_core : 1;
+  uint8_t level_optimize_for_bandwidth : 1;
+  uint8_t level_mobilize : 1;
+  uint8_t level_test : 1;
+  uint8_t level_dangerous : 1;
+  uint8_t preserve_image_urls : 1;
+  uint8_t preserve_js_urls : 1;
+  uint8_t preserve_css_urls : 1;
 };
 FilterProperties filter_properties[RewriteOptions::kEndOfFilters];
 

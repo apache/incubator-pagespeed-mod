@@ -70,14 +70,18 @@ envoy_cc_library(
         "-Wno-error=unused-parameter",
         "-Wno-error=unused-private-field",
         "-Wno-error=missing-field-initializers",
+        "-Wno-error=old-style-cast",
+        "-Wno-error=sign-compare",
     ],
     deps = [
         ":image_optimizer_proto_cc",
         "//pagespeed/kernel/http:http",
         "@libpng//:libpng",
         "@optipng//:opngreduc",
-        "@giflib//:giflib_core",
+        "@giflib//:dgiflib",
+        "@giflib//:egiflib",
         "@libwebp//:libwebp",
+        "@libjpeg_turbo//:libjpeg",
         "//pagespeed/kernel/base:pagespeed_base",
     ],
 )
@@ -93,9 +97,7 @@ envoy_cc_test_library(
         "test_utils.h",
         "jpeg_optimizer_test_helper.h",
     ],
-    data = [
-        
-    ],
+    data = glob(["testdata/*"]),
     copts = ["-Wno-error=unused-parameter","-Wno-error=unused-private-field","-Wno-error=unused-function"],
     deps = [
         ":image",
@@ -108,7 +110,6 @@ envoy_cc_test(
     name = "image_test",
     repository = "@envoy",
     srcs = glob(["*_test.cc"]),
-    data = glob(["testdata/*"]),
     copts = ["-Wno-error=unused-parameter",
         "-Wno-error=unused-private-field",
         "-Wno-error=unused-function",

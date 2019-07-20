@@ -45,7 +45,7 @@ namespace {
 
 const double kMaxPSNR = 99.0;
 const int kIndexAlpha = 3;
-const uint8_t kAlphaTransparent = 0;
+//const uint8_t kAlphaTransparent = 0;
 
 // Definition of Peak-Signal-to-Noise-Ratio (PSNR):
 // http://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
@@ -96,7 +96,7 @@ bool ReadTestFile(const GoogleString& path,
                   const char* extension,
                   GoogleString* content) {
   content->clear();
-  GoogleString file_name = net_instaweb::StrCat(net_instaweb::GTestSrcDir(),
+  GoogleString file_name = StrCat(net_instaweb::GTestSrcDir(),
        kTestRootDir, path, name, ".", extension);
   return ReadFile(file_name, content);
 }
@@ -104,7 +104,7 @@ bool ReadTestFile(const GoogleString& path,
 bool ReadTestFileWithExt(const GoogleString& path,
                          const char* name_with_extension,
                          GoogleString* content) {
-  GoogleString file_name = net_instaweb::StrCat(net_instaweb::GTestSrcDir(),
+  GoogleString file_name = StrCat(net_instaweb::GTestSrcDir(),
        kTestRootDir, path, name_with_extension);
   return ReadFile(file_name, content);
 }

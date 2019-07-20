@@ -50,9 +50,9 @@ inline uint64 NextRollingHash(
   // contextual information, if our compiler is optimizing enough.
   CHECK_LT(static_cast<size_t>(0), start);
   uint64 start_hash =
-      kRollingHashCharTable[static_cast<uint8>(buf[start - 1])];
+      kRollingHashCharTable[static_cast<uint8_t>(buf[start - 1])];
   uint64 end_hash =
-      kRollingHashCharTable[static_cast<uint8>(buf[start - 1 + n])];
+      kRollingHashCharTable[static_cast<uint8_t>(buf[start - 1 + n])];
   uint64 prev_rot1 = (prev << 1) | (prev >> 63);  // rotate left 1
   uint64 start_hash_rotn;
   // Corner case: shift by >= 64 bits is not defined in C.  gcc had better

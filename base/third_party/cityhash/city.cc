@@ -307,9 +307,9 @@ static uint64 HashLen0to16(const char* s, size_t len) {
     return HashLen16(len + (a << 3), Fetch32(s + len - 4), mul);
   }
   if (len > 0) {
-    uint8 a = s[0];
-    uint8 b = s[len >> 1];
-    uint8 c = s[len - 1];
+    uint8_t a = s[0];
+    uint8_t b = s[len >> 1];
+    uint8_t c = s[len - 1];
     uint32 y = static_cast<uint32>(a) + (static_cast<uint32>(b) << 8);
     uint32 z = len + (static_cast<uint32>(c) << 2);
     return ShiftMix(y * k2 ^ z * k0) * k2;

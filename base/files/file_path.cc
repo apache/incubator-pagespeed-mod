@@ -1216,7 +1216,7 @@ StringType FilePath::GetHFSDecomposedForm(StringPieceType string) {
   ScopedCFTypeRef<CFStringRef> cfstring(
       CFStringCreateWithBytesNoCopy(
           NULL,
-          reinterpret_cast<const UInt8*>(string.data()),
+          reinterpret_cast<const uint8_t*>(string.data()),
           string.length(),
           kCFStringEncodingUTF8,
           false,
@@ -1263,7 +1263,7 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
     ScopedCFTypeRef<CFStringRef> cfstring1(
         CFStringCreateWithBytesNoCopy(
             NULL,
-            reinterpret_cast<const UInt8*>(string1.data()),
+            reinterpret_cast<const uint8_t*>(string1.data()),
             string1.length(),
             kCFStringEncodingUTF8,
             false,
@@ -1271,7 +1271,7 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
     ScopedCFTypeRef<CFStringRef> cfstring2(
         CFStringCreateWithBytesNoCopy(
             NULL,
-            reinterpret_cast<const UInt8*>(string2.data()),
+            reinterpret_cast<const uint8_t*>(string2.data()),
             string2.length(),
             kCFStringEncodingUTF8,
             false,

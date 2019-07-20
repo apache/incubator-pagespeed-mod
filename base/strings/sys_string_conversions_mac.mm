@@ -42,7 +42,7 @@ static StringType CFStringToSTLStringWithEncodingT(CFStringRef cfstring,
     return StringType();
 
   // out_size is the number of UInt8-sized units needed in the destination.
-  // A buffer allocated as UInt8 units might not be properly aligned to
+  // A buffer allocated as uint8_t units might not be properly aligned to
   // contain elements of StringType::value_type.  Use a container for the
   // proper value_type, and convert out_size by figuring the number of
   // value_type elements per UInt8.  Leave room for a NUL terminator.
@@ -55,7 +55,7 @@ static StringType CFStringToSTLStringWithEncodingT(CFStringRef cfstring,
                                encoding,
                                0,      // lossByte
                                false,  // isExternalRepresentation
-                               reinterpret_cast<UInt8*>(&out_buffer[0]),
+                               reinterpret_cast<uint8_t*>(&out_buffer[0]),
                                out_size,
                                NULL);  // usedBufLen
   if (converted == 0)
@@ -81,7 +81,7 @@ static OutStringType STLStringToSTLStringWithEncodingsT(
 
   base::ScopedCFTypeRef<CFStringRef> cfstring(CFStringCreateWithBytesNoCopy(
       NULL,
-      reinterpret_cast<const UInt8*>(in.data()),
+      reinterpret_cast<const uint8_t*>(in.data()),
       in_length * sizeof(typename InStringType::value_type),
       in_encoding,
       false,
@@ -104,7 +104,7 @@ static CFStringRef StringPieceToCFStringWithEncodingsT(
     return CFSTR("");
 
   return CFStringCreateWithBytes(
-      kCFAllocatorDefault, reinterpret_cast<const UInt8*>(in.data()),
+      kCFAllocatorDefault, reinterpret_cast<const uint8_t*>(in.data()),
       in_length * sizeof(typename BasicStringPiece<StringType>::value_type),
       in_encoding, false);
 }

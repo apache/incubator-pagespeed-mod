@@ -11,6 +11,7 @@ load(":gurl.bzl", "gurl_build_rule")
 load(":drp.bzl", "drp_build_rule")
 load(":giflib.bzl", "giflib_build_rule")
 load(":optipng.bzl", "optipng_build_rule")
+load(":libjpeg_turbo.bzl", "libjpeg_turbo_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -30,6 +31,7 @@ PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
 GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
 GRPC_COMMIT = "08fd59f039c7cf62614ab7741b3f34527af103c7"
+LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -424,4 +426,12 @@ cc_binary(
     native.bind(
         name = "madler_zlib",
         actual = "@zlib//:zlib",
+    )
+
+    http_archive(
+        name = "libjpeg_turbo",
+        #strip_prefix = "libjpeg_turbo-%s" % LIBJPEG_TURBO_COMMIT,
+        url = "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo/+archive/%s.tar.gz" % LIBJPEG_TURBO_COMMIT,
+        build_file_content = libjpeg_turbo_build_rule,
+        sha256 = "",
     )
