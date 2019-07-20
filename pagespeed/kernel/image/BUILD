@@ -97,7 +97,9 @@ envoy_cc_test_library(
         "test_utils.h",
         "jpeg_optimizer_test_helper.h",
     ],
-    data = glob(["testdata/*"]),
+    data = [
+        
+    ],
     copts = ["-Wno-error=unused-parameter","-Wno-error=unused-private-field","-Wno-error=unused-function"],
     deps = [
         ":image",
@@ -110,6 +112,15 @@ envoy_cc_test(
     name = "image_test",
     repository = "@envoy",
     srcs = glob(["*_test.cc"]),
+    data = glob([
+        "testdata/gif/*",
+        "testdata/jpeg/*",
+        "testdata/png/*",
+        "testdata/pngsuite/*",
+        "testdata/pngsuite/gif/*",
+        "testdata/resized/*",
+        "testdata/webp/*",
+    ]),
     copts = ["-Wno-error=unused-parameter",
         "-Wno-error=unused-private-field",
         "-Wno-error=unused-function",
