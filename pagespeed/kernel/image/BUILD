@@ -23,6 +23,24 @@ cc_proto_library(
 envoy_cc_library(
     name = "image",
     srcs = [
+        "image_analysis.cc",
+        "image_resizer.cc",
+        "image_optimizer.cc",
+        "gif_reader.cc",
+        "image_util.cc",
+        "image_frame_interface.cc",
+        "frame_interface_optimizer.cc",
+        "jpeg_utils.cc",
+        "read_image.cc",
+        "jpeg_reader.cc",
+        "pixel_format_optimizer.cc",
+        "jpeg_optimizer.cc",
+        "image_converter.cc",
+        "scanline_utils.cc",
+        "png_optimizer.cc",
+        "scanline_interface_frame_adapter.cc",
+        "webp_optimizer.cc",
+        "gif_square.cc",
     ],
     hdrs = [
         "image_analysis.h",
@@ -55,6 +73,7 @@ envoy_cc_library(
     ],
     deps = [
         ":image_optimizer_proto_cc",
+        "//pagespeed/kernel/http:http",
         "@libpng//:libpng",
         "@optipng//:opngreduc",
         "@giflib//:giflib_core",
@@ -67,7 +86,8 @@ envoy_cc_test_library(
     name = "image_test_base",
     repository = "@envoy",
     srcs = [
-
+        "test_utils.cc",
+        "jpeg_optimizer_test_helper.cc",
     ],
     hdrs = [
         "test_utils.h",
