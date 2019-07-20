@@ -1,6 +1,6 @@
 language: c++
 compiler:
-  - gcc
+  - clang
 
 git:
   # Dependencies will be fetched via bazel. So no submodules here.
