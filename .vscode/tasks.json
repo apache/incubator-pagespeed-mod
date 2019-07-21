@@ -178,5 +178,29 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "test-pagespeed-automatic",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/automatic/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-pagespeed-rewriter",
+            "type": "shell",
+            "command": "bazel build -c dbg net/instaweb/rewriter:rewriter",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
     ]
 }

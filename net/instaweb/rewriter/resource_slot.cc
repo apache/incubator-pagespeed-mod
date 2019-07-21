@@ -75,14 +75,14 @@ GoogleString ResourceSlot::RelativizeOrPassthrough(
     // TODO(sligocki): Get GoogleUrl in interface?
     GoogleUrl output_url(url);
     if (output_url.IsAnyValid()) {
-      return output_url.Relativize(url_relativity, base_url).as_string();
+      return GoogleString(output_url.Relativize(url_relativity, base_url));
     } else {
       LOG(DFATAL) << "Invalid URL passed to RelativizeOrPassthrough: " << url;
-      return url.as_string();
+      return GoogleString(url);
     }
   } else {
     // Pass through absolute URL.
-    return url.as_string();
+    return GoogleString(url);
   }
 }
 

@@ -95,7 +95,8 @@ void CssHierarchy::set_stylesheet(Css::Stylesheet* stylesheet) {
 
 void CssHierarchy::set_minified_contents(
     const StringPiece minified_contents) {
-  minified_contents.CopyToString(&minified_contents_);
+  // XXX(oschaaf):
+  minified_contents_ = std::string(minified_contents.data(), minified_contents.size());
 }
 
 void CssHierarchy::ResizeChildren(int n) {

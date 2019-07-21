@@ -494,8 +494,8 @@ class RewriteOptions {
 
   struct NameValue {
     NameValue(StringPiece name_in, StringPiece value_in) {
-      name_in.CopyToString(&name);
-      value_in.CopyToString(&value);
+      name = GoogleString(name_in);
+      value = GoogleString(value_in);
     }
     GoogleString name;
     GoogleString value;
@@ -1519,7 +1519,7 @@ class RewriteOptions {
     return StringToDouble(value_string, value);
   }
   static bool ParseFromString(StringPiece value_string, GoogleString* value) {
-    value_string.CopyToString(value);
+    *value = GoogleString(value_string);
     return true;
   }
   static bool ParseFromString(StringPiece value_string, RewriteLevel* value) {
@@ -2227,7 +2227,7 @@ class RewriteOptions {
     return downstream_cache_purge_method_.value();
   }
   void set_downstream_cache_purge_method(StringPiece p) {
-    set_option(p.as_string(), &downstream_cache_purge_method_);
+    set_option(GoogleString(p), &downstream_cache_purge_method_);
   }
 
   const GoogleString& downstream_cache_purge_location_prefix() const {
@@ -2236,17 +2236,17 @@ class RewriteOptions {
   void set_downstream_cache_purge_location_prefix(StringPiece p) {
     // Remove any trailing slashes. Leaving them in causes the request to have
     // multiple trailing slashes.
-    while (p.ends_with("/")) {
+    while (absl::EndsWith(p, "/")) {
       p.remove_suffix(1);
     }
-    set_option(p.as_string(), &downstream_cache_purge_location_prefix_);
+    set_option(GoogleString(p), &downstream_cache_purge_location_prefix_);
   }
   bool IsDownstreamCacheIntegrationEnabled() const {
     return !downstream_cache_purge_location_prefix().empty();
   }
 
   void set_downstream_cache_rebeaconing_key(StringPiece p) {
-      set_option(p.as_string(), &downstream_cache_rebeaconing_key_);
+      set_option(GoogleString(p), &downstream_cache_rebeaconing_key_);
   }
   const GoogleString& downstream_cache_rebeaconing_key() const {
     return downstream_cache_rebeaconing_key_.value();
@@ -2443,7 +2443,7 @@ class RewriteOptions {
     return blocking_rewrite_key_.value();
   }
   void set_blocking_rewrite_key(StringPiece p) {
-    set_option(p.as_string(), &blocking_rewrite_key_);
+    set_option(GoogleString(p), &blocking_rewrite_key_);
   }
 
   void EnableBlockingRewriteForRefererUrlPattern(
@@ -2511,7 +2511,7 @@ class RewriteOptions {
   }
 
   void set_x_header_value(StringPiece p) {
-    set_option(p.as_string(), &x_header_value_);
+    set_option(GoogleString(p), &x_header_value_);
   }
   const GoogleString& x_header_value() const {
     return x_header_value_.value();
@@ -2621,7 +2621,7 @@ class RewriteOptions {
   }
 
   void set_non_cacheables_for_cache_partial_html(StringPiece p) {
-    set_option(p.as_string(), &non_cacheables_for_cache_partial_html_);
+    set_option(GoogleString(p), &non_cacheables_for_cache_partial_html_);
   }
   const GoogleString& non_cacheables_for_cache_partial_html() const {
     return non_cacheables_for_cache_partial_html_.value();
@@ -2635,7 +2635,7 @@ class RewriteOptions {
   }
 
   void set_access_control_allow_origins(StringPiece p) {
-    set_option(p.as_string(), &access_control_allow_origins_);
+    set_option(GoogleString(p), &access_control_allow_origins_);
   }
   const GoogleString& access_control_allow_origins() const {
     return access_control_allow_origins_.value();
@@ -2670,14 +2670,14 @@ class RewriteOptions {
   }
 
   void set_cache_fragment(StringPiece p) {
-    set_option(p.as_string(), &cache_fragment_);
+    set_option(GoogleString(p), &cache_fragment_);
   }
   const GoogleString& cache_fragment() const {
     return cache_fragment_.value();
   }
 
   void set_sticky_query_parameters(StringPiece p) {
-    set_option(p.as_string(), &sticky_query_parameters_);
+    set_option(GoogleString(p), &sticky_query_parameters_);
   }
   const GoogleString& sticky_query_parameters() const {
     return sticky_query_parameters_.value();
@@ -3234,7 +3234,7 @@ class RewriteOptions {
   // TODO(jmarantz): Remove this method and make another one that operate
   // directly on the Property.
   void set_default_x_header_value(StringPiece x_header_value) {
-    x_header_value_.set_global_default(x_header_value.as_string());
+    x_header_value_.set_global_default(GoogleString(x_header_value));
   }
 
   // Enable/disable filters and set options according to the current

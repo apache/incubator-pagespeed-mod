@@ -28,7 +28,7 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/writer.h"
-#include "util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
 #include "webutil/css/identifier.h"
 #include "webutil/css/media.h"
 #include "webutil/css/parser.h"
@@ -108,7 +108,7 @@ void CssMinify::Write(const StringPiece& str) {
 void CssMinify::WriteURL(const UnicodeText& url) {
   StringPiece string_url(url.utf8_data(), url.utf8_length());
   if (url_collector_ != NULL) {
-    string_url.CopyToString(StringVectorAdd(url_collector_));
+    *StringVectorAdd(url_collector_) = GoogleString(string_url);
   }
   Write(Css::EscapeUrl(string_url));
 }
@@ -461,10 +461,10 @@ void CssMinify::Minify(const Css::Value& value) {
         buffer = StringPrintf("%.16g", value.GetFloatValue());
         number_string = buffer;
       }
-      if (number_string.starts_with("0.")) {
+      if (absl::StartsWith(number_string, "0.")) {
         // Optimization: Strip "0.25" -> ".25".
         Write(number_string.substr(1));
-      } else if (number_string.starts_with("-0.")) {
+      } else if (absl::StartsWith(number_string, "-0.")) {
         // Optimization: Strip "-0.25" -> "-.25".
         Write("-");
         Write(number_string.substr(2));

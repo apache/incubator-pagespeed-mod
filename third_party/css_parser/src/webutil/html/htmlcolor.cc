@@ -27,7 +27,7 @@
 #include <string.h>
 #include <cmath>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "strings/ascii_ctype.h"
 #include "strings/case.h"
 #include "strings/escaping.h"
@@ -37,6 +37,9 @@ typedef struct RgbValue {
   unsigned char g_;
   unsigned char b_;
 } RgbValue;
+
+
+using namespace base;
 
 // color table
 // when making change to known_color_values, please

@@ -52,10 +52,10 @@ bool JavascriptLibraryIdentification::RegisterLibrary(
   }
   MD5ToUrlMap& bytes_entry = libraries_[bytes];  // Creates inner map if absent.
   GoogleString md5_hash_string;
-  md5_hash.CopyToString(&md5_hash_string);
+  md5_hash_string = GoogleString(md5_hash);
   GoogleString& url_string = bytes_entry[md5_hash_string];
   // New entry overrides any previous entry.
-  canonical_url.CopyToString(&url_string);
+  url_string = GoogleString(canonical_url);
   return true;
 }
 

@@ -77,7 +77,7 @@ envoy_cc_library(
         "sparse_hash_map.h",
         "rde_hash_map.h",
         "scoped_ptr.h",
-        #"dynamic_annotations.h",
+        "dynamic_annotations.h",
         "vector_deque.h",
     ],
     repository = "@envoy",
@@ -183,7 +183,9 @@ envoy_cc_library(
         "proto_matcher_impl.h",
         "proto_matcher.h",
         "proto_util.h",
+        "enum_set.h",
         "string_multi_map.h",
+        "manually_ref_counted.h",
         "gtest_prod.h", # hmm, is this right?
     ],
     repository = "@envoy",

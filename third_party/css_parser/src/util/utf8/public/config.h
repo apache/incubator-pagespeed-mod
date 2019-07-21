@@ -22,7 +22,7 @@
 #ifndef UTIL_UTF8_PUBLIC_CONFIG_H_
 #define UTIL_UTF8_PUBLIC_CONFIG_H_
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 
 using namespace std;
 using base::StringAppendF;

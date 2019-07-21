@@ -313,6 +313,9 @@ class BASE_EXPORT ScopedAllowCrossThreadRefCountAccess final {
   static constexpr ::base::subtle::StartRefCountFromOneTag \
       kRefCountPreference = ::base::subtle::kStartRefCountFromOneTag
 
+#define ANALYZER_SKIP_THIS_PATH() \
+  static_cast<void>(::logging::AnalyzerNoReturn())
+  
 template <class T, typename Traits>
 class RefCounted;
 

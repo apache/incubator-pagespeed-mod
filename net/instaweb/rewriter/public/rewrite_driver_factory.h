@@ -281,7 +281,7 @@ class RewriteDriverFactory {
   // get/set the version placed into the X-[Mod-]Page(s|-S)peed header.
   const GoogleString& version_string() const { return version_string_; }
   void set_version_string(const StringPiece& version_string) {
-    version_string.CopyToString(&version_string_);
+    version_string_ = GoogleString(version_string);
   }
 
   // Causes the given function to be Run after all the threads are shutdown,

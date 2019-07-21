@@ -20,10 +20,7 @@
 #ifndef UTIL_GTL_STL_UTIL_H_
 #define UTIL_GTL_STL_UTIL_H_
 
-#if !defined(CHROMIUM_REVISION) || CHROMIUM_REVISION >= 93110
-#include "base/stl_util.h"
-#else
-#include "base/stl_util-inl.h"
-#endif
+
+#include "pagespeed/kernel/base/stl_util.h"
 
 #endif  // UTIL_GTL_STL_UTIL_H_

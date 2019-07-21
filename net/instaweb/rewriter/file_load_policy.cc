@@ -122,10 +122,10 @@ bool FileLoadPolicy::AssociateRegexp(StringPiece url_regexp,
                                      GoogleString* error) {
   GoogleString url_regexp_str, filename_prefix_str;
 
-  url_regexp.CopyToString(&url_regexp_str);
-  filename_prefix.CopyToString(&filename_prefix_str);
+  url_regexp_str = GoogleString(url_regexp);
+  filename_prefix_str = GoogleString(filename_prefix);
 
-  if (!url_regexp.starts_with("^")) {
+  if (!absl::StartsWith(url_regexp, "^")) {
     error->assign("File mapping regular expression must match beginning "
                   "of string. (Must start with '^'.)");
     return false;

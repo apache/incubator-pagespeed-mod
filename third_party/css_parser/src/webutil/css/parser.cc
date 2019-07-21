@@ -41,6 +41,7 @@
 #include "webutil/css/util.h"
 #include "webutil/css/value.h"
 
+using namespace base;
 
 namespace Css {
 

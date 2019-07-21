@@ -49,7 +49,7 @@ bool FileLoadRuleRegexp::Match(const GoogleString& filename) const {
 }
 
 bool FileLoadRuleLiteral::Match(const GoogleString& filename) const {
-  return StringPiece(filename).starts_with(filename_prefix_);
+  return absl::StartsWith(filename, filename_prefix_);
 }
 
 }  // namespace net_instaweb

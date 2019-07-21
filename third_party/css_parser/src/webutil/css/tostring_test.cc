@@ -26,7 +26,7 @@
 #include <memory>
 #include "base/scoped_ptr.h"
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "testing/base/public/googletest.h"
 #include "testing/base/public/gunit.h"
 #include "webutil/css/parser.h"

@@ -55,7 +55,7 @@ DeviceProperties::~DeviceProperties() {
 }
 
 void DeviceProperties::SetUserAgent(const StringPiece& user_agent_string) {
-  user_agent_string.CopyToString(&user_agent_);
+  user_agent_ = GoogleString(user_agent_string);
 
   // Reset everything determined by user agent.
   supports_critical_css_ = kNotSet;

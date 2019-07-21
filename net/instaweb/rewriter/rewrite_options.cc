@@ -3100,7 +3100,7 @@ RewriteOptions::ParseAndSetOptionFromNameWithScope(
   } else if (StringCaseEqual(name, kDomain)) {
     WriteableDomainLawyer()->AddDomain(arg, handler);
   } else if (StringCaseEqual(name, kProxySuffix)) {
-    WriteableDomainLawyer()->set_proxy_suffix(arg.as_string());
+    WriteableDomainLawyer()->set_proxy_suffix(GoogleString(arg));
   } else if (StringCaseEqual(name, kDownstreamCachePurgeLocationPrefix)) {
     GoogleUrl gurl(arg);
     if (gurl.IsWebValid()) {
@@ -3191,7 +3191,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName2(
       *msg = "Argument 1 must be either 'Allow' or 'Disallow'";
       return RewriteOptions::kOptionValueInvalid;
     }
-    if (!file_load_policy()->AddRule(arg2.as_string(),
+    if (!file_load_policy()->AddRule(GoogleString(arg2),
                                      is_regexp, allow, msg)) {
       result = RewriteOptions::kOptionValueInvalid;
     }
@@ -4740,12 +4740,12 @@ void RewriteOptions::ExperimentSpec::Initialize(const StringPiece& spec,
                                       handler)) {
         handler->Message(kWarning,
                          "Ignorning invalid alternate_origin_domain: '%s'",
-                         piece.as_string().c_str());
+                         GoogleString(piece).c_str());
         alternate_origin_domains_.pop_back();
       }
     } else {
       handler->Message(kWarning, "Skipping unknown experiment setting: %s",
-                       piece.as_string().c_str());
+                       GoogleString(piece).c_str());
     }
   }
 }

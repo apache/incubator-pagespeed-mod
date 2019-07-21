@@ -40,6 +40,7 @@ envoy_cc_library(
         "url_multipart_encoder.cc",
         "url_segment_encoder.cc",
         "simple_stats.cc",
+        "simple_random.cc",
         "gflags.cc", # XXX
     ],
     hdrs = [
@@ -62,6 +63,7 @@ envoy_cc_library(
         "url_multipart_encoder.h",
         "url_segment_encoder.h",
         "simple_stats.h",
+        "simple_random.h",
         "gflags.h", # XXX
         "grpc.h", # XXX
     ],
@@ -87,12 +89,10 @@ envoy_cc_test_library (
     srcs = [
         "nonce_generator_test_base.cc",
         "lock_manager_spammer.cc",
-        "simple_random.cc",
     ],
     hdrs = [
         "nonce_generator_test_base.h",
         "lock_manager_spammer.h",
-        "simple_random.h",
     ],
     repository = "@envoy",
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],

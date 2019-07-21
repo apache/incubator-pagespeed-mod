@@ -50,7 +50,7 @@ GoogleString GetCacheKey(const StringPiece& url, bool is_authorized_domain) {
     }
     return StrCat(url_prefix, gurl.HostAndPort(), gurl.PathAndLeaf());
   }
-  return url.as_string();
+  return GoogleString(url);
 }
 
 }  // namespace
@@ -72,7 +72,7 @@ UrlInputResource::UrlInputResource(RewriteDriver* rewrite_driver,
       // expected port numbers wrt the protocols.
       // Store away the domain so that it can be authorized in PrepareRequest
       // before the actual Fetch is issued.
-      tmp_url.Origin().CopyToString(&origin_);
+      origin_ = GoogleString(tmp_url.Origin());
     }
   }
   response_headers()->set_implicit_cache_ttl_ms(

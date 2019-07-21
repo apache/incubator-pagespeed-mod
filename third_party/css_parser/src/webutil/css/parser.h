@@ -23,11 +23,11 @@
 #define WEBUTIL_CSS_PARSER_H__
 
 #include <memory>
-#include "base/scoped_ptr.h"
+#include "pagespeed/kernel/base/scoped_ptr.h"
 #include <string>
 #include <vector>
-#include "strings/stringpiece.h"
-#include "testing/production_stub/public/gunit_prod.h"
+//#include "strings/stringpiece.h"
+#include "pagespeed/kernel/base/gtest_prod.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/media.h"
 #include "webutil/css/property.h"  // while these CSS includes can be
@@ -750,7 +750,7 @@ class UnparsedRegion {
   }
 
   void set_bytes_in_original_buffer(const StringPiece& bytes) {
-    bytes.CopyToString(&bytes_in_original_buffer_);
+    bytes_in_original_buffer_ = GoogleString(bytes);
   }
 
   string ToString() const;

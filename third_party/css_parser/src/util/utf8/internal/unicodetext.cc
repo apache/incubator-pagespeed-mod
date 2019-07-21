@@ -26,11 +26,13 @@
 #include <algorithm>                    // for max
 
 #include "base/logging.h"               // for operator<<, CHECK, etc
-#include "base/stringprintf.h"          // for StringPrintf, StringAppendF
+#include "base/strings/stringprintf.h"          // for StringPrintf, StringAppendF
 #include "strings/stringpiece.h"        // for StringPiece, etc
 #include "third_party/utf/utf.h"        // for isvalidcharntorune, etc
 #include "util/utf8/public/unilib.h"    // for IsInterchangeValid, etc
 #include "util/utf8/public/unilib_utf8_utils.h"    // for OneCharLen
+
+using namespace base;
 
 static int CodepointDistance(const char* start, const char* end) {
   int n = 0;

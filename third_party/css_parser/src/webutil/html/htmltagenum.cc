@@ -22,7 +22,8 @@
 #include "webutil/html/htmltagenum.h"
 
 #include "base/macros.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
+#include "pagespeed/kernel/base/basictypes.h"
 
 const char* HtmlTagEnumNames[] =
 {    "Unknown",
@@ -89,6 +90,6 @@ string HtmlTagNameOrUnknown(int i) {
   if (i >= 0 && i < kHtmlTagBuiltinMax) {
     return HtmlTagEnumNames[i];
   } else {
-    return StringPrintf("UNKNOWN%d", i);
+    return base::StringPrintf("UNKNOWN%d", i);
   }
 }

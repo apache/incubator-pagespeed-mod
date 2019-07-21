@@ -85,18 +85,18 @@ class ResourceNamer {
   bool has_options() const { return !options_.empty(); }
 
   // Simple setters
-  void set_id(const StringPiece& p) { p.CopyToString(&id_); }
-  void set_options(const StringPiece& opts) { opts.CopyToString(&options_); }
-  void set_name(const StringPiece& n) { n.CopyToString(&name_); }
-  void set_hash(const StringPiece& h) { h.CopyToString(&hash_); }
+  void set_id(const StringPiece& p) { id_ = GoogleString(p); }
+  void set_options(const StringPiece& opts) { options_ = GoogleString(opts); }
+  void set_name(const StringPiece& n) { name_ = GoogleString(n); }
+  void set_hash(const StringPiece& h) { hash_= GoogleString(h); }
   void set_ext(const StringPiece& e) {
     // TODO(jmaessen): Remove check after transitioning to undotted extensions
     // everywhere.
     CHECK(e.empty() || e[0] != '.');
-    e.CopyToString(&ext_);
+    ext_ = GoogleString(e);
   }
-  void set_experiment(const StringPiece& e) { e.CopyToString(&experiment_); }
-  void set_signature(const StringPiece& s) { s.CopyToString(&signature_); }
+  void set_experiment(const StringPiece& e) { experiment_ = GoogleString(e); }
+  void set_signature(const StringPiece& s) { signature_ = GoogleString(s); }
 
   // Other setter-like operations
   void ClearHash() { hash_.clear(); }

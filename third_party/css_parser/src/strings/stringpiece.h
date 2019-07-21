@@ -21,8 +21,10 @@
 #define STRINGS_STRINGPIECE_H_
 
 //#include "third_party/chromium/src/base/strings/string_piece.h"
-#include "base/strings/string_piece.h"
+//#include "base/strings/string_piece.h"
+#include "pagespeed/kernel/base/string.h"
 
-using base::StringPiece;
-
+namespace {
+//using base::StringPiece;
+}
 #endif  // STRINGS_STRINGPIECE_H_

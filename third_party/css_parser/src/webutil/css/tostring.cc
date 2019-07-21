@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "strings/join.h"
 #include "strings/strutil.h"
 #include "webutil/css/parser.h"
@@ -36,6 +36,8 @@ class UnicodeText;
 namespace Css {
 
 namespace {
+
+using namespace base;
 
 // Is this char safe to be emitted un-escaped in an unquoted URL?
 bool IsUrlSafe(char c) {

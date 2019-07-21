@@ -10,6 +10,10 @@ envoy_package()
 
 envoy_cc_library(
     name = "net_instaweb_lib",
+    hdrs = [
+        "public/version.h",
+        "public/global_constants.h",
+    ],
     srcs = [
         "foo.cc", # for test
     ],

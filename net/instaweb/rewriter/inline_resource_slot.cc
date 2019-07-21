@@ -43,8 +43,7 @@ void InlineResourceSlot::Render() {
     DCHECK(resource()->loaded());
     DCHECK(!resource()->response_headers()->cache_fields_dirty());
     if (char_node_ != NULL && resource()->loaded()) {
-      resource()->ExtractUncompressedContents().CopyToString(
-          char_node_->mutable_contents());
+      *char_node_->mutable_contents() = GoogleString(resource()->ExtractUncompressedContents());
     }
   }
 }

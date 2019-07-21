@@ -69,7 +69,13 @@
 			"dense_hash_map": "cpp",
 			"hash_map": "cpp",
 			"hash_set": "cpp",
-			"new": "cpp"
+			"new": "cpp",
+			"strstream": "cpp",
+			"filesystem": "cpp",
+			"slist": "cpp",
+			"future": "cpp",
+			"shared_mutex": "cpp",
+			"typeindex": "cpp"
 		}
 	}
 }

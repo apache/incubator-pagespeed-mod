@@ -89,11 +89,11 @@ bool JsReplacer::Transform(StringPiece in, GoogleString* out) {
           case kSawIdentDotIdent:
           case kSawIdentDotIdentEquals:
             state = kSawIdent;
-            token.CopyToString(&maybe_object);
+            maybe_object = GoogleString(token);
             break;
           case kSawIdentDot:
             state = kSawIdentDotIdent;
-            token.CopyToString(&maybe_field);
+            maybe_field = GoogleString(token);
             break;
         }
         break;
@@ -159,7 +159,7 @@ bool JsReplacer::HandleCandidate(
     StringPiece value, GoogleString* out) {
   // Note that the token still has the quotes; we strip them before invoking
   // the callback and then restore them when serializing.
-  CHECK_GE(value.length(), 2) << value;
+  CHECK_GE(value.length(), 2u) << value;
   char quote = value[0];
   CHECK(quote == '\'' || quote == '"');
   CHECK_EQ(quote, value[value.length() - 1]);
@@ -172,7 +172,7 @@ bool JsReplacer::HandleCandidate(
     if (pat.object == object && pat.field == field) {
       GoogleString quote_str(1, quote);
       GoogleString rewriter_inout;
-      value.CopyToString(&rewriter_inout);
+      rewriter_inout = GoogleString(value);
       pat.rewriter->Run(&rewriter_inout);
       out->clear();
       StrAppend(out, quote_str, rewriter_inout, quote_str);

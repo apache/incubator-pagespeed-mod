@@ -36,7 +36,7 @@ void TrimCspWhitespace(StringPiece* input) {
     input->remove_prefix(1);
   }
 
-  while (input->ends_with(" ") || input->ends_with("\t")) {
+  while (absl::EndsWith(input, " ") || absl::EndsWith(input, "\t")) {
     input->remove_suffix(1);
   }
 }
@@ -86,7 +86,7 @@ bool CspSourceExpression::TryParseScheme(StringPiece* input) {
   if (pos == (input->size() - 1)) {
     // Last character was also : -> clearly a scheme-source
     kind_ = kSchemeSource;
-    input->substr(0, pos).CopyToString(&mutable_url_data()->scheme_part);
+    mutable_url_data()->scheme_part = GoogleString(input->substr(0, pos));
     input->remove_prefix(pos + 1);
     LowerString(&mutable_url_data()->scheme_part);
     return true;
@@ -95,7 +95,7 @@ bool CspSourceExpression::TryParseScheme(StringPiece* input) {
   // We now want to see if it's actually foo://
   if ((pos + 2 < input->size())
        && ((*input)[pos + 1] == '/') && ((*input)[pos + 2] == '/')) {
-    input->substr(0, pos).CopyToString(&mutable_url_data()->scheme_part);
+    mutable_url_data()->scheme_part = GoogleString(input->substr(0, pos));
     input->remove_prefix(pos + 3);
     LowerString(&mutable_url_data()->scheme_part);
   }
@@ -132,10 +132,10 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
       return CspSourceExpression();
     }
 
-    if (input.starts_with("*.")) {
+    if (absl::StartsWith(input, "*.")) {
       result.mutable_url_data()->host_part = "*.";
       input.remove_prefix(2);
-    } else if (input.starts_with("*")) {
+    } else if (absl::StartsWith(input, "*")) {
       result.mutable_url_data()->host_part = "*";
       input.remove_prefix(1);
     }

@@ -27,7 +27,7 @@
 
 inline void JoinStrings(const std::vector<std::string>& parts,
                         const char* delim, std::string* result) {
-  *result = JoinString(parts, delim);
+  *result = base::JoinString(parts, delim);
 }
 
 #endif  // STRINGS_JOIN_H_
