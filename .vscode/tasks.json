@@ -166,5 +166,17 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "test-pagespeed-system",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/system/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
     ]
 }

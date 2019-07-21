@@ -92,7 +92,7 @@ class AprMemCacheTest : public CacheTestBase {
     if (cluster_spec_.empty()) {
       const char* kPortString = getenv("MEMCACHED_PORT");
       int port;
-      if (kPortString == nullptr || !StringToInt(kPortString, &port)) {
+      if (kPortString == nullptr || !StringToInt(StringPiece(kPortString), &port)) {
         LOG(ERROR) << "AprMemCache tests are skipped because env var "
                    << "$MEMCACHED_PORT is not set.  Set that to the port "
                    << "number where memcached is running to enable the "
@@ -236,7 +236,7 @@ TEST_F(AprMemCacheTest, SizeTest) {
   }
 
   for (int x = 0; x < 10; ++x) {
-    for (int i = kJustUnderThreshold/2; i < kJustUnderThreshold - 10; ++i) {
+    for (uint32_t i = kJustUnderThreshold/2; i < kJustUnderThreshold - 10; ++i) {
       GoogleString value(i, 'a');
       GoogleString key = StrCat("big", IntegerToString(i));
       CheckPut(key, value);

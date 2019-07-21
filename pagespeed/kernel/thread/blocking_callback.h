@@ -45,7 +45,7 @@ class BlockingCallback : public CacheInterface::Callback {
  protected:
   virtual void Done(CacheInterface::KeyState state) {
     result_ = state;
-    CacheInterface::Callback::value().Value().CopyToString(&value_);
+    value_ = GoogleString(CacheInterface::Callback::value().Value());
     sync_.Notify();
   }
 

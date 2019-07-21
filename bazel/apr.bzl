@@ -18,6 +18,17 @@ genrule(
   cmd = "cp $< $@",
 )
 
+# sha_glue.c includes apr.h using '<>'. 
+# somehow that fails for us, so we transform the file to use quotes instead.
+genrule(
+  name = "sha2_glue_transformed",
+  srcs = [
+      'random/unix/sha2_glue.c',
+    ],
+  outs = ["random/unix/sha2_glue_transformed.c"],
+  cmd = 'sed "s/<apr.h>/\\"\\\\"apr.h\\\\"\\"/g" $< > $@',
+)
+
 cc_library(
     name = "apr",
     srcs = [
@@ -76,6 +87,7 @@ cc_library(
         'poll/unix/wakeup.c',
         'random/unix/apr_random.c',
         'random/unix/sha2.c',
+        ':sha2_glue_transformed',
         #'random/unix/sha2_glue.c',
         'shmem/unix/shm.c',
         'strings/apr_cpystrn.c',
@@ -158,6 +170,7 @@ cc_library(
         "include/apr_random.h",
     ],
     copts = [
+        "-Iexternal/apr/random/unix",
         "-Iexternal/apr/include/",
         "-Iexternal/apr/include/arch/unix/",
         "-Iexternal/apr/",

@@ -33,7 +33,7 @@ bool ExternalServerSpec::SetFromString(
     return false;
   }
 
-  GoogleString loc_host = host_port[0].as_string();
+  GoogleString loc_host = GoogleString(host_port[0]);
   if (loc_host.empty()) {
     *error_detail = "Server host cannot be empty";
     return false;

@@ -65,6 +65,7 @@ envoy_cc_test_library (
         "worker_test_base.cc",
     ],
     hdrs = [
+        "blocking_callback.h",
         "mock_scheduler.h",
         "thread_synchronizer.h",
         "thread_system_test_base.h",
