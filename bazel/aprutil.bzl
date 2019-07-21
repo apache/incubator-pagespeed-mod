@@ -18,9 +18,29 @@ genrule(
   cmd = "cp $< $@",
 )
 
+genrule(
+  name = "copy_memcache2_h",
+  srcs = [
+      '@mod_pagespeed//third_party/aprutil:memcache2_h',
+    ],
+  outs = ["apr_memcache2.h"],
+  cmd = "cp $< $@",
+)
+
+genrule(
+  name = "copy_memcache2_c",
+  srcs = [
+      '@mod_pagespeed//third_party/aprutil:memcache2_c',
+    ],
+  outs = ["apr_memcache2.c"],
+  cmd = "cp $< $@",
+)
+
+
 cc_library(
     name = "aprutil",
     srcs = [
+        ":copy_memcache2_c",
         'buckets/apr_brigade.c',
         'buckets/apr_buckets.c',
         'buckets/apr_buckets_alloc.c',
@@ -60,6 +80,7 @@ cc_library(
         'xlate/xlate.c',
     ],
     hdrs = [
+        ":copy_memcache2_h",
         ":copy_apu_private_h",
         ":copy_apu_h",
         "crypto/crypt_blowfish.h",

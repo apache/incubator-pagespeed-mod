@@ -12,3 +12,18 @@ filegroup(
     ],
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "memcache2_c",
+    srcs = [
+        "apr_memcache2.c",
+    ],
+    visibility = ["//visibility:public"],
+)
+filegroup(
+    name = "memcache2_h",
+    srcs = [
+        "apr_memcache2.h",
+    ],
+    visibility = ["//visibility:public"],
+)
