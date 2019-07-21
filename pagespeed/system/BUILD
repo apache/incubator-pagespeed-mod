@@ -80,6 +80,7 @@ envoy_cc_test(
     name = "system_test",
     srcs = [
         "apr_mem_cache_test.cc",
+        "external_server_spec_test.cc",
     ],
    copts = [
         "-Wno-error=unused-parameter",
