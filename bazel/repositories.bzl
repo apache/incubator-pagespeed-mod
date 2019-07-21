@@ -12,6 +12,8 @@ load(":drp.bzl", "drp_build_rule")
 load(":giflib.bzl", "giflib_build_rule")
 load(":optipng.bzl", "optipng_build_rule")
 load(":libjpeg_turbo.bzl", "libjpeg_turbo_build_rule")
+load(":apr.bzl", "apr_build_rule")
+load(":aprutil.bzl", "aprutil_build_rule")
 
 ENVOY_COMMIT = "master"
 BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
@@ -32,6 +34,9 @@ GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
 GRPC_COMMIT = "99fd5c391a435e2677b6caa7fd25089c484a32ab"
 LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
+APR_COMMIT = "a194e7afd16d2bd88c5394dfb6d066614161b1ed"
+APRUTIL_COMMIT = "13ed779e56669007dffe9a27ffab3790b59cbfaa"
+
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -435,3 +440,20 @@ cc_binary(
         build_file_content = libjpeg_turbo_build_rule,
         sha256 = "",
     )
+
+    http_archive(
+        name = "apr",
+        strip_prefix = "apr-%s" % APR_COMMIT,
+        url = "https://github.com/apache/apr/archive/%s.tar.gz" % APR_COMMIT,
+        build_file_content = apr_build_rule,
+        sha256 = "81f100b46670014b9ad62acaa2df653a225408a9d8d90c4727d592941952b0ec",
+    )
+
+    http_archive(
+        name = "aprutil",
+        strip_prefix = "apr-util-%s" % APRUTIL_COMMIT,
+        url = "https://github.com/apache/apr-util/archive/%s.tar.gz" % APRUTIL_COMMIT,
+        build_file_content = aprutil_build_rule,
+        sha256 = "9cf6d0e6fcc4783228dcee722897dadaadc601aef894c43a1e1514436eb4471a",
+    )
+
