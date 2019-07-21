@@ -245,7 +245,7 @@ TEST_F(QueuedExpensiveOperationTest, QueueSizeNegative) {
 
   std::vector<TrackCallsFunction> funcs(10);
 
-  for (int i = 0; i < funcs.size(); ++i) {
+  for (uint32_t i = 0; i < funcs.size(); ++i) {
     TrackCallsFunction& f = funcs[i];
 
     controller_->ScheduleExpensiveOperation(&f);
@@ -256,7 +256,7 @@ TEST_F(QueuedExpensiveOperationTest, QueueSizeNegative) {
     EXPECT_FALSE(f.cancel_called_);
   }
 
-  for (int i = 0; i < funcs.size(); ++i) {
+  for (uint32_t i = 0; i < funcs.size(); ++i) {
     controller_->NotifyExpensiveOperationComplete();
     EXPECT_EQ(funcs.size() - i - 1, active_operations());
   }

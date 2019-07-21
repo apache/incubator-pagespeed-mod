@@ -51,12 +51,12 @@ namespace net_instaweb {
 class ExpensiveOperationRpcHandler
     : public RequestResultRpcHandler<
           ExpensiveOperationRpcHandler, ExpensiveOperationController,
-          grpc::CentralControllerRpcService::AsyncService,
+          CentralControllerRpcService::AsyncService,
           ScheduleExpensiveOperationRequest,
           ScheduleExpensiveOperationResponse> {
  protected:
   ExpensiveOperationRpcHandler(
-      grpc::CentralControllerRpcService::AsyncService* service,
+      CentralControllerRpcService::AsyncService* service,
       ::grpc::ServerCompletionQueue* cq,
       ExpensiveOperationController* controller);
 
@@ -67,7 +67,7 @@ class ExpensiveOperationRpcHandler
       const ScheduleExpensiveOperationRequest& req) override;
   void HandleOperationFailed() override;
 
-  void InitResponder(grpc::CentralControllerRpcService::AsyncService* service,
+  void InitResponder(CentralControllerRpcService::AsyncService* service,
                      ::grpc::ServerContext* ctx, ReaderWriterT* responder,
                      ::grpc::ServerCompletionQueue* cq,
                      void* callback) override;

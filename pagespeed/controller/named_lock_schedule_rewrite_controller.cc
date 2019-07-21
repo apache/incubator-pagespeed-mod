@@ -85,7 +85,7 @@ void NamedLockScheduleRewriteController::DeleteInfoIfUnused(
   if (info->lock.get() == nullptr && info->pin_count <= 0
       && info->pending_callbacks.empty()) {
     size_t num_erased = locks_.erase(key);
-    CHECK_EQ(1, num_erased);
+    CHECK_EQ(1u, num_erased);
     delete info;
   }
 }

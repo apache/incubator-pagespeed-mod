@@ -63,6 +63,7 @@ envoy_cc_library(
         "url_segment_encoder.h",
         "simple_stats.h",
         "gflags.h", # XXX
+        "grpc.h", # XXX
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
@@ -77,6 +78,7 @@ envoy_cc_library(
         "@brotli//:brotli_dec",
         "@zlib//:zlib",
         ":util_re2",
+        "@grpc//:grpc++",
     ],
 )
 

@@ -201,7 +201,7 @@ void PriorityQueue<T, Hash, Equal>::Pop() {
     queue_.pop_back();
     // Remove the key from index_map_.
     size_t num_deleted = index_map_.erase(removed_key);
-    CHECK_EQ(num_deleted, 1);
+    CHECK_EQ(num_deleted, 1u);
     // Free the key.
     delete removed_key;
     // Finally, restore heap property by re-balancing the entry we just put

@@ -33,6 +33,7 @@
 #include "pagespeed/kernel/util/grpc.h"
 
 using testing::_;
+using testing::DoAll;
 using testing::Eq;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
@@ -42,12 +43,12 @@ namespace net_instaweb {
 
 namespace {
 
-class MockRpcHandler : public RpcHandler<grpc::GrpcTestService::AsyncService,
+class MockRpcHandler : public RpcHandler<GrpcTestService::AsyncService,
                                          TestRequest, TestResponse> {
  public:
-  MockRpcHandler(grpc::GrpcTestService::AsyncService* service,
+  MockRpcHandler(GrpcTestService::AsyncService* service,
                  ::grpc::ServerCompletionQueue* cq)
-      : RpcHandler<grpc::GrpcTestService::AsyncService, TestRequest,
+      : RpcHandler<GrpcTestService::AsyncService, TestRequest,
                    TestResponse>(service, cq) {
     // Default action for HandleRequest is to close the connection with a
     // successful status and not send a reply.
@@ -96,13 +97,13 @@ class MockRpcHandler : public RpcHandler<grpc::GrpcTestService::AsyncService,
   // StartOnServerThread instead.
   using RpcHandler::Start;
 
-  void InitResponder(grpc::GrpcTestService::AsyncService* service,
+  void InitResponder(GrpcTestService::AsyncService* service,
                      ::grpc::ServerContext* ctx, ReaderWriterT* responder,
                      ::grpc::ServerCompletionQueue* cq, void* callback) {
     service->RequestTest(ctx, responder, cq, cq, callback);
   }
 
-  MockRpcHandler* CreateHandler(grpc::GrpcTestService::AsyncService* service,
+  MockRpcHandler* CreateHandler(GrpcTestService::AsyncService* service,
                                 ::grpc::ServerCompletionQueue* cq) override {
     return new MockRpcHandler(service, cq);
   }
@@ -135,16 +136,16 @@ class RpcHandlerTest : public GrpcServerTest {
    public:
     explicit ClientConnection(const GoogleString& address)
         : BaseClientConnection(address),
-          stub_(grpc::GrpcTestService::NewStub(channel_)),
+          stub_(GrpcTestService::NewStub(channel_)),
           reader_writer_(stub_->Test(&client_ctx_)) {
     }
 
-    std::unique_ptr<grpc::GrpcTestService::Stub> stub_;
+    std::unique_ptr<GrpcTestService::Stub> stub_;
     std::unique_ptr<::grpc::ClientReaderWriter<TestRequest, TestResponse>>
         reader_writer_;
   };
 
-  grpc::GrpcTestService::AsyncService service_;
+  GrpcTestService::AsyncService service_;
   std::unique_ptr<ClientConnection> client_;
 };
 

@@ -181,6 +181,7 @@ envoy_cc_library(
         "pool.h",
         "pool_element.h",
         "proto_matcher_impl.h",
+        "proto_matcher.h",
         "proto_util.h",
         "string_multi_map.h",
         "gtest_prod.h", # hmm, is this right?

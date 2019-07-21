@@ -143,6 +143,18 @@
             }
         },
         {
+            "label": "test-controller",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/controller/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
             "label": "instaweb_http_test",
             "type": "shell",
             "command": "bazel test -c dbg //net/instaweb/http/...",

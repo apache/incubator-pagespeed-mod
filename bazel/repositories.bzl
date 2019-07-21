@@ -30,7 +30,7 @@ DRP_COMMIT = "f353346a9087538cd8e30a04b51e3f961c4a8fd8"
 PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
 GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
-GRPC_COMMIT = "08fd59f039c7cf62614ab7741b3f34527af103c7"
+GRPC_COMMIT = "99fd5c391a435e2677b6caa7fd25089c484a32ab"
 LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
 
 def mod_pagespeed_dependencies():
@@ -420,7 +420,7 @@ cc_binary(
         name = "grpc",
         strip_prefix = "grpc-%s" % GRPC_COMMIT,
         url = "https://github.com/grpc/grpc/archive/%s.tar.gz" % GRPC_COMMIT,
-        sha256 = "9dbb44a934d87faa8482c911e294a9f843a6c04d3936df8be116b1241bf475d9",
+        sha256 = "",
     )
 
     native.bind(
