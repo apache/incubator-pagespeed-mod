@@ -62,14 +62,12 @@ envoy_cc_test_library (
     name = "thread_test_base",
     srcs = [
         "mock_scheduler.cc",
-        "thread_synchronizer.cc",
         "thread_system_test_base.cc",
         "worker_test_base.cc",
     ],
     hdrs = [
         "blocking_callback.h",
         "mock_scheduler.h",
-        "thread_synchronizer.h",
         "thread_system_test_base.h",
         "worker_test_base.h",
         "condvar_test_base.h",

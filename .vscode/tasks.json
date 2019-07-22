@@ -193,7 +193,7 @@
         {
             "label": "test-pagespeed-rewriter",
             "type": "shell",
-            "command": "bazel test -c dbg net/instaweb/rewriter/...",
+            "command": "CC=/usr/lib/llvm-8/bin/clang CXX=/usr/lib/llvm-8/bin/clang++ bazel test -c dbg net/instaweb/rewriter/...",
             "problemMatcher": [
                 "$gcc"
             ],

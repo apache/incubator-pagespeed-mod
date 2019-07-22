@@ -2,9 +2,6 @@ licenses(["notice"])  # Apache 2
 
 load(
     "@envoy//bazel:envoy_build_system.bzl",
-    "envoy_cc_library",
-    "envoy_cc_test_library",
-    "envoy_cc_test",
     "envoy_package",
 )
 
@@ -13,11 +10,11 @@ envoy_package()
 cc_library(
     name = "log_shim",
     hdrs = [
-        "logging.h"
+        "logging.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "@glog"
+        "@glog",
     ],
 )
 
@@ -25,28 +22,26 @@ cc_library(
     name = "string_util_shim",
     hdrs = [
     ],
-    deps = ["//pagespeed/kernel/base:pagespeed_base"],
     visibility = ["//visibility:public"],
-)
-
-
-genrule(
-  name = "create_empty_logging_buildflags",
-  outs = ["logging_buildflags.h"],
-  cmd = "touch $@",
+    deps = ["//pagespeed/kernel/base:pagespeed_base"],
 )
 
 genrule(
-  name = "create_empty_debugging_buildflags",
-  outs = ["debug/debugging_buildflags.h"],
-  cmd = "touch $@",
+    name = "create_empty_logging_buildflags",
+    outs = ["logging_buildflags.h"],
+    cmd = "touch $@",
 )
 
+genrule(
+    name = "create_empty_debugging_buildflags",
+    outs = ["debug/debugging_buildflags.h"],
+    cmd = "touch $@",
+)
 
 cc_library(
     name = "base",
     srcs = [
-#        "lazy_instance_helpers.cc",
+        #        "lazy_instance_helpers.cc",
         "debug/debugger.cc",
         "debug/alias.cc",
         "strings/string_util.cc",
@@ -56,13 +51,33 @@ cc_library(
         "strings/utf_string_conversions.cc",
         "strings/utf_string_conversion_utils.cc",
         "strings/string_number_conversions.cc",
-        "time/time.cc",        
+        "time/time.cc",
         "third_party/nspr/prtime.cc",
         "third_party/icu/icu_utf.cc",
         "at_exit.cc",
-        "bind_internal.cc"
+        "strings/stringprintf.cc",
+        "memory/ref_counted.cc",
+        #"sequence_checker_impl.cc",
+        #"threading/thread_checker_impl.cc",
+        #"callback_helpers.cc",
+        #"threading/thread_task_runner_handle.cc",
+        #"sequenced_task_runner.cc",
+        #"task_runner.cc",
+        #"location.cc",
+        #"threading/sequenced_task_runner_handle.cc",
     ],
     hdrs = [
+        #"threading/sequenced_task_runner_handle.h",
+        #"hash/hash.h",
+        #"containers/span.h",        
+        #"containers/checked_iterators.h",
+        #"location.h",
+        #"task_runner.h",
+        #"single_thread_task_runner.h",
+        #"sequenced_task_runner.h",
+        #"sequenced_task_runner_helpers.h",
+        #"threading/thread_task_runner_handle.h",
+        "callback_helpers.h",
         "strings/stringprintf.h",
         "at_exit.h",
         "pending_task.h",
@@ -78,14 +93,16 @@ cc_library(
         "base_export.h",
         "callback_forward.h",
         "no_destructor.h",
-#        "lazy_instance.h",
-#        "lazy_instance_helpers.h",
+        #        "lazy_instance.h",
+        #        "lazy_instance_helpers.h",
+        "sequence_token.h",
         "atomicops.h",
         "atomicops_internals_portable.h",
         "debug/debugger.h",
         "debug/alias.h",
         "debug/leak_annotations.h",
         ":create_empty_logging_buildflags",
+        #":create_empty_debugging_buildflags",
         #"logging_buildflags.h",
         "atomic_ref_count.h",
         "immediate_crash.h",
@@ -116,11 +133,14 @@ cc_library(
         "memory/weak_ptr.h",
         "memory/raw_scoped_refptr_mismatch_checker.h",
         "memory/scoped_refptr.h",
+        "memory/ptr_util.h",
         "synchronization/lock.h",
+        "synchronization/atomic_flag.h",
         "synchronization/lock_impl.h",
         "third_party/icu/icu_utf.h",
         "third_party/dmg_fp/dmg_fp.h",
         "threading/thread_collision_warner.h",
+        "threading/thread_checker_impl.h",
         "threading/platform_thread.h",
         "containers/queue.h",
         "containers/stack.h",
@@ -134,8 +154,16 @@ cc_library(
         "bind.h",
         "bind_internal.h",
     ],
+    copts = [
+        "-std=c++14",
+        "-Wno-error=unused-parameter",
+        "-Wno-unused-parameter",
+    ],
     visibility = ["//visibility:public"],
-    deps = ["//build:build", "@icu//:icu", "@glog", "@mod_pagespeed//base:log_shim"],
-    copts = ["-std=c++14", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
+    deps = [
+        "//build",
+        "@glog",
+        "@icu",
+        "@mod_pagespeed//base:log_shim",
+    ],
 )
-

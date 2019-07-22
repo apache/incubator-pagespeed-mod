@@ -13,6 +13,8 @@ envoy_package()
 envoy_cc_library(
     name = "config",
     srcs = [
+        #"rewrite_options_manager.cc",
+        #"measurement_proxy_rewrite_options_manager.cc",
     ],
     hdrs = [
         "rewrite_options_manager.h",
@@ -27,6 +29,7 @@ envoy_cc_library(
     repository = "@envoy",
     visibility = ["//visibility:public"],
     deps = [
+ #       "//net/instaweb/rewriter:rewriter"
  #       "//pagespeed/kernel/cache",
  #       "//pagespeed/opt/logging",
     ],

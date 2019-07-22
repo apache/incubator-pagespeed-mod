@@ -15,7 +15,7 @@ envoy_cc_library(
         "public/global_constants.h",
     ],
     srcs = [
-        "foo.cc", # for test
+        #"foo.cc", # for test
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],

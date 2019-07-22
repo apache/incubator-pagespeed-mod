@@ -34,9 +34,25 @@ cc_library(
     ],
 )
 
+genrule(
+    name = "css_parser_identifier_gperf",
+    srcs = ["src/webutil/css/identifier.gperf"],
+    outs = ["src/webutil/css/identifier.gp.cc"],
+    cmd = ("gperf -m10 $< > $@"),
+)
+
+genrule(
+    name = "css_parser_property_gperf",
+    srcs = ["src/webutil/css/property.gperf"],
+    outs = ["src/webutil/css/property.gp.cc"],
+    cmd = ("gperf -m10 $< > $@"),
+)
+
 cc_library(
     name = "css_parser",
     srcs = [
+        ":css_parser_identifier_gperf",
+        ":css_parser_property_gperf",
         "src/webutil/css/media.cc",
         "src/webutil/css/parser.cc",
         "src/webutil/css/selector.cc",
@@ -93,6 +109,7 @@ cc_library(
         "src/webutil/css/string_util.h",
         "src/webutil/css/parser.h",
         #"src/base/stringprintf.h",
+        "src/base/googleinit.h",
         "src/base/integral_types.h",
         "src/base/scoped_ptr.h",
         "src/base/basictypes.h",

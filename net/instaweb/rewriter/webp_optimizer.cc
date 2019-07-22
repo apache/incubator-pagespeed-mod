@@ -35,7 +35,7 @@ extern "C" {
 #include "webp/encode.h"
 #else
 #include "external/libwebp/src/webp/decode.h"
-#include "external/libwebp/webp/encode.h"
+#include "external/libwebp/src/webp/encode.h"
 #endif
 // TODO(jmaessen): open source imports & build of libwebp.
 }
@@ -199,7 +199,7 @@ bool WebpOptimizer::DoReadJpegPixels(J_COLOR_SPACE color_space,
   height_ = jpeg_decompress->output_height;
   row_stride_ = width_ * jpeg_decompress->output_components * sizeof(*pixels_);
 
-  pixels_ = new uint8[row_stride_ * height_];
+  pixels_ = new uint8_t[row_stride_ * height_];
   // jpeglib expects to get an array of pointers to rows, so allocate one and
   // point it to contiguous rows in *pixels_.
   rows_ = new uint8_t*[height_];
