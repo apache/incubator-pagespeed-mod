@@ -199,7 +199,7 @@ void JsInlineFilter::RenderInline(
   // First quickly scan to see if there's anything we need to fix.
   if (FindIgnoreCase(contents, "<script") != StringPiece::npos ||
       FindIgnoreCase(contents, "</script") != StringPiece::npos) {
-    contents.CopyToString(&contents_for_escaping);
+    contents_for_escaping = GoogleString(contents);
 
     // To keep the case of the original 'script' text we need to run twice, once
     // for 's' and once for 'S'.

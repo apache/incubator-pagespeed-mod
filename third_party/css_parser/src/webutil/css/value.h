@@ -29,7 +29,7 @@
 
 #include "base/logging.h"
 #include "base/macros.h"
-//#include "strings/stringpiece.h"
+#include "strings/stringpiece.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/identifier.h"
 #include "webutil/css/string.h"
@@ -143,11 +143,11 @@ class Value {
   // like strings and numbers where the original contents may not be fully
   // recoverable after value parsing.
   // Note: May be invalid UTF8.
-  StringPiece bytes_in_original_buffer() const {
+  CssStringPiece bytes_in_original_buffer() const {
     return bytes_in_original_buffer_;
   }
-  void set_bytes_in_original_buffer(const StringPiece& bytes) {
-    bytes_in_original_buffer_ = std::string(bytes);
+  void set_bytes_in_original_buffer(const CssStringPiece& bytes) {
+    bytes.CopyToString(&bytes_in_original_buffer_);
   }
 
  private:

@@ -70,7 +70,7 @@ bool GetSystemColor(const string& colorstr, HtmlColor* color);
 // Whether a media string (comma separated list of media) is compatible with
 // screen-oriented applications. It is valid if no media is specified or some
 // medium has the name "screen" or "all".
-bool MediaAppliesToScreen(const StringPiece& media);
+bool MediaAppliesToScreen(const CssStringPiece& media);
 
 // Whether a media list is compatible with screen-oriented applications. It
 // is valid if no media is specified or some medium has the name "screen" or

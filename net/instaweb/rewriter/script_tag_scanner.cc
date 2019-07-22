@@ -114,7 +114,7 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
         lang = kJavaScript;                    // e.g. <script language>
       } else {
         GoogleString lang_str;
-        lang_piece.CopyToString(&lang_str);
+        lang_str = GoogleString(lang_piece);
         LowerString(&lang_str);
         if (lang_str.empty() || IsJsMime(StrCat("text/", lang_str))) {
           lang = kJavaScript;

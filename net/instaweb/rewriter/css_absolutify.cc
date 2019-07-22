@@ -92,10 +92,11 @@ bool CssAbsolutify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
         case Css::Ruleset::RULESET: {
           Css::Selectors& selectors(ruleset->mutable_selectors());
           if (selectors.is_dummy()) {
-            StringPiece original_bytes = selectors.bytes_in_original_buffer();
+            CssStringPiece original_bytes = selectors.bytes_in_original_buffer();
+            StringPiece tmp(original_bytes.data(), original_bytes.size());
             GoogleString rewritten_bytes;
             StringWriter writer(&rewritten_bytes);
-            if (CssTagScanner::TransformUrls(original_bytes, &writer,
+            if (CssTagScanner::TransformUrls(tmp, &writer,
                                              &transformer, handler)) {
               selectors.set_bytes_in_original_buffer(rewritten_bytes);
               urls_modified = true;
@@ -105,10 +106,11 @@ bool CssAbsolutify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
         }
         case Css::Ruleset::UNPARSED_REGION: {
           Css::UnparsedRegion* unparsed = ruleset->mutable_unparsed_region();
-          StringPiece original_bytes = unparsed->bytes_in_original_buffer();
+          CssStringPiece original_bytes = unparsed->bytes_in_original_buffer();
+          StringPiece tmp(original_bytes.data(), original_bytes.size());
           GoogleString rewritten_bytes;
           StringWriter writer(&rewritten_bytes);
-          if (CssTagScanner::TransformUrls(original_bytes, &writer,
+          if (CssTagScanner::TransformUrls(tmp, &writer,
                                            &transformer, handler)) {
             unparsed->set_bytes_in_original_buffer(rewritten_bytes);
             urls_modified = true;
@@ -139,10 +141,11 @@ bool CssAbsolutify::AbsolutifyDeclarations(
     Css::Declaration* decl = *decl_iter;
     if (decl->prop() == Css::Property::UNPARSEABLE) {
       if (handle_unparseable_sections) {
-        StringPiece original_bytes = decl->bytes_in_original_buffer();
+        CssStringPiece original_bytes = decl->bytes_in_original_buffer();
         GoogleString rewritten_bytes;
         StringWriter writer(&rewritten_bytes);
-        if (CssTagScanner::TransformUrls(original_bytes, &writer,
+        StringPiece tmp(original_bytes.data(), original_bytes.size());
+        if (CssTagScanner::TransformUrls(tmp, &writer,
                                          transformer, handler)) {
           urls_modified = true;
           decl->set_bytes_in_original_buffer(rewritten_bytes);

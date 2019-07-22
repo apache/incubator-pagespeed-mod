@@ -204,7 +204,8 @@ void CssSummarizerBase::Context::RewriteSingle(
 
   // Load stylesheet w/o expanding background attributes and preserving as
   // much content as possible from the original document.
-  Css::Parser parser(input_contents);
+  CssStringPiece tmp(input_contents.data(), input_contents.size());
+  Css::Parser parser(tmp);
   parser.set_preservation_mode(true);
 
   // We avoid quirks-mode so that we do not "fix" something we shouldn't have.
@@ -507,14 +508,14 @@ CssSummarizerBase::Context* CssSummarizerBase::CreateContextAndSummaryInfo(
   summaries_.push_back(SummaryInfo());
   SummaryInfo& new_summary = summaries_.back();
   new_summary.location = location;
-  base_for_resources.CopyToString(&new_summary.base);
+  new_summary.base = GoogleString(base_for_resources);
   const HtmlElement::Attribute* media_attribute =
         element->FindAttribute(HtmlName::kMedia);
   if (media_attribute != NULL &&
       media_attribute->DecodedValueOrNull() != NULL) {
     new_summary.media_from_html = media_attribute->DecodedValueOrNull();
   }
-  rel.CopyToString(&new_summary.rel);
+  new_summary.rel = GoogleString(rel);
   new_summary.is_external = external;
   new_summary.is_inside_noscript = (noscript_element() != NULL);
 

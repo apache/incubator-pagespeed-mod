@@ -534,12 +534,12 @@ bool DomainLawyer::MapRequestToDomain(
 
     // The origin domain is authorized by default.
     if (resolved_origin == original_origin) {
-      mapped_domain_name = GoogleString(resolved_origin.Spec());
+      *mapped_domain_name = GoogleString(resolved_origin.Spec());
       ret = true;
     } else if (resolved_domain != NULL && resolved_domain->authorized()) {
       if (resolved_domain->IsWildcarded()) {
         // This is a sharded domain. We do not do the sharding in this function.
-        mapped_domain_name = GoogleString(resolved_origin.Spec());
+        *mapped_domain_name = GoogleString(resolved_origin.Spec());
       } else {
         *mapped_domain_name = resolved_domain->name();
       }
@@ -1106,7 +1106,7 @@ bool DomainLawyer::AddProxySuffix(const GoogleUrl& base_url,
   // http://www.example.com/foo or http://foo.www.example.com/bar then
   // we want to add the suffix to the hyperlink attribute.
   StringPiece base_host = base_url.Host();
-  if (!proxy_suffix_.empty() && base_host.ends_with(proxy_suffix_)) {
+  if (!proxy_suffix_.empty() && absl::EndsWith(base_host, proxy_suffix_)) {
     // Remove the suffix from the host so we can find a-tag references to it.
     StringPiece base_host_no_suffix = base_host.substr(
         0, base_host.size() - proxy_suffix_.size());

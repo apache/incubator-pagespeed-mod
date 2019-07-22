@@ -99,7 +99,7 @@ void SrcSetSlotCollection::ParseSrcSet(
     // URL may have trailing commas, which also means there is no
     // descriptor.
     bool expect_descriptor = true;
-    while (url.ends_with(",")) {
+    while (absl::EndsWith(url, ",")) {
       url.remove_suffix(1);
       expect_descriptor = false;
     }
@@ -123,8 +123,8 @@ void SrcSetSlotCollection::ParseSrcSet(
     }
 
     ImageCandidate cand;
-    url.CopyToString(&cand.url);
-    descriptor.CopyToString(&cand.descriptor);
+    cand.url = GoogleString(url);
+    cand.descriptor = GoogleString(descriptor);
     out->push_back(cand);
   }
 }

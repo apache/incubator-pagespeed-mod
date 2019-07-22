@@ -193,7 +193,7 @@ void DebugFilter::EndElement(HtmlElement* element) {
         (src = element->FindAttribute(HtmlName::kSrc)) != NULL) {
       GoogleUrl gurl(driver_->base_url(),
                      StringPiece(src->DecodedValueOrNull()));
-      GoogleString url_str = gurl.UncheckedSpec().as_string();
+      GoogleString url_str = GoogleString(gurl.UncheckedSpec());
       CriticalImagesFinder* finder =
           driver_->server_context()->critical_images_finder();
       if (finder->IsHtmlCriticalImage(url_str, driver_)) {

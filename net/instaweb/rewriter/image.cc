@@ -68,7 +68,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }
 
@@ -1371,7 +1371,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
   const size_t bytes_per_pixel =
       GetNumChannelsFromPixelFormat(output_pixel_format, handler_.get());
   const size_t bytes_per_scanline = canvas_width * bytes_per_pixel;
-  scoped_array<uint8_t> scanline(new uint8[bytes_per_scanline]);
+  scoped_array<uint8_t> scanline(new uint8_t[bytes_per_scanline]);
 
   // Create a writer for writing the new canvas image.
   GoogleString canvas_image;

@@ -22,8 +22,13 @@
 #include "webutil/html/htmltagenum.h"
 
 #include "base/macros.h"
-#include "base/strings/stringprintf.h"
-#include "pagespeed/kernel/base/basictypes.h"
+#include "base/stringprintf.h"
+
+
+#define arraysize(a)                                                           \
+  ((sizeof(a) / sizeof(*(a))) /                                                \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
+
 
 const char* HtmlTagEnumNames[] =
 {    "Unknown",

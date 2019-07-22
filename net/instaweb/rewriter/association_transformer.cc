@@ -46,7 +46,7 @@ CssTagScanner::Transformer::TransformStatus AssociationTransformer::Transform(
     } else {
       // Apply association.
       GoogleString url_string;
-      url.Spec().CopyToString(&url_string);
+      url_string = GoogleString(url.Spec());
       StringStringMap::const_iterator it = map_.find(url_string);
       if (it != map_.end()) {
         UrlRelativity url_relativity = GoogleUrl::FindRelativity(*str);

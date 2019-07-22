@@ -105,7 +105,7 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
     if (long_url_buffer.substr(to_trim, 2) == "//") {
       to_trim = 0;
     } else if (to_trim + path.length() < long_url_buffer.length() &&
-               StringPiece(long_url.PathSansLeaf()).starts_with(path)) {
+               absl::StartsWith(StringPiece(long_url.PathSansLeaf()), path)) {
       // Don't trim the path off queries in the form http://foo.com/?a=b
       // Instead resolve to /?a=b (not ?a=b, which resolves to
       // index.html?a=b on http://foo.com/index.html).
@@ -165,7 +165,7 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
     if (!resolved_newurl.IsWebValid() || resolved_newurl != long_url) {
       return false;
     }
-    *trimmed_url = trimmed_url_piece.as_string();
+    *trimmed_url = GoogleString(trimmed_url_piece);
     return true;
   }
   return false;

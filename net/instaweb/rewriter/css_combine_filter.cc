@@ -79,7 +79,8 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
   }
 
   bool CleanParse(const StringPiece& contents) {
-    Css::Parser parser(contents);
+    CssStringPiece tmp(contents.data(), contents.size());
+    Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     // Among other issues, quirks-mode allows unbalanced {}s in some cases.
     parser.set_quirks_mode(false);
@@ -451,7 +452,7 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
             message.append(", ");
           }
           message.append("'");
-          message.append(nonstandard_attributes[i].as_string());
+          message.append(GoogleString(nonstandard_attributes[i]));
           message.append("'");
         }
       } else {
@@ -530,7 +531,7 @@ void CssCombineFilter::Flush() {
 bool CssCombineFilter::CssCombiner::WritePiece(
     int index, int num_pieces, const Resource* input,
     OutputResource* combination, Writer* writer, MessageHandler* handler) {
-  StringPiece contents = input->ExtractUncompressedContents();
+  ::StringPiece contents = input->ExtractUncompressedContents();
   GoogleUrl input_url(input->url());
   // Strip the BOM off of the contents (if it's there) if this is not the
   // first resource.
@@ -542,7 +543,7 @@ bool CssCombineFilter::CssCombiner::WritePiece(
       input_url, combination->resolved_base(), contents, writer, handler)) {
     case RewriteDriver::kNoResolutionNeeded:
       ret = writer->Write(contents, handler);
-      if (ret && (index != (num_pieces - 1)) && !contents.ends_with("\n")) {
+      if (ret && (index != (num_pieces - 1)) && !absl::EndsWith(contents, "\n")) {
         // Ensure that we add a new line at the end, to make sure that any
         // unopened strings get closed in a predictable manner. (Not needed
         // for last piece since it will be terminated by EOF).

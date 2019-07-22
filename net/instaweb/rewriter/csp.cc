@@ -36,7 +36,7 @@ void TrimCspWhitespace(StringPiece* input) {
     input->remove_prefix(1);
   }
 
-  while (absl::EndsWith(input, " ") || absl::EndsWith(input, "\t")) {
+  while (absl::EndsWith(*input, " ") || absl::EndsWith(*input, "\t")) {
     input->remove_suffix(1);
   }
 }
@@ -159,7 +159,7 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
     }
 
     // Start on port-part, if any
-    if (input.starts_with(":")) {
+    if (absl::StartsWith(input, ":")) {
       input.remove_prefix(1);
       if (input.empty()) {
         return CspSourceExpression();
@@ -196,7 +196,7 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
       result.mutable_url_data()->path_part.push_back(canon.substr(1));
     }
     result.mutable_url_data()->path_exact_match =
-        !input.empty() && !input.ends_with("/");
+        !input.empty() && !absl::EndsWith(input, "/");
   }
 
   return result;
@@ -286,7 +286,7 @@ bool CspSourceExpression::Matches(
 
   if (expr_host[0] == '*') {
     StringPiece remaining = expr_host.substr(1);
-    if (!url.Host().ends_with(remaining)) {
+    if (!absl::EndsWith(url.Host(), remaining)) {
       return false;
     }
   } else {

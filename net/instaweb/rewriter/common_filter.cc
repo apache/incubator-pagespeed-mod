@@ -234,7 +234,7 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
     StringPiece attribute = equiv->DecodedValueOrNull();
     StringPiece value_str = value->DecodedValueOrNull();
     if (!value_str.empty() && !attribute.empty()) {
-      value_str.CopyToString(content);
+      *content = GoogleString(value_str);
       TrimWhitespace(&attribute);
 
       // http-equiv must equal "Content-Type" and content mustn't be blank.

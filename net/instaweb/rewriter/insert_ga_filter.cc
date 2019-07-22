@@ -195,7 +195,7 @@ bool InsertGAFilter::StringLiteralMatches(StringPiece literal,
 bool InsertGAFilter::StringLiteralEndsWith(StringPiece literal,
                                            StringPiece desired) {
   // Literal includes the beginning and ending quotes; need to exclude them.
-  return literal.substr(1, literal.size() - 2).ends_with(desired);
+  return absl::EndsWith(literal.substr(1, literal.size() - 2), desired);
 }
 
 void InsertGAFilter::StartDocumentImpl() {
@@ -273,7 +273,7 @@ GoogleString InsertGAFilter::GaJsExperimentSnippet() const {
   const char* variant_id =
       driver()->options()->content_experiment_variant_id().c_str();
   int numeric_variant_id;
-  if (StringToInt(variant_id, &numeric_variant_id)) {
+  if (StringToInt(StringPiece(variant_id), &numeric_variant_id)) {
     return StringPrintf(
         kContentExperimentsSetChosenVariationSnippet, numeric_variant_id,
         driver()->options()->content_experiment_id().c_str());
@@ -336,7 +336,7 @@ void InsertGAFilter::EndDocument() {
     }
 
     // Domain for this html page.
-    GoogleString domain = driver()->google_url().Host().as_string();
+    GoogleString domain = GoogleString(driver()->google_url().Host());
     if (increase_speed_tracking_) {
       speed_tracking = kGASpeedTracking;
     }
@@ -490,7 +490,7 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
         state = kInitial;
       }
 
-      rewritten.append(token.as_string());
+      rewritten.append(GoogleString(token));
     }
     if (state == kSuccess) {
       (*characters->mutable_contents()) = rewritten;

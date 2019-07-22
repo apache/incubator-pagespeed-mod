@@ -96,6 +96,8 @@ cc_library(
         "src/base/integral_types.h",
         "src/base/scoped_ptr.h",
         "src/base/basictypes.h",
+        "src/base/stringprintf.h",
+        "src/testing/production_stub/public/gunit_prod.h",
         "src/util/utf8/public/unilib_utf8_utils.h",
     ] + glob(["src/util/gtl/*.h"]),
     copts = [
@@ -106,7 +108,9 @@ cc_library(
     deps = [
         "//base",
         ":utf",
-        "//pagespeed/kernel/base:pagespeed_base",
+        "@com_google_googletest//:gtest",# for gtest_prod.h        
+        "@google_sparsehash//:google_sparsehash",
+        "//third_party/google-sparsehash:google_sparsehash_gen",
     ],
     visibility = ["//visibility:public"],
 )

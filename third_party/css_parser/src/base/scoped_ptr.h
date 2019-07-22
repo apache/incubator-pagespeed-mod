@@ -20,8 +20,6 @@
 #ifndef BASE_SCOPED_PTR_H_
 #define BASE_SCOPED_PTR_H_
 
-#include "pagespeed/kernel/base/scoped_ptr.h"
-
 template<typename T> class scoped_ptr : public std::unique_ptr<T> {
  public:
   scoped_ptr() {}

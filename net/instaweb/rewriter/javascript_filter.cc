@@ -363,7 +363,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
     GoogleUrl library_gurl(Driver()->base_url(), library_url);
     server_context->message_handler()->Message(
         kInfo, "Canonical script %s is %s", code_block.message_id().c_str(),
-        library_gurl.UncheckedSpec().as_string().c_str());
+        GoogleString(library_gurl.UncheckedSpec()).c_str());
     if (!library_gurl.IsWebValid()) {
       return false;
     }
@@ -465,14 +465,13 @@ void JavascriptFilter::RewriteInlineScript(HtmlCharactersNode* body_node) {
   if (!library_url.empty()) {
     // TODO(jmaessen): outline and use canonical url.
     driver()->InfoHere("Script is inlined version of %s",
-                       library_url.as_string().c_str());
+                       GoogleString(library_url).c_str());
   }
   if (code_block.successfully_rewritten()) {
     // Replace the old script string with the new, minified one.
     if ((driver()->MimeTypeXhtmlStatus() != RewriteDriver::kIsNotXhtml) &&
         (script->find("<![CDATA[") != StringPiece::npos) &&
-        !code_block.rewritten_code().starts_with(
-            "<![CDATA")) {  // See Issue 542.
+        !absl::StartsWith(code_block.rewritten_code(), "<![CDATA")) {  // See Issue 542.
       // Minifier strips leading and trailing CDATA comments from scripts.
       // Restore them if necessary and safe according to the original script.
       script->clear();

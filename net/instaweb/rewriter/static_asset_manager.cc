@@ -378,14 +378,14 @@ bool StaticAssetManager::GetAsset(StringPiece file_name,
   // spurious request.
   if (names.size() != 3) {
     message_handler_->Message(kError, "Invalid url requested: %s.",
-                              file_name.as_string().c_str());
+                              GoogleString(file_name).c_str());
     return false;
   }
   GoogleString plain_file_name;
-  names[0].CopyToString(&plain_file_name);
+  plain_file_name = GoogleString(names[0]);
   bool is_debug = false;
 
-  if (StringPiece(plain_file_name).ends_with("_debug")) {
+  if (absl::EndsWith(plain_file_name, "_debug")) {
     is_debug = true;
     plain_file_name = plain_file_name.substr(0, plain_file_name.length() -
                                              strlen("_debug"));

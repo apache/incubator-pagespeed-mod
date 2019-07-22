@@ -315,6 +315,8 @@ envoy_cc_library(
         "-Wno-error=inconsistent-missing-override",
 #        "-Wno-inconsistent-missing-override",
 #        "-Wno-missing-field-initializers",
+        "-Wno-error=unused-private-field",
+        "-Wno-error=unused-variable",
         "-Ithird_party/css_parser/src/",
         "-Ithird_party/css_parser/src/third_party/utf",
 
@@ -324,6 +326,7 @@ envoy_cc_library(
         "//net/instaweb/util:util",
         "//net/instaweb/http:http",
         "//net/instaweb:net_instaweb_lib",
+        "//net/instaweb/spriter:spriter",
         "//pagespeed/kernel/js:js",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/image:image",        
@@ -339,6 +342,7 @@ envoy_cc_library(
         "//base:base",
     ],
 )
+
 
 envoy_cc_test_library (
     name = "rewriter_test_base",
@@ -357,6 +361,7 @@ envoy_cc_test_library (
 #        "-Wno-error=old-style-cast",
 #        "-Wno-error=missing-field-initializers",
 #        "-Wno-error=unused-parameter",
+#        "-Wno-error=unused-private-field",
 #        "-Wno-error=inconsistent-missing-override",
 #        "-Wno-inconsistent-missing-override",
 #        "-Wno-missing-field-initializers",

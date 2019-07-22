@@ -21,7 +21,7 @@
 
 #include "webutil/css/media.h"
 
-#include "pagespeed/kernel/base/stl_util.h"
+#include "util/gtl/stl_util.h"
 
 namespace Css {
 

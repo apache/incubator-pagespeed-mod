@@ -85,15 +85,15 @@ namespace Css {
 
 class MediaAppliesToScreenTest : public testing::Test {
  protected:
-  bool ParseMediaAppliesToScreen(const StringPiece& media_string) {
+  bool ParseMediaAppliesToScreen(const CssStringPiece& media_string) {
     Css::Parser p(media_string);
     scoped_ptr<Css::MediaQueries> queries(p.ParseMediaQueries());
     return Css::Util::MediaAppliesToScreen(*queries);
   }
 
-  void ExpectMediaAppliesToScreen(const StringPiece& media_string,
+  void ExpectMediaAppliesToScreen(const CssStringPiece& media_string,
                                   bool expected) {
-    // Test StringPiece implementation.
+    // Test CssStringPiece implementation.
     EXPECT_EQ(expected, Css::Util::MediaAppliesToScreen(media_string))
         << "Media string: " << media_string;
 
@@ -114,7 +114,7 @@ TEST_F(MediaAppliesToScreenTest, ComplexMediaQueries) {
   // devices of type screen because we are acting like a CSS2 parser and
   // thus reading "screen" but ignoring the rest.
   EXPECT_TRUE(ParseMediaAppliesToScreen("screen and (color)"));
-  // Css::Util::MediaAppliesToScreen(const StringPiece&) does not parse the
+  // Css::Util::MediaAppliesToScreen(const CssStringPiece&) does not parse the
   // string, and so it's simple string comparison fails here.
   EXPECT_FALSE(Css::Util::MediaAppliesToScreen("screen and (color)"));
 

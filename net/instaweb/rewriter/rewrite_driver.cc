@@ -1544,12 +1544,12 @@ bool RewriteDriver::DecodeOutputResourceNameHelper(
     }
     GoogleUrl decoded_gurl(decoded_url);
     if (decoded_gurl.IsWebValid()) {
-      *url_base = (decoded_gurl.AllExceptLeaf()).as_string();
+      *url_base = GoogleString(decoded_gurl.AllExceptLeaf());
     } else {
       return false;
     }
   } else {
-    *url_base = (gurl.AllExceptLeaf()).as_string();
+    *url_base = GoogleString(gurl.AllExceptLeaf());
   }
 
   // Now let's reject as mal-formed if the id string is not
@@ -1643,7 +1643,7 @@ bool RewriteDriver::DecodeUrlGivenOptions(
     GoogleUrl gurl_base(url_base);
     for (int i = 0, n = decoded_urls->size(); i < n; ++i) {
       GoogleUrl full_url(gurl_base, (*decoded_urls)[i]);
-      (*decoded_urls)[i] = full_url.Spec().as_string();
+      (*decoded_urls)[i] = GoogleString(full_url.Spec());
     }
   }
   return is_decoded;
@@ -1833,7 +1833,7 @@ bool RewriteDriver::FetchResource(const StringPiece& url,
   DCHECK_EQ(0, ref_counts_.QueryCountMutexHeld(kRefParsing));
   bool handled = false;
 
-  fetch_url_ = url.as_string();
+  fetch_url_ = GoogleString(url);
 
   // Set the request headers if they haven't been yet.
   if (request_headers_ == NULL && async_fetch->request_headers() != NULL) {
@@ -1875,7 +1875,7 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
                                          AsyncFetch* async_fetch) {
   CHECK(gurl.IsWebValid()) << "Invalid URL " << gurl.spec_c_str();
   CHECK(request_headers_.get() != NULL);
-  gurl.Spec().CopyToString(&fetch_url_);
+  fetch_url_ = GoogleString(gurl.Spec());
   StringPiece base = gurl.AllExceptLeaf();
   ResourceNamer namer;
   OutputResourcePtr output_resource(
@@ -2133,7 +2133,7 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
       } else {
         message_handler()->Message(
             kInfo, "Cannot fetch url '%s': as %s is not supported",
-            url.spec_c_str(), mapped_gurl.Scheme().as_string().c_str());
+            url.spec_c_str(), GoogleString(mapped_gurl.Scheme()).c_str());
       }
     }
   } else {
@@ -2141,7 +2141,7 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
     // Specifically, any URLs with scheme other than data: or http: or https:.
     // TODO(sligocki): Is this true? Or will such URLs not make it this far?
     message_handler()->Message(kWarning, "Unsupported scheme '%s' for url '%s'",
-                               url.Scheme().as_string().c_str(),
+                               GoogleString(url.Scheme()).c_str(),
                                url.spec_c_str());
   }
   return resource;
@@ -2616,7 +2616,7 @@ bool RewriteDriver::GenerateOutputResourceNameAndUrl(
   }
 
   StringVector v;
-  v.push_back(mapped_gurl->LeafWithQuery().as_string());
+  v.push_back(GoogleString(mapped_gurl->LeafWithQuery()));
   encoder->Encode(v, data, name);
   return true;
 }
@@ -2759,7 +2759,7 @@ void RewriteDriver::SetBaseUrlIfUnset(const StringPiece& new_base) {
     }
   } else {
     InfoHere("Invalid base tag %s relative to %s",
-             new_base.as_string().c_str(),
+             GoogleString(new_base).c_str(),
              base_url_.spec_c_str());
   }
 }
@@ -2781,7 +2781,7 @@ void RewriteDriver::SetBaseUrlForFetch(const StringPiece& url) {
 
 RewriteFilter* RewriteDriver::FindFilter(const StringPiece& id) const {
   RewriteFilter* filter = NULL;
-  StringFilterMap::const_iterator p = resource_filter_map_.find(id.as_string());
+  StringFilterMap::const_iterator p = resource_filter_map_.find(GoogleString(id));
   if (p != resource_filter_map_.end()) {
     filter = p->second;
   }
@@ -3383,7 +3383,7 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
     // this just serves to explain why and suggest a remedy.
     handler->Message(kInfo, "Could not create output resource"
                      " (bad filename prefix '%s'?)",
-                     server_context_->filename_prefix().as_string().c_str());
+                     GoogleString(server_context_->filename_prefix()).c_str());
   }
   return ret;
 }

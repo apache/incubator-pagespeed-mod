@@ -50,7 +50,7 @@ CssTagScanner::Transformer::TransformStatus CssUrlCounter::Transform(
     } else {
       // Count occurrences of each URL.
       GoogleString url_string;
-      url.Spec().CopyToString(&url_string);
+      url_string = GoogleString(url.Spec());
       ++url_counts_[url_string];
     }
   }

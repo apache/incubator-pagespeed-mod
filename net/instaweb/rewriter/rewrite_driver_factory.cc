@@ -162,7 +162,7 @@ void RewriteDriverFactory::set_slurp_directory(const StringPiece& dir) {
   CHECK(!FetchersComputed())
       << "Cannot call set_slurp_directory "
       << " after ComputeUrl*Fetcher has been called";
-  dir.CopyToString(&slurp_directory_);
+  slurp_directory_ = GoogleString(dir);
 }
 
 void RewriteDriverFactory::set_slurp_read_only(bool read_only) {
@@ -429,7 +429,7 @@ QueuedWorkerPool* RewriteDriverFactory::WorkerPool(WorkerPoolCategory pool) {
 }
 
 bool RewriteDriverFactory::set_filename_prefix(StringPiece p) {
-  p.CopyToString(&filename_prefix_);
+  filename_prefix_ = GoogleString(p);
   if (file_system()->IsDir(filename_prefix_.c_str(),
                            message_handler()).is_true()) {
     return true;

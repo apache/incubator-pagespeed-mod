@@ -92,8 +92,8 @@ void FixReflowFilter::StartDocument() {
           &element_height_vector, true);
       for (int i = 0, n = element_height_vector.size(); i < n - 1; i += 2) {
         element_height_map_.insert(make_pair(
-            element_height_vector[i].as_string(),
-            element_height_vector[i+1].as_string()));
+            GoogleString(element_height_vector[i]),
+            GoogleString(element_height_vector[i+1])));
       }
     }
   }

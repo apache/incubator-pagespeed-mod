@@ -29,6 +29,8 @@ envoy_cc_library(
     srcs = [
     ],
     hdrs = [
+        "image_library_interface.h",
+        "public/image_spriter.h",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],

@@ -46,14 +46,14 @@ void CssUrlEncoder::Encode(const StringVector& urls,
 // RewriteSingleResourceFilter and/or RewriteDriver can decode any
 // ResourceNamer::name() field and find the set of URLs that are
 // referenced.
-bool CssUrlEncoder::Decode(const StringPiece& encoded,
+bool CssUrlEncoder::Decode(const ::StringPiece& encoded,
                            StringVector* urls,
                            ResourceContext* data,
                            MessageHandler* handler) const {
   CHECK(data != NULL);
   if ((encoded.size() < 2) || (encoded[1] != '.')) {
     handler->Message(kWarning, "Invalid CSS Encoding: %s",
-                     encoded.as_string().c_str());
+                     GoogleString(encoded).c_str());
     return false;
   }
   switch (encoded[0]) {

@@ -149,8 +149,8 @@ void FileLoadPolicy::Associate(StringPiece url_prefix_in,
                                StringPiece filename_prefix_in) {
   GoogleString url_prefix, filename_prefix;
 
-  url_prefix_in.CopyToString(&url_prefix);
-  filename_prefix_in.CopyToString(&filename_prefix);
+  url_prefix = GoogleString(url_prefix_in);
+  filename_prefix = GoogleString(filename_prefix_in);
 
   // Make sure these are directories.  Add a terminal slashes if absent.
   EnsureEndsInSlash(&url_prefix);

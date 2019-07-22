@@ -94,12 +94,13 @@ GoogleString RewriteFilter::GetCharsetForStylesheet(
     const StringPiece enclosing_charset) {
   // 1. If the stylesheet has a Content-Type with a charset, use that, else
   if (!stylesheet->charset().empty()) {
-    return stylesheet->charset().as_string();
+    return GoogleString(stylesheet->charset());
   }
 
   // 2. If the stylesheet has an initial @charset, use that.
-  StringPiece css(stylesheet->ExtractUncompressedContents());
-  StripUtf8Bom(&css);
+  StringPiece sp_resource = stylesheet->ExtractUncompressedContents();
+  StripUtf8Bom(&sp_resource);
+  CssStringPiece css(sp_resource.data(), sp_resource.size());
   Css::Parser parser(css);
   UnicodeText css_charset = parser.ExtractCharset();
   if (parser.errors_seen_mask() == 0) {
@@ -113,17 +114,17 @@ GoogleString RewriteFilter::GetCharsetForStylesheet(
   StringPiece bom_charset =
       GetCharsetForBom(stylesheet->ExtractUncompressedContents());
   if (!bom_charset.empty()) {
-    return bom_charset.as_string();
+    return GoogleString(bom_charset);
   }
 
   // 4. If the element has a charset attribute, use that.
   if (!attribute_charset.empty()) {
-    return attribute_charset.as_string();
+    return GoogleString(attribute_charset);
   }
 
   // 5. Use the charset of the enclosing page, if any.
   if (!enclosing_charset.empty()) {
-    return enclosing_charset.as_string();
+    return GoogleString(enclosing_charset);
   }
 
   // Well, we really have no idea.

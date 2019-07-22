@@ -157,7 +157,7 @@ enum LexResult {
 // If in starts with expected, returns kLexYes and consumes it.
 inline LexResult EatLiteral(CssTagScanner::InputPortion input_kind,
                             StringPiece expected, StringPiece* in) {
-  if (in->starts_with(expected)) {
+  if (absl::StartsWith(*in, expected)) {
     in->remove_prefix(expected.size());
     return kLexYes;
   }
@@ -302,11 +302,11 @@ LexResult CssExtractString(
     CssTagScanner::InputPortion input_kind,
     StringPiece* in, GoogleString* out,
     char* quote_out, bool* found_term) {
-  if (in->starts_with("'")) {
+  if (absl::StartsWith(*in, "'")) {
     in->remove_prefix(1);
     *quote_out = '\'';
     return CssExtractUntil(true, input_kind, '\'', in, out, found_term);
-  } else if (in->starts_with("\"")) {
+  } else if (absl::StartsWith(*in, "\"")) {
     in->remove_prefix(1);
     *quote_out = '\"';
     return CssExtractUntil(true, input_kind, '"', in, out, found_term);
@@ -408,13 +408,13 @@ bool CssTagScanner::TransformUrlsStreaming(
             have_url = kImport;
             is_quoted = true;
           } else if (url_argument == kLexInterrupted) {
-            reparse_candidate.CopyToString(&reparse_);
+            reparse_ = GoogleString(reparse_candidate);
             return ok && WriteRange(out_begin, out_end, writer, handler_);
           }
           break;
         }
         case kLexInterrupted:
-          reparse_candidate.CopyToString(&reparse_);
+          reparse_ = GoogleString(reparse_candidate);
           return ok && WriteRange(out_begin, out_end, writer, handler_);
         case kLexNo:
           break;
@@ -442,13 +442,13 @@ bool CssTagScanner::TransformUrlsStreaming(
                 have_term_paren = true;
                 break;
               case kLexInterrupted:
-                reparse_candidate.CopyToString(&reparse_);
+                reparse_ = GoogleString(reparse_candidate);
                 return ok && WriteRange(out_begin, out_end, writer, handler_);
               case kLexNo:
                 break;
             }
           } else if (quoted_url_argument == kLexInterrupted) {
-            reparse_candidate.CopyToString(&reparse_);
+            reparse_ = GoogleString(reparse_candidate);
             return ok && WriteRange(out_begin, out_end, writer, handler_);
           } else {
             // No quoted argument.
@@ -459,14 +459,14 @@ bool CssTagScanner::TransformUrlsStreaming(
               TrimWhitespace(wrapped_url, &url);
               have_url = kUrl;
             } else if (unquoted_url_argument == kLexInterrupted) {
-              reparse_candidate.CopyToString(&reparse_);
+              reparse_ = GoogleString(reparse_candidate);
               return ok && WriteRange(out_begin, out_end, writer, handler_);
             }
           }
           break;
         }
         case kLexInterrupted:
-          reparse_candidate.CopyToString(&reparse_);
+          reparse_ = GoogleString(reparse_candidate);
           return ok && WriteRange(out_begin, out_end, writer, handler_);
         case kLexNo:
           break;

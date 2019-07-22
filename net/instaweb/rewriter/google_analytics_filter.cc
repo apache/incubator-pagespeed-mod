@@ -80,7 +80,7 @@ ScriptEditor::ScriptEditor(HtmlElement* script_element,
 void ScriptEditor::NewContents(const StringPiece& replacement,
                                GoogleString* contents) const {
   if (pos_ == GoogleString::npos) {
-    replacement.CopyToString(contents);
+    *contents = GoogleString(replacement);
   } else {
     StringPiece old_contents = script_characters_node_->contents();
     contents->clear();
@@ -357,7 +357,7 @@ bool GoogleAnalyticsFilter::MatchSyncInit(StringPiece contents,
   }
   if (tracker_method_pos != GoogleString::npos) {
     html_parse_->InfoHere("Found ga.js init: %s",
-                          tracker_method.as_string().c_str());
+                          GoogleString(tracker_method).c_str());
     *pos = tracker_method_pos;
     *len = tracker_method.size();
     return true;
@@ -376,12 +376,12 @@ bool GoogleAnalyticsFilter::MatchUnhandledCalls(
     contents = contents.substr(candidate_pos + 1);
     for (int i = 0, ni = unhandled_methods_->size(); i < ni; ++i) {
       const StringPiece& method = unhandled_methods_->at(i);
-      if (contents.starts_with(method)) {
+      if (absl::StartsWith(contents, method)) {
         for (int j = method.size(), nj = contents.size(); j < nj; ++j) {
           char c = contents[j];
           if (c == '(') {
             html_parse_->InfoHere("Matched unhandled call: %s",
-                                  method.as_string().c_str());
+                                  GoogleString(method).c_str());
             return true;
           } else if (!IsHtmlSpace(c)) {
             break;
@@ -397,7 +397,7 @@ void GoogleAnalyticsFilter::FindRewritableScripts() {
   if (html_parse_->IsRewritable(script_element_)) {
     StringPiece src = script_element_->AttributeValue(HtmlName::kSrc);
     if (!src.empty()) {
-      if (src.ends_with(kGaJsUrlSuffix)) {
+      if (absl::EndsWith(src, kGaJsUrlSuffix)) {
         html_parse_->InfoHere("Found ga.js load: script src");
         is_load_found_ = true;
         script_editors_.push_back(new ScriptEditor(
@@ -440,7 +440,7 @@ void GoogleAnalyticsFilter::GetSyncToAsyncScript(GoogleString *buffer) const {
   int last_index = glue_methods_->size() - 1;
   for (int i = 0; i <= last_index; i++) {
     buffer->append("        '");
-    buffer->append(glue_methods_->at(i).as_string());
+    buffer->append(GoogleString(glue_methods_->at(i)));
     if (i == last_index) {
       buffer->append("'\n");
     } else {

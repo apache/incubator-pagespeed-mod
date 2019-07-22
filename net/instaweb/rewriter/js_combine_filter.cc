@@ -233,7 +233,7 @@ class JsCombineFilter::Context : public RewriteContext {
     elements_.push_back(element);
     // Extract the charset, if any, from the element while it's valid.
     StringPiece elements_charset(element->AttributeValue(HtmlName::kCharset));
-    elements_charset.CopyToString(StringVectorAdd(&elements_charsets_));
+    *StringVectorAdd(&elements_charsets_) = GoogleString(elements_charset);
     return true;
   }
 
@@ -706,7 +706,7 @@ GoogleString JsCombineFilter::VarName(const RewriteDriver* driver,
                                      &domain_out,
                                      driver->message_handler());
   if (resource_url.IsWebValid()) {
-    resource_url.Spec().CopyToString(&output_url);
+    output_url = GoogleString(resource_url.Spec());
   } else {
     LOG(DFATAL) << "Somehow got invalid URL in JsCombineFilter::VarName:"
                 << resource_url.UncheckedSpec() << " starting from:"

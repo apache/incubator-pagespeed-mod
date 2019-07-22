@@ -18,7 +18,7 @@
  */
 
 
-// Utility functions for operating on StringPieces
+// Utility functions for operating on CssStringPieces
 // Collected here for convenience
 
 #ifndef STRINGS_STRINGPIECE_UTILS_H_
@@ -31,7 +31,7 @@ namespace strings {
 
 // removes leading and trailing ascii_isspace() chars. Returns
 // number of chars removed
-int RemoveWhitespaceContext(StringPiece* text);
+int RemoveWhitespaceContext(CssStringPiece* text);
 
 }  // namespace strings
 

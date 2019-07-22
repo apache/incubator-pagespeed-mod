@@ -197,15 +197,15 @@ class ParserTest : public testing::Test {
     EXTRACT_CHARSET,
   };
 
-  void TrapEOF(StringPiece contents) {
+  void TrapEOF(CssStringPiece contents) {
     TrapEOF(contents, PARSE_STYLESHEET);
   }
-  void TrapEOF(StringPiece contents, MethodToTest method) {
+  void TrapEOF(CssStringPiece contents, MethodToTest method) {
     int size = contents.size();
     if (size == 0) {
       // new char[0] doesn't seem to work correctly with ASAN (maybe it gets
       // optimized out?) So we use NULL, which shouldn't be dereferenced.
-      StringPiece copy_contents(NULL, 0);
+      CssStringPiece copy_contents(NULL, 0);
       TryParse(copy_contents, method);
     } else {
       // We copy the data region of contents into  it's own buffer which is
@@ -213,13 +213,13 @@ class ParserTest : public testing::Test {
       // buffer will be a buffer overflow.
       char* copy = new char[size];
       memcpy(copy, contents.data(), size);
-      StringPiece copy_contents(copy, size);
+      CssStringPiece copy_contents(copy, size);
       TryParse(copy_contents, method);
       delete [] copy;
     }
   }
 
-  void TryParse(StringPiece contents, MethodToTest method) {
+  void TryParse(CssStringPiece contents, MethodToTest method) {
     Parser parser(contents);
     switch (method) {
       case PARSE_STYLESHEET:
@@ -235,13 +235,13 @@ class ParserTest : public testing::Test {
     }
   }
 
-  const char* SkipPast(char delim, StringPiece input_text) {
+  const char* SkipPast(char delim, CssStringPiece input_text) {
     Parser p(input_text);
     EXPECT_TRUE(p.SkipPastDelimiter(delim)) << input_text;
     return p.in_;  // Note: This is a pointer into the buffer owned by caller.
   }
 
-  void FailureSkipPast(char delim, StringPiece input_text) {
+  void FailureSkipPast(char delim, CssStringPiece input_text) {
     Parser p(input_text);
     EXPECT_FALSE(p.SkipPastDelimiter(delim)) << input_text;
     EXPECT_TRUE(p.Done());

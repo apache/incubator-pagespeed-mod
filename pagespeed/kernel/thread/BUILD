@@ -28,6 +28,7 @@ envoy_cc_library(
         "pthread_rw_lock.cc",
         "queued_alarm.cc",
         "scheduler_thread.cc",
+        "thread_synchronizer.cc",
     ],
     hdrs = [
         "slow_worker.h",
@@ -45,6 +46,7 @@ envoy_cc_library(
         "pthread_rw_lock.h",
         "queued_alarm.h",
         "scheduler_thread.h",
+        "thread_synchronizer.h", # XXX(oschaaf): check, for test?
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],

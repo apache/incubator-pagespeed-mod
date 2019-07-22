@@ -44,12 +44,12 @@ bool ParseDouble(const char* str, int len, double* dest);
 // Leaves non-ASCII chars alone.
 UnicodeText LowercaseAscii(const UnicodeText& in_text);
 
-bool StringCaseEquals(const StringPiece& a, const StringPiece& b);
+bool StringCaseEquals(const CssStringPiece& a, const CssStringPiece& b);
 // Compare ident's UTF8 bytes with string str ignoring ASCII case differences.
 // Meant to be used with static ASCII strings, Ex: StringCaseEquals(id, "foo").
-bool StringCaseEquals(const UnicodeText& ident, const StringPiece& str);
+bool StringCaseEquals(const UnicodeText& ident, const CssStringPiece& str);
 
-std::vector<StringPiece> SplitSkippingEmpty(StringPiece full, char delim);
+std::vector<CssStringPiece> SplitSkippingEmpty(CssStringPiece full, char delim);
 
 }  // namespace Css
 

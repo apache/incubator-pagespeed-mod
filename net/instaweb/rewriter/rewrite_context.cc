@@ -820,7 +820,7 @@ class RewriteContext::FetchContext {
               original_output_url_, contents, async_fetch_, handler_);
         } else {
           handler_->Warning(
-              output_resource_->name().as_string().c_str(), 0,
+              GoogleString(output_resource_->name()).c_str(), 0,
               "Resource based on %s but cannot access the original",
               input_resource->UrlForDebug().c_str());
         }
@@ -892,7 +892,7 @@ class RewriteContext::FetchContext {
   }
 
   void set_requested_hash(const StringPiece& hash) {
-    hash.CopyToString(&requested_hash_);
+    requested_hash_ = GoogleString(hash);
   }
 
   AsyncFetch* async_fetch() { return async_fetch_; }
@@ -2848,7 +2848,7 @@ bool RewriteContext::SendFallbackResponse(StringPiece output_url_base,
 
     handler->Message(
         kInfo, "Dropping response for %s for disallowed origin content type %s",
-        output_url_base.as_string().c_str(),
+        GoogleString(output_url_base).c_str(),
         (content_type == NULL ? "[missing or unrecognized]"
          : content_type->mime_type()));
 

@@ -101,7 +101,7 @@ class AssociationSlot : public ResourceSlot {
   AssociationSlot(ResourcePtr resource,
                   StringStringMap* map, const StringPiece& key)
       : ResourceSlot(resource), map_(map) {
-    key.CopyToString(&key_);
+    key_ = GoogleString(key);
   }
   virtual ~AssociationSlot();
 
@@ -124,7 +124,7 @@ class AssociationSlot : public ResourceSlot {
     if (!resource()->is_authorized_domain()) {
       return false;
     }
-    url.CopyToString(&((*map_)[key_]));
+    ((*map_)[key_]) = GoogleString(url);
     return true;
   }
 

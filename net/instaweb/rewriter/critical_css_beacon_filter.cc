@@ -165,7 +165,7 @@ void CriticalCssBeaconFilter::SummariesDone() {
         for (StringPieceVector::const_iterator i = temp.begin(),
                  end = temp.end();
              i != end; ++i) {
-          selectors.insert(i->as_string());
+          selectors.insert(GoogleString(*i));
         }
         break;
       }

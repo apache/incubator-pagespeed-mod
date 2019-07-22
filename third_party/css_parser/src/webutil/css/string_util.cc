@@ -74,24 +74,24 @@ UnicodeText LowercaseAscii(const UnicodeText& in_text) {
   return out_text;
 }
 
-bool StringCaseEquals(const StringPiece& a, const StringPiece& b) {
+bool StringCaseEquals(const CssStringPiece& a, const CssStringPiece& b) {
   return (a.size() == b.size() &&
           (memcasecmp(a.data(), b.data(), a.size()) == 0));
 }
 
-bool StringCaseEquals(const UnicodeText& ident, const StringPiece& str) {
+bool StringCaseEquals(const UnicodeText& ident, const CssStringPiece& str) {
   return (ident.utf8_length() == str.size() &&
           (memcasecmp(str.data(), ident.utf8_data(), str.size()) == 0));
 }
 
-std::vector<StringPiece> SplitSkippingEmpty(StringPiece full, char delim) {
-  std::vector<StringPiece> result;
+std::vector<CssStringPiece> SplitSkippingEmpty(CssStringPiece full, char delim) {
+  std::vector<CssStringPiece> result;
 
-  StringPiece::size_type begin_index, end_index;
+  CssStringPiece::size_type begin_index, end_index;
   begin_index = full.find_first_not_of(delim);
-  while (begin_index != StringPiece::npos) {
+  while (begin_index != CssStringPiece::npos) {
     end_index = full.find_first_of(delim, begin_index);
-    if (end_index == StringPiece::npos) {
+    if (end_index == CssStringPiece::npos) {
       result.push_back(full.substr(begin_index));
       break;
     }

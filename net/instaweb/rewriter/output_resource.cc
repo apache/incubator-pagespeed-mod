@@ -195,7 +195,7 @@ GoogleString OutputResource::HttpCacheKey() const {
       lawyer->MapRequestToDomain(
           base, canonical_url, &mapped_domain_name, &resolved_request,
           server_context()->message_handler())) {
-    resolved_request.Spec().CopyToString(&canonical_url);
+    canonical_url = GoogleString(resolved_request.Spec());
   }
   return canonical_url;
 }
@@ -237,7 +237,7 @@ GoogleString OutputResource::decoded_base() const {
                                             &decoded_url)) {
     gurl.Reset(decoded_url);
   }
-  return gurl.AllExceptLeaf().as_string();
+  return GoogleString(gurl.AllExceptLeaf());
 }
 
 void OutputResource::SetType(const ContentType* content_type) {
