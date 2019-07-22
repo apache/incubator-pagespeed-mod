@@ -294,33 +294,33 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   StringVector MultiUrl(const StringPiece& url1) {
     StringVector v;
-    v.push_back(url1.as_string());
+    v.push_back(GoogleString(url1));
     return v;
   }
 
   StringVector MultiUrl(const StringPiece& url1, const StringPiece& url2) {
     StringVector v;
-    v.push_back(url1.as_string());
-    v.push_back(url2.as_string());
+    v.push_back(GoogleString(url1));
+    v.push_back(GoogleString(url2));
     return v;
   }
 
   StringVector MultiUrl(const StringPiece& url1, const StringPiece& url2,
                         const StringPiece& url3) {
     StringVector v;
-    v.push_back(url1.as_string());
-    v.push_back(url2.as_string());
-    v.push_back(url3.as_string());
+    v.push_back(GoogleString(url1));
+    v.push_back(GoogleString(url2));
+    v.push_back(GoogleString(url3));
     return v;
   }
 
   StringVector MultiUrl(const StringPiece& url1, const StringPiece& url2,
                         const StringPiece& url3, const StringPiece& url4) {
     StringVector v;
-    v.push_back(url1.as_string());
-    v.push_back(url2.as_string());
-    v.push_back(url3.as_string());
-    v.push_back(url4.as_string());
+    v.push_back(GoogleString(url1));
+    v.push_back(GoogleString(url2));
+    v.push_back(GoogleString(url3));
+    v.push_back(GoogleString(url4));
     return v;
   }
 
@@ -683,7 +683,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   void DebugWithMessage(StringPiece expected_debug_message) {
     EnableDebug();
 
-    expected_debug_message.CopyToString(&debug_message_);
+    debug_message_ = GoogleString(expected_debug_message);
   }
 
   // Return the debug message if it was set by DebugWithMessage, empty string

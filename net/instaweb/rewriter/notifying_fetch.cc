@@ -53,7 +53,7 @@ bool NotifyingFetch::IsCachedResultValid(const ResponseHeaders& headers) {
 
 bool NotifyingFetch::HandleWrite(const StringPiece& content,
                                  MessageHandler* handler) {
-  content.AppendToString(&content_);
+  content_.append(GoogleString(content));
   return true;
 }
 

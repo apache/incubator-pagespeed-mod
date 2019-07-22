@@ -59,6 +59,8 @@ cc_library(
         "time/time.cc",        
         "third_party/nspr/prtime.cc",
         "third_party/icu/icu_utf.cc",
+        "at_exit.cc",
+        "bind_internal.cc"
     ],
     hdrs = [
         "strings/stringprintf.h",
@@ -111,6 +113,8 @@ cc_library(
         "numerics/clamped_math.h",
         "numerics/clamped_math_impl.h",
         "memory/ref_counted.h",
+        "memory/weak_ptr.h",
+        "memory/raw_scoped_refptr_mismatch_checker.h",
         "memory/scoped_refptr.h",
         "synchronization/lock.h",
         "synchronization/lock_impl.h",
@@ -127,6 +131,8 @@ cc_library(
         "time/time_override.h",
         "third_party/nspr/prtime.h",
         "third_party/dynamic_annotations/dynamic_annotations.h",
+        "bind.h",
+        "bind_internal.h",
     ],
     visibility = ["//visibility:public"],
     deps = ["//build:build", "@icu//:icu", "@glog", "@mod_pagespeed//base:log_shim"],

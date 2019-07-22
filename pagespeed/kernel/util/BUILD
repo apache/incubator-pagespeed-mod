@@ -89,10 +89,12 @@ envoy_cc_test_library (
     srcs = [
         "nonce_generator_test_base.cc",
         "lock_manager_spammer.cc",
+        "mock_nonce_generator.cc",
     ],
     hdrs = [
         "nonce_generator_test_base.h",
         "lock_manager_spammer.h",
+        "mock_nonce_generator.h",
     ],
     repository = "@envoy",
     copts = ["-Wno-error=unused-parameter", "-Wno-unused-parameter"],
