@@ -202,5 +202,17 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "build-data2c",
+            "type": "shell",
+            "command": "CC=/usr/lib/llvm-8/bin/clang CXX=/usr/lib/llvm-8/bin/clang++ bazel build -c dbg //net/instaweb/js:data2c",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
     ]
 }

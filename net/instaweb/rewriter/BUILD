@@ -1,5 +1,3 @@
-licenses(["notice"])  # Apache 2
-
 load(
     "@envoy//bazel:envoy_build_system.bzl",
     "envoy_cc_library",
@@ -7,6 +5,9 @@ load(
     "envoy_cc_test_library",
     "envoy_package",
 )
+load("//bazel:data2c.bzl", "data2c_gen2", "data2c_gen2_opt")
+
+licenses(["notice"])  # Apache 2
 
 envoy_package()
 
@@ -42,9 +43,83 @@ cc_proto_library(
     ],
 )
 
+data2c_gen2(
+    name = "data2c_generated",
+    srcs = [
+        "add_instrumentation",
+        "extended_instrumentation",
+        "client_domain_rewriter",
+        "critical_css_beacon",
+        "critical_css_loader",
+        "critical_images_beacon",
+        "dedup_inlined_images",
+        "defer_iframe",
+        "delay_images",
+        "delay_images_inline",
+        "deterministic",    
+        "js_defer",
+        "lazyload_images",
+        "local_storage_cache",
+        "responsive_js",
+    ],
+)
+
+data2c_gen2_opt(
+    name = "data2c_generated",
+    srcs = [
+        "add_instrumentation",
+        "extended_instrumentation",
+        "client_domain_rewriter",
+        "critical_css_beacon",
+        "critical_css_loader",
+        "critical_images_beacon",
+        "dedup_inlined_images",
+        "defer_iframe",
+        "delay_images",
+        "delay_images_inline",
+        "deterministic",    
+        "js_defer",
+        "lazyload_images",
+        "local_storage_cache",
+        "responsive_js",
+    ],
+)
+
 envoy_cc_library(
     name = "rewriter",
     srcs = [
+        ":data2c_generated_add_instrumentation",
+        ":data2c_generated_extended_instrumentation",
+        ":data2c_generated_client_domain_rewriter",
+        ":data2c_generated_critical_css_beacon",
+        ":data2c_generated_critical_css_loader",
+        ":data2c_generated_critical_images_beacon",
+        ":data2c_generated_dedup_inlined_images",
+        ":data2c_generated_defer_iframe",
+        ":data2c_generated_delay_images",
+        ":data2c_generated_delay_images_inline",
+        ":data2c_generated_deterministic",    
+        ":data2c_generated_js_defer",
+        ":data2c_generated_lazyload_images",
+        ":data2c_generated_local_storage_cache",
+        ":data2c_generated_responsive_js",
+
+        ":data2c_generated_add_instrumentation_opt",
+        ":data2c_generated_extended_instrumentation_opt",
+        ":data2c_generated_client_domain_rewriter_opt",
+        ":data2c_generated_critical_css_beacon_opt",
+        ":data2c_generated_critical_css_loader_opt",
+        ":data2c_generated_critical_images_beacon_opt",
+        ":data2c_generated_dedup_inlined_images_opt",
+        ":data2c_generated_defer_iframe_opt",
+        ":data2c_generated_delay_images_opt",
+        ":data2c_generated_delay_images_inline_opt",
+        ":data2c_generated_deterministic_opt",    
+        ":data2c_generated_js_defer_opt",
+        ":data2c_generated_lazyload_images_opt",
+        ":data2c_generated_local_storage_cache_opt",
+        ":data2c_generated_responsive_js_opt",
+
         ":csp_directive_gperf",
         "flush_html_filter.cc",
         "downstream_cache_purger.cc",
@@ -320,7 +395,7 @@ envoy_cc_library(
         "-Wno-error=unused-parameter",
         "-Wno-error=inconsistent-missing-override",
         #        "-Wno-inconsistent-missing-override",
-        "-Wno-missing-field-initializers", # gperf
+        "-Wno-missing-field-initializers",  # gperf
         "-Wno-error=unused-private-field",
         "-Wno-error=unused-variable",
         "-Ithird_party/css_parser/src/",
