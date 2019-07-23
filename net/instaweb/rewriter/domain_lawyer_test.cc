@@ -1663,7 +1663,7 @@ TEST_F(DomainLawyerTest, AboutBlank) {
 TEST_F(DomainLawyerTest, StripProxySuffix) {
   DomainLawyer lawyer;
   GoogleUrl gurl("http://example.com.suffix/path");
-  GoogleString host, url = gurl.Spec().as_string();
+  GoogleString host, url = GoogleString(gurl.Spec());
   EXPECT_FALSE(lawyer.can_rewrite_domains());
   EXPECT_FALSE(lawyer.StripProxySuffix(gurl, &url, &host));
   lawyer.set_proxy_suffix(".suffix");
@@ -1674,7 +1674,7 @@ TEST_F(DomainLawyerTest, StripProxySuffix) {
 
   // The ':80' will get removed by GoogleUrl.
   GoogleUrl http_gurl_80("http://example.com.suffix:80/path");
-  url = http_gurl_80.Spec().as_string();
+  url = GoogleString(http_gurl_80.Spec());
   host.clear();
   url.clear();
   EXPECT_TRUE(lawyer.StripProxySuffix(http_gurl_80, &url, &host));

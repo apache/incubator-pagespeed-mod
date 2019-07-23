@@ -93,6 +93,7 @@ const char kPsaWasGzipped[] = "x-psa-was-gzipped";
 class RewriteTestBaseProcessContext : public ProcessContext {
  public:
   RewriteTestBaseProcessContext() {
+    // XXX
     //::logging::SetMinLogLevel(::logging::LOG_WARNING);
   }
 

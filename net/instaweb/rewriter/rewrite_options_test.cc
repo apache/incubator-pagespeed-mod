@@ -1793,7 +1793,7 @@ TEST_F(RewriteOptionsTest, ExperimentOptionsTestToString) {
   StringPieceVector experiments;;
   SplitStringPieceToVector(options_string, "\n", &lines, true);
   for (int i = 0, n = lines.size(); i < n; ++i) {
-    if (lines[i].starts_with("Experiment ")) {
+    if (absl::StartsWith(lines[i], "Experiment ")) {
       experiments.push_back(lines[i]);
     }
   }

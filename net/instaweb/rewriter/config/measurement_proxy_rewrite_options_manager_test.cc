@@ -59,7 +59,7 @@ class MeasurementProxyRewriteOptionsManagerTest
     // Cleanup between runs.
     reported_options_.reset();
 
-    url_string.CopyToString(&test_url_);
+    test_url_ = GoogleString(url_string);
     GoogleUrl url(url_string);
     ASSERT_TRUE(url.IsWebValid());
     RequestHeaders request_headers;
@@ -133,7 +133,7 @@ class MeasurementProxyRewriteOptionsManagerTest
   }
 
   void SetupResources(StringPiece base_url) {
-    GoogleString normalized_base_url = base_url.as_string();
+    GoogleString normalized_base_url = GoogleString(base_url);
     LowerString(&normalized_base_url);
     SetResponseWithDefaultHeaders(
         StrCat(normalized_base_url, kJsUrl), kContentTypeJavascript,

@@ -181,7 +181,7 @@ class CacheExtenderTest : public RewriteTestBase {
   }
 
   static GoogleString CssData(StringPiece url) {
-    return StringPrintf(kCssDataFormat, url.as_string().c_str());
+    return StringPrintf(kCssDataFormat, GoogleString(url).c_str());
   }
 
   void TestExtendFromHtml() {

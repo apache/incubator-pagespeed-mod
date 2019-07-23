@@ -41,13 +41,14 @@ class CssMinifyTest : public ::testing::Test {
     out_text->clear();
 
     // Parse CSS.
-    Css::Parser parser(in_text);
+    CssStringPiece tmp(in_text.data(), in_text.size());
+    Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
     scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
     if (parser.errors_seen_mask() != Css::Parser::kNoError) {
-      in_text.CopyToString(out_text);
+      *out_text = GoogleString(in_text);
       return;
     }
 

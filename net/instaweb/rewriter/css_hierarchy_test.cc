@@ -575,7 +575,7 @@ TEST_F(CssHierarchyTest, CompatibleCharset) {
   StringPiece charset("iso-8859-1");
   response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
                                             "; charset=", charset));
-  charset.CopyToString(top.mutable_charset());
+  *top.mutable_charset() = GoogleString(charset);
   EXPECT_TRUE(child->CheckCharsetOk(resource, &failure_reason));
   EXPECT_EQ(charset, child->charset());
   EXPECT_TRUE(failure_reason.empty());
@@ -595,7 +595,7 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
                                             "; charset=utf-8"));
 
   StringPiece charset("iso-8859-1");
-  charset.CopyToString(top.mutable_charset());
+  *top.mutable_charset() = GoogleString(charset);
   CssHierarchy* child = top.children()[0];
   GoogleString failure_reason;
   EXPECT_FALSE(child->CheckCharsetOk(resource, &failure_reason));

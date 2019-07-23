@@ -27,7 +27,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "testing/base/public/gunit.h"
+#include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 namespace {
@@ -43,7 +43,7 @@ class ImageUrlEncoderTest : public ::testing::Test {
   GoogleString EncodeUrlAndDimensions(const StringPiece& origin_url,
                                       const ImageDim& dim) {
     StringVector v;
-    v.push_back(origin_url.as_string());
+    v.push_back(GoogleString(origin_url));
     GoogleString out;
     ResourceContext data;
     *data.mutable_desired_image_dims() = dim;

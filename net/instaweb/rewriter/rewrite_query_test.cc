@@ -115,7 +115,7 @@ class RewriteQueryTest : public RewriteTestBase {
           StrAppend(&header_value, cookie_vector[i]);
         } else {
           request_headers->Add(HttpAttributes::kCookie, header_value);
-          cookie_vector[i].CopyToString(&header_value);
+          header_value = GoogleString(cookie_vector[i]);
         }
       }
       if (!header_value.empty()) {

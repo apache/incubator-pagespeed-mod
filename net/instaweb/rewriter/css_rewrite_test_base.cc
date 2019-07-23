@@ -296,7 +296,7 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
     expected_new_url = Encode(css_gurl.AllExceptLeaf(), namer.id(),
                               namer.hash(), namer.name(), namer.ext());
   } else {
-    css_url.CopyToString(&expected_new_url);
+    expected_new_url = GoogleString(css_url);
   }
 
   GoogleString expected_html_output =

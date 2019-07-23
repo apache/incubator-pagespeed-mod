@@ -183,7 +183,7 @@ TEST_F(CssEmbeddedConfigTest, InlineImageToCss) {
   GoogleString css_link = RewriteImageInCss(kCuppaPngFile);
   EXPECT_STREQ(EncodedCssUrl("ii+cii=2048"), css_link);
   GoogleString image_url = ExtractImageFromCssFilename(css_link);
-  EXPECT_TRUE(StringPiece(image_url).starts_with("data:image/png;base64,"));
+  EXPECT_TRUE(absl::StartsWith(image_url, "data:image/png;base64,"));
 }
 
 TEST_F(CssEmbeddedConfigTest, InlineImageToCssSmallThresholdExtend) {

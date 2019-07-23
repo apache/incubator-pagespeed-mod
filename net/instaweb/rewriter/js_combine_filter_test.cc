@@ -300,7 +300,7 @@ class JsCombineFilterTest : public RewriteTestBase {
                (minified ? kMinifiedEscapedJs2 : kEscapedJs2), ";\n")),
                  combination_src);
 
-    ServeResourceFromManyContexts(output_url.Spec().as_string(),
+    ServeResourceFromManyContexts(GoogleString(output_url.Spec()),
                                   combination_src);
   }
 
@@ -1175,7 +1175,7 @@ TEST_F(JsCombineFilterTest, PreserveUrlRelativity) {
 
   ASSERT_EQ(3, scripts.size());  // Combine URL script + 2 eval scripts.
   StringPiece combine_url(scripts[0].url);
-  EXPECT_TRUE(combine_url.starts_with("a.js+b.js.pagespeed.jc")) << combine_url;
+  EXPECT_TRUE(absl::StartsWith(combine_url, "a.js+b.js.pagespeed.jc")) << combine_url;
 }
 
 TEST_F(JsCombineFilterTest, NoPreserveUrlRelativity) {
@@ -1191,7 +1191,7 @@ TEST_F(JsCombineFilterTest, NoPreserveUrlRelativity) {
 
   ASSERT_EQ(3, scripts.size());  // Combine URL script + 2 eval scripts.
   StringPiece combine_url(scripts[0].url);
-  EXPECT_TRUE(combine_url.starts_with("http://test.com/a.js+b.js.pagespeed.jc"))
+  EXPECT_TRUE(absl::StartsWith(combine_url, "http://test.com/a.js+b.js.pagespeed.jc"))
       << combine_url;
 }
 
@@ -1225,7 +1225,7 @@ TEST_F(JsCombineFilterTest, LoadShedPartition) {
 
   ASSERT_EQ(3, scripts.size());  // Combine URL script + 2 eval scripts.
   StringPiece combine_url(scripts[0].url);
-  EXPECT_TRUE(combine_url.starts_with("a.js+b.js.pagespeed.jc"))
+  EXPECT_TRUE(absl::StartsWith(combine_url, "a.js+b.js.pagespeed.jc"))
       << combine_url;
 }
 

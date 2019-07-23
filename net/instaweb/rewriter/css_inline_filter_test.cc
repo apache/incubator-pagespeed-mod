@@ -341,7 +341,7 @@ TEST_F(CssInlineFilterTest, DoInlineCssDifferentDomain) {
 TEST_F(CssInlineFilterTest, DoNotInlineCssDifferentDomain) {
   // Note: This only fails because we haven't authorized unauth.com
   GoogleUrl gurl("http://unauth.com/styles.css");
-  TestNoInlineCss("http://www.example.com/index.html", gurl.Spec().as_string(),
+  TestNoInlineCss("http://www.example.com/index.html", GoogleString(gurl.Spec()),
                   "", "BODY { color: red; }\n", "",
                   rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
                       gurl, RewriteDriver::InputRole::kStyle));

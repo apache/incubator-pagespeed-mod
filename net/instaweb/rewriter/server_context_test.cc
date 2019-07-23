@@ -169,7 +169,7 @@ class ServerContextTest : public RewriteTestBase {
   // Asserts that the given url starts with an appropriate prefix;
   // then cuts off that prefix.
   virtual void RemoveUrlPrefix(const GoogleString& prefix, GoogleString* url) {
-    EXPECT_TRUE(StringPiece(*url).starts_with(prefix));
+    EXPECT_TRUE(absl::StartsWith(*url, prefix));
     url->erase(0, prefix.length());
   }
 

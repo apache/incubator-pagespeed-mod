@@ -176,8 +176,7 @@ TEST_F(ResourceFetchTest, BlockingFetchOfInvalidUrl) {
   // cause RewriteDriver::FetchResource to fail to handle it, which will cause
   // StartWithDriver and then BlockingFetch to exit early.
   GoogleUrl url(Encode(kTestDomain, "cf", "deadbeef", "a.css", "css"));
-  GoogleString url_str;
-  url.Spec().CopyToString(&url_str);
+  GoogleString url_str(url.Spec());
   GlobalReplaceSubstring(".deadbeef.", "..", &url_str);
   url.Reset(url_str);
 

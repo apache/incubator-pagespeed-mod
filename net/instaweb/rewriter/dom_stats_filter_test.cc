@@ -28,7 +28,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "testing/base/public/gunit.h"
+#include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

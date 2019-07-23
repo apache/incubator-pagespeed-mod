@@ -44,7 +44,7 @@ class DummyResource : public Resource {
   virtual ~DummyResource() {}
 
   void set_url(const StringPiece& url) {
-    url_ = url.as_string();
+    url_ = GoogleString(url);
   }
   virtual GoogleString url() const { return url_; }
 
@@ -97,7 +97,7 @@ class AssociationTransformerTest : public ::testing::Test {
   void ExpectValue(const std::map<GoogleString, T>& map,
                    const StringPiece& key, const T& expected_value) {
     typename std::map<GoogleString, T>::const_iterator iter =
-        map.find(key.as_string());
+        map.find(GoogleString(key));
     ASSERT_NE(map.end(), iter) << "map does not have key " << key;
     EXPECT_EQ(expected_value, iter->second)
         << "map[\"" << key << "\"] not as expected";

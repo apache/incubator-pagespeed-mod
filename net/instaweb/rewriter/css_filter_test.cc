@@ -131,7 +131,8 @@ class CssFilterTest : public CssRewriteTestBase {
     // Ensure that the input CSS has/has-not parse errors, as specified by the
     // expect_unparseable_section parameter, to cater for future improvements
     // in the CSS parser.
-    Css::Parser parser(css_input);
+    CssStringPiece tmp(css_input.data(), css_input.size());
+    Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
     scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());

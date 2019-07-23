@@ -57,7 +57,7 @@ class JsOutlineFilterTest : public RewriteTestBase {
     SupportNoscriptFilter support_noscript_filter(rewrite_driver());
     expected_disabled_filters.push_back(support_noscript_filter.Name());
 
-    debug_message.CopyToString(&debug_message_);
+    debug_message_ = GoogleString(debug_message);
     debug_suffix_ = DebugFilter::FormatEndDocumentMessage(
         0, 0, 0, 0, 0, false, StringSet(),
         expected_disabled_filters);

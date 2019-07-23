@@ -45,7 +45,7 @@ class AddIdsFilterTest : public RewriteTestBase {
   // Remove PageSpeed- ids
   GoogleString Unlabel(StringPiece labeled) {
     GoogleString result;
-    labeled.CopyToString(&result);
+    result = GoogleString(labeled);
     GlobalEraseBracketedSubstring(" id=\"PageSpeed-", "\"", &result);
     return result;
   }
