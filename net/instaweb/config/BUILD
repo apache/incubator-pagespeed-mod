@@ -21,15 +21,21 @@ envoy_cc_library(
         "measurement_proxy_rewrite_options_manager.h",
     ],
     copts = [
-#        "-Wno-error=unused-parameter",
-#        "-Wno-error=old-style-cast",
-#        "-Wno-error=inconsistent-missing-override",
-#        "-Wno-error=unused-private-field",
+        "-Wno-error=old-style-cast",
+        #        "-Wno-error=missing-field-initializers",
+        "-Wno-error=unused-parameter",
+        "-Wno-error=inconsistent-missing-override",
+        #        "-Wno-inconsistent-missing-override",
+        "-Wno-missing-field-initializers",  # gperf
+        "-Wno-error=unused-private-field",
+        "-Wno-error=unused-variable",
+        "-Ithird_party/css_parser/src/",
+        "-Ithird_party/css_parser/src/third_party/utf",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
     deps = [
- #       "//net/instaweb/rewriter:rewriter"
+#        "//net/instaweb/rewriter:rewriter_base"
  #       "//pagespeed/kernel/cache",
  #       "//pagespeed/opt/logging",
     ],

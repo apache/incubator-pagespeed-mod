@@ -97,10 +97,10 @@ void MeasurementProxyRewriteOptionsManager::ApplyConfig(
   // Note that this not meant to be a security measure; we are just making
   // a guess as to what resources are likely to be also optimizable by the
   // owner of the config_domain site.
-  GoogleString config_domain_suffix =
-      domain_registry::MinimalPrivateSuffix(config_domain).as_string();
-  GoogleString actual_domain_suffix =
-      domain_registry::MinimalPrivateSuffix(decoded_url.Host()).as_string();
+  GoogleString config_domain_suffix(
+      domain_registry::MinimalPrivateSuffix(config_domain));
+  GoogleString actual_domain_suffix(
+      domain_registry::MinimalPrivateSuffix(decoded_url.Host()));
   LowerString(&config_domain_suffix);
   LowerString(&actual_domain_suffix);
   if (config_domain_suffix == actual_domain_suffix) {
