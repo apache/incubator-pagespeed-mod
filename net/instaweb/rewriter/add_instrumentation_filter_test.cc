@@ -248,7 +248,7 @@ TEST_F(AddInstrumentationFilterTest, TestNoDeferInstrumentationScript) {
               GoogleString::npos);
   const StringPiece* nodefer =
       HtmlKeywords::KeywordToString(HtmlName::kDataPagespeedNoDefer);
-  EXPECT_TRUE(output_buffer_.find(nodefer->as_string()) != GoogleString::npos);
+  EXPECT_TRUE(output_buffer_.find(GoogleString(*nodefer)) != GoogleString::npos);
 }
 
 TEST_F(AddInstrumentationFilterTest, TestDeferInstrumentationScript) {
@@ -260,7 +260,7 @@ TEST_F(AddInstrumentationFilterTest, TestDeferInstrumentationScript) {
               GoogleString::npos);
   const StringPiece* nodefer =
       HtmlKeywords::KeywordToString(HtmlName::kDataPagespeedNoDefer);
-  EXPECT_TRUE(output_buffer_.find(nodefer->as_string()) == GoogleString::npos);
+  EXPECT_TRUE(output_buffer_.find(GoogleString(*nodefer)) == GoogleString::npos);
 }
 
 TEST_F(AddInstrumentationFilterTest, TestDisableForBots) {

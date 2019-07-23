@@ -64,7 +64,7 @@ CssHierarchy::~CssHierarchy() {
 
 void CssHierarchy::InitializeRoot(const GoogleUrl& css_base_url,
                                   const GoogleUrl& css_trim_url,
-                                  const StringPiece input_contents,
+                                  const ::StringPiece input_contents,
                                   bool has_unparseables,
                                   int64 flattened_result_limit,
                                   Css::Stylesheet* stylesheet,
@@ -94,8 +94,8 @@ void CssHierarchy::set_stylesheet(Css::Stylesheet* stylesheet) {
 }
 
 void CssHierarchy::set_minified_contents(
-    const StringPiece minified_contents) {
-  minified_contents.CopyToString(&minified_contents_);
+    const ::StringPiece minified_contents) {
+  minified_contents_ = GoogleString(minified_contents);
 }
 
 void CssHierarchy::ResizeChildren(int n) {
@@ -165,7 +165,7 @@ bool CssHierarchy::DetermineRulesetMedia(StringVector* ruleset_media) {
 void CssHierarchy::AddFlatteningFailureReason(const GoogleString& reason) {
   if (!reason.empty()) {
     StringPiece trimmed_reason(reason);
-    if (trimmed_reason.starts_with(kFailureReasonPrefix)) {
+    if (absl::StartsWith(trimmed_reason, kFailureReasonPrefix)) {
       trimmed_reason.remove_prefix(STATIC_STRLEN(kFailureReasonPrefix));
     }
     // Don't add the reason if we already have it.
@@ -229,7 +229,7 @@ bool CssHierarchy::CheckCharsetOk(const ResourcePtr& resource,
 bool CssHierarchy::Parse() {
   bool result = true;
   if (stylesheet_.get() == NULL) {
-    Css::Parser parser(input_contents_);
+    Css::Parser parser(GoogleString(input_contents_).c_str());
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
     Css::Stylesheet* stylesheet = parser.ParseRawStylesheet();
@@ -351,7 +351,7 @@ void CssHierarchy::RollUpContents() {
       return;
     } else if (!Parse()) {
       // Even if we can't parse them, we have contents, albeit not minified.
-      input_contents_.CopyToString(&minified_contents_);
+      minified_contents_ = GoogleString(input_contents_);
       return;
     }
   }
@@ -388,7 +388,7 @@ void CssHierarchy::RollUpContents() {
     StringWriter writer(&minified_contents_);
     if (!CssMinify::Stylesheet(*stylesheet_.get(), &writer, message_handler_)) {
       // If we can't minify just use our contents, albeit not minified.
-      input_contents_.CopyToString(&minified_contents_);
+      minified_contents_ = GoogleString(input_contents_);
     }
   } else {
     // Flattening succeeded so concatenate our children's minified contents.
@@ -443,7 +443,7 @@ void CssHierarchy::RollUpContents() {
       if (!minified_ok || !CssMinify::Stylesheet(*stylesheet_.get(), &writer,
                                                  message_handler_)) {
         // If we can't minify just use our contents, albeit not minified.
-        input_contents_.CopyToString(&minified_contents_);
+        minified_contents_ = GoogleString(input_contents_);
       }
     }
     STLDeleteElements(&saved_imports);  // no-op if empty (was swapped back).

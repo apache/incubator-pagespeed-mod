@@ -22,7 +22,7 @@
 
 #include "base/callback.h"
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"

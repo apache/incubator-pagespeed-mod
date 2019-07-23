@@ -29,8 +29,8 @@
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
-#include "third_party/libwebp/src/webp/encode.h"
-#include "third_party/libwebp/src/webp/mux.h"
+#include "external/libwebp/src/webp/encode.h"
+#include "external/libwebp/src/webp/mux.h"
 
 namespace net_instaweb {
 class MessageHandler;

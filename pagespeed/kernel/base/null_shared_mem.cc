@@ -22,7 +22,7 @@
 
 #include "pagespeed/kernel/base/null_shared_mem.h"
 
-#include "base/logging.h"
+//#include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
 
 namespace net_instaweb {

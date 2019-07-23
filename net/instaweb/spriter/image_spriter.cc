@@ -56,6 +56,16 @@ SpriterResult* ImageSpriter::Sprite(
   return spriter_result.release();
 }
 
+// XXX(oschaaf):
+template<class T>
+class STLElementDeleter {
+ public:
+  STLElementDeleter<T>(T* container) : container_(container) {}
+  ~STLElementDeleter<T>() { STLDeleteElements(container_); }
+ private:
+  T* container_;
+};
+
 bool ImageSpriter::DrawImagesInVerticalStrip(
     const SpriterInput& spriter_input,
     SpriterResult* spriter_result) {

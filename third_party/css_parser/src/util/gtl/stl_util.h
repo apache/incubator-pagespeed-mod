@@ -20,10 +20,24 @@
 #ifndef UTIL_GTL_STL_UTIL_H_
 #define UTIL_GTL_STL_UTIL_H_
 
-#if !defined(CHROMIUM_REVISION) || CHROMIUM_REVISION >= 93110
 #include "base/stl_util.h"
-#else
-#include "base/stl_util-inl.h"
-#endif
+
+
+template <class ForwardIterator>
+void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
+  while (begin != end) {
+    ForwardIterator temp = begin;
+    ++begin;
+    delete *temp;
+  }
+}
+
+template <class T>
+void STLDeleteElements(T *container) {
+  if (!container) return;
+  STLDeleteContainerPointers(container->begin(), container->end());
+  container->clear();
+}
+
 
 #endif  // UTIL_GTL_STL_UTIL_H_

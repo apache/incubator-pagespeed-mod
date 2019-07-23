@@ -108,7 +108,7 @@ class MemOutputFile : public FileSystem::OutputFile {
   }
 
   virtual bool Write(const StringPiece& buf, MessageHandler* handler) {
-    buf.AppendToString(&written_);
+    written_.append(GoogleString(buf));
     return true;
   }
 
@@ -142,14 +142,14 @@ void MemFileSystem::UpdateAtime(const StringPiece& path) {
     if (advance_time_on_update_) {
       mock_timer_->AdvanceUs(Timer::kSecondUs);
     }
-    atime_map_[path.as_string()] = now_s;
+    atime_map_[GoogleString(path)] = now_s;
   }
 }
 
 void MemFileSystem::UpdateMtime(const StringPiece& path) {
   int64 now_us = timer_->NowUs();
   int64 now_s = now_us / Timer::kSecondUs;
-  mtime_map_[path.as_string()] = now_s;
+  mtime_map_[GoogleString(path)] = now_s;
 }
 
 void MemFileSystem::Clear() {
@@ -298,7 +298,7 @@ bool MemFileSystem::RenameFileHelper(const char* old_file,
 bool MemFileSystem::ListContents(const StringPiece& dir, StringVector* files,
                                  MessageHandler* handler) {
   ScopedMutex lock(all_else_mutex_.get());
-  GoogleString prefix = dir.as_string();
+  GoogleString prefix = GoogleString(dir);
   EnsureEndsInSlash(&prefix);
   const size_t prefix_length = prefix.size();
   // We don't have directories, so we just list everything in the
@@ -324,7 +324,7 @@ bool MemFileSystem::ListContents(const StringPiece& dir, StringVector* files,
 bool MemFileSystem::Atime(const StringPiece& path, int64* timestamp_sec,
                           MessageHandler* handler) {
   ScopedMutex lock(all_else_mutex_.get());
-  *timestamp_sec = atime_map_[path.as_string()];
+  *timestamp_sec = atime_map_[GoogleString(path)];
   return true;
 }
 
@@ -332,14 +332,14 @@ bool MemFileSystem::Mtime(const StringPiece& path, int64* timestamp_sec,
                           MessageHandler* handler) {
   ScopedMutex lock(all_else_mutex_.get());
   ++num_input_file_stats_;
-  *timestamp_sec = mtime_map_[path.as_string()];
+  *timestamp_sec = mtime_map_[GoogleString(path)];
   return true;
 }
 
 bool MemFileSystem::Size(const StringPiece& path, int64* size,
                          MessageHandler* handler) const {
   ScopedMutex lock(all_else_mutex_.get());
-  const GoogleString path_string = path.as_string();
+  const GoogleString path_string = GoogleString(path);
   auto iter = string_map_.find(path_string);
   if (iter != string_map_.end()) {
     *size = iter->second.size();
@@ -354,7 +354,7 @@ BoolOrError MemFileSystem::TryLock(const StringPiece& lock_name,
   ScopedMutex lock(lock_map_mutex_.get());
 
   auto ret = lock_map_.insert(
-      std::make_pair(lock_name.as_string(), timer_->NowMs()));
+      std::make_pair(GoogleString(lock_name), timer_->NowMs()));
   bool inserted = ret.second;
   return BoolOrError(inserted);
 }
@@ -367,7 +367,7 @@ BoolOrError MemFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
 
   DCHECK_EQ(timer, timer_);
   int64 now = timer->NowMs();
-  auto ret = lock_map_.insert(std::make_pair(lock_name.as_string(), now));
+  auto ret = lock_map_.insert(std::make_pair(GoogleString(lock_name), now));
   auto iter = ret.first;
   bool inserted = ret.second;
   if (inserted) {
@@ -387,9 +387,9 @@ bool MemFileSystem::BumpLockTimeout(const StringPiece& lock_name,
                                     MessageHandler* handler) {
   ScopedMutex lock(lock_map_mutex_.get());
 
-  auto iter = lock_map_.find(lock_name.as_string());
+  auto iter = lock_map_.find(GoogleString(lock_name));
   if (iter == lock_map_.end()) {
-    handler->Info(lock_name.as_string().c_str(), 0,
+    handler->Info(GoogleString(lock_name).c_str(), 0,
                   "Failed to bump lock: lock not held");
     return false;
   } else {
@@ -401,7 +401,7 @@ bool MemFileSystem::BumpLockTimeout(const StringPiece& lock_name,
 bool MemFileSystem::Unlock(const StringPiece& lock_name,
                            MessageHandler* handler) {
   ScopedMutex lock(lock_map_mutex_.get());
-  return (lock_map_.erase(lock_name.as_string()) == 1);
+  return (lock_map_.erase(GoogleString(lock_name)) == 1);
 }
 
 bool MemFileSystem::WriteFile(const char* filename,

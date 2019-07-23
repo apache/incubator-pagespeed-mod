@@ -490,7 +490,7 @@ bool AddDomainMap(const StringPiece& flag_value, DomainLawyer* lawyer,
     SplitStringPieceToVector(maps[i], "=", &name_values, true);
     if (name_values.size() != 2) {
       message_handler->Message(kError, "Invalid rewrite_domain_map: %s",
-                               maps[i].as_string().c_str());
+                               GoogleString(maps[i]).c_str());
       ret = false;
     } else {
       ret &= (*fn)(lawyer, name_values[0], name_values[1], message_handler);

@@ -84,7 +84,7 @@ void SetExperimentCookie(ResponseHeaders* headers,
   GoogleString value = StringPrintf(
       "%s=%s; Expires=%s; Domain=.%s; Path=/",
       kExperimentCookie, ExperimentStateToCookieString(state).c_str(),
-      expires.c_str(), host.as_string().c_str());
+      expires.c_str(), GoogleString(host).c_str());
   headers->Add(HttpAttributes::kSetCookie, value);
   headers->ComputeCaching();
 }

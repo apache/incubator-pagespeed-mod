@@ -905,14 +905,14 @@ void CheckFilterSetOrdering(const RewriteOptions::Filter* filters, int num) {
 // configuration is set to preserve resource URLs.  The table is initialized
 // once in RewriteOptions::Initialize.
 struct FilterProperties {
-  uint8 level_core : 1;
-  uint8 level_optimize_for_bandwidth : 1;
-  uint8 level_mobilize : 1;
-  uint8 level_test : 1;
-  uint8 level_dangerous : 1;
-  uint8 preserve_image_urls : 1;
-  uint8 preserve_js_urls : 1;
-  uint8 preserve_css_urls : 1;
+  uint8_t level_core : 1;
+  uint8_t level_optimize_for_bandwidth : 1;
+  uint8_t level_mobilize : 1;
+  uint8_t level_test : 1;
+  uint8_t level_dangerous : 1;
+  uint8_t preserve_image_urls : 1;
+  uint8_t preserve_js_urls : 1;
+  uint8_t preserve_css_urls : 1;
 };
 FilterProperties filter_properties[RewriteOptions::kEndOfFilters];
 
@@ -926,7 +926,7 @@ bool IsInSet(const RewriteOptions::Filter* filters, int num,
 // query params from url and assigns to url_no_query_param.
 void StripBeaconUrlQueryParam(GoogleString* url,
                               GoogleString* url_no_query_param) {
-  if (StringPiece(*url).ends_with("ets=")) {
+  if (absl::EndsWith(*url, "ets=")) {
     // Strip the ? or & in front of ets= as well.
     int chars_to_strip = STATIC_STRLEN("ets=") + 1;
     url->resize(url->size() - chars_to_strip);
@@ -934,7 +934,7 @@ void StripBeaconUrlQueryParam(GoogleString* url,
 
   StringPieceVector url_split;
   SplitStringUsingSubstr(*url, "?", &url_split);
-  url_split[0].CopyToString(url_no_query_param);
+  *url_no_query_param = GoogleString(url_split[0]);
 }
 
 // Maps the deprecated options to the new names.
@@ -1045,14 +1045,14 @@ bool RewriteOptions::ParseBeaconUrl(const StringPiece& in, BeaconUrl* out) {
   if (urls.size() > 2 || urls.size() < 1) {
     return false;
   }
-  urls[0].CopyToString(&out->http);
+  out->http = GoogleString(urls[0]);
   if (urls.size() == 2) {
-    urls[1].CopyToString(&out->https);
-  } else if (urls[0].starts_with("http:")) {
+    out->https = GoogleString(urls[1]);
+  } else if (absl::StartsWith(urls[0], "http:")) {
     out->https.clear();
     StrAppend(&out->https, "https:", urls[0].substr(STATIC_STRLEN("http:")));
   } else {
-    urls[0].CopyToString(&out->https);
+    out->https = GoogleString(urls[0]);
   }
 
   // We used to require that the query param end with "ets=", but no longer
@@ -1099,7 +1099,7 @@ bool RewriteOptions::ParseFromString(StringPiece in, MobTheme* theme) {
     return false;
   }
   if (args.size() == 3) {
-    args[2].CopyToString(&theme->logo_url);
+    theme->logo_url = GoogleString(args[2]);
   }
   return true;
 }
@@ -2884,7 +2884,7 @@ bool RewriteOptions::AddByNameToFilterSet(
     } else {
       if (handler != NULL) {
         handler->Message(kWarning, "Invalid filter name: %s",
-                         option.as_string().c_str());
+                         GoogleString(option).c_str());
       }
       ret = false;
     }
@@ -2908,8 +2908,8 @@ bool RewriteOptions::AddCommaSeparatedListToOptionSet(
     SplitStringPieceToVector(option_vector[i], "=", &single_option_and_value,
                              true);
     if (single_option_and_value.size() == 2) {
-      set->insert(OptionStringPair(single_option_and_value[0].as_string(),
-                                   single_option_and_value[1].as_string()));
+      set->insert(OptionStringPair(GoogleString(single_option_and_value[0]),
+                                   GoogleString(single_option_and_value[1])));
     } else {
       ret = false;
     }
@@ -3044,17 +3044,17 @@ RewriteOptions::OptionSettingResult RewriteOptions::FormatSetOptionMessage(
     StringPiece error_detail, GoogleString* msg) {
   if (!IsValidOptionName(name)) {
     // Not a mapped option.
-    SStringPrintf(msg, "Option %s not mapped.", name.as_string().c_str());
+    SStringPrintf(msg, "Option %s not mapped.", GoogleString(name).c_str());
     return kOptionNameUnknown;
   }
   switch (result) {
     case kOptionNameUnknown:
-      SStringPrintf(msg, "Option %s not found.", name.as_string().c_str());
+      SStringPrintf(msg, "Option %s not found.", GoogleString(name).c_str());
       break;
     case kOptionValueInvalid:
       SStringPrintf(msg, "Cannot set option %s to %s. %s",
-                    name.as_string().c_str(), value.as_string().c_str(),
-                    error_detail.as_string().c_str());
+                    GoogleString(name).c_str(), GoogleString(value).c_str(),
+                    GoogleString(error_detail).c_str());
       break;
     default:
       break;
@@ -3100,7 +3100,7 @@ RewriteOptions::ParseAndSetOptionFromNameWithScope(
   } else if (StringCaseEqual(name, kDomain)) {
     WriteableDomainLawyer()->AddDomain(arg, handler);
   } else if (StringCaseEqual(name, kProxySuffix)) {
-    WriteableDomainLawyer()->set_proxy_suffix(arg.as_string());
+    WriteableDomainLawyer()->set_proxy_suffix(GoogleString(arg));
   } else if (StringCaseEqual(name, kDownstreamCachePurgeLocationPrefix)) {
     GoogleUrl gurl(arg);
     if (gurl.IsWebValid()) {
@@ -3191,7 +3191,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName2(
       *msg = "Argument 1 must be either 'Allow' or 'Disallow'";
       return RewriteOptions::kOptionValueInvalid;
     }
-    if (!file_load_policy()->AddRule(arg2.as_string(),
+    if (!file_load_policy()->AddRule(GoogleString(arg2),
                                      is_regexp, allow, msg)) {
       result = RewriteOptions::kOptionValueInvalid;
     }
@@ -4740,12 +4740,12 @@ void RewriteOptions::ExperimentSpec::Initialize(const StringPiece& spec,
                                       handler)) {
         handler->Message(kWarning,
                          "Ignorning invalid alternate_origin_domain: '%s'",
-                         piece.as_string().c_str());
+                         GoogleString(piece).c_str());
         alternate_origin_domains_.pop_back();
       }
     } else {
       handler->Message(kWarning, "Skipping unknown experiment setting: %s",
-                       piece.as_string().c_str());
+                       GoogleString(piece).c_str());
     }
   }
 }
@@ -4760,10 +4760,10 @@ void RewriteOptions::ExperimentSpec::CombineQuotedHostPort(
   StringPiece& a = (*vec)[first_pos];
   StringPiece& b = (*vec)[first_pos + 1];
 
-  if (a.starts_with("\"") && b.ends_with("\"")) {
+  if (absl::StartsWith(a, "\"") && absl::EndsWith(b, "\"")) {
     a.remove_prefix(1);
     b.remove_suffix(1);
-    *combined_container = a.as_string() + ":" + b.as_string();
+    *combined_container = GoogleString(a) + ":" + GoogleString(b);
     (*vec)[first_pos] = StringPiece(*combined_container);
     vec->erase(vec->begin() + first_pos + 1);
   }
@@ -4832,9 +4832,9 @@ bool RewriteOptions::ExperimentSpec::ParseAlternateOriginDomain(
   }
 
   out->serving_domains.clear();
-  out->origin_domain = args_str[1].as_string();
+  out->origin_domain = GoogleString(args_str[1]);
   if (args_str.size() > 2) {
-    out->host_header = args_str[2].as_string();
+    out->host_header = GoogleString(args_str[2]);
   } else {
     out->host_header.clear();
   }
@@ -4877,10 +4877,10 @@ bool RewriteOptions::ExperimentSpec::ParseAlternateOriginDomain(
     if (LooksLikeValidHost(serving_domain) &&
         lawyer.AddTwoProtocolOriginDomainMapping(
             out->origin_domain, serving_domain, out->host_header, handler)) {
-      out->serving_domains.push_back(serving_domain.as_string());
+      out->serving_domains.push_back(GoogleString(serving_domain));
     } else {
       handler->Message(kWarning, "Invalid serving domain: '%s'",
-                       serving_domain.as_string().c_str());
+                       GoogleString(serving_domain).c_str());
     }
   }
 
@@ -4914,7 +4914,7 @@ bool RewriteOptions::ExperimentSpec::ParseDeviceTypeBitSet(
       success = true;
     } else {
       handler->Message(kWarning, "Skipping unknown device type: %s",
-                       device.as_string().c_str());
+                       GoogleString(device).c_str());
     }
   }
 
@@ -4985,8 +4985,8 @@ void RewriteOptions::AddUrlValuedAttribute(
     url_valued_attributes_.reset(new std::vector<ElementAttributeCategory>());
   }
   ElementAttributeCategory eac;
-  element.CopyToString(&eac.element);
-  attribute.CopyToString(&eac.attribute);
+  eac.element = GoogleString(element);
+  eac.attribute = GoogleString(attribute);
   eac.category = category;
   url_valued_attributes_->push_back(eac);
 }
@@ -5004,7 +5004,7 @@ bool RewriteOptions::IsUrlCacheValid(StringPiece url, int64 time_ms,
                                      bool search_wildcards) const {
   {
     ThreadSystem::ScopedReader read_lock(cache_purge_mutex_.get());
-    if (!purge_set_->IsValid(url.as_string(), time_ms)) {
+    if (!purge_set_->IsValid(GoogleString(url), time_ms)) {
       return false;
     }
   }
@@ -5043,7 +5043,7 @@ void RewriteOptions::PurgeUrl(StringPiece url, int64 timestamp_ms) {
   // backwards in time.  This API is used for collecting purge-records
   // from a database, and not for handling PURGE http requests.  That
   // is handled in ../apache/instaweb_handler.cc, handle_purge_request().
-  purge_set_.MakeWriteable()->Put(url.as_string(), timestamp_ms);
+  purge_set_.MakeWriteable()->Put(GoogleString(url), timestamp_ms);
 }
 
 void RewriteOptions::AddUrlCacheInvalidationEntry(
@@ -5164,7 +5164,7 @@ bool RewriteOptions::CacheFragmentOption::SetFromString(
       return false;
     }
   }
-  set(value.as_string());
+  set(GoogleString(value));
   return true;
 }
 

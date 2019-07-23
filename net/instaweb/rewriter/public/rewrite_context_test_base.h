@@ -142,7 +142,7 @@ class UpperCaseRewriter : public SimpleTextFilter::Rewriter {
                            GoogleString* out,
                            ServerContext* server_context) {
     ++num_rewrites_;
-    in.CopyToString(out);
+    *out = GoogleString(in);
     UpperString(out);
     return in != *out;
   }

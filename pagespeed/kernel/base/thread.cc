@@ -35,7 +35,7 @@ ThreadSystem::Thread::Thread(ThreadSystem* runtime, StringPiece name,
       flags_(flags),
       started_(false),
       join_called_(false) {
-  name.CopyToString(&name_);
+  name_ = GoogleString(name);
 }
 
 ThreadSystem::Thread::~Thread() {

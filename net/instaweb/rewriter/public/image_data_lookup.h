@@ -33,7 +33,7 @@ namespace net_instaweb {
 
 // char to int *without sign extension*.
 inline int CharToInt(char c) {
-  uint8 uc = static_cast<uint8>(c);
+  uint8_t uc = static_cast<uint8_t>(c);
   return static_cast<int>(uc);
 }
 

@@ -39,7 +39,7 @@
 #include <cstdlib>
 #include <limits>
 
-#include "base/logging.h"
+//#include "base/logging.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/debug.h"
@@ -71,7 +71,7 @@ class StdioFileHelper {
       : file_(f),
         file_system_(fs),
         start_us_(0) {
-    filename.CopyToString(&filename_);
+    filename_ = GoogleString(filename);
   }
 
   ~StdioFileHelper() {
@@ -285,7 +285,7 @@ int StdioFileSystem::MaxPathLength(const StringPiece& base) const {
 #else
   const int kMaxInt = std::numeric_limits<int>::max();
 
-  long limit = pathconf(base.as_string().c_str(), _PC_PATH_MAX);  // NOLINT
+  long limit = pathconf(GoogleString(base).c_str(), _PC_PATH_MAX);  // NOLINT
   if (limit < 0) {
     // pathconf failed.
     return FileSystem::MaxPathLength(base);
@@ -488,7 +488,7 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
   FindClose(iter);
   return true;
 #else
-  GoogleString dir_string = dir.as_string();
+  GoogleString dir_string = GoogleString(dir);
   EnsureEndsInSlash(&dir_string);
   const char* dirname = dir_string.c_str();
   DIR* mydir = opendir(dirname);
@@ -498,7 +498,12 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
   } else {
     dirent* entry = NULL;
     dirent buffer;
+
+// XXX(oschaaf):
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     while (readdir_r(mydir, &buffer, &entry) == 0 && entry != NULL) {
+#pragma GCC diagnostic pop
       if ((strcmp(entry->d_name, ".") != 0) &&
           (strcmp(entry->d_name, "..") != 0)) {
         files->push_back(dir_string + entry->d_name);
@@ -515,7 +520,7 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
 
 bool StdioFileSystem::Stat(const StringPiece& path, struct stat* statbuf,
                            MessageHandler* handler) const {
-  const GoogleString path_string = path.as_string();
+  const GoogleString path_string = GoogleString(path);
   const char* path_str = path_string.c_str();
   if (stat(path_str, statbuf) == 0) {
     return true;
@@ -566,7 +571,7 @@ bool StdioFileSystem::Size(const StringPiece& path, int64* size,
 
 BoolOrError StdioFileSystem::TryLock(const StringPiece& lock_name,
                                      MessageHandler* handler) {
-  const GoogleString lock_string = lock_name.as_string();
+  const GoogleString lock_string = GoogleString(lock_name);
   const char* lock_str = lock_string.c_str();
   // POSIX mkdir is widely believed to be atomic, although I have
   // found no reliable documentation of this fact.
@@ -589,7 +594,7 @@ BoolOrError StdioFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
                                                 int64 timeout_ms,
                                                 const Timer* timer,
                                                 MessageHandler* handler) {
-  const GoogleString lock_string = lock_name.as_string();
+  const GoogleString lock_string = GoogleString(lock_name);
   BoolOrError result = TryLock(lock_name, handler);
   if (result.is_true() || result.is_error()) {
     // We got the lock, or the lock is ungettable.
@@ -641,10 +646,10 @@ BoolOrError StdioFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
 
 bool StdioFileSystem::BumpLockTimeout(const StringPiece& lock_name,
                                       MessageHandler* handler) {
-  bool success = utime(lock_name.as_string().c_str(),
+  bool success = utime(GoogleString(lock_name).c_str(),
                        NULL /* update mtime to current time */) == 0;
   if (!success) {
-    handler->Info(lock_name.as_string().c_str(), 0,
+    handler->Info(GoogleString(lock_name).c_str(), 0,
                   "Failed to bump lock: %s", strerror(errno));
   }
   return success;
@@ -652,7 +657,7 @@ bool StdioFileSystem::BumpLockTimeout(const StringPiece& lock_name,
 
 bool StdioFileSystem::Unlock(const StringPiece& lock_name,
                              MessageHandler* handler) {
-  const GoogleString lock_string = lock_name.as_string();
+  const GoogleString lock_string = GoogleString(lock_name);
   const char* lock_str = lock_string.c_str();
 #ifdef WIN32
   if (_rmdir(lock_str) == 0) {

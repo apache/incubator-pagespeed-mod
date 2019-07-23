@@ -188,7 +188,7 @@ class PropertyCache {
   class Cohort {
    public:
     explicit Cohort(StringPiece name) {
-      name.CopyToString(&name_);
+      name_ = GoogleString(name);
     }
     const GoogleString& name() const { return name_; }
 

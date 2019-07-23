@@ -21,8 +21,9 @@
 #include "pagespeed/kernel/base/message_handler.h"
 
 #include <cstdarg>
+#include <cstddef>
 
-#include "base/logging.h"
+//#include "base/logging.h"
 
 namespace net_instaweb {
 
@@ -177,7 +178,7 @@ void MessageHandler::FormatTo(GoogleString* buffer,
   StringAppendV(buffer, msg, args);
 }
 
-bool MessageHandler::Dump(Writer* writer) {
+bool MessageHandler::Dump(Writer*) {
   return false;
 }
 

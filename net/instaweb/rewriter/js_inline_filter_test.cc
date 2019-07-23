@@ -246,7 +246,7 @@ TEST_F(JsInlineFilterTest, DoNotInlineJavascriptDifferentDomain) {
   GoogleUrl gurl("http://scripts.example.org/script.js");
   TestNoInlineJavascript(
       "http://www.example.net/index.html",
-      gurl.Spec().as_string(),
+      GoogleString(gurl.Spec()),
       "",
       "function id(x) { return x; }\n",
       rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
@@ -308,7 +308,7 @@ TEST_F(JsInlineFilterTest, DontInlineDisallowed) {
   GoogleUrl gurl("http://www.example.com/script.js");
   TestNoInlineJavascript(
       "http://www.example.com/index.html",
-      gurl.Spec().as_string(),
+      GoogleString(gurl.Spec()),
       "",
       "function close() { return 'inline!'; }\n",
       rewrite_driver()->GenerateUnauthorizedDomainDebugComment(

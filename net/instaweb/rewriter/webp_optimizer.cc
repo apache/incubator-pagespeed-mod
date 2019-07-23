@@ -34,8 +34,8 @@ extern "C" {
 #include "webp/decode.h"
 #include "webp/encode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
-#include "third_party/libwebp/src/webp/encode.h"
+#include "external/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/encode.h"
 #endif
 // TODO(jmaessen): open source imports & build of libwebp.
 }
@@ -44,7 +44,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
 #include "jpeglib.h"  // NOLINT
 #else
-#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "external/libjpeg_turbo/jpeglib.h"
 #endif
 }
 
@@ -128,8 +128,8 @@ class WebpOptimizer {
   // Structure for jpeg decompression
   MessageHandler* message_handler_;
   pagespeed::image_compression::JpegReader reader_;
-  uint8* pixels_;
-  uint8** rows_;  // Holds offsets into pixels_ during decompression
+  uint8_t* pixels_;
+  uint8_t** rows_;  // Holds offsets into pixels_ during decompression
   unsigned int width_, height_;  // Type-compatible with libjpeg.
   size_t row_stride_;
 
@@ -199,10 +199,10 @@ bool WebpOptimizer::DoReadJpegPixels(J_COLOR_SPACE color_space,
   height_ = jpeg_decompress->output_height;
   row_stride_ = width_ * jpeg_decompress->output_components * sizeof(*pixels_);
 
-  pixels_ = new uint8[row_stride_ * height_];
+  pixels_ = new uint8_t[row_stride_ * height_];
   // jpeglib expects to get an array of pointers to rows, so allocate one and
   // point it to contiguous rows in *pixels_.
-  rows_ = new uint8*[height_];
+  rows_ = new uint8_t*[height_];
   for (unsigned int i = 0; i < height_; ++i) {
     rows_[i] = pixels_ + PixelOffset(0, i);
   }
@@ -475,7 +475,7 @@ bool ReduceWebpImageQuality(const GoogleString& original_webp,
     quality = 100;
   }
 
-  const uint8* webp = reinterpret_cast<const uint8*>(original_webp.data());
+  const uint8_t* webp = reinterpret_cast<const uint8_t*>(original_webp.data());
   const int webp_size = original_webp.size();
   // At the recommendation of skal@, we decompress and recompress in YUV(A)
   // space here. We used to do this for jpeg conversion (as evidenced by the

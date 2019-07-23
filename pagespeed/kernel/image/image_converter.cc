@@ -30,13 +30,13 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
-#include "third_party/zlib/src/zlib.h"
+#include "external/zlib/zlib.h"
 #endif
 }  // extern "C"
 
@@ -144,7 +144,7 @@ void SelectSmallerImage(
 // get a slope of 4.92865674 and an intercept of 0.04177743.  Double-checking,
 // this fits the other data-points we have reasonably well, except for the
 // one at compression_level 100.
-const double JpegPixelToByteRatio(int compression_level) {
+double JpegPixelToByteRatio(int compression_level) {
   if ((compression_level > 95) || (compression_level < 0)) {
     compression_level = 95;
   }

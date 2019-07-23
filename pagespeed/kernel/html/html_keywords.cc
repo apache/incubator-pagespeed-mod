@@ -490,7 +490,7 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
   bool in_escape = false;
   bool found_ampersand = false;
   for (size_t i = 0; i < escaped.size(); ++i) {
-    uint8 ch = static_cast<uint8>(escaped[i]);
+    uint8_t ch = static_cast<uint8_t>(escaped[i]);
     if (!in_escape) {
       if (ch == '&') {
         if (!found_ampersand) {

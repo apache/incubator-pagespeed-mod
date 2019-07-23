@@ -65,7 +65,7 @@ class ThreadSystemTestTemplate : public ThreadSystemTestBase {
   ThreadSystemTestTemplate() : ThreadSystemTestBase(new ToTest) {}
 };
 
-TYPED_TEST_CASE_P(ThreadSystemTestTemplate);
+TYPED_TEST_SUITE_P(ThreadSystemTestTemplate);
 
 TYPED_TEST_P(ThreadSystemTestTemplate, TestStartJoin) {
   ThreadSystemTestBase::TestStartJoin();
@@ -75,7 +75,7 @@ TYPED_TEST_P(ThreadSystemTestTemplate, TestSync) {
   ThreadSystemTestBase::TestSync();
 }
 
-REGISTER_TYPED_TEST_CASE_P(ThreadSystemTestTemplate, TestStartJoin, TestSync);
+REGISTER_TYPED_TEST_SUITE_P(ThreadSystemTestTemplate, TestStartJoin, TestSync);
 
 }  // namespace net_instaweb
 

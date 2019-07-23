@@ -262,7 +262,7 @@ bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
   if (dynamically_disabled_filter_list_ != NULL) {
     dynamically_disabled_filter_list_->clear();
   }
-  url.CopyToString(&url_);
+  url_ = GoogleString(url);
   GoogleUrl gurl(url);
   // TODO(sligocki): Use IsWebValid() here. For now we need to allow file://
   // URLs as well because some tools use them.
@@ -274,7 +274,7 @@ bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
     string_table_.Clear();
     google_url_.Swap(&gurl);
     line_number_ = 1;
-    id.CopyToString(&id_);
+    id_ = GoogleString(id);
     if (log_rewrite_timing_) {
       parse_start_time_us_ = timer_->NowUs();
       InfoHere("HtmlParse::StartParse");
@@ -286,7 +286,7 @@ bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
 }
 
 void HtmlParse::SetUrlForTesting(const StringPiece& url) {
-  url.CopyToString(&url_);
+  url_ = GoogleString(url);
   bool ok = google_url_.Reset(url);
   CHECK(ok) << url;
 }

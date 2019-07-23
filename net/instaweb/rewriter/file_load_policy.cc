@@ -122,10 +122,10 @@ bool FileLoadPolicy::AssociateRegexp(StringPiece url_regexp,
                                      GoogleString* error) {
   GoogleString url_regexp_str, filename_prefix_str;
 
-  url_regexp.CopyToString(&url_regexp_str);
-  filename_prefix.CopyToString(&filename_prefix_str);
+  url_regexp_str = GoogleString(url_regexp);
+  filename_prefix_str = GoogleString(filename_prefix);
 
-  if (!url_regexp.starts_with("^")) {
+  if (!absl::StartsWith(url_regexp, "^")) {
     error->assign("File mapping regular expression must match beginning "
                   "of string. (Must start with '^'.)");
     return false;
@@ -149,8 +149,8 @@ void FileLoadPolicy::Associate(StringPiece url_prefix_in,
                                StringPiece filename_prefix_in) {
   GoogleString url_prefix, filename_prefix;
 
-  url_prefix_in.CopyToString(&url_prefix);
-  filename_prefix_in.CopyToString(&filename_prefix);
+  url_prefix = GoogleString(url_prefix_in);
+  filename_prefix = GoogleString(filename_prefix_in);
 
   // Make sure these are directories.  Add a terminal slashes if absent.
   EnsureEndsInSlash(&url_prefix);

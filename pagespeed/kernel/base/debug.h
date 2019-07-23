@@ -23,7 +23,7 @@
 
 #include "pagespeed/kernel/base/string.h"
 // Use Chromium debug support.
-#include "base/debug/stack_trace.h"
+//#include "base/debug/stack_trace.h"
 
 namespace net_instaweb {
 

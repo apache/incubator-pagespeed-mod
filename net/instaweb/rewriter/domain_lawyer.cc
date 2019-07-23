@@ -182,7 +182,7 @@ class DomainLawyer::Domain {
 
   void set_authorized(bool authorized) { authorized_ = authorized; }
   int num_shards() const { return shards_.size(); }
-  void set_host_header(StringPiece x) { x.CopyToString(&host_header_); }
+  void set_host_header(StringPiece x) { host_header_ = GoogleString(x); }
   const GoogleString& host_header() const { return host_header_; }
 
   // Indicates whether this domain is authorized when found in URLs
@@ -336,7 +336,7 @@ GoogleString DomainLawyer::NormalizeDomainName(const StringPiece& domain_name) {
     domain_name_str = StrCat("http://", domain_name);
     scheme_delim_start = 4;
   } else {
-    domain_name.CopyToString(&domain_name_str);
+    domain_name_str = GoogleString(domain_name);
   }
   EnsureEndsInSlash(&domain_name_str);
 
@@ -355,9 +355,9 @@ GoogleString DomainLawyer::NormalizeDomainName(const StringPiece& domain_name) {
   StringPiece scheme(domain_name_str.data(), scheme_delim_start);
   StringPiece origin(domain_name_str.data() + origin_start,
                      slash - origin_start);
-  if ((scheme == "https") && origin.ends_with(":443")) {
+  if ((scheme == "https") && absl::EndsWith(origin, ":443")) {
     domain_name_str.erase(slash - 4, 4);
-  } else if ((scheme == "http") && origin.ends_with(":80")) {
+  } else if ((scheme == "http") && absl::EndsWith(origin, ":80")) {
     domain_name_str.erase(slash - 3, 3);
   }
 
@@ -439,7 +439,7 @@ DomainLawyer::Domain* DomainLawyer::FindDomain(const GoogleUrl& gurl) const {
   // rather than starting at the bottom and searching up, with each search
   // a lookup over the entire set of domains.
   GoogleString domain_path;
-  gurl.AllExceptLeaf().CopyToString(&domain_path);
+  domain_path = GoogleString(gurl.AllExceptLeaf());
   StringPieceVector components;
   SplitStringPieceToVector(gurl.PathSansLeaf(), "/", &components, false);
 
@@ -455,7 +455,7 @@ DomainLawyer::Domain* DomainLawyer::FindDomain(const GoogleUrl& gurl) const {
     int component_size = 0;
     for (int i = components.size() - 1; (domain == NULL) && (i >= 1); --i) {
       domain_path.resize(domain_path.size() - component_size);
-      DCHECK(StringPiece(domain_path).ends_with("/"));
+      DCHECK(absl::EndsWith(domain_path, "/"));
       DomainMap::const_iterator p = domain_map_.find(domain_path);
       if (p != domain_map_.end()) {
         domain = p->second;
@@ -500,7 +500,7 @@ void DomainLawyer::FindDomainsRewrittenTo(
   }
 
   GoogleString domain_name;
-  original_url.Origin().CopyToString(&domain_name);
+  domain_name = GoogleString(original_url.Origin());
   EnsureEndsInSlash(&domain_name);
   for (DomainMap::const_iterator p = domain_map_.begin();
       p != domain_map_.end(); ++p) {
@@ -534,12 +534,12 @@ bool DomainLawyer::MapRequestToDomain(
 
     // The origin domain is authorized by default.
     if (resolved_origin == original_origin) {
-      resolved_origin.Spec().CopyToString(mapped_domain_name);
+      *mapped_domain_name = GoogleString(resolved_origin.Spec());
       ret = true;
     } else if (resolved_domain != NULL && resolved_domain->authorized()) {
       if (resolved_domain->IsWildcarded()) {
         // This is a sharded domain. We do not do the sharding in this function.
-        resolved_origin.Spec().CopyToString(mapped_domain_name);
+        *mapped_domain_name = GoogleString(resolved_origin.Spec());
       } else {
         *mapped_domain_name = resolved_domain->name();
       }
@@ -614,14 +614,14 @@ bool DomainLawyer::MapOriginUrl(const GoogleUrl& gurl,
   // We can map an origin to/from http/https.
   if (gurl.IsWebValid()) {
     ret = true;
-    gurl.Spec().CopyToString(out);
+    *out = GoogleString(gurl.Spec());
     Domain* domain = FindDomain(gurl);
     if (domain != NULL) {
       Domain* origin_domain = domain->origin_domain();
       if (origin_domain != NULL) {
         GoogleUrl mapped_gurl;
         if (MapUrlHelper(*domain, *origin_domain, gurl, &mapped_gurl)) {
-          mapped_gurl.Spec().CopyToString(out);
+          *out = GoogleString(mapped_gurl.Spec());
         }
         *is_proxy = origin_domain->is_proxy();
         const GoogleString& origin_header = origin_domain->host_header();
@@ -632,7 +632,7 @@ bool DomainLawyer::MapOriginUrl(const GoogleUrl& gurl,
     }
 
     if (host_header->empty()) {
-      gurl.HostAndPort().CopyToString(host_header);
+      *host_header = GoogleString(gurl.HostAndPort());
     }
   }
 
@@ -648,7 +648,7 @@ bool DomainLawyer::MapUrlHelper(const Domain& from_domain,
   GoogleUrl from_domain_gurl(from_domain.name());
   StringPiece from_domain_path(from_domain_gurl.PathSansLeaf());
   StringPiece path_and_leaf(gurl.PathAndLeaf());
-  DCHECK(path_and_leaf.starts_with(from_domain_path));
+  DCHECK(absl::StartsWith(path_and_leaf, from_domain_path));
 
   // Trim the URL's domain we came from based on how it was specifed in the
   // from_domain.  E.g. if you write
@@ -697,7 +697,7 @@ bool DomainLawyer::DomainNameToTwoProtocols(
     GoogleString* http_url, GoogleString* https_url) {
   *http_url = NormalizeDomainName(domain_name);
   StringPiece http_url_piece(*http_url);
-  if (!http_url_piece.starts_with("http:")) {
+  if (!absl::StartsWith(http_url_piece, "http:")) {
     return false;
   }
   *https_url = StrCat("https", http_url_piece.substr(4));
@@ -848,8 +848,8 @@ bool DomainLawyer::IsSchemeSafeToMapTo(const StringPiece& domain_name,
                                        bool allow_https_scheme) {
   // The scheme defaults to http so that's the same as explicitly saying http.
   return (domain_name.find("://") == GoogleString::npos ||
-          domain_name.starts_with("http://") ||
-          (allow_https_scheme && domain_name.starts_with("https://")));
+          absl::StartsWith(domain_name, "http://") ||
+          (allow_https_scheme && absl::StartsWith(domain_name, "https://")));
 }
 
 bool DomainLawyer::MapDomainHelper(
@@ -874,7 +874,7 @@ bool DomainLawyer::MapDomainHelper(
   bool mapped_a_domain = false;
   if (to_domain->IsWildcarded()) {
     handler->Message(kError, "Cannot map to a wildcarded domain: %s",
-                     to_domain_name.as_string().c_str());
+                     GoogleString(to_domain_name).c_str());
   } else {
     GoogleUrl to_url(to_domain->name());
     StringPieceVector domains;
@@ -890,7 +890,7 @@ bool DomainLawyer::MapDomainHelper(
           // Ignore requests to map to the same scheme://hostname:port/.
         } else if (!allow_wildcards && from_domain->IsWildcarded()) {
           handler->Message(kError, "Cannot map from a wildcarded domain: %s",
-                           to_domain_name.as_string().c_str());
+                           GoogleString(to_domain_name).c_str());
           ret = false;
         } else {
           bool ok = (from_domain->*set_domain_fn)(to_domain, handler);
@@ -1088,9 +1088,9 @@ bool DomainLawyer::StripProxySuffix(const GoogleUrl& gurl, GoogleString* url,
   bool ret = false;
   if (gurl.IsWebValid() && !proxy_suffix_.empty()) {
     StringPiece host_and_port = gurl.HostAndPort();
-    if (host_and_port.ends_with(proxy_suffix_)) {
+    if (absl::EndsWith(host_and_port, proxy_suffix_)) {
       host_and_port.remove_suffix(proxy_suffix_.size());
-      host_and_port.CopyToString(host);  // Remove any other port, I suppose.
+      *host = GoogleString(host_and_port);  // Remove any other port, I suppose.
       *url = StrCat(gurl.Scheme(), "://", host_and_port, gurl.PathAndLeaf());
       ret = true;
     }
@@ -1106,7 +1106,7 @@ bool DomainLawyer::AddProxySuffix(const GoogleUrl& base_url,
   // http://www.example.com/foo or http://foo.www.example.com/bar then
   // we want to add the suffix to the hyperlink attribute.
   StringPiece base_host = base_url.Host();
-  if (!proxy_suffix_.empty() && base_host.ends_with(proxy_suffix_)) {
+  if (!proxy_suffix_.empty() && absl::EndsWith(base_host, proxy_suffix_)) {
     // Remove the suffix from the host so we can find a-tag references to it.
     StringPiece base_host_no_suffix = base_host.substr(
         0, base_host.size() - proxy_suffix_.size());

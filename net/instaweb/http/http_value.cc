@@ -259,7 +259,7 @@ bool HTTPValue::Encode(StringPiece http_string, GoogleString* encoded_value,
   value.Write(contents, handler);
 
   // Return SharedString buffer.
-  *encoded_value = value.share().Value().as_string();
+  *encoded_value = GoogleString(value.share().Value());
   return true;
 }
 

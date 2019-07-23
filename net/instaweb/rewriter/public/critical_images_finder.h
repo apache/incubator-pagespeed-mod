@@ -239,7 +239,7 @@ class CriticalImagesFinder {
   // after this function has been called.
   virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
 
-  virtual GoogleString GetKeyForUrl(StringPiece url) { return url.as_string(); }
+  virtual GoogleString GetKeyForUrl(StringPiece url) { return GoogleString(url); }
 
   // Extracts the critical images from the given property_value into
   // critical_images_info, after checking if the property value is still valid

@@ -31,6 +31,7 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/rolling_hash.h"
 #include "pagespeed/kernel/base/wildcard.h"
+#include "pagespeed/kernel/base/stl_util.h"
 
 namespace net_instaweb {
 

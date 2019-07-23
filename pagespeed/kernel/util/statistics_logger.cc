@@ -27,7 +27,7 @@
 #include <utility>                      // for pair
 #include <vector>
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/escaping.h"
@@ -148,7 +148,7 @@ StatisticsLogger::StatisticsLogger(
       timer_(timer),
       update_interval_ms_(update_interval_ms),
       max_logfile_size_kb_(max_logfile_size_kb) {
-  logfile_name.CopyToString(&logfile_name_);
+  logfile_name_ = GoogleString(logfile_name);
 }
 
 StatisticsLogger::~StatisticsLogger() {
@@ -311,7 +311,7 @@ void StatisticsLogger::ParseDataFromReader(
       std::map<StringPiece, StringPiece>::const_iterator value_iter =
           parsed_var_data.find(var_title);
       if (value_iter != parsed_var_data.end()) {
-        (*var_values)[var_title].push_back(value_iter->second.as_string());
+        (*var_values)[var_title].push_back(GoogleString(value_iter->second));
       } else {
         // If data is not available in this segment, we just push 0 as a place
         // holder. We must push something or else it will be ambiguous which
@@ -336,8 +336,7 @@ void StatisticsLogger::ParseDataForGraphs(StatisticsLogfileReader* reader,
       std::map<StringPiece, StringPiece>::const_iterator value_iter =
           parsed_var_data.find(var_title);
       if (value_iter != parsed_var_data.end()) {
-        value_iter->second.CopyToString(
-            StringVectorAdd(&((*var_values)[var_title])));
+        *StringVectorAdd(&((*var_values)[var_title])) = GoogleString(value_iter->second);
       } else {
         (*var_values)[var_title].push_back("0");
       }

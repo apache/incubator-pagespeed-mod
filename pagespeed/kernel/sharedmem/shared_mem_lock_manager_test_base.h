@@ -79,7 +79,7 @@ class SharedMemLockManagerTestTemplate : public SharedMemLockManagerTestBase {
   }
 };
 
-TYPED_TEST_CASE_P(SharedMemLockManagerTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemLockManagerTestTemplate);
 
 TYPED_TEST_P(SharedMemLockManagerTestTemplate, TestBasic) {
   SharedMemLockManagerTestBase::TestBasic();
@@ -93,7 +93,7 @@ TYPED_TEST_P(SharedMemLockManagerTestTemplate, TestSteal) {
   SharedMemLockManagerTestBase::TestSteal();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemLockManagerTestTemplate, TestBasic,
+REGISTER_TYPED_TEST_SUITE_P(SharedMemLockManagerTestTemplate, TestBasic,
                            TestDestructorUnlock, TestSteal);
 
 }  // namespace net_instaweb

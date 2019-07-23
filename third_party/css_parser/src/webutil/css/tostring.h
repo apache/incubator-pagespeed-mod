@@ -30,13 +30,13 @@ class UnicodeText;
 namespace Css {
 
 // Escape text so that it is safe to put in "" in a CSS string.
-string EscapeString(StringPiece src);
+string EscapeString(CssStringPiece src);
 string EscapeString(const UnicodeText& src);
 // Escape a text URL so that it is safe to put in url() in CSS.
-string EscapeUrl(StringPiece src);
+string EscapeUrl(CssStringPiece src);
 string EscapeUrl(const UnicodeText& src);
 // Escape an identifier so that it will be re-parsed correctly.
-string EscapeIdentifier(StringPiece src);
+string EscapeIdentifier(CssStringPiece src);
 string EscapeIdentifier(const UnicodeText& src);
 
 }  // namespace Css

@@ -92,7 +92,7 @@ bool InlineRewriteContext::Partition(OutputPartitions* partitions,
     resource->AddInputInfoToPartition(Resource::kOmitInputHash, 0, partition);
     if (ShouldInline(resource, &reason_for_failure)) {
       StringPiece contents = resource->ExtractUncompressedContents();
-      contents.CopyToString(partition->mutable_inlined_data());
+      *partition->mutable_inlined_data() = GoogleString(contents);
       ok = true;
     }
   }

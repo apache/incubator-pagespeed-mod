@@ -789,8 +789,8 @@ bool ScanlineResizer::Initialize(ScanlineReaderInterface* reader,
   // Ratios           | X Resizer | X Buff | Y Input | Y Resizer      | Y Buff
   // x != 1 && y != 1 | Resize    | Valid  | float   | Resize & Scale | Valid
   // x != 1 && y == 1 | Resize    | Valid  | float   | Scale Only     | Valid
-  // x == 1 && y != 1 | Shortcut  | NULL   | uint8   | Resize & Scale | Valid
-  // x == 1 && y == 1 | Shortcut  | NULL   | uint8   | Shortcut       | NULL
+  // x == 1 && y != 1 | Shortcut  | NULL   | uint8_t   | Resize & Scale | Valid
+  // x == 1 && y == 1 | Shortcut  | NULL   | uint8_t   | Shortcut       | NULL
 
   const bool need_resize_x = (ratio_x != 1.0);
   const bool need_resize_y = (ratio_y != 1.0);

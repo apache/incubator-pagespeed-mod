@@ -723,7 +723,7 @@ class RewriteDriver : public HtmlParse {
   // meta tag.
   StringPiece containing_charset() { return containing_charset_; }
   void set_containing_charset(const StringPiece charset) {
-    charset.CopyToString(&containing_charset_);
+    containing_charset_ = GoogleString(charset);
   }
 
   // Creates and registers a HtmlElement slot for rewriting.
@@ -1216,14 +1216,14 @@ class RewriteDriver : public HtmlParse {
   }
 
   void set_pagespeed_query_params(StringPiece x) {
-    x.CopyToString(&pagespeed_query_params_);
+    pagespeed_query_params_ = GoogleString(x);
   }
   StringPiece pagespeed_query_params() const {
     return pagespeed_query_params_;
   }
 
   void set_pagespeed_option_cookies(StringPiece x) {
-    x.CopyToString(&pagespeed_option_cookies_);
+    pagespeed_option_cookies_ = GoogleString(x);
   }
   StringPiece pagespeed_option_cookies() const {
     return pagespeed_option_cookies_;

@@ -40,10 +40,10 @@ extern "C" {
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"  // NOLINT
 #else
-#include "third_party/zlib/src/zlib.h"
+#include "external/zlib/zlib.h"
 #endif
 
-#include "third_party/optipng/src/opngreduc/opngreduc.h"
+#include "external/optipng/src/opngreduc/opngreduc.h"
 }
 
 using net_instaweb::MessageHandler;

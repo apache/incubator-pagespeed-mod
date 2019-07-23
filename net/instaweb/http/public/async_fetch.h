@@ -207,7 +207,7 @@ class StringAsyncFetch : public AsyncFetch {
 
   virtual bool HandleWrite(const StringPiece& content,
                            MessageHandler* handler) {
-    content.AppendToString(buffer_pointer_);
+    buffer_pointer_->append(GoogleString(content));
     return true;
   }
   virtual bool HandleFlush(MessageHandler* handler) { return true; }

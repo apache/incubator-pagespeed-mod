@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/image/image_util.h"
 
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 
 #include "pagespeed/kernel/base/countdown_timer.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -41,7 +41,7 @@ const size_t kGifHeaderLength = arraysize(kGifHeader) - 1;
 
 // char to int *without sign extension*.
 inline int CharToInt(char c) {
-  uint8 uc = static_cast<uint8>(c);
+  uint8_t uc = static_cast<uint8_t>(c);
   return static_cast<int>(uc);
 }
 
@@ -133,7 +133,7 @@ net_instaweb::ImageType ComputeImageType(const StringPiece& buf) {
         // Detailed explanation on parsing webp format is available at
         // http://code.google.com/speed/webp/docs/riff_container.html
         WebPBitstreamFeatures features;
-        if (WebPGetFeatures(reinterpret_cast<const uint8*>(buf.data()),
+        if (WebPGetFeatures(reinterpret_cast<const uint8_t*>(buf.data()),
                             buf.length(), &features) ==
             VP8_STATUS_OK) {
           if (features.has_animation) {

@@ -31,7 +31,7 @@ uint64 RollingHash(const char* buf, size_t start, size_t n) {
   uint64 hash = 0;
   for (size_t i = 0; i < n; ++i) {
     hash = (hash << 1) | (hash >> 63);  // Rotate left 1
-    hash ^= kRollingHashCharTable[static_cast<uint8>(buf[i])];
+    hash ^= kRollingHashCharTable[static_cast<uint8_t>(buf[i])];
   }
   return hash;
 }

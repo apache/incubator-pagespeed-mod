@@ -25,7 +25,7 @@
 #include <set>
 
 #include "base/logging.h"               // for operator<<, etc
-#include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
@@ -120,7 +120,7 @@ StringSet* CommaSeparatedStringToSet(StringPiece str) {
   StringSet* set = new StringSet();
   for (StringPieceVector::const_iterator it = str_values.begin();
        it != str_values.end(); ++it) {
-    set->insert(it->as_string());
+    set->insert(GoogleString(*it));
   }
   return set;
 }
@@ -148,7 +148,7 @@ class BeaconPropertyCallback : public PropertyPage {
         css_critical_images_set_(css_critical_images_set),
         critical_css_selector_set_(critical_css_selector_set),
         rendered_images_set_(rendered_images_set) {
-    nonce.CopyToString(&nonce_);
+    nonce_ = GoogleString(nonce);
   }
 
   const PropertyCache::CohortVector CohortList() {
@@ -405,7 +405,7 @@ void ServerContext::MergeNonCachingResponseHeaders(
 }
 
 void ServerContext::set_filename_prefix(const StringPiece& file_prefix) {
-  file_prefix.CopyToString(&file_prefix_);
+  file_prefix_ = GoogleString(file_prefix);
 }
 
 void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
@@ -484,7 +484,7 @@ void ServerContext::AddOriginalContentLengthHeader(
         HttpAttributes::kXOriginalContentLength);
     int64 original_content_length;
     if (original_content_length_header != NULL &&
-        StringToInt64(original_content_length_header,
+        StringToInt64(StringPiece(original_content_length_header),
                       &original_content_length)) {
       input_size += original_content_length;
     } else if (input_resource->loaded()) {
@@ -592,7 +592,7 @@ bool ServerContext::HandleBeacon(StringPiece params,
     }
   } else {
     message_handler_->Message(kWarning, "Missing URL parameter in beacon: %s",
-                              params.as_string().c_str());
+                              GoogleString(params).c_str());
     return false;
   }
 
@@ -657,7 +657,9 @@ bool ServerContext::HandleBeacon(StringPiece params,
 
   StringPiece nonce;
   if (query_params.Lookup1Unescaped(kBeaconNonceQueryParam, &query_param_str)) {
-    nonce.set(query_param_str.data(), query_param_str.size());
+    StringPiece tmp(query_param_str.data(), query_param_str.size());
+    // XXX(oschaaf):
+    nonce.swap(tmp);
   }
 
   // Store the critical information in the property cache. This is done by
@@ -1129,8 +1131,8 @@ class MetadataCacheResultCallback
                               MessageHandler* handler)
       : format_(format),
         should_delete_(should_delete),
-        url_(url.as_string()),
-        ua_(ua.as_string()),
+        url_(GoogleString(url)),
+        ua_(GoogleString(ua)),
         server_context_(server_context),
         driver_(driver),
         fetch_(fetch),
@@ -1313,7 +1315,7 @@ void ServerContext::ApplyConfigLine(StringPiece linesp,
       // Continue applying remaining options.
       message_handler_->Message(
           kWarning, "Setting option %s with value %s failed: %s",
-          name.as_string().c_str(), value.as_string().c_str(), msg.c_str());
+          GoogleString(name).c_str(), GoogleString(value).c_str(), msg.c_str());
     }
   }
 }
@@ -1329,7 +1331,7 @@ void ServerContext::ApplyRemoteConfig(const GoogleString& config,
   // If the configuration file does not contain "EndRemoteConfig", discard the
   // entire configuration.
   for (int i = 0, n = str_values.size(); i < n; ++i) {
-    if (str_values[i].starts_with("EndRemoteConfig")) {
+    if (absl::StartsWith(str_values[i], "EndRemoteConfig")) {
       cfg_complete = i;
       break;
     }

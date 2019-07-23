@@ -94,7 +94,7 @@ class MockFetch : public AsyncFetch {
 
   virtual bool HandleWrite(const StringPiece& content,
                            MessageHandler* handler) {
-    content.AppendToString(content_);
+    content_->append(GoogleString(content));
     return true;
   }
   virtual bool HandleFlush(MessageHandler* handler) {
@@ -417,7 +417,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
     fetch->request_headers()->CopyFrom(request_headers);
     fetch->set_response_headers(&fetch_response_headers);
     // TODO(sligocki): Make Fetch take a StringPiece.
-    cache_fetcher_->Fetch(url.as_string(), &handler_, fetch);
+    cache_fetcher_->Fetch(GoogleString(url), &handler_, fetch);
     // Implementation with LRUCache and MockFetcher should
     // call callbacks synchronously.
     EXPECT_TRUE(fetch_done);

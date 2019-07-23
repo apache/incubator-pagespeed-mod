@@ -28,6 +28,7 @@
 
 namespace net_instaweb {
 
+
 class MockHasher : public Hasher {
  public:
   MockHasher()
@@ -41,7 +42,7 @@ class MockHasher : public Hasher {
 
   virtual ~MockHasher();
 
-  virtual GoogleString RawHash(const StringPiece& content) const {
+  virtual GoogleString RawHash(const StringPiece&/* content*/) const {
     return hash_value_;
   }
 

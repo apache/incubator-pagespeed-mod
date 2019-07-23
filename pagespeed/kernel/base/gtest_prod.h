@@ -21,7 +21,7 @@
 #ifndef PAGESPEED_KERNEL_BASE_GTEST_PROD_H_
 #define PAGESPEED_KERNEL_BASE_GTEST_PROD_H_
 
-
-#include "testing/gtest/include/gtest/gtest_prod.h"
+// XXX(oschaaf): hhmmm
+#include "external/com_google_googletest/googletest/include/gtest/gtest_prod.h"
 
 #endif  // PAGESPEED_KERNEL_BASE_GTEST_PROD_H_

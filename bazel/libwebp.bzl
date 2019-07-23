@@ -7,6 +7,26 @@ cc_library(
 
 cc_library(
     name = "libwebp_dec",
+    srcs = [
+        "src/dec/alpha_dec.c",
+        "src/dec/buffer_dec.c",
+        "src/dec/frame_dec.c",
+        "src/dec/idec_dec.c",
+        "src/dec/io_dec.c",
+        "src/dec/quant_dec.c",
+        "src/dec/tree_dec.c",
+        "src/dec/vp8_dec.c",
+        "src/dec/vp8l_dec.c",
+        "src/dec/webp_dec.c",
+    ],
+    hdrs = [
+        "src/dec/alphai_dec.h",
+        "src/dec/common_dec.h",
+        "src/dec/vp8_dec.h",
+        "src/dec/vp8i_dec.h",
+        "src/dec/vp8li_dec.h",
+        "src/dec/webpi_dec.h",
+    ],
     deps = [
         'libwebp_dsp',
         'libwebp_dsp_neon',

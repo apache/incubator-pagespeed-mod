@@ -21,7 +21,7 @@
 #include "pagespeed/kernel/http/data_url.h"
 
 #include <cstddef>
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/base64_util.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -60,7 +60,7 @@ void DataUrl(const ContentType& content_type,
       // if encoding is actually out of range; this gives some hope of graceful
       // degradation of experience.
       result->append(",");
-      content.AppendToString(result);
+      result->append(GoogleString(content));
       break;
     }
   }
@@ -105,8 +105,10 @@ bool ParseDataUrl(const StringPiece& url,
   }
   StringPiece mime_type(url.data() + kDataSize, mime_boundary - kDataSize);
   *content_type = MimeTypeToContentType(mime_type);
-  encoded_content->set(url.data() + header_boundary + 1,
-                       url.size() - header_boundary - 1);
+  StringPiece newpiece(url.data() + header_boundary + 1, url.size() - header_boundary - 1);
+  encoded_content->swap(newpiece);
+  //encoded_content->set(url.data() + header_boundary + 1,
+  //                     url.size() - header_boundary - 1);
   return true;
 }
 
@@ -116,7 +118,7 @@ bool DecodeDataUrlContent(Encoding encoding,
   switch (encoding) {
     case PLAIN:
       // No change, just copy data.
-      encoded_content.CopyToString(decoded_content);
+      *decoded_content = GoogleString(encoded_content);
       return true;
     case BASE64:
       return Mime64Decode(encoded_content, decoded_content);

@@ -161,7 +161,8 @@ class AprMemCache : public CacheInterface {
   // because the Apr routine failed.  We are grouping together Apr failures
   // for Get, Put, Delete, and MultiGet.  We might at some point wish to
   // track the last time we sent a message for each of those.
-  Variable* last_apr_error_;
+  // XXX(oschaaf): not used
+  //Variable* last_apr_error_;
 
   DISALLOW_COPY_AND_ASSIGN(AprMemCache);
 };

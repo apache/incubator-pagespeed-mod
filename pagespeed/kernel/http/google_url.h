@@ -29,25 +29,13 @@
 #include "pagespeed/kernel/base/string_util.h"
 
 
-#include "third_party/chromium/src/googleurl/src/gurl.h"
-#include "third_party/chromium/src/googleurl/src/url_parse.h"
-#include "third_party/chromium/src/googleurl/src/url_util.h"
+#include "url/gurl.h"
+#include "url/url_parse_internal.h"
+#include "url/url_util.h"
 
 namespace net_instaweb {
 
 // Prepare for flattening of the namespaces in newer Chromiums.
-
-namespace url {
-
-using url_canon::Replacements;
-using url_parse::PORT_UNSPECIFIED;
-using url_parse::PORT_INVALID;
-using url_parse::Component;
-using url_parse::Parsed;
-using url_util::Initialize;
-using url_util::Shutdown;
-
-};  // namespace url
 
 
 enum UrlRelativity {
@@ -200,7 +188,7 @@ class GoogleUrl {
   // TODO(nforman): get GURL to take a StringPiece so we don't have to do
   // any copying.
   bool SchemeIs(StringPiece lower_ascii_scheme) const {
-    return gurl_.SchemeIs(lower_ascii_scheme.as_string().c_str());
+    return gurl_.SchemeIs(GoogleString(lower_ascii_scheme).c_str());
   }
 
   // Find out how relative the URL string is.

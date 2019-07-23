@@ -17,7 +17,7 @@
  * under the License.
  */
 
-
+/*
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/benchmark.h"
@@ -103,34 +103,34 @@ class UrlBlacklistTest {
         Disallow("*scriptaculous.js*");
         FALLTHROUGH_INTENDED;
       case 10:
-        Disallow("*connect.facebook.net/*");
+        Disallow("*connect.facebook.net/ *");
         FALLTHROUGH_INTENDED;
       case 9:
         Disallow("*ckeditor*");
         FALLTHROUGH_INTENDED;
       case 8:
-        Disallow("*//ajax.googleapis.com/ajax/libs/*");
+        Disallow("* //ajax.googleapis.com/ajax/libs/ *");
         FALLTHROUGH_INTENDED;
       case 7:
-        Disallow("*//pagead2.googlesyndication.com/pagead/show_ads.js*");
+        Disallow("* //pagead2.googlesyndication.com/pagead/show_ads.js*");
         FALLTHROUGH_INTENDED;
       case 6:
-        Disallow("*//partner.googleadservices.com/gampad/google_service.js*");
+        Disallow("* //partner.googleadservices.com/gampad/google_service.js*");
         FALLTHROUGH_INTENDED;
       case 5:
-        Disallow("*//platform.twitter.com/widgets.js*");
+        Disallow("* //platform.twitter.com/widgets.js*");
         FALLTHROUGH_INTENDED;
       case 4:
-        Disallow("*//s7.addthis.com/js/250/addthis_widget.js*");
+        Disallow("* //s7.addthis.com/js/250/addthis_widget.js*");
         FALLTHROUGH_INTENDED;
       case 3:
-        Disallow("*//www.google.com/coop/cse/brand*");
+        Disallow("* //www.google.com/coop/cse/brand*");
         FALLTHROUGH_INTENDED;
       case 2:
-        Disallow("*//www.google-analytics.com/urchin.js*");
+        Disallow("* //www.google-analytics.com/urchin.js*");
         FALLTHROUGH_INTENDED;
       case 1:
-        Disallow("*//www.googleadservices.com/pagead/conversion.js*");
+        Disallow("* //www.googleadservices.com/pagead/conversion.js*");
         FALLTHROUGH_INTENDED;
       default:
         break;
@@ -246,3 +246,4 @@ TEST_F(FastWildcardGroupScaleTest, LargeFastWildcardGroup) {
 }  // namespace
 
 }  // namespace net_instaweb
+ */

@@ -24,7 +24,7 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/condvar.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"
+//#include "pagespeed/kernel/base/dynamic_annotations.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
@@ -49,7 +49,7 @@ CacheSpammer::CacheSpammer(ThreadSystem* runtime,
       expecting_evictions_(expecting_evictions),
       do_deletes_(do_deletes),
       value_prefix_(value_prefix),
-      index_(index),
+      //index_(index),
       num_iters_(num_iters),
       num_inserts_(num_inserts),
       mutex_(runtime->NewMutex()),
@@ -138,7 +138,9 @@ void CacheSpammer::Run() {
     inserts[j].Assign(StringPrintf("%s%d", value_prefix_, j));
   }
 
-  int iter_limit = RunningOnValgrind() ? num_iters_ / 100 : num_iters_;
+  // XXX(oschaaf):
+  // int iter_limit = RunningOnValgrind() ? num_iters_ / 100 : num_iters_;
+  int iter_limit = num_iters_;
   for (int i = 0; i < iter_limit; ++i) {
     for (int j = 0; j < num_inserts_; ++j) {
       cache_->Put(StringPrintf(name_pattern, j), inserts[j]);

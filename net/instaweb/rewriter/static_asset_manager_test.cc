@@ -215,7 +215,7 @@ TEST_F(StaticAssetManagerTest, TestEncodedUrls) {
     GoogleString url = manager_->GetAssetUrl(module, options_);
     StringPiece file_name = url;
     const StringPiece kDomainAndPath = "http://proxy-domain/psajs/";
-    ASSERT_TRUE(file_name.starts_with(kDomainAndPath));
+    ASSERT_TRUE(absl::StartsWith(file_name, kDomainAndPath));
     file_name.remove_prefix(kDomainAndPath.size());
 
     StringPiece content, cache_header;

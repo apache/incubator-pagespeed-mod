@@ -58,7 +58,7 @@ SimulatedDelayFetcher::SimulatedDelayFetcher(
       mutex_(thread_system->NewMutex()),
       request_log_outstanding_(0),
       request_log_(
-          file_system_->OpenOutputFile(request_log_path.as_string().c_str(),
+          file_system_->OpenOutputFile(GoogleString(request_log_path).c_str(),
                                        message_handler_)) {
   ParseDelayMap(delay_map_path);
 }
@@ -78,7 +78,7 @@ void SimulatedDelayFetcher::Fetch(const GoogleString& url,
     return;
   }
 
-  GoogleString host = gurl.Host().as_string();
+  GoogleString host = GoogleString(gurl.Host());
   DelayMap::iterator delay = delays_ms_.find(host);
   if (delay == delays_ms_.end()) {
     message_handler_->Message(
@@ -123,7 +123,7 @@ void SimulatedDelayFetcher::ProduceReply(AsyncFetch* fetch) {
 
 void SimulatedDelayFetcher::ParseDelayMap(StringPiece delay_map_path) {
   GoogleString contents;
-  if (!file_system_->ReadFile(delay_map_path.as_string().c_str(),
+  if (!file_system_->ReadFile(GoogleString(delay_map_path).c_str(),
                               &contents,
                               message_handler_)) {
     return;
@@ -143,7 +143,7 @@ void SimulatedDelayFetcher::ParseDelayMap(StringPiece delay_map_path) {
     if (host_delay.size() != 2) {
       message_handler_->Message(
           kWarning, "Unable to parse host=delay spec:%s",
-          pairs[i].as_string().c_str());
+          GoogleString(pairs[i]).c_str());
       continue;
     }
     TrimWhitespace(&host_delay[0]);
@@ -152,10 +152,10 @@ void SimulatedDelayFetcher::ParseDelayMap(StringPiece delay_map_path) {
     if (!StringToInt(host_delay[1], &delay_ms)) {
       message_handler_->Message(
           kWarning, "Unable to parse delay spec:%s",
-          host_delay[1].as_string().c_str());
+          GoogleString(host_delay[1]).c_str());
       continue;
     }
-    delays_ms_[host_delay[0].as_string()] = delay_ms;
+    delays_ms_[GoogleString(host_delay[0])] = delay_ms;
   }
 }
 

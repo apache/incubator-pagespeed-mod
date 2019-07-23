@@ -22,7 +22,7 @@
 
 #include <cstddef>                     // for size_t
 
-#include "third_party/domain_registry_provider/src/domain_registry/domain_registry.h"
+#include "external/drp/src/domain_registry/domain_registry.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -39,7 +39,7 @@ StringPiece MinimalPrivateSuffix(StringPiece hostname) {
   }
 
   size_t length_of_public_suffix =
-      GetRegistryLength(hostname.as_string().c_str());
+      GetRegistryLength(GoogleString(hostname).c_str());
   if (length_of_public_suffix == 0) {
     // Unrecognized top level domain.  We don't know what kind of multi-level
     // public suffixes they might have created, so be on the safe side and

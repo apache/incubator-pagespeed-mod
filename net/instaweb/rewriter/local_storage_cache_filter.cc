@@ -189,7 +189,7 @@ bool LocalStorageCacheFilter::AddStorableResource(const StringPiece& url,
     if (state->enabled_) {
       GoogleUrl gurl(driver->base_url(), url);
       StringPiece best_url(gurl.IsWebValid() ? gurl.Spec() : url);
-      best_url.CopyToString(&state->url_);
+      state->url_ = GoogleString(best_url);
     }
 
     state->initialized_ = true;
@@ -372,16 +372,20 @@ GoogleString LocalStorageCacheFilter::GenerateHashFromUrlAndElement(
   const char* width  = element->AttributeValue(HtmlName::kWidth);
   const char* height = element->AttributeValue(HtmlName::kHeight);
   if (width == NULL && height == NULL) {
-    url_to_hash.set(url.data(), url.size());
+    // XXX(oschaaf):
+    StringPiece tmp = StringPiece(url.data(), url.size());
+    url_to_hash.swap(tmp);
   } else {
-    url.CopyToString(&backing_string);
+    backing_string = GoogleString(url);
     if (width != NULL) {
       StrAppend(&backing_string, "!w=", width);
     }
     if (height != NULL) {
       StrAppend(&backing_string, "!h=", height);
     }
-    url_to_hash.set(backing_string.data(), backing_string.size());
+    // XXX(oschaaf):
+    StringPiece tmp = StringPiece(backing_string.data(), backing_string.size());
+    url_to_hash.swap(tmp);
   }
   return driver->server_context()->hasher()->Hash(url_to_hash);
 }

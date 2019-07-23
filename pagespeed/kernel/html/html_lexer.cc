@@ -27,7 +27,7 @@
 #include <cstdio>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_element.h"
@@ -732,7 +732,7 @@ void HtmlLexer::EmitTagOpen(bool allow_implicit_close) {
   }
 
   if (allow_implicit_close && IsImplicitlyClosedTag(element_->keyword())) {
-    element_->name_str().CopyToString(&token_);
+    token_ = GoogleString(element_->name_str());
     EmitTagClose(HtmlElement::IMPLICIT_CLOSE);
   }
 
@@ -770,7 +770,7 @@ void HtmlLexer::StartParse(const StringPiece& id,
                            const ContentType& content_type) {
   line_ = 1;
   tag_start_line_ = -1;
-  id.CopyToString(&id_);
+  id_ = GoogleString(id);
   content_type_ = content_type;
   has_attr_value_ = false;
   attr_quote_ = HtmlElement::NO_QUOTE;
@@ -817,7 +817,7 @@ void HtmlLexer::FinishParse() {
 
   for (int i = element_stack_.size() - 1; i > 0; --i) {
     HtmlElement* element = element_stack_.back();
-    element->name_str().CopyToString(&token_);
+    token_ = GoogleString(element->name_str());
     HtmlElement::Style style = skip_parsing_ ?
         HtmlElement::EXPLICIT_CLOSE : HtmlElement::UNCLOSED;
     EmitTagClose(style);

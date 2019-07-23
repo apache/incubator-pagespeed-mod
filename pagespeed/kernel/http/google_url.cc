@@ -26,7 +26,7 @@
 #include <string>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/query_params.h"
@@ -51,7 +51,7 @@ GoogleUrl::GoogleUrl(const GoogleString& spec)
 }
 
 GoogleUrl::GoogleUrl(StringPiece sp)
-    : gurl_(sp.as_string()) {
+    : gurl_(GoogleString(sp)) {
   Init();
 }
 
@@ -101,7 +101,7 @@ bool GoogleUrl::Reset(const GoogleUrl& base, const GoogleString& str) {
 }
 
 bool GoogleUrl::Reset(const GoogleUrl& base, StringPiece sp) {
-  return ResolveHelper(base.gurl_, sp.as_string());
+  return ResolveHelper(base.gurl_, GoogleString(sp));
 }
 
 bool GoogleUrl::Reset(const GoogleUrl& base, const char* str) {
@@ -109,7 +109,7 @@ bool GoogleUrl::Reset(const GoogleUrl& base, const char* str) {
 }
 
 bool GoogleUrl::Reset(StringPiece new_value) {
-  gurl_ = GURL(new_value.as_string());
+  gurl_ = GURL(GoogleString(new_value));
   Init();
   return gurl_.is_valid();
 }
@@ -492,7 +492,7 @@ StringPiece GoogleUrl::UncheckedSpec() const {
 }
 
 int GoogleUrl::DefaultPortForScheme(StringPiece scheme) {
-  return url_canon::DefaultPortForScheme(scheme.data(), scheme.size());
+  return url::DefaultPortForScheme(scheme.data(), scheme.size());
 }
 
 UrlRelativity GoogleUrl::FindRelativity(StringPiece url) {
@@ -685,12 +685,12 @@ GoogleString GoogleUrl::Sanitize(StringPiece url) {
 
 GoogleString GoogleUrl::CanonicalizePath(StringPiece path) {
   GoogleString buffer;
-  url_canon::StdStringCanonOutput output(&buffer);
-  url_parse::Component in_range, out_range;
+  url::StdStringCanonOutput output(&buffer);
+  url::Component in_range, out_range;
   in_range.begin = 0;
   in_range.len = path.size();
 
-  url_canon::CanonicalizePath(path.data(), in_range, &output, &out_range);
+  url::CanonicalizePath(path.data(), in_range, &output, &out_range);
   output.Complete();
   return buffer.substr(out_range.begin, out_range.len);
 }

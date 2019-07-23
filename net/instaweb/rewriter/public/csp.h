@@ -57,14 +57,14 @@ class CspSourceExpression {
     UrlData(StringPiece in_scheme, StringPiece in_host,
             StringPiece in_port, StringPiece in_path,
             bool exact_match = false)
-        : scheme_part(in_scheme.as_string()),
-          host_part(in_host.as_string()),
-          port_part(in_port.as_string()),
+        : scheme_part(GoogleString(in_scheme)),
+          host_part(GoogleString(in_host)),
+          port_part(GoogleString(in_port)),
           path_exact_match(exact_match) {
       StringPieceVector portions;
       SplitStringPieceToVector(in_path, "/", &portions, true);
       for (StringPiece p : portions) {
-        path_part.push_back(p.as_string());
+        path_part.push_back(GoogleString(p));
       }
     }
 

@@ -158,7 +158,7 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
       StringPiece class_value(class_attribute->DecodedValueOrNull());
       if (!class_value.empty()) {
         GoogleString class_string;
-        class_value.CopyToString(&class_string);
+        class_string = GoogleString(class_value);
         LowerString(&class_string);
         if (!driver()->options()->IsLazyloadEnabledForClassName(
             class_string)) {

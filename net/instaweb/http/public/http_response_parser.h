@@ -42,7 +42,7 @@ class HttpResponseParser {
                      MessageHandler* handler)
       : reading_headers_(true),
         ok_(true),
-        response_headers_(response_headers),
+        //response_headers_(response_headers),
         writer_(writer),
         handler_(handler),
         parser_(response_headers) {
@@ -65,7 +65,7 @@ class HttpResponseParser {
  private:
   bool reading_headers_;
   bool ok_;
-  ResponseHeaders* response_headers_;
+  //ResponseHeaders* response_headers_;
   Writer* writer_;
   MessageHandler* handler_;
   ResponseHeadersParser parser_;

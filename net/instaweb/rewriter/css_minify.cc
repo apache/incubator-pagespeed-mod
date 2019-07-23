@@ -28,7 +28,7 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/writer.h"
-#include "util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
 #include "webutil/css/identifier.h"
 #include "webutil/css/media.h"
 #include "webutil/css/parser.h"
@@ -49,9 +49,10 @@ bool CssMinify::Stylesheet(const Css::Stylesheet& stylesheet,
   return minifier.ok_;
 }
 
-bool CssMinify::ParseStylesheet(StringPiece stylesheet_text) {
+bool CssMinify::ParseStylesheet(::StringPiece stylesheet_text) {
   ok_ = true;
-  Css::Parser parser(stylesheet_text);
+  base::StringPiece tmp(stylesheet_text.data(), stylesheet_text.size());
+  Css::Parser parser(tmp);
   parser.set_preservation_mode(true);  // Leave in unparseable regions.
   parser.set_quirks_mode(false);  // Don't fix badly formatted colors.
   scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
@@ -99,16 +100,17 @@ CssMinify::~CssMinify() {
 }
 
 // Write if we have not encountered write error yet.
-void CssMinify::Write(const StringPiece& str) {
+void CssMinify::Write(const base::StringPiece& str) {
   if (ok_) {
-    ok_ &= writer_->Write(str, handler_);
+    absl::string_view tmp(str.data(), str.length());
+    ok_ &= writer_->Write(tmp, handler_);
   }
 }
 
 void CssMinify::WriteURL(const UnicodeText& url) {
-  StringPiece string_url(url.utf8_data(), url.utf8_length());
+  base::StringPiece string_url(url.utf8_data(), url.utf8_length());
   if (url_collector_ != NULL) {
-    string_url.CopyToString(StringVectorAdd(url_collector_));
+    *StringVectorAdd(url_collector_) = GoogleString(string_url);
   }
   Write(Css::EscapeUrl(string_url));
 }
@@ -116,13 +118,13 @@ void CssMinify::WriteURL(const UnicodeText& url) {
 // Write out minified version of each element of vector using supplied function
 // separated by sep.
 template<typename Container>
-void CssMinify::JoinMinify(const Container& container, const StringPiece& sep) {
+void CssMinify::JoinMinify(const Container& container, const base::StringPiece& sep) {
   JoinMinifyIter(container.begin(), container.end(), sep);
 }
 
 template<typename Iterator>
 void CssMinify::JoinMinifyIter(const Iterator& begin, const Iterator& end,
-                               const StringPiece& sep) {
+                               const base::StringPiece& sep) {
   for (Iterator iter = begin; iter != end; ++iter) {
     if (iter != begin) {
       Write(sep);
@@ -135,7 +137,7 @@ template<>
 void CssMinify::JoinMinifyIter<Css::FontFaces::const_iterator>(
     const Css::FontFaces::const_iterator& begin,
     const Css::FontFaces::const_iterator& end,
-    const StringPiece& sep) {
+    const base::StringPiece& sep) {
   // Go through the list of @font-faces finding the contiguous subsets with the
   // same set of media (f.ex [a b b b a a] -> [a] [b b b] [a a]). For each
   // such subset, emit the start of the @media rule (if required), then emit
@@ -158,7 +160,7 @@ template<>
 void CssMinify::JoinMinifyIter<Css::Rulesets::const_iterator>(
     const Css::Rulesets::const_iterator& begin,
     const Css::Rulesets::const_iterator& end,
-    const StringPiece& sep) {
+    const base::StringPiece& sep) {
   // Go through the list of rulesets finding the contiguous subsets with the
   // same set of media (f.ex [a b b b a a] -> [a] [b b b] [a a]). For each
   // such subset, emit the start of the @media rule (if required), then emit
@@ -243,7 +245,7 @@ void CssMinify::Minify(const Css::MediaExpression& expression) {
     Write(":");
     const UnicodeText& value = expression.value();
     // Note: Value is an unparsed region of raw bytes. So don't escape it.
-    Write(StringPiece(value.utf8_data(), value.utf8_length()));
+    Write(base::StringPiece(value.utf8_data(), value.utf8_length()));
   }
   Write(")");
 }
@@ -450,7 +452,7 @@ void CssMinify::Minify(const Css::Value& value) {
   switch (value.GetLexicalUnitType()) {
     case Css::Value::NUMBER: {
       GoogleString buffer;
-      StringPiece number_string;
+      base::StringPiece number_string;
       if (!value.bytes_in_original_buffer().empty()) {
         // All parsed values should have verbatim bytes set and we use them
         // to ensure we keep the original precision.

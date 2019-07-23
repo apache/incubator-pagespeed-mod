@@ -31,7 +31,7 @@
 #include "webp/decode.h"
 #include "webp/encode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 #endif
 
 namespace net_instaweb {

@@ -195,7 +195,7 @@ class Resource : public RefCounted<Resource> {
 
   // Note: this is empty if the header is not specified.
   StringPiece charset() const { return charset_; }
-  void set_charset(StringPiece c) { c.CopyToString(&charset_); }
+  void set_charset(StringPiece c) { charset_ = GoogleString(c); }
 
   // Gets the absolute URL of the resource.
   virtual GoogleString url() const = 0;

@@ -146,7 +146,7 @@ void AddIdsFilter::EndElement(HtmlElement* element) {
   DCHECK_NE(kIsId, div_count_stack_.back());
   if (!id_stack_.empty() &&
       id_stack_.back() == element->FindAttribute(HtmlName::kId)) {
-    DCHECK_LT(2, div_count_stack_.size());
+    DCHECK_LT(2u, div_count_stack_.size());
     // For an element with an id the stack looks like:
     // ... my_count_in_parent kIsId child_count
     // If so, pop both along with the back of id_stack_.

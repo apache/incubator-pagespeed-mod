@@ -22,7 +22,7 @@
 #include "pagespeed/kernel/http/user_agent_normalizer.h"
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/re2.h"
 

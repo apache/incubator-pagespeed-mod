@@ -55,10 +55,10 @@ bool Encode(StringPiece key, const SharedString& value,
   if (key.size() > kKeyMaxLength) {
     return false;
   }
-  uint32 key_size = key.size();
+  uint32_t key_size = key.size();
   *key_value = value;
   key_value->Append(key);
-  uint8 ch = key_size & 0xff;
+  uint8_t ch = key_size & 0xff;
   key_value->Append(reinterpret_cast<char*>(&ch), 1);
   ch = (key_size >> 8) & 0xff;
   key_value->Append(reinterpret_cast<char*>(&ch), 1);
@@ -72,7 +72,7 @@ bool Decode(SharedString* key_value, GoogleString* key, SharedString* value) {
   if (key_value_size < kKeySizeOverheadBytes) {
     return false;
   }
-  const uint8* data = reinterpret_cast<const uint8*>(key_value->data());
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(key_value->data());
   int key_size = data[key_value_size - 1];
   key_size <<= 8;
   key_size |= data[key_value_size - 2];

@@ -24,7 +24,7 @@
 #include "pagespeed/kernel/base/google_message_handler.h"
 
 #include <cstdarg>
-#include "base/logging.h"
+//#include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
 

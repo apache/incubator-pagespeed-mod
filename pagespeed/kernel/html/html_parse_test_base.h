@@ -75,7 +75,7 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
   // rest of the document (for the current test only).  If none is set, it
   // defaults to the empty string.
   void SetDoctype(StringPiece directive) {
-    directive.CopyToString(&doctype_string_);
+    doctype_string_ = GoogleString(directive);
   }
 
   virtual GoogleString AddHtmlBody(StringPiece html) {
@@ -84,7 +84,7 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
       ret = AddBody() ? "<html><body>\n" : "<html>\n";
       StrAppend(&ret, html, (AddBody() ? "</body></html>\n" : "</html>"));
     } else {
-      html.CopyToString(&ret);
+      ret = GoogleString(html);
     }
     return ret;
   }

@@ -120,7 +120,11 @@ class CollectDependenciesFilter::Context : public RewriteContext {
     if (!resource->HttpStatusOk()) {
       return;
     }
-    Css::Parser parser(resource->ExtractUncompressedContents());
+
+    StringPiece sp_resource = resource->ExtractUncompressedContents();
+    CssStringPiece tmp(sp_resource.data(), sp_resource.size());
+    Css::Parser parser(
+      tmp);
     parser.set_preservation_mode(true);
     // We avoid quirks-mode so that we do not "fix" something we shouldn't have.
     parser.set_quirks_mode(false);
@@ -138,7 +142,7 @@ class CollectDependenciesFilter::Context : public RewriteContext {
         GoogleUrl full_url(GoogleUrl(resource->url()), rel_url);
         if (full_url.IsWebValid()) {
           Dependency* dep = partition->add_collected_dependency();
-          dep->set_url(full_url.Spec().as_string());
+          dep->set_url(GoogleString(full_url.Spec()));
           dep->set_content_type(DEP_CSS);
           *dep->mutable_validity_info() = parent_dep->validity_info();
         }

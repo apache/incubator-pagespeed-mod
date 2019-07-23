@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 // Unit-test the string-splitter.
 
-#include <locale.h>
 #include <cstddef>
+#include <locale.h>
 #include <set>
 #include <vector>
 
@@ -82,7 +81,7 @@ TEST(STATIC_STRLEN_Test, CorrectStaticStringLengths) {
 }
 
 class IntegerToStringToIntTest : public testing::Test {
- protected:
+protected:
   void ValidateIntegerToString(int i, GoogleString s) {
     EXPECT_EQ(s, IntegerToString(i));
     ValidateInteger64ToString(static_cast<int64>(i), s);
@@ -174,17 +173,17 @@ TEST_F(IntegerToStringToIntTest, TestIntegerToStringToInt) {
   int n = 1;
   for (int i = 0; i < 1000; ++i) {
     ValidateIntegerToStringToInt(n);
-    n *= -3;  // This will overflow, that's fine, we just want a range of ints.
+    n *= -3; // This will overflow, that's fine, we just want a range of ints.
   }
   int64 n64 = 1LL;
   for (int i = 0; i < 1000; ++i) {
     ValidateInteger64ToStringToInt64(n64);
-    n64 *= -3;  // This will overflow, that's fine, we just want a range of ints
+    n64 *= -3; // This will overflow, that's fine, we just want a range of ints
   }
 }
 
 class StringToDoubleTest : public testing::Test {
- protected:
+protected:
   void ValidateStringToDouble(StringPiece str, double expected) {
     double actual;
     EXPECT_TRUE(StringToDouble(str, &actual))
@@ -225,8 +224,7 @@ TEST_F(StringToDoubleTest, NoParse) {
   InvalidStringToDouble(embedded_null_sp);
 }
 
-class SplitStringTest : public testing::Test {
-};
+class SplitStringTest : public testing::Test {};
 
 TEST_F(SplitStringTest, TestSplitNoOmitTrailing) {
   StringPieceVector components;
@@ -399,10 +397,10 @@ TEST(ParseShellLikeStringTest, TestParse) {
   std::vector<GoogleString> parts;
   ParseShellLikeString("a b \"c d\" e 'f g'", &parts);
   ASSERT_EQ(5, parts.size());
-  EXPECT_EQ("a",   parts[0]);
-  EXPECT_EQ("b",   parts[1]);
+  EXPECT_EQ("a", parts[0]);
+  EXPECT_EQ("b", parts[1]);
   EXPECT_EQ("c d", parts[2]);
-  EXPECT_EQ("e",   parts[3]);
+  EXPECT_EQ("e", parts[3]);
   EXPECT_EQ("f g", parts[4]);
 }
 
@@ -411,7 +409,7 @@ TEST(ParseShellLikeStringTest, Backslash) {
   ParseShellLikeString(" \"a\\\"b\" 'c\\'d' ", &parts);
   ASSERT_EQ(2, parts.size());
   EXPECT_EQ("a\"b", parts[0]);
-  EXPECT_EQ("c'd",  parts[1]);
+  EXPECT_EQ("c'd", parts[1]);
 }
 
 TEST(ParseShellLikeStringTest, UnclosedQuote) {
@@ -428,8 +426,7 @@ TEST(ParseShellLikeStringTest, UnclosedQuoteAndBackslash) {
   EXPECT_EQ("a b", parts[0]);
 }
 
-class BasicUtilsTest : public testing::Test {
-};
+class BasicUtilsTest : public testing::Test {};
 
 TEST(BasicUtilsTest, TrimLeadingWhitespaceTest) {
   StringPiece trimmed("Mary had a little lamb.  ");
@@ -568,15 +565,15 @@ TEST(BasicUtilsTest, CEscape) {
   EXPECT_EQ("Hello,\\n\\tWorld.\\n", CEscape("Hello,\n\tWorld.\n"));
 
   char not_ascii_1 = 30;
-  char not_ascii_2 = 200;
+  char not_ascii_2 = static_cast<char>(200);
   EXPECT_EQ("abc\\036\\310",
             CEscape(GoogleString("abc") + not_ascii_1 + not_ascii_2));
 }
 
 TEST(BasicUtilsTest, SplitStringUsingSubstr1) {
   StringPieceVector components;
-  net_instaweb::SplitStringUsingSubstr(
-      "word1abword2abword3", "ab", &components);
+  net_instaweb::SplitStringUsingSubstr("word1abword2abword3", "ab",
+                                       &components);
   EXPECT_EQ(3, components.size());
   EXPECT_EQ("word1", components[0]);
   EXPECT_EQ("word2", components[1]);
@@ -638,15 +635,14 @@ TEST(BasicUtilsTest, EraseBracketedSubstring) {
 }
 
 class JoinCollectionTest : public testing::Test {
- public:
-  JoinCollectionTest() { }
-  virtual ~JoinCollectionTest() { }
- protected:
+public:
+  JoinCollectionTest() {}
+  virtual ~JoinCollectionTest() {}
+
+protected:
   template <typename C>
-  void CheckAppendJoinCollection(
-      const StringPiece expected,
-      const C& collection,
-      const StringPiece sep) {
+  void CheckAppendJoinCollection(const StringPiece expected,
+                                 const C &collection, const StringPiece sep) {
     const char kJoinInit[] = "= ";
     GoogleString join_expected = StrCat(kJoinInit, expected);
     GoogleString join_result(kJoinInit);
@@ -654,19 +650,20 @@ class JoinCollectionTest : public testing::Test {
     EXPECT_STREQ(join_expected, join_result);
     EXPECT_STREQ(expected, JoinCollection(collection, sep));
   }
- private:
+
+private:
   DISALLOW_COPY_AND_ASSIGN(JoinCollectionTest);
 };
 
 TEST_F(JoinCollectionTest, BasicSequence) {
   // For set we rely on the fact that the following is already sorted.  If set's
   // iterator isn't lexicographically sorted that's a bug with set!
-  const char* kInputs[] = { "", "a", "b", "c", "duck", "elephant" };
+  const char *kInputs[] = {"", "a", "b", "c", "duck", "elephant"};
   const char kExpected[] = ", a, b, c, duck, elephant";
   StringVector string_vector;
   StringPieceVector stringpiece_vector;
   StringSet string_set;
-  for (int i = 0; i < arraysize(kInputs); ++i) {
+  for (uint i = 0; i < arraysize(kInputs); ++i) {
     string_vector.push_back(kInputs[i]);
     stringpiece_vector.push_back(kInputs[i]);
     string_set.insert(kInputs[i]);
@@ -753,7 +750,7 @@ TEST(StrCat, MaxArgs) {
 }
 
 class TrimQuoteTest : public testing::Test {
- protected:
+protected:
   static StringPiece RemoveQuote(StringPiece str) {
     TrimQuote(&str);
     return str;
@@ -869,6 +866,6 @@ TEST(IsAsciiTest, IsNonControlAscii) {
   }
 }
 
-}  // namespace
+} // namespace
 
-}  // namespace net_instaweb
+} // namespace net_instaweb

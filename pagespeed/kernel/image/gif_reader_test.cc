@@ -62,7 +62,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }  // extern "C"
 
@@ -145,7 +145,7 @@ const size_t kValidTransparentGifImageCount =
 
 const char kAnimatedGif[] = "animated";
 const char kBadGif[] = "bad";
-const char kCompletelyTransparentImage[] = "completely_transparent";
+//const char kCompletelyTransparentImage[] = "completely_transparent";
 const char kFrameSmallerThanScreen[] = "frame_smaller_than_screen";
 const char kInterlacedImage[] = "interlaced";
 const char kRedConforming[] = "red_conforming";
@@ -452,8 +452,8 @@ TEST_F(GifScanlineReaderRawTest, ValidGifs) {
     ReadTestFile(kPngSuiteGifTestDir, file_name, "gif", &gif_image);
 
     const uint8_t* reference_rgba =
-        reinterpret_cast<const uint8*>(rgba_image.data());
-    uint8* decoded_pixels = NULL;
+        reinterpret_cast<const uint8_t*>(rgba_image.data());
+    uint8_t* decoded_pixels = NULL;
 
     ASSERT_TRUE(reader_.Initialize(gif_image.data(), gif_image.length()));
 
@@ -1069,7 +1069,7 @@ class GifAnimationTest : public testing::Test {
 
   void SynthesizeImage(const char* filename, const Image& image) {
     // Note that these images are synthesized with QUIRKS_NONE.
-    filename_ = net_instaweb::StrCat(net_instaweb::GTestTempDir(),
+    filename_ = StrCat(net_instaweb::GTestTempDir(),
                                      "/", filename, ".gif");
     EXPECT_TRUE(gif_.Open(filename_));
     PS_LOG_INFO((&message_handler_), "Generating image: %s", filename_.c_str());
@@ -1142,7 +1142,7 @@ class GifAnimationTest : public testing::Test {
       static const int kRgbBytes = 3;
 
       if (read_all_scanlines_) {
-        for (int row = 0; row < frame_spec.height; ++row) {
+        for (uint32_t row = 0; row < frame_spec.height; ++row) {
           EXPECT_TRUE(reader_->HasMoreScanlines());
           const uint8_t* scanline;
           ScanlineStatus status =
@@ -1150,7 +1150,7 @@ class GifAnimationTest : public testing::Test {
                   reinterpret_cast<const void **>(&scanline));
           EXPECT_TRUE(status.Success());
 
-          for (int col = 0; col < frame_spec.width; ++col) {
+          for (uint32_t col = 0; col < frame_spec.width; ++col) {
             // Since we're comparing pixel by pixel, correlated errors
             // would generate huge output if we use EXPECT rather than
             // ASSERT below.
@@ -1160,7 +1160,7 @@ class GifAnimationTest : public testing::Test {
               // matter.
               ASSERT_EQ(kAlphaTransparent,
                         *(scanline + col * bytes_per_pixel + kRgbBytes));
-              const uint8 black_pixel[3] = {0, 0, 0};
+              const uint8_t black_pixel[3] = {0, 0, 0};
               ASSERT_EQ(0, memcmp(scanline + col * bytes_per_pixel, black_pixel,
                                   kRgbBytes));
             } else {
@@ -1680,7 +1680,7 @@ void CheckImageForOutOfBoundsPixel(const char* filename,
   EXPECT_GT(image_spec.num_frames, first_invalid_frame);
 
   // Frames up to the first invalid frame should have format RGB_888.
-  for (size_px frame = 0; frame < first_invalid_frame; ++frame) {
+  for (int32_t frame = 0; frame < first_invalid_frame; ++frame) {
     EXPECT_TRUE(reader->HasMoreFrames());
     EXPECT_TRUE(reader->PrepareNextFrame(&status));
     EXPECT_TRUE(reader->GetFrameSpec(&frame_spec, &status));

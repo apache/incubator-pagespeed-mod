@@ -48,10 +48,10 @@ size_t GetNumChannelsFromPixelFormat(PixelFormat format,
 // Palette for RGBA_8888.
 //
 struct PaletteRGBA {
-  uint8 red_;
-  uint8 green_;
-  uint8 blue_;
-  uint8 alpha_;
+  uint8_t red_;
+  uint8_t green_;
+  uint8_t blue_;
+  uint8_t alpha_;
 };
 
 // ScanlineStreamInput stores the data stream that will be used by a scanline

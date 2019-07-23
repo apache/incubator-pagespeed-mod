@@ -85,8 +85,8 @@ class PthreadSharedMemSegment : public AbstractSharedMemSegment {
  public:
   // We will be representing memory mapped in the [base, base + size) range.
   PthreadSharedMemSegment(char* base, size_t size, MessageHandler* handler)
-      : base_(base),
-        size_(size) {
+      : base_(base)
+        /* , size_(size) XXX(oschaaf):not used */ {
   }
 
   virtual ~PthreadSharedMemSegment() {
@@ -136,7 +136,8 @@ class PthreadSharedMemSegment : public AbstractSharedMemSegment {
   }
 
   char* const base_;
-  const size_t size_;
+  // XXX(oschaaf): not used
+  //const size_t size_;
 
   DISALLOW_COPY_AND_ASSIGN(PthreadSharedMemSegment);
 };

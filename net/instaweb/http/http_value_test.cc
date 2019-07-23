@@ -30,7 +30,7 @@
 #include "pagespeed/kernel/http/response_headers.h"
 
 namespace {
-const int kMaxSize = 100;
+//const int kMaxSize = 100;
 }
 
 namespace net_instaweb {
@@ -76,7 +76,7 @@ TEST_F(HTTPValueTest, HeadersFirst) {
   value.Write("body", &message_handler_);
   StringPiece body;
   ASSERT_TRUE(value.ExtractContents(&body));
-  EXPECT_EQ("body", body.as_string());
+  EXPECT_EQ("body", GoogleString(body));
   EXPECT_EQ(body.size(), ComputeContentsSize(&value));
   ASSERT_TRUE(value.ExtractHeaders(&check_headers, &message_handler_));
   CheckResponseHeaders(check_headers);
@@ -90,7 +90,7 @@ TEST_F(HTTPValueTest, ContentsFirst) {
   value.SetHeaders(&headers);
   StringPiece body;
   ASSERT_TRUE(value.ExtractContents(&body));
-  EXPECT_EQ("body", body.as_string());
+  EXPECT_EQ("body", GoogleString(body));
   EXPECT_EQ(body.size(), ComputeContentsSize(&value));
   ASSERT_TRUE(value.ExtractHeaders(&check_headers, &message_handler_));
   CheckResponseHeaders(check_headers);
@@ -104,7 +104,7 @@ TEST_F(HTTPValueTest, EmptyContentsFirst) {
   value.SetHeaders(&headers);
   StringPiece body;
   ASSERT_TRUE(value.ExtractContents(&body));
-  EXPECT_EQ("", body.as_string());
+  EXPECT_EQ("", GoogleString(body));
   EXPECT_EQ(body.size(), ComputeContentsSize(&value));
   ASSERT_TRUE(value.ExtractHeaders(&check_headers, &message_handler_));
   CheckResponseHeaders(check_headers);
@@ -171,7 +171,7 @@ TEST_F(HTTPValueTest, TestShare) {
     ASSERT_TRUE(value.Link(storage, &check_headers, &message_handler_));
     StringPiece body;
     ASSERT_TRUE(value.ExtractContents(&body));
-    EXPECT_EQ("body", body.as_string());
+    EXPECT_EQ("body", GoogleString(body));
     CheckResponseHeaders(check_headers);
   }
 }

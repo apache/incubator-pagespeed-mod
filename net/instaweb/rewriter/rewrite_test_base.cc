@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -93,7 +93,8 @@ const char kPsaWasGzipped[] = "x-psa-was-gzipped";
 class RewriteTestBaseProcessContext : public ProcessContext {
  public:
   RewriteTestBaseProcessContext() {
-    logging::SetMinLogLevel(logging::LOG_WARNING);
+    // XXX
+    //::logging::SetMinLogLevel(::logging::LOG_WARNING);
   }
 
  private:
@@ -275,8 +276,8 @@ void RewriteTestBase::SetDriverRequestHeaders() {
 }
 
 void RewriteTestBase::AddRequestAttribute(StringPiece name, StringPiece value) {
-  request_attribute_names_.push_back(name.as_string());
-  request_attribute_values_.push_back(value.as_string());
+  request_attribute_names_.push_back(GoogleString(name));
+  request_attribute_values_.push_back(GoogleString(value));
 }
 
 void RewriteTestBase::SetDownstreamCacheDirectives(
@@ -342,7 +343,7 @@ void RewriteTestBase::AppendDefaultHeadersWithCanonical(
   // Find how long the origin is to populate x-original-content-length.
   RequestContextPtr request_context(CreateRequestContext());
   StringAsyncFetch fetch(request_context);
-  mock_url_fetcher_.Fetch(canon.as_string(), message_handler(), &fetch);
+  mock_url_fetcher_.Fetch(GoogleString(canon), message_handler(), &fetch);
   int64 length;
   ASSERT_TRUE(fetch.done());
   ASSERT_TRUE(fetch.success());
@@ -449,9 +450,9 @@ void RewriteTestBase::ServeResourceFromNewContext(
 GoogleString RewriteTestBase::AbsolutifyUrl(
     const StringPiece& resource_name) {
   GoogleString name;
-  if (resource_name.starts_with("http://") ||
-      resource_name.starts_with("https://")) {
-    resource_name.CopyToString(&name);
+  if (absl::StartsWith(resource_name, "http://") ||
+      absl::StartsWith(resource_name, "https://")) {
+    name= GoogleString(resource_name);
   } else {
     name = StrCat(kTestDomain, resource_name);
   }
@@ -641,10 +642,11 @@ void RewriteTestBase::ValidateFallbackHeaderSanitizationHelper(
     StringPiece filter_id, StringPiece origin_content_type, bool expect_load) {
 
   // Mangle the content type to make a url name by removing '/'s.
-  GoogleString leafable(origin_content_type.as_string());
+  GoogleString leafable(origin_content_type);
   GlobalReplaceSubstring("/", "-", &leafable);
 
-  GoogleString leaf = StrCat("leaf-", leafable);
+
+  GoogleString leaf = absl::StrCat("leaf-", leafable);
   GoogleString origin_contents = "this isn't a real file";
 
   ResponseHeaders origin_response_headers;
@@ -774,7 +776,7 @@ bool RewriteTestBase::CssLink::DecomposeCombinedUrl(
   GoogleUrl gurl(base_gurl, url_);
   bool ret = false;
   if (gurl.IsWebValid()) {
-    gurl.AllExceptLeaf().CopyToString(base);
+    *base = GoogleString(gurl.AllExceptLeaf());
     ResourceNamer namer;
     if (namer.DecodeIgnoreHashAndSignature(gurl.LeafWithQuery()) &&
         (namer.id() == RewriteOptions::kCssCombinerId)) {
@@ -983,7 +985,7 @@ GoogleString RewriteTestBase::EncodeCssName(const StringPiece& name,
   }
   StringVector urls;
   GoogleString encoded_url;
-  name.CopyToString(StringVectorAdd(&urls));
+  *StringVectorAdd(&urls) = GoogleString(name);
   encoder.Encode(urls, &resource_context, &encoded_url);
   return encoded_url;
 }

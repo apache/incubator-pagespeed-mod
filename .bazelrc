@@ -70,3 +70,8 @@ test --test_env=HEAPCHECK=normal --test_env=PPROF_PATH
 # TODO(oschaaf): For brotli, back this out and apply more locally once
 # we figured out how.
 build --copt -Wno-implicit-fallthrough
+# travis specifics
+# XXX(oschaaf): had to bump to 14 for third_party/css_parser.
+build --cxxopt='-std=c++14' 
+build --cxxopt='-Wno-error=deprecated-register'
+build --cxxopt='-Wno-error=old-style-cast'

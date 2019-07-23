@@ -32,14 +32,14 @@ PrintMessageHandler::PrintMessageHandler() {
 PrintMessageHandler::~PrintMessageHandler() {
 }
 
-void PrintMessageHandler::MessageSImpl(MessageType type,
+void PrintMessageHandler::MessageSImpl(MessageType,
                                        const GoogleString& message) {
   fputs(message.c_str(), stdout);
   fflush(stdout);
 }
 
 void PrintMessageHandler::FileMessageSImpl(
-    MessageType type, const char* filename, int line,
+    MessageType type, const char*, int,
     const GoogleString& message) {
   // This is the PrintMessageHandler, so we always print!
   MessageSImpl(type, message);

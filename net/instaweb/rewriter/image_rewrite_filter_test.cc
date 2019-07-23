@@ -408,7 +408,7 @@ class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
     if ((find_result.status == HTTPCache::kFound) &&
         http_value()->ExtractContents(&contents)) {
       found_ = true;
-      contents.CopyToString(body_out_);
+      *body_out_ = GoogleString(contents);
       *headers_out_ = response_headers()->ToString();
     }
   }
@@ -504,7 +504,7 @@ class ImageRewriteTest : public RewriteTestBase {
     const GoogleUrl img_gurl(html_gurl(), img_srcs[0]);
     EXPECT_TRUE(img_gurl.IsWebValid());
     EXPECT_EQ(domain.AllExceptLeaf(), img_gurl.AllExceptLeaf());
-    EXPECT_TRUE(img_gurl.LeafSansQuery().ends_with(
+    EXPECT_TRUE(absl::EndsWith(img_gurl.LeafSansQuery(), 
         content_type.file_extension()));
     *img_src = img_srcs[0];
   }
@@ -553,7 +553,7 @@ class ImageRewriteTest : public RewriteTestBase {
     HTTPCacheStringCallback cache_callback(
         options(), rewrite_driver()->request_context(),
         &rewritten_image, &rewritten_headers);
-    http_cache()->Find(img_gurl.Spec().as_string(), kCacheFragment,
+    http_cache()->Find(GoogleString(img_gurl.Spec()), kCacheFragment,
                        message_handler(), &cache_callback);
     cache_callback.ExpectFound();
 
@@ -580,7 +580,7 @@ class ImageRewriteTest : public RewriteTestBase {
                  expect_callback.response_headers()->ToString());
     // Try to fetch from an independent server.
     ServeResourceFromManyContextsWithUA(
-        img_gurl.Spec().as_string(), rewritten_image,
+        GoogleString(img_gurl.Spec()), rewritten_image,
         rewrite_driver()->user_agent());
 
     // Check that filter application was logged.
@@ -732,8 +732,7 @@ class ImageRewriteTest : public RewriteTestBase {
             cuppa_string));
     ASSERT_TRUE(cuppa_resource.get() != nullptr);
     EXPECT_TRUE(ReadIfCached(cuppa_resource));
-    GoogleString cuppa_contents;
-    cuppa_resource->ExtractUncompressedContents().CopyToString(&cuppa_contents);
+    GoogleString cuppa_contents(cuppa_resource->ExtractUncompressedContents());
     // Now make sure axing the original cuppa_string doesn't affect the
     // internals of the cuppa_resource.
     ResourcePtr other_resource(
@@ -742,8 +741,7 @@ class ImageRewriteTest : public RewriteTestBase {
     ASSERT_TRUE(other_resource.get() != nullptr);
     cuppa_string.clear();
     EXPECT_TRUE(ReadIfCached(other_resource));
-    GoogleString other_contents;
-    cuppa_resource->ExtractUncompressedContents().CopyToString(&other_contents);
+    GoogleString other_contents(cuppa_resource->ExtractUncompressedContents());
     ASSERT_EQ(cuppa_contents, other_contents);
   }
 
@@ -848,17 +846,17 @@ class ImageRewriteTest : public RewriteTestBase {
           << rewritten_gurl.spec_c_str();
       GoogleString expected_start =
           StrCat("data:", output_type.mime_type(), ";base64,");
-      EXPECT_TRUE(rewritten_gurl.Spec().starts_with(expected_start))
+      EXPECT_TRUE(absl::StartsWith(rewritten_gurl.Spec(), expected_start))
           << "expected " << expected_start << " got " << rewritten_url;
     } else if (expect_rewritten) {
       EXPECT_NE(initial_url, rewritten_url);
-      EXPECT_TRUE(rewritten_gurl.LeafSansQuery().ends_with(
+      EXPECT_TRUE(absl::EndsWith(rewritten_gurl.LeafSansQuery(),
           output_type.file_extension()))
           << "expected end " << output_type.file_extension()
           << " got " << rewritten_gurl.LeafSansQuery();
     } else {
       EXPECT_EQ(initial_url, rewritten_url);
-      EXPECT_TRUE(rewritten_gurl.LeafSansQuery().ends_with(
+      EXPECT_TRUE(absl::EndsWith(rewritten_gurl.LeafSansQuery(),
           output_type.file_extension()))
           << "expected end " << output_type.file_extension()
           << " got " << rewritten_gurl.LeafSansQuery();
@@ -1340,6 +1338,35 @@ TEST_F(ImageRewriteTest, ImgSrcSet) {
       "srcset",
       "<img src=\"a.png\" srcset=\"a.png 1x, b.png 2x\">",
       "<img src=\"xa.png.pagespeed.ic.0.png\" "
+      "srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
+}
+  
+TEST_F(ImageRewriteTest, ImgDataSrcSet) {
+  AddFileToMockFetcher("a.png", kBikePngFile, kContentTypePng, 100);
+  AddFileToMockFetcher("b.png", kCuppaPngFile, kContentTypePng, 100);
+
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  rewrite_driver()->AddFilters();
+
+  ValidateExpected(
+      "data-srcset",
+      "<img src=\"a.png\" data-srcset=\"a.png 1x, b.png 2x\">",
+      "<img src=\"xa.png.pagespeed.ic.0.png\" "
+      "data-srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
+}
+
+TEST_F(ImageRewriteTest, ImgAmpSrcSet) {
+  AddFileToMockFetcher("a.png", kBikePngFile, kContentTypePng, 100);
+  AddFileToMockFetcher("b.png", kCuppaPngFile, kContentTypePng, 100);
+
+  options()->EnableFilter(RewriteOptions::kRecompressPng);
+  options()->AddUrlValuedAttribute("amp-img", "src", semantic_type::kImage);
+  rewrite_driver()->AddFilters();
+
+  ValidateExpected(
+      "srcset",
+      "<amp-img src=\"a.png\" srcset=\"a.png 1x, b.png 2x\">",
+      "<amp-img src=\"xa.png.pagespeed.ic.0.png\" "
       "srcset=\"xa.png.pagespeed.ic.0.png 1x, xb.png.pagespeed.ic.0.png 2x\">");
 }
 
@@ -3107,7 +3134,7 @@ TEST_F(ImageRewriteTest, InlinableCssImagesInsertedIntoPropertyCache) {
                            &urls, false);
   EXPECT_EQ(expected_urls.size(), urls.size());
   for (int i = 0; i < urls.size(); ++i) {
-    EXPECT_EQ(1, expected_urls.count(urls[i].as_string()));
+    EXPECT_EQ(1, expected_urls.count(GoogleString(urls[i])));
   }
 }
 
@@ -3467,7 +3494,7 @@ TEST_F(ImageRewriteTest, CacheControlHeaderCheckForNonWebpUA) {
   CollectImgSrcs(initial_image_url, output_buffer_, &image_urls);
   EXPECT_EQ(1, image_urls.size());
   const GoogleUrl image_gurl(image_urls[0]);
-  EXPECT_TRUE(image_gurl.LeafSansQuery().ends_with("webp"));
+  EXPECT_TRUE(absl::EndsWith(image_gurl.LeafSansQuery(), "webp"));
   const GoogleString& src_string = image_urls[0];
 
   ExpectStringAsyncFetch expect_callback(true, CreateRequestContext());
@@ -3489,7 +3516,7 @@ TEST_F(ImageRewriteTest, CacheControlHeaderCheckForNonWebpUA) {
   EXPECT_EQ(2, image_urls.size());
   const GoogleString& rewritten_url = image_urls[1];
   const GoogleUrl rewritten_gurl(rewritten_url);
-  EXPECT_TRUE(rewritten_gurl.LeafSansQuery().ends_with("jpg"));
+  EXPECT_TRUE(absl::EndsWith(rewritten_gurl.LeafSansQuery(), "jpg"));
 
   GoogleString content;
   ResponseHeaders response;

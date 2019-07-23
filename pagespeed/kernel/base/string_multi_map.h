@@ -192,7 +192,7 @@ template<class StringCompare> class StringMultiMap {
     }
     GoogleString* value_copy = NULL;
     if (value.data() != NULL) {
-      value_copy = new GoogleString(value.as_string());
+      value_copy = new GoogleString(value);
     }
     entry.AddValue(value_copy);
     vector_.push_back(StringPair(iter->key(), value_copy));
@@ -267,7 +267,7 @@ template<class StringCompare> class StringMultiMap {
     // However, the persistent entry we put in the map must duplicate
     // the key into key_storage and change key to point to that.
     void SaveKey() {
-      key_.CopyToString(&key_storage_);
+      key_storage_.append(GoogleString(key_));
       key_ = key_storage_;
     }
 

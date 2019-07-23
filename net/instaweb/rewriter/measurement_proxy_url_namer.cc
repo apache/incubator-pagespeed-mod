@@ -35,7 +35,7 @@ namespace net_instaweb {
 MeasurementProxyUrlNamer::MeasurementProxyUrlNamer(
     const GoogleString& top_origin, const GoogleString& password)
     : top_origin_(top_origin), password_(password) {
-  if (StringPiece(top_origin_).ends_with("/")) {
+  if (absl::EndsWith(top_origin_, "/")) {
     top_origin_.resize(top_origin.size() - 1);
   }
 }

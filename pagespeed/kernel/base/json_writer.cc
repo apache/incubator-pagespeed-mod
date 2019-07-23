@@ -41,7 +41,7 @@ JsonWriter::~JsonWriter() {
 
 bool JsonWriter::Write(const StringPiece& str,
                        MessageHandler* message_handler) {
-  str.AppendToString(&buffer_);
+  buffer_.append(GoogleString(str));
   return true;
 }
 

@@ -145,7 +145,7 @@ class RequestContext : public RefCounted<RequestContext> {
     return minimal_private_suffix_;
   }
   void set_minimal_private_suffix(StringPiece minimal_private_suffix) {
-    minimal_private_suffix.CopyToString(&minimal_private_suffix_);
+    minimal_private_suffix_ = GoogleString(minimal_private_suffix);
   }
 
   // Indicates whether the request-headers tell us that a browser can
@@ -169,7 +169,7 @@ class RequestContext : public RefCounted<RequestContext> {
     return sticky_query_parameters_token_;
   }
   void set_sticky_query_parameters_token(StringPiece x) {
-    x.CopyToString(&sticky_query_parameters_token_);
+    sticky_query_parameters_token_ = GoogleString(x);
   }
 
   // Authorized a particular external domain to be fetched from. The caller of

@@ -31,7 +31,9 @@ namespace net_instaweb {
 
 namespace {
 
-const int64 kMockThreadId = 6765;
+// XXX(oschaaf): unused
+
+//const int64 kMockThreadId = 6765;
 
 // Mock read-write-lock.  This does no locking.
 class NullRWLock : public ThreadSystem::RWLock {

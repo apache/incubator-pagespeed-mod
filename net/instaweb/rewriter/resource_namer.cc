@@ -123,14 +123,14 @@ bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
         (signature_length > 0) &&
         (segments[n - 2].size() ==
          static_cast<unsigned int>(hash_length + signature_length));
-    segments[--n].CopyToString(&ext_);
+    ext_ = GoogleString(segments[--n]);
     if (is_signed) {
-      segments[--n].substr(0, hash_length).CopyToString(&hash_);
-      segments[n].substr(hash_length).CopyToString(&signature_);
+      hash_ = GoogleString(segments[--n].substr(0, hash_length));
+      signature_ = GoogleString(segments[n].substr(hash_length));
     } else {
-      segments[--n].CopyToString(&hash_);
+      hash_ = GoogleString(segments[--n]);
     }
-    segments[--n].CopyToString(&id_);
+    id_ = GoogleString(segments[--n]);
 
     // Now between system_id_index and n, we have the experiment or options.
     // Re-join them (general case includes dots for the options.
@@ -170,7 +170,7 @@ bool ResourceNamer::LegacyDecode(const StringPiece& encoded_string) {
     StringPieceVector names;
     SplitStringPieceToVector(encoded_string, kSeparatorString, &names, true);
     if (names.size() == 4) {
-      names[1].CopyToString(&hash_);
+      hash_ = GoogleString(names[1]);
 
       // The legacy hash codes were all either 1-character (for tests) or
       // 32 characters, all in hex. There is no point in being backwards
@@ -189,9 +189,9 @@ bool ResourceNamer::LegacyDecode(const StringPiece& encoded_string) {
         }
       }
 
-      names[0].CopyToString(&id_);
-      names[2].CopyToString(&name_);
-      names[3].CopyToString(&ext_);
+      id_ = GoogleString(names[0]);
+      name_ = GoogleString(names[2]);
+      ext_ = GoogleString(names[3]);
       ret = true;
     }
   }
@@ -243,13 +243,13 @@ GoogleString ResourceNamer::EncodeIdName() const {
 }
 
 void ResourceNamer::CopyFrom(const ResourceNamer& other) {
-  other.id().CopyToString(&id_);
-  other.name().CopyToString(&name_);
-  other.options().CopyToString(&options_);
-  other.hash().CopyToString(&hash_);
-  other.ext().CopyToString(&ext_);
-  other.signature().CopyToString(&signature_);
-  other.experiment().CopyToString(&experiment_);
+  id_ = GoogleString(other.id());
+  name_ = GoogleString(other.name());
+  options_ = GoogleString(other.options());
+  hash_ = GoogleString(other.hash());
+  ext_ = GoogleString(other.ext());
+  signature_ = GoogleString(other.signature());
+  experiment_ = GoogleString(other.experiment());
 }
 
 int ResourceNamer::EventualSize(const Hasher& hasher,

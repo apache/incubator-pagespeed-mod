@@ -128,7 +128,7 @@ bool TestUrlNamer::IsProxyEncoded(const GoogleUrl& url) const {
   if (!url.IsWebValid()) {
     return false;
   }
-  GoogleString url_origin = url.Origin().as_string();
+  GoogleString url_origin(url.Origin());
   if (url_origin == kTopDomain) {
     return true;
   }
@@ -136,7 +136,7 @@ bool TestUrlNamer::IsProxyEncoded(const GoogleUrl& url) const {
 }
 
 bool TestUrlNamer::IsOriginEncoded(const GoogleUrl& url) const {
-  GoogleString url_origin = url.Origin().as_string();
+  GoogleString url_origin(url.Origin());
   if (url_origin == kTopDomain) {
     return true;
   }

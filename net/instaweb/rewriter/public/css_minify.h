@@ -60,7 +60,7 @@ class CssMinify {
   // Parses a CSS stylesheet, writing the minified result to the
   // writer supplied to the consructor.  Optionally, parsed URLs can
   // be added to the string-vector passed to set_url_collector.
-  bool ParseStylesheet(StringPiece stylesheet_text);
+  bool ParseStylesheet(::StringPiece stylesheet_text);
 
   // Writes minified Stylesheet from already-parsed stylesheet object.
   static bool Stylesheet(const Css::Stylesheet& stylesheet,
@@ -80,14 +80,14 @@ class CssMinify {
   void set_error_writer(Writer* writer) { error_writer_ = writer; }
 
  private:
-  void Write(const StringPiece& str);
+  void Write(const base::StringPiece& str);
   void WriteURL(const UnicodeText& url);
 
   template<typename Container>
-  void JoinMinify(const Container& container, const StringPiece& sep);
+  void JoinMinify(const Container& container, const base::StringPiece& sep);
   template<typename Iterator>
   void JoinMinifyIter(const Iterator& begin, const Iterator& end,
-                      const StringPiece& sep);
+                      const base::StringPiece& sep);
 
   // We name all of these methods identically to simplify the writing of the
   // templated Join* methods.

@@ -20,7 +20,6 @@
 
 #include "pagespeed/kernel/base/charset_util.h"
 
-#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -28,8 +27,7 @@ namespace net_instaweb {
 
 bool StripUtf8Bom(StringPiece* contents) {
   bool result = false;
-  StringPiece bom;
-  bom.set(kUtf8Bom, STATIC_STRLEN(kUtf8Bom));
+  StringPiece bom(kUtf8Bom, STATIC_STRLEN(kUtf8Bom));
   if (strings::StartsWith(*contents, bom)) {
     contents->remove_prefix(bom.length());
     result = true;
@@ -51,26 +49,25 @@ const StringPiece GetCharsetForBom(const StringPiece contents) {
 
   // Check for the BOMs we know about. Since some BOMs contain NUL(s) we have
   // to use STATIC_STRLEN and manual StringPiece construction.
-  StringPiece bom;
-  bom.set(kUtf8Bom, STATIC_STRLEN(kUtf8Bom));
+  StringPiece bom(kUtf8Bom, STATIC_STRLEN(kUtf8Bom));
   if (strings::StartsWith(contents, bom)) {
     return kUtf8Charset;
   }
-  bom.set(kUtf16BigEndianBom, STATIC_STRLEN(kUtf16BigEndianBom));
+  bom = StringPiece(kUtf16BigEndianBom, STATIC_STRLEN(kUtf16BigEndianBom));
   if (strings::StartsWith(contents, bom)) {
     return kUtf16BigEndianCharset;
   }
   // UTF-16LE's BOM is a leading substring of UTF-32LE's BOM, so we must
   // check the longer one first. All the others have unique prefixes.
-  bom.set(kUtf32LittleEndianBom, STATIC_STRLEN(kUtf32LittleEndianBom));
+  bom = StringPiece(kUtf32LittleEndianBom, STATIC_STRLEN(kUtf32LittleEndianBom));
   if (strings::StartsWith(contents, bom)) {
     return kUtf32LittleEndianCharset;
   }
-  bom.set(kUtf16LittleEndianBom, STATIC_STRLEN(kUtf16LittleEndianBom));
+  bom = StringPiece(kUtf16LittleEndianBom, STATIC_STRLEN(kUtf16LittleEndianBom));
   if (strings::StartsWith(contents, bom)) {
     return kUtf16LittleEndianCharset;
   }
-  bom.set(kUtf32BigEndianBom, STATIC_STRLEN(kUtf32BigEndianBom));
+  bom = StringPiece(kUtf32BigEndianBom, STATIC_STRLEN(kUtf32BigEndianBom));
   if (strings::StartsWith(contents, bom)) {
     return kUtf32BigEndianCharset;
   }

@@ -32,12 +32,12 @@
 #include "pagespeed/kernel/image/scanline_utils.h"
 
 extern "C" {
-#include "third_party/giflib/src/lib/gif_lib.h"
+#include "external/giflib/lib/gif_lib.h"
 
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"                                               // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }
 

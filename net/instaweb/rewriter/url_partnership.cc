@@ -117,7 +117,7 @@ bool UrlPartnership::FindResourceDomain(const GoogleUrl& base_url,
   if (url_namer->Decode(*resource, rewrite_options, &resource_url)) {
     resource->Reset(resource_url);
     ret = resource->IsWebValid();
-    resource->Origin().CopyToString(domain);
+    *domain = GoogleString(resource->Origin());
   } else {
     ret = rewrite_options->domain_lawyer()->MapRequestToDomain(
         base_url, resource->Spec(), domain,

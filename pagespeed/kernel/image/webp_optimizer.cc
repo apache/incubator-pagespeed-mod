@@ -32,7 +32,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 #endif
 }
 

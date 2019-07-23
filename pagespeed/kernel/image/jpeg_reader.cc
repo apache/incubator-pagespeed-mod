@@ -31,8 +31,8 @@ extern "C" {
 #include "jerror.h"                                                 // NOLINT
 #include "jpeglib.h"                                                // NOLINT
 #else
-#include "third_party/libjpeg_turbo/src/jerror.h"
-#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "external/libjpeg_turbo/jerror.h"
+#include "external/libjpeg_turbo/jpeglib.h"
 #endif
 }
 

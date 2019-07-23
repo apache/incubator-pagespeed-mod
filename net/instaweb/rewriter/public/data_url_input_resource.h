@@ -50,7 +50,7 @@ class DataUrlInputResource : public Resource {
     // encoded_contents will in general be a substring of this
     // local copy and must have the same lifetime.
     GoogleString* url_copy = new GoogleString();
-    url.CopyToString(url_copy);
+    *url_copy = GoogleString(url);
     if (ParseDataUrl(*url_copy, &type, &encoding, &encoded_contents)) {
       resource.reset(new DataUrlInputResource(url_copy, encoding, type,
                                               encoded_contents, driver));

@@ -439,7 +439,7 @@ class ImageTest : public ImageTestBase {
   GoogleString EncodeUrlAndDimensions(const StringPiece& origin_url,
                                       const ImageDim& dim) {
     StringVector v;
-    v.push_back(origin_url.as_string());
+    v.push_back(GoogleString(origin_url));
     GoogleString out;
     ResourceContext data;
     *data.mutable_desired_image_dims() = dim;
@@ -945,7 +945,7 @@ TEST_F(ImageTest, NumProgressiveScansTest) {
   GoogleString buffer;
   ImagePtr image(ReadFromFileWithOptions(kPuzzle, &buffer, options));
   EXPECT_GT(buffer.size(), image->output_size());
-  EXPECT_EQ(3, GetNumScansInJpeg(image->Contents().as_string()));
+  EXPECT_EQ(3, GetNumScansInJpeg(GoogleString(image->Contents())));
 }
 
 TEST_F(ImageTest, UseJpegLossyIfInputQualityIsLowTest) {
@@ -997,7 +997,7 @@ TEST_F(ImageTest, JpegRetainColorProfileTest) {
   ImagePtr image(ReadFromFileWithOptions(kAppSegments, &buffer, options));
   EXPECT_TRUE(IsJpegSegmentPresent(buffer, GetColorProfileMarker()));
   EXPECT_GT(buffer.size(), image->output_size());
-  EXPECT_TRUE(IsJpegSegmentPresent(image->Contents().as_string(),
+  EXPECT_TRUE(IsJpegSegmentPresent(GoogleString(image->Contents()),
                                    GetColorProfileMarker()));
   // Try stripping the color profile information.
   options = new Image::CompressionOptions();
@@ -1007,7 +1007,7 @@ TEST_F(ImageTest, JpegRetainColorProfileTest) {
   image.reset(ReadFromFileWithOptions(kAppSegments, &buffer, options));
   EXPECT_TRUE(IsJpegSegmentPresent(buffer, GetColorProfileMarker()));
   EXPECT_GT(buffer.size(), image->output_size());
-  EXPECT_FALSE(IsJpegSegmentPresent(image->Contents().as_string(),
+  EXPECT_FALSE(IsJpegSegmentPresent(GoogleString(image->Contents()),
                                     GetColorProfileMarker()));
 }
 
@@ -1027,7 +1027,7 @@ TEST_F(ImageTest, JpegRetainColorSamplingTest) {
   EXPECT_EQ(1, v_sampling_factor);
   EXPECT_GT(buffer.size(), image->output_size());
   GetJpegNumComponentsAndSamplingFactors(
-      image->Contents().as_string(), &num_components, &h_sampling_factor,
+      GoogleString(image->Contents()), &num_components, &h_sampling_factor,
       &v_sampling_factor);
   EXPECT_EQ(3, num_components);
   EXPECT_EQ(2, h_sampling_factor);
@@ -1041,7 +1041,7 @@ TEST_F(ImageTest, JpegRetainColorSamplingTest) {
   image.reset(ReadFromFileWithOptions(kPuzzle, &buffer, options));
   EXPECT_GT(buffer.size(), image->output_size());
   GetJpegNumComponentsAndSamplingFactors(
-      image->Contents().as_string(), &num_components, &h_sampling_factor,
+      GoogleString(image->Contents()), &num_components, &h_sampling_factor,
       &v_sampling_factor);
   EXPECT_EQ(3, num_components);
   EXPECT_EQ(2, h_sampling_factor);
@@ -1057,7 +1057,7 @@ TEST_F(ImageTest, JpegRetainExifDataTest) {
   ImagePtr image(ReadFromFileWithOptions(kAppSegments, &buffer, options));
   EXPECT_TRUE(IsJpegSegmentPresent(buffer, GetExifDataMarker()));
   EXPECT_GT(buffer.size(), image->output_size());
-  EXPECT_TRUE(IsJpegSegmentPresent(image->Contents().as_string(),
+  EXPECT_TRUE(IsJpegSegmentPresent(GoogleString(image->Contents()),
                                    GetExifDataMarker()));
   // Try stripping the color profile information.
   options = new Image::CompressionOptions();
@@ -1067,7 +1067,7 @@ TEST_F(ImageTest, JpegRetainExifDataTest) {
   image.reset(ReadFromFileWithOptions(kAppSegments, &buffer, options));
   EXPECT_TRUE(IsJpegSegmentPresent(buffer, GetExifDataMarker()));
   EXPECT_GT(buffer.size(), image->output_size());
-  EXPECT_FALSE(IsJpegSegmentPresent(image->Contents().as_string(),
+  EXPECT_FALSE(IsJpegSegmentPresent(GoogleString(image->Contents()),
                                     GetExifDataMarker()));
 }
 
@@ -1451,7 +1451,7 @@ TEST_F(ImageTest, IgnoreTimeoutWhenFinishingWebp) {
   EXPECT_EQ(ContentType::kWebp,
             almost_done_webp_image->content_type()->type());
   GoogleString expected = kSomeData;
-  expected.append(webp_image->Contents().as_string());
+  expected.append(GoogleString(webp_image->Contents()));
   EXPECT_EQ(expected,
             almost_done_webp_image->Contents());
 }

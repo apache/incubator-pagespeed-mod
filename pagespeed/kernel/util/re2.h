@@ -23,7 +23,7 @@
 
 #include "pagespeed/kernel/base/string_util.h"
 
-#include "third_party/re2/src/re2/re2.h"
+#include "re2/re2.h"
 
 using re2::RE2;
 

@@ -27,7 +27,7 @@ namespace net_instaweb {
 class HtmlParse;
 
 CanonicalAttributes::CanonicalAttributes(HtmlParse* html_parse)
-    : html_parse_(html_parse),
+    : /* html_parse_(html_parse),*/
       num_changes_(0),
       num_errors_(0) {
 }

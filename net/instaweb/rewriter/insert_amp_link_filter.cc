@@ -167,7 +167,7 @@ GoogleString MaybeQuery(const GoogleUrl& google_url) {
 // Returns the query string including a "?" if present, or an empty string
 // if not present. For example, "http://test.com/a/b?p=3" -> "?p=3"
 GoogleString MaybeTrailingSlash(const GoogleUrl& google_url) {
-  if (google_url.AllExceptQuery().ends_with(kTrailingSlash)) {
+  if (absl::EndsWith(google_url.AllExceptQuery(), kTrailingSlash)) {
     return kTrailingSlash;
   } else {
     return "";

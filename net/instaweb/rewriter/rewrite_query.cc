@@ -126,7 +126,7 @@ RewriteQuery::Status RewriteQuery::ScanHeader(
       case kNoneFound:
         break;
       case kSuccess:
-        if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
+        if (absl::StartsWith(name, kModPagespeed) || absl::StartsWith(name, kPageSpeed)) {
           headers_to_remove.Add(name, value);
         }
         status = kSuccess;
@@ -333,8 +333,8 @@ RewriteQuery::Status RewriteQuery::Scan(
         // value) and will eventually expire anyway.
         handler->Message(kInfo, "PageSpeed Cookie value seems mangled: "
                          "name='%s', value='%s', escaped value='%s'",
-                         cookie_name.as_string().c_str(),
-                         cookie_value.as_string().c_str(),
+                         GoogleString(cookie_name).c_str(),
+                         GoogleString(cookie_value).c_str(),
                          escaped.c_str());
       }
     }
@@ -433,7 +433,7 @@ RewriteQuery::Status RewriteQuery::Scan(
 
 bool RewriteQuery::MightBeCustomOption(StringPiece name) {
   // TODO(jmarantz): switch to case-insenstive comparisons for these prefixes.
-  return name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed) ||
+  return absl::StartsWith(name, kModPagespeed) || absl::StartsWith(name, kPageSpeed) ||
       StringCaseEqual(name, HttpAttributes::kXPsaClientOptions);
 }
 
@@ -510,7 +510,7 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
     if (RewriteOptions::ParseFromString(trimmed_value, &enabled)) {
       options->set_enabled(enabled);
       status = kSuccess;
-    } else if (trimmed_value.starts_with(kNoscriptValue)) {
+    } else if (absl::StartsWith(trimmed_value, kNoscriptValue)) {
       // We use starts_with("noscript") to help resolve Issue 874.
       // Disable filters that depend on custom script execution.
       options->DisableFiltersRequiringScriptExecution();
@@ -521,8 +521,8 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
       // and below.
       handler->Message(kWarning, "Invalid value for %s: %s "
                        "(should be on, off, unplugged, or noscript)",
-                       name.as_string().c_str(),
-                       trimmed_value.as_string().c_str());
+                       GoogleString(name).c_str(),
+                       GoogleString(trimmed_value).c_str());
       status = kInvalid;
     }
   } else if (!allow_options) {
@@ -556,11 +556,11 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
         break;
       }
     }
-  } else if (name.starts_with(kModPagespeed) || name.starts_with(kPageSpeed)) {
+  } else if (absl::StartsWith(name, kModPagespeed) || absl::StartsWith(name, kPageSpeed)) {
     // Remove the initial ModPagespeed or PageSpeed.
     StringPiece name_suffix = name;
     stringpiece_ssize_type prefix_len;
-    if (name.starts_with(kModPagespeed)) {
+    if (absl::StartsWith(name, kModPagespeed)) {
       prefix_len = sizeof(kModPagespeed)-1;
     } else {
       prefix_len = sizeof(kPageSpeed)-1;

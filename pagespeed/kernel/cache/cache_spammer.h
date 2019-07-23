@@ -72,7 +72,8 @@ class CacheSpammer : public ThreadSystem::Thread {
   bool expecting_evictions_;
   bool do_deletes_;
   const char* value_prefix_;
-  int index_;
+  // XXX(oschaaf): hmm, not used?
+  //int index_;
   int num_iters_;
   int num_inserts_;
   scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;

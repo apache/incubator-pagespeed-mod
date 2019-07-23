@@ -89,11 +89,10 @@ void UrlToFilenameEncoder::EncodeSegment(const StringPiece& filename_prefix,
   // then change the is routine to just take one input string.
   size_t start_of_segment = filename_prefix.find_last_of(dir_separator);
   if (start_of_segment == GoogleString::npos) {
-    filename_prefix.CopyToString(&segment);
+    segment = GoogleString(filename_prefix);
   } else {
-    filename_prefix.substr(start_of_segment + 1).CopyToString(&segment);
-    filename_prefix.substr(0, start_of_segment + 1).CopyToString(
-        encoded_filename);
+    segment = GoogleString(filename_prefix.substr(start_of_segment + 1));
+    *encoded_filename = GoogleString(filename_prefix.substr(0, start_of_segment + 1));
   }
 
   size_t index = 0;

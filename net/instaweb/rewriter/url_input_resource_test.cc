@@ -101,7 +101,7 @@ class UrlInputResourceTest : public RewriteTestBase {
       GoogleUrl tmp_url(fetch_url);
       EXPECT_EQ(is_auth_domain_expected,
                 request_context->IsSessionAuthorizedFetchOrigin(
-                    tmp_url.Origin().as_string()));
+                    GoogleString(tmp_url.Origin())));
     }
   }
 
@@ -324,7 +324,7 @@ TEST_F(UrlInputResourceTest, IntPort) {
     {"https://www.google.com:1234/", 1234, 1234},
   };
 
-  for (int i = 0; i < arraysize(port_tests); ++i) {
+  for (uint32_t i = 0; i < arraysize(port_tests); ++i) {
     GoogleUrl url(port_tests[i].spec);
     EXPECT_TRUE(url.IsWebValid());
     EXPECT_EQ(port_tests[i].expected_int_port, url.EffectiveIntPort());

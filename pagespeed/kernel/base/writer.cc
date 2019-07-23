@@ -25,7 +25,7 @@ namespace net_instaweb {
 Writer::~Writer() {
 }
 
-bool Writer::Dump(Writer* writer, MessageHandler* message_handler) {
+bool Writer::Dump(Writer*, MessageHandler*) {
   return false;
 }
 

@@ -52,7 +52,7 @@ class DownstreamCachePurgerTest : public RewriteTestBase {
     SetDownstreamCacheDirectives(downstream_cache_purge_method,
                                  downstream_cache_purge_location_prefix, "");
     // Setup a fake response for the expected purge path.
-    while (downstream_cache_purge_location_prefix.ends_with("/")) {
+    while (absl::EndsWith(downstream_cache_purge_location_prefix, "/")) {
       downstream_cache_purge_location_prefix.remove_suffix(1);
     }
     GoogleString cache_purge_url = StrCat(

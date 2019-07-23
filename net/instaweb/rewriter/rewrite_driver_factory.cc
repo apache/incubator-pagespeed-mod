@@ -21,7 +21,7 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
@@ -162,7 +162,7 @@ void RewriteDriverFactory::set_slurp_directory(const StringPiece& dir) {
   CHECK(!FetchersComputed())
       << "Cannot call set_slurp_directory "
       << " after ComputeUrl*Fetcher has been called";
-  dir.CopyToString(&slurp_directory_);
+  slurp_directory_ = GoogleString(dir);
 }
 
 void RewriteDriverFactory::set_slurp_read_only(bool read_only) {
@@ -429,7 +429,7 @@ QueuedWorkerPool* RewriteDriverFactory::WorkerPool(WorkerPoolCategory pool) {
 }
 
 bool RewriteDriverFactory::set_filename_prefix(StringPiece p) {
-  p.CopyToString(&filename_prefix_);
+  filename_prefix_ = GoogleString(p);
   if (file_system()->IsDir(filename_prefix_.c_str(),
                            message_handler()).is_true()) {
     return true;

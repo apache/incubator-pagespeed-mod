@@ -47,7 +47,7 @@ void UserAgentSensitiveTestFetcher::Fetch(const GoogleString& url,
   GoogleUrl parsed_url(url);
   CHECK(parsed_url.IsWebValid());
   if (!fetch->request_context()->IsSessionAuthorizedFetchOrigin(
-          parsed_url.Origin().as_string())) {
+          GoogleString(parsed_url.Origin()))) {
     fetch->Done(false);
     return;
   }
@@ -58,7 +58,7 @@ void UserAgentSensitiveTestFetcher::Fetch(const GoogleString& url,
 
   scoped_ptr<GoogleUrl> with_ua(
       parsed_url.CopyAndAddQueryParam("UA", ua_string));
-  base_fetcher_->Fetch(with_ua->Spec().as_string(), message_handler, fetch);
+  base_fetcher_->Fetch(GoogleString(with_ua->Spec()), message_handler, fetch);
 }
 
 bool UserAgentSensitiveTestFetcher::SupportsHttps() const {

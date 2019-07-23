@@ -98,7 +98,7 @@ class SimpleAbsolutifyTransformer : public CssTagScanner::Transformer {
   virtual TransformStatus Transform(GoogleString* str) {
     GoogleUrl abs(*base_url_, *str);
     if (abs.IsWebValid()) {
-      abs.Spec().CopyToString(str);
+      *str = GoogleString(abs.Spec());
       return kSuccess;
     } else {
       return kNoChange;
@@ -406,7 +406,9 @@ bool CssFilter::Context::RewriteCssText(const GoogleUrl& css_base_gurl,
                                         MessageHandler* handler) {
   // Load stylesheet w/o expanding background attributes and preserving as
   // much content as possible from the original document.
-  Css::Parser parser(in_text);
+  CssStringPiece tmp(in_text.data(), in_text.size());
+  Css::Parser parser(tmp);
+  
   parser.set_preservation_mode(true);
   // We avoid quirks-mode so that we do not "fix" something we shouldn't have.
   parser.set_quirks_mode(false);
@@ -1166,7 +1168,7 @@ bool CssFilter::GetApplicableCharset(const HtmlElement* element,
       }
     }
   }
-  our_charset.CopyToString(charset);
+  *charset = GoogleString(our_charset);
   return true;
 }
 

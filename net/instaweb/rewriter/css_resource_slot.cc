@@ -94,7 +94,7 @@ GoogleString CssResourceSlot::LocationString() const {
   return "Inside CSS";
 }
 
-bool CssResourceSlot::DirectSetUrl(const StringPiece& url) {
+bool CssResourceSlot::DirectSetUrl(const ::StringPiece& url) {
   // We should never try to render unauthorized resource URLs as is.
   if (!resource()->is_authorized_domain()) {
     return false;

@@ -34,7 +34,7 @@ namespace {
 
 class AmpDocumentFilterTest : public HtmlParseTestBase  {
  protected:
-  static const char kUtf8LightningBolt[];
+  //static const char kUtf8LightningBolt[];
 
   AmpDocumentFilterTest()
       : amp_document_filter_(&html_parse_, NewPermanentCallback(

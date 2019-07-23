@@ -1,20 +1,20 @@
 language: c++
-sudo: required
 compiler:
-  - gcc
-
+  - clang
+dist: bionic
 git:
   # Dependencies will be fetched via bazel. So no submodules here.
   submodules: false
+  depth: 10
 
 before_install:
   - sudo add-apt-repository -y ppa:git-core/ppa
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
-  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3
-  - wget https://github.com/bazelbuild/bazel/releases/download/0.27.1/bazel-0.27.1-installer-linux-x86_64.sh
-  - chmod +x bazel-0.27.1-installer-linux-x86_64.sh
-  - ./bazel-0.27.1-installer-linux-x86_64.sh --user
+  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached
+  - wget https://github.com/bazelbuild/bazel/releases/download/0.28.1/bazel-0.28.1-installer-linux-x86_64.sh
+  - chmod +x bazel-0.28.1-installer-linux-x86_64.sh
+  - ./bazel-0.28.1-installer-linux-x86_64.sh --user
 env:
   global:
     - MAKEFLAGS=-j3
@@ -31,7 +31,8 @@ script:
   # for longer, but has the downside of not producing output if we timeout. See:
   # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
   # For now, stick with --verbose and keep an eye on the logs.
-  - bazel build //:mod_pagespeed
+  # - bazel build --jobs=3 -c dbg //:mod_pagespeed
+  - bazel test --jobs=3 -c dbg //pagespeed/...
 
 notifications:
   email:

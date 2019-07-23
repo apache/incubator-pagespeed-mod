@@ -88,7 +88,7 @@ void InsertDnsPrefetchFilter::StartDocumentImpl() {
   Clear();
   // Avoid inserting the domain name of this page by pre-inserting it into
   // domains_to_ignore_.
-  GoogleString host = driver()->base_url().Host().as_string();
+  GoogleString host(driver()->base_url().Host());
   domains_to_ignore_.insert(host);
   user_agent_supports_dns_prefetch_ =
       driver()->server_context()->user_agent_matcher()->SupportsDnsPrefetch(
@@ -225,7 +225,7 @@ void InsertDnsPrefetchFilter::MarkAlreadyInHead(
     GoogleUrl url(driver()->base_url(), urlattr->DecodedValueOrNull());
     GoogleString domain;
     if (url.IsWebValid()) {
-      url.Host().CopyToString(&domain);
+      domain = GoogleString(url.Host());
     }
     if (!domain.empty()) {
       if (in_head_) {

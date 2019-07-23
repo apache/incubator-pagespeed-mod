@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/logging.h"
+//#include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"

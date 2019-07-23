@@ -78,7 +78,7 @@ void MockUrlFetcher::SetResponse(const StringPiece& url,
 void MockUrlFetcher::AddToResponse(const StringPiece& url,
                                    const StringPiece& name,
                                    const StringPiece& value) {
-  ResponseMap::iterator iter = response_map_.find(url.as_string());
+  ResponseMap::iterator iter = response_map_.find(GoogleString(url));
   CHECK(iter != response_map_.end());
   HttpResponse* http_response = iter->second;
   ResponseHeaders* response = http_response->mutable_header();
@@ -87,7 +87,7 @@ void MockUrlFetcher::AddToResponse(const StringPiece& url,
 }
 
 void MockUrlFetcher::SetResponseFailure(const StringPiece& url) {
-  ResponseMap::iterator iter = response_map_.find(url.as_string());
+  ResponseMap::iterator iter = response_map_.find(GoogleString(url));
   CHECK(iter != response_map_.end());
   HttpResponse* http_response = iter->second;
   http_response->set_success(false);
@@ -96,7 +96,7 @@ void MockUrlFetcher::SetResponseFailure(const StringPiece& url) {
 void MockUrlFetcher::SetConditionalResponse(
     const StringPiece& url, int64 last_modified_time, const GoogleString& etag,
     const ResponseHeaders& response_header, const StringPiece& response_body) {
-  GoogleString url_string = url.as_string();
+  GoogleString url_string = GoogleString(url);
   // Remove any old response.
   RemoveResponse(url);
 
@@ -104,6 +104,18 @@ void MockUrlFetcher::SetConditionalResponse(
   HttpResponse* response = new HttpResponse(last_modified_time, etag,
                                             response_header, response_body);
   response_map_.insert(ResponseMap::value_type(url_string, response));
+}
+
+
+// XXX(oschaaf): this one was removed.
+template <class ForwardIterator>
+void STLDeleteContainerPairSecondPointers(ForwardIterator begin,
+                                          ForwardIterator end) {
+  while (begin != end) {
+    ForwardIterator temp = begin;
+    ++begin;
+    delete temp->second;
+  }
 }
 
 void MockUrlFetcher::Clear() {
@@ -119,7 +131,7 @@ void MockUrlFetcher::Clear() {
 }
 
 void MockUrlFetcher::RemoveResponse(const StringPiece& url) {
-  GoogleString url_string = url.as_string();
+  GoogleString url_string = GoogleString(url);
   ResponseMap::iterator iter = response_map_.find(url_string);
   if (iter != response_map_.end()) {
     delete iter->second;
@@ -165,7 +177,7 @@ void MockUrlFetcher::Fetch(
     EXPECT_TRUE(gurl.IsAnyValid());
 
     if (strip_query_params) {
-      url = gurl.AllExceptQuery().as_string();
+      url = GoogleString(gurl.AllExceptQuery());
       gurl.Reset(url);
     }
     // Verify that the url and Host: header match.

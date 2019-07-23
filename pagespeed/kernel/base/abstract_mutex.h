@@ -21,6 +21,8 @@
 #ifndef PAGESPEED_KERNEL_BASE_ABSTRACT_MUTEX_H_
 #define PAGESPEED_KERNEL_BASE_ABSTRACT_MUTEX_H_
 
+#include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/thread_annotations.h"
 

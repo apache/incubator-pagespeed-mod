@@ -123,7 +123,9 @@ bool InflatingFetch::UnGzipValueIfCompressed(const HTTPValue& src,
       headers->RemoveAll(HttpAttributes::kTransferEncoding);
       headers->Remove(HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
       headers->SetContentLength(inflated.length());
-      content.set(inflated.c_str(), inflated.length());
+      // XXX
+      StringPiece tmp(inflated.c_str(), inflated.length());
+      content.swap(tmp);
       dest->Clear();
       dest->Write(content, handler);
       dest->SetHeaders(headers);

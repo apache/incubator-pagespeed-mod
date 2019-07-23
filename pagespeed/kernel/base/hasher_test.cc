@@ -39,9 +39,9 @@ class DummyHasher : public Hasher {
   }
 
   virtual GoogleString RawHash(const StringPiece& content) const {
-    GoogleString result = content.as_string();
+    GoogleString result = GoogleString(content);
     result.resize(RawHashSizeInBytes());
-    CHECK_EQ(RawHashSizeInBytes(), result.size());
+    CHECK_EQ(RawHashSizeInBytes(), static_cast<int64_t>(result.size()));
     return result;
   }
 

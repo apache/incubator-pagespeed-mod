@@ -2,6 +2,13 @@
     // See https://go.microsoft.com/fwlink/?LinkId=733558
     // for the documentation about the tasks.json format
     "version": "2.0.0",
+    "options": {
+        "env": {
+            "TEST_SRCDIR": "${workspaceRoot}",
+            "TEST_TMPDIR": "/tmp/foo",
+            "TEST_WORKSPACE": "mod_pagespeed",
+        }
+    },    
     "tasks": [
         {
             "label": "debug-build",
@@ -14,6 +21,198 @@
                 "kind": "build",
                 "isDefault": true
             }
-        }
+        },
+        {
+            "label": "test-all",
+            "type": "shell",
+            "command": "bazel test -c dbg //...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-base",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/base/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-cache",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/cache/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-html",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/html/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-http",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/http/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-sharedmem",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/sharedmem/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-thread",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/thread/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-util",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/util/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-js",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/js/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-image",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/kernel/image/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-controller",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/controller/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "instaweb_http_test",
+            "type": "shell",
+            "command": "bazel test -c dbg //net/instaweb/http/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-pagespeed-system",
+            "type": "shell",
+            "command": "bazel test --test_env=MEMCACHED_PORT=11211   -c dbg //pagespeed/system/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-pagespeed-automatic",
+            "type": "shell",
+            "command": "bazel test -c dbg //pagespeed/automatic/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-pagespeed-rewriter",
+            "type": "shell",
+            "command": "CC=/usr/lib/llvm-8/bin/clang CXX=/usr/lib/llvm-8/bin/clang++ bazel test -c dbg net/instaweb/rewriter/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build-data2c",
+            "type": "shell",
+            "command": "CC=/usr/lib/llvm-8/bin/clang CXX=/usr/lib/llvm-8/bin/clang++ bazel build -c dbg //net/instaweb/js:data2c",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
     ]
 }

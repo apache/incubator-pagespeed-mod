@@ -27,7 +27,7 @@ extern "C" {
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
-#include "third_party/zlib/src/zlib.h"
+#include "external/zlib/zlib.h"
 #endif
 }  // extern "C"
 
@@ -63,12 +63,12 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 #endif
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }
 
@@ -135,7 +135,7 @@ namespace {
 
 const char kGifString[] = "gif";
 const char kPngString[] = "png";
-const uint8 kAlphaOpaque = 255;
+const uint8_t kAlphaOpaque = 255;
 
 void UpdateWebpStats(bool ok, bool was_timed_out, int64 time_elapsed_ms,
                      Image::ConversionVariables::VariableType var_type,
@@ -536,7 +536,7 @@ void ImageImpl::FindGifSize() {
 }
 
 void ImageImpl::FindWebpSize() {
-  const uint8* webp = reinterpret_cast<const uint8*>(original_contents_.data());
+  const uint8_t* webp = reinterpret_cast<const uint8_t*>(original_contents_.data());
   const int webp_size = original_contents_.size();
   int width = 0, height = 0;
   if (WebPGetInfo(webp, webp_size, &width, &height) > 0) {
@@ -1371,7 +1371,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
   const size_t bytes_per_pixel =
       GetNumChannelsFromPixelFormat(output_pixel_format, handler_.get());
   const size_t bytes_per_scanline = canvas_width * bytes_per_pixel;
-  scoped_array<uint8> scanline(new uint8[bytes_per_scanline]);
+  scoped_array<uint8_t> scanline(new uint8_t[bytes_per_scanline]);
 
   // Create a writer for writing the new canvas image.
   GoogleString canvas_image;
@@ -1386,7 +1386,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
 
   // Overlay the new image onto the canvas image.
   for (int row = 0; row < static_cast<int>(canvas_height); ++row) {
-    uint8* canvas_line = NULL;
+    uint8_t* canvas_line = NULL;
     if (!canvas_reader->ReadNextScanline(
         reinterpret_cast<void**>(&canvas_line))) {
       PS_LOG_ERROR(handler_, "Failed to read canvas image.");
@@ -1394,7 +1394,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
     }
 
     if (row >= y && row < y + static_cast<int>(image_height)) {
-      uint8* image_line = NULL;
+      uint8_t* image_line = NULL;
       if (!image_reader->ReadNextScanline(
           reinterpret_cast<void**>(&image_line))) {
         PS_LOG_INFO(handler_,

@@ -169,7 +169,7 @@ bool PurgeContext::ParseAndValidateTimestamp(
   if (!StringToInt64(time_string, timestamp_ms)) {
     message_handler_->Info(filename_.c_str(), 1,
                            "Invalidation timestamp (%s) not parsed as int64",
-                           time_string.as_string().c_str());
+                           GoogleString(time_string).c_str());
     return false;
   } else if ((*timestamp_ms != PurgeSet::kInitialTimestampMs) &&
              ((*timestamp_ms < 0) ||
@@ -178,7 +178,7 @@ bool PurgeContext::ParseAndValidateTimestamp(
     ConvertTimeToString(*timestamp_ms, &converted_time_string);
     message_handler_->Info(filename_.c_str(), 1,
                            "Invalidation timestamp (%s) in the future: %s",
-                           time_string.as_string().c_str(),
+                           GoogleString(time_string).c_str(),
                            converted_time_string.c_str());
     return false;
   }
@@ -240,7 +240,7 @@ void PurgeContext::ReadPurgeFile(PurgeSet* purges_from_file) {
         file_parse_failures_->Add(1);
       } else {
         StringPiece url = line.substr(pos + 1);
-        purges_from_file->Put(url.as_string(), timestamp_ms);
+        purges_from_file->Put(GoogleString(url), timestamp_ms);
       }
     }
   }
@@ -482,7 +482,7 @@ void PurgeContext::AddPurgeUrl(StringPiece url, int64 timestamp_ms,
     bool grab_lock = false;
     {
       ScopedMutex lock(mutex_.get());
-      pending_purges_.Put(url.as_string(), timestamp_ms);
+      pending_purges_.Put(GoogleString(url), timestamp_ms);
       if (!waiting_for_interprocess_lock_) {
         waiting_for_interprocess_lock_ = true;
         grab_lock = true;

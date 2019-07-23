@@ -89,7 +89,7 @@ const char kOrigJsonName[] = "hello.json";
 const char kRewrittenJsonName[] = "hello.json";
 
 GoogleString ScriptSrc(const StringPiece& url) {
-  return net_instaweb::StrCat("<script src=\"", url, "\"></script>");
+  return StrCat("<script src=\"", url, "\"></script>");
 }
 
 }  // namespace
@@ -1128,7 +1128,7 @@ void JavascriptFilterTest::SourceMapTest(StringPiece input_js,
       Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId,
              hasher()->Hash(expected_map), "input.js", "map");
 
-  GoogleString expected_output = expected_output_js.as_string();
+  GoogleString expected_output = GoogleString(expected_output_js);
   if (options()->use_experimental_js_minifier()) {
     StrAppend(&expected_output, "\n"
               "//# sourceMappingURL=", source_map_url, "\n");
@@ -1566,7 +1566,7 @@ TEST_P(JavascriptFilterTest, CspBaseUri) {
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
+INSTANTIATE_TEST_SUITE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
                         ::testing::Bool());
 
 }  // namespace net_instaweb

@@ -67,7 +67,8 @@ class ThreadSynchronizer {
   // EnableForPrefix should be called prior to any threading.
   void EnableForPrefix(StringPiece prefix) {
     enabled_ = true;
-    prefix.CopyToString(StringVectorAdd(&prefixes_));
+    *StringVectorAdd(&prefixes_) = GoogleString(prefix);
+    //prefix.CopyToString(StringVectorAdd(&prefixes_));
   }
 
   // Waits for a thread to signal the specified key.

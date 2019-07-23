@@ -19,7 +19,7 @@
 
 #include "pagespeed/opt/ads/show_ads_snippet_parser.h"
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/js/js_keywords.h"
 #include "pagespeed/kernel/js/js_tokenizer.h"
@@ -102,7 +102,7 @@ bool ShowAdsSnippetParser::ParseStrict(
       if (!IsValidAttributeName(token)) {
         return false;
       }
-      GoogleString attribute_name(token.as_string());
+      GoogleString attribute_name(token);
       // Returns false if this attribute is already present.
       if (parsed_attributes->find(attribute_name) != parsed_attributes->end()) {
         return false;
@@ -118,7 +118,7 @@ bool ShowAdsSnippetParser::ParseStrict(
           type != pagespeed::JsKeywords::kNumber) {
         return false;
       }
-      GoogleString attribute_value = StripAnyEnclosingQuotes(token).as_string();
+      GoogleString attribute_value(StripAnyEnclosingQuotes(token));
 
       if (!IsValid(attribute_name, attribute_value)) {
         return false;

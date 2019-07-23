@@ -109,7 +109,7 @@ GoogleString FallbackPropertyPage::GetFallbackPageUrl(
   GoogleString key;
   GoogleString suffix;
   if (request_url.has_query()) {
-    key = request_url.AllExceptQuery().as_string();
+    key = GoogleString(request_url.AllExceptQuery());
     suffix = kFallbackPageCacheKeyQuerySuffix;
   } else {
     GoogleString url(request_url.spec_c_str());
@@ -121,7 +121,7 @@ GoogleString FallbackPropertyPage::GetFallbackPageUrl(
       url.resize(size - 1);
     }
     GoogleUrl gurl(url);
-    key = gurl.AllExceptLeaf().as_string();
+    key = GoogleString(gurl.AllExceptLeaf());
     suffix = kFallbackPageCacheKeyBasePathSuffix;
   }
   return StrCat(key, suffix);

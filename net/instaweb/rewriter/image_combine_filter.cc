@@ -101,7 +101,7 @@ class SpriteFuture {
         div_width_(width),
         div_height_(height),
         has_position_(false) {
-    old_url.CopyToString(&old_url_);
+    old_url_ = GoogleString(old_url);
     x_offset_ = 0;
     y_offset_ = 0;
   }
@@ -541,7 +541,7 @@ class Library : public spriter::ImageLibraryInterface {
           Timer* timer, MessageHandler* handler)
       : spriter::ImageLibraryInterface(delegate), timer_(timer),
         handler_(handler) {
-    tmp_dir.CopyToString(&tmp_dir_);
+    tmp_dir_ = GoogleString(tmp_dir);
   }
 
   ~Library() {
@@ -607,7 +607,7 @@ class Library : public spriter::ImageLibraryInterface {
   typedef std::map<const GoogleString, net_instaweb::Image*> ImageMap;
   void RegisterImage(const StringPiece& key, net_instaweb::Image* image) {
     std::pair<ImageMap::iterator, bool> result(
-        fake_fs_.insert(std::make_pair(key.as_string(), image)));
+        fake_fs_.insert(std::make_pair(GoogleString(key), image)));
     if (!result.second) {
       // Already existed.
       ImageMap::iterator iter = result.first;

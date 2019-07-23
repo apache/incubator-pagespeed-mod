@@ -139,7 +139,7 @@ bool MediaMatch(const GoogleString& media_attribute,
   } else {
     // TODO(jmarantz): this code would feel a bit better if
     // attribute-decoding supported UTF8.
-    const StringPiece import_media(
+    const ::StringPiece import_media(
         import->media_queries()[0]->media_type().utf8_data(),
         import->media_queries()[0]->media_type().utf8_length());
     result = media_attribute == import_media;
@@ -246,7 +246,7 @@ void CssInlineImportToLinkFilter::InlineImportToLinkStyle() {
         (parser.errors_seen_mask() == Css::Parser::kNoError)) {
       for (int i = 0, n = imports.size(); i < n; ++i) {
         Css::Import* import = imports[i];
-        StringPiece url(import->link().utf8_data(),
+        ::StringPiece url(import->link().utf8_data(),
                         import->link().utf8_length());
         // Create new link element to replace the @import.
         HtmlElement* link_element =

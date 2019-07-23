@@ -56,7 +56,7 @@ QueuedWorkerPool::QueuedWorkerPool(
       shutdown_(false),
       queue_size_(NULL),
       load_shedding_threshold_(kNoLoadShedding) {
-  thread_name_base.CopyToString(&thread_name_base_);
+  thread_name_base_ = GoogleString(thread_name_base);
 }
 
 QueuedWorkerPool::~QueuedWorkerPool() {

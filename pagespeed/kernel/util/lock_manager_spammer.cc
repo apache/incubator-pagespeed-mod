@@ -23,7 +23,7 @@
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/condvar.h"
-#include "pagespeed/kernel/base/dynamic_annotations.h"
+//#include "pagespeed/kernel/base/dynamic_annotations.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
@@ -35,8 +35,11 @@
 
 namespace {
 
-int WaitMs() { return RunningOnValgrind() ? 2000 : 200; }
-int StealMs() { return RunningOnValgrind() ? 1000 : 100; }
+// XXX(oschaaf):
+//int WaitMs() { return RunningOnValgrind() ? 2000 : 200; }
+//int StealMs() { return RunningOnValgrind() ? 1000 : 100; }
+int WaitMs() { return 200; }
+int StealMs() { return 100; }
 
 // In our test, we set the lock wait timeout at 100ms and the steal
 // time to 200ms.  But we insert timing delays of 150ms so that we
@@ -69,7 +72,7 @@ LockManagerSpammer::LockManagerSpammer(Scheduler* scheduler,
       lock_manager_(lock_manager),
       expecting_denials_(expecting_denials),
       delay_unlocks_(delay_unlocks),
-      index_(index),
+      //index_(index),
       num_iters_(num_iters),
       num_names_(num_names),
       mutex_(scheduler->thread_system()->NewMutex()),

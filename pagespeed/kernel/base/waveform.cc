@@ -232,9 +232,9 @@ void Waveform::Render(const StringPiece& title, const StringPiece& label,
     GoogleString div_id = hasher.Hash(title);
 
     writer->Write(StringPrintf(kChartWaveformPrefixFormat,
-                               title.as_string().c_str(),
+                               GoogleString(title).c_str(),
                                div_id.c_str(),
-                               label.as_string().c_str()),
+                               GoogleString(label).c_str()),
                   handler);
 
     for (int i = 0; i < size_; ++i) {

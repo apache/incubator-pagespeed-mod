@@ -60,7 +60,7 @@ const char kTimestampVariable[] = "timestamp_";
 
 // Our shared memory storage format is an array of (mutex, int64).
 SharedMemVariable::SharedMemVariable(StringPiece name, Statistics* stats)
-    : name_(name.as_string()),
+    : name_(GoogleString(name)),
       value_ptr_(NULL) {
 }
 
@@ -485,7 +485,7 @@ bool SharedMemStatistics::InitMutexes(size_t per_var,
     if (!segment_->InitializeSharedMutex(pos, message_handler)) {
       message_handler->Message(
           kError, "Unable to create mutex for statistics variable %s",
-          var->GetName().as_string().c_str());
+          GoogleString(var->GetName()).c_str());
       return false;
     }
   }
@@ -494,7 +494,7 @@ bool SharedMemStatistics::InitMutexes(size_t per_var,
     if (!segment_->InitializeSharedMutex(pos, message_handler)) {
       message_handler->Message(
           kError, "Unable to create mutex for statistics variable %s",
-          var->GetName().as_string().c_str());
+          GoogleString(var->GetName()).c_str());
       return false;
     }
   }

@@ -48,7 +48,7 @@ class HttpDumpUrlAsyncWriter : public UrlAsyncFetcher {
         base_fetcher_(base_fetcher),
         file_system_(file_system),
         accept_gzip_(true) {
-    root_dir.CopyToString(&root_dir_);
+    root_dir_ = GoogleString(root_dir);
   }
   virtual ~HttpDumpUrlAsyncWriter();
 

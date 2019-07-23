@@ -59,7 +59,7 @@ TEST_F(PurgeSetTest, SimpleInvaldations) {
 
 TEST_F(PurgeSetTest, NoEvictionsOnUpdateSameEntry) {
   int64 last_eviction_time_ms = 1;
-  for (int i = 0; i < kMaxSize * 10; ++i) {
+  for (uint32_t i = 0; i < kMaxSize * 10; ++i) {
     ++last_eviction_time_ms;
     ASSERT_TRUE(purge_set_.Put("a", last_eviction_time_ms));
   }
@@ -71,7 +71,7 @@ TEST_F(PurgeSetTest, NoEvictionsOnUpdateSameEntry) {
 }
 
 TEST_F(PurgeSetTest, EvictionsOnUpdateNewEntries) {
-  for (int i = 0; i < kMaxSize * 10; ++i) {
+  for (uint32_t i = 0; i < kMaxSize * 10; ++i) {
     ASSERT_TRUE(purge_set_.Put(StrCat("a", IntegerToString(i)), i + 1));
   }
   EXPECT_LT(0, purge_set_.global_invalidation_timestamp_ms());
@@ -81,7 +81,7 @@ TEST_F(PurgeSetTest, EvictionsOnUpdateNewEntries) {
   // Check that all explicitly disallowed entries are still disallowed
   // whether they are before or after the global invalidation
   // timestamp.
-  for (int i = 0; i < kMaxSize * 10; ++i) {
+  for (uint32_t i = 0; i < kMaxSize * 10; ++i) {
     EXPECT_FALSE(purge_set_.IsValid(StrCat("a", IntegerToString(i)), i));
   }
 }

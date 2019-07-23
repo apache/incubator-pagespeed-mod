@@ -32,6 +32,7 @@
 #include "pagespeed/kernel/util/grpc.h"
 
 using testing::_;
+using testing::DoAll;
 using testing::Eq;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
@@ -100,11 +101,11 @@ class ScheduleRewriteRpcHandlerTest : public GrpcServerTest {
    public:
     explicit ClientConnection(const GoogleString& address)
         : BaseClientConnection(address),
-          stub_(grpc::CentralControllerRpcService::NewStub(channel_)),
+          stub_(CentralControllerRpcService::NewStub(channel_)),
           reader_writer_(stub_->ScheduleRewrite(&client_ctx_)) {
     }
 
-    std::unique_ptr<grpc::CentralControllerRpcService::Stub> stub_;
+    std::unique_ptr<CentralControllerRpcService::Stub> stub_;
     std::unique_ptr<::grpc::ClientReaderWriter<ScheduleRewriteRequest,
                                                ScheduleRewriteResponse>>
         reader_writer_;
@@ -133,7 +134,7 @@ class ScheduleRewriteRpcHandlerTest : public GrpcServerTest {
     EXPECT_THAT(status.error_code(), Eq(expected_code));
   }
 
-  grpc::CentralControllerRpcService::AsyncService service_;
+  CentralControllerRpcService::AsyncService service_;
   std::unique_ptr<ClientConnection> client_;
   MockScheduleRewriteController mock_controller_;
 };

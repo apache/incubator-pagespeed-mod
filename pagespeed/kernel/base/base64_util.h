@@ -23,12 +23,12 @@
 
 #include "pagespeed/kernel/base/string.h"
 
-#include "base/strings/string_piece.h"
+//#include "base/strings/string_piece.h"
 #include "third_party/base64/base64.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
-typedef base::StringPiece StringPiece;
 
 inline void Web64Encode(const StringPiece& in, GoogleString* out) {
   *out = web64_encode(reinterpret_cast<const unsigned char*>(in.data()),
@@ -36,7 +36,7 @@ inline void Web64Encode(const StringPiece& in, GoogleString* out) {
 }
 
 inline bool Web64Decode(const StringPiece& in, GoogleString* out) {
-  bool ret = web64_decode(in.as_string(), out);
+  bool ret = web64_decode(GoogleString(in), out);
   return ret;
 }
 
@@ -46,7 +46,7 @@ inline void Mime64Encode(const StringPiece& in, GoogleString* out) {
 }
 
 inline bool Mime64Decode(const StringPiece& in, GoogleString* out) {
-  bool ret = base64_decode(in.as_string(), out);
+  bool ret = base64_decode(GoogleString(in), out);
   return ret;
 }
 

@@ -66,7 +66,7 @@ class TestResource : public CacheableResourceBase {
 
   virtual GoogleString cache_key() const { return cache_key_; }
   void set_cache_key(StringPiece ck) {
-    ck.CopyToString(&cache_key_);
+    cache_key_ = GoogleString(ck);
   }
 
   virtual void PrepareRequest(const RequestContextPtr& request_context,

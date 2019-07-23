@@ -195,7 +195,7 @@ bool DomainRewriteFilter::UpdateSetCookieHeader(
   }
 
   // Path must start with / to be effective (RFC6265, 5.2.4)
-  if (has_path && !path.starts_with("/")) {
+  if (has_path && !absl::StartsWith(path, "/")) {
     has_path = false;
     path = "/";  // Actually effective path is based on page, but it doesn't
                  // matter for our mapping, since we will not end up setting it
@@ -214,12 +214,12 @@ bool DomainRewriteFilter::UpdateSetCookieHeader(
   GoogleString domain_and_scheme;
   if (has_domain) {
     // Leading . irrelevant per the spec.
-    if (domain.starts_with(".")) {
+    if (absl::StartsWith(domain, ".")) {
       domain.remove_prefix(1);
     }
     domain_and_scheme = StrCat(base_url.Scheme(), "://", domain);
   } else {
-    base_url.Origin().CopyToString(&domain_and_scheme);
+    domain_and_scheme = GoogleString(base_url.Origin());
   }
 
   GoogleString rewritten_url;
@@ -235,12 +235,12 @@ bool DomainRewriteFilter::UpdateSetCookieHeader(
   StringPiece out_domain;
   GoogleString out_path;
   out_domain = parsed_rewritten.Host();
-  parsed_rewritten.PathSansQuery().CopyToString(&out_path);
+  out_path = GoogleString(parsed_rewritten.PathSansQuery());
   GlobalReplaceSubstring(";", "%3b", &out_path);
 
   // Now compose the new set-cookie line, updating domain & path as
   // appropriate.
-  cookie_string.CopyToString(out);
+  *out = GoogleString(cookie_string);
   for (int i = 0, n = attributes.size(); i < n; ++i) {
     out->append("; ");
     StringPiece key = attributes[i].first;
@@ -297,7 +297,7 @@ bool DomainRewriteFilter::ParseRefreshContent(StringPiece input,
     StringPiece spec = parse;
     spec.remove_prefix(3);
     TrimLeadingWhitespace(&spec);
-    if (spec.starts_with("=")) {
+    if (absl::StartsWith(spec, "=")) {
       spec.remove_prefix(1);
       parse = spec;
     }
@@ -309,10 +309,10 @@ bool DomainRewriteFilter::ParseRefreshContent(StringPiece input,
   *before = StringPiece(input.data(), parse.data() - input.data());
 
   char quote = ' ';  // used to mark no quote.
-  if (parse.starts_with("'")) {
+  if (absl::StartsWith(parse, "'")) {
     quote = '\'';
     parse.remove_prefix(1);
-  } else if (parse.starts_with("\"")) {
+  } else if (absl::StartsWith(parse, "\"")) {
     quote = '"';
     parse.remove_prefix(1);
   }
@@ -478,7 +478,7 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
   }
 
   if (!orig_url.IsWebValid()) {
-    url_to_rewrite.CopyToString(rewritten_url);
+    *rewritten_url = GoogleString(url_to_rewrite);
     return kDomainUnchanged;
   }
 
@@ -487,7 +487,7 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
 
   // For now, we have a proxy suffix override all other mappings.
   if (apply_domain_suffix) {
-    url_to_rewrite.CopyToString(rewritten_url);
+    *rewritten_url = GoogleString(url_to_rewrite);
     if (lawyer->AddProxySuffix(base_url, rewritten_url)) {
       return kRewroteDomain;
     }
@@ -498,7 +498,7 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
       server_context->IsPagespeedResource(orig_url)) {
     // Even though domain is unchanged, we need to store absolute URL in
     // rewritten_url.
-    orig_url.Spec().CopyToString(rewritten_url);
+    *rewritten_url = GoogleString(orig_url.Spec());
     return kDomainUnchanged;
   }
 
@@ -516,14 +516,14 @@ DomainRewriteFilter::RewriteResult DomainRewriteFilter::Rewrite(
                                   server_context->message_handler())) {
     // Even though domain is unchanged, we need to store absolute URL in
     // rewritten_url.
-    orig_url.Spec().CopyToString(rewritten_url);
+    *rewritten_url = GoogleString(orig_url.Spec());
     return kDomainUnchanged;
   }
 
   // Next, apply any sharding.
   GoogleString sharded_domain;
   GoogleString domain = StrCat(resolved_request.Origin(), "/");
-  resolved_request.Spec().CopyToString(rewritten_url);
+  *rewritten_url = GoogleString(resolved_request.Spec());
   uint32 int_hash = HashString<CasePreserve, uint32>(
       rewritten_url->data(), rewritten_url->size());
   if (apply_sharding &&

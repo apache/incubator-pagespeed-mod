@@ -84,7 +84,7 @@ bool UrlMultipartEncoder::Decode(const StringPiece& encoding,
   // Reverse the two-step encoding process described above.
   if (!UrlEscaper::DecodeFromUrlSegment(encoding, &buf)) {
     handler->Message(kWarning, "Invalid escaped URL segment: %s",
-                     encoding.as_string().c_str());
+                     GoogleString(encoding).c_str());
     return false;
   }
 

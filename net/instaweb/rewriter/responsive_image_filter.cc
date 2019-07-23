@@ -107,8 +107,8 @@ void ResponsiveImageFirstFilter::AddHiResImages(HtmlElement* element) {
   }
 
   int orig_width, orig_height;
-  if (StringToInt(width_str, &orig_width) &&
-      StringToInt(height_str, &orig_height)) {
+  if (StringToInt(StringPiece(width_str), &orig_width) &&
+      StringToInt(StringPiece(height_str), &orig_height)) {
     if (orig_width <= 1 || orig_height <= 1) {
       driver()->InsertDebugComment(
           "ResponsiveImageFilter: Not adding srcset to tracking pixel.",
@@ -211,13 +211,13 @@ ImageDim ActualDims(const HtmlElement* element) {
 
   int height;
   const char* height_str = element->AttributeValue(HtmlName::kDataActualHeight);
-  if (height_str != NULL && StringToInt(height_str, &height)) {
+  if (height_str != NULL && StringToInt(StringPiece(height_str), &height)) {
     dims.set_height(height);
   }
 
   int width;
   const char* width_str = element->AttributeValue(HtmlName::kDataActualWidth);
-  if (width_str != NULL && StringToInt(width_str, &width)) {
+  if (width_str != NULL && StringToInt(StringPiece(width_str), &width)) {
     dims.set_width(width);
   }
 
@@ -346,7 +346,7 @@ void ResponsiveImageSecondFilter::CombineHiResImages(
       //
       // Note: PageSpeed resized images will never begin nor end with a comma.
       StringPiece src_sp(src);
-      if (src_sp.ends_with(",") || src_sp.starts_with(",")) {
+      if (absl::EndsWith(src_sp, ",") || absl::StartsWith(src_sp, ",")) {
         driver()->InsertDebugComment(StrCat(
             "ResponsiveImageFilter: Not adding srcset because one of the "
             "candidate URLs starts or ends with a comma: ", src_sp),

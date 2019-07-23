@@ -103,7 +103,7 @@ class StaticAssetManager {
   void ServeAssetsFromGStatic(StringPiece gstatic_base) {
     ScopedMutex write_lock(lock_.get());
     serve_assets_from_gstatic_ = true;
-    gstatic_base.CopyToString(&gstatic_base_);
+    gstatic_base_ = GoogleString(gstatic_base);
   }
 
   void DoNotServeAssetsFromGStatic() {
@@ -134,13 +134,13 @@ class StaticAssetManager {
   // Set the prefix for the URLs of assets.
   void set_library_url_prefix(const StringPiece& url_prefix) {
     ScopedMutex write_lock(lock_.get());
-    url_prefix.CopyToString(&library_url_prefix_);
+    library_url_prefix_ = GoogleString(url_prefix);
     InitializeAssetUrls();
   }
 
   void set_static_asset_base(const StringPiece& x) {
     ScopedMutex write_lock(lock_.get());
-    x.CopyToString(&static_asset_base_);
+    static_asset_base_ = GoogleString(x);
     InitializeAssetUrls();
   }
 

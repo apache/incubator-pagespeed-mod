@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,25 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 #define PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 
+//#include "base/basictypes.h"
+//#include "base/macros.h"
 
-#include "base/basictypes.h"
-#include "base/macros.h"
+#include <inttypes.h>
+
+typedef int64_t int64;
+typedef uint64_t uint64;
+typedef uint32_t uint32;
+typedef int32_t int32;
+
+// this gets us check/dcheck/(v)log etc
+#include "base/logging.h"
+
+#define arraysize(a)                                                           \
+  ((sizeof(a) / sizeof(*(a))) /                                                \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
 // between switch labels:
@@ -59,20 +71,17 @@
 //  of code.
 #if defined(__clang__) && __cplusplus >= 201103L && defined(__has_warning)
 #if __has_feature(cxx_attributes) && __has_warning("-Wimplicit-fallthrough")
-#define FALLTHROUGH_INTENDED [[clang::fallthrough]]  // NOLINT
+#define FALLTHROUGH_INTENDED [[clang::fallthrough]] // NOLINT
 #endif
 #endif
 
 #ifndef FALLTHROUGH_INTENDED
-#define FALLTHROUGH_INTENDED do { } while (0)
+#define FALLTHROUGH_INTENDED                                                   \
+  do {                                                                         \
+  } while (0)
 #endif
 
-
 // Lazily-initialized boolean value
-enum LazyBool {
-  kNotSet = -1,
-  kFalse = 0,
-  kTrue = 1
-};
+enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
 
-#endif  // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
+#endif // PAGESPEED_KERNEL_BASE_BASICTYPES_H_

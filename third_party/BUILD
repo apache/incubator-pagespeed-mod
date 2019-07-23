@@ -25,6 +25,7 @@ envoy_cc_library(
         "@icu//:icu",
         "@libpng//:libpng",
         "@libwebp//:libwebp",
+        "@google_sparsehash//:google_sparsehash",
         "@protobuf//:protobuf_lite",
         "@protobuf//:protobuf_full_do_not_use",
         "@protobuf//:protobuf_message_differencer",

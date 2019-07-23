@@ -26,7 +26,7 @@ namespace pagespeed {
 
 namespace {
 
-const uint8_t kAlphaOpaque = 255;
+//const uint8_t kAlphaOpaque = 255;
 
 }  // namespace
 

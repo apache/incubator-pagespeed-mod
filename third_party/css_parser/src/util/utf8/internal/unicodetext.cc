@@ -27,10 +27,12 @@
 
 #include "base/logging.h"               // for operator<<, CHECK, etc
 #include "base/stringprintf.h"          // for StringPrintf, StringAppendF
-#include "strings/stringpiece.h"        // for StringPiece, etc
+#include "strings/stringpiece.h"        // for CssStringPiece, etc
 #include "third_party/utf/utf.h"        // for isvalidcharntorune, etc
 #include "util/utf8/public/unilib.h"    // for IsInterchangeValid, etc
 #include "util/utf8/public/unilib_utf8_utils.h"    // for OneCharLen
+
+using namespace base;
 
 static int CodepointDistance(const char* start, const char* end) {
   int n = 0;
@@ -323,11 +325,11 @@ UnicodeText::const_iterator UnicodeText::UnsafeFind(
     const UnicodeText& look, const_iterator start_pos) const {
   // Due to the magic of the UTF8 encoding, searching for a sequence of
   // letters is equivalent to substring search.
-  StringPiece searching(utf8_data(), utf8_length());
-  StringPiece look_piece(look.utf8_data(), look.utf8_length());
-  StringPiece::size_type found =
+  CssStringPiece searching(utf8_data(), utf8_length());
+  CssStringPiece look_piece(look.utf8_data(), look.utf8_length());
+  CssStringPiece::size_type found =
       searching.find(look_piece, start_pos.utf8_data() - utf8_data());
-  if (found == StringPiece::npos) return end();
+  if (found == CssStringPiece::npos) return end();
   return const_iterator(utf8_data() + found);
 }
 
@@ -336,9 +338,9 @@ bool UnicodeText::HasReplacementChar() const {
   //   UnicodeText replacement_char;
   //   replacement_char.push_back(0xFFFD);
   //   return find(replacement_char) != end();
-  StringPiece searching(utf8_data(), utf8_length());
-  StringPiece looking_for("\xEF\xBF\xBD", 3);
-  return searching.find(looking_for) != StringPiece::npos;
+  CssStringPiece searching(utf8_data(), utf8_length());
+  CssStringPiece looking_for("\xEF\xBF\xBD", 3);
+  return searching.find(looking_for) != CssStringPiece::npos;
 }
 
 // ----- other methods -----

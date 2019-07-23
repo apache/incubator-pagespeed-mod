@@ -17,7 +17,7 @@
  * under the License.
  */
 
-
+/*
 #include "pagespeed/kernel/base/string_multi_map.h"
 
 #include <set>
@@ -94,7 +94,7 @@ void BM_SanitizeBySet(int iters) {
     bool expect_remove = true;
     for (int repeat = 0; repeat < 100; ++repeat) {
       for (int j = 0, n = arraysize(kNamesToSanitize); j < n; ++j) {
-        remove_set.insert(kNamesToSanitize[j].as_string());
+        remove_set.insert(GoogleString(kNamesToSanitize[j]));
       }
       bool removed_anything = false;
       for (net_instaweb::StringSetInsensitive::const_iterator iter =
@@ -113,3 +113,4 @@ void BM_SanitizeBySet(int iters) {
 
 BENCHMARK(BM_SanitizeByArray);
 BENCHMARK(BM_SanitizeBySet);
+*/

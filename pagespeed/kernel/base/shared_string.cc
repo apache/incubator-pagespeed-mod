@@ -42,7 +42,7 @@ SharedString::SharedString(const StringPiece& str)
     : skip_(0),
       size_(str.size()) {
   GoogleString* storage = ref_string_.get();
-  str.CopyToString(storage);
+  *storage = GoogleString(str);
 }
 
 // When constructing with a GoogleString, going through the StringPiece

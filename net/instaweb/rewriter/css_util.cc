@@ -34,6 +34,7 @@
 #include "webutil/css/selector.h"
 #include "webutil/css/value.h"
 
+
 namespace net_instaweb {
 
 namespace css_util {
@@ -113,14 +114,14 @@ Css::Declarations* StyleExtractor::GetDeclsFromElement(HtmlElement* element) {
   return NULL;
 }
 
-void VectorizeMediaAttribute(const StringPiece& input_media,
+void VectorizeMediaAttribute(const ::StringPiece& input_media,
                              StringVector* output_vector) {
   // Split on commas, trim whitespace from each element found, delete empties.
   // Note that we hand trim because SplitStringPieceToVector() trims elements
   // of zero length but not those comprising one or more whitespace chars.
   StringPieceVector media_vector;
   SplitStringPieceToVector(input_media, ",", &media_vector, false);
-  std::vector<StringPiece>::iterator it;
+  std::vector<::StringPiece>::iterator it;
   for (it = media_vector.begin(); it != media_vector.end(); ++it) {
     TrimWhitespace(&(*it));
     if (StringCaseEqual(*it, kAllMedia)) {
@@ -128,7 +129,7 @@ void VectorizeMediaAttribute(const StringPiece& input_media,
       output_vector->clear();
       break;
     } else if (!it->empty()) {
-      it->CopyToString(StringVectorAdd(output_vector));
+      *StringVectorAdd(output_vector) = GoogleString(*it);
     }
   }
 
@@ -162,10 +163,10 @@ bool ConvertMediaQueriesToStringVector(const Css::MediaQueries& in_vector,
       return false;
     } else {
       const UnicodeText& media_type = (*iter)->media_type();
-      StringPiece element(media_type.utf8_data(), media_type.utf8_length());
+      ::StringPiece element(media_type.utf8_data(), media_type.utf8_length());
       TrimWhitespace(&element);
       if (!element.empty()) {
-        element.CopyToString(StringVectorAdd(out_vector));
+        *StringVectorAdd(out_vector) = GoogleString(element);
       }
     }
   }
@@ -177,7 +178,7 @@ void ConvertStringVectorToMediaQueries(const StringVector& in_vector,
   out_vector->Clear();
   std::vector<GoogleString>::const_iterator iter;
   for (iter = in_vector.begin(); iter != in_vector.end(); ++iter) {
-    StringPiece element(*iter);
+    ::StringPiece element(*iter);
     TrimWhitespace(&element);
     if (!element.empty()) {
       Css::MediaQuery* query = new Css::MediaQuery;
@@ -202,10 +203,10 @@ namespace {
 // Does the given data start with the given word followed by whitespace, '(', or
 // end of string?  If so, strip the token and spaces and return true.  Otherwise
 // return false and leave data alone.
-bool StartsWithWord(const StringPiece& word, StringPiece* data) {
+bool StartsWithWord(const ::StringPiece& word, ::StringPiece* data) {
   // Make a local copy, so we only shorten on success.
-  StringPiece local(*data);
-  if (!local.starts_with(word)) {
+  ::StringPiece local(*data);
+  if (!absl::StartsWith(local, word)) {
     return false;
   }
   local.remove_prefix(word.size());
@@ -220,7 +221,7 @@ bool StartsWithWord(const StringPiece& word, StringPiece* data) {
 
 }  // namespace
 
-bool CanMediaAffectScreen(const StringPiece& media) {
+bool CanMediaAffectScreen(const ::StringPiece& media) {
   // TODO(jmaessen): re-implement via CSS parser once it has an entry point for
   // media parsing.
   if (media.empty()) {
@@ -231,7 +232,7 @@ bool CanMediaAffectScreen(const StringPiece& media) {
   StringPieceVector media_vector;
   SplitStringPieceToVector(media, ",", &media_vector, true);
   for (int i = 0, n = media_vector.size(); i < n; ++i) {
-    StringPiece current(media_vector[i]);
+    ::StringPiece current(media_vector[i]);
     TrimLeadingWhitespace(&current);
     // Recognize a CSS3 media query.  We are generous in our recognition here:
     // we'll take anything that contains "screen" or "all" as a token.  Compare

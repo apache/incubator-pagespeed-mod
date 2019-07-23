@@ -102,7 +102,7 @@ class Parser {
  public:
   Parser(const char* utf8text, const char* textend);
   explicit Parser(const char* utf8text);
-  explicit Parser(StringPiece s);
+  explicit Parser(CssStringPiece s);
 
   // ParseRawSytlesheet and ParseStylesheet consume the entire document and
   // return a Stylesheet* containing all the imports and rulesets that it
@@ -596,7 +596,7 @@ class Parser {
   static const int kErrorContext;
 
   // error_flag should be one of the static const k*Error's above.
-  void ReportParsingError(uint64 error_flag, const StringPiece& message);
+  void ReportParsingError(uint64 error_flag, const CssStringPiece& message);
 
   const char *begin_;  // The beginning of the doc (used to report offset).
   const char *in_;     // The current point in the parse.
@@ -671,7 +671,7 @@ class Declaration {
   }
   // Constructor for dummy declaration used to pass through unparseable
   // declaration text.
-  explicit Declaration(const StringPiece& bytes_in_original_buffer)
+  explicit Declaration(const CssStringPiece& bytes_in_original_buffer)
       : property_(Property::UNPARSEABLE), important_(false),
         bytes_in_original_buffer_(bytes_in_original_buffer.data(),
                                   bytes_in_original_buffer.length()) {}
@@ -682,10 +682,10 @@ class Declaration {
   bool IsImportant() const { return important_; }
 
   // Note: May be invalid UTF8.
-  StringPiece bytes_in_original_buffer() const {
+  CssStringPiece bytes_in_original_buffer() const {
     return bytes_in_original_buffer_;
   }
-  void set_bytes_in_original_buffer(const StringPiece& new_bytes) {
+  void set_bytes_in_original_buffer(const CssStringPiece& new_bytes) {
     bytes_in_original_buffer_ = string(new_bytes.data(), new_bytes.length());
   }
 
@@ -741,16 +741,16 @@ class Declarations : public std::vector<Declaration*> {
 // preservation mode.
 class UnparsedRegion {
  public:
-  explicit UnparsedRegion(const StringPiece& bytes_in_original_buffer)
+  explicit UnparsedRegion(const CssStringPiece& bytes_in_original_buffer)
       : bytes_in_original_buffer_(bytes_in_original_buffer.data(),
                                   bytes_in_original_buffer.size()) {}
 
-  StringPiece bytes_in_original_buffer() const {
+  CssStringPiece bytes_in_original_buffer() const {
     return bytes_in_original_buffer_;
   }
 
-  void set_bytes_in_original_buffer(const StringPiece& bytes) {
-    bytes.CopyToString(&bytes_in_original_buffer_);
+  void set_bytes_in_original_buffer(const CssStringPiece& bytes) {
+    bytes.CopyToString(&bytes_in_original_buffer_);  
   }
 
   string ToString() const;

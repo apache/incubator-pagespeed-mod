@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <vector>
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
@@ -40,200 +40,6 @@ bool StringToDouble(const char* in, double* out) {
   // returns on underflow and overflow are the right
   // fallback in a robust setting.
   return *in != '\0' && *endptr == '\0';
-}
-
-GoogleString StrCat(StringPiece a, StringPiece b) {
-  GoogleString res;
-  res.reserve(a.size() + b.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c,
-                    StringPiece d) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e, StringPiece f) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e, StringPiece f, StringPiece g) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size() +
-              g.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  g.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e, StringPiece f, StringPiece g,
-                    StringPiece h) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size() +
-              g.size() + h.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  g.AppendToString(&res);
-  h.AppendToString(&res);
-  return res;
-}
-
-namespace internal {
-
-GoogleString StrCatNineOrMore(const StringPiece* a, ...) {
-  GoogleString res;
-
-  va_list args;
-  va_start(args, a);
-  size_t size = a->size();
-  while (const StringPiece* arg = va_arg(args, const StringPiece*)) {
-    size += arg->size();
-  }
-  res.reserve(size);
-  va_end(args);
-  va_start(args, a);
-  a->AppendToString(&res);
-  while (const StringPiece* arg = va_arg(args, const StringPiece*)) {
-    arg->AppendToString(&res);
-  }
-  va_end(args);
-  return res;
-}
-
-}  // namespace internal
-
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b) {
-  target->reserve(target->size() +
-                  a.size() + b.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g, StringPiece h) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size() + h.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-  h.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g, StringPiece h, StringPiece i) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size() + h.size() + i.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-  h.AppendToString(target);
-  i.AppendToString(target);
 }
 
 void SplitStringPieceToVector(StringPiece sp, StringPiece separators,
@@ -300,7 +106,7 @@ GoogleString CEscape(StringPiece src) {
       case '\\': dest[used++] = '\\'; dest[used++] = '\\'; break;
       default:
         if (ch < 32 || ch >= 127) {
-          base::snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
+          snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
           used += 4;
         } else {
           dest[used++] = ch;
@@ -317,7 +123,7 @@ GoogleString CEscape(StringPiece src) {
 // but we don't need any other aspect of protobufs so we don't want to
 // incur the link cost.
 bool HasPrefixString(StringPiece str, StringPiece prefix) {
-  return str.starts_with(prefix);
+  return absl::StartsWith(str, prefix);
 }
 
 // From src/third_party/protobuf/src/google/protobuf/stubs/strutil.h
@@ -512,11 +318,11 @@ int CountSubstring(StringPiece text, StringPiece substring) {
   return number_of_occurrences;
 }
 
-stringpiece_ssize_type FindIgnoreCase(
+StringPiece::size_type FindIgnoreCase(
     StringPiece haystack, StringPiece needle) {
-  stringpiece_ssize_type pos = 0;
+  StringPiece::size_type pos = 0;
   while (haystack.size() >= needle.size()) {
-    if (StringCaseStartsWith(haystack, needle)) {
+    if (absl::StartsWithIgnoreCase(haystack, needle)) {
       return pos;
     }
     ++pos;
