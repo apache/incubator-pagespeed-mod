@@ -68,7 +68,6 @@ void RewrittenContentScanningFilter::StartElement(HtmlElement* element) {
     }
     switch (attributes[i].category) {
       case semantic_type::kImage:
-      case semantic_type::kSrcSetImage:
       case semantic_type::kScript:
       case semantic_type::kStylesheet:
       case semantic_type::kOtherResource: {
@@ -81,6 +80,7 @@ void RewrittenContentScanningFilter::StartElement(HtmlElement* element) {
       case semantic_type::kPrefetch:
       case semantic_type::kHyperlink:
       case semantic_type::kUndefined:
+      case semantic_type::kSrcSetImage:
         break;
     }
   }
