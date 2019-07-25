@@ -94,7 +94,28 @@ data2c_gen2_opt(
 
 #"js_minify_main.cc",
 #"css_minify_main.cc",
-#"html_minifier_main.cc",
+
+envoy_cc_library(
+    name = "html_minifier_main_lib",
+    srcs = [
+        "html_minifier_main.cc"
+    ],
+    deps  = [
+        ":rewriter"
+    ],
+    copts = [
+        "-Wno-error=old-style-cast",
+        "-Wno-error=unused-parameter",
+        "-Wno-error=inconsistent-missing-override",
+        "-Wno-missing-field-initializers",  # gperf
+        "-Wno-error=unused-private-field",
+        "-Wno-error=unused-variable",
+        "-Ithird_party/css_parser/src/",
+        "-Ithird_party/css_parser/src/third_party/utf",
+    ],    
+    repository = "@envoy",
+    visibility = ["//visibility:public"],
+)
 
 envoy_cc_library(
     name = "rewriter",
