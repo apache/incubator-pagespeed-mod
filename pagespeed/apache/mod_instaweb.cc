@@ -78,7 +78,7 @@
 // includes, and not be in abc-order with the net/instaweb/... includes.
 #include "pagespeed/apache/apache_logging_includes.h"
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/apache/log_message_handler.h"
 #include "unixd.h"                                                 // NOLINT
 

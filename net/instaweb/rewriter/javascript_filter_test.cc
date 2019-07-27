@@ -89,7 +89,7 @@ const char kOrigJsonName[] = "hello.json";
 const char kRewrittenJsonName[] = "hello.json";
 
 GoogleString ScriptSrc(const StringPiece& url) {
-  return net_instaweb::StrCat("<script src=\"", url, "\"></script>");
+  return StrCat("<script src=\"", url, "\"></script>");
 }
 
 }  // namespace
@@ -1566,7 +1566,7 @@ TEST_P(JavascriptFilterTest, CspBaseUri) {
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
+INSTANTIATE_TEST_SUITE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
                         ::testing::Bool());
 
 }  // namespace net_instaweb

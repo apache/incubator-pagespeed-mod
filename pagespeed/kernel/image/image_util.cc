@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/image/image_util.h"
 
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 
 #include "pagespeed/kernel/base/countdown_timer.h"
 #include "pagespeed/kernel/base/message_handler.h"

@@ -7,7 +7,6 @@
 #   at default settings.
 
 package(
-    default_copts = ["-DDISABLE_GOOGLE_GLOBAL_USING_DECLARATIONS"],
     default_visibility = ["//visibility:public"],
     features = [
         "-layering_check",
@@ -36,5 +35,10 @@ cc_library(
         "rdestl_hash_map.h",
         "type_traits.h",
         "utility.h",
+    ],
+    # moved default_copts from package into cc_library
+    # and renamed it to copts instead of default_copts
+    copts = [
+        "-DDISABLE_GOOGLE_GLOBAL_USING_DECLARATIONS",
     ],
 )

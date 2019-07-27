@@ -20,9 +20,13 @@
 #ifndef STRINGS_STRINGPIECE_H_
 #define STRINGS_STRINGPIECE_H_
 
-//#include "third_party/chromium/src/base/strings/string_piece.h"
 #include "base/strings/string_piece.h"
 
-using base::StringPiece;
+//using CssStringPiece;
+// using namespace base;
+
+
+typedef base::BasicStringPiece<std::string> CssStringPiece;
+
 
 #endif  // STRINGS_STRINGPIECE_H_

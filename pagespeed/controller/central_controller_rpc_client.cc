@@ -125,7 +125,7 @@ CentralControllerRpcClient::CentralControllerRpcClient(
           statistics->GetUpDownCounter(kControllerReconnectTimeStatistic)),
       channel_(::grpc::CreateChannel(server_address,
                                      ::grpc::InsecureChannelCredentials())),
-      stub_(grpc::CentralControllerRpcService::NewStub(channel_)) {
+      stub_(CentralControllerRpcService::NewStub(channel_)) {
   ::grpc::ClientContext::SetGlobalCallbacks(clients_.get());
   {
     ScopedMutex lock(mutex_.get());

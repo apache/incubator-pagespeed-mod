@@ -427,7 +427,7 @@ TEST_P(JsCodeBlockTest, BogusLibraryRegistration) {
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(JsCodeBlockTestInstance, JsCodeBlockTest,
+INSTANTIATE_TEST_SUITE_P(JsCodeBlockTestInstance, JsCodeBlockTest,
                         ::testing::Bool());
 
 }  // namespace

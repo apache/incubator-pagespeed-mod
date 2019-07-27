@@ -419,8 +419,8 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
     headers->RemoveAll(HttpAttributes::kLastModified);
     headers->set_implicit_cache_ttl_ms(implicit_ttl_ms);
     headers->ComputeCaching();
-    int64 expire_at_ms = kint64max;
-    int64 date_ms = kint64max;
+    int64 expire_at_ms = protobuf::kint64max;
+    int64 date_ms = protobuf::kint64max;
     if (partitions()->other_dependency_size() > 0) {
       UpdateDateAndExpiry(partitions()->other_dependency(), &date_ms,
                           &expire_at_ms);
@@ -429,7 +429,7 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
                           &expire_at_ms);
     }
     int64 now_ms = FindServerContext()->timer()->NowMs();
-    if (expire_at_ms == kint64max) {
+    if (expire_at_ms == protobuf::kint64max) {
       // If expire_at_ms is not set, set the cache ttl to the implicit ttl value
       // specified in the response headers.
       expire_at_ms = now_ms + headers->implicit_cache_ttl_ms();

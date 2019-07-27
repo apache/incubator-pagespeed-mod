@@ -21,8 +21,8 @@
 #include "pagespeed/kernel/http/http_names.h"
 
 
-#include "base/at_exit.h"
-#include "base/lazy_instance.h"
+//#include "base/at_exit.h"
+//#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -299,26 +299,25 @@ class EndToEndHeadersContainer {
 };
 
 
-base::LazyInstance<EndToEndHeadersContainer>
-    headers_container = LAZY_INSTANCE_INITIALIZER;
+static EndToEndHeadersContainer headers_container;
 
 const EndToEndHeadersContainer& get_headers_container() {
-  return headers_container.Get();
+  return headers_container;
 }
 
 }  // namespace
 
 
 const StringPieceVector& HttpAttributes::SortedEndToEndHeaders() {
-  return get_headers_container().end_to_end();
+  return headers_container.end_to_end();
 }
 
 const StringPieceVector& HttpAttributes::SortedHopByHopHeaders() {
-  return get_headers_container().hop_by_hop();
+  return headers_container.hop_by_hop();
 }
 
 const StringPieceVector& HttpAttributes::CachingHeadersToBeRemoved() {
-  return get_headers_container().caching_headers_to_be_removed();
+  return headers_container.caching_headers_to_be_removed();
 }
 
 }  // namespace net_instaweb

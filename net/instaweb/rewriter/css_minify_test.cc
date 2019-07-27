@@ -41,7 +41,9 @@ class CssMinifyTest : public ::testing::Test {
     out_text->clear();
 
     // Parse CSS.
-    Css::Parser parser(in_text);
+    // XXX(oschaaf): css  
+    CssStringPiece tmp(in_text.data(), in_text.size());
+    Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
     scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());

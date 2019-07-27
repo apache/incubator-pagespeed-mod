@@ -22,14 +22,17 @@
 
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "base/md5.h"
-using base::MD5Digest;
+//#include "base/md5.h"
+//using base::MD5Digest;
+
+// XXX(oschaaf): hmm, kind of heavyweight.
+#include <openssl/md5.h>
 
 namespace net_instaweb {
 
 namespace {
 
-const int kMD5NumBytes = sizeof(MD5Digest);
+//const int kMD5NumBytes = sizeof(MD5Digest);
 
 }  // namespace
 
@@ -42,15 +45,18 @@ GoogleString MD5Hasher::RawHash(const StringPiece& content) const {
   // of src/third_party/chromium/src/base/md5.cc indicates that
   // the cost of MD5Init is very tiny compared to the cost of
   // MD5Update, so it's better to stay thread-safe.
-  MD5Digest digest;
-  MD5Sum(content.data(), content.size(), &digest);
-  // Note: digest.a is an unsigned char[16] so it's not null-terminated.
-  GoogleString raw_hash(reinterpret_cast<char*>(digest.a), sizeof(digest.a));
-  return raw_hash;
+  //MD5Digest digest;
+  //MD5Sum(content.data(), content.size(), &digest);
+  //// Note: digest.a is an unsigned char[16] so it's not null-terminated.
+  // GoogleString raw_hash(reinterpret_cast<char*>(digest.a), sizeof(digest.a));
+  // return raw_hash;
+    unsigned char result[MD5_DIGEST_LENGTH];
+    MD5(reinterpret_cast<const unsigned char*>(content.data()), content.size() , result);
+    return GoogleString(reinterpret_cast<char*>(result), MD5_DIGEST_LENGTH);
 }
 
 int MD5Hasher::RawHashSizeInBytes() const {
-  return kMD5NumBytes;
+  return MD5_DIGEST_LENGTH;
 }
 
 }  // namespace net_instaweb

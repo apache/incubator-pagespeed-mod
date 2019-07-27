@@ -1,3 +1,20 @@
+# This (bazel) branch
+
+This branch is for landing a gyp to bazel port of the build system.
+Some notes:
+
+- This bazel build on this branch *does not* produce ususable artifacts yet.
+- For those who like vscode, there is a `.vscode` solution in the root of the repo.
+- This pulls in Envoy, so we can leverage some of its dependencies for our own use, 
+  as well as re-use some more things from it in the future (CI tooling, bazel build 
+  tooling).
+
+Manual build command to test the current build:
+
+```bash
+bazel build  -c dbg //:mod_pagespeed
+```
+
 # mod_pagespeed
 ![logo](https://storage.googleapis.com/icons.google.com.a.appspot.com/google-assets/branding/product_logos/_quantum/res-export/logo_pagespeed_192px_clr.svg)
 

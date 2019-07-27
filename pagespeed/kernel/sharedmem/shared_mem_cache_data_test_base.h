@@ -83,7 +83,7 @@ class SharedMemCacheDataTestTemplate : public SharedMemCacheDataTestBase {
   }
 };
 
-TYPED_TEST_CASE_P(SharedMemCacheDataTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemCacheDataTestTemplate);
 
 TYPED_TEST_P(SharedMemCacheDataTestTemplate, TestFreeList) {
   SharedMemCacheDataTestBase::TestFreeList();
@@ -97,7 +97,7 @@ TYPED_TEST_P(SharedMemCacheDataTestTemplate, TestBlockLists) {
   SharedMemCacheDataTestBase::TestBlockLists();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemCacheDataTestTemplate, TestFreeList,
+REGISTER_TYPED_TEST_SUITE_P(SharedMemCacheDataTestTemplate, TestFreeList,
                            TestLRU, TestBlockLists);
 
 }  // namespace net_instaweb

@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/escaping.h"
 #include "pagespeed/kernel/base/string.h"

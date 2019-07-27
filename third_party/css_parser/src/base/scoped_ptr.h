@@ -20,6 +20,10 @@
 #ifndef BASE_SCOPED_PTR_H_
 #define BASE_SCOPED_PTR_H_
 
-#include "base/memory/scoped_ptr.h"
+template<typename T> class scoped_ptr : public std::unique_ptr<T> {
+ public:
+  scoped_ptr() {}
+  explicit scoped_ptr(T* ptr) : std::unique_ptr<T>(ptr) {}
+};
 
 #endif  // BASE_SCOPED_PTR_H_

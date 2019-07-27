@@ -27,7 +27,7 @@
 
 #include "base/logging.h"
 #include "third_party/redis-crc/redis_crc.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
 

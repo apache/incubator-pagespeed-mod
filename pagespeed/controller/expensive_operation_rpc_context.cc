@@ -38,7 +38,7 @@ class ExpensiveOperationRpcContext::ExpensiveOperationRequestResultRpcClient
                                     ExpensiveOperationCallback> {
  public:
   ExpensiveOperationRequestResultRpcClient(
-      grpc::CentralControllerRpcService::StubInterface* stub,
+      CentralControllerRpcService::StubInterface* stub,
       ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
       MessageHandler* handler, ExpensiveOperationCallback* callback)
       : RequestResultRpcClient(queue, thread_system, handler, callback) {
@@ -47,7 +47,7 @@ class ExpensiveOperationRpcContext::ExpensiveOperationRequestResultRpcClient
   }
 
   std::unique_ptr<RequestResultRpcClient::ReaderWriter> StartRpc(
-      grpc::CentralControllerRpcService::StubInterface* stub,
+      CentralControllerRpcService::StubInterface* stub,
       ::grpc::ClientContext* context, ::grpc::CompletionQueue* queue,
       void* tag) override {
     return stub->AsyncScheduleExpensiveOperation(context, queue, tag);
@@ -71,7 +71,7 @@ class ExpensiveOperationRpcContext::ExpensiveOperationRequestResultRpcClient
 };
 
 ExpensiveOperationRpcContext::ExpensiveOperationRpcContext(
-    grpc::CentralControllerRpcService::StubInterface* stub,
+    CentralControllerRpcService::StubInterface* stub,
     ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
     MessageHandler* handler, ExpensiveOperationCallback* callback)
     : client_(new ExpensiveOperationRequestResultRpcClient(

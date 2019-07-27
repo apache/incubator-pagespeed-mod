@@ -23,7 +23,7 @@
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/callback.h"

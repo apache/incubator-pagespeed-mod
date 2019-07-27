@@ -40,7 +40,7 @@
 #include "net/instaweb/util/public/fallback_property_page.h"
 #include "net/instaweb/util/public/mock_property_page.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/automatic/proxy_fetch.h"
 #include "pagespeed/automatic/proxy_interface_test_base.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"

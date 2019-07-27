@@ -204,7 +204,10 @@ void CssSummarizerBase::Context::RewriteSingle(
 
   // Load stylesheet w/o expanding background attributes and preserving as
   // much content as possible from the original document.
-  Css::Parser parser(input_contents);
+  // XXX(oschaaf): css 
+  CssStringPiece tmp(input_contents.data(), input_contents.size());
+  Css::Parser parser(tmp);
+  //Css::Parser parser(input_contents);
   parser.set_preservation_mode(true);
 
   // We avoid quirks-mode so that we do not "fix" something we shouldn't have.

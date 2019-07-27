@@ -93,6 +93,17 @@ void MockUrlFetcher::SetResponseFailure(const StringPiece& url) {
   http_response->set_success(false);
 }
 
+// XXX(oschaaf): this one was removed.
+template <class ForwardIterator>
+void STLDeleteContainerPairSecondPointers(ForwardIterator begin,
+                                          ForwardIterator end) {
+  while (begin != end) {
+    ForwardIterator temp = begin;
+    ++begin;
+    delete temp->second;
+  }
+}
+
 void MockUrlFetcher::SetConditionalResponse(
     const StringPiece& url, int64 last_modified_time, const GoogleString& etag,
     const ResponseHeaders& response_header, const StringPiece& response_body) {

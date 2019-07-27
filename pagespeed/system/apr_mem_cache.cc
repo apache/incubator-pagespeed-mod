@@ -35,7 +35,7 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/cache/key_value_codec.h"
-#include "third_party/aprutil/apr_memcache2.h"
+#include "external/aprutil/apr_memcache2.h"
 
 namespace net_instaweb {
 

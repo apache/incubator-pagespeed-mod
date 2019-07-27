@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <vector>
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
@@ -300,7 +300,7 @@ GoogleString CEscape(StringPiece src) {
       case '\\': dest[used++] = '\\'; dest[used++] = '\\'; break;
       default:
         if (ch < 32 || ch >= 127) {
-          base::snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
+          snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
           used += 4;
         } else {
           dest[used++] = ch;

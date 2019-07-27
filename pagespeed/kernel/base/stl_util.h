@@ -24,12 +24,42 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/stl_util.h"
+// XXX(oschaaf): do we need this?
+// #include "base/stl_util.h"
+
+template <class ForwardIterator>
+void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
+  while (begin != end) {
+    ForwardIterator temp = begin;
+    ++begin;
+    delete *temp;
+  }
+}
 
 template<class T>
 bool STLFind(const T& collection, const typename T::value_type& value) {
   return std::find(collection.begin(), collection.end(), value) !=
       collection.end();
 }
+
+template <class T>
+void STLDeleteElements(T *container) {
+  if (!container) return;
+  STLDeleteContainerPointers(container->begin(), container->end());
+  container->clear();
+}
+
+template <typename T>
+void STLDeleteValues(T* container) {
+  if (!container) return;
+  auto it = container->begin();
+  while (it != container->end()) {
+    auto temp = it;
+    ++it;
+    delete temp->second;
+  }
+  container->clear();
+}
+
 
 #endif  // PAGESPEED_KERNEL_BASE_STL_UTIL_H_

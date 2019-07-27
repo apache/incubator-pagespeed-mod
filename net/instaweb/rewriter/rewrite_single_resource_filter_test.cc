@@ -540,7 +540,7 @@ TEST_P(RewriteSingleResourceFilterTest, FetchBadStatus) {
 }
 
 // We test with create_custom_encoder == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(RewriteSingleResourceFilterTestInstance,
+INSTANTIATE_TEST_SUITE_P(RewriteSingleResourceFilterTestInstance,
                         RewriteSingleResourceFilterTest,
                         ::testing::Bool());
 

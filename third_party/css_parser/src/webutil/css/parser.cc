@@ -41,7 +41,6 @@
 #include "webutil/css/util.h"
 #include "webutil/css/value.h"
 
-
 namespace Css {
 
 const uint64 Parser::kNoError;
@@ -98,7 +97,7 @@ Parser::Parser(const char* utf8text)
       unparseable_sections_seen_mask_(kNoError) {
 }
 
-Parser::Parser(StringPiece s)
+Parser::Parser(CssStringPiece s)
     : begin_(s.begin()),
       in_(begin_),
       end_(s.end()),
@@ -121,7 +120,7 @@ int Parser::ErrorNumber(uint64 error_flag) {
 
 const int Parser::kErrorContext = 20;
 void Parser::ReportParsingError(uint64 error_flag,
-                                const StringPiece& message) {
+                                const CssStringPiece& message) {
   errors_seen_mask_ |= error_flag;
   // Make sure we don't print outside of the range in_ begin_ to end_.
   const char* context_begin = in_ - std::min(static_cast<int64>(kErrorContext),
@@ -630,7 +629,7 @@ Value* Parser::ParseStringValue() {
 
   const char* oldin = in_;
   UnicodeText string_contents = ParseString<delim>();
-  StringPiece verbatim_bytes(oldin, in_ - oldin);
+  CssStringPiece verbatim_bytes(oldin, in_ - oldin);
   Value* value = new Value(Value::STRING, string_contents);
   if (preservation_mode_) {
     value->set_bytes_in_original_buffer(verbatim_bytes);
@@ -673,7 +672,7 @@ Value* Parser::ParseNumber() {
 
   // Set the verbatim_bytes for the number before we parse the unit below
   // (before the in_ pointer moves).
-  StringPiece verbatim_bytes(begin, in_ - begin);
+  CssStringPiece verbatim_bytes(begin, in_ - begin);
   Value* value;
   if (Done()) {
     value = new Value(num, Value::NO_UNIT);
@@ -1779,7 +1778,7 @@ Declarations* Parser::ParseRawDeclarations() {
         // this declaration correctly. This is saved so that it can be
         // serialized back out in case it was actually meaningful even though
         // we could not understand it.
-        StringPiece bytes_in_original_buffer(decl_start, in_ - decl_start);
+        base::StringPiece bytes_in_original_buffer(decl_start, in_ - decl_start);
         declarations->push_back(new Declaration(bytes_in_original_buffer));
         // All errors that occurred sinse we started this declaration are
         // demoted to unparseable sections now that we've saved the dummy
@@ -2185,7 +2184,7 @@ Ruleset* Parser::ParseRuleset() {
   if (selectors.get() == NULL) {
     ReportParsingError(kSelectorError, "Failed to parse selector");
     if (preservation_mode_) {
-      selectors.reset(new Selectors(StringPiece(start_pos, in_ - start_pos)));
+      selectors.reset(new Selectors(CssStringPiece(start_pos, in_ - start_pos)));
       ruleset->set_selectors(selectors.release());
       // All errors that occurred sinse we started this declaration are
       // demoted to unparseable sections now that we've saved the dummy
@@ -2660,7 +2659,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
       // this @-rule correctly. This is saved so that it can be
       // serialized back out in case it was actually meaningful even though
       // we could not understand it.
-      StringPiece bytes_in_original_buffer(oldin, in_ - oldin);
+      base::StringPiece bytes_in_original_buffer(oldin, in_ - oldin);
 
       Ruleset* ruleset =
           new Ruleset(new UnparsedRegion(bytes_in_original_buffer));

@@ -399,7 +399,7 @@ class ImageOptimizerTest : public testing::Test {
       } else {
         EXPECT_TRUE(
             pagespeed::image_compression::CompareAnimatedImages(
-                net_instaweb::StrCat(dir, images[i].file_name),
+                StrCat(dir, images[i].file_name),
                 rewritten_image, &message_handler_));
       }
     }

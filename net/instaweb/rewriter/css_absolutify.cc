@@ -92,7 +92,9 @@ bool CssAbsolutify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
         case Css::Ruleset::RULESET: {
           Css::Selectors& selectors(ruleset->mutable_selectors());
           if (selectors.is_dummy()) {
-            StringPiece original_bytes = selectors.bytes_in_original_buffer();
+            // XXX(oschaaf): css
+            CssStringPiece tmp = selectors.bytes_in_original_buffer();
+            StringPiece original_bytes(tmp.data(), tmp.size());
             GoogleString rewritten_bytes;
             StringWriter writer(&rewritten_bytes);
             if (CssTagScanner::TransformUrls(original_bytes, &writer,
@@ -105,7 +107,9 @@ bool CssAbsolutify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
         }
         case Css::Ruleset::UNPARSED_REGION: {
           Css::UnparsedRegion* unparsed = ruleset->mutable_unparsed_region();
-          StringPiece original_bytes = unparsed->bytes_in_original_buffer();
+          // XXX(oschaaf): css
+          CssStringPiece tmp = unparsed->bytes_in_original_buffer();
+          StringPiece original_bytes(tmp.data(), tmp.size());
           GoogleString rewritten_bytes;
           StringWriter writer(&rewritten_bytes);
           if (CssTagScanner::TransformUrls(original_bytes, &writer,
@@ -139,7 +143,9 @@ bool CssAbsolutify::AbsolutifyDeclarations(
     Css::Declaration* decl = *decl_iter;
     if (decl->prop() == Css::Property::UNPARSEABLE) {
       if (handle_unparseable_sections) {
-        StringPiece original_bytes = decl->bytes_in_original_buffer();
+        // XXX(oschaaf): css
+        CssStringPiece tmp = decl->bytes_in_original_buffer();
+        StringPiece original_bytes(tmp.data(), tmp.size());
         GoogleString rewritten_bytes;
         StringWriter writer(&rewritten_bytes);
         if (CssTagScanner::TransformUrls(original_bytes, &writer,

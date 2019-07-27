@@ -152,7 +152,7 @@ class CachePropertyStoreCacheCallback : public CacheInterface::Callback {
       ArrayInputStream input(value_string.data(), value_string.size());
       PropertyCacheValues values;
       if (values.ParseFromZeroCopyStream(&input)) {
-        int64 min_write_timestamp_ms = kint64max;
+        int64 min_write_timestamp_ms = protobuf::kint64max;
         // The values in a cohort could have different write_timestamp_ms
         // values, since it is populated in UpdateValue.  But since all values
         // in a cohort are written (and read) together we need to treat either

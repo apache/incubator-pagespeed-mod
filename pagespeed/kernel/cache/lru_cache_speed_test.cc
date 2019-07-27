@@ -94,7 +94,7 @@ class TestPayload {
 
   void OverwriteIndexAtEndOfString(GoogleString* buffer, int index) {
     GoogleString index_string =
-        net_instaweb::StrCat("_", net_instaweb::IntegerToString(index));
+        StrCat("_", net_instaweb::IntegerToString(index));
     DCHECK_LT(index_string.size(), buffer->size());
     char* ptr = &(*buffer)[buffer->size() - index_string.size()];
     memcpy(ptr, index_string.data(), index_string.size());

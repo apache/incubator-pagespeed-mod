@@ -62,7 +62,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }  // extern "C"
 
@@ -1069,7 +1069,7 @@ class GifAnimationTest : public testing::Test {
 
   void SynthesizeImage(const char* filename, const Image& image) {
     // Note that these images are synthesized with QUIRKS_NONE.
-    filename_ = net_instaweb::StrCat(net_instaweb::GTestTempDir(),
+    filename_ = StrCat(net_instaweb::GTestTempDir(),
                                      "/", filename, ".gif");
     EXPECT_TRUE(gif_.Open(filename_));
     PS_LOG_INFO((&message_handler_), "Generating image: %s", filename_.c_str());

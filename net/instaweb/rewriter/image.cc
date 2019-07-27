@@ -27,7 +27,7 @@ extern "C" {
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
-#include "third_party/zlib/src/zlib.h"
+#include "external/zlib/zlib.h"
 #endif
 }  // extern "C"
 
@@ -63,12 +63,12 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 #endif
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }
 

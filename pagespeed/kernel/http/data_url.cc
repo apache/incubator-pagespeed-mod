@@ -21,7 +21,7 @@
 #include "pagespeed/kernel/http/data_url.h"
 
 #include <cstddef>
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/base64_util.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"

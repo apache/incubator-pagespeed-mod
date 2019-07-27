@@ -296,7 +296,7 @@ class AnimatedWebpTest : public testing::Test {
 
   void CheckGifVsWebP(const char* filename, WebpConfiguration* webp_config,
                       bool check_pixels) {
-    GoogleString input_path = net_instaweb::StrCat(net_instaweb::GTestSrcDir(),
+    GoogleString input_path = StrCat(net_instaweb::GTestSrcDir(),
                                                    kTestRootDir, filename);
 
     GoogleString input_image;
@@ -307,7 +307,7 @@ class AnimatedWebpTest : public testing::Test {
     ConvertGifToWebp(filename, input_image, webp_config, &output_image);
 
     GoogleString output_path =
-        net_instaweb::StrCat(net_instaweb::GTestTempDir(),
+        StrCat(net_instaweb::GTestTempDir(),
                              kTestRootDir,
                              filename, ".webp");
 

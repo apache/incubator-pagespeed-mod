@@ -26,7 +26,7 @@ namespace net_instaweb {
 
 namespace {
 
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, ThreadSystemTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, ThreadSystemTestTemplate,
                               PthreadThreadSystem);
 
 }  // namespace

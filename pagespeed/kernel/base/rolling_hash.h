@@ -24,6 +24,8 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
+typedef uint8_t uint8;
+
 namespace net_instaweb {
 
 // Rolling hash for char buffers based on a polynomial lookup table.

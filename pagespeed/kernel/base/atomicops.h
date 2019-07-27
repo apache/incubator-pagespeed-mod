@@ -21,7 +21,7 @@
 #ifndef PAGESPEED_KERNEL_BASE_ATOMICOPS_H_
 #define PAGESPEED_KERNEL_BASE_ATOMICOPS_H_
 
-#include "base/atomicops.h"
+//#include "base/atomicops.h"
 
 
 #endif  // PAGESPEED_KERNEL_BASE_ATOMICOPS_H_

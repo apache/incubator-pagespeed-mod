@@ -25,10 +25,12 @@
 namespace net_instaweb {
 
 GoogleString StackTraceString() {
-  base::debug::StackTrace trace;
-  std::ostringstream ostream;
-  trace.OutputToStream(&ostream);
-  return ostream.str();
+  //base::debug::StackTrace trace;
+  //std::ostringstream ostream;
+  //trace.OutputToStream(&ostream);
+  //return ostream.str();
+  // XXX(oschaaf)
+  return "TODO";
 }
 
 }  // namespace net_instaweb

@@ -26,7 +26,7 @@
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/js/js_tokenizer.h"
 
-#include "base/at_exit.h"
+//#include "base/at_exit.h"
 #include "google/protobuf/stubs/common.h"
 using namespace google;  // NOLINT
 
@@ -43,7 +43,7 @@ int construction_count = 0;
 namespace net_instaweb {
 
 namespace {
-base::AtExitManager* at_exit_manager = NULL;
+//base::AtExitManager* at_exit_manager = NULL;
 }
 
 ProcessContext::ProcessContext()
@@ -60,9 +60,10 @@ ProcessContext::ProcessContext()
   // creation, and explicitly terminated after thread quiescence.
   url::Initialize();
 
-  if (at_exit_manager == NULL) {
-    at_exit_manager = new base::AtExitManager;
-  }
+  // XXX(oschaaf)
+  //if (at_exit_manager == NULL) {
+  //  at_exit_manager = new base::AtExitManager;
+  //}
 }
 
 ProcessContext::~ProcessContext() {
@@ -75,10 +76,13 @@ ProcessContext::~ProcessContext() {
 
   url::Shutdown();
   HtmlKeywords::ShutDown();
+  // XXX(oschaaf)
+  /*
   if (at_exit_manager != NULL) {
     delete at_exit_manager;
     at_exit_manager = NULL;
   }
+   */
 }
 
 }  // namespace net_instaweb

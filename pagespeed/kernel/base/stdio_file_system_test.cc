@@ -21,7 +21,7 @@
 
 #include "pagespeed/kernel/base/stdio_file_system.h"
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/file_system_test_base.h"
 #include "pagespeed/kernel/base/google_message_handler.h"

@@ -96,7 +96,7 @@ ContextRegistry<ContextT>::ContextRegistry(ThreadSystem* thread_system)
 
 template <typename ContextT>
 ContextRegistry<ContextT>::~ContextRegistry() {
-  DCHECK_EQ(contexts_.size(), 0);
+  DCHECK_EQ(contexts_.size(), 0u);
 }
 
 template <typename ContextT>

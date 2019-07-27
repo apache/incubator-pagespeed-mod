@@ -229,7 +229,9 @@ bool CssHierarchy::CheckCharsetOk(const ResourcePtr& resource,
 bool CssHierarchy::Parse() {
   bool result = true;
   if (stylesheet_.get() == NULL) {
-    Css::Parser parser(input_contents_);
+    // XXX(oschaaf): css 
+    CssStringPiece tmp(input_contents_.data(), input_contents_.size());
+    Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
     Css::Stylesheet* stylesheet = parser.ParseRawStylesheet();

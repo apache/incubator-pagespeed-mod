@@ -125,7 +125,7 @@ void log_fatal(StringPiece function) {
 extern "C" {
 
 int ap_rwrite(const void *buf, int nbyte, request_rec *r) {
-  log_action(net_instaweb::StrCat(
+  log_action(StrCat(
       "ap_rwrite(", StringPiece(static_cast<const char*>(buf), nbyte), ")"));
   return 1;
 }
@@ -136,12 +136,12 @@ int ap_rflush(request_rec* r) {
 }
 
 void ap_set_content_length(request_rec* r, apr_off_t length) {
-  log_action(net_instaweb::StrCat(
+  log_action(StrCat(
       "ap_set_content_length(", net_instaweb::IntegerToString(length), ")"));
 }
 
 void ap_set_content_type(request_rec* r, const char* ct) {
-  log_action(net_instaweb::StrCat(
+  log_action(StrCat(
       "ap_set_content_type(", StringPiece(ct), ")"));
   // Incomplete implementation, but enough to be testing.
   apr_table_set(
@@ -151,7 +151,7 @@ void ap_set_content_type(request_rec* r, const char* ct) {
 void ap_remove_output_filter(ap_filter_t* filter) {
   CHECK(filter != NULL);
   CHECK(filter->frec != NULL);
-  log_action(net_instaweb::StrCat(
+  log_action(StrCat(
       "ap_remove_output_filter(", filter->frec->name, ")"));
 }
 

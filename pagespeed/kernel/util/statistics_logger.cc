@@ -27,7 +27,7 @@
 #include <utility>                      // for pair
 #include <vector>
 
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/escaping.h"

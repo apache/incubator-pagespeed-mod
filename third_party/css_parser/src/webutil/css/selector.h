@@ -160,6 +160,8 @@ class SimpleSelector {
         return SUBSTRING_ATTRIBUTE;
       default:
         LOG(FATAL) << "Invalid attribute operator " << oper;
+        // XXX(oschaaf):
+        return SUBSTRING_ATTRIBUTE;
     }
   }
 
@@ -307,7 +309,7 @@ class Selectors: public std::vector<Selector*> {
   // TODO(sligocki): Should we disallow accessing std::vector methods for
   // dummy selectors? This would make sure users don't accidentally treat
   // dummy selectors as normal selectors.
-  explicit Selectors(const StringPiece& bytes_in_original_buffer)
+  explicit Selectors(const CssStringPiece& bytes_in_original_buffer)
       : is_dummy_(true),
         bytes_in_original_buffer_(bytes_in_original_buffer.data(),
                                   bytes_in_original_buffer.length()) {}
@@ -316,11 +318,11 @@ class Selectors: public std::vector<Selector*> {
 
   bool is_dummy() const { return is_dummy_; }
   // Note: May be invalid UTF8.
-  StringPiece bytes_in_original_buffer() const {
+  CssStringPiece bytes_in_original_buffer() const {
     return bytes_in_original_buffer_;
   }
-  void set_bytes_in_original_buffer(const StringPiece& new_bytes) {
-    new_bytes.CopyToString(&bytes_in_original_buffer_);
+  void set_bytes_in_original_buffer(const CssStringPiece& new_bytes) {
+    bytes_in_original_buffer_ = std::string(new_bytes.data(), new_bytes.size());
   }
 
   string ToString() const;

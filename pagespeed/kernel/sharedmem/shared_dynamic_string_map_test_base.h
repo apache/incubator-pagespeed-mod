@@ -95,7 +95,7 @@ class SharedDynamicStringMapTestTemplate
   }
 };
 
-TYPED_TEST_CASE_P(SharedDynamicStringMapTestTemplate);
+TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate);
 
 TYPED_TEST_P(SharedDynamicStringMapTestTemplate, TestSimple) {
   SharedDynamicStringMapTestBase::TestSimple();
@@ -127,7 +127,7 @@ TYPED_TEST_P(SharedDynamicStringMapTestTemplate,
   SharedDynamicStringMapTestBase::TestFillMultipleOverlappingThreads();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedDynamicStringMapTestTemplate, TestSimple,
+REGISTER_TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate, TestSimple,
                            TestCreate, TestAdd, TestQuarterFull,
                            TestFillSingleThread,
                            TestFillMultipleNonOverlappingThreads,

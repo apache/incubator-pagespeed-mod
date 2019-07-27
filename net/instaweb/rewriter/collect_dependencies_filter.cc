@@ -120,7 +120,7 @@ class CollectDependenciesFilter::Context : public RewriteContext {
     if (!resource->HttpStatusOk()) {
       return;
     }
-    Css::Parser parser(resource->ExtractUncompressedContents());
+    Css::Parser parser(resource->ExtractUncompressedContents().data());
     parser.set_preservation_mode(true);
     // We avoid quirks-mode so that we do not "fix" something we shouldn't have.
     parser.set_quirks_mode(false);
