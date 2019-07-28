@@ -463,7 +463,7 @@ void CssMinify::Minify(const Css::Value& value) {
         // to ensure we keep the original precision.
         // XXX(oschaaf): css
         CssStringPiece tmp = value.bytes_in_original_buffer();
-        number_string = GoogleString(tmp.data(), tmp.size());
+        number_string = StringPiece(tmp.data(), tmp.size());
       } else {
         // Values added or modified outside of the parsing code need
         // to be converted to strings by us.

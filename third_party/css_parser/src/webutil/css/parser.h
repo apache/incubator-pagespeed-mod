@@ -686,7 +686,7 @@ class Declaration {
     return bytes_in_original_buffer_;
   }
   void set_bytes_in_original_buffer(const CssStringPiece& new_bytes) {
-    bytes_in_original_buffer_ = string(new_bytes.data(), new_bytes.length());
+    bytes_in_original_buffer_ = string(new_bytes.data(), new_bytes.size());
   }
 
   // convenience accessors
