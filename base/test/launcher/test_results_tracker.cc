@@ -276,6 +276,10 @@ void TestResultsTracker::GeneratePlaceholderIteration() {
   for (auto& full_test_name : test_placeholders_) {
     std::string test_name = TestNameWithoutDisabledPrefix(full_test_name);
 
+    // Ignore disabled tests.
+    if (disabled_tests_.find(test_name) != disabled_tests_.end())
+      continue;
+
     TestResult test_result;
     test_result.full_name = test_name;
     test_result.status = TestResult::TEST_NOT_RUN;

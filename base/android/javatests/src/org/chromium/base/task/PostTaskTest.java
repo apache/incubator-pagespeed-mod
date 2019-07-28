@@ -13,7 +13,6 @@ import android.support.test.filters.SmallTest;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.task.SchedulerTestHelpers;
 
@@ -106,7 +105,6 @@ public class PostTaskTest {
         PostTask.postTask(TaskTraits.CHOREOGRAPHER_FRAME, new Runnable() {
             @Override
             public void run() {
-                ThreadUtils.assertOnUiThread();
                 synchronized (orderList) {
                     orderList.add(1);
                     latch.countDown();
@@ -117,7 +115,6 @@ public class PostTaskTest {
         PostTask.postTask(TaskTraits.CHOREOGRAPHER_FRAME, new Runnable() {
             @Override
             public void run() {
-                ThreadUtils.assertOnUiThread();
                 synchronized (orderList) {
                     orderList.add(2);
                     latch.countDown();

@@ -65,13 +65,6 @@ TYPED_TEST(StrongAliasTest, ValueAccessesUnderlyingValue) {
                 "Reference returned by const value getter should be const.");
 }
 
-TYPED_TEST(StrongAliasTest, ExplicitConversionToUnderlyingValue) {
-  using FooAlias = StrongAlias<class FooTag, TypeParam>;
-
-  const FooAlias const_alias(GetExampleValue<TypeParam>(1));
-  EXPECT_EQ(GetExampleValue<TypeParam>(1), static_cast<TypeParam>(const_alias));
-}
-
 TYPED_TEST(StrongAliasTest, CanBeCopyConstructed) {
   using FooAlias = StrongAlias<class FooTag, TypeParam>;
   FooAlias alias(GetExampleValue<TypeParam>(0));
@@ -145,6 +138,9 @@ TYPED_TEST(StrongAliasTest, CannotBeCreatedFromDifferentAlias) {
 
 TYPED_TEST(StrongAliasTest, CannotBeImplicitlyConverterToUnderlyingValue) {
   using FooAlias = StrongAlias<class FooTag, TypeParam>;
+  static_assert(!std::is_constructible<TypeParam, FooAlias>::value,
+                "Should be impossible to construct an underlying type from a "
+                "StrongAlias.");
   static_assert(!std::is_convertible<FooAlias, TypeParam>::value,
                 "Should be impossible to implicitly convert a StrongAlias into "
                 "an underlying type.");

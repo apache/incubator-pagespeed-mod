@@ -19,12 +19,9 @@ struct FakeBindState;
 
 namespace internal {
 
-class BindStateBase;
 class FinallyExecutorCommon;
 class ThenAndCatchExecutorCommon;
-
-template <typename ReturnType>
-class PostTaskExecutor;
+class BindStateBase;
 
 template <typename Functor, typename... BoundArgs>
 struct BindState;
@@ -142,9 +139,6 @@ class BASE_EXPORT CallbackBase {
  protected:
   friend class FinallyExecutorCommon;
   friend class ThenAndCatchExecutorCommon;
-
-  template <typename ReturnType>
-  friend class PostTaskExecutor;
 
   using InvokeFuncStorage = BindStateBase::InvokeFuncStorage;
 

@@ -645,7 +645,7 @@ class TestHistogramProvider : public StatisticsRecorder::HistogramProvider {
  public:
   explicit TestHistogramProvider(
       std::unique_ptr<PersistentHistogramAllocator> allocator)
-      : allocator_(std::move(allocator)) {
+      : allocator_(std::move(allocator)), weak_factory_(this) {
     StatisticsRecorder::RegisterHistogramProvider(weak_factory_.GetWeakPtr());
   }
 
@@ -661,7 +661,7 @@ class TestHistogramProvider : public StatisticsRecorder::HistogramProvider {
 
  private:
   std::unique_ptr<PersistentHistogramAllocator> allocator_;
-  WeakPtrFactory<TestHistogramProvider> weak_factory_{this};
+  WeakPtrFactory<TestHistogramProvider> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(TestHistogramProvider);
 };

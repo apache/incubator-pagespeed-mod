@@ -1,4 +1,5 @@
 include_rules = [
+  "+jni",
   "+third_party/ashmem",
   "+third_party/apple_apsl",
   "+third_party/boringssl/src/include",
@@ -13,14 +14,4 @@ include_rules = [
 
   # ICU dependendencies must be separate from the rest of base.
   "-i18n",
-
-  # //base/util can use //base but not vice versa.
-  "-util",
 ]
-
-specific_include_rules = {
-  # Dependencies specific for fuzz targets and other fuzzing-related code.
-  ".*fuzz.*": [
-    "+third_party/libFuzzer/src/utils",  # This contains FuzzedDataProvider.
-  ],
-}

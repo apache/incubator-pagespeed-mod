@@ -23,8 +23,9 @@
 #error VS 2017 Update 3.2 or higher is required
 #endif
 
-#if !defined(NTDDI_WIN10_19H1)
-#error Windows 10.0.18362.0 SDK or higher required.
+#if !defined(NTDDI_WIN10_RS5)
+// Windows 10 October 2018 SDK is required to build Chrome.
+#error October 2018 SDK (10.0.17763.0) or higher required.
 #endif
 
 namespace {
@@ -268,8 +269,6 @@ OSInfo::WOW64Status OSInfo::GetWOW64StatusForProcess(HANDLE process_handle) {
 // static
 Version OSInfo::MajorMinorBuildToVersion(int major, int minor, int build) {
   if (major == 10) {
-    if (build >= 18362)
-      return Version::WIN10_19H1;
     if (build >= 17763)
       return Version::WIN10_RS5;
     if (build >= 17134)

@@ -4,7 +4,7 @@
 
 #include "base/macros.h"
 #include "base/pickle.h"
-#include "third_party/libFuzzer/src/utils/FuzzedDataProvider.h"
+#include "base/test/fuzzed_data_provider.h"
 
 namespace {
 constexpr int kIterations = 16;
@@ -20,7 +20,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   // Use the first kReadControlBytes bytes of the fuzzer input to control how
   // the pickled data is read.
-  FuzzedDataProvider data_provider(data, kReadControlBytes);
+  base::FuzzedDataProvider data_provider(data, kReadControlBytes);
   data += kReadControlBytes;
   size -= kReadControlBytes;
 

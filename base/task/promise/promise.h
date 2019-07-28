@@ -5,7 +5,7 @@
 #ifndef BASE_TASK_PROMISE_PROMISE_H_
 #define BASE_TASK_PROMISE_PROMISE_H_
 
-#include "base/run_loop.h"
+#include "base/task/post_task.h"
 #include "base/task/promise/all_container_executor.h"
 #include "base/task/promise/all_tuple_executor.h"
 #include "base/task/promise/finally_executor.h"
@@ -13,13 +13,9 @@
 #include "base/task/promise/no_op_promise_executor.h"
 #include "base/task/promise/promise_result.h"
 #include "base/task/promise/then_and_catch_executor.h"
-#include "base/task/task_traits.h"
+#include "base/threading/sequenced_task_runner_handle.h"
 
 namespace base {
-
-// We can't include post_task.h here so we forward declare it.
-BASE_EXPORT scoped_refptr<TaskRunner> CreateTaskRunner(
-    const TaskTraits& traits);
 
 // Inspired by ES6 promises, Promise<> is a PostTask based callback system for
 // asynchronous operations. An operation can resolve (succeed) with a value and
@@ -51,6 +47,22 @@ class Promise {
       scoped_refptr<internal::AbstractPromise> abstract_promise) noexcept
       : abstract_promise_(std::move(abstract_promise)) {}
 
+  // Constructs an unresolved promise for use by a ManualPromiseResolver<> and
+  // TaskRunner::PostPromise.
+  Promise(scoped_refptr<TaskRunner> task_runner,
+          const Location& location,
+          RejectPolicy reject_policy)
+      : abstract_promise_(internal::AbstractPromise::Create(
+            std::move(task_runner),
+            location,
+            nullptr,
+            reject_policy,
+            internal::AbstractPromise::ConstructWith<
+                internal::DependentList::ConstructUnresolved,
+                internal::NoOpPromiseExecutor>(),
+            /* can_resolve */ !std::is_same<ResolveType, NoResolve>::value,
+            /* can_reject */ !std::is_same<RejectType, NoReject>::value)) {}
+
   NOINLINE ~Promise() = default;
 
   operator bool() const { return !!abstract_promise_; }
@@ -58,57 +70,6 @@ class Promise {
   bool IsCancelledForTesting() const {
     DCHECK(abstract_promise_);
     return abstract_promise_->IsCanceled();
-  }
-
-  // Waits until the promise has settled and if resolved it returns the resolved
-  // value.
-  template <typename T = ResolveType,
-            std::enable_if_t<!std::is_reference<T>::value &&
-                             !std::is_void<T>::value>* = nullptr>
-  T TakeResolveValueForTesting() {
-    static_assert(!std::is_same<NoResolve, T>::value,
-                  "A NoResolve promise can't resolve.");
-    if (!abstract_promise_->IsSettled()) {
-      RunLoop run_loop;
-      FinallyHere(FROM_HERE, run_loop.QuitClosure());
-      run_loop.Run();
-    }
-    DCHECK(abstract_promise_->IsResolved())
-        << "Can't take resolved value, promise wasn't resolved.";
-    return std::move(
-        unique_any_cast<Resolved<T>>(&abstract_promise_->TakeValue().value())
-            ->value);
-  }
-
-  // Waits until the promise has settled and if rejected it returns the rejected
-  // value.
-  template <typename T = RejectType,
-            std::enable_if_t<!std::is_reference<T>::value &&
-                             !std::is_void<T>::value>* = nullptr>
-  T TakeRejectValueForTesting() {
-    static_assert(!std::is_same<NoReject, T>::value,
-                  "A NoReject promise can't reject.");
-    if (!abstract_promise_->IsSettled()) {
-      RunLoop run_loop;
-      FinallyHere(FROM_HERE, run_loop.QuitClosure());
-      run_loop.Run();
-    }
-    abstract_promise_->IgnoreUncaughtCatchForTesting();
-    DCHECK(abstract_promise_->IsRejected())
-        << "Can't take rejected value, promise wasn't rejected.";
-    return std::move(
-        unique_any_cast<Rejected<T>>(&abstract_promise_->TakeValue().value())
-            ->value);
-  }
-
-  bool IsResolvedForTesting() const {
-    DCHECK(abstract_promise_);
-    return abstract_promise_->IsResolvedForTesting();
-  }
-
-  bool IsRejectedForTesting() const {
-    DCHECK(abstract_promise_);
-    return abstract_promise_->IsRejectedForTesting();
   }
 
   // A task to execute |on_reject| is posted on |task_runner| as soon as this
@@ -121,15 +82,11 @@ class Promise {
   // 2. Promise<Resolve, Reject> where the result is a curried promise.
   //
   // If a promise has multiple Catches they will be run in order of creation.
-  //
-  // |task_runner| is const-ref to avoid bloat due the destructor (which posts a
-  // task).
   template <typename RejectCb>
-  NOINLINE auto CatchOn(const scoped_refptr<TaskRunner>& task_runner,
+  NOINLINE auto CatchOn(scoped_refptr<TaskRunner> task_runner,
                         const Location& from_here,
-                        RejectCb on_reject) noexcept {
+                        RejectCb&& on_reject) noexcept {
     DCHECK(abstract_promise_);
-    DCHECK(!on_reject.is_null());
 
     // Extract properties from the |on_reject| callback.
     using RejectCallbackTraits = internal::CallbackTraits<RejectCb>;
@@ -160,31 +117,36 @@ class Promise {
             std::is_const<std::remove_reference_t<RejectCallbackArgT>>::value,
         "Google C++ Style: References in function parameters must be const.");
 
-    internal::PromiseExecutor::Data executor_data(
-        in_place_type_t<internal::ThenAndCatchExecutor<
-            OnceClosure,  // Never called.
-            OnceCallback<typename RejectCallbackTraits::SignatureType>,
-            internal::NoCallback, RejectType, Resolved<ReturnedPromiseResolveT>,
-            Rejected<ReturnedPromiseRejectT>>>(),
-        OnceClosure(), internal::ToCallbackBase(std::move(on_reject)));
-
-    return Promise<ReturnedPromiseResolveT, ReturnedPromiseRejectT>(
-        ConstructAbstractPromiseWithSinglePrerequisite(
-            task_runner, from_here, abstract_promise_.get(),
-            std::move(executor_data)));
+    return Promise<ReturnedPromiseResolveT,
+                   ReturnedPromiseRejectT>(internal::AbstractPromise::Create(
+        std::move(task_runner), from_here,
+        std::make_unique<internal::AbstractPromise::AdjacencyList>(
+            abstract_promise_),
+        RejectPolicy::kMustCatchRejection,
+        internal::AbstractPromise::ConstructWith<
+            internal::DependentList::ConstructUnresolved,
+            internal::ThenAndCatchExecutor<
+                OnceClosure,  // Never called.
+                OnceCallback<typename RejectCallbackTraits::SignatureType>,
+                internal::NoCallback, RejectType,
+                Resolved<ReturnedPromiseResolveT>,
+                Rejected<ReturnedPromiseRejectT>>>(),
+        OnceClosure(),
+        static_cast<OnceCallback<typename RejectCallbackTraits::SignatureType>>(
+            std::forward<RejectCb>(on_reject))));
   }
 
   template <typename RejectCb>
   auto CatchOn(const TaskTraits& traits,
                const Location& from_here,
                RejectCb&& on_reject) noexcept {
-    return CatchOn(CreateTaskRunner(traits), from_here,
+    return CatchOn(CreateTaskRunnerWithTraits(traits), from_here,
                    std::forward<RejectCb>(on_reject));
   }
 
   template <typename RejectCb>
   auto CatchHere(const Location& from_here, RejectCb&& on_reject) noexcept {
-    return CatchOn(internal::GetCurrentSequence(), from_here,
+    return CatchOn(SequencedTaskRunnerHandle::Get(), from_here,
                    std::forward<RejectCb>(on_reject));
   }
 
@@ -198,15 +160,11 @@ class Promise {
   // 2. Promise<Resolve, Reject> where the result is a curried promise.
   //
   // If a promise has multiple Thens they will be run in order of creation.
-  //
-  // |task_runner| is const-ref to avoid bloat due the destructor (which posts a
-  // task).
   template <typename ResolveCb>
-  NOINLINE auto ThenOn(const scoped_refptr<TaskRunner>& task_runner,
+  NOINLINE auto ThenOn(scoped_refptr<TaskRunner> task_runner,
                        const Location& from_here,
-                       ResolveCb on_resolve) noexcept {
+                       ResolveCb&& on_resolve) noexcept {
     DCHECK(abstract_promise_);
-    DCHECK(!on_resolve.is_null());
 
     // Extract properties from the |on_resolve| callback.
     using ResolveCallbackTraits =
@@ -236,31 +194,33 @@ class Promise {
             std::is_const<std::remove_reference_t<ResolveCallbackArgT>>::value,
         "Google C++ Style: References in function parameters must be const.");
 
-    internal::PromiseExecutor::Data executor_data(
-        in_place_type_t<internal::ThenAndCatchExecutor<
-            OnceCallback<typename ResolveCallbackTraits::SignatureType>,
-            OnceClosure, ResolveType, internal::NoCallback,
-            Resolved<ReturnedPromiseResolveT>,
-            Rejected<ReturnedPromiseRejectT>>>(),
-        internal::ToCallbackBase(std::move(on_resolve)), OnceClosure());
-
     return Promise<ReturnedPromiseResolveT, ReturnedPromiseRejectT>(
-        ConstructAbstractPromiseWithSinglePrerequisite(
-            task_runner, from_here, abstract_promise_.get(),
-            std::move(executor_data)));
+        internal::AbstractPromise::Create(
+            std::move(task_runner), from_here,
+            std::make_unique<internal::AbstractPromise::AdjacencyList>(
+                abstract_promise_),
+            RejectPolicy::kMustCatchRejection,
+            internal::AbstractPromise::ConstructWith<
+                internal::DependentList::ConstructUnresolved,
+                internal::ThenAndCatchExecutor<
+                    OnceCallback<typename ResolveCallbackTraits::SignatureType>,
+                    OnceClosure, ResolveType, internal::NoCallback,
+                    Resolved<ReturnedPromiseResolveT>,
+                    Rejected<ReturnedPromiseRejectT>>>(),
+            std::forward<ResolveCb>(on_resolve), OnceClosure()));
   }
 
   template <typename ResolveCb>
   auto ThenOn(const TaskTraits& traits,
               const Location& from_here,
               ResolveCb&& on_resolve) noexcept {
-    return ThenOn(CreateTaskRunner(traits), from_here,
+    return ThenOn(CreateTaskRunnerWithTraits(traits), from_here,
                   std::forward<ResolveCb>(on_resolve));
   }
 
   template <typename ResolveCb>
   auto ThenHere(const Location& from_here, ResolveCb&& on_resolve) noexcept {
-    return ThenOn(internal::GetCurrentSequence(), from_here,
+    return ThenOn(SequencedTaskRunnerHandle::Get(), from_here,
                   std::forward<ResolveCb>(on_resolve));
   }
 
@@ -281,17 +241,12 @@ class Promise {
   // Note if either |on_resolve| or |on_reject| are canceled (due to weak
   // pointer invalidation), then the other must be canceled at the same time as
   // well. This restriction only applies to this form of ThenOn/ThenHere.
-  //
-  // |task_runner| is const-ref to avoid bloat due the destructor (which posts a
-  // task).
   template <typename ResolveCb, typename RejectCb>
-  NOINLINE auto ThenOn(const scoped_refptr<TaskRunner>& task_runner,
+  NOINLINE auto ThenOn(scoped_refptr<TaskRunner> task_runner,
                        const Location& from_here,
-                       ResolveCb on_resolve,
-                       RejectCb on_reject) noexcept {
+                       ResolveCb&& on_resolve,
+                       RejectCb&& on_reject) noexcept {
     DCHECK(abstract_promise_);
-    DCHECK(!on_resolve.is_null());
-    DCHECK(!on_reject.is_null());
 
     // Extract properties from the |on_resolve| and |on_reject| callbacks.
     using ResolveCallbackTraits = internal::CallbackTraits<ResolveCb>;
@@ -335,19 +290,24 @@ class Promise {
             std::is_const<std::remove_reference_t<RejectCallbackArgT>>::value,
         "Google C++ Style: References in function parameters must be const.");
 
-    internal::PromiseExecutor::Data executor_data(
-        in_place_type_t<internal::ThenAndCatchExecutor<
-            OnceCallback<typename ResolveCallbackTraits::SignatureType>,
-            OnceCallback<typename RejectCallbackTraits::SignatureType>,
-            ResolveType, RejectType, Resolved<ReturnedPromiseResolveT>,
-            Rejected<ReturnedPromiseRejectT>>>(),
-        internal::ToCallbackBase(std::move(on_resolve)),
-        internal::ToCallbackBase(std::move(on_reject)));
-
-    return Promise<ReturnedPromiseResolveT, ReturnedPromiseRejectT>(
-        ConstructAbstractPromiseWithSinglePrerequisite(
-            task_runner, from_here, abstract_promise_.get(),
-            std::move(executor_data)));
+    return Promise<ReturnedPromiseResolveT,
+                   ReturnedPromiseRejectT>(internal::AbstractPromise::Create(
+        std::move(task_runner), from_here,
+        std::make_unique<internal::AbstractPromise::AdjacencyList>(
+            abstract_promise_),
+        RejectPolicy::kMustCatchRejection,
+        internal::AbstractPromise::ConstructWith<
+            internal::DependentList::ConstructUnresolved,
+            internal::ThenAndCatchExecutor<
+                OnceCallback<typename ResolveCallbackTraits::SignatureType>,
+                OnceCallback<typename RejectCallbackTraits::SignatureType>,
+                ResolveType, RejectType, Resolved<ReturnedPromiseResolveT>,
+                Rejected<ReturnedPromiseRejectT>>>(),
+        static_cast<
+            OnceCallback<typename ResolveCallbackTraits::SignatureType>>(
+            std::forward<ResolveCb>(on_resolve)),
+        static_cast<OnceCallback<typename RejectCallbackTraits::SignatureType>>(
+            std::forward<RejectCb>(on_reject))));
   }
 
   template <typename ResolveCb, typename RejectCb>
@@ -355,7 +315,7 @@ class Promise {
               const Location& from_here,
               ResolveCb&& on_resolve,
               RejectCb&& on_reject) noexcept {
-    return ThenOn(CreateTaskRunner(traits), from_here,
+    return ThenOn(CreateTaskRunnerWithTraits(traits), from_here,
                   std::forward<ResolveCb>(on_resolve),
                   std::forward<RejectCb>(on_reject));
   }
@@ -364,7 +324,7 @@ class Promise {
   auto ThenHere(const Location& from_here,
                 ResolveCb&& on_resolve,
                 RejectCb&& on_reject) noexcept {
-    return ThenOn(internal::GetCurrentSequence(), from_here,
+    return ThenOn(SequencedTaskRunnerHandle::Get(), from_here,
                   std::forward<ResolveCb>(on_resolve),
                   std::forward<RejectCb>(on_reject));
   }
@@ -375,13 +335,10 @@ class Promise {
   // promises, this doesn't return a Promise that is resolved or rejected with
   // the parent's value if |finally_callback| returns void. (We could support
   // this if needed it but it seems unlikely to be used).
-  //
-  // |task_runner| is const-ref to avoid bloat due the destructor (which posts a
-  // task).
   template <typename FinallyCb>
-  NOINLINE auto FinallyOn(const scoped_refptr<TaskRunner>& task_runner,
+  NOINLINE auto FinallyOn(scoped_refptr<TaskRunner> task_runner,
                           const Location& from_here,
-                          FinallyCb finally_callback) noexcept {
+                          FinallyCb&& finally_callback) noexcept {
     DCHECK(abstract_promise_);
 
     // Extract properties from |finally_callback| callback.
@@ -393,31 +350,33 @@ class Promise {
     static_assert(std::is_void<CallbackArgT>::value,
                   "|finally_callback| callback must have no arguments");
 
-    internal::PromiseExecutor::Data executor_data(
-        in_place_type_t<internal::FinallyExecutor<
-            OnceCallback<typename CallbackTraits::ReturnType()>,
-            Resolved<ReturnedPromiseResolveT>,
-            Rejected<ReturnedPromiseRejectT>>>(),
-        internal::ToCallbackBase(std::move(finally_callback)));
-
     return Promise<ReturnedPromiseResolveT, ReturnedPromiseRejectT>(
-        ConstructAbstractPromiseWithSinglePrerequisite(
-            task_runner, from_here, abstract_promise_.get(),
-            std::move(executor_data)));
+        internal::AbstractPromise::Create(
+            std::move(task_runner), from_here,
+            std::make_unique<internal::AbstractPromise::AdjacencyList>(
+                abstract_promise_),
+            RejectPolicy::kMustCatchRejection,
+            internal::AbstractPromise::ConstructWith<
+                internal::DependentList::ConstructUnresolved,
+                internal::FinallyExecutor<
+                    OnceCallback<typename CallbackTraits::ReturnType()>,
+                    Resolved<ReturnedPromiseResolveT>,
+                    Rejected<ReturnedPromiseRejectT>>>(),
+            std::forward<FinallyCb>(finally_callback)));
   }
 
   template <typename FinallyCb>
   auto FinallyOn(const TaskTraits& traits,
                  const Location& from_here,
                  FinallyCb&& finally_callback) noexcept {
-    return FinallyOn(CreateTaskRunner(traits), from_here,
+    return FinallyOn(CreateTaskRunnerWithTraits(traits), from_here,
                      std::move(finally_callback));
   }
 
   template <typename FinallyCb>
   auto FinallyHere(const Location& from_here,
                    FinallyCb&& finally_callback) noexcept {
-    return FinallyOn(internal::GetCurrentSequence(), from_here,
+    return FinallyOn(SequencedTaskRunnerHandle::Get(), from_here,
                      std::move(finally_callback));
   }
 
@@ -425,16 +384,14 @@ class Promise {
   NOINLINE static Promise<ResolveType, RejectType> CreateResolved(
       const Location& from_here,
       Args&&... args) noexcept {
-    internal::PromiseExecutor::Data executor_data(
-        in_place_type_t<internal::NoOpPromiseExecutor>(),
-        /* can_resolve */ true,
-        /* can_reject */ false);
-
     scoped_refptr<internal::AbstractPromise> promise(
         internal::AbstractPromise::Create(
             nullptr, from_here, nullptr, RejectPolicy::kMustCatchRejection,
-            internal::DependentList::ConstructResolved(),
-            std::move(executor_data)));
+            internal::AbstractPromise::ConstructWith<
+                internal::DependentList::ConstructResolved,
+                internal::NoOpPromiseExecutor>(),
+            /* can_resolve */ true,
+            /* can_reject */ false));
     promise->emplace(in_place_type_t<Resolved<ResolveType>>(),
                      std::forward<Args>(args)...);
     return Promise<ResolveType, RejectType>(std::move(promise));
@@ -444,16 +401,14 @@ class Promise {
   NOINLINE static Promise<ResolveType, RejectType> CreateRejected(
       const Location& from_here,
       Args&&... args) noexcept {
-    internal::PromiseExecutor::Data executor_data(
-        in_place_type_t<internal::NoOpPromiseExecutor>(),
-        /* can_resolve */ false,
-        /* can_reject */ true);
-
     scoped_refptr<internal::AbstractPromise> promise(
         internal::AbstractPromise::Create(
             nullptr, from_here, nullptr, RejectPolicy::kMustCatchRejection,
-            internal::DependentList::ConstructResolved(),
-            std::move(executor_data)));
+            internal::AbstractPromise::ConstructWith<
+                internal::DependentList::ConstructRejected,
+                internal::NoOpPromiseExecutor>(),
+            /* can_resolve */ false,
+            /* can_reject */ true));
     promise->emplace(in_place_type_t<Rejected<RejectType>>(),
                      std::forward<Args>(args)...);
     return Promise<ResolveType, RejectType>(std::move(promise));
@@ -504,24 +459,20 @@ class ManualPromiseResolver {
 
   ManualPromiseResolver(
       const Location& from_here,
-      RejectPolicy reject_policy = RejectPolicy::kMustCatchRejection) {
-    promise_ = Promise<ResolveType, RejectType>(
-        internal::ConstructManualPromiseResolverPromise(
-            from_here, reject_policy,
-            /* can_resolve */ !std::is_same<ResolveType, NoResolve>::value,
-            /* can_reject */ !std::is_same<RejectType, NoReject>::value));
-  }
+      RejectPolicy reject_policy = RejectPolicy::kMustCatchRejection)
+      : promise_(SequencedTaskRunnerHandle::Get(), from_here, reject_policy) {}
 
-  ~ManualPromiseResolver() = default;
-
-  void Resolve(Promise<ResolveType, RejectType> promise) noexcept {
-    promise_.abstract_promise_->emplace(std::move(promise.abstract_promise_));
-    promise_.abstract_promise_->OnResolved();
+  ~ManualPromiseResolver() {
+    // If the promise wasn't resolved or rejected, then cancel it to make sure
+    // we don't leak memory.
+    if (!promise_.abstract_promise_->IsSettled())
+      promise_.abstract_promise_->OnCanceled();
   }
 
   template <typename... Args>
   void Resolve(Args&&... arg) noexcept {
-    DCHECK(!promise_.abstract_promise_->IsSettled());
+    DCHECK(!promise_.abstract_promise_->IsResolved());
+    DCHECK(!promise_.abstract_promise_->IsRejected());
     static_assert(!std::is_same<NoResolve, ResolveType>::value,
                   "Can't resolve a NoResolve promise.");
     promise_.abstract_promise_->emplace(
@@ -531,7 +482,8 @@ class ManualPromiseResolver {
 
   template <typename... Args>
   void Reject(Args&&... arg) noexcept {
-    DCHECK(!promise_.abstract_promise_->IsSettled());
+    DCHECK(!promise_.abstract_promise_->IsResolved());
+    DCHECK(!promise_.abstract_promise_->IsRejected());
     static_assert(!std::is_same<NoReject, RejectType>::value,
                   "Can't reject a NoReject promise.");
     promise_.abstract_promise_->emplace(
@@ -633,25 +585,22 @@ class Promises {
         std::tuple<internal::ToNonVoidT<Resolve>...>;
     using ReturnedPromiseRejectT = Reject;
 
-    std::vector<internal::DependentList::Node> prerequisite_list(
+    std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
         sizeof...(promises));
     int i = 0;
     for (auto&& p : {promises.abstract_promise_...}) {
-      prerequisite_list[i++].SetPrerequisite(p.get());
+      prerequisite_list[i++].prerequisite = std::move(p);
     }
-
-    internal::PromiseExecutor::Data executor_data(
-        (in_place_type_t<internal::AllTuplePromiseExecutor<
-             ReturnedPromiseResolveT, ReturnedPromiseRejectT>>()));
-
     return Promise<ReturnedPromiseResolveT, ReturnedPromiseRejectT>(
         internal::AbstractPromise::Create(
             nullptr, from_here,
             std::make_unique<internal::AbstractPromise::AdjacencyList>(
                 std::move(prerequisite_list)),
             RejectPolicy::kMustCatchRejection,
-            internal::DependentList::ConstructUnresolved(),
-            std::move(executor_data)));
+            internal::AbstractPromise::ConstructWith<
+                internal::DependentList::ConstructUnresolved,
+                internal::AllTuplePromiseExecutor<ReturnedPromiseResolveT,
+                                                  ReturnedPromiseRejectT>>()));
   }
 
   template <typename Resolve, typename Reject>

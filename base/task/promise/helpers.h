@@ -15,22 +15,10 @@
 #include "base/task/promise/promise_result.h"
 
 namespace base {
-class DoNothing;
-
 namespace internal {
-
-// A wrapper around SequencedTaskRunnerHandle::Get(). This file is included by
-// base/task_runner.h which means we can't include anything that depends on
-// that!
-scoped_refptr<TaskRunner> BASE_EXPORT GetCurrentSequence();
 
 template <typename T>
 using ToNonVoidT = std::conditional_t<std::is_void<T>::value, Void, T>;
-
-// Tag dispatch helper for PostTaskExecutor and ThenAndCatchExecutor.
-struct CouldResolveOrReject {};
-struct CanOnlyResolve {};
-struct CanOnlyReject {};
 
 // PromiseCallbackTraits computes the resolve and reject types of a Promise
 // from the return type of a resolve or reject callback.
@@ -47,7 +35,6 @@ template <typename T>
 struct PromiseCallbackTraits {
   using ResolveType = T;
   using RejectType = NoReject;
-  using TagType = CanOnlyResolve;
   static constexpr bool could_resolve = true;
   static constexpr bool could_reject = false;
 };
@@ -56,7 +43,6 @@ template <typename T>
 struct PromiseCallbackTraits<Resolved<T>> {
   using ResolveType = T;
   using RejectType = NoReject;
-  using TagType = CanOnlyResolve;
   static constexpr bool could_resolve = true;
   static constexpr bool could_reject = false;
 };
@@ -65,7 +51,6 @@ template <typename T>
 struct PromiseCallbackTraits<Rejected<T>> {
   using ResolveType = NoResolve;
   using RejectType = T;
-  using TagType = CanOnlyReject;
   static constexpr bool could_resolve = false;
   static constexpr bool could_reject = true;
 };
@@ -74,7 +59,6 @@ template <typename Reject>
 struct PromiseCallbackTraits<Promise<NoResolve, Reject>> {
   using ResolveType = NoResolve;
   using RejectType = Reject;
-  using TagType = CanOnlyReject;
   static constexpr bool could_resolve = false;
   static constexpr bool could_reject = true;
 };
@@ -83,7 +67,6 @@ template <typename Resolve>
 struct PromiseCallbackTraits<Promise<Resolve, NoReject>> {
   using ResolveType = Resolve;
   using RejectType = NoReject;
-  using TagType = CanOnlyResolve;
   static constexpr bool could_resolve = true;
   static constexpr bool could_reject = false;
 };
@@ -92,7 +75,6 @@ template <typename Resolve, typename Reject>
 struct PromiseCallbackTraits<Promise<Resolve, Reject>> {
   using ResolveType = Resolve;
   using RejectType = Reject;
-  using TagType = CouldResolveOrReject;
   static constexpr bool could_resolve = true;
   static constexpr bool could_reject = true;
 };
@@ -101,7 +83,6 @@ template <typename Reject>
 struct PromiseCallbackTraits<PromiseResult<NoResolve, Reject>> {
   using ResolveType = NoResolve;
   using RejectType = Reject;
-  using TagType = CanOnlyReject;
   static constexpr bool could_resolve = false;
   static constexpr bool could_reject = true;
 };
@@ -110,7 +91,6 @@ template <typename Resolve>
 struct PromiseCallbackTraits<PromiseResult<Resolve, NoReject>> {
   using ResolveType = Resolve;
   using RejectType = NoReject;
-  using TagType = CanOnlyResolve;
   static constexpr bool could_resolve = true;
   static constexpr bool could_reject = false;
 };
@@ -119,7 +99,6 @@ template <typename Resolve, typename Reject>
 struct PromiseCallbackTraits<PromiseResult<Resolve, Reject>> {
   using ResolveType = Resolve;
   using RejectType = Reject;
-  using TagType = CouldResolveOrReject;
   static constexpr bool could_resolve = true;
   static constexpr bool could_reject = true;
 };
@@ -157,9 +136,11 @@ struct UseMoveSemantics : public std::integral_constant<bool, UseMove<T>()> {
   static_assert(!std::is_rvalue_reference<T>::value,
                 "Promise<T&&> not supported");
 
-  static constexpr PromiseExecutor::ArgumentPassingType argument_passing_type =
-      UseMove<T>() ? PromiseExecutor::ArgumentPassingType::kMove
-                   : PromiseExecutor::ArgumentPassingType::kNormal;
+  static constexpr AbstractPromise::Executor::ArgumentPassingType
+      argument_passing_type =
+          UseMove<T>()
+              ? AbstractPromise::Executor::ArgumentPassingType::kMove
+              : AbstractPromise::Executor::ArgumentPassingType::kNormal;
 };
 
 // A std::tuple is deemed to need move semantics if any of it's members need
@@ -167,10 +148,11 @@ struct UseMoveSemantics : public std::integral_constant<bool, UseMove<T>()> {
 template <typename... Ts>
 struct UseMoveSemantics<std::tuple<Ts...>>
     : public std::integral_constant<bool, any_of({UseMove<Ts>()...})> {
-  static constexpr PromiseExecutor::ArgumentPassingType argument_passing_type =
-      any_of({UseMove<Ts>()...})
-          ? PromiseExecutor::ArgumentPassingType::kMove
-          : PromiseExecutor::ArgumentPassingType::kNormal;
+  static constexpr AbstractPromise::Executor::ArgumentPassingType
+      argument_passing_type =
+          any_of({UseMove<Ts>()...})
+              ? AbstractPromise::Executor::ArgumentPassingType::kMove
+              : AbstractPromise::Executor::ArgumentPassingType::kNormal;
 };
 
 // CallbackTraits extracts properties relevant to Promises from a callback.
@@ -197,8 +179,9 @@ struct CallbackTraits<T()> {
   using ArgType = void;
   using ReturnType = T;
   using SignatureType = T();
-  static constexpr PromiseExecutor::ArgumentPassingType argument_passing_type =
-      PromiseExecutor::ArgumentPassingType::kNormal;
+  static constexpr AbstractPromise::Executor::ArgumentPassingType
+      argument_passing_type =
+          AbstractPromise::Executor::ArgumentPassingType::kNormal;
 };
 
 template <typename T, typename Arg>
@@ -208,8 +191,8 @@ struct CallbackTraits<T(Arg)> {
   using ArgType = Arg;
   using ReturnType = T;
   using SignatureType = T(Arg);
-  static constexpr PromiseExecutor::ArgumentPassingType argument_passing_type =
-      UseMoveSemantics<Arg>::argument_passing_type;
+  static constexpr AbstractPromise::Executor::ArgumentPassingType
+      argument_passing_type = UseMoveSemantics<Arg>::argument_passing_type;
 };
 
 template <typename T, typename... Args>
@@ -222,21 +205,11 @@ struct CallbackTraits<T(Args...)> {
   using SignatureType = T(Args...);
 
   // If any arguments need move semantics, treat as if they all do.
-  static constexpr PromiseExecutor::ArgumentPassingType argument_passing_type =
-      any_of({UseMoveSemantics<Args>::value...})
-          ? PromiseExecutor::ArgumentPassingType::kMove
-          : PromiseExecutor::ArgumentPassingType::kNormal;
-};
-
-template <>
-struct CallbackTraits<DoNothing> {
-  using ResolveType = void;
-  using RejectType = NoReject;
-  using ArgType = void;
-  using ReturnType = void;
-  using SignatureType = void();
-  static constexpr PromiseExecutor::ArgumentPassingType argument_passing_type =
-      PromiseExecutor::ArgumentPassingType::kNormal;
+  static constexpr AbstractPromise::Executor::ArgumentPassingType
+      argument_passing_type =
+          any_of({UseMoveSemantics<Args>::value...})
+              ? AbstractPromise::Executor::ArgumentPassingType::kMove
+              : AbstractPromise::Executor::ArgumentPassingType::kNormal;
 };
 
 // Adaptors for OnceCallback and RepeatingCallback
@@ -580,77 +553,49 @@ struct RunHelper<OnceCallback<CbResult(CbArgs...)>,
   }
 };
 
-// For use with base::Bind*. Cancels the promise if the callback was not run by
-// the time the callback is deleted.
-class BASE_EXPORT PromiseHolder {
- public:
-  explicit PromiseHolder(scoped_refptr<internal::AbstractPromise> promise);
-
-  ~PromiseHolder();
-
-  PromiseHolder(PromiseHolder&& other);
-
-  scoped_refptr<internal::AbstractPromise> Unwrap() const;
-
- private:
-  mutable scoped_refptr<internal::AbstractPromise> promise_;
-};
-
-}  // namespace internal
-
-template <>
-struct BindUnwrapTraits<internal::PromiseHolder> {
-  static scoped_refptr<internal::AbstractPromise> Unwrap(
-      const internal::PromiseHolder& o) {
-    return o.Unwrap();
-  }
-};
-
-namespace internal {
-
 // Used by ManualPromiseResolver<> to generate callbacks.
 template <typename T, typename... Args>
 class PromiseCallbackHelper {
  public:
-  using Callback = base::OnceCallback<void(Args...)>;
-  using RepeatingCallback = base::RepeatingCallback<void(Args...)>;
+  using Callback = base::OnceCallback<void(Args&&...)>;
+  using RepeatingCallback = base::RepeatingCallback<void(Args&&...)>;
 
   static Callback GetResolveCallback(scoped_refptr<AbstractPromise>& promise) {
     return base::BindOnce(
-        [](scoped_refptr<AbstractPromise> promise, Args... args) {
+        [](scoped_refptr<AbstractPromise> promise, Args&&... args) {
           promise->emplace(Resolved<T>{std::forward<Args>(args)...});
           promise->OnResolved();
         },
-        PromiseHolder(promise));
+        promise);
   }
 
   static RepeatingCallback GetRepeatingResolveCallback(
       scoped_refptr<AbstractPromise>& promise) {
     return base::BindRepeating(
-        [](scoped_refptr<AbstractPromise> promise, Args... args) {
+        [](scoped_refptr<AbstractPromise> promise, Args&&... args) {
           promise->emplace(Resolved<T>{std::forward<Args>(args)...});
           promise->OnResolved();
         },
-        PromiseHolder(promise));
+        promise);
   }
 
   static Callback GetRejectCallback(scoped_refptr<AbstractPromise>& promise) {
     return base::BindOnce(
-        [](scoped_refptr<AbstractPromise> promise, Args... args) {
+        [](scoped_refptr<AbstractPromise> promise, Args&&... args) {
           promise->emplace(Rejected<T>{std::forward<Args>(args)...});
           promise->OnRejected();
         },
-        PromiseHolder(promise));
+        promise);
   }
 
   static RepeatingCallback GetRepeatingRejectCallback(
       scoped_refptr<AbstractPromise>& promise) {
     return base::BindRepeating(
-        [](scoped_refptr<AbstractPromise> promise, Args... args) {
+        [](scoped_refptr<AbstractPromise> promise, Args&&... args) {
           promise->emplace(Rejected<T>{std::forward<Args>(args)...});
           promise->OnRejected();
         },
-        PromiseHolder(promise));
+        promise);
   }
 };
 
@@ -660,13 +605,13 @@ class PromiseCallbackHelper {
 template <typename PromiseType, typename CallbackArgType>
 struct IsValidPromiseArg {
   static constexpr bool value =
-      std::is_convertible<PromiseType, std::decay_t<CallbackArgType>>::value;
+      std::is_same<PromiseType, std::decay_t<CallbackArgType>>::value;
 };
 
 template <typename PromiseType, typename CallbackArgType>
 struct IsValidPromiseArg<PromiseType&, CallbackArgType> {
   static constexpr bool value =
-      std::is_convertible<PromiseType&, CallbackArgType>::value;
+      std::is_same<PromiseType&, CallbackArgType>::value;
 };
 
 // This template helps assign the reject value from a prerequisite into the
@@ -680,41 +625,6 @@ struct AllPromiseRejectHelper {
 };
 
 // TODO(alexclarke): Specalize AllPromiseRejectHelper for variants.
-
-// To reduce template bloat executors hold CallbackBase. These functions convert
-// various types to CallbackBase.
-DoNothing BASE_EXPORT ToCallbackBase(DoNothing task);
-
-template <typename CallbackT>
-CallbackBase&& ToCallbackBase(CallbackT&& task) {
-  static_assert(sizeof(CallbackBase) == sizeof(CallbackT),
-                "We assume it's possible to cast from CallbackBase to "
-                "CallbackT");
-  return static_cast<CallbackBase&&>(task);
-}
-
-template <typename CallbackT>
-CallbackBase&& ToCallbackBase(const CallbackT&& task) {
-  static_assert(sizeof(CallbackBase) == sizeof(CallbackT),
-                "We assume it's possible to cast from CallbackBase to "
-                "CallbackT");
-  return static_cast<CallbackBase&&>(const_cast<CallbackT&&>(task));
-}
-
-// Helps reduce template bloat by moving AbstractPromise construction out of
-// line.
-scoped_refptr<AbstractPromise> BASE_EXPORT
-ConstructAbstractPromiseWithSinglePrerequisite(
-    const scoped_refptr<TaskRunner>& task_runner,
-    const Location& from_here,
-    AbstractPromise* prerequsite,
-    internal::PromiseExecutor::Data&& executor_data) noexcept;
-
-scoped_refptr<AbstractPromise> BASE_EXPORT
-ConstructManualPromiseResolverPromise(const Location& from_here,
-                                      RejectPolicy reject_policy,
-                                      bool can_resolve,
-                                      bool can_reject);
 
 }  // namespace internal
 }  // namespace base

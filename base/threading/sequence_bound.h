@@ -43,7 +43,7 @@ namespace base {
 //   // On any thread...
 //   scoped_refptr<SequencedTaskRunner> main_task_runner = ...;
 //   auto widget = SequenceBound<MyClass>(main_task_runner, "My Title");
-//   widget.Post(FROM_HERE, &MyClass::DoSomething, 1234);
+//   widget.Post(&MyClass::DoSomething, 1234);
 //
 // Note that |widget| is constructed asynchronously on |main_task_runner|,
 // but calling Post() immediately is safe, since the actual call is posted
@@ -234,8 +234,8 @@ class SequenceBound {
 
   // Run on impl thread to construct |t|'s storage.
   template <typename... Args>
-  static void ConstructOwnerRecord(T* t, std::decay_t<Args>&&... args) {
-    new (t) T(std::move(args)...);
+  static void ConstructOwnerRecord(T* t, Args&&... args) {
+    new (t) T(std::forward<Args>(args)...);
   }
 
   // Destruct the object associated with |t|, and delete |storage|.

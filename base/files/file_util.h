@@ -315,7 +315,8 @@ BASE_EXPORT bool GetFileSize(const FilePath& file_path, int64_t* file_size);
 // On windows, make sure the path starts with a lettered drive.
 // |path| must reference a file.  Function will fail if |path| points to
 // a directory or to a nonexistent path.  On windows, this function will
-// fail if |real_path| would be longer than MAX_PATH characters.
+// fail if |path| is a junction or symlink that points to an empty file,
+// or if |real_path| would be longer than MAX_PATH characters.
 BASE_EXPORT bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
 
 #if defined(OS_WIN)
@@ -325,6 +326,13 @@ BASE_EXPORT bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
 // a drive letter ("C:\...").  Return false if no such path exists.
 BASE_EXPORT bool DevicePathToDriveLetterPath(const FilePath& device_path,
                                              FilePath* drive_letter_path);
+
+// Given an existing file in |path|, set |real_path| to the path
+// in native NT format, of the form "\Device\HarddiskVolumeXX\..".
+// Returns false if the path can not be found. Empty files cannot
+// be resolved with this function.
+BASE_EXPORT bool NormalizeToNativeFilePath(const FilePath& path,
+                                           FilePath* nt_path);
 
 // Method that wraps the win32 GetLongPathName API, normalizing the specified
 // path to its long form. An example where this is needed is when comparing

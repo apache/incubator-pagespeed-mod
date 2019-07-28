@@ -42,7 +42,7 @@ class BASE_EXPORT MemoryPressureMonitorNotifying
 
   // Get the current memory pressure level.
   MemoryPressureListener::MemoryPressureLevel GetCurrentPressureLevel()
-      const override;
+      override;
   void SetDispatchCallback(const DispatchCallback& callback) override;
 
   // GetMarginFileParts returns a vector of the configured margin file values.

@@ -13,7 +13,6 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool/task_tracker.h"
 #include "base/task/thread_pool/thread_pool.h"
-#include "base/task/thread_pool/thread_pool_clock.h"
 
 namespace base {
 namespace internal {
@@ -73,12 +72,9 @@ void ServiceThread::PerformHeartbeatLatencyReport() const {
     return;
 
   static constexpr TaskTraits kReportedTraits[] = {
-      {ThreadPool(), TaskPriority::BEST_EFFORT},
-      {ThreadPool(), TaskPriority::BEST_EFFORT, MayBlock()},
-      {ThreadPool(), TaskPriority::USER_VISIBLE},
-      {ThreadPool(), TaskPriority::USER_VISIBLE, MayBlock()},
-      {ThreadPool(), TaskPriority::USER_BLOCKING},
-      {ThreadPool(), TaskPriority::USER_BLOCKING, MayBlock()}};
+      {TaskPriority::BEST_EFFORT},   {TaskPriority::BEST_EFFORT, MayBlock()},
+      {TaskPriority::USER_VISIBLE},  {TaskPriority::USER_VISIBLE, MayBlock()},
+      {TaskPriority::USER_BLOCKING}, {TaskPriority::USER_BLOCKING, MayBlock()}};
 
   // Only record latency for one set of TaskTraits per report to avoid bias in
   // the order in which tasks are posted (should we record all at once) as well
@@ -92,7 +88,7 @@ void ServiceThread::PerformHeartbeatLatencyReport() const {
       kReportedTraits[RandInt(0, base::size(kReportedTraits) - 1)];
 
   // Post through the static API to time the full stack. Use a new Now() for
-  // every set of traits in case PostTask() itself is slow.
+  // every set of traits in case PostTaskWithTraits() itself is slow.
   // Bonus: this approach also includes the overhead of BindOnce() in the
   // reported latency.
   // TODO(jessemckenna): pass |profiled_traits| directly to
@@ -100,12 +96,12 @@ void ServiceThread::PerformHeartbeatLatencyReport() const {
   // error on NaCl is fixed
   TaskPriority task_priority = profiled_traits.priority();
   bool may_block = profiled_traits.may_block();
-  base::PostTask(
+  base::PostTaskWithTraits(
       FROM_HERE, profiled_traits,
       BindOnce(
           &TaskTracker::RecordHeartbeatLatencyAndTasksRunWhileQueuingHistograms,
-          Unretained(task_tracker_), task_priority, may_block,
-          ThreadPoolClock::Now(), task_tracker_->GetNumTasksRun()));
+          Unretained(task_tracker_), task_priority, may_block, TimeTicks::Now(),
+          task_tracker_->GetNumTasksRun()));
 }
 
 }  // namespace internal

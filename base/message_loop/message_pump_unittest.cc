@@ -6,14 +6,10 @@
 
 #include <type_traits>
 
-#include "base/bind.h"
 #include "base/message_loop/message_loop.h"
 #include "base/message_loop/message_pump_for_io.h"
 #include "base/message_loop/message_pump_for_ui.h"
-#include "base/run_loop.h"
-#include "base/task/single_thread_task_executor.h"
 #include "base/test/bind_test_util.h"
-#include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -80,9 +76,6 @@ bool PumpTypeUsesDoSomeWork(MessageLoop::Type type) {
 #if defined(OS_MACOSX)
     case MessagePump::Type::NS_RUNLOOP:
 #endif  // defined(OS_MACOSX)
-#if defined(OS_WIN)
-    case MessagePump::Type::UI_WITH_WM_QUIT_SUPPORT:
-#endif  // defined(OS_WIN)
       // Not tested in this file.
       NOTREACHED();
       return false;
@@ -360,32 +353,5 @@ INSTANTIATE_TEST_SUITE_P(,
                          ::testing::Values(MessageLoop::TYPE_DEFAULT,
                                            MessageLoop::TYPE_UI,
                                            MessageLoop::TYPE_IO));
-
-#if defined(OS_WIN)
-
-TEST(MessagePumpTestWin, WmQuitIsNotIgnoredWithEnableWmQuit) {
-  SingleThreadTaskExecutor task_executor(
-      MessagePump::Type::UI_WITH_WM_QUIT_SUPPORT);
-
-  // Post a WM_QUIT message to the current thread.
-  ::PostQuitMessage(0);
-
-  // Post a task to the current thread, with a small delay to make it less
-  // likely that we process the posted task before looking for WM_* messages.
-  RunLoop run_loop;
-  task_executor.task_runner()->PostDelayedTask(FROM_HERE,
-                                               BindOnce(
-                                                   [](OnceClosure closure) {
-                                                     ADD_FAILURE();
-                                                     std::move(closure).Run();
-                                                   },
-                                                   run_loop.QuitClosure()),
-                                               TestTimeouts::tiny_timeout());
-
-  // Run the loop. It should not result in ADD_FAILURE() getting called.
-  run_loop.Run();
-}
-
-#endif  // defined(OS_WIN)
 
 }  // namespace base

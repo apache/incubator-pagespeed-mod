@@ -24,12 +24,14 @@ class BASE_EXPORT NoOpPromiseExecutor {
       bool can_reject,
       RejectPolicy reject_policy);
 
-  PromiseExecutor::PrerequisitePolicy GetPrerequisitePolicy() const;
+  AbstractPromise::Executor::PrerequisitePolicy GetPrerequisitePolicy() const;
   bool IsCancelled() const;
 
 #if DCHECK_IS_ON()
-  PromiseExecutor::ArgumentPassingType ResolveArgumentPassingType() const;
-  PromiseExecutor::ArgumentPassingType RejectArgumentPassingType() const;
+  AbstractPromise::Executor::ArgumentPassingType ResolveArgumentPassingType()
+      const;
+  AbstractPromise::Executor::ArgumentPassingType RejectArgumentPassingType()
+      const;
   bool CanResolve() const;
   bool CanReject() const;
 #endif

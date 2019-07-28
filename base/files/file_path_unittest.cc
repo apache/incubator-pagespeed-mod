@@ -1317,17 +1317,6 @@ TEST_F(FilePathTest, GetHFSDecomposedFormWithInvalidInput) {
     EXPECT_TRUE(observed.empty());
   }
 }
-
-TEST_F(FilePathTest, CompareIgnoreCaseWithInvalidInput) {
-  const FilePath::CharType* cases[] = {
-      FPL("\xc3\x28"),         FPL("\xe2\x82\x28"),     FPL("\xe2\x28\xa1"),
-      FPL("\xf0\x28\x8c\xbc"), FPL("\xf0\x28\x8c\x28"),
-  };
-  for (auto* invalid_input : cases) {
-    // All example inputs will be greater than the string "fixed".
-    EXPECT_EQ(FilePath::CompareIgnoreCase(invalid_input, FPL("fixed")), 1);
-  }
-}
 #endif
 
 }  // namespace base

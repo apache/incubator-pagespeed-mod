@@ -7,12 +7,14 @@
 
 #include <stdint.h>
 
+#include <atomic>
+
+#include "base/base_export.h"
+#include "base/macros.h"
+
 namespace base {
 namespace sequence_manager {
-
 namespace internal {
-class EnqueueOrderGenerator;
-}
 
 // 64-bit number which is used to order tasks.
 // SequenceManager assumes this number will never overflow.
@@ -32,11 +34,25 @@ class EnqueueOrder {
     return EnqueueOrder(value);
   }
 
- private:
-  // EnqueueOrderGenerator is the only class allowed to create an EnqueueOrder
-  // with a non-default constructor.
-  friend class internal::EnqueueOrderGenerator;
+  // EnqueueOrder can't be created from a raw number in non-test code.
+  // Generator is used to create it with strictly monotonic guarantee.
+  class BASE_EXPORT Generator {
+   public:
+    Generator();
+    ~Generator();
 
+    // Can be called from any thread.
+    EnqueueOrder GenerateNext() {
+      return EnqueueOrder(std::atomic_fetch_add_explicit(
+          &counter_, uint64_t(1), std::memory_order_relaxed));
+    }
+
+   private:
+    std::atomic<uint64_t> counter_;
+    DISALLOW_COPY_AND_ASSIGN(Generator);
+  };
+
+ private:
   explicit EnqueueOrder(uint64_t value) : value_(value) {}
 
   enum SpecialValues : uint64_t {
@@ -48,6 +64,7 @@ class EnqueueOrder {
   uint64_t value_;
 };
 
+}  // namespace internal
 }  // namespace sequence_manager
 }  // namespace base
 

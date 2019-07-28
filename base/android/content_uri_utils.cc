@@ -6,7 +6,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/ContentUriUtils_jni.h"
+#include "jni/ContentUriUtils_jni.h"
 
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
@@ -62,13 +62,13 @@ bool MaybeGetFileDisplayName(const FilePath& content_uri,
   return true;
 }
 
-bool DeleteContentUri(const FilePath& content_uri) {
+void DeleteContentUri(const FilePath& content_uri) {
   DCHECK(content_uri.IsContentUri());
   JNIEnv* env = base::android::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_uri =
       ConvertUTF8ToJavaString(env, content_uri.value());
 
-  return Java_ContentUriUtils_delete(env, j_uri);
+  Java_ContentUriUtils_delete(env, j_uri);
 }
 
 }  // namespace base

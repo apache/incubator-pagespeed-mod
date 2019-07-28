@@ -12,7 +12,6 @@ import android.os.Build;
 import android.text.TextUtils;
 
 import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.compat.ApiHelperForP;
 
 /**
  * BuildInfo is a utility class providing easy access to {@link PackageInfo} information. This is
@@ -31,11 +30,11 @@ public class BuildInfo {
     /** The application name (e.g. "Chrome"). For WebView, this is name of the embedding app. */
     public final String hostPackageLabel;
     /** By default: same as versionCode. For WebView: versionCode of the embedding app. */
-    public final long hostVersionCode;
+    public final int hostVersionCode;
     /** The packageName of Chrome/WebView. Use application context for host app packageName. */
     public final String packageName;
     /** The versionCode of the apk. */
-    public final long versionCode;
+    public final int versionCode;
     /** The versionName of Chrome/WebView. Use application context for host app versionName. */
     public final String versionName;
     /** Result of PackageManager.getInstallerPackageName(). Never null, but may be "". */
@@ -90,14 +89,6 @@ public class BuildInfo {
         return seq == null ? "" : seq.toString();
     }
 
-    private static long packageVersionCode(PackageInfo pi) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return ApiHelperForP.getLongVersionCode(pi);
-        } else {
-            return pi.versionCode;
-        }
-    }
-
     /**
      * @param packageInfo Package for Chrome/WebView (as opposed to host app).
      */
@@ -117,10 +108,10 @@ public class BuildInfo {
             String hostPackageName = appContext.getPackageName();
             PackageManager pm = appContext.getPackageManager();
             PackageInfo pi = pm.getPackageInfo(hostPackageName, 0);
-            hostVersionCode = packageVersionCode(pi);
+            hostVersionCode = pi.versionCode;
             if (sBrowserPackageInfo != null) {
                 packageName = sBrowserPackageInfo.packageName;
-                versionCode = packageVersionCode(sBrowserPackageInfo);
+                versionCode = sBrowserPackageInfo.versionCode;
                 versionName = nullToEmpty(sBrowserPackageInfo.versionName);
                 sBrowserPackageInfo = null;
             } else {
@@ -138,9 +129,8 @@ public class BuildInfo {
             } catch (NameNotFoundException e) {
                 Log.d(TAG, "GMS package is not found.", e);
             }
-            gmsVersionCode = gmsPackageInfo != null
-                    ? String.valueOf(packageVersionCode(gmsPackageInfo))
-                    : "gms versionCode not available.";
+            gmsVersionCode = gmsPackageInfo != null ? String.valueOf(gmsPackageInfo.versionCode)
+                                                    : "gms versionCode not available.";
 
             String hasCustomThemes = "true";
             try {

@@ -97,7 +97,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
 #include "base/debug/task_trace.h"
-#include "base/no_destructor.h"
+#include "base/lazy_instance.h"
 #include "base/path_service.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/string_piece.h"
@@ -166,10 +166,8 @@ bool show_error_dialogs = false;
 // An assert handler override specified by the client to be called instead of
 // the debug message dialog and process termination. Assert handlers are stored
 // in stack to allow overriding and restoring.
-base::stack<LogAssertHandlerFunction>& GetLogAssertHandlerStack() {
-  static base::NoDestructor<base::stack<LogAssertHandlerFunction>> instance;
-  return *instance;
-}
+base::LazyInstance<base::stack<LogAssertHandlerFunction>>::Leaky
+    log_assert_handler_stack = LAZY_INSTANCE_INITIALIZER;
 
 // A log message handler that gets notified of every log message we process.
 LogMessageHandlerFunction log_message_handler = nullptr;
@@ -523,11 +521,11 @@ void SetShowErrorDialogs(bool enable_dialogs) {
 
 ScopedLogAssertHandler::ScopedLogAssertHandler(
     LogAssertHandlerFunction handler) {
-  GetLogAssertHandlerStack().push(std::move(handler));
+  log_assert_handler_stack.Get().push(std::move(handler));
 }
 
 ScopedLogAssertHandler::~ScopedLogAssertHandler() {
-  GetLogAssertHandlerStack().pop();
+  log_assert_handler_stack.Get().pop();
 }
 
 void SetLogMessageHandler(LogMessageHandlerFunction handler) {
@@ -909,9 +907,10 @@ LogMessage::~LogMessage() {
                   base::size(str_stack.data));
     base::debug::Alias(&str_stack);
 
-    if (!GetLogAssertHandlerStack().empty()) {
+    if (log_assert_handler_stack.IsCreated() &&
+        !log_assert_handler_stack.Get().empty()) {
       LogAssertHandlerFunction log_assert_handler =
-          GetLogAssertHandlerStack().top();
+          log_assert_handler_stack.Get().top();
 
       if (log_assert_handler) {
         log_assert_handler.Run(

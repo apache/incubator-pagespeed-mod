@@ -49,10 +49,6 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
    public:
     virtual ~Observer() = default;
 
-    // Notify observer that a task has been posted on the TaskQueue. Can be
-    // called on any thread.
-    virtual void OnPostTask(Location from_here, TimeDelta delay) = 0;
-
     // Notify observer that the time at which this queue wants to run
     // the next task has changed. |next_wakeup| can be in the past
     // (e.g. TimeTicks() can be used to notify about immediate work).
@@ -62,7 +58,8 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
     //
     // TODO(altimin): Make it Optional<TimeTicks> to tell
     // observer about cancellations.
-    virtual void OnQueueNextWakeUpChanged(TimeTicks next_wake_up) = 0;
+    virtual void OnQueueNextWakeUpChanged(TaskQueue* queue,
+                                          TimeTicks next_wake_up) = 0;
   };
 
   // Shuts down the queue. All tasks currently queued will be discarded.
@@ -323,19 +320,7 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
   // Returns true if the queue has a fence which is blocking execution of tasks.
   bool BlockedByFence() const;
 
-  // Returns an EnqueueOrder generated at the last transition to unblocked. A
-  // queue is unblocked when it is enabled and no fence prevents the front task
-  // from running. If the EnqueueOrder of a task is greater than this when it
-  // starts running, it means that is was never blocked.
-  EnqueueOrder GetLastUnblockEnqueueOrder() const;
-
   void SetObserver(Observer* observer);
-
-  // Controls whether or not the queue will emit traces events when tasks are
-  // posted to it while disabled. This only applies for the current or next
-  // period during which the queue is disabled. When the queue is re-enabled
-  // this will revert back to the default value of false.
-  void SetShouldReportPostedTasksWhenDisabled(bool should_report);
 
   // Create a task runner for this TaskQueue which will annotate all
   // posted tasks with the given task type.

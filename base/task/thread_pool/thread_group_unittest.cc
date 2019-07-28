@@ -166,13 +166,13 @@ class ThreadGroupTest : public testing::TestWithParam<PoolExecutionType>,
   }
 
   scoped_refptr<TaskRunner> CreateTaskRunner(
-      const TaskTraits& traits = TaskTraits(ThreadPool())) {
+      const TaskTraits& traits = TaskTraits()) {
     return test::CreateTaskRunnerWithExecutionMode(
         GetParam().execution_mode, &mock_pooled_task_runner_delegate_, traits);
   }
 
   Thread service_thread_;
-  TaskTracker task_tracker_{"Test"};
+  TaskTracker task_tracker_ = {"Test"};
   DelayedTaskManager delayed_task_manager_;
   test::MockPooledTaskRunnerDelegate mock_pooled_task_runner_delegate_ = {
       task_tracker_.GetTrackedRef(), &delayed_task_manager_};
@@ -285,12 +285,12 @@ TEST_P(ThreadGroupTest, PostDelayedTask) {
   // Wait until the task runs.
   task_ran.Wait();
 
-  // Expect the task to run after its delay expires, but no more than a
-  // reasonable amount of time after that (overloaded bots can be slow sometimes
-  // so give it 10X flexibility).
+  // Expect the task to run after its delay expires, but no more than 250
+  // ms after that.
   const TimeDelta actual_delay = TimeTicks::Now() - start_time;
   EXPECT_GE(actual_delay, TestTimeouts::tiny_timeout());
-  EXPECT_LT(actual_delay, 10 * TestTimeouts::tiny_timeout());
+  EXPECT_LT(actual_delay,
+            TimeDelta::FromMilliseconds(250) + TestTimeouts::tiny_timeout());
 }
 
 // Verify that the RunsTasksInCurrentSequence() method of a SEQUENCED TaskRunner
@@ -301,8 +301,8 @@ TEST_P(ThreadGroupTest, PostDelayedTask) {
 TEST_P(ThreadGroupTest, SequencedRunsTasksInCurrentSequence) {
   StartThreadGroup();
   auto task_runner = CreateTaskRunner();
-  auto sequenced_task_runner = test::CreateSequencedTaskRunner(
-      TaskTraits(ThreadPool()), &mock_pooled_task_runner_delegate_);
+  auto sequenced_task_runner = test::CreateSequencedTaskRunnerWithTraits(
+      TaskTraits(), &mock_pooled_task_runner_delegate_);
 
   WaitableEvent task_ran;
   task_runner->PostTask(
@@ -349,9 +349,7 @@ TEST_P(ThreadGroupTest, CanRunPolicyBasic) {
   StartThreadGroup();
   test::TestCanRunPolicyBasic(
       thread_group_.get(),
-      [this](TaskPriority priority) {
-        return CreateTaskRunner({ThreadPool(), priority});
-      },
+      [this](TaskPriority priority) { return CreateTaskRunner({priority}); },
       &task_tracker_);
 }
 
@@ -363,9 +361,7 @@ TEST_P(ThreadGroupTest, CanRunPolicyUpdatedBeforeRun) {
     return;
   test::TestCanRunPolicyChangedBeforeRun(
       thread_group_.get(),
-      [this](TaskPriority priority) {
-        return CreateTaskRunner({ThreadPool(), priority});
-      },
+      [this](TaskPriority priority) { return CreateTaskRunner({priority}); },
       &task_tracker_);
 }
 
@@ -373,9 +369,7 @@ TEST_P(ThreadGroupTest, CanRunPolicyLoad) {
   StartThreadGroup();
   test::TestCanRunPolicyLoad(
       thread_group_.get(),
-      [this](TaskPriority priority) {
-        return CreateTaskRunner({ThreadPool(), priority});
-      },
+      [this](TaskPriority priority) { return CreateTaskRunner({priority}); },
       &task_tracker_);
 }
 
@@ -395,7 +389,7 @@ TEST_P(ThreadGroupTest, UpdatePriorityBestEffortToUserBlocking) {
 
   for (size_t i = 0; i < kMaxTasks; ++i) {
     task_runners.push_back(MakeRefCounted<PooledSequencedTaskRunner>(
-        TaskTraits(ThreadPool(), TaskPriority::BEST_EFFORT),
+        TaskTraits(TaskPriority::BEST_EFFORT),
         &mock_pooled_task_runner_delegate_));
     task_runners.back()->PostTask(
         FROM_HERE, BindLambdaForTesting([&]() {
@@ -445,7 +439,7 @@ TEST_P(ThreadGroupTest, ScopedBlockingCallTwice) {
   StartThreadGroup();
   auto task_runner = test::CreateTaskRunnerWithExecutionMode(
       GetParam().execution_mode, &mock_pooled_task_runner_delegate_,
-      {ThreadPool(), MayBlock()});
+      {MayBlock()});
 
   WaitableEvent task_ran;
   task_runner->PostTask(FROM_HERE,

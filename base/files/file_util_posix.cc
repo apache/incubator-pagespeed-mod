@@ -114,7 +114,7 @@ bool VerifySpecificPathControlledByUser(const FilePath& path,
   }
 
   if ((stat_info.st_mode & S_IWGRP) &&
-      !Contains(group_gids, stat_info.st_gid)) {
+      !ContainsKey(group_gids, stat_info.st_gid)) {
     DLOG(ERROR) << "Path " << path.value()
                 << " is writable by an unprivileged group.";
     return false;
@@ -350,12 +350,6 @@ FilePath MakeAbsoluteFilePath(const FilePath& input) {
 // here.
 bool DeleteFile(const FilePath& path, bool recursive) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-
-#if defined(OS_ANDROID)
-  if (path.IsContentUri())
-    return DeleteContentUri(path);
-#endif  // defined(OS_ANDROID)
-
   const char* path_str = path.value().c_str();
   stat_wrapper_t file_info;
   if (CallLstat(path_str, &file_info) != 0) {

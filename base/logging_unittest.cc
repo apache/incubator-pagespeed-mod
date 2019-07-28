@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <sstream>
-
 #include "base/logging.h"
 #include "base/bind.h"
 #include "base/callback.h"
@@ -978,46 +976,6 @@ TEST_F(LoggingTest, LogMessageMarkersOnStack) {
   LOG(FATAL) << kTestMessage;
 }
 #endif  // !defined(ADDRESS_SANITIZER)
-
-const char* kToStringResult = "to_string";
-const char* kOstreamResult = "ostream";
-
-struct StructWithOstream {};
-
-std::ostream& operator<<(std::ostream& out, const StructWithOstream&) {
-  return out << kOstreamResult;
-}
-
-TEST(MakeCheckOpValueStringTest, HasOnlyOstream) {
-  std::ostringstream oss;
-  logging::MakeCheckOpValueString(&oss, StructWithOstream());
-  EXPECT_EQ(kOstreamResult, oss.str());
-}
-
-struct StructWithToString {
-  std::string ToString() const { return kToStringResult; }
-};
-
-TEST(MakeCheckOpValueStringTest, HasOnlyToString) {
-  std::ostringstream oss;
-  logging::MakeCheckOpValueString(&oss, StructWithToString());
-  EXPECT_EQ(kToStringResult, oss.str());
-}
-
-struct StructWithToStringAndOstream {
-  std::string ToString() const { return kToStringResult; }
-};
-
-std::ostream& operator<<(std::ostream& out,
-                         const StructWithToStringAndOstream&) {
-  return out << kOstreamResult;
-}
-
-TEST(MakeCheckOpValueStringTest, HasOstreamAndToString) {
-  std::ostringstream oss;
-  logging::MakeCheckOpValueString(&oss, StructWithToStringAndOstream());
-  EXPECT_EQ(kOstreamResult, oss.str());
-}
 
 }  // namespace
 

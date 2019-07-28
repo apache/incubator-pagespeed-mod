@@ -813,28 +813,6 @@ TEST_F(TimeTest, NowOverride) {
   EXPECT_GT(Time::Max(), subtle::TimeNowFromSystemTimeIgnoringOverride());
 }
 
-#if defined(OS_FUCHSIA)
-TEST(ZxTimeTest, ToFromConversions) {
-  Time unix_epoch = Time::UnixEpoch();
-  EXPECT_EQ(unix_epoch.ToZxTime(), 0);
-  EXPECT_EQ(Time::FromZxTime(6000000000),
-            unix_epoch + TimeDelta::FromSeconds(6));
-
-  TimeTicks ticks_now = TimeTicks::Now();
-  EXPECT_GE(ticks_now.ToZxTime(), 0);
-  TimeTicks ticks_later = ticks_now + TimeDelta::FromSeconds(2);
-  EXPECT_EQ((ticks_later.ToZxTime() - ticks_now.ToZxTime()), 2000000000);
-  EXPECT_EQ(TimeTicks::FromZxTime(3000000000),
-            TimeTicks() + TimeDelta::FromSeconds(3));
-
-  EXPECT_EQ(TimeDelta().ToZxDuration(), 0);
-  EXPECT_EQ(TimeDelta::FromZxDuration(0), TimeDelta());
-
-  EXPECT_EQ(TimeDelta::FromSeconds(2).ToZxDuration(), 2000000000);
-  EXPECT_EQ(TimeDelta::FromZxDuration(4000000000), TimeDelta::FromSeconds(4));
-}
-#endif  // defined(OS_FUCHSIA)
-
 TEST(TimeTicks, Deltas) {
   for (int index = 0; index < 50; index++) {
     TimeTicks ticks_start = TimeTicks::Now();

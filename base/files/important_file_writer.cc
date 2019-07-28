@@ -230,7 +230,8 @@ ImportantFileWriter::ImportantFileWriter(
       task_runner_(std::move(task_runner)),
       serializer_(nullptr),
       commit_interval_(interval),
-      histogram_suffix_(histogram_suffix ? histogram_suffix : "") {
+      histogram_suffix_(histogram_suffix ? histogram_suffix : ""),
+      weak_factory_(this) {
   DCHECK(task_runner_);
 }
 

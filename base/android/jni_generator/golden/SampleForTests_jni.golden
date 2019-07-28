@@ -330,10 +330,7 @@ static void Java_SampleForTests_methodThatThrowsException(JNIEnv* env, const
 static std::atomic<jmethodID>
     g_org_chromium_example_jni_1generator_SampleForTests_javaMethodWithAnnotatedParam(nullptr);
 static void Java_SampleForTests_javaMethodWithAnnotatedParam(JNIEnv* env, const
-    base::android::JavaRef<jobject>& obj, JniIntWrapper foo,
-    JniIntWrapper bar,
-    JniIntWrapper baz,
-    JniIntWrapper bat) {
+    base::android::JavaRef<jobject>& obj, JniIntWrapper foo) {
   jclass clazz = org_chromium_example_jni_1generator_SampleForTests_clazz(env);
   CHECK_CLAZZ(env, obj.obj(),
       org_chromium_example_jni_1generator_SampleForTests_clazz(env));
@@ -344,11 +341,11 @@ static void Java_SampleForTests_javaMethodWithAnnotatedParam(JNIEnv* env, const
           env,
           clazz,
           "javaMethodWithAnnotatedParam",
-          "(IIII)V",
+          "(I)V",
           &g_org_chromium_example_jni_1generator_SampleForTests_javaMethodWithAnnotatedParam);
 
      env->CallVoidMethod(obj.obj(),
-          call_context.base.method_id, as_jint(foo), as_jint(bar), as_jint(baz), as_jint(bat));
+          call_context.base.method_id, as_jint(foo));
 }
 
 static std::atomic<jmethodID>

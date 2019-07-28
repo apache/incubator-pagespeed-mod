@@ -258,15 +258,11 @@ void MachPortRendezvousServer::OnClientExited(pid_t pid) {
 
 // static
 MachPortRendezvousClient* MachPortRendezvousClient::GetInstance() {
-  static MachPortRendezvousClient* client = []() -> auto* {
-    auto* client = new MachPortRendezvousClient();
-    if (!client->AcquirePorts()) {
-      delete client;
-      client = nullptr;
-    }
-    return client;
+  static MachPortRendezvousClient* client = new MachPortRendezvousClient();
+  if (!client->did_acquire_ports()) {
+    bool ok = client->AcquirePorts();
+    DCHECK(ok);
   }
-  ();
   return client;
 }
 
@@ -299,6 +295,8 @@ std::string MachPortRendezvousClient::GetBootstrapName() {
 
 bool MachPortRendezvousClient::AcquirePorts() {
   AutoLock lock(lock_);
+
+  did_acquire_ports_ = true;
 
   mac::ScopedMachSendRight server_port;
   std::string bootstrap_name = GetBootstrapName();

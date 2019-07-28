@@ -155,7 +155,7 @@ class TestSequencedTaskRunner : public SequencedTaskRunner {
   ~TestSequencedTaskRunner() override = default;
 
   const scoped_refptr<SequencedTaskRunner> task_runner_ =
-      CreateSequencedTaskRunner({ThreadPool()});
+      CreateSequencedTaskRunnerWithTraits({});
   bool enabled_ = true;
   unsigned num_of_post_tasks_ = 0;
 };

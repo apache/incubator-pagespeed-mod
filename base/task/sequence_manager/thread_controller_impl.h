@@ -127,7 +127,7 @@ class BASE_EXPORT ThreadControllerImpl : public ThreadController,
   bool default_task_runner_set_ = false;
 #endif
 
-  WeakPtrFactory<ThreadControllerImpl> weak_factory_{this};
+  WeakPtrFactory<ThreadControllerImpl> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadControllerImpl);
 };

@@ -17,6 +17,7 @@
 #include "base/no_destructor.h"
 #include "base/partition_alloc_buildflags.h"
 #include "base/rand_util.h"
+#include "base/sampling_heap_profiler/lock_free_address_hash_set.h"
 #include "build/build_config.h"
 
 #if defined(OS_MACOSX) || defined(OS_ANDROID)
@@ -469,6 +470,14 @@ void PoissonAllocationSampler::DoRecordAlloc(intptr_t accumulated_bytes,
   size_t total_allocated = mean_interval * samples;
   for (auto* observer : observers_)
     observer->SampleAdded(address, size, total_allocated, type, context);
+}
+
+// static
+void PoissonAllocationSampler::RecordFree(void* address) {
+  if (UNLIKELY(address == nullptr))
+    return;
+  if (UNLIKELY(sampled_addresses_set().Contains(address)))
+    instance_->DoRecordFree(address);
 }
 
 void PoissonAllocationSampler::DoRecordFree(void* address) {

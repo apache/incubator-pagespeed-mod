@@ -45,8 +45,7 @@ public class EarlyTraceEvent {
     private static final String TRACE_CONFIG_FILENAME = "/data/local/chrome-trace-config.json";
 
     /** Single trace event. */
-    @VisibleForTesting
-    static final class Event {
+    public static final class Event {
         final String mName;
         final int mThreadId;
         final long mBeginTimeNanos;
@@ -54,14 +53,14 @@ public class EarlyTraceEvent {
         long mEndTimeNanos;
         long mEndThreadTimeMillis;
 
-        Event(String name) {
+        public Event(String name) {
             mName = name;
             mThreadId = Process.myTid();
             mBeginTimeNanos = elapsedRealtimeNanos();
             mBeginThreadTimeMillis = SystemClock.currentThreadTimeMillis();
         }
 
-        void end() {
+        public void end() {
             assert mEndTimeNanos == 0;
             assert mEndThreadTimeMillis == 0;
             mEndTimeNanos = elapsedRealtimeNanos();
@@ -250,6 +249,15 @@ public class EarlyTraceEvent {
             event.end();
             sCompletedEvents.add(event);
             if (sState == STATE_FINISHING) maybeFinishLocked();
+        }
+    }
+
+    /** Add events that were captured before {@link TraceEvent#maybeEnableEarlyTracing()}. */
+    public static void addEvent(Event e) {
+        if (!enabled()) return;
+        synchronized (sLock) {
+            if (!enabled()) return;
+            sCompletedEvents.add(e);
         }
     }
 

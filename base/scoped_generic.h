@@ -13,7 +13,6 @@
 #include "base/logging.h"
 #include "base/macros.h"
 
-
 namespace base {
 
 // This class acts like unique_ptr with a custom deleter (although is slightly

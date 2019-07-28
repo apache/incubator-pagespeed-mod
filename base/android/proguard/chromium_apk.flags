@@ -38,13 +38,6 @@
   static *** v(...);
   static *** isLoggable(...);
 }
--checkdiscard class org.chromium.base.Log {
-  public static void d(...);
-  public static void v(...);
-  private static void debug(...);
-  private static void verbose(...);
-  private static String getCallOrigin(...);
-}
 
 # The following chart was created on July 20, 2016, to decide on 3 optimization
 # passes for Chrome.

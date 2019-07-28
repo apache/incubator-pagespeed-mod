@@ -5,11 +5,11 @@
 #include "base/android/task_scheduler/task_runner_android.h"
 
 #include "base/android/task_scheduler/post_task_android.h"
-#include "base/base_jni_headers/TaskRunnerImpl_jni.h"
 #include "base/bind.h"
 #include "base/run_loop.h"
 #include "base/task/post_task.h"
 #include "base/time/time.h"
+#include "jni/TaskRunnerImpl_jni.h"
 
 namespace base {
 
@@ -29,13 +29,13 @@ jlong JNI_TaskRunnerImpl_Init(
   scoped_refptr<TaskRunner> task_runner;
   switch (static_cast<TaskRunnerType>(task_runner_type)) {
     case TaskRunnerType::BASE:
-      task_runner = CreateTaskRunner(task_traits);
+      task_runner = CreateTaskRunnerWithTraits(task_traits);
       break;
     case TaskRunnerType::SEQUENCED:
-      task_runner = CreateSequencedTaskRunner(task_traits);
+      task_runner = CreateSequencedTaskRunnerWithTraits(task_traits);
       break;
     case TaskRunnerType::SINGLE_THREAD:
-      task_runner = CreateSingleThreadTaskRunner(task_traits);
+      task_runner = CreateSingleThreadTaskRunnerWithTraits(task_traits);
       break;
   }
   return reinterpret_cast<intptr_t>(new TaskRunnerAndroid(task_runner));

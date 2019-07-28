@@ -19,6 +19,7 @@
 
 #include "base/clang_coverage_buildflags.h"
 #include "base/stl_util.h"
+#include "base/test/clang_coverage.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -50,10 +51,6 @@
 #include "base/process/process.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
-
-#if BUILDFLAG(CLANG_COVERAGE)
-#include "base/test/clang_coverage.h"
-#endif
 
 #if defined(USE_SYMBOLIZE)
 #include "base/third_party/symbolize/symbolize.h"

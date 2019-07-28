@@ -12,6 +12,7 @@ generate_jni("jni_sample_header") {
     "java/src/org/chromium/example/jni_generator/SampleForAnnotationProcessor.java",
     "java/src/org/chromium/example/jni_generator/SampleForTests.java",
   ]
+  jni_package = "example"
 }
 
 android_library("jni_sample_java") {
@@ -64,7 +65,6 @@ shared_library("jni_sample_lib") {
 android_apk("sample_jni_apk") {
   apk_name = "SampleJni"
   android_manifest = "AndroidManifest.xml"
-  target_sdk_version = 24
   deps = [
     ":jni_sample_java",
     "//base:base_java",

@@ -8,9 +8,7 @@
 
 // Analogous to GMock's built-in MockFunction, but for base::Callback instead of
 // std::function. It takes the full callback type as a parameter, so that it can
-// support both OnceCallback and RepeatingCallback. Furthermore, this file
-// defines convenience typedefs in the form of MockOnceCallback<Signature>,
-// MockRepeatingCallback<Signature>, MockOnceClosure and MockRepeatingClosure.
+// support both OnceCallback and RepeatingCallback.
 //
 // Use:
 //   using FooCallback = base::RepeatingCallback<int(std::string)>;
@@ -20,15 +18,6 @@
 //     EXPECT_CALL(callback, Run("bar")).WillOnce(Return(1));
 //     Foo(callback.Get());
 //   }
-//
-// Or equivalently:
-//
-//   TEST(FooTest, RunsCallbackWithBarArgument) {
-//     base::MockRepeatingCallback<int(std::string)> callback;
-//     EXPECT_CALL(callback, Run("bar")).WillOnce(Return(1));
-//     Foo(callback.Get());
-//   }
-//
 //
 // Can be used with StrictMock and NiceMock. Caller must ensure that it outlives
 // any base::Callback obtained from it.
@@ -47,14 +36,6 @@ namespace base {
 
 template <typename F>
 class MockCallback;
-
-template <typename Signature>
-using MockOnceCallback = MockCallback<OnceCallback<Signature>>;
-template <typename Signature>
-using MockRepeatingCallback = MockCallback<RepeatingCallback<Signature>>;
-
-using MockOnceClosure = MockCallback<OnceClosure>;
-using MockRepeatingClosure = MockCallback<RepeatingClosure>;
 
 template <typename R>
 class MockCallback<RepeatingCallback<R()>> {

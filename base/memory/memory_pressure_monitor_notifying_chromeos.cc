@@ -99,11 +99,9 @@ bool WaitForMemoryPressureChanges(int available_fd) {
 
   if (pfd.revents != (POLLPRI | POLLERR)) {
     // If we didn't receive POLLPRI | POLLERR it means we likely received
-    // POLLNVAL because the fd has been closed we will only log an error in
-    // other situations.
-    LOG_IF(ERROR, pfd.revents != POLLNVAL)
-        << "WaitForMemoryPressureChanges received unexpected revents: "
-        << pfd.revents;
+    // POLLNVAL because the fd has been closed.
+    LOG(ERROR) << "WaitForMemoryPressureChanges received unexpected revents: "
+               << pfd.revents;
 
     // We no longer want to wait for a kernel notification if the fd has been
     // closed.
@@ -205,7 +203,7 @@ bool MemoryPressureMonitorNotifying::SupportsKernelNotifications() {
 }
 
 MemoryPressureListener::MemoryPressureLevel
-MemoryPressureMonitorNotifying::GetCurrentPressureLevel() const {
+MemoryPressureMonitorNotifying::GetCurrentPressureLevel() {
   return current_memory_pressure_level_;
 }
 
@@ -293,7 +291,7 @@ void MemoryPressureMonitorNotifying::ScheduleEarlyCheck() {
 }
 
 void MemoryPressureMonitorNotifying::ScheduleWaitForKernelNotification() {
-  base::PostTaskAndReplyWithResult(
+  base::PostTaskWithTraitsAndReplyWithResult(
       FROM_HERE, {base::MayBlock()}, kernel_waiting_callback_,
       base::BindRepeating(
           &MemoryPressureMonitorNotifying::HandleKernelNotification,

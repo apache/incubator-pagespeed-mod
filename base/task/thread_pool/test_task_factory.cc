@@ -57,7 +57,6 @@ void TestTaskFactory::RunTaskCallback(size_t task_index,
 
   // Verify TaskRunnerHandles are set as expected in the task's scope.
   switch (execution_mode_) {
-    case TaskSourceExecutionMode::kJob:
     case TaskSourceExecutionMode::kParallel:
       EXPECT_FALSE(ThreadTaskRunnerHandle::IsSet());
       EXPECT_FALSE(SequencedTaskRunnerHandle::IsSet());

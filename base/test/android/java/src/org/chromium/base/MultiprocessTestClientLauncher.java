@@ -157,7 +157,7 @@ public final class MultiprocessTestClientLauncher {
                     return false;
                 }
                 try {
-                    timeoutNs = mConnectedCondition.awaitNanos(timeoutNs);
+                    mConnectedCondition.awaitNanos(timeoutNs);
                 } catch (InterruptedException ie) {
                     Log.e(TAG, "Interrupted while waiting for connection.");
                 }

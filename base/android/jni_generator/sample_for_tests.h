@@ -48,6 +48,7 @@ namespace android {
 //      sources = [
 //        "java/src/org/chromium/example/jni_generator/SampleForTests.java",
 //      ]
+//      jni_package = "foo"
 //    }
 //    android_library("java") {
 //      java_files = [

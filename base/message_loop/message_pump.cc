@@ -68,14 +68,6 @@ std::unique_ptr<MessagePump> MessagePump::Create(Type type) {
       return std::make_unique<MessagePumpNSRunLoop>();
 #endif
 
-#if defined(OS_WIN)
-    case Type::UI_WITH_WM_QUIT_SUPPORT: {
-      auto pump = std::make_unique<MessagePumpForUI>();
-      pump->EnableWmQuit();
-      return pump;
-    }
-#endif  // defined(OS_WIN)
-
     case Type::CUSTOM:
       NOTREACHED();
       return nullptr;

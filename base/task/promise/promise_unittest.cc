@@ -2,22 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/task/promise/promise.h"
-
 #include <memory>
 #include <string>
 
 #include "base/bind.h"
 #include "base/run_loop.h"
-#include "base/task/post_task.h"
+#include "base/task/promise/promise.h"
 #include "base/test/bind_test_util.h"
 #include "base/test/do_nothing_promise.h"
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_task_environment.h"
 #include "base/test/test_mock_time_task_runner.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/threading/thread.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -61,7 +57,7 @@ class MockObject {
 struct DummyError {};
 
 struct Cancelable {
-  Cancelable() {}
+  Cancelable() : weak_ptr_factory(this) {}
 
   void LogTask(std::vector<std::string>* log, std::string value) {
     log->push_back(value);
@@ -69,7 +65,7 @@ struct Cancelable {
 
   void NopTask() {}
 
-  WeakPtrFactory<Cancelable> weak_ptr_factory{this};
+  WeakPtrFactory<Cancelable> weak_ptr_factory;
 };
 
 }  // namespace
@@ -134,10 +130,6 @@ TEST_F(PromiseTest, GetResolveCallbackThenWithConstInt) {
 
 TEST_F(PromiseTest, GetResolveCallbackMultipleArgs) {
   ManualPromiseResolver<std::tuple<int, bool, float>> p(FROM_HERE);
-  static_assert(
-      std::is_same<OnceCallback<void(int, bool, float)>,
-                   decltype(p.GetResolveCallback<int, bool, float>())>::value,
-      "");
   p.GetResolveCallback<int, bool, float>().Run(123, true, 1.5f);
 
   RunLoop run_loop;
@@ -149,24 +141,6 @@ TEST_F(PromiseTest, GetResolveCallbackMultipleArgs) {
                          run_loop.Quit();
                        }));
 
-  run_loop.Run();
-}
-
-TEST_F(PromiseTest, ManualPromiseResolverCallbackLifetimeCanOutliveParent) {
-  OnceCallback<void(int)> resolve_cb;
-
-  RunLoop run_loop;
-  {
-    ManualPromiseResolver<int> p(FROM_HERE);
-    resolve_cb = p.GetResolveCallback();
-
-    p.promise().ThenHere(FROM_HERE, BindLambdaForTesting([&](int result) {
-                           EXPECT_EQ(123, result);
-                           run_loop.Quit();
-                         }));
-  }
-
-  std::move(resolve_cb).Run(123);
   run_loop.Run();
 }
 
@@ -1056,96 +1030,6 @@ TEST_F(PromiseTest, CurriedIntPromise) {
   run_loop.Run();
 }
 
-TEST_F(PromiseTest, CurriedIntPromiseChain) {
-  Promise<int> p = Promise<int>::CreateResolved(FROM_HERE, 1000);
-
-  ManualPromiseResolver<int> promise_resolver_1(FROM_HERE);
-  ManualPromiseResolver<int> promise_resolver_2(FROM_HERE);
-  promise_resolver_2.Resolve(promise_resolver_1.promise());
-  promise_resolver_1.Resolve(123);
-
-  RunLoop run_loop;
-  p.ThenHere(FROM_HERE, BindLambdaForTesting([&](int result) {
-               EXPECT_EQ(1000, result);
-               return promise_resolver_2.promise();
-             }))
-      .ThenHere(FROM_HERE, BindLambdaForTesting([&](int result) {
-                  EXPECT_EQ(123, result);
-                  run_loop.Quit();
-                }));
-
-  run_loop.Run();
-}
-
-TEST_F(PromiseTest, CurriedIntPromiseChain2) {
-  Promise<int> p1 = Promise<int>::CreateResolved(FROM_HERE, 1000);
-  Promise<int> p2 = Promise<int>::CreateResolved(FROM_HERE, 789);
-  Promise<int> then2;
-
-  {
-    Promise<int> then1 =
-        Promise<int>::CreateResolved(FROM_HERE, 789)
-            .ThenHere(FROM_HERE, BindLambdaForTesting([&]() { return p2; }));
-    then2 = Promise<int>::CreateResolved(FROM_HERE, 789)
-                .ThenHere(
-                    FROM_HERE,
-                    BindOnce([&](Promise<int> then1) { return then1; }, then1));
-  }
-
-  RunLoop run_loop;
-  p1.ThenHere(FROM_HERE, BindLambdaForTesting([&](int result) {
-                EXPECT_EQ(1000, result);
-                return then2;
-              }))
-      .ThenHere(FROM_HERE, BindLambdaForTesting([&](int result) {
-                  EXPECT_EQ(789, result);
-                  run_loop.Quit();
-                }));
-
-  run_loop.Run();
-}
-
-TEST_F(PromiseTest, CurriedIntPromiseChainThenAddedAfterInitialResolve) {
-  ManualPromiseResolver<int> promise_resolver_1(FROM_HERE);
-  ManualPromiseResolver<int> promise_resolver_2(FROM_HERE);
-  ManualPromiseResolver<int> promise_resolver_3(FROM_HERE);
-  promise_resolver_2.Resolve(promise_resolver_1.promise());
-  promise_resolver_3.Resolve(promise_resolver_2.promise());
-
-  RunLoop run_loop;
-  promise_resolver_3.promise().ThenHere(FROM_HERE,
-                                        BindLambdaForTesting([&](int result) {
-                                          EXPECT_EQ(123, result);
-                                          run_loop.Quit();
-                                        }));
-
-  ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE,
-      BindLambdaForTesting([&]() { promise_resolver_1.Resolve(123); }));
-
-  run_loop.Run();
-}
-
-TEST_F(PromiseTest, CurriedVoidPromiseModified) {
-  for (size_t i = 0; i < 1000; ++i) {
-    Promise<void> p = Promise<void>::CreateResolved(FROM_HERE);
-    std::unique_ptr<ManualPromiseResolver<int>> promise_resolver =
-        std::make_unique<ManualPromiseResolver<int>>(FROM_HERE);
-    RunLoop run_loop;
-    p.ThenHere(FROM_HERE, BindOnce([](Promise<int> promise) { return promise; },
-                                   promise_resolver->promise()))
-        .ThenHere(FROM_HERE, base::BindOnce([](int v) { EXPECT_EQ(v, 42); }))
-        .ThenHere(FROM_HERE, run_loop.QuitClosure());
-    PostTaskWithTraits(FROM_HERE, {ThreadPool()},
-                       base::BindLambdaForTesting([&]() {
-                         promise_resolver->Resolve(42);
-                         promise_resolver.reset();
-                       }));
-    run_loop.Run();
-    scoped_task_environment_.RunUntilIdle();
-  }
-}
-
 TEST_F(PromiseTest, PromiseResultReturningAPromise) {
   Promise<int> p = Promise<int>::CreateResolved(FROM_HERE, 1000);
   ManualPromiseResolver<int> promise_resolver(FROM_HERE);
@@ -1675,7 +1559,7 @@ TEST_F(PromiseTest, ManualPromiseResolverRepeatingResolveCallbackCalledTwice) {
 #if DCHECK_IS_ON()
   ManualPromiseResolver<void, void> promise_resolver(
       FROM_HERE, RejectPolicy::kCatchNotRequired);
-  RepeatingCallback<void()> resolve =
+  RepeatingCallback<void(void)> resolve =
       promise_resolver.GetRepeatingResolveCallback();
 
   resolve.Run();
@@ -1688,7 +1572,7 @@ TEST_F(PromiseTest, ManualPromiseResolverRepeatingRejectCallbackCalledTwice) {
 #if DCHECK_IS_ON()
   ManualPromiseResolver<void, void> promise_resolver(
       FROM_HERE, RejectPolicy::kCatchNotRequired);
-  RepeatingCallback<void()> resolve =
+  RepeatingCallback<void(void)> resolve =
       promise_resolver.GetRepeatingRejectCallback();
 
   resolve.Run();
@@ -1736,15 +1620,16 @@ TEST_F(MultiThreadedPromiseTest, SimpleThreadHopping) {
           thread_c_->task_runner(), FROM_HERE, BindLambdaForTesting([&]() {
             EXPECT_TRUE(thread_c_->task_runner()->RunsTasksInCurrentSequence());
           }))
-      .ThenHere(FROM_HERE, BindLambdaForTesting([&]() {
-                  EXPECT_FALSE(
-                      thread_a_->task_runner()->RunsTasksInCurrentSequence());
-                  EXPECT_FALSE(
-                      thread_b_->task_runner()->RunsTasksInCurrentSequence());
-                  EXPECT_FALSE(
-                      thread_c_->task_runner()->RunsTasksInCurrentSequence());
-                  run_loop.Quit();
-                }));
+      .ThenHere(
+          FROM_HERE, BindLambdaForTesting([&]() {
+            EXPECT_FALSE(
+                thread_a_->task_runner()->RunsTasksInCurrentSequence());
+            EXPECT_FALSE(
+                thread_b_->task_runner()->RunsTasksInCurrentSequence());
+            EXPECT_FALSE(
+                thread_c_->task_runner()->RunsTasksInCurrentSequence());
+            run_loop.Quit();
+          }));
 
   promise_resolver.Resolve();
   run_loop.Run();
@@ -1788,74 +1673,25 @@ TEST_F(MultiThreadedPromiseTest, CrossThreadThens) {
   run_loop.Run();
 }
 
-TEST_F(MultiThreadedPromiseTest, CrossThreadThensOrdering) {
-  constexpr int kNumThenTasks = 1000;
-  constexpr int kNumRepetitions = 25;
-  for (int repetition = 0; repetition < kNumRepetitions; ++repetition) {
-    RunLoop run_loop;
-
-    std::vector<int> order;
-    std::vector<OnceCallback<void()>> then_tasks;
-
-    for (int i = 0; i < kNumThenTasks; ++i) {
-      then_tasks.push_back(
-          BindOnce(BindLambdaForTesting([&order, &run_loop, i]() {
-            order.push_back(i);
-            if (i == (kNumThenTasks - 1)) {
-              run_loop.Quit();
-            }
-          })));
-    }
-
-    ManualPromiseResolver<void> promise_resolver(FROM_HERE);
-    auto resolve_callback = promise_resolver.GetResolveCallback();
-
-    thread_a_->task_runner()->PostTask(
-        FROM_HERE, BindLambdaForTesting([&]() {
-          // Post 500 thens.
-          for (int i = 0; i < kNumThenTasks / 2; ++i) {
-            promise_resolver.promise().ThenOn(
-                thread_c_->task_runner(), FROM_HERE, std::move(then_tasks[i]));
-          }
-
-          // Post a task onto |thread_b| to resolve |promise_resolver|.
-          // This should run at an undefined time yet all the thens should run.
-          thread_b_->task_runner()->PostTask(FROM_HERE,
-                                             std::move(resolve_callback));
-
-          // Post another 500 thens.
-          for (int i = kNumThenTasks / 2; i < kNumThenTasks; ++i) {
-            promise_resolver.promise().ThenOn(
-                thread_c_->task_runner(), FROM_HERE, std::move(then_tasks[i]));
-          }
-        }));
-
-    run_loop.Run();
-    for (int i = 0; i < kNumThenTasks; ++i) {
-      EXPECT_EQ(order[i], i);
-    }
-  }
-}
-
 TEST_F(PromiseTest, ThreadPoolThenChain) {
   ManualPromiseResolver<std::vector<size_t>> p(FROM_HERE);
   auto main_sequence = SequencedTaskRunnerHandle::Get();
 
   RunLoop run_loop;
   p.promise()
-      .ThenOn({ThreadPool(), TaskPriority::USER_BLOCKING}, FROM_HERE,
+      .ThenOn({TaskPriority::USER_BLOCKING}, FROM_HERE,
               BindLambdaForTesting([&](std::vector<size_t> result) {
                 EXPECT_FALSE(main_sequence->RunsTasksInCurrentSequence());
                 result.push_back(1);
                 return result;
               }))
-      .ThenOn({ThreadPool(), TaskPriority::USER_BLOCKING}, FROM_HERE,
+      .ThenOn({TaskPriority::USER_BLOCKING}, FROM_HERE,
               BindLambdaForTesting([&](std::vector<size_t> result) {
                 EXPECT_FALSE(main_sequence->RunsTasksInCurrentSequence());
                 result.push_back(2);
                 return result;
               }))
-      .ThenOn({ThreadPool(), TaskPriority::USER_BLOCKING}, FROM_HERE,
+      .ThenOn({TaskPriority::USER_BLOCKING}, FROM_HERE,
               BindLambdaForTesting([&](std::vector<size_t> result) {
                 EXPECT_FALSE(main_sequence->RunsTasksInCurrentSequence());
                 result.push_back(3);
@@ -2085,20 +1921,17 @@ TEST_F(PromiseTest, AllVoidContainer) {
   promises.push_back(mpr4.promise());
 
   RunLoop run_loop;
-  Promise<void> result =
-      Promises::All(FROM_HERE, promises)
-          .ThenHere(FROM_HERE,
-                    BindLambdaForTesting([&]() { run_loop.Quit(); }));
+  Promises::All(FROM_HERE, promises)
+      .ThenHere(FROM_HERE, BindLambdaForTesting([&](std::vector<Void> result) {
+                  EXPECT_EQ(4u, result.size());
+                  run_loop.Quit();
+                }));
 
   mpr1.Resolve();
   mpr2.Resolve();
   mpr3.Resolve();
-  RunLoop().RunUntilIdle();
-  EXPECT_FALSE(result.IsResolvedForTesting());
-
   mpr4.Resolve();
   run_loop.Run();
-  EXPECT_TRUE(result.IsResolvedForTesting());
 }
 
 TEST_F(PromiseTest, AllVoidIntContainerReject) {
@@ -2115,7 +1948,7 @@ TEST_F(PromiseTest, AllVoidIntContainerReject) {
 
   RunLoop run_loop;
   Promises::All(FROM_HERE, promises)
-      .ThenHere(FROM_HERE, BindLambdaForTesting([&]() {
+      .ThenHere(FROM_HERE, BindLambdaForTesting([&](std::vector<Void> result) {
                   FAIL() << "We shouldn't get here, the promise was rejected!";
                   run_loop.Quit();
                 }),
@@ -2202,66 +2035,6 @@ TEST_F(PromiseTest, AllVoidContainerMultipleRejectsAfterExecute) {
   run_loop.Run();
   mpr2.Reject();
   mpr4.Reject();
-}
-
-TEST_F(PromiseTest, TakeResolveValueForTesting) {
-  ManualPromiseResolver<void> p1(FROM_HERE);
-
-  Promise<int> p2 =
-      p1.promise().ThenHere(FROM_HERE, BindOnce([]() { return 123; }));
-
-  p1.Resolve();
-
-  EXPECT_EQ(123, p2.TakeResolveValueForTesting());
-}
-
-TEST_F(PromiseTest, TakeResolveValueForTestingMoveOnlyType) {
-  ManualPromiseResolver<void> p1(FROM_HERE);
-
-  Promise<std::unique_ptr<int>> p2 = p1.promise().ThenHere(
-      FROM_HERE, BindOnce([]() { return std::make_unique<int>(123); }));
-
-  p1.Resolve();
-
-  EXPECT_EQ(123, *p2.TakeResolveValueForTesting());
-}
-
-TEST_F(PromiseTest, TakeResolveValueForTestingNotResolved) {
-  ManualPromiseResolver<int, int> p1(FROM_HERE,
-                                     RejectPolicy::kCatchNotRequired);
-
-  p1.Reject(123);
-
-  EXPECT_DCHECK_DEATH({ p1.promise().TakeResolveValueForTesting(); });
-}
-
-TEST_F(PromiseTest, TakeRejectedValueForTesting) {
-  ManualPromiseResolver<void, void> p1(FROM_HERE);
-
-  Promise<int, int> p2 = p1.promise().ThenHere(
-      FROM_HERE, BindOnce([]() { return Resolved<int>(123); }),
-      BindOnce([]() { return Rejected<int>(456); }));
-
-  p1.Reject();
-
-  EXPECT_EQ(456, p2.TakeRejectValueForTesting());
-}
-
-TEST_F(PromiseTest, TakeRejectedValueForTestingMoveOnlyType) {
-  ManualPromiseResolver<void, std::unique_ptr<int>> p1(FROM_HERE);
-
-  p1.Reject(std::make_unique<int>(456));
-
-  EXPECT_EQ(456, *p1.promise().TakeRejectValueForTesting());
-}
-
-TEST_F(PromiseTest, TakeRejectedValueForTestingNotRejected) {
-  ManualPromiseResolver<int, int> p1(FROM_HERE,
-                                     RejectPolicy::kCatchNotRequired);
-
-  p1.Resolve(123);
-
-  EXPECT_DCHECK_DEATH({ p1.promise().TakeRejectValueForTesting(); });
 }
 
 }  // namespace base

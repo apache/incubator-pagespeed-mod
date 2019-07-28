@@ -8,127 +8,79 @@
 #include "build/build_config.h"
 
 // Crashes in the fastest possible way with no attempt at logging.
-// There are several constraints; see http://crbug.com/664209 for more context.
-//
-// - TRAP_SEQUENCE_() must be fatal. It should not be possible to ignore the
-//   resulting exception or simply hit 'continue' to skip over it in a debugger.
-// - Different instances of TRAP_SEQUENCE_() must not be folded together, to
-//   ensure crash reports are debuggable. Unlike __builtin_trap(), asm volatile
-//   blocks will not be folded together.
-//   Note: TRAP_SEQUENCE_() previously required an instruction with a unique
-//   nonce since unlike clang, GCC folds together identical asm volatile
-//   blocks.
-// - TRAP_SEQUENCE_() must produce a signal that is distinct from an invalid
-//   memory access.
-// - TRAP_SEQUENCE_() must be treated as a set of noreturn instructions.
-//   __builtin_unreachable() is used to provide that hint here. clang also uses
-//   this as a heuristic to pack the instructions in the function epilogue to
-//   improve code density.
-//
-// Additional properties that are nice to have:
-// - TRAP_SEQUENCE_() should be as compact as possible.
-// - The first instruction of TRAP_SEQUENCE_() should not change, to avoid
-//   shifting crash reporting clusters. As a consequence of this, explicit
-//   assembly is preferred over intrinsics.
-//   Note: this last bullet point may no longer be true, and may be removed in
-//   the future.
-
-// Note: TRAP_SEQUENCE Is currently split into two macro helpers due to the fact
-// that clang emits an actual instruction for __builtin_unreachable() on certain
-// platforms (see https://crbug.com/958675). In addition, the int3/bkpt/brk will
-// be removed in followups, so splitting it up like this now makes it easy to
-// land the followups.
-
+// There are different constraints to satisfy here, see http://crbug.com/664209
+// for more context:
+// - The trap instructions, and hence the PC value at crash time, have to be
+//   distinct and not get folded into the same opcode by the compiler.
+//   On Linux/Android this is tricky because GCC still folds identical
+//   asm volatile blocks. The workaround is generating distinct opcodes for
+//   each CHECK using the __COUNTER__ macro.
+// - The debug info for the trap instruction has to be attributed to the source
+//   line that has the CHECK(), to make crash reports actionable. This rules
+//   out the ability of using a inline function, at least as long as clang
+//   doesn't support attribute(artificial).
+// - Failed CHECKs should produce a signal that is distinguishable from an
+//   invalid memory access, to improve the actionability of crash reports.
+// - The compiler should treat the CHECK as no-return instructions, so that the
+//   trap code can be efficiently packed in the prologue of the function and
+//   doesn't interfere with the main execution flow.
+// - When debugging, developers shouldn't be able to accidentally step over a
+//   CHECK. This is achieved by putting opcodes that will cause a non
+//   continuable exception after the actual trap instruction.
+// - Don't cause too much binary bloat.
 #if defined(COMPILER_GCC)
 
-#if defined(OS_NACL)
+#if defined(ARCH_CPU_X86_FAMILY) && !defined(OS_NACL)
+// int 3 will generate a SIGTRAP.
+#define TRAP_SEQUENCE() \
+  asm volatile(         \
+      "int3; ud2; push %0;" ::"i"(static_cast<unsigned char>(__COUNTER__)))
 
-// Crash report accuracy is not guaranteed on NaCl.
-#define TRAP_SEQUENCE1_() __builtin_trap()
-#define TRAP_SEQUENCE2_() asm volatile("")
-
-#elif defined(ARCH_CPU_X86_FAMILY)
-
-// TODO(https://crbug.com/958675): In theory, it should be possible to use just
-// int3. However, there are a number of crashes with SIGILL as the exception
-// code, so it seems likely that there's a signal handler that allows execution
-// to continue after SIGTRAP.
-#define TRAP_SEQUENCE1_() asm volatile("int3")
-
-#if defined(OS_MACOSX)
-// Intentionally empty: __builtin_unreachable() is always part of the sequence
-// (see IMMEDIATE_CRASH below) and already emits a ud2 on Mac.
-#define TRAP_SEQUENCE2_() asm volatile("")
-#else
-#define TRAP_SEQUENCE2_() asm volatile("ud2")
-#endif  // defined(OS_MACOSX)
-
-#elif defined(ARCH_CPU_ARMEL)
-
+#elif defined(ARCH_CPU_ARMEL) && !defined(OS_NACL)
 // bkpt will generate a SIGBUS when running on armv7 and a SIGTRAP when running
 // as a 32 bit userspace app on arm64. There doesn't seem to be any way to
 // cause a SIGTRAP from userspace without using a syscall (which would be a
 // problem for sandboxing).
-// TODO(https://crbug.com/958675): Remove bkpt from this sequence.
-#define TRAP_SEQUENCE1_() asm volatile("bkpt #0")
-#define TRAP_SEQUENCE2_() asm volatile("udf #0")
+#define TRAP_SEQUENCE() \
+  asm volatile("bkpt #0; udf %0;" ::"i"(__COUNTER__ % 256))
 
-#elif defined(ARCH_CPU_ARM64)
-
+#elif defined(ARCH_CPU_ARM64) && !defined(OS_NACL)
 // This will always generate a SIGTRAP on arm64.
-// TODO(https://crbug.com/958675): Remove brk from this sequence.
-#define TRAP_SEQUENCE1_() asm volatile("brk #0")
-#define TRAP_SEQUENCE2_() asm volatile("hlt #0")
+#define TRAP_SEQUENCE() \
+  asm volatile("brk #0; hlt %0;" ::"i"(__COUNTER__ % 65536))
 
 #else
-
 // Crash report accuracy will not be guaranteed on other architectures, but at
 // least this will crash as expected.
-#define TRAP_SEQUENCE1_() __builtin_trap()
-#define TRAP_SEQUENCE2_() asm volatile("")
-
+#define TRAP_SEQUENCE() __builtin_trap()
 #endif  // ARCH_CPU_*
 
 #elif defined(COMPILER_MSVC)
 
+// Clang is cleverer about coalescing int3s, so we need to add a unique-ish
+// instruction following the __debugbreak() to have it emit distinct locations
+// for CHECKs rather than collapsing them all together. It would be nice to use
+// a short intrinsic to do this (and perhaps have only one implementation for
+// both clang and MSVC), however clang-cl currently does not support intrinsics.
+// On the flip side, MSVC x64 doesn't support inline asm. So, we have to have
+// two implementations. Normally clang-cl's version will be 5 bytes (1 for
+// `int3`, 2 for `ud2`, 2 for `push byte imm`, however, TODO(scottmg):
+// https://crbug.com/694670 clang-cl doesn't currently support %'ing
+// __COUNTER__, so eventually it will emit the dword form of push.
+// TODO(scottmg): Reinvestigate a short sequence that will work on both
+// compilers once clang supports more intrinsics. See https://crbug.com/693713.
 #if !defined(__clang__)
-
-// MSVC x64 doesn't support inline asm, so use the MSVC intrinsic.
-#define TRAP_SEQUENCE1_() __debugbreak()
-#define TRAP_SEQUENCE2_()
-
+#define TRAP_SEQUENCE() __debugbreak()
 #elif defined(ARCH_CPU_ARM64)
-
-#define TRAP_SEQUENCE1_() __asm volatile("brk #0\n")
-// Intentionally empty: __builtin_unreachable() is always part of the sequence
-// (see IMMEDIATE_CRASH below) and already emits a ud2 on Win64
-#define TRAP_SEQUENCE2_() __asm volatile("")
-
+#define TRAP_SEQUENCE() \
+  __asm volatile("brk #0\n hlt %0\n" ::"i"(__COUNTER__ % 65536));
 #else
-
-#define TRAP_SEQUENCE1_() asm volatile("int3")
-
-#if defined(ARCH_CPU_64_BITS)
-// Intentionally empty: __builtin_unreachable() is always part of the sequence
-// (see IMMEDIATE_CRASH below) and already emits a ud2 on Win64
-#define TRAP_SEQUENCE2_() asm volatile("")
-#else
-#define TRAP_SEQUENCE2_() asm volatile("ud2")
-#endif  // defined(ARCH_CPU_64_bits)
-
+#define TRAP_SEQUENCE() ({ {__asm int 3 __asm ud2 __asm push __COUNTER__}; })
 #endif  // __clang__
 
 #else
-
-#error No supported trap sequence!
-
+#error Port
 #endif  // COMPILER_GCC
-
-#define TRAP_SEQUENCE_() \
-  do {                   \
-    TRAP_SEQUENCE1_();   \
-    TRAP_SEQUENCE2_();   \
-  } while (false)
 
 // CHECK() and the trap sequence can be invoked from a constexpr function.
 // This could make compilation fail on GCC, as it forbids directly using inline
@@ -139,34 +91,24 @@
 // full name of the lambda will typically include the name of the function that
 // calls CHECK() and the debugger will still break at the right line of code.
 #if !defined(COMPILER_GCC)
-
-#define WRAPPED_TRAP_SEQUENCE_() TRAP_SEQUENCE_()
-
+#define WRAPPED_TRAP_SEQUENCE() TRAP_SEQUENCE()
 #else
-
-#define WRAPPED_TRAP_SEQUENCE_() \
-  do {                           \
-    [] { TRAP_SEQUENCE_(); }();  \
+#define WRAPPED_TRAP_SEQUENCE() \
+  do {                          \
+    [] { TRAP_SEQUENCE(); }();  \
   } while (false)
-
-#endif  // !defined(COMPILER_GCC)
+#endif
 
 #if defined(__clang__) || defined(COMPILER_GCC)
-
-// __builtin_unreachable() hints to the compiler that this is noreturn and can
-// be packed in the function epilogue.
-#define IMMEDIATE_CRASH()     \
-  ({                          \
-    WRAPPED_TRAP_SEQUENCE_(); \
-    __builtin_unreachable();  \
+#define IMMEDIATE_CRASH()    \
+  ({                         \
+    WRAPPED_TRAP_SEQUENCE(); \
+    __builtin_unreachable(); \
   })
-
 #else
-
 // This is supporting non-chromium user of logging.h to build with MSVC, like
 // pdfium. On MSVC there is no __builtin_unreachable().
-#define IMMEDIATE_CRASH() WRAPPED_TRAP_SEQUENCE_()
-
-#endif  // defined(__clang__) || defined(COMPILER_GCC)
+#define IMMEDIATE_CRASH() WRAPPED_TRAP_SEQUENCE()
+#endif
 
 #endif  // BASE_IMMEDIATE_CRASH_H_

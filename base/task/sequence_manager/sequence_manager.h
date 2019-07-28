@@ -21,18 +21,6 @@ namespace sequence_manager {
 
 class TimeDomain;
 
-// Represent outstanding work the sequence underlying a SequenceManager (e.g.,
-// a native system task for drawing the UI). As long as this handle is alive,
-// the work is considered to be pending.
-class NativeWorkHandle {
- public:
-  virtual ~NativeWorkHandle();
-  NativeWorkHandle(const NativeWorkHandle&) = delete;
-
- protected:
-  NativeWorkHandle() = default;
-};
-
 // SequenceManager manages TaskQueues which have different properties
 // (e.g. priority, common task type) multiplexing all posted tasks into
 // a single backing sequence (currently bound to a single thread, which is
@@ -86,12 +74,6 @@ class BASE_EXPORT SequenceManager {
 
     // If true, add the timestamp the task got queued to the task.
     bool add_queue_time_to_tasks = false;
-
-    // If true, the scheduler will bypass the priority-based anti-starvation
-    // logic that prevents indefinite starvation of lower priority tasks in the
-    // presence of higher priority tasks by occasionally selecting lower
-    // priority task queues over higher priority task queues.
-    bool anti_starvation_logic_for_priorities_disabled = false;
 
 #if DCHECK_IS_ON()
     // TODO(alexclarke): Consider adding command line flags to control these.
@@ -224,17 +206,6 @@ class BASE_EXPORT SequenceManager {
   // Returns a JSON string which describes all pending tasks.
   virtual std::string DescribeAllPendingTasks() const = 0;
 
-  // Indicates that the underlying sequence (e.g., the message pump) has pending
-  // work at priority |priority|. If the priority of the work in this
-  // SequenceManager is lower, it will yield to let the native work run. The
-  // native work is assumed to remain pending while the returned handle is
-  // valid.
-  //
-  // Must be called on the main thread, and the returned handle must also be
-  // deleted on the main thread.
-  virtual std::unique_ptr<NativeWorkHandle> OnNativeWorkPending(
-      TaskQueue::QueuePriority priority) = 0;
-
  protected:
   virtual std::unique_ptr<internal::TaskQueueImpl> CreateTaskQueueImpl(
       const TaskQueue::Spec& spec) = 0;
@@ -255,18 +226,6 @@ class BASE_EXPORT SequenceManager::Settings::Builder {
 
   // Whether or not queueing timestamp will be added to tasks.
   Builder& SetAddQueueTimeToTasks(bool add_queue_time_to_tasks);
-
-  // Sets whether priority-based anti-starvation logic is disabled. By default,
-  // the scheduler uses priority-based anti-starvation logic that prevents
-  // indefinite starvation of lower priority tasks in the presence of higher
-  // priority tasks by occasionally selecting lower priority task queues over
-  // higher priority task queues.
-  //
-  // Note: this does not affect the anti-starvation logic that is in place for
-  // preventing delayed tasks from starving immediate tasks, which is always
-  // enabled.
-  Builder& SetAntiStarvationLogicForPrioritiesDisabled(
-      bool anti_starvation_logic_for_priorities_disabled);
 
 #if DCHECK_IS_ON()
   // Controls task execution logging.

@@ -28,6 +28,8 @@ class BASE_EXPORT PowerMonitorDeviceSource : public PowerMonitorSource {
   PowerMonitorDeviceSource();
   ~PowerMonitorDeviceSource() override;
 
+  void Shutdown() override;
+
 #if defined(OS_MACOSX)
   // Allocate system resources needed by the PowerMonitor class.
   //

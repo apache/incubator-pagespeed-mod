@@ -64,24 +64,9 @@ StartupContext::StartupContext(::fuchsia::sys::StartupInfo startup_info)
         fidl::InterfaceHandle<::fuchsia::io::Directory>(
             std::move(incoming_directory)));
   }
-
-  if (!incoming_services_) {
-    LOG(WARNING) << "Component started without a service directory";
-
-    // Create a dummy ServiceDirectoryClient with a channel that's not
-    // connected on the other end.
-    fidl::InterfaceHandle<::fuchsia::io::Directory> dummy_directory;
-    ignore_result(dummy_directory.NewRequest());
-    incoming_services_ =
-        std::make_unique<ServiceDirectoryClient>(std::move(dummy_directory));
-  }
 }
 
-StartupContext::~StartupContext() {
-  // |additional_services_directory_| needs to be empty for clean teardown.
-  if (additional_services_directory_)
-    additional_services_directory_->RemoveAllServices();
-}
+StartupContext::~StartupContext() = default;
 
 ServiceDirectory* StartupContext::public_services() {
   if (!public_services_ && startup_info_.launch_info.directory_request) {

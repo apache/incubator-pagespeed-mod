@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/RecordUserAction_jni.h"
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/metrics/user_metrics.h"
+#include "jni/RecordUserAction_jni.h"
 
 namespace {
 

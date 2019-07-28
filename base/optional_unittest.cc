@@ -102,7 +102,6 @@ void swap(TestObject& lhs, TestObject& rhs) {
 }
 
 class NonTriviallyDestructible {
- public:
   ~NonTriviallyDestructible() {}
 };
 

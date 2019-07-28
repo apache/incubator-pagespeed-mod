@@ -262,8 +262,8 @@ class SingleThreadInThreadPoolPerfTestDelegate : public PerfTestDelegate {
   bool MultipleQueuesSupported() const override { return false; }
 
   scoped_refptr<TaskRunner> CreateTaskRunner() override {
-    return CreateSingleThreadTaskRunner(
-        {ThreadPool(), TaskPriority::USER_BLOCKING});
+    return CreateSingleThreadTaskRunnerWithTraits(
+        {TaskPriority::USER_BLOCKING});
   }
 
   void WaitUntilDone() override {

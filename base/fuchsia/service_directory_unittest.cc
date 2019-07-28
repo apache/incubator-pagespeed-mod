@@ -4,10 +4,17 @@
 
 #include "base/fuchsia/service_directory.h"
 
+#include <lib/fdio/fdio.h>
+#include <lib/zx/channel.h>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/fuchsia/service_directory_test_base.h"
+#include "base/location.h"
 #include "base/run_loop.h"
+#include "base/task_runner.h"
+#include "base/test/test_timeouts.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -23,8 +30,18 @@ TEST_F(ServiceDirectoryTest, ConnectDisconnect) {
                   ->ConnectToService<testfidl::TestInterface>();
   VerifyTestInterface(&stub, ZX_OK);
 
-  RunLoop run_loop;
+  base::RunLoop run_loop;
   service_binding_->SetOnLastClientCallback(run_loop.QuitClosure());
+
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::RunLoop* run_loop) {
+            ADD_FAILURE();
+            run_loop->Quit();
+          },
+          &run_loop),
+      TestTimeouts::action_timeout());
 
   stub.Unbind();
   run_loop.Run();

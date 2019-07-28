@@ -9,8 +9,6 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.Environment;
-import android.os.StatFs;
 import android.os.StrictMode;
 import android.util.Log;
 
@@ -31,17 +29,11 @@ public class SysUtils {
     // A device reporting strictly more total memory in megabytes cannot be considered 'low-end'.
     private static final int ANDROID_LOW_MEMORY_DEVICE_THRESHOLD_MB = 512;
     private static final int ANDROID_O_LOW_MEMORY_DEVICE_THRESHOLD_MB = 1024;
-    private static final int BYTES_PER_GIGABYTE = 1024 * 1024 * 1024;
-
-    // A device reporting more disk capacity in gigabytes than this is considered high end.
-    private static final long HIGH_END_DEVICE_DISK_CAPACITY_GB = 24;
 
     private static final String TAG = "SysUtils";
 
     private static Boolean sLowEndDevice;
     private static Integer sAmountOfPhysicalMemoryKB;
-
-    private static Boolean sHighEndDiskDevice;
 
     private static CachedMetrics.BooleanHistogramSample sLowEndMatches =
             new CachedMetrics.BooleanHistogramSample("Android.SysUtilsLowEndMatches");
@@ -204,26 +196,4 @@ public class SysUtils {
     }
 
     private static native void nativeLogPageFaultCountToTracing();
-
-    /**
-     * @return Whether or not this device should be considered a high end device from a disk
-     *         capacity point of view.
-     */
-    public static boolean isHighEndDiskDevice() {
-        if (sHighEndDiskDevice == null) {
-            sHighEndDiskDevice = detectHighEndDiskDevice();
-        }
-        return sHighEndDiskDevice.booleanValue();
-    }
-
-    private static boolean detectHighEndDiskDevice() {
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            StatFs dataStats = new StatFs(Environment.getDataDirectory().getAbsolutePath());
-            long totalGBytes = dataStats.getTotalBytes() / BYTES_PER_GIGABYTE;
-            return totalGBytes >= HIGH_END_DEVICE_DISK_CAPACITY_GB;
-        } catch (IllegalArgumentException e) {
-            Log.v(TAG, "Cannot get disk data capacity", e);
-        }
-        return false;
-    }
 }

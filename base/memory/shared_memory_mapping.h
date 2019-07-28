@@ -32,8 +32,8 @@ class BASE_EXPORT SharedMemoryMapping {
   SharedMemoryMapping();
 
   // Move operations are allowed.
-  SharedMemoryMapping(SharedMemoryMapping&& mapping) noexcept;
-  SharedMemoryMapping& operator=(SharedMemoryMapping&& mapping) noexcept;
+  SharedMemoryMapping(SharedMemoryMapping&& mapping);
+  SharedMemoryMapping& operator=(SharedMemoryMapping&& mapping);
 
   // Unmaps the region if the mapping is valid.
   virtual ~SharedMemoryMapping();
@@ -93,9 +93,8 @@ class BASE_EXPORT ReadOnlySharedMemoryMapping : public SharedMemoryMapping {
   ReadOnlySharedMemoryMapping();
 
   // Move operations are allowed.
-  ReadOnlySharedMemoryMapping(ReadOnlySharedMemoryMapping&&) noexcept;
-  ReadOnlySharedMemoryMapping& operator=(
-      ReadOnlySharedMemoryMapping&&) noexcept;
+  ReadOnlySharedMemoryMapping(ReadOnlySharedMemoryMapping&&);
+  ReadOnlySharedMemoryMapping& operator=(ReadOnlySharedMemoryMapping&&);
 
   // Returns the base address of the mapping. This is read-only memory. This is
   // page-aligned. This is nullptr for invalid instances.
@@ -172,9 +171,8 @@ class BASE_EXPORT WritableSharedMemoryMapping : public SharedMemoryMapping {
   WritableSharedMemoryMapping();
 
   // Move operations are allowed.
-  WritableSharedMemoryMapping(WritableSharedMemoryMapping&&) noexcept;
-  WritableSharedMemoryMapping& operator=(
-      WritableSharedMemoryMapping&&) noexcept;
+  WritableSharedMemoryMapping(WritableSharedMemoryMapping&&);
+  WritableSharedMemoryMapping& operator=(WritableSharedMemoryMapping&&);
 
   // Returns the base address of the mapping. This is writable memory. This is
   // page-aligned. This is nullptr for invalid instances.

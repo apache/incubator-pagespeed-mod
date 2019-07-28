@@ -120,7 +120,7 @@ namespace base {
 //                            my_embedder::MyExtensionTrait::kValueA};
 //
 // // Extension traits can also be specified directly when posting a task.
-// base::PostTask(FROM_HERE,
+// base::PostTaskWithTraits(FROM_HERE,
 //                          {my_embedder::MyExtensionTrait::kValueB},
 //                          base::BindOnce(...));
 

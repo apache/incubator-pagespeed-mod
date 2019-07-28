@@ -47,10 +47,10 @@ class BASE_EXPORT TimeDomain {
   // TODO(alexclarke): Make this main thread only.
   virtual TimeTicks Now() const = 0;
 
-  // Computes the delay until the time when TimeDomain needs to wake up some
-  // TaskQueue on the main thread. Specific time domains (e.g. virtual or
-  // throttled) may return TimeDelta() if TaskQueues have any delayed tasks they
-  // deem eligible to run. It's also allowed to advance time domains's internal
+  // Computes the delay until the time when TimeDomain needs to wake up
+  // some TaskQueue. Specific time domains (e.g. virtual or throttled) may
+  // return TimeDelata() if TaskQueues have any delayed tasks they deem
+  // eligible to run. It's also allowed to advance time domains's internal
   // clock when this method is called.
   // Can be called from main thread only.
   // NOTE: |lazy_now| and the return value are in the SequenceManager's time.

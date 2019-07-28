@@ -5,14 +5,10 @@
 #ifndef BASE_TASK_THREAD_POOL_TEST_UTILS_H_
 #define BASE_TASK_THREAD_POOL_TEST_UTILS_H_
 
-#include <atomic>
-
-#include "base/callback.h"
 #include "base/task/common/checked_lock.h"
 #include "base/task/task_features.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool/delayed_task_manager.h"
-#include "base/task/thread_pool/job_task_source.h"
 #include "base/task/thread_pool/pooled_task_runner_delegate.h"
 #include "base/task/thread_pool/sequence.h"
 #include "base/task/thread_pool/task_tracker.h"
@@ -75,33 +71,6 @@ class MockPooledTaskRunnerDelegate : public PooledTaskRunnerDelegate {
   ThreadGroup* thread_group_ = nullptr;
 };
 
-// A simple JobTaskSource that will give |worker_task| a fixed number of times,
-// possibly in parallel.
-class MockJobTaskSource : public JobTaskSource {
- public:
-  // Gives |worker_task| to requesting workers |num_tasks_to_run| times.
-  // Allowing at most |max_concurrency| workers to be running |worker_task| in
-  // parallel.
-  MockJobTaskSource(const Location& from_here,
-                    base::RepeatingClosure worker_task,
-                    const TaskTraits& traits,
-                    size_t num_tasks_to_run,
-                    size_t max_concurrency);
-
-  // Gives |worker_task| to a single requesting worker.
-  MockJobTaskSource(const Location& from_here,
-                    base::OnceClosure worker_task,
-                    const TaskTraits& traits);
-
-  size_t GetMaxConcurrency() const override;
-
- private:
-  ~MockJobTaskSource() override;
-
-  std::atomic_size_t remaining_num_tasks_to_run_;
-  const size_t max_concurrency_;
-};
-
 // An enumeration of possible thread pool types. Used to parametrize relevant
 // thread_pool tests.
 enum class PoolType {
@@ -127,13 +96,13 @@ scoped_refptr<Sequence> CreateSequenceWithTask(
 scoped_refptr<TaskRunner> CreateTaskRunnerWithExecutionMode(
     TaskSourceExecutionMode execution_mode,
     MockPooledTaskRunnerDelegate* mock_pooled_task_runner_delegate,
-    const TaskTraits& traits = {ThreadPool()});
+    const TaskTraits& traits = TaskTraits());
 
-scoped_refptr<TaskRunner> CreateTaskRunner(
+scoped_refptr<TaskRunner> CreateTaskRunnerWithTraits(
     const TaskTraits& traits,
     MockPooledTaskRunnerDelegate* mock_pooled_task_runner_delegate);
 
-scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunner(
+scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunnerWithTraits(
     const TaskTraits& traits,
     MockPooledTaskRunnerDelegate* mock_pooled_task_runner_delegate);
 

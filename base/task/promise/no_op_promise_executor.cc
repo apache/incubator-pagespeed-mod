@@ -18,9 +18,9 @@ NoOpPromiseExecutor::NoOpPromiseExecutor(bool can_resolve, bool can_reject)
 
 NoOpPromiseExecutor::~NoOpPromiseExecutor() {}
 
-PromiseExecutor::PrerequisitePolicy NoOpPromiseExecutor::GetPrerequisitePolicy()
-    const {
-  return PromiseExecutor::PrerequisitePolicy::kNever;
+AbstractPromise::Executor::PrerequisitePolicy
+NoOpPromiseExecutor::GetPrerequisitePolicy() const {
+  return AbstractPromise::Executor::PrerequisitePolicy::kNever;
 }
 
 bool NoOpPromiseExecutor::IsCancelled() const {
@@ -28,14 +28,14 @@ bool NoOpPromiseExecutor::IsCancelled() const {
 }
 
 #if DCHECK_IS_ON()
-PromiseExecutor::ArgumentPassingType
+AbstractPromise::Executor::ArgumentPassingType
 NoOpPromiseExecutor::ResolveArgumentPassingType() const {
-  return PromiseExecutor::ArgumentPassingType::kNoCallback;
+  return AbstractPromise::Executor::ArgumentPassingType::kNoCallback;
 }
 
-PromiseExecutor::ArgumentPassingType
+AbstractPromise::Executor::ArgumentPassingType
 NoOpPromiseExecutor::RejectArgumentPassingType() const {
-  return PromiseExecutor::ArgumentPassingType::kNoCallback;
+  return AbstractPromise::Executor::ArgumentPassingType::kNoCallback;
 }
 
 bool NoOpPromiseExecutor::CanResolve() const {
@@ -55,10 +55,12 @@ scoped_refptr<internal::AbstractPromise> NoOpPromiseExecutor::Create(
     bool can_resolve,
     bool can_reject,
     RejectPolicy reject_policy) {
-  return AbstractPromise::CreateNoPrerequisitePromise(
-      from_here, reject_policy, DependentList::ConstructUnresolved(),
-      PromiseExecutor::Data(in_place_type_t<NoOpPromiseExecutor>(), can_resolve,
-                            can_reject));
+  return internal::AbstractPromise::Create(
+      nullptr, from_here, nullptr, reject_policy,
+      internal::AbstractPromise::ConstructWith<
+          internal::DependentList::ConstructUnresolved,
+          internal::NoOpPromiseExecutor>(),
+      can_resolve, can_reject);
 }
 
 }  // namespace internal

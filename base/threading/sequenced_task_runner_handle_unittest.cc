@@ -58,16 +58,17 @@ TEST_F(SequencedTaskRunnerHandleTest, FromTaskEnvironment) {
 }
 
 TEST_F(SequencedTaskRunnerHandleTest, FromThreadPoolSequencedTask) {
-  base::CreateSequencedTaskRunner({ThreadPool()})
-      ->PostTask(FROM_HERE,
-                 base::BindOnce(&SequencedTaskRunnerHandleTest::
-                                    VerifyCurrentSequencedTaskRunner));
+  base::CreateSequencedTaskRunnerWithTraits({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &SequencedTaskRunnerHandleTest::VerifyCurrentSequencedTaskRunner));
   scoped_task_environment_.RunUntilIdle();
 }
 
 TEST_F(SequencedTaskRunnerHandleTest, NoHandleFromUnsequencedTask) {
-  base::PostTask(base::BindOnce(
-      []() { EXPECT_FALSE(SequencedTaskRunnerHandle::IsSet()); }));
+  base::PostTask(FROM_HERE, base::BindOnce([]() {
+                   EXPECT_FALSE(SequencedTaskRunnerHandle::IsSet());
+                 }));
   scoped_task_environment_.RunUntilIdle();
 }
 

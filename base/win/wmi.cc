@@ -10,10 +10,8 @@
 #include <stdint.h>
 #include <utility>
 
-#include "base/location.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/threading/scoped_thread_priority.h"
 #include "base/win/scoped_bstr.h"
 #include "base/win/scoped_variant.h"
 
@@ -24,10 +22,6 @@ namespace win {
 
 bool CreateLocalWmiConnection(bool set_blanket,
                               ComPtr<IWbemServices>* wmi_services) {
-  // Mitigate the issues caused by loading DLLs on a background thread
-  // (http://crbug/973868).
-  base::ScopedThreadMayLoadLibraryOnBackgroundThread priority_boost(FROM_HERE);
-
   ComPtr<IWbemLocator> wmi_locator;
   HRESULT hr =
       ::CoCreateInstance(CLSID_WbemLocator, nullptr, CLSCTX_INPROC_SERVER,

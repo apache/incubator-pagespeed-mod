@@ -41,9 +41,6 @@ class BASE_EXPORT MessagePump {
   //   This type of pump is backed by a NSRunLoop. This is only for use on
   //   OSX and IOS.
   //
-  // UI_WITH_WM_QUIT_SUPPORT
-  //   This type of pump supports WM_QUIT messages in addition to other native
-  //   UI events. This is only for use on windows.
   enum class Type {
     DEFAULT,
     UI,
@@ -55,9 +52,6 @@ class BASE_EXPORT MessagePump {
 #if defined(OS_MACOSX)
     NS_RUNLOOP,
 #endif  // defined(OS_MACOSX)
-#if defined(OS_WIN)
-    UI_WITH_WM_QUIT_SUPPORT,
-#endif  // defined(OS_WIN)
   };
 
   using MessagePumpFactory = std::unique_ptr<MessagePump>();

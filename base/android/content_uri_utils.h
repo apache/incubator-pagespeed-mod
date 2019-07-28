@@ -29,7 +29,7 @@ BASE_EXPORT bool MaybeGetFileDisplayName(const FilePath& content_uri,
                                          base::string16* file_display_name);
 
 // Deletes a content URI.
-BASE_EXPORT bool DeleteContentUri(const FilePath& content_uri);
+BASE_EXPORT void DeleteContentUri(const FilePath& content_uri);
 
 }  // namespace base
 

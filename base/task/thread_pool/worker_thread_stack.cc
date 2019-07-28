@@ -41,7 +41,7 @@ WorkerThread* WorkerThreadStack::Peek() const {
 }
 
 bool WorkerThreadStack::Contains(const WorkerThread* worker) const {
-  return base::Contains(stack_, worker);
+  return ContainsValue(stack_, worker);
 }
 
 void WorkerThreadStack::Remove(const WorkerThread* worker) {

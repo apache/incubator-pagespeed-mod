@@ -11,74 +11,61 @@
 
 namespace base {
 
-void PowerMonitor::Initialize(std::unique_ptr<PowerMonitorSource> source) {
-  DCHECK(!IsInitialized());
-  GetInstance()->source_ = std::move(source);
+static PowerMonitor* g_power_monitor = nullptr;
+
+PowerMonitor::PowerMonitor(std::unique_ptr<PowerMonitorSource> source)
+    : observers_(new ObserverListThreadSafe<PowerObserver>()),
+      source_(std::move(source)) {
+  DCHECK(!g_power_monitor);
+  g_power_monitor = this;
 }
 
-bool PowerMonitor::IsInitialized() {
-  return GetInstance()->source_.get() != nullptr;
+PowerMonitor::~PowerMonitor() {
+  source_->Shutdown();
+  DCHECK_EQ(this, g_power_monitor);
+  g_power_monitor = nullptr;
 }
 
-bool PowerMonitor::AddObserver(PowerObserver* obs) {
-  PowerMonitor* power_monitor = GetInstance();
-  if (!IsInitialized())
-    return false;
-  power_monitor->observers_->AddObserver(obs);
-  return true;
+// static
+PowerMonitor* PowerMonitor::Get() {
+  return g_power_monitor;
+}
+
+void PowerMonitor::AddObserver(PowerObserver* obs) {
+  observers_->AddObserver(obs);
 }
 
 void PowerMonitor::RemoveObserver(PowerObserver* obs) {
-  GetInstance()->observers_->RemoveObserver(obs);
+  observers_->RemoveObserver(obs);
 }
 
 PowerMonitorSource* PowerMonitor::Source() {
-  return GetInstance()->source_.get();
+  return source_.get();
 }
 
 bool PowerMonitor::IsOnBatteryPower() {
-  DCHECK(IsInitialized());
-  return GetInstance()->source_->IsOnBatteryPower();
-}
-
-void PowerMonitor::ShutdownForTesting() {
-  PowerMonitor::GetInstance()->observers_->AssertEmpty();
-  GetInstance()->source_ = nullptr;
+  return source_->IsOnBatteryPower();
 }
 
 void PowerMonitor::NotifyPowerStateChange(bool battery_in_use) {
-  DCHECK(IsInitialized());
   DVLOG(1) << "PowerStateChange: " << (battery_in_use ? "On" : "Off")
            << " battery";
-  GetInstance()->observers_->Notify(
-      FROM_HERE, &PowerObserver::OnPowerStateChange, battery_in_use);
+  observers_->Notify(FROM_HERE, &PowerObserver::OnPowerStateChange,
+                     battery_in_use);
 }
 
 void PowerMonitor::NotifySuspend() {
-  DCHECK(IsInitialized());
   TRACE_EVENT_INSTANT0("base", "PowerMonitor::NotifySuspend",
                        TRACE_EVENT_SCOPE_GLOBAL);
   DVLOG(1) << "Power Suspending";
-  GetInstance()->observers_->Notify(FROM_HERE, &PowerObserver::OnSuspend);
+  observers_->Notify(FROM_HERE, &PowerObserver::OnSuspend);
 }
 
 void PowerMonitor::NotifyResume() {
-  DCHECK(IsInitialized());
   TRACE_EVENT_INSTANT0("base", "PowerMonitor::NotifyResume",
                        TRACE_EVENT_SCOPE_GLOBAL);
   DVLOG(1) << "Power Resuming";
-  GetInstance()->observers_->Notify(FROM_HERE, &PowerObserver::OnResume);
+  observers_->Notify(FROM_HERE, &PowerObserver::OnResume);
 }
-
-PowerMonitor* PowerMonitor::GetInstance() {
-  static base::NoDestructor<PowerMonitor> power_monitor;
-  return power_monitor.get();
-}
-
-PowerMonitor::PowerMonitor()
-    : observers_(
-          base::MakeRefCounted<ObserverListThreadSafe<PowerObserver>>()) {}
-
-PowerMonitor::~PowerMonitor() = default;
 
 }  // namespace base

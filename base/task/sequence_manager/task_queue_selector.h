@@ -68,9 +68,9 @@ class BASE_EXPORT TaskQueueSelector : public WorkQueueSets::Observer {
   // on the main thread. If |observer| is null, then no callbacks will occur.
   void SetTaskQueueSelectorObserver(Observer* observer);
 
-  // Returns the priority of the most important pending task if one exists.
-  // O(1).
-  Optional<TaskQueue::QueuePriority> GetHighestPendingPriority() const;
+  // Returns true if all the enabled work queues are empty. Returns false
+  // otherwise.
+  bool AllEnabledWorkQueuesAreEmpty() const;
 
   // WorkQueueSets::Observer implementation:
   void WorkQueueSetBecameEmpty(size_t set_index) override;
@@ -250,16 +250,6 @@ class BASE_EXPORT TaskQueueSelector : public WorkQueueSets::Observer {
 #if DCHECK_IS_ON()
   const bool random_task_selection_ = false;
 #endif
-
-  // If true, the scheduler will bypass the priority-based anti-starvation logic
-  // that prevents indefinite starvation of lower priority tasks in the presence
-  // of higher priority tasks by occasionally selecting lower priority task
-  // queues over higher priority task queues.
-  //
-  // Note: this does not affect the anti-starvation logic that is in place for
-  // preventing delayed tasks from starving immediate tasks, which is always
-  // enabled.
-  const bool anti_starvation_logic_for_priorities_disabled_;
 
   // Count of the number of sets (delayed or immediate) for each priority.
   // Should only contain 0, 1 or 2.

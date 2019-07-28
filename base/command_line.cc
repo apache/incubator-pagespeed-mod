@@ -45,10 +45,10 @@ const CommandLine::CharType* const kSwitchPrefixes[] = {"--", "-"};
 #endif
 size_t switch_prefix_count = size(kSwitchPrefixes);
 
-size_t GetSwitchPrefixLength(CommandLine::StringPieceType string) {
+size_t GetSwitchPrefixLength(const CommandLine::StringType& string) {
   for (size_t i = 0; i < switch_prefix_count; ++i) {
     CommandLine::StringType prefix(kSwitchPrefixes[i]);
-    if (string.substr(0, prefix.length()) == prefix)
+    if (string.compare(0, prefix.length(), prefix) == 0)
       return prefix.length();
   }
   return 0;
@@ -70,19 +70,6 @@ bool IsSwitch(const CommandLine::StringType& string,
   if (equals_position != CommandLine::StringType::npos)
     *switch_value = string.substr(equals_position + 1);
   return true;
-}
-
-// Returns true iff |string| represents a switch with key
-// |switch_key_without_prefix|, regardless of value.
-bool IsSwitchWithKey(CommandLine::StringPieceType string,
-                     CommandLine::StringPieceType switch_key_without_prefix) {
-  size_t prefix_length = GetSwitchPrefixLength(string);
-  if (prefix_length == 0 || prefix_length == string.length())
-    return false;
-
-  const size_t equals_position = string.find(kSwitchValueSeparator);
-  return string.substr(prefix_length, equals_position - prefix_length) ==
-         switch_key_without_prefix;
 }
 
 // Append switches and arguments, keeping switches before arguments.
@@ -299,7 +286,7 @@ void CommandLine::SetProgram(const FilePath& program) {
 
 bool CommandLine::HasSwitch(const StringPiece& switch_string) const {
   DCHECK_EQ(ToLowerASCII(switch_string), switch_string);
-  return Contains(switches_, switch_string);
+  return ContainsKey(switches_, switch_string);
 }
 
 bool CommandLine::HasSwitch(const char switch_constant[]) const {
@@ -375,38 +362,9 @@ void CommandLine::AppendSwitchASCII(const std::string& switch_string,
 #endif
 }
 
-void CommandLine::RemoveSwitch(base::StringPiece switch_key_without_prefix) {
-#if defined(OS_WIN)
-  StringType switch_key_native = base::ASCIIToUTF16(switch_key_without_prefix);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-  StringType switch_key_native = switch_key_without_prefix.as_string();
-#endif
-
-  DCHECK_EQ(ToLowerASCII(switch_key_without_prefix), switch_key_without_prefix);
-  DCHECK_EQ(0u, GetSwitchPrefixLength(switch_key_native));
-  size_t erased_from_switches =
-      switches_.erase(switch_key_without_prefix.as_string());
-  DCHECK(erased_from_switches <= 1);
-  if (!erased_from_switches)
-    return;
-
-  // Also erase from the switches section of |argv_| and update |begin_args_|
-  // accordingly.
-  // Switches in |argv_| have indices [1, begin_args_).
-  auto argv_switches_begin = argv_.begin() + 1;
-  auto argv_switches_end = argv_.begin() + begin_args_;
-  DCHECK(argv_switches_begin <= argv_switches_end);
-  DCHECK(argv_switches_end <= argv_.end());
-  auto arg_iter = std::find_if(argv_switches_begin, argv_switches_end,
-                               [&switch_key_native](const StringType& arg) {
-                                 return IsSwitchWithKey(arg, switch_key_native);
-                               });
-  if (arg_iter == argv_switches_end) {
-    NOTREACHED();
-    return;
-  }
-  argv_.erase(arg_iter);
-  --begin_args_;
+void CommandLine::RemoveSwitch(const StringPiece& switch_string) {
+  DCHECK_EQ(ToLowerASCII(switch_string), switch_string);
+  switches_.erase(switch_string.as_string());
 }
 
 void CommandLine::CopySwitchesFrom(const CommandLine& source,

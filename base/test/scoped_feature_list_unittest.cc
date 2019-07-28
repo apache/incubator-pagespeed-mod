@@ -167,10 +167,7 @@ TEST_F(ScopedFeatureListTest, OverrideWithFeatureParameters) {
     EXPECT_TRUE(FeatureList::IsEnabled(kTestFeature2));
     EXPECT_EQ("", GetFieldTrialParamValueByFeature(kTestFeature1, kParam));
     EXPECT_EQ(kValue, GetFieldTrialParamValueByFeature(kTestFeature2, kParam));
-    EXPECT_EQ(trial.get()->trial_name(),
-              FeatureList::GetFieldTrial(kTestFeature1)->trial_name());
-    EXPECT_EQ(trial.get()->group_name(),
-              FeatureList::GetFieldTrial(kTestFeature1)->group_name());
+    EXPECT_EQ(trial.get(), FeatureList::GetFieldTrial(kTestFeature1));
     EXPECT_NE(nullptr, FeatureList::GetFieldTrial(kTestFeature2));
   }
 
@@ -241,38 +238,6 @@ TEST_F(ScopedFeatureListTest, OverrideMultipleFeaturesWithParameters) {
   EXPECT_EQ(nullptr, FeatureList::GetFieldTrial(kTestFeature2));
   EXPECT_EQ("", GetFieldTrialParamValueByFeature(kTestFeature1, kParam));
   EXPECT_EQ("", GetFieldTrialParamValueByFeature(kTestFeature2, kParam));
-}
-
-TEST_F(ScopedFeatureListTest, ParamsWithSpecialCharsPreserved) {
-  // Check that special characters in param names and values are preserved.
-  const char kParam[] = ";_\\<:>/_!?";
-  const char kValue[] = ",;:/'!?";
-  FieldTrialParams params0 = {{kParam, kValue}};
-
-  test::ScopedFeatureList feature_list0;
-  feature_list0.InitWithFeaturesAndParameters({{kTestFeature1, params0}}, {});
-  EXPECT_EQ(kValue, GetFieldTrialParamValueByFeature(kTestFeature1, kParam));
-
-  {
-    const char kValue1[] = "normal";
-    FieldTrialParams params1 = {{kParam, kValue1}};
-    test::ScopedFeatureList feature_list1;
-    feature_list1.InitWithFeaturesAndParameters({{kTestFeature1, params1}}, {});
-
-    EXPECT_EQ(kValue1, GetFieldTrialParamValueByFeature(kTestFeature1, kParam));
-  }
-  EXPECT_EQ(kValue, GetFieldTrialParamValueByFeature(kTestFeature1, kParam));
-
-  {
-    const char kValue2[] = "[<(2)>]";
-    FieldTrialParams params2 = {{kParam, kValue2}};
-    test::ScopedFeatureList feature_list2;
-    feature_list2.InitWithFeaturesAndParameters({{kTestFeature2, params2}}, {});
-
-    EXPECT_EQ(kValue2, GetFieldTrialParamValueByFeature(kTestFeature2, kParam));
-    EXPECT_EQ(kValue, GetFieldTrialParamValueByFeature(kTestFeature1, kParam));
-  }
-  EXPECT_EQ(kValue, GetFieldTrialParamValueByFeature(kTestFeature1, kParam));
 }
 
 TEST_F(ScopedFeatureListTest, EnableFeatureOverrideDisable) {

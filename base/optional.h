@@ -384,7 +384,7 @@ struct IsSwappable : decltype(swappable_impl::IsSwappableImpl::Check<T&>(0)) {};
 
 // Forward compatibility for C++20.
 template <typename T>
-using RemoveCvRefT = std::remove_cv<std::remove_reference_t<T>>;
+using RemoveCvRefT = std::remove_cv_t<std::remove_reference_t<T>>;
 
 }  // namespace internal
 
@@ -427,28 +427,6 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
                                       std::is_copy_assignable<T>::value>,
       public internal::MoveAssignable<std::is_move_constructible<T>::value &&
                                       std::is_move_assignable<T>::value> {
- private:
-  // Disable some versions of T that are ill-formed.
-  // See: https://timsong-cpp.github.io/cppwp/n4659/optional#syn-1
-  static_assert(
-      !std::is_same<internal::RemoveCvRefT<T>, in_place_t>::value,
-      "instantiation of base::Optional with in_place_t is ill-formed");
-  static_assert(!std::is_same<internal::RemoveCvRefT<T>, nullopt_t>::value,
-                "instantiation of base::Optional with nullopt_t is ill-formed");
-  static_assert(
-      !std::is_reference<T>::value,
-      "instantiation of base::Optional with a reference type is ill-formed");
-  // See: https://timsong-cpp.github.io/cppwp/n4659/optional#optional-3
-  static_assert(std::is_destructible<T>::value,
-                "instantiation of base::Optional with a non-destructible type "
-                "is ill-formed");
-  // Arrays are explicitly disallowed because for arrays of known bound
-  // is_destructible is of undefined value.
-  // See: https://en.cppreference.com/w/cpp/types/is_destructible
-  static_assert(
-      !std::is_array<T>::value,
-      "instantiation of base::Optional with an array type is ill-formed");
-
  public:
 #undef OPTIONAL_DECLSPEC_EMPTY_BASES
   using value_type = T;
@@ -463,7 +441,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 
   // Converting copy constructor. "explicit" only if
   // std::is_convertible<const U&, T>::value is false. It is implemented by
-  // declaring two almost same constructors, but that condition in enable_if
+  // declaring two almost same constructors, but that condition in enable_if_t
   // is different, so that either one is chosen, thanks to SFINAE.
   template <
       typename U,
@@ -560,7 +538,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
           std::is_constructible<T, U>::value &&
           std::is_assignable<T&, U>::value &&
           (!std::is_scalar<T>::value ||
-           !std::is_same<std::decay<U>, T>::value),
+           !std::is_same<std::decay_t<U>, T>::value),
       Optional&>
   operator=(U&& value) {
     InitOrAssign(std::forward<U>(value));
@@ -895,8 +873,8 @@ constexpr bool operator>=(const U& value, const Optional<T>& opt) {
 }
 
 template <class T>
-constexpr Optional<std::decay<T>> make_optional(T&& value) {
-  return Optional<std::decay<T>>(std::forward<T>(value));
+constexpr Optional<std::decay_t<T>> make_optional(T&& value) {
+  return Optional<std::decay_t<T>>(std::forward<T>(value));
 }
 
 template <class T, class... Args>

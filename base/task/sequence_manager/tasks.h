@@ -72,8 +72,8 @@ struct DelayedWakeUp {
 struct BASE_EXPORT Task : public PendingTask {
   Task(internal::PostedTask posted_task,
        TimeTicks desired_run_time,
-       EnqueueOrder sequence_order,
-       EnqueueOrder enqueue_order = EnqueueOrder(),
+       internal::EnqueueOrder sequence_order,
+       internal::EnqueueOrder enqueue_order = internal::EnqueueOrder(),
        internal::WakeUpResolution wake_up_resolution =
            internal::WakeUpResolution::kLow);
 
@@ -83,12 +83,12 @@ struct BASE_EXPORT Task : public PendingTask {
 
   // SequenceManager is particularly sensitive to enqueue order,
   // so we have accessors for safety.
-  EnqueueOrder enqueue_order() const {
+  internal::EnqueueOrder enqueue_order() const {
     DCHECK(enqueue_order_);
     return enqueue_order_;
   }
 
-  void set_enqueue_order(EnqueueOrder enqueue_order) {
+  void set_enqueue_order(internal::EnqueueOrder enqueue_order) {
     DCHECK(!enqueue_order_);
     enqueue_order_ = enqueue_order;
   }
@@ -107,7 +107,7 @@ struct BASE_EXPORT Task : public PendingTask {
   // is set when posted, but for delayed tasks it's not defined until they are
   // enqueued. This is because otherwise delayed tasks could run before
   // an immediate task posted after the delayed task.
-  EnqueueOrder enqueue_order_;
+  internal::EnqueueOrder enqueue_order_;
 };
 
 }  // namespace sequence_manager

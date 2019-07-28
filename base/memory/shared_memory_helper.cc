@@ -34,6 +34,10 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
                                  ScopedFD* fd,
                                  ScopedFD* readonly_fd,
                                  FilePath* path) {
+#if defined(OS_LINUX)
+  // It doesn't make sense to have a open-existing private piece of shmem
+  DCHECK(!options.open_existing_deprecated);
+#endif  // defined(OS_LINUX)
   // Q: Why not use the shm_open() etc. APIs?
   // A: Because they're limited to 4mb on OS X.  FFFFFFFUUUUUUUUUUU
   FilePath directory;

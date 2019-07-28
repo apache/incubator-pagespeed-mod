@@ -22,29 +22,27 @@ namespace base {
 namespace {
 
 LazySequencedTaskRunner g_sequenced_task_runner_user_visible =
-    LAZY_SEQUENCED_TASK_RUNNER_INITIALIZER(
-        TaskTraits(ThreadPool(), TaskPriority::USER_VISIBLE));
+    LAZY_SEQUENCED_TASK_RUNNER_INITIALIZER({TaskPriority::USER_VISIBLE});
 LazySequencedTaskRunner g_sequenced_task_runner_user_blocking =
-    LAZY_SEQUENCED_TASK_RUNNER_INITIALIZER(
-        TaskTraits(ThreadPool(), TaskPriority::USER_BLOCKING));
+    LAZY_SEQUENCED_TASK_RUNNER_INITIALIZER({TaskPriority::USER_BLOCKING});
 
 LazySingleThreadTaskRunner g_single_thread_task_runner_user_visible =
     LAZY_SINGLE_THREAD_TASK_RUNNER_INITIALIZER(
-        TaskTraits(ThreadPool(), TaskPriority::USER_VISIBLE),
+        {TaskPriority::USER_VISIBLE},
         SingleThreadTaskRunnerThreadMode::SHARED);
 LazySingleThreadTaskRunner g_single_thread_task_runner_user_blocking =
     LAZY_SINGLE_THREAD_TASK_RUNNER_INITIALIZER(
-        TaskTraits(ThreadPool(), TaskPriority::USER_BLOCKING),
+        {TaskPriority::USER_BLOCKING},
         SingleThreadTaskRunnerThreadMode::SHARED);
 
 #if defined(OS_WIN)
 LazyCOMSTATaskRunner g_com_sta_task_runner_user_visible =
     LAZY_COM_STA_TASK_RUNNER_INITIALIZER(
-        TaskTraits(ThreadPool(), TaskPriority::USER_VISIBLE),
+        {TaskPriority::USER_VISIBLE},
         SingleThreadTaskRunnerThreadMode::SHARED);
 LazyCOMSTATaskRunner g_com_sta_task_runner_user_blocking =
     LAZY_COM_STA_TASK_RUNNER_INITIALIZER(
-        TaskTraits(ThreadPool(), TaskPriority::USER_BLOCKING),
+        {TaskPriority::USER_BLOCKING},
         SingleThreadTaskRunnerThreadMode::SHARED);
 #endif  // defined(OS_WIN)
 

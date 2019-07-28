@@ -267,6 +267,89 @@ void PostNTasks(int posts_remaining) {
 
 class MessageLoopTest : public ::testing::Test {};
 
+#if defined(OS_ANDROID)
+void DoNotRun() {
+  ASSERT_TRUE(false);
+}
+
+void RunTest_AbortDontRunMoreTasks(bool delayed, bool init_java_first) {
+  WaitableEvent test_done_event(WaitableEvent::ResetPolicy::MANUAL,
+                                WaitableEvent::InitialState::NOT_SIGNALED);
+  std::unique_ptr<android::JavaHandlerThread> java_thread;
+  if (init_java_first) {
+    java_thread = android::JavaHandlerThreadHelpers::CreateJavaFirst();
+  } else {
+    java_thread = std::make_unique<android::JavaHandlerThread>(
+        "JavaHandlerThreadForTesting from AbortDontRunMoreTasks");
+  }
+  java_thread->Start();
+  java_thread->ListenForUncaughtExceptionsForTesting();
+
+  auto target =
+      BindOnce(&android::JavaHandlerThreadHelpers::ThrowExceptionAndAbort,
+               &test_done_event);
+  if (delayed) {
+    java_thread->message_loop()->task_runner()->PostDelayedTask(
+        FROM_HERE, std::move(target), TimeDelta::FromMilliseconds(10));
+  } else {
+    java_thread->message_loop()->task_runner()->PostTask(FROM_HERE,
+                                                         std::move(target));
+    java_thread->message_loop()->task_runner()->PostTask(FROM_HERE,
+                                                         BindOnce(&DoNotRun));
+  }
+  test_done_event.Wait();
+  java_thread->Stop();
+  android::ScopedJavaLocalRef<jthrowable> exception =
+      java_thread->GetUncaughtExceptionIfAny();
+  ASSERT_TRUE(
+      android::JavaHandlerThreadHelpers::IsExceptionTestException(exception));
+}
+
+TEST_F(MessageLoopTest, JavaExceptionAbort) {
+  constexpr bool delayed = false;
+  constexpr bool init_java_first = false;
+  RunTest_AbortDontRunMoreTasks(delayed, init_java_first);
+}
+TEST_F(MessageLoopTest, DelayedJavaExceptionAbort) {
+  constexpr bool delayed = true;
+  constexpr bool init_java_first = false;
+  RunTest_AbortDontRunMoreTasks(delayed, init_java_first);
+}
+TEST_F(MessageLoopTest, JavaExceptionAbortInitJavaFirst) {
+  constexpr bool delayed = false;
+  constexpr bool init_java_first = true;
+  RunTest_AbortDontRunMoreTasks(delayed, init_java_first);
+}
+
+TEST_F(MessageLoopTest, RunTasksWhileShuttingDownJavaThread) {
+  const int kNumPosts = 6;
+  DummyTaskObserver observer(kNumPosts, 1);
+
+  auto java_thread = std::make_unique<android::JavaHandlerThread>("test");
+  java_thread->Start();
+
+  java_thread->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      BindOnce(
+          [](android::JavaHandlerThread* java_thread,
+             DummyTaskObserver* observer, int num_posts) {
+            java_thread->message_loop()->AddTaskObserver(observer);
+            ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+                FROM_HERE, BindOnce([]() { ADD_FAILURE(); }),
+                TimeDelta::FromDays(1));
+            java_thread->StopMessageLoopForTesting();
+            PostNTasks(num_posts);
+          },
+          Unretained(java_thread.get()), Unretained(&observer), kNumPosts));
+
+  java_thread->JoinForTesting();
+  java_thread.reset();
+
+  EXPECT_EQ(kNumPosts, observer.num_tasks_started());
+  EXPECT_EQ(kNumPosts, observer.num_tasks_processed());
+}
+#endif  // defined(OS_ANDROID)
+
 #if defined(OS_WIN)
 
 void SubPumpFunc(OnceClosure on_done) {
@@ -519,19 +602,13 @@ class MessageLoopTypedTest
       case MessageLoop::TYPE_UI:
         return "UI_pump";
       case MessageLoop::TYPE_CUSTOM:
-        break;
 #if defined(OS_ANDROID)
       case MessageLoop::TYPE_JAVA:
-        break;
 #endif  // defined(OS_ANDROID)
 #if defined(OS_MACOSX)
       case MessagePump::Type::NS_RUNLOOP:
-        break;
 #endif  // defined(OS_MACOSX)
-#if defined(OS_WIN)
-      case MessagePump::Type::UI_WITH_WM_QUIT_SUPPORT:
         break;
-#endif  // defined(OS_WIN)
     }
     NOTREACHED();
     return "";

@@ -7,6 +7,14 @@
 namespace base {
 namespace internal {
 
+ThenAndCatchExecutorCommon::ThenAndCatchExecutorCommon(
+    internal::CallbackBase&& resolve_executor,
+    internal::CallbackBase&& reject_executor)
+    : resolve_callback_(std::move(resolve_executor)),
+      reject_callback_(std::move(reject_executor)) {}
+
+ThenAndCatchExecutorCommon::~ThenAndCatchExecutorCommon() = default;
+
 bool ThenAndCatchExecutorCommon::IsCancelled() const {
   if (!resolve_callback_.is_null()) {
     // If there is both a resolve and a reject executor they must be canceled
@@ -18,9 +26,9 @@ bool ThenAndCatchExecutorCommon::IsCancelled() const {
   return reject_callback_.IsCancelled();
 }
 
-PromiseExecutor::PrerequisitePolicy
+AbstractPromise::Executor::PrerequisitePolicy
 ThenAndCatchExecutorCommon::GetPrerequisitePolicy() const {
-  return PromiseExecutor::PrerequisitePolicy::kAll;
+  return AbstractPromise::Executor::PrerequisitePolicy::kAll;
 }
 
 void ThenAndCatchExecutorCommon::Execute(AbstractPromise* promise,

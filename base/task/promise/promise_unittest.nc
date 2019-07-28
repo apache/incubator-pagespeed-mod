@@ -5,7 +5,6 @@
 // This is a "No Compile Test" suite.
 // http://dev.chromium.org/developers/testing/no-compile-tests
 
-#include "base/task_runner.h"
 #include "base/task/promise/promise.h"
 #include "base/task/promise/promise_result.h"
 
@@ -24,7 +23,7 @@ void WontCompile() {
 #elif defined(NCTEST_METHOD_RESOLVE_CALLBACK_TYPE_MISSMATCH) // [r"fatal error: static_assert failed .*\"|on_resolve| callback must accept Promise::ResolveType or void\."]
 void WontCompile() {
   Promise<int, void> p;
-  p.ThenHere(FROM_HERE, BindOnce([](std::string) { }));
+  p.ThenHere(FROM_HERE, BindOnce([](bool) { }));
 }
 #elif defined(NCTEST_METHOD_REJECT_CALLBACK_TYPE_MISSMATCH) // [r"fatal error: static_assert failed .*\"|on_reject| callback must accept Promise::ResolveType or void\."]
 void WontCompile() {

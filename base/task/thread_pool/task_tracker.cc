@@ -8,9 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_switches.h"
 #include "base/callback.h"
-#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/json/json_writer.h"
@@ -20,7 +18,6 @@
 #include "base/sequence_token.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/task/scoped_set_task_priority_for_current_thread.h"
-#include "base/task/thread_pool/thread_pool_clock.h"
 #include "base/threading/sequence_local_storage_map.h"
 #include "base/threading/sequenced_task_runner_handle.h"
 #include "base/threading/thread_restrictions.h"
@@ -35,7 +32,7 @@ namespace internal {
 namespace {
 
 constexpr const char* kExecutionModeString[] = {"parallel", "sequenced",
-                                                "single thread", "job"};
+                                                "single thread"};
 static_assert(
     size(kExecutionModeString) ==
         static_cast<size_t>(TaskSourceExecutionMode::kMax) + 1,
@@ -132,21 +129,13 @@ HistogramBase* GetHistogramForTaskTraits(
 // Returns shutdown behavior based on |traits|; returns SKIP_ON_SHUTDOWN if
 // shutdown behavior is BLOCK_SHUTDOWN and |is_delayed|, because delayed tasks
 // are not allowed to block shutdown.
-TaskShutdownBehavior GetEffectiveShutdownBehavior(
-    TaskShutdownBehavior shutdown_behavior,
-    bool is_delayed) {
+TaskShutdownBehavior GetEffectiveShutdownBehavior(const TaskTraits& traits,
+                                                  bool is_delayed) {
+  const TaskShutdownBehavior shutdown_behavior = traits.shutdown_behavior();
   if (shutdown_behavior == TaskShutdownBehavior::BLOCK_SHUTDOWN && is_delayed) {
     return TaskShutdownBehavior::SKIP_ON_SHUTDOWN;
   }
   return shutdown_behavior;
-}
-
-bool HasLogBestEffortTasksSwitch() {
-  // The CommandLine might not be initialized if ThreadPool is initialized in a
-  // dynamic library which doesn't have access to argc/argv.
-  return CommandLine::InitializedForCurrentProcess() &&
-         CommandLine::ForCurrentProcess()->HasSwitch(
-             switches::kLogBestEffortTasks);
 }
 
 }  // namespace
@@ -243,8 +232,7 @@ class TaskTracker::State {
 
 // TODO(jessemckenna): Write a helper function to avoid code duplication below.
 TaskTracker::TaskTracker(StringPiece histogram_label)
-    : has_log_best_effort_tasks_switch_(HasLogBestEffortTasksSwitch()),
-      state_(new State),
+    : state_(new State),
       can_run_policy_(CanRunPolicy::kAll),
       flush_cv_(flush_lock_.CreateConditionVariable()),
       shutdown_lock_(&flush_lock_),
@@ -307,11 +295,9 @@ TaskTracker::TaskTracker(StringPiece histogram_label)
                              "UserBlockingTaskPriority_MayBlock")}},
       tracked_ref_factory_(this) {
   // Confirm that all |task_latency_histograms_| have been initialized above.
-  for (TaskPriorityType i = 0; i < kNumTaskPriorities; ++i) {
-    for (TaskPriorityType j = 0; j < kNumBlockingModes; ++j) {
-      DCHECK(task_latency_histograms_[i][j]);
-    }
-  }
+  DCHECK(*(&task_latency_histograms_[static_cast<int>(TaskPriority::HIGHEST) +
+                                     1][0] -
+           1));
 }
 
 TaskTracker::~TaskTracker() = default;
@@ -341,10 +327,12 @@ void TaskTracker::StartShutdown() {
   }
 }
 
-void TaskTracker::CompleteShutdown() {
+// TODO(gab): Figure out why TS_UNCHECKED_READ is insufficient to make thread
+// analysis of |shutdown_event_| happy on POSIX.
+void TaskTracker::CompleteShutdown() NO_THREAD_SAFETY_ANALYSIS {
   // It is safe to access |shutdown_event_| without holding |lock_| because the
-  // pointer never changes after being set by StartShutdown(), which must
-  // happen-before before this.
+  // pointer never changes after being set by StartShutdown(), which must be
+  // called before this.
   DCHECK(TS_UNCHECKED_READ(shutdown_event_));
   {
     base::ScopedAllowBaseSyncPrimitives allow_wait;
@@ -405,21 +393,19 @@ bool TaskTracker::WillPostTask(Task* task,
     // ordering bug. This aims to catch those early.
     CheckedAutoLock auto_lock(shutdown_lock_);
     DCHECK(shutdown_event_);
-    DCHECK(!shutdown_event_->IsSignaled());
+    // TODO(http://crbug.com/698140): Atomically shutdown the service thread
+    // to prevent racily posting BLOCK_SHUTDOWN tasks in response to a
+    // FileDescriptorWatcher (and/or make such notifications never be
+    // BLOCK_SHUTDOWN). Then, enable this DCHECK, until then, skip the task.
+    // DCHECK(!shutdown_event_->IsSignaled());
+    if (shutdown_event_->IsSignaled())
+      return false;
   }
 
   // TODO(scheduler-dev): Record the task traits here.
   task_annotator_.WillQueueTask("ThreadPool_PostTask", task, "");
 
   return true;
-}
-
-void TaskTracker::WillPostTaskNow(const Task& task, TaskPriority priority) {
-  if (has_log_best_effort_tasks_switch_ &&
-      priority == TaskPriority::BEST_EFFORT) {
-    // A TaskPriority::BEST_EFFORT task is being posted.
-    LOG(INFO) << task.posted_from.ToString();
-  }
 }
 
 RegisteredTaskSource TaskTracker::WillQueueTaskSource(
@@ -449,17 +435,16 @@ bool TaskTracker::CanRunPriority(TaskPriority priority) const {
 }
 
 RegisteredTaskSource TaskTracker::RunAndPopNextTask(
-    RunIntentWithRegisteredTaskSource run_intent_with_task_source) {
-  DCHECK(run_intent_with_task_source);
-  auto task_source = run_intent_with_task_source.take_task_source();
+    RegisteredTaskSource task_source) {
+  DCHECK(task_source);
 
   // Run the next task in |task_source|.
   Optional<Task> task;
-  TaskTraits traits{ThreadPool()};
+  TaskTraits traits;
   {
     TaskSource::Transaction task_source_transaction(
         task_source->BeginTransaction());
-    task = task_source_transaction.TakeTask(&run_intent_with_task_source);
+    task = task_source_transaction.TakeTask();
     traits = task_source_transaction.traits();
   }
 
@@ -474,17 +459,14 @@ RegisteredTaskSource TaskTracker::RunAndPopNextTask(
                   can_run_task);
 
     const bool task_source_must_be_queued =
-        task_source->BeginTransaction().DidProcessTask(
-            std::move(run_intent_with_task_source),
-            can_run_task ? TaskSource::RunResult::kDidRun
-                         : TaskSource::RunResult::kSkippedAtShutdown);
+        task_source->BeginTransaction().DidRunTask();
 
     if (can_run_task) {
       IncrementNumTasksRun();
       AfterRunTask(effective_shutdown_behavior);
     }
 
-    // |task_source| should be reenqueued iff requested by DidProcessTask().
+    // |task_source| should be reenqueued iff requested by DidRunTask().
     if (task_source_must_be_queued) {
       return task_source;
     }
@@ -506,7 +488,7 @@ void TaskTracker::RecordLatencyHistogram(
     LatencyHistogramType latency_histogram_type,
     TaskTraits task_traits,
     TimeTicks posted_time) const {
-  const TimeDelta task_latency = ThreadPoolClock::Now() - posted_time;
+  const TimeDelta task_latency = TimeTicks::Now() - posted_time;
 
   DCHECK(latency_histogram_type == LatencyHistogramType::TASK_LATENCY ||
          latency_histogram_type == LatencyHistogramType::HEARTBEAT_LATENCY);
@@ -523,11 +505,11 @@ void TaskTracker::RecordHeartbeatLatencyAndTasksRunWhileQueuingHistograms(
     bool may_block,
     TimeTicks posted_time,
     int num_tasks_run_when_posted) const {
-  TaskTraits task_traits{ThreadPool()};
+  TaskTraits task_traits;
   if (may_block)
-    task_traits = TaskTraits(ThreadPool(), task_priority, MayBlock());
+    task_traits = TaskTraits(task_priority, MayBlock());
   else
-    task_traits = TaskTraits(ThreadPool(), task_priority);
+    task_traits = TaskTraits(task_priority);
   RecordLatencyHistogram(LatencyHistogramType::HEARTBEAT_LATENCY, task_traits,
                          posted_time);
   GetHistogramForTaskTraits(task_traits,
@@ -584,7 +566,6 @@ void TaskTracker::RunOrSkipTask(Task task,
     Optional<SequencedTaskRunnerHandle> sequenced_task_runner_handle;
     Optional<ThreadTaskRunnerHandle> single_thread_task_runner_handle;
     switch (task_source->execution_mode()) {
-      case TaskSourceExecutionMode::kJob:
       case TaskSourceExecutionMode::kParallel:
         break;
       case TaskSourceExecutionMode::kSequenced:
@@ -637,11 +618,20 @@ bool TaskTracker::BeforeQueueTaskSource(
     const bool shutdown_started = state_->IncrementNumItemsBlockingShutdown();
 
     if (shutdown_started) {
+
       // A BLOCK_SHUTDOWN task posted after shutdown has completed is an
       // ordering bug. This aims to catch those early.
       CheckedAutoLock auto_lock(shutdown_lock_);
       DCHECK(shutdown_event_);
-      DCHECK(!shutdown_event_->IsSignaled());
+      // TODO(http://crbug.com/698140): Atomically shutdown the service thread
+      // to prevent racily posting BLOCK_SHUTDOWN tasks in response to a
+      // FileDescriptorWatcher (and/or make such notifications never be
+      // BLOCK_SHUTDOWN). Then, enable this DCHECK, until then, skip the task.
+      // DCHECK(!shutdown_event_->IsSignaled());
+      if (shutdown_event_->IsSignaled()) {
+        state_->DecrementNumItemsBlockingShutdown();
+        return false;
+      }
     }
 
     return true;

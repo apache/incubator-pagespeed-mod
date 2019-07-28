@@ -208,137 +208,291 @@ void InitGoogleTestWChar(int* argc, wchar_t** argv) {
 }
 #endif  // defined(OS_WIN)
 
-// Called if there are no test results, populates results with UNKNOWN results.
-// If There is only one test, will try to determine status by exit_code and
-// was_timeout.
-std::vector<TestResult> ProcessMissingTestResults(
-    const std::vector<std::string>& test_names,
-    const std::string& output,
-    bool was_timeout,
-    bool exit_code) {
-  std::vector<TestResult> results;
-  // We do not have reliable details about test results (parsing test
-  // stdout is known to be unreliable).
-  fprintf(stdout,
-          "Failed to get out-of-band test success data, "
-          "dumping full stdio below:\n%s\n",
-          output.c_str());
-  fflush(stdout);
-
-  // There is only one test and no results.
-  // Try to determine status by exit code.
-  if (test_names.size() == 1) {
-    const std::string& test_name = test_names.front();
-    TestResult test_result;
-    test_result.full_name = test_name;
-
-    if (was_timeout) {
-      test_result.status = TestResult::TEST_TIMEOUT;
-    } else if (exit_code != 0) {
-      test_result.status = TestResult::TEST_FAILURE;
-    } else {
-      // It's strange case when test executed successfully,
-      // but we failed to read machine-readable report for it.
-      test_result.status = TestResult::TEST_UNKNOWN;
-    }
-
-    results.push_back(test_result);
-    return results;
-  }
-  for (auto& test_name : test_names) {
-    TestResult test_result;
-    test_result.full_name = test_name;
-    test_result.status = TestResult::TEST_SKIPPED;
-    results.push_back(test_result);
-  }
-  return results;
-}
-
-// Returns interpreted test results.
-std::vector<TestResult> UnitTestProcessTestResults(
+// Interprets test results and reports to the test launcher. Returns true
+// on success.
+bool ProcessTestResults(
+    TestLauncher* test_launcher,
     const std::vector<std::string>& test_names,
     const base::FilePath& output_file,
     const std::string& output,
     int exit_code,
-    bool was_timeout) {
+    bool was_timeout,
+    std::vector<std::string>* tests_to_relaunch) {
   std::vector<TestResult> test_results;
   bool crashed = false;
   bool have_test_results =
       ProcessGTestOutput(output_file, &test_results, &crashed);
 
-  if (!have_test_results) {
-    return ProcessMissingTestResults(test_names, output, was_timeout,
-                                     exit_code);
-  }
+  bool called_any_callback = false;
 
-  // TODO(phajdan.jr): Check for duplicates and mismatches between
-  // the results we got from XML file and tests we intended to run.
-  std::map<std::string, TestResult> results_map;
-  for (const auto& i : test_results)
-    results_map[i.full_name] = i;
+  if (have_test_results) {
+    // TODO(phajdan.jr): Check for duplicates and mismatches between
+    // the results we got from XML file and tests we intended to run.
+    std::map<std::string, TestResult> results_map;
+    for (const auto& i : test_results)
+      results_map[i.full_name] = i;
 
-  // Results to be reported back to the test launcher.
-  std::vector<TestResult> final_results;
+    bool had_interrupted_test = false;
 
-  for (const auto& i : test_names) {
-    if (Contains(results_map, i)) {
-      TestResult test_result = results_map[i];
-      if (test_result.status == TestResult::TEST_CRASH) {
-        if (was_timeout) {
-          // Fix up the test status: we forcibly kill the child process
-          // after the timeout, so from XML results it looks just like
-          // a crash.
-          test_result.status = TestResult::TEST_TIMEOUT;
+    // Results to be reported back to the test launcher.
+    std::vector<TestResult> final_results;
+
+    for (const auto& i : test_names) {
+      if (ContainsKey(results_map, i)) {
+        TestResult test_result = results_map[i];
+        if (test_result.status == TestResult::TEST_CRASH) {
+          had_interrupted_test = true;
+
+          if (was_timeout) {
+            // Fix up the test status: we forcibly kill the child process
+            // after the timeout, so from XML results it looks just like
+            // a crash.
+            test_result.status = TestResult::TEST_TIMEOUT;
+          }
+        } else if (test_result.status == TestResult::TEST_SUCCESS ||
+                   test_result.status == TestResult::TEST_FAILURE) {
+          // We run multiple tests in a batch with a timeout applied
+          // to the entire batch. It is possible that with other tests
+          // running quickly some tests take longer than the per-test timeout.
+          // For consistent handling of tests independent of order and other
+          // factors, mark them as timing out.
+          if (test_result.elapsed_time >
+              TestTimeouts::test_launcher_timeout()) {
+            test_result.status = TestResult::TEST_TIMEOUT;
+          }
         }
-      } else if (test_result.status == TestResult::TEST_SUCCESS ||
-                 test_result.status == TestResult::TEST_FAILURE) {
-        // We run multiple tests in a batch with a timeout applied
-        // to the entire batch. It is possible that with other tests
-        // running quickly some tests take longer than the per-test timeout.
-        // For consistent handling of tests independent of order and other
-        // factors, mark them as timing out.
-        if (test_result.elapsed_time > TestTimeouts::test_launcher_timeout()) {
-          test_result.status = TestResult::TEST_TIMEOUT;
-        }
+        test_result.output_snippet = GetTestOutputSnippet(test_result, output);
+        final_results.push_back(test_result);
+      } else if (had_interrupted_test) {
+        tests_to_relaunch->push_back(i);
+      } else {
+        // TODO(phajdan.jr): Explicitly pass the info that the test didn't
+        // run for a mysterious reason.
+        LOG(ERROR) << "no test result for " << i;
+        TestResult test_result;
+        test_result.full_name = i;
+        test_result.status = TestResult::TEST_UNKNOWN;
+        test_result.output_snippet = GetTestOutputSnippet(test_result, output);
+        final_results.push_back(test_result);
       }
-      test_result.output_snippet = GetTestOutputSnippet(test_result, output);
-      final_results.push_back(test_result);
-    } else {
-      // TODO(phajdan.jr): Explicitly pass the info that the test didn't
-      // run for a mysterious reason.
-      LOG(ERROR) << "no test result for " << i;
+    }
+
+    // TODO(phajdan.jr): Handle the case where processing XML output
+    // indicates a crash but none of the test results is marked as crashing.
+
+    if (final_results.empty())
+      return false;
+
+    bool has_non_success_test = false;
+    for (const auto& i : final_results) {
+      if (i.status != TestResult::TEST_SUCCESS) {
+        has_non_success_test = true;
+        break;
+      }
+    }
+
+    if (!has_non_success_test && exit_code != 0) {
+      // This is a bit surprising case: all tests are marked as successful,
+      // but the exit code was not zero. This can happen e.g. under memory
+      // tools that report leaks this way. Mark all tests as a failure on exit,
+      // and for more precise info they'd need to be retried serially.
+      for (auto& i : final_results)
+        i.status = TestResult::TEST_FAILURE_ON_EXIT;
+    }
+
+    for (auto& i : final_results) {
+      // Fix the output snippet after possible changes to the test result.
+      i.output_snippet = GetTestOutputSnippet(i, output);
+      test_launcher->OnTestFinished(i);
+      called_any_callback = true;
+    }
+  } else {
+    fprintf(stdout,
+            "Failed to get out-of-band test success data, "
+            "dumping full stdio below:\n%s\n",
+            output.c_str());
+    fflush(stdout);
+
+    // We do not have reliable details about test results (parsing test
+    // stdout is known to be unreliable).
+    if (test_names.size() == 1) {
+      // There is only one test. Try to determine status by exit code.
+      const std::string& test_name = test_names.front();
       TestResult test_result;
-      test_result.full_name = i;
-      test_result.status = TestResult::TEST_SKIPPED;
-      test_result.output_snippet = GetTestOutputSnippet(test_result, output);
-      final_results.push_back(test_result);
+      test_result.full_name = test_name;
+
+      if (was_timeout) {
+        test_result.status = TestResult::TEST_TIMEOUT;
+      } else if (exit_code != 0) {
+        test_result.status = TestResult::TEST_FAILURE;
+      } else {
+        // It's strange case when test executed successfully,
+        // but we failed to read machine-readable report for it.
+        test_result.status = TestResult::TEST_UNKNOWN;
+      }
+
+      test_launcher->OnTestFinished(test_result);
+      called_any_callback = true;
+    } else {
+      // There is more than one test. Retry them individually.
+      for (const std::string& test_name : test_names)
+        tests_to_relaunch->push_back(test_name);
     }
   }
-  // TODO(phajdan.jr): Handle the case where processing XML output
-  // indicates a crash but none of the test results is marked as crashing.
 
-  bool has_non_success_test = false;
-  for (const auto& i : final_results) {
-    if (i.status != TestResult::TEST_SUCCESS) {
-      has_non_success_test = true;
-      break;
-    }
+  return called_any_callback;
+}
+
+class UnitTestProcessLifetimeObserver : public ProcessLifetimeObserver {
+ public:
+  ~UnitTestProcessLifetimeObserver() override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   }
 
-  if (!has_non_success_test && exit_code != 0) {
-    // This is a bit surprising case: all tests are marked as successful,
-    // but the exit code was not zero. This can happen e.g. under memory
-    // tools that report leaks this way. Mark all tests as a failure on exit,
-    // and for more precise info they'd need to be retried serially.
-    for (auto& i : final_results)
-      i.status = TestResult::TEST_FAILURE_ON_EXIT;
+  TestLauncher* test_launcher() { return test_launcher_; }
+  UnitTestPlatformDelegate* platform_delegate() { return platform_delegate_; }
+  const std::vector<std::string>& test_names() { return test_names_; }
+  int launch_flags() { return launch_flags_; }
+  const FilePath& output_file() { return output_file_; }
+  const FilePath& flag_file() { return flag_file_; }
+
+ protected:
+  UnitTestProcessLifetimeObserver(TestLauncher* test_launcher,
+                                  UnitTestPlatformDelegate* platform_delegate,
+                                  const std::vector<std::string>& test_names,
+                                  int launch_flags,
+                                  const FilePath& output_file,
+                                  const FilePath& flag_file)
+      : ProcessLifetimeObserver(),
+        test_launcher_(test_launcher),
+        platform_delegate_(platform_delegate),
+        test_names_(test_names),
+        launch_flags_(launch_flags),
+        output_file_(output_file),
+        flag_file_(flag_file) {}
+
+  SEQUENCE_CHECKER(sequence_checker_);
+
+ private:
+  TestLauncher* const test_launcher_;
+  UnitTestPlatformDelegate* const platform_delegate_;
+  const std::vector<std::string> test_names_;
+  const int launch_flags_;
+  const FilePath output_file_;
+  const FilePath flag_file_;
+
+  DISALLOW_COPY_AND_ASSIGN(UnitTestProcessLifetimeObserver);
+};
+
+class ParallelUnitTestProcessLifetimeObserver
+    : public UnitTestProcessLifetimeObserver {
+ public:
+  ParallelUnitTestProcessLifetimeObserver(
+      TestLauncher* test_launcher,
+      UnitTestPlatformDelegate* platform_delegate,
+      const std::vector<std::string>& test_names,
+      int launch_flags,
+      const FilePath& output_file,
+      const FilePath& flag_file)
+      : UnitTestProcessLifetimeObserver(test_launcher,
+                                        platform_delegate,
+                                        test_names,
+                                        launch_flags,
+                                        output_file,
+                                        flag_file) {}
+  ~ParallelUnitTestProcessLifetimeObserver() override = default;
+
+ private:
+  // ProcessLifetimeObserver:
+  void OnCompleted(int exit_code,
+                   TimeDelta elapsed_time,
+                   bool was_timeout,
+                   const std::string& output) override;
+
+  DISALLOW_COPY_AND_ASSIGN(ParallelUnitTestProcessLifetimeObserver);
+};
+
+void ParallelUnitTestProcessLifetimeObserver::OnCompleted(
+    int exit_code,
+    TimeDelta elapsed_time,
+    bool was_timeout,
+    const std::string& output) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::vector<std::string> tests_to_relaunch;
+  ProcessTestResults(test_launcher(), test_names(), output_file(), output,
+                     exit_code, was_timeout, &tests_to_relaunch);
+
+  if (!tests_to_relaunch.empty()) {
+    platform_delegate()->RelaunchTests(test_launcher(), tests_to_relaunch,
+                                       launch_flags());
   }
 
-  for (auto& i : final_results) {
-    // Fix the output snippet after possible changes to the test result.
-    i.output_snippet = GetTestOutputSnippet(i, output);
-  }
-  return final_results;
+  // The temporary file's directory is also temporary.
+  DeleteFile(output_file().DirName(), true);
+  if (!flag_file().empty())
+    DeleteFile(flag_file(), false);
+}
+
+class SerialUnitTestProcessLifetimeObserver
+    : public UnitTestProcessLifetimeObserver {
+ public:
+  SerialUnitTestProcessLifetimeObserver(
+      TestLauncher* test_launcher,
+      UnitTestPlatformDelegate* platform_delegate,
+      const std::vector<std::string>& test_names,
+      int launch_flags,
+      const FilePath& output_file,
+      const FilePath& flag_file,
+      std::vector<std::string>&& next_test_names)
+      : UnitTestProcessLifetimeObserver(test_launcher,
+                                        platform_delegate,
+                                        test_names,
+                                        launch_flags,
+                                        output_file,
+                                        flag_file),
+        next_test_names_(std::move(next_test_names)) {}
+  ~SerialUnitTestProcessLifetimeObserver() override = default;
+
+ private:
+  // ProcessLifetimeObserver:
+  void OnCompleted(int exit_code,
+                   TimeDelta elapsed_time,
+                   bool was_timeout,
+                   const std::string& output) override;
+
+  std::vector<std::string> next_test_names_;
+
+  DISALLOW_COPY_AND_ASSIGN(SerialUnitTestProcessLifetimeObserver);
+};
+
+void SerialUnitTestProcessLifetimeObserver::OnCompleted(
+    int exit_code,
+    TimeDelta elapsed_time,
+    bool was_timeout,
+    const std::string& output) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::vector<std::string> tests_to_relaunch;
+  bool called_any_callbacks =
+      ProcessTestResults(test_launcher(), test_names(), output_file(), output,
+                         exit_code, was_timeout, &tests_to_relaunch);
+
+  // There is only one test, there cannot be other tests to relaunch
+  // due to a crash.
+  DCHECK(tests_to_relaunch.empty());
+
+  // There is only one test, we should have called back with its result.
+  DCHECK(called_any_callbacks);
+
+  // The temporary file's directory is also temporary.
+  DeleteFile(output_file().DirName(), true);
+
+  if (!flag_file().empty())
+    DeleteFile(flag_file(), false);
+
+  ThreadTaskRunnerHandle::Get()->PostTask(
+      FROM_HERE,
+      BindOnce(&RunUnitTestsSerially, test_launcher(), platform_delegate(),
+               std::move(next_test_names_), launch_flags()));
 }
 
 }  // namespace
@@ -394,6 +548,77 @@ int LaunchUnitTests(int argc,
 }
 #endif  // defined(OS_WIN)
 
+void RunUnitTestsSerially(
+    TestLauncher* test_launcher,
+    UnitTestPlatformDelegate* platform_delegate,
+    const std::vector<std::string>& test_names,
+    int launch_flags) {
+  if (test_names.empty())
+    return;
+
+  // Create a dedicated temporary directory to store the xml result data
+  // per run to ensure clean state and make it possible to launch multiple
+  // processes in parallel.
+  FilePath output_file;
+  CHECK(platform_delegate->CreateResultsFile(&output_file));
+  FilePath flag_file;
+  platform_delegate->CreateTemporaryFile(&flag_file);
+
+  auto observer = std::make_unique<SerialUnitTestProcessLifetimeObserver>(
+      test_launcher, platform_delegate,
+      std::vector<std::string>(1, test_names.back()), launch_flags, output_file,
+      flag_file,
+      std::vector<std::string>(test_names.begin(), test_names.end() - 1));
+
+  CommandLine cmd_line(platform_delegate->GetCommandLineForChildGTestProcess(
+      observer->test_names(), output_file, flag_file));
+
+  TestLauncher::LaunchOptions launch_options;
+  launch_options.flags = launch_flags;
+  test_launcher->LaunchChildGTestProcess(
+      cmd_line, platform_delegate->GetWrapperForChildGTestProcess(),
+      TestTimeouts::test_launcher_timeout(), launch_options,
+      std::move(observer));
+}
+
+void RunUnitTestsBatch(
+    TestLauncher* test_launcher,
+    UnitTestPlatformDelegate* platform_delegate,
+    const std::vector<std::string>& test_names,
+    int launch_flags) {
+  if (test_names.empty())
+    return;
+
+  // Create a dedicated temporary directory to store the xml result data
+  // per run to ensure clean state and make it possible to launch multiple
+  // processes in parallel.
+  FilePath output_file;
+  CHECK(platform_delegate->CreateResultsFile(&output_file));
+  FilePath flag_file;
+  platform_delegate->CreateTemporaryFile(&flag_file);
+
+  auto observer = std::make_unique<ParallelUnitTestProcessLifetimeObserver>(
+      test_launcher, platform_delegate, test_names, launch_flags, output_file,
+      flag_file);
+
+  CommandLine cmd_line(platform_delegate->GetCommandLineForChildGTestProcess(
+      test_names, output_file, flag_file));
+
+  // Adjust the timeout depending on how many tests we're running
+  // (note that e.g. the last batch of tests will be smaller).
+  // TODO(phajdan.jr): Consider an adaptive timeout, which can change
+  // depending on how many tests ran and how many remain.
+  // Note: do NOT parse child's stdout to do that, it's known to be
+  // unreliable (e.g. buffering issues can mix up the output).
+  TimeDelta timeout = test_names.size() * TestTimeouts::test_launcher_timeout();
+
+  TestLauncher::LaunchOptions options;
+  options.flags = launch_flags;
+  test_launcher->LaunchChildGTestProcess(
+      cmd_line, platform_delegate->GetWrapperForChildGTestProcess(), timeout,
+      options, std::move(observer));
+}
+
 DefaultUnitTestPlatformDelegate::DefaultUnitTestPlatformDelegate() = default;
 
 bool DefaultUnitTestPlatformDelegate::GetTests(
@@ -402,21 +627,18 @@ bool DefaultUnitTestPlatformDelegate::GetTests(
   return true;
 }
 
-bool DefaultUnitTestPlatformDelegate::CreateResultsFile(
-    const base::FilePath& temp_dir,
-    base::FilePath* path) {
-  if (!CreateTemporaryDirInDir(temp_dir, FilePath::StringType(), path))
+bool DefaultUnitTestPlatformDelegate::CreateResultsFile(base::FilePath* path) {
+  if (!CreateNewTempDirectory(FilePath::StringType(), path))
     return false;
   *path = path->AppendASCII("test_results.xml");
   return true;
 }
 
 bool DefaultUnitTestPlatformDelegate::CreateTemporaryFile(
-    const base::FilePath& temp_dir,
     base::FilePath* path) {
-  if (temp_dir.empty())
+  if (!temp_dir_.IsValid() && !temp_dir_.CreateUniqueTempDir())
     return false;
-  return CreateTemporaryFileInDir(temp_dir, path);
+  return CreateTemporaryFileInDir(temp_dir_.GetPath(), path);
 }
 
 CommandLine DefaultUnitTestPlatformDelegate::GetCommandLineForChildGTestProcess(
@@ -442,6 +664,19 @@ CommandLine DefaultUnitTestPlatformDelegate::GetCommandLineForChildGTestProcess(
 
 std::string DefaultUnitTestPlatformDelegate::GetWrapperForChildGTestProcess() {
   return std::string();
+}
+
+void DefaultUnitTestPlatformDelegate::RelaunchTests(
+    TestLauncher* test_launcher,
+    const std::vector<std::string>& test_names,
+    int launch_flags) {
+  // Relaunch requested tests in parallel, but only use single
+  // test per batch for more precise results (crashes, etc).
+  for (const std::string& test_name : test_names) {
+    std::vector<std::string> batch;
+    batch.push_back(test_name);
+    RunUnitTestsBatch(test_launcher, this, batch, launch_flags);
+  }
 }
 
 UnitTestLauncherDelegate::UnitTestLauncherDelegate(
@@ -470,48 +705,46 @@ bool UnitTestLauncherDelegate::WillRunTest(const std::string& test_case_name,
   return true;
 }
 
-std::vector<TestResult> UnitTestLauncherDelegate::ProcessTestResults(
-    const std::vector<std::string>& test_names,
-    const base::FilePath& output_file,
-    const std::string& output,
-    const base::TimeDelta& elapsed_time,
-    int exit_code,
-    bool was_timeout) {
-  return UnitTestProcessTestResults(test_names, output_file, output, exit_code,
-                                    was_timeout);
+bool UnitTestLauncherDelegate::ShouldRunTest(const std::string& test_case_name,
+                                             const std::string& test_name) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  // There is no additional logic to disable specific tests.
+  return true;
 }
 
-CommandLine UnitTestLauncherDelegate::GetCommandLine(
-    const std::vector<std::string>& test_names,
-    const FilePath& temp_dir,
-    FilePath* output_file) {
-  CHECK(!test_names.empty());
+size_t UnitTestLauncherDelegate::RunTests(
+    TestLauncher* test_launcher,
+    const std::vector<std::string>& test_names) {
+  DCHECK(thread_checker_.CalledOnValidThread());
 
-  // Create a dedicated temporary directory to store the xml result data
-  // per run to ensure clean state and make it possible to launch multiple
-  // processes in parallel.
-  CHECK(platform_delegate_->CreateResultsFile(temp_dir, output_file));
-  FilePath flag_file;
-  platform_delegate_->CreateTemporaryFile(temp_dir, &flag_file);
+  int launch_flags = use_job_objects_ ? TestLauncher::USE_JOB_OBJECTS : 0;
 
-  return CommandLine(platform_delegate_->GetCommandLineForChildGTestProcess(
-      test_names, *output_file, flag_file));
+  std::vector<std::string> batch;
+  for (const auto& i : test_names) {
+    batch.push_back(i);
+
+    // Use 0 to indicate unlimited batch size.
+    if (batch.size() >= batch_limit_ && batch_limit_ != 0) {
+      RunUnitTestsBatch(test_launcher, platform_delegate_, batch, launch_flags);
+      batch.clear();
+    }
+  }
+
+  RunUnitTestsBatch(test_launcher, platform_delegate_, batch, launch_flags);
+
+  return test_names.size();
 }
 
-std::string UnitTestLauncherDelegate::GetWrapper() {
-  return platform_delegate_->GetWrapperForChildGTestProcess();
-}
-
-int UnitTestLauncherDelegate::GetLaunchOptions() {
-  return use_job_objects_ ? TestLauncher::USE_JOB_OBJECTS : 0;
-}
-
-TimeDelta UnitTestLauncherDelegate::GetTimeout() {
-  return TestTimeouts::test_launcher_timeout();
-}
-
-size_t UnitTestLauncherDelegate::GetBatchSize() {
-  return batch_limit_;
+size_t UnitTestLauncherDelegate::RetryTests(
+    TestLauncher* test_launcher,
+    const std::vector<std::string>& test_names) {
+  ThreadTaskRunnerHandle::Get()->PostTask(
+      FROM_HERE,
+      BindOnce(&RunUnitTestsSerially, test_launcher, platform_delegate_,
+               test_names,
+               use_job_objects_ ? TestLauncher::USE_JOB_OBJECTS : 0));
+  return test_names.size();
 }
 
 }  // namespace base

@@ -63,7 +63,6 @@
 #include <limits.h>
 #include <string.h>
 
-#include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/allocator/partition_allocator/page_allocator.h"
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
 #include "base/allocator/partition_allocator/partition_bucket.h"
@@ -500,17 +499,10 @@ class SizeSpecificPartitionAllocator {
     memset(actual_buckets_, 0,
            sizeof(internal::PartitionBucket) * base::size(actual_buckets_));
   }
-  ~SizeSpecificPartitionAllocator() {
-    PartitionAllocMemoryReclaimer::Instance()->UnregisterPartition(
-        &partition_root_);
-  }
+  ~SizeSpecificPartitionAllocator() = default;
   static const size_t kMaxAllocation = N - kAllocationGranularity;
   static const size_t kNumBuckets = N / kAllocationGranularity;
-  void init() {
-    partition_root_.Init(kNumBuckets, kMaxAllocation);
-    PartitionAllocMemoryReclaimer::Instance()->RegisterPartition(
-        &partition_root_);
-  }
+  void init() { partition_root_.Init(kNumBuckets, kMaxAllocation); }
   ALWAYS_INLINE PartitionRoot* root() { return &partition_root_; }
 
  private:
@@ -521,16 +513,9 @@ class SizeSpecificPartitionAllocator {
 class BASE_EXPORT PartitionAllocatorGeneric {
  public:
   PartitionAllocatorGeneric();
-  ~PartitionAllocatorGeneric() {
-    PartitionAllocMemoryReclaimer::Instance()->UnregisterPartition(
-        &partition_root_);
-  }
+  ~PartitionAllocatorGeneric();
 
-  void init() {
-    partition_root_.Init();
-    PartitionAllocMemoryReclaimer::Instance()->RegisterPartition(
-        &partition_root_);
-  }
+  void init() { partition_root_.Init(); }
   ALWAYS_INLINE PartitionRootGeneric* root() { return &partition_root_; }
 
  private:

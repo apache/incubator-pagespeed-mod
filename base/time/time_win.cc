@@ -31,7 +31,6 @@
 // will only increase the system-wide timer if we're not running on battery
 // power.
 
-#include "base/feature_list.h"
 #include "base/time/time.h"
 
 #include <windows.h>
@@ -85,28 +84,12 @@ void InitializeClock() {
   g_initial_time = CurrentWallclockMicroseconds();
 }
 
-const base::Feature kSlowDCTimerInterruptsFeature{
-    "SlowDCTimerInterrups", base::FEATURE_DISABLED_BY_DEFAULT};
-
 // The two values that ActivateHighResolutionTimer uses to set the systemwide
 // timer interrupt frequency on Windows. It controls how precise timers are
 // but also has a big impact on battery life.
-// Used when running on AC power - plugged in - when a fast timer is wanted.
-UINT MinTimerIntervalHighResMs() {
-  return 1;
-}
-
-UINT MinTimerIntervalLowResMs() {
-  // Traditionally Chrome has used an interval of 4 ms when raising the timer
-  // interrupt frequency on battery power. However even 4 ms is too short an
-  // interval on modern CPUs - it wastes non-trivial power - so this experiment
-  // tests an interval of 8 ms, recommended by Intel.
-  static const UINT s_interval =
-      base::FeatureList::IsEnabled(kSlowDCTimerInterruptsFeature) ? 8 : 4;
-  return s_interval;
-}
-
-// Track if MinTimerIntervalHighResMs() or MinTimerIntervalLowResMs() is active.
+const int kMinTimerIntervalHighResMs = 1;
+const int kMinTimerIntervalLowResMs = 4;
+// Track if kMinTimerIntervalHighResMs or kMinTimerIntervalLowResMs is active.
 bool g_high_res_timer_enabled = false;
 // How many times the high resolution timer has been called.
 uint32_t g_high_res_timer_count = 0;
@@ -221,11 +204,11 @@ void Time::EnableHighResolutionTimer(bool enable) {
   // call timeEndPeriod with the same value used in timeBeginPeriod and
   // therefore undo the period effect.
   if (enable) {
-    timeEndPeriod(MinTimerIntervalLowResMs());
-    timeBeginPeriod(MinTimerIntervalHighResMs());
+    timeEndPeriod(kMinTimerIntervalLowResMs);
+    timeBeginPeriod(kMinTimerIntervalHighResMs);
   } else {
-    timeEndPeriod(MinTimerIntervalHighResMs());
-    timeBeginPeriod(MinTimerIntervalLowResMs());
+    timeEndPeriod(kMinTimerIntervalHighResMs);
+    timeBeginPeriod(kMinTimerIntervalLowResMs);
   }
 }
 
@@ -237,8 +220,8 @@ bool Time::ActivateHighResolutionTimer(bool activating) {
   const uint32_t max = std::numeric_limits<uint32_t>::max();
 
   AutoLock lock(*GetHighResLock());
-  UINT period = g_high_res_timer_enabled ? MinTimerIntervalHighResMs()
-                                         : MinTimerIntervalLowResMs();
+  UINT period = g_high_res_timer_enabled ? kMinTimerIntervalHighResMs
+                                         : kMinTimerIntervalLowResMs;
   if (activating) {
     DCHECK_NE(g_high_res_timer_count, max);
     ++g_high_res_timer_count;
@@ -255,7 +238,7 @@ bool Time::ActivateHighResolutionTimer(bool activating) {
       timeEndPeriod(period);
     }
   }
-  return period == MinTimerIntervalHighResMs();
+  return (period == kMinTimerIntervalHighResMs);
 }
 
 // static

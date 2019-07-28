@@ -79,28 +79,27 @@ void ThreadGroupNative::JoinForTesting() {
 }
 
 void ThreadGroupNative::RunNextTaskSourceImpl() {
-  RunIntentWithRegisteredTaskSource run_intent_with_task_source = GetWork();
+  RegisteredTaskSource task_source = GetWork();
 
-  if (run_intent_with_task_source) {
+  if (task_source) {
     BindToCurrentThread();
-    RegisteredTaskSource task_source = task_tracker_->RunAndPopNextTask(
-        std::move(run_intent_with_task_source));
+    task_source = task_tracker_->RunAndPopNextTask(std::move(task_source));
     UnbindFromCurrentThread();
 
     if (task_source) {
       ScopedWorkersExecutor workers_executor(this);
       ScopedReenqueueExecutor reenqueue_executor;
-      auto transaction_with_task_source =
-          TransactionWithRegisteredTaskSource::FromTaskSource(
+      auto task_source_and_transaction =
+          RegisteredTaskSourceAndTransaction::FromTaskSource(
               std::move(task_source));
       CheckedAutoLock auto_lock(lock_);
       ReEnqueueTaskSourceLockRequired(&workers_executor, &reenqueue_executor,
-                                      std::move(transaction_with_task_source));
+                                      std::move(task_source_and_transaction));
     }
   }
 }
 
-RunIntentWithRegisteredTaskSource ThreadGroupNative::GetWork() {
+RegisteredTaskSource ThreadGroupNative::GetWork() {
   CheckedAutoLock auto_lock(lock_);
   DCHECK_GT(num_pending_threadpool_work_, 0U);
   --num_pending_threadpool_work_;
@@ -113,23 +112,20 @@ RunIntentWithRegisteredTaskSource ThreadGroupNative::GetWork() {
   const TaskPriority priority = priority_queue_.PeekSortKey().priority();
   if (!task_tracker_->CanRunPriority(priority))
     return nullptr;
-  RegisteredTaskSource task_source = priority_queue_.PopTaskSource();
-  auto run_intent = task_source->WillRunTask();
-  DCHECK(run_intent);
-  return {std::move(task_source), std::move(run_intent)};
+  return priority_queue_.PopTaskSource();
 }
 
 void ThreadGroupNative::UpdateSortKey(
-    TransactionWithOwnedTaskSource transaction_with_task_source) {
+    TaskSourceAndTransaction task_source_and_transaction) {
   ScopedWorkersExecutor executor(this);
-  UpdateSortKeyImpl(&executor, std::move(transaction_with_task_source));
+  UpdateSortKeyImpl(&executor, std::move(task_source_and_transaction));
 }
 
 void ThreadGroupNative::PushTaskSourceAndWakeUpWorkers(
-    TransactionWithRegisteredTaskSource transaction_with_task_source) {
+    RegisteredTaskSourceAndTransaction task_source_and_transaction) {
   ScopedWorkersExecutor executor(this);
   PushTaskSourceAndWakeUpWorkersImpl(&executor,
-                                     std::move(transaction_with_task_source));
+                                     std::move(task_source_and_transaction));
 }
 
 void ThreadGroupNative::EnsureEnoughWorkersLockRequired(

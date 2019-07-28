@@ -7,7 +7,6 @@ package org.chromium.base.test.util;
 import org.junit.Assert;
 
 import org.chromium.base.PathUtils;
-import org.chromium.base.StrictModeContext;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.MainDex;
 
@@ -42,9 +41,7 @@ public class UrlUtils {
      */
     @CalledByNative
     public static String getIsolatedTestRoot() {
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            return PathUtils.getExternalStorageDirectory() + "/chromium_tests_root";
-        }
+        return PathUtils.getExternalStorageDirectory() + "/chromium_tests_root";
     }
 
     /**

@@ -24,7 +24,7 @@ class TestTaskQueue : public TaskQueue {
   ~TestTaskQueue() override;  // Ref-counted.
 
   // Used to ensure that task queue is deleted in tests.
-  WeakPtrFactory<TestTaskQueue> weak_factory_{this};
+  WeakPtrFactory<TestTaskQueue> weak_factory_;
 };
 
 }  // namespace sequence_manager

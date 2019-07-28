@@ -410,7 +410,7 @@ TEST_F(FileUtilTest, NormalizeFilePathBasic) {
   ASSERT_TRUE(PathExists(file_b_path));
   ASSERT_TRUE(NormalizeFilePath(file_b_path, &normalized_file_b_path));
 
-  // Because this test created |dir_path|, we know it is not a link
+  // Beacuse this test created |dir_path|, we know it is not a link
   // or junction.  So, the real path of the directory holding file a
   // must be the parent of the path holding file b.
   ASSERT_TRUE(normalized_file_a_path.DirName()
@@ -418,36 +418,6 @@ TEST_F(FileUtilTest, NormalizeFilePathBasic) {
 }
 
 #if defined(OS_WIN)
-
-TEST_F(FileUtilTest, NormalizeFileEmptyFile) {
-  // Create a directory under the test dir.  Because we create it,
-  // we know it is not a link.
-  const wchar_t empty_content[] = L"";
-
-  FilePath file_a_path = temp_dir_.GetPath().Append(FPL("file_empty_a"));
-  FilePath dir_path = temp_dir_.GetPath().Append(FPL("dir"));
-  FilePath file_b_path = dir_path.Append(FPL("file_empty_b"));
-  ASSERT_TRUE(CreateDirectory(dir_path));
-
-  FilePath normalized_file_a_path, normalized_file_b_path;
-  ASSERT_FALSE(PathExists(file_a_path));
-  EXPECT_FALSE(NormalizeFilePath(file_a_path, &normalized_file_a_path))
-      << "NormalizeFilePath() should fail on nonexistent paths.";
-
-  CreateTextFile(file_a_path, empty_content);
-  ASSERT_TRUE(PathExists(file_a_path));
-  EXPECT_TRUE(NormalizeFilePath(file_a_path, &normalized_file_a_path));
-
-  CreateTextFile(file_b_path, empty_content);
-  ASSERT_TRUE(PathExists(file_b_path));
-  EXPECT_TRUE(NormalizeFilePath(file_b_path, &normalized_file_b_path));
-
-  // Because this test created |dir_path|, we know it is not a link
-  // or junction.  So, the real path of the directory holding file a
-  // must be the parent of the path holding file b.
-  EXPECT_TRUE(normalized_file_a_path.DirName().IsParent(
-      normalized_file_b_path.DirName()));
-}
 
 TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
   // Build the following directory structure:
@@ -473,10 +443,6 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
   base_a = FilePath(temp_base_a);
 #endif
   ASSERT_TRUE(CreateDirectory(base_a));
-#if defined(OS_WIN)
-  // TEMP might be a short name which is not normalized.
-  base_a = MakeLongFilePath(base_a);
-#endif
 
   FilePath sub_a = base_a.Append(FPL("sub_a"));
   ASSERT_TRUE(CreateDirectory(sub_a));
@@ -513,10 +479,6 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
 
   FilePath base_b = temp_dir_.GetPath().Append(FPL("base_b"));
   ASSERT_TRUE(CreateDirectory(base_b));
-#if defined(OS_WIN)
-  // TEMP might be a short name which is not normalized.
-  base_b = MakeLongFilePath(base_b);
-#endif
 
   FilePath to_sub_a = base_b.Append(FPL("to_sub_a"));
   ASSERT_TRUE(CreateDirectory(to_sub_a));
@@ -1424,33 +1386,6 @@ TEST_F(FileUtilTest, DeleteFile) {
   EXPECT_TRUE(DeleteFile(file_name, true));
   EXPECT_FALSE(PathExists(file_name));
 }
-
-#if defined(OS_ANDROID)
-TEST_F(FileUtilTest, DeleteContentUri) {
-  // Get the path to the test file.
-  FilePath data_dir;
-  ASSERT_TRUE(PathService::Get(DIR_TEST_DATA, &data_dir));
-  data_dir = data_dir.Append(FPL("file_util"));
-  ASSERT_TRUE(PathExists(data_dir));
-  FilePath image_file = data_dir.Append(FPL("red.png"));
-  ASSERT_TRUE(PathExists(image_file));
-
-  // Make a copy (we don't want to delete the original red.png when deleting the
-  // content URI).
-  FilePath image_copy = data_dir.Append(FPL("redcopy.png"));
-  ASSERT_TRUE(CopyFile(image_file, image_copy));
-
-  // Insert the image into MediaStore and get a content URI.
-  FilePath uri_path = InsertImageIntoMediaStore(image_copy);
-  ASSERT_TRUE(uri_path.IsContentUri());
-  ASSERT_TRUE(PathExists(uri_path));
-
-  // Try deleting the content URI.
-  EXPECT_TRUE(DeleteFile(uri_path, false));
-  EXPECT_FALSE(PathExists(image_copy));
-  EXPECT_FALSE(PathExists(uri_path));
-}
-#endif  // defined(OS_ANDROID)
 
 #if defined(OS_WIN)
 // Tests that the Delete function works for wild cards, especially

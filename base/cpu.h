@@ -52,7 +52,6 @@ class BASE_EXPORT CPU final {
   bool has_non_stop_time_stamp_counter() const {
     return has_non_stop_time_stamp_counter_;
   }
-  bool is_running_in_vm() const { return is_running_in_vm_; }
 
   IntelMicroArchitecture GetIntelMicroArchitecture() const;
   const std::string& cpu_brand() const { return cpu_brand_; }
@@ -80,7 +79,6 @@ class BASE_EXPORT CPU final {
   bool has_avx2_;
   bool has_aesni_;
   bool has_non_stop_time_stamp_counter_;
-  bool is_running_in_vm_;
   std::string cpu_vendor_;
   std::string cpu_brand_;
 };

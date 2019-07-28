@@ -31,7 +31,8 @@ class FileProxyTest : public testing::Test {
             test::ScopedTaskEnvironment::MainThreadType::IO),
         file_thread_("FileProxyTestFileThread"),
         error_(File::FILE_OK),
-        bytes_written_(-1) {}
+        bytes_written_(-1),
+        weak_factory_(this) {}
 
   void SetUp() override {
     ASSERT_TRUE(dir_.CreateUniqueTempDir());
@@ -102,7 +103,7 @@ class FileProxyTest : public testing::Test {
   File::Info file_info_;
   std::vector<char> buffer_;
   int bytes_written_;
-  WeakPtrFactory<FileProxyTest> weak_factory_{this};
+  WeakPtrFactory<FileProxyTest> weak_factory_;
 };
 
 TEST_F(FileProxyTest, CreateOrOpen_Create) {

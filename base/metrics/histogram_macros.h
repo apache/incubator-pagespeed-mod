@@ -310,12 +310,6 @@
 
 // For details on usage, see the documentation on the non-stability equivalents.
 
-#define UMA_STABILITY_HISTOGRAM_BOOLEAN(name, sample) \
-  STATIC_HISTOGRAM_POINTER_BLOCK(                     \
-      name, AddBoolean(sample),                       \
-      base::BooleanHistogram::FactoryGet(             \
-          name, base::HistogramBase::kUmaStabilityHistogramFlag))
-
 #define UMA_STABILITY_HISTOGRAM_COUNTS_100(name, sample)                       \
     UMA_STABILITY_HISTOGRAM_CUSTOM_COUNTS(name, sample, 1, 100, 50)
 
@@ -329,19 +323,6 @@
     INTERNAL_HISTOGRAM_ENUMERATION_WITH_FLAG(                                  \
         name, sample, enum_max,                                                \
         base::HistogramBase::kUmaStabilityHistogramFlag)
-
-#define UMA_STABILITY_HISTOGRAM_LONG_TIMES(name, sample) \
-  STATIC_HISTOGRAM_POINTER_BLOCK(                        \
-      name, AddTimeMillisecondsGranularity(sample),      \
-      base::Histogram::FactoryTimeGet(                   \
-          name, base::TimeDelta::FromMilliseconds(1),    \
-          base::TimeDelta::FromHours(1), 50,             \
-          base::HistogramBase::kUmaStabilityHistogramFlag))
-
-#define UMA_STABILITY_HISTOGRAM_PERCENTAGE(name, percent_as_int) \
-  INTERNAL_HISTOGRAM_EXACT_LINEAR_WITH_FLAG(                     \
-      name, percent_as_int, 101,                                 \
-      base::HistogramBase::kUmaStabilityHistogramFlag)
 
 //------------------------------------------------------------------------------
 // Histogram instantiation helpers.

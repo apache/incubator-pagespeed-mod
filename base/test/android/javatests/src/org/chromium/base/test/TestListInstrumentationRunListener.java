@@ -9,10 +9,10 @@ import android.support.test.internal.runner.listener.InstrumentationRunListener;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.runner.Description;
-import org.junit.runner.notification.Failure;
 
 import org.chromium.base.Log;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -38,14 +38,6 @@ public class TestListInstrumentationRunListener extends InstrumentationRunListen
             Arrays.asList(new String[] {"toString", "hashCode", "annotationType", "equals"}));
 
     private final Map<Class<?>, JSONObject> mTestClassJsonMap = new HashMap<>();
-    private Failure mFirstFailure;
-
-    @Override
-    public void testFailure(Failure failure) {
-        if (mFirstFailure == null) {
-            mFirstFailure = failure;
-        }
-    }
 
     /**
      * Store the test method description to a Map at the beginning of a test run.
@@ -70,17 +62,23 @@ public class TestListInstrumentationRunListener extends InstrumentationRunListen
      * Create a JSONArray with all the test class JSONObjects and save it to listed output path.
      */
     public void saveTestsToJson(String outputPath) throws IOException {
-        if (mFirstFailure != null) {
-            throw new RuntimeException(
-                    "Failed on " + mFirstFailure.getDescription(), mFirstFailure.getException());
-        }
-
-        try (Writer writer = new OutputStreamWriter(new FileOutputStream(outputPath), "UTF-8")) {
+        Writer writer = null;
+        File file = new File(outputPath);
+        try {
+            writer = new OutputStreamWriter(new FileOutputStream(file), "UTF-8");
             JSONArray allTestClassesJSON = new JSONArray(mTestClassJsonMap.values());
             writer.write(allTestClassesJSON.toString());
         } catch (IOException e) {
             Log.e(TAG, "failed to write json to file", e);
             throw e;
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException e) {
+                    // Intentionally ignore IOException when closing writer
+                }
+            }
         }
     }
 

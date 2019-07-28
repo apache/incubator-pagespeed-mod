@@ -167,7 +167,7 @@ class BASE_EXPORT Value {
   bool is_dict() const { return type() == Type::DICTIONARY; }
   bool is_list() const { return type() == Type::LIST; }
 
-  // These will all CHECK that the type matches.
+  // These will all CHECK if the type doesn't match.
   bool GetBool() const;
   int GetInt() const;
   double GetDouble() const;  // Implicitly converts from int if necessary.
@@ -181,7 +181,7 @@ class BASE_EXPORT Value {
   // a pointer to the element. Otherwise it returns nullptr.
   // returned. Callers are expected to perform a check against null before using
   // the pointer.
-  // Note: This CHECKs that type() is Type::DICTIONARY.
+  // Note: This CHECKs if type() is not Type::DICTIONARY.
   //
   // Example:
   //   auto* found = FindKey("foo");
@@ -193,7 +193,7 @@ class BASE_EXPORT Value {
   // different type nullptr is returned.
   // Callers are expected to perform a check against null before using the
   // pointer.
-  // Note: This CHECKs that type() is Type::DICTIONARY.
+  // Note: This CHECKs if type() is not Type::DICTIONARY.
   //
   // Example:
   //   auto* found = FindKey("foo", Type::DOUBLE);
@@ -226,7 +226,7 @@ class BASE_EXPORT Value {
   // |SetKey| looks up |key| in the underlying dictionary and sets the mapped
   // value to |value|. If |key| could not be found, a new element is inserted.
   // A pointer to the modified item is returned.
-  // Note: This CHECKs that type() is Type::DICTIONARY.
+  // Note: This CHECKs if type() is not Type::DICTIONARY.
   // Note: Prefer Set<Type>Key() for simple values.
   //
   // Example:
@@ -255,7 +255,7 @@ class BASE_EXPORT Value {
   // failure, e.g. the key does not exist, false is returned and the underlying
   // dictionary is not changed. In case of success, |key| is deleted from the
   // dictionary and the method returns true.
-  // Note: This CHECKs that type() is Type::DICTIONARY.
+  // Note: This CHECKs if type() is not Type::DICTIONARY.
   //
   // Example:
   //   bool success = dict.RemoveKey("foo");
@@ -265,7 +265,7 @@ class BASE_EXPORT Value {
   // failure, e.g. the key does not exist, nullopt is returned and the
   // underlying dictionary is not changed. In case of success, |key| is deleted
   // from the dictionary and the method returns the extracted Value.
-  // Note: This CHECKs that type() is Type::DICTIONARY.
+  // Note: This CHECKs if type() is not Type::DICTIONARY.
   //
   // Example:
   //   Optional<Value> maybe_value = dict.ExtractKey("foo");
@@ -398,12 +398,12 @@ class BASE_EXPORT Value {
   // dictionary. These are intended for iteration over all items in the
   // dictionary and are compatible with for-each loops and standard library
   // algorithms.
-  // Note: These CHECK that type() is Type::DICTIONARY.
+  // Note: These CHECK if type() is not Type::DICTIONARY.
   dict_iterator_proxy DictItems();
   const_dict_iterator_proxy DictItems() const;
 
   // Returns the size of the dictionary, and if the dictionary is empty.
-  // Note: These CHECK that type() is Type::DICTIONARY.
+  // Note: These CHECK if type() is not Type::DICTIONARY.
   size_t DictSize() const;
   bool DictEmpty() const;
 
@@ -412,7 +412,7 @@ class BASE_EXPORT Value {
   // passed in dictionary takes precedence and data already present will be
   // replaced. Values within |dictionary| are deep-copied, so |dictionary| may
   // be freed any time after this call.
-  // Note: This CHECKs that type() and dictionary->type() is Type::DICTIONARY.
+  // Note: This CHECKs if type() or dictionary->type() is not Type::DICTIONARY.
   void MergeDictionary(const Value* dictionary);
 
   // These methods allow the convenient retrieval of the contents of the Value.

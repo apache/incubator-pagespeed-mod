@@ -37,10 +37,6 @@ extern const BASE_EXPORT Feature kMayBlockWithoutDelay;
 extern const BASE_EXPORT Feature kUseNativeThreadPool;
 #endif
 
-// Whether threads in the ThreadPool should be reclaimed after being idle for 5
-// minutes, instead of 30 seconds.
-extern const BASE_EXPORT Feature kUseFiveMinutesThreadReclaimTime;
-
 }  // namespace base
 
 #endif  // BASE_TASK_TASK_FEATURES_H_

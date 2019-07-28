@@ -223,9 +223,6 @@ BASE_EXPORT string16 GetWindowObjectName(HANDLE handle);
 // characters will be compared with exact matches).
 BASE_EXPORT bool IsRunningUnderDesktopName(StringPiece16 desktop_name);
 
-// Returns true if current session is a remote session.
-BASE_EXPORT bool IsCurrentSessionRemote();
-
 // Allows changing the domain enrolled state for the life time of the object.
 // The original state is restored upon destruction.
 class BASE_EXPORT ScopedDomainStateForTesting {

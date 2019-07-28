@@ -19,7 +19,7 @@ static_library("symbolize") {
     "config.h",
     "demangle.cc",
     "demangle.h",
-    "base/logging.h",
+    "glog/logging.h",
     "glog/raw_logging.h",
     "symbolize.cc",
     "symbolize.h",

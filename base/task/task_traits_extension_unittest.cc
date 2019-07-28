@@ -10,14 +10,14 @@
 namespace base {
 
 TEST(TaskTraitsExtensionTest, NoExtension) {
-  constexpr TaskTraits traits = {ThreadPool()};
+  constexpr TaskTraits traits = {};
 
   EXPECT_EQ(traits.extension_id(),
             TaskTraitsExtensionStorage::kInvalidExtensionId);
 }
 
 TEST(TaskTraitsExtensionTest, CreateWithOneExtensionTrait) {
-  constexpr TaskTraits traits = {ThreadPool(), TestExtensionEnumTrait::kB};
+  constexpr TaskTraits traits = {TestExtensionEnumTrait::kB};
 
   EXPECT_EQ(traits.GetExtension<TestTaskTraitsExtension>().enum_trait(),
             TestExtensionEnumTrait::kB);
@@ -25,7 +25,7 @@ TEST(TaskTraitsExtensionTest, CreateWithOneExtensionTrait) {
 }
 
 TEST(TaskTraitsExtensionTest, CreateWithMultipleExtensionTraits) {
-  constexpr TaskTraits traits = {ThreadPool(), TestExtensionEnumTrait::kB,
+  constexpr TaskTraits traits = {TestExtensionEnumTrait::kB,
                                  TestExtensionBoolTrait()};
 
   EXPECT_EQ(traits.GetExtension<TestTaskTraitsExtension>().enum_trait(),
@@ -34,7 +34,7 @@ TEST(TaskTraitsExtensionTest, CreateWithMultipleExtensionTraits) {
 }
 
 TEST(TaskTraitsExtensionTest, CreateWithBaseAndExtensionTraits) {
-  constexpr TaskTraits traits = {ThreadPool(), TaskPriority::USER_BLOCKING,
+  constexpr TaskTraits traits = {TaskPriority::USER_BLOCKING,
                                  TestExtensionEnumTrait::kC,
                                  TestExtensionBoolTrait()};
 

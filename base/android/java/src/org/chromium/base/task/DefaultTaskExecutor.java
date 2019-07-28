@@ -16,16 +16,17 @@ import java.util.Map;
  */
 class DefaultTaskExecutor implements TaskExecutor {
     private final Map<TaskTraits, TaskRunner> mTraitsToRunnerMap = new HashMap<>();
+    private ChoreographerTaskRunner mChoreographerTaskRunner;
 
     @Override
     public TaskRunner createTaskRunner(TaskTraits taskTraits) {
-        if (taskTraits.mIsChoreographerFrame) return createChoreographerTaskRunner();
+        if (taskTraits.mIsChoreographerFrame) return getChoreographerTaskRunner();
         return new TaskRunnerImpl(taskTraits);
     }
 
     @Override
     public SequencedTaskRunner createSequencedTaskRunner(TaskTraits taskTraits) {
-        if (taskTraits.mIsChoreographerFrame) return createChoreographerTaskRunner();
+        if (taskTraits.mIsChoreographerFrame) return getChoreographerTaskRunner();
         return new SequencedTaskRunnerImpl(taskTraits);
     }
 
@@ -35,7 +36,7 @@ class DefaultTaskExecutor implements TaskExecutor {
      */
     @Override
     public SingleThreadTaskRunner createSingleThreadTaskRunner(TaskTraits taskTraits) {
-        if (taskTraits.mIsChoreographerFrame) return createChoreographerTaskRunner();
+        if (taskTraits.mIsChoreographerFrame) return getChoreographerTaskRunner();
         // Tasks posted via this API will not execute until after native has started.
         return new SingleThreadTaskRunnerImpl(null, taskTraits);
     }
@@ -50,10 +51,11 @@ class DefaultTaskExecutor implements TaskExecutor {
             // Caching TaskRunners only for common TaskTraits.
             TaskRunner runner = mTraitsToRunnerMap.get(taskTraits);
             if (runner == null) {
-                runner = createTaskRunner(taskTraits);
+                TaskRunnerImpl runnerImpl = new TaskRunnerImpl(taskTraits);
                 // Disable destroy() check since object will live forever.
-                runner.disableLifetimeCheck();
-                mTraitsToRunnerMap.put(taskTraits, runner);
+                runnerImpl.disableLifetimeCheck();
+                mTraitsToRunnerMap.put(taskTraits, runnerImpl);
+                runner = runnerImpl;
             }
             runner.postDelayedTask(task, delay);
         }
@@ -64,9 +66,13 @@ class DefaultTaskExecutor implements TaskExecutor {
         return false;
     }
 
-    private synchronized ChoreographerTaskRunner createChoreographerTaskRunner() {
+    private synchronized ChoreographerTaskRunner getChoreographerTaskRunner() {
         // TODO(alexclarke): Migrate to the new Android UI thread trait when available.
-        return ThreadUtils.runOnUiThreadBlockingNoException(
-                () -> { return new ChoreographerTaskRunner(Choreographer.getInstance()); });
+        ChoreographerTaskRunner choreographerTaskRunner =
+                ThreadUtils.runOnUiThreadBlockingNoException(
+                        () -> { return new ChoreographerTaskRunner(Choreographer.getInstance()); });
+
+        mTraitsToRunnerMap.put(TaskTraits.CHOREOGRAPHER_FRAME, choreographerTaskRunner);
+        return choreographerTaskRunner;
     }
 }

@@ -131,7 +131,7 @@ struct MappedReadOnlyRegion {
   // Helper function to check return value of
   // ReadOnlySharedMemoryRegion::Create(). |region| and |mapping| either both
   // valid or invalid.
-  bool IsValid() const {
+  bool IsValid() {
     DCHECK_EQ(region.IsValid(), mapping.IsValid());
     return region.IsValid() && mapping.IsValid();
   }

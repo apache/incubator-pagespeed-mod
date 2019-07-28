@@ -179,15 +179,17 @@ void OnOutOfMemory(size_t size) {
 
 #if !defined(OS_NACL)
 // Returns whether the operation succeeded.
-bool DeserializeGUIDFromStringPieces(StringPiece first,
-                                     StringPiece second,
-                                     UnguessableToken* guid) {
+bool DeserializeGUIDFromStringPieces(base::StringPiece first,
+                                     base::StringPiece second,
+                                     base::UnguessableToken* guid) {
   uint64_t high = 0;
   uint64_t low = 0;
-  if (!StringToUint64(first, &high) || !StringToUint64(second, &low))
+  if (!base::StringToUint64(first, &high) ||
+      !base::StringToUint64(second, &low)) {
     return false;
+  }
 
-  *guid = UnguessableToken::Deserialize(high, low);
+  *guid = base::UnguessableToken::Deserialize(high, low);
   return true;
 }
 #endif  // !defined(OS_NACL)
@@ -454,9 +456,6 @@ FieldTrialList::~FieldTrialList() {
     it->second->Release();
     registered_.erase(it->first);
   }
-  // Note: If this DCHECK fires in a test that uses ScopedFeatureList, it is
-  // likely caused by nested ScopedFeatureLists being destroyed in a different
-  // order than they are initialized.
   DCHECK_EQ(this, global_);
   global_ = nullptr;
 }
@@ -689,7 +688,7 @@ void FieldTrialList::GetActiveFieldTrialGroupsFromString(
 
 // static
 void FieldTrialList::GetInitiallyActiveFieldTrials(
-    const CommandLine& command_line,
+    const base::CommandLine& command_line,
     FieldTrial::ActiveGroups* active_groups) {
   DCHECK(global_);
   DCHECK(global_->create_trials_from_command_line_called_);
@@ -734,7 +733,7 @@ bool FieldTrialList::CreateTrialsFromString(
     const std::string trial_name = entry.trial_name.as_string();
     const std::string group_name = entry.group_name.as_string();
 
-    if (Contains(ignored_trial_names, trial_name)) {
+    if (ContainsKey(ignored_trial_names, trial_name)) {
       // This is to warn that the field trial forced through command-line
       // input is unforcable.
       // Use --enable-logging or --enable-logging=stderr to see this warning.
@@ -797,7 +796,7 @@ void FieldTrialList::CreateTrialsFromCommandLine(
 
 // static
 void FieldTrialList::CreateFeaturesFromCommandLine(
-    const CommandLine& command_line,
+    const base::CommandLine& command_line,
     const char* enable_features_switch,
     const char* disable_features_switch,
     FeatureList* feature_list) {
@@ -855,10 +854,10 @@ int FieldTrialList::GetFieldTrialDescriptor() {
 #endif
 
 // static
-ReadOnlySharedMemoryRegion
+base::ReadOnlySharedMemoryRegion
 FieldTrialList::DuplicateFieldTrialSharedMemoryForTesting() {
   if (!global_)
-    return ReadOnlySharedMemoryRegion();
+    return base::ReadOnlySharedMemoryRegion();
 
   return global_->readonly_allocator_region_.Duplicate();
 }
@@ -988,7 +987,8 @@ void FieldTrialList::NotifyFieldTrialGroupSelection(FieldTrial* field_trial) {
 
   // Recording for stability debugging has to be done inline as a task posted
   // to an observer may not get executed before a crash.
-  debug::GlobalActivityTracker* tracker = debug::GlobalActivityTracker::Get();
+  base::debug::GlobalActivityTracker* tracker =
+      base::debug::GlobalActivityTracker::Get();
   if (tracker) {
     tracker->RecordFieldTrial(field_trial->trial_name(),
                               field_trial->group_name_internal());
@@ -1140,25 +1140,13 @@ FieldTrialList::GetAllFieldTrialsFromPersistentAllocator(
 }
 
 // static
-FieldTrialList* FieldTrialList::GetInstance() {
-  return global_;
-}
-
-// static
-FieldTrialList* FieldTrialList::BackupInstanceForTesting() {
-  FieldTrialList* instance = global_;
-  global_ = nullptr;
-  return instance;
-}
-
-// static
-void FieldTrialList::RestoreInstanceForTesting(FieldTrialList* instance) {
-  global_ = instance;
+bool FieldTrialList::IsGlobalSetForTesting() {
+  return global_ != nullptr;
 }
 
 // static
 std::string FieldTrialList::SerializeSharedMemoryRegionMetadata(
-    const ReadOnlySharedMemoryRegion& shm) {
+    const base::ReadOnlySharedMemoryRegion& shm) {
   std::stringstream ss;
 #if defined(OS_WIN)
   // Tell the child process the name of the inherited HANDLE.
@@ -1175,7 +1163,7 @@ std::string FieldTrialList::SerializeSharedMemoryRegionMetadata(
 #error Unsupported OS
 #endif
 
-  UnguessableToken guid = shm.GetGUID();
+  base::UnguessableToken guid = shm.GetGUID();
   ss << guid.GetHighForSerialization() << "," << guid.GetLowForSerialization();
   ss << "," << shm.GetSize();
   return ss.str();
@@ -1185,27 +1173,27 @@ std::string FieldTrialList::SerializeSharedMemoryRegionMetadata(
     (defined(OS_MACOSX) && !defined(OS_IOS))
 
 // static
-ReadOnlySharedMemoryRegion
+base::ReadOnlySharedMemoryRegion
 FieldTrialList::DeserializeSharedMemoryRegionMetadata(
     const std::string& switch_value) {
-  std::vector<StringPiece> tokens =
-      SplitStringPiece(switch_value, ",", KEEP_WHITESPACE, SPLIT_WANT_ALL);
+  std::vector<base::StringPiece> tokens = base::SplitStringPiece(
+      switch_value, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
 
   if (tokens.size() != 4)
-    return ReadOnlySharedMemoryRegion();
+    return base::ReadOnlySharedMemoryRegion();
 
   int field_trial_handle = 0;
-  if (!StringToInt(tokens[0], &field_trial_handle))
-    return ReadOnlySharedMemoryRegion();
+  if (!base::StringToInt(tokens[0], &field_trial_handle))
+    return base::ReadOnlySharedMemoryRegion();
 #if defined(OS_FUCHSIA)
   zx_handle_t handle = static_cast<zx_handle_t>(field_trial_handle);
   zx::vmo scoped_handle = zx::vmo(handle);
 #elif defined(OS_WIN)
   HANDLE handle = reinterpret_cast<HANDLE>(field_trial_handle);
-  if (IsCurrentProcessElevated()) {
-    // LaunchElevatedProcess doesn't have a way to duplicate the handle,
+  if (base::IsCurrentProcessElevated()) {
+    // base::LaunchElevatedProcess doesn't have a way to duplicate the handle,
     // but this process can since by definition it's not sandboxed.
-    ProcessId parent_pid = GetParentProcessId(GetCurrentProcess());
+    base::ProcessId parent_pid = base::GetParentProcessId(GetCurrentProcess());
     HANDLE parent_handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, parent_pid);
     // TODO(https://crbug.com/916461): Duplicating the handle is known to fail
     // with ERROR_ACCESS_DENIED when the parent process is being torn down. This
@@ -1217,54 +1205,55 @@ FieldTrialList::DeserializeSharedMemoryRegionMetadata(
   win::ScopedHandle scoped_handle(handle);
 #elif defined(OS_MACOSX) && !defined(OS_IOS)
   auto* rendezvous = MachPortRendezvousClient::GetInstance();
-  if (!rendezvous)
-    return ReadOnlySharedMemoryRegion();
   mac::ScopedMachSendRight scoped_handle =
       rendezvous->TakeSendRight(field_trial_handle);
   if (!scoped_handle.is_valid())
-    return ReadOnlySharedMemoryRegion();
+    return base::ReadOnlySharedMemoryRegion();
 #endif
 
-  UnguessableToken guid;
+  base::UnguessableToken guid;
   if (!DeserializeGUIDFromStringPieces(tokens[1], tokens[2], &guid))
-    return ReadOnlySharedMemoryRegion();
+    return base::ReadOnlySharedMemoryRegion();
 
   int size;
-  if (!StringToInt(tokens[3], &size))
-    return ReadOnlySharedMemoryRegion();
+  if (!base::StringToInt(tokens[3], &size))
+    return base::ReadOnlySharedMemoryRegion();
 
-  auto platform_handle = subtle::PlatformSharedMemoryRegion::Take(
+  auto platform_handle = base::subtle::PlatformSharedMemoryRegion::Take(
       std::move(scoped_handle),
-      subtle::PlatformSharedMemoryRegion::Mode::kReadOnly,
+      base::subtle::PlatformSharedMemoryRegion::Mode::kReadOnly,
       static_cast<size_t>(size), guid);
-  return ReadOnlySharedMemoryRegion::Deserialize(std::move(platform_handle));
+  return base::ReadOnlySharedMemoryRegion::Deserialize(
+      std::move(platform_handle));
 }
 
 #elif defined(OS_POSIX) && !defined(OS_NACL)
 
 // static
-ReadOnlySharedMemoryRegion
+base::ReadOnlySharedMemoryRegion
 FieldTrialList::DeserializeSharedMemoryRegionMetadata(
     int fd,
     const std::string& switch_value) {
-  std::vector<StringPiece> tokens =
-      SplitStringPiece(switch_value, ",", KEEP_WHITESPACE, SPLIT_WANT_ALL);
+  std::vector<base::StringPiece> tokens = base::SplitStringPiece(
+      switch_value, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
 
   if (tokens.size() != 3)
     return ReadOnlySharedMemoryRegion();
 
-  UnguessableToken guid;
+  base::UnguessableToken guid;
   if (!DeserializeGUIDFromStringPieces(tokens[0], tokens[1], &guid))
     return ReadOnlySharedMemoryRegion();
 
   int size;
-  if (!StringToInt(tokens[2], &size))
+  if (!base::StringToInt(tokens[2], &size))
     return ReadOnlySharedMemoryRegion();
 
-  auto platform_region = subtle::PlatformSharedMemoryRegion::Take(
-      ScopedFD(fd), subtle::PlatformSharedMemoryRegion::Mode::kReadOnly,
+  auto platform_region = base::subtle::PlatformSharedMemoryRegion::Take(
+      base::ScopedFD(fd),
+      base::subtle::PlatformSharedMemoryRegion::Mode::kReadOnly,
       static_cast<size_t>(size), guid);
-  return ReadOnlySharedMemoryRegion::Deserialize(std::move(platform_region));
+  return base::ReadOnlySharedMemoryRegion::Deserialize(
+      std::move(platform_region));
 }
 
 #endif
@@ -1274,7 +1263,7 @@ FieldTrialList::DeserializeSharedMemoryRegionMetadata(
 // static
 bool FieldTrialList::CreateTrialsFromSwitchValue(
     const std::string& switch_value) {
-  ReadOnlySharedMemoryRegion shm =
+  base::ReadOnlySharedMemoryRegion shm =
       DeserializeSharedMemoryRegionMetadata(switch_value);
   if (!shm.IsValid())
     return false;
@@ -1292,7 +1281,7 @@ bool FieldTrialList::CreateTrialsFromDescriptor(
   if (fd == -1)
     return false;
 
-  ReadOnlySharedMemoryRegion shm =
+  base::ReadOnlySharedMemoryRegion shm =
       DeserializeSharedMemoryRegionMetadata(fd, switch_value);
   if (!shm.IsValid())
     return false;
@@ -1305,8 +1294,8 @@ bool FieldTrialList::CreateTrialsFromDescriptor(
 
 // static
 bool FieldTrialList::CreateTrialsFromSharedMemoryRegion(
-    const ReadOnlySharedMemoryRegion& shm_region) {
-  ReadOnlySharedMemoryMapping shm_mapping =
+    const base::ReadOnlySharedMemoryRegion& shm_region) {
+  base::ReadOnlySharedMemoryMapping shm_mapping =
       shm_region.MapAt(0, kFieldTrialAllocationSize);
   if (!shm_mapping.IsValid())
     OnOutOfMemory(kFieldTrialAllocationSize);
@@ -1317,7 +1306,7 @@ bool FieldTrialList::CreateTrialsFromSharedMemoryRegion(
 
 // static
 bool FieldTrialList::CreateTrialsFromSharedMemoryMapping(
-    ReadOnlySharedMemoryMapping shm_mapping) {
+    base::ReadOnlySharedMemoryMapping shm_mapping) {
   global_->field_trial_allocator_ =
       std::make_unique<ReadOnlySharedPersistentMemoryAllocator>(
           std::move(shm_mapping), 0, kAllocatorName);
@@ -1358,8 +1347,8 @@ void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
   if (global_->field_trial_allocator_ != nullptr)
     return;
 
-  MappedReadOnlyRegion shm =
-      ReadOnlySharedMemoryRegion::Create(kFieldTrialAllocationSize);
+  base::MappedReadOnlyRegion shm =
+      base::ReadOnlySharedMemoryRegion::Create(kFieldTrialAllocationSize);
 
   if (!shm.IsValid())
     OnOutOfMemory(kFieldTrialAllocationSize);

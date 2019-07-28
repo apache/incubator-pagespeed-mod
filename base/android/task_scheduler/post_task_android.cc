@@ -4,12 +4,12 @@
 
 #include "base/android/task_scheduler/post_task_android.h"
 
-#include "base/android_runtime_jni_headers/Runnable_jni.h"
-#include "base/base_jni_headers/PostTask_jni.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/task/post_task.h"
 #include "base/task/thread_pool/thread_pool.h"
+#include "jni/PostTask_jni.h"
+#include "jni/Runnable_jni.h"
 
 namespace base {
 
@@ -70,13 +70,14 @@ void JNI_PostTask_PostDelayedTask(
     jlong delay) {
   // This could be run on any java thread, so we can't cache |env| in the
   // BindOnce because JNIEnv is thread specific.
-  PostDelayedTask(FROM_HERE,
-                  PostTaskAndroid::CreateTaskTraits(
-                      env, priority_set_explicitly, priority, may_block,
-                      use_thread_pool, extension_id, extension_data),
-                  BindOnce(&PostTaskAndroid::RunJavaTask,
-                           base::android::ScopedJavaGlobalRef<jobject>(task)),
-                  TimeDelta::FromMilliseconds(delay));
+  PostDelayedTaskWithTraits(
+      FROM_HERE,
+      PostTaskAndroid::CreateTaskTraits(env, priority_set_explicitly, priority,
+                                        may_block, use_thread_pool,
+                                        extension_id, extension_data),
+      BindOnce(&PostTaskAndroid::RunJavaTask,
+               base::android::ScopedJavaGlobalRef<jobject>(task)),
+      TimeDelta::FromMilliseconds(delay));
 }
 
 // static

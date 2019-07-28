@@ -6,29 +6,20 @@
 
 #include "base/message_loop/message_pump.h"
 #include "base/task/sequence_manager/sequence_manager.h"
-#include "base/task/sequence_manager/sequence_manager_impl.h"
-#include "build/build_config.h"
 
 namespace base {
 
 SingleThreadTaskExecutor::SingleThreadTaskExecutor(MessagePump::Type type)
-    : sequence_manager_(sequence_manager::CreateUnboundSequenceManager(
-          sequence_manager::SequenceManager::Settings::Builder()
-              .SetMessagePumpType(type)
-              .Build())),
+    : sequence_manager_(
+          sequence_manager::CreateSequenceManagerOnCurrentThreadWithPump(
+              MessagePump::Create(type),
+              sequence_manager::SequenceManager::Settings::Builder()
+                  .SetMessagePumpType(type)
+                  .Build())),
       default_task_queue_(sequence_manager_->CreateTaskQueue(
           sequence_manager::TaskQueue::Spec("default_tq"))),
       type_(type) {
   sequence_manager_->SetDefaultTaskRunner(default_task_queue_->task_runner());
-  sequence_manager_->BindToMessagePump(MessagePump::Create(type));
-
-#if defined(OS_IOS)
-  if (type == MessagePump::Type::UI) {
-    static_cast<sequence_manager::internal::SequenceManagerImpl*>(
-        sequence_manager_.get())
-        ->AttachToMessagePump();
-  }
-#endif
 }
 
 SingleThreadTaskExecutor::~SingleThreadTaskExecutor() = default;

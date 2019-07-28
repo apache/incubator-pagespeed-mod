@@ -6,7 +6,7 @@
 
 namespace base {
 
-CheckedObserver::CheckedObserver() {}
+CheckedObserver::CheckedObserver() : factory_(this) {}
 CheckedObserver::~CheckedObserver() = default;
 
 bool CheckedObserver::IsInObserverList() const {

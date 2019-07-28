@@ -130,9 +130,6 @@ class BASE_EXPORT TimeDelta {
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   static TimeDelta FromTimeSpec(const timespec& ts);
 #endif
-#if defined(OS_FUCHSIA)
-  static TimeDelta FromZxDuration(zx_duration_t nanos);
-#endif
 
   // Converts an integer value representing TimeDelta to a class. This is used
   // when deserializing a |TimeDelta| structure, using a value known to be
@@ -184,9 +181,6 @@ class BASE_EXPORT TimeDelta {
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
   struct timespec ToTimeSpec() const;
-#endif
-#if defined(OS_FUCHSIA)
-  zx_duration_t ToZxDuration() const;
 #endif
 
   // Returns the time delta in some unit. The InXYZF versions return a floating
@@ -583,11 +577,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
-#endif
-
-#if defined(OS_FUCHSIA)
-  static Time FromZxTime(zx_time_t time);
-  zx_time_t ToZxTime() const;
 #endif
 
 #if defined(OS_MACOSX)

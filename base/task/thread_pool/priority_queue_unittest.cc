@@ -45,20 +45,20 @@ class PriorityQueueWithSequencesTest : public testing::Test {
               num_user_blocking);
   }
 
-  scoped_refptr<TaskSource> sequence_a = MakeSequenceWithTraitsAndTask(
-      TaskTraits(ThreadPool(), TaskPriority::USER_VISIBLE));
+  scoped_refptr<TaskSource> sequence_a =
+      MakeSequenceWithTraitsAndTask(TaskTraits(TaskPriority::USER_VISIBLE));
   SequenceSortKey sort_key_a = sequence_a->BeginTransaction().GetSortKey();
 
-  scoped_refptr<TaskSource> sequence_b = MakeSequenceWithTraitsAndTask(
-      TaskTraits(ThreadPool(), TaskPriority::USER_BLOCKING));
+  scoped_refptr<TaskSource> sequence_b =
+      MakeSequenceWithTraitsAndTask(TaskTraits(TaskPriority::USER_BLOCKING));
   SequenceSortKey sort_key_b = sequence_b->BeginTransaction().GetSortKey();
 
-  scoped_refptr<TaskSource> sequence_c = MakeSequenceWithTraitsAndTask(
-      TaskTraits(ThreadPool(), TaskPriority::USER_BLOCKING));
+  scoped_refptr<TaskSource> sequence_c =
+      MakeSequenceWithTraitsAndTask(TaskTraits(TaskPriority::USER_BLOCKING));
   SequenceSortKey sort_key_c = sequence_c->BeginTransaction().GetSortKey();
 
-  scoped_refptr<TaskSource> sequence_d = MakeSequenceWithTraitsAndTask(
-      TaskTraits(ThreadPool(), TaskPriority::BEST_EFFORT));
+  scoped_refptr<TaskSource> sequence_d =
+      MakeSequenceWithTraitsAndTask(TaskTraits(TaskPriority::BEST_EFFORT));
   SequenceSortKey sort_key_d = sequence_d->BeginTransaction().GetSortKey();
 
   PriorityQueue pq;
@@ -72,28 +72,28 @@ TEST_F(PriorityQueueWithSequencesTest, PushPopPeek) {
 
   // Push |sequence_a| in the PriorityQueue. It becomes the sequence with the
   // highest priority.
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_a)));
   EXPECT_EQ(sort_key_a, pq.PeekSortKey());
   ExpectNumSequences(0U, 1U, 0U);
 
   // Push |sequence_b| in the PriorityQueue. It becomes the sequence with the
   // highest priority.
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_b)));
   EXPECT_EQ(sort_key_b, pq.PeekSortKey());
   ExpectNumSequences(0U, 1U, 1U);
 
   // Push |sequence_c| in the PriorityQueue. |sequence_b| is still the sequence
   // with the highest priority.
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_c)));
   EXPECT_EQ(sort_key_b, pq.PeekSortKey());
   ExpectNumSequences(0U, 1U, 2U);
 
   // Push |sequence_d| in the PriorityQueue. |sequence_b| is still the sequence
   // with the highest priority.
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_d)));
   EXPECT_EQ(sort_key_b, pq.PeekSortKey());
   ExpectNumSequences(1U, 1U, 2U);
@@ -127,13 +127,13 @@ TEST_F(PriorityQueueWithSequencesTest, RemoveSequence) {
 
   // Push all test Sequences into the PriorityQueue. |sequence_b|
   // will be the sequence with the highest priority.
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_a)));
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_b)));
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_c)));
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_d)));
   EXPECT_EQ(sort_key_b, pq.PeekSortKey());
   ExpectNumSequences(1U, 1U, 2U);
@@ -176,13 +176,13 @@ TEST_F(PriorityQueueWithSequencesTest, UpdateSortKey) {
 
   // Push all test Sequences into the PriorityQueue. |sequence_b| becomes the
   // sequence with the highest priority.
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_a)));
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_b)));
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_c)));
-  pq.Push(TransactionWithRegisteredTaskSource::FromTaskSource(
+  pq.Push(RegisteredTaskSourceAndTransaction::FromTaskSource(
       RegisteredTaskSource::CreateForTesting(sequence_d)));
   EXPECT_EQ(sort_key_b, pq.PeekSortKey());
   ExpectNumSequences(1U, 1U, 2U);
@@ -191,8 +191,9 @@ TEST_F(PriorityQueueWithSequencesTest, UpdateSortKey) {
     // Downgrade |sequence_b| from USER_BLOCKING to BEST_EFFORT. |sequence_c|
     // (USER_BLOCKING priority) becomes the sequence with the highest priority.
     auto sequence_b_and_transaction =
-        TransactionWithOwnedTaskSource::FromTaskSource(sequence_b);
-    sequence_b_and_transaction.UpdatePriority(TaskPriority::BEST_EFFORT);
+        TaskSourceAndTransaction::FromTaskSource(sequence_b);
+    sequence_b_and_transaction.transaction.UpdatePriority(
+        TaskPriority::BEST_EFFORT);
 
     pq.UpdateSortKey(std::move(sequence_b_and_transaction));
     EXPECT_EQ(sort_key_c, pq.PeekSortKey());
@@ -204,8 +205,9 @@ TEST_F(PriorityQueueWithSequencesTest, UpdateSortKey) {
     // |sequence_c| (USER_BLOCKING priority) is still the sequence with the
     // highest priority.
     auto sequence_c_and_transaction =
-        TransactionWithOwnedTaskSource::FromTaskSource(sequence_c);
-    sequence_c_and_transaction.UpdatePriority(TaskPriority::USER_BLOCKING);
+        TaskSourceAndTransaction::FromTaskSource(sequence_c);
+    sequence_c_and_transaction.transaction.UpdatePriority(
+        TaskPriority::USER_BLOCKING);
 
     pq.UpdateSortKey(std::move(sequence_c_and_transaction));
     ExpectNumSequences(2U, 1U, 1U);
@@ -222,8 +224,9 @@ TEST_F(PriorityQueueWithSequencesTest, UpdateSortKey) {
     // Upgrade |sequence_d| from BEST_EFFORT to USER_BLOCKING. |sequence_d|
     // becomes the sequence with the highest priority.
     auto sequence_d_and_transaction =
-        TransactionWithOwnedTaskSource::FromTaskSource(sequence_d);
-    sequence_d_and_transaction.UpdatePriority(TaskPriority::USER_BLOCKING);
+        TaskSourceAndTransaction::FromTaskSource(sequence_d);
+    sequence_d_and_transaction.transaction.UpdatePriority(
+        TaskPriority::USER_BLOCKING);
 
     pq.UpdateSortKey(std::move(sequence_d_and_transaction));
     ExpectNumSequences(1U, 1U, 1U);
@@ -238,8 +241,7 @@ TEST_F(PriorityQueueWithSequencesTest, UpdateSortKey) {
   }
 
   {
-    pq.UpdateSortKey(
-        TransactionWithOwnedTaskSource::FromTaskSource(sequence_d));
+    pq.UpdateSortKey(TaskSourceAndTransaction::FromTaskSource(sequence_d));
     ExpectNumSequences(1U, 1U, 0U);
     EXPECT_EQ(sequence_a, pq.PopTaskSource().Unregister());
     ExpectNumSequences(1U, 0U, 0U);
@@ -249,8 +251,7 @@ TEST_F(PriorityQueueWithSequencesTest, UpdateSortKey) {
 
   {
     // No-op if UpdateSortKey() is called on an empty PriorityQueue.
-    pq.UpdateSortKey(
-        TransactionWithOwnedTaskSource::FromTaskSource(sequence_b));
+    pq.UpdateSortKey(TaskSourceAndTransaction::FromTaskSource(sequence_b));
     EXPECT_TRUE(pq.IsEmpty());
     ExpectNumSequences(0U, 0U, 0U);
   }

@@ -8,7 +8,6 @@
 #include "base/optional.h"
 #include "base/pending_task.h"
 #include "base/task/sequence_manager/lazy_now.h"
-#include "base/task/sequence_manager/tasks.h"
 
 namespace base {
 namespace sequence_manager {
@@ -22,7 +21,7 @@ class SequencedTaskSource {
   // Returns the next task to run from this source or nullopt if
   // there're no more tasks ready to run. If a task is returned,
   // DidRunTask() must be invoked before the next call to TakeTask().
-  virtual Optional<Task> TakeTask() = 0;
+  virtual Optional<PendingTask> TakeTask() = 0;
 
   // Notifies this source that the task previously obtained
   // from TakeTask() has been completed.

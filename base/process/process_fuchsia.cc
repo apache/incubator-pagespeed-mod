@@ -13,10 +13,7 @@
 #include "base/fuchsia/default_job.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/strings/stringprintf.h"
-
-#if BUILDFLAG(CLANG_COVERAGE)
 #include "base/test/clang_coverage.h"
-#endif
 
 namespace base {
 

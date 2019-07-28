@@ -26,7 +26,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
-#include "base/threading/scoped_thread_priority.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_process_information.h"
 #include "base/win/startup_information.h"
@@ -201,10 +200,6 @@ Process LaunchProcess(const CommandLine& cmdline,
 
 Process LaunchProcess(const string16& cmdline,
                       const LaunchOptions& options) {
-  // Mitigate the issues caused by loading DLLs on a background thread
-  // (http://crbug/973868).
-  base::ScopedThreadMayLoadLibraryOnBackgroundThread priority_boost(FROM_HERE);
-
   win::StartupInformation startup_info_wrapper;
   STARTUPINFO* startup_info = startup_info_wrapper.startup_info();
 

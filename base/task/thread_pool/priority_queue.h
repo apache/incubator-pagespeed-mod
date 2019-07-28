@@ -28,7 +28,7 @@ class BASE_EXPORT PriorityQueue {
   PriorityQueue& operator=(PriorityQueue&& other);
 
   // Inserts |task_source| in the PriorityQueue with |sequence_sort_key|.
-  void Push(TransactionWithRegisteredTaskSource transaction_with_task_source);
+  void Push(RegisteredTaskSourceAndTransaction task_source_and_transaction);
 
   // Returns a reference to the SequenceSortKey representing the priority of
   // the highest pending task in this PriorityQueue. The reference becomes
@@ -46,11 +46,10 @@ class BASE_EXPORT PriorityQueue {
   // empty.
   RegisteredTaskSource RemoveTaskSource(scoped_refptr<TaskSource> task_source);
 
-  // Updates the sort key of the TaskSource in |transaction_with_task_source| to
+  // Updates the sort key of the TaskSource in |task_source_and_transaction| to
   // match its current traits. No-ops if the TaskSource is not in the
   // PriorityQueue or the PriorityQueue is empty.
-  void UpdateSortKey(
-      TransactionWithOwnedTaskSource transaction_with_task_source);
+  void UpdateSortKey(TaskSourceAndTransaction task_source_and_transaction);
 
   // Returns true if the PriorityQueue is empty.
   bool IsEmpty() const;

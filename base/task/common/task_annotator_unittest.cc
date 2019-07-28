@@ -218,9 +218,9 @@ TEST_F(TaskAnnotatorBacktraceIntegrationTest, MultipleThreads) {
   // SingleThreadTaskRunner) to verify that TaskAnnotator can capture backtraces
   // for PostTasks back-and-forth between these.
   auto main_thread_a = ThreadTaskRunnerHandle::Get();
-  auto task_runner_b = CreateSingleThreadTaskRunner({ThreadPool()});
-  auto task_runner_c = CreateSequencedTaskRunner(
-      {ThreadPool(), base::MayBlock(), base::WithBaseSyncPrimitives()});
+  auto task_runner_b = CreateSingleThreadTaskRunnerWithTraits({});
+  auto task_runner_c = CreateSequencedTaskRunnerWithTraits(
+      {base::MayBlock(), base::WithBaseSyncPrimitives()});
 
   const Location& location_a0 = FROM_HERE;
   const Location& location_a1 = FROM_HERE;

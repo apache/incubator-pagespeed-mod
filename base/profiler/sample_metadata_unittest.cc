@@ -10,29 +10,19 @@
 namespace base {
 
 TEST(SampleMetadataTest, ScopedSampleMetadata) {
-  base::ProfileBuilder::MetadataItemArray items;
-  {
-    auto get_items = GetSampleMetadataRecorder()->CreateMetadataProvider();
-    ASSERT_EQ(0u, get_items->GetItems(&items));
-  }
+  MetadataRecorder::ItemArray items;
+
+  ASSERT_EQ(0u, GetSampleMetadataRecorder()->GetItems(&items));
 
   {
     ScopedSampleMetadata m("myname", 100);
 
-    {
-      ASSERT_EQ(1u,
-                GetSampleMetadataRecorder()->CreateMetadataProvider()->GetItems(
-                    &items));
-      EXPECT_EQ(base::HashMetricName("myname"), items[0].name_hash);
-      EXPECT_EQ(100, items[0].value);
-    }
+    ASSERT_EQ(1u, GetSampleMetadataRecorder()->GetItems(&items));
+    EXPECT_EQ(base::HashMetricName("myname"), items[0].name_hash);
+    EXPECT_EQ(100, items[0].value);
   }
 
-  {
-    ASSERT_EQ(0u,
-              GetSampleMetadataRecorder()->CreateMetadataProvider()->GetItems(
-                  &items));
-  }
+  ASSERT_EQ(0u, GetSampleMetadataRecorder()->GetItems(&items));
 }
 
 }  // namespace base

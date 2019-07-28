@@ -330,19 +330,22 @@ bool ThreadControllerWithMessagePumpImpl::DoDelayedWork(
 TimeDelta ThreadControllerWithMessagePumpImpl::DoWorkImpl(
     LazyNow* continuation_lazy_now,
     bool* ran_task) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("sequence_manager"),
-               "ThreadControllerImpl::DoWork");
-
   if (!main_thread_only().task_execution_allowed) {
     if (main_thread_only().quit_runloop_after == TimeTicks::Max())
       return TimeDelta::Max();
     return main_thread_only().quit_runloop_after - continuation_lazy_now->Now();
   }
 
+  // Keep this in-sync with
+  // third_party/catapult/tracing/tracing/extras/chrome/event_finder_utils.html
+  // TODO(alexclarke): Rename this event to whatever we end up calling this
+  // after the DoWork / DoDelayed work merge.
+  TRACE_EVENT0("toplevel", "ThreadControllerImpl::RunTask");
+
   DCHECK(main_thread_only().task_source);
 
   for (int i = 0; i < main_thread_only().work_batch_size; i++) {
-    Optional<Task> task = main_thread_only().task_source->TakeTask();
+    Optional<PendingTask> task = main_thread_only().task_source->TakeTask();
     if (!task)
       break;
 
@@ -361,8 +364,8 @@ TimeDelta ThreadControllerWithMessagePumpImpl::DoWorkImpl(
     {
       // Trace events should finish before we call DidRunTask to ensure that
       // SequenceManager trace events do not interfere with them.
-      TRACE_TASK_EXECUTION("ThreadControllerImpl::RunTask", *task);
-      task_annotator_.RunTask("SequenceManager RunTask", &*task);
+      TRACE_TASK_EXECUTION("ThreadController::Task", *task);
+      task_annotator_.RunTask("ThreadController::Task", &*task);
     }
 
 #if DCHECK_IS_ON()

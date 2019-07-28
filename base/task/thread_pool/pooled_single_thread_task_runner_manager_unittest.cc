@@ -69,7 +69,7 @@ class PooledSingleThreadTaskRunnerManagerTest : public testing::Test {
   }
 
   Thread service_thread_;
-  TaskTracker task_tracker_{"Test"};
+  TaskTracker task_tracker_ = {"Test"};
   DelayedTaskManager delayed_task_manager_;
   std::unique_ptr<PooledSingleThreadTaskRunnerManager>
       single_thread_task_runner_manager_;
@@ -91,13 +91,15 @@ void ShouldNotRun() {
 
 TEST_F(PooledSingleThreadTaskRunnerManagerTest, DifferentThreadsUsed) {
   scoped_refptr<SingleThreadTaskRunner> task_runner_1 =
-      single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          SingleThreadTaskRunnerThreadMode::DEDICATED);
+      single_thread_task_runner_manager_
+          ->CreateSingleThreadTaskRunnerWithTraits(
+              {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+              SingleThreadTaskRunnerThreadMode::DEDICATED);
   scoped_refptr<SingleThreadTaskRunner> task_runner_2 =
-      single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          SingleThreadTaskRunnerThreadMode::DEDICATED);
+      single_thread_task_runner_manager_
+          ->CreateSingleThreadTaskRunnerWithTraits(
+              {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+              SingleThreadTaskRunnerThreadMode::DEDICATED);
 
   PlatformThreadRef thread_ref_1;
   task_runner_1->PostTask(FROM_HERE,
@@ -115,13 +117,15 @@ TEST_F(PooledSingleThreadTaskRunnerManagerTest, DifferentThreadsUsed) {
 
 TEST_F(PooledSingleThreadTaskRunnerManagerTest, SameThreadUsed) {
   scoped_refptr<SingleThreadTaskRunner> task_runner_1 =
-      single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          SingleThreadTaskRunnerThreadMode::SHARED);
+      single_thread_task_runner_manager_
+          ->CreateSingleThreadTaskRunnerWithTraits(
+              {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+              SingleThreadTaskRunnerThreadMode::SHARED);
   scoped_refptr<SingleThreadTaskRunner> task_runner_2 =
-      single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          SingleThreadTaskRunnerThreadMode::SHARED);
+      single_thread_task_runner_manager_
+          ->CreateSingleThreadTaskRunnerWithTraits(
+              {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+              SingleThreadTaskRunnerThreadMode::SHARED);
 
   PlatformThreadRef thread_ref_1;
   task_runner_1->PostTask(FROM_HERE,
@@ -139,13 +143,15 @@ TEST_F(PooledSingleThreadTaskRunnerManagerTest, SameThreadUsed) {
 
 TEST_F(PooledSingleThreadTaskRunnerManagerTest, RunsTasksInCurrentSequence) {
   scoped_refptr<SingleThreadTaskRunner> task_runner_1 =
-      single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          SingleThreadTaskRunnerThreadMode::DEDICATED);
+      single_thread_task_runner_manager_
+          ->CreateSingleThreadTaskRunnerWithTraits(
+              {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+              SingleThreadTaskRunnerThreadMode::DEDICATED);
   scoped_refptr<SingleThreadTaskRunner> task_runner_2 =
-      single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          SingleThreadTaskRunnerThreadMode::DEDICATED);
+      single_thread_task_runner_manager_
+          ->CreateSingleThreadTaskRunnerWithTraits(
+              {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+              SingleThreadTaskRunnerThreadMode::DEDICATED);
 
   EXPECT_FALSE(task_runner_1->RunsTasksInCurrentSequence());
   EXPECT_FALSE(task_runner_2->RunsTasksInCurrentSequence());
@@ -177,9 +183,8 @@ TEST_F(PooledSingleThreadTaskRunnerManagerTest,
        SharedWithBaseSyncPrimitivesDCHECKs) {
   testing::GTEST_FLAG(death_test_style) = "threadsafe";
   EXPECT_DCHECK_DEATH({
-    single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-        {ThreadPool(), WithBaseSyncPrimitives()},
-        SingleThreadTaskRunnerThreadMode::SHARED);
+    single_thread_task_runner_manager_->CreateSingleThreadTaskRunnerWithTraits(
+        {WithBaseSyncPrimitives()}, SingleThreadTaskRunnerThreadMode::SHARED);
   });
 }
 
@@ -192,8 +197,8 @@ TEST_F(PooledSingleThreadTaskRunnerManagerTest,
   // Post a CONTINUE_ON_SHUTDOWN task that waits on
   // |task_can_continue| to a shared SingleThreadTaskRunner.
   single_thread_task_runner_manager_
-      ->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      ->CreateSingleThreadTaskRunnerWithTraits(
+          {TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
           SingleThreadTaskRunnerThreadMode::SHARED)
       ->PostTask(FROM_HERE, base::BindOnce(
                                 [](WaitableEvent* task_has_started,
@@ -210,8 +215,8 @@ TEST_F(PooledSingleThreadTaskRunnerManagerTest,
 
   // Post a BLOCK_SHUTDOWN task to a shared SingleThreadTaskRunner.
   single_thread_task_runner_manager_
-      ->CreateSingleThreadTaskRunner(
-          {ThreadPool(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
+      ->CreateSingleThreadTaskRunnerWithTraits(
+          {TaskShutdownBehavior::BLOCK_SHUTDOWN},
           SingleThreadTaskRunnerThreadMode::SHARED)
       ->PostTask(FROM_HERE, DoNothing());
 
@@ -234,10 +239,10 @@ class PooledSingleThreadTaskRunnerManagerCommonTest
  public:
   PooledSingleThreadTaskRunnerManagerCommonTest() = default;
 
-  scoped_refptr<SingleThreadTaskRunner> CreateTaskRunner(TaskTraits traits = {
-                                                             ThreadPool()}) {
-    return single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-        traits, GetParam());
+  scoped_refptr<SingleThreadTaskRunner> CreateTaskRunner(
+      TaskTraits traits = TaskTraits()) {
+    return single_thread_task_runner_manager_
+        ->CreateSingleThreadTaskRunnerWithTraits(traits, GetParam());
   }
 
  private:
@@ -251,29 +256,25 @@ TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest, PrioritySetCorrectly) {
     TaskTraits traits;
     ThreadPriority expected_thread_priority;
   } test_cases[] = {
-      {{ThreadPool(), TaskPriority::BEST_EFFORT},
+      {TaskTraits(TaskPriority::BEST_EFFORT),
        CanUseBackgroundPriorityForWorkerThread() ? ThreadPriority::BACKGROUND
                                                  : ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::BEST_EFFORT,
-        ThreadPolicy::PREFER_BACKGROUND},
+      {TaskTraits(TaskPriority::BEST_EFFORT, ThreadPolicy::PREFER_BACKGROUND),
        CanUseBackgroundPriorityForWorkerThread() ? ThreadPriority::BACKGROUND
                                                  : ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::BEST_EFFORT,
-        ThreadPolicy::MUST_USE_FOREGROUND},
+      {TaskTraits(TaskPriority::BEST_EFFORT, ThreadPolicy::MUST_USE_FOREGROUND),
        ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE}, ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE,
-        ThreadPolicy::PREFER_BACKGROUND},
+      {TaskTraits(TaskPriority::USER_VISIBLE), ThreadPriority::NORMAL},
+      {TaskTraits(TaskPriority::USER_VISIBLE, ThreadPolicy::PREFER_BACKGROUND),
        ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE,
-        ThreadPolicy::MUST_USE_FOREGROUND},
+      {TaskTraits(TaskPriority::USER_VISIBLE,
+                  ThreadPolicy::MUST_USE_FOREGROUND),
        ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING}, ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING,
-        ThreadPolicy::PREFER_BACKGROUND},
+      {TaskTraits(TaskPriority::USER_BLOCKING), ThreadPriority::NORMAL},
+      {TaskTraits(TaskPriority::USER_BLOCKING, ThreadPolicy::PREFER_BACKGROUND),
        ThreadPriority::NORMAL},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING,
-        ThreadPolicy::MUST_USE_FOREGROUND},
+      {TaskTraits(TaskPriority::USER_BLOCKING,
+                  ThreadPolicy::MUST_USE_FOREGROUND),
        ThreadPriority::NORMAL}};
 
   // Why are events used here instead of the task tracker?
@@ -309,56 +310,51 @@ TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest, ThreadNamesSet) {
     std::string expected_thread_name;
   } test_cases[] = {
       // Non-MayBlock()
-      {{ThreadPool(), TaskPriority::BEST_EFFORT},
+      {TaskTraits(TaskPriority::BEST_EFFORT),
        CanUseBackgroundPriorityForWorkerThread() ? background : foreground},
-      {{ThreadPool(), TaskPriority::BEST_EFFORT,
-        ThreadPolicy::PREFER_BACKGROUND},
+      {TaskTraits(TaskPriority::BEST_EFFORT, ThreadPolicy::PREFER_BACKGROUND),
        CanUseBackgroundPriorityForWorkerThread() ? background : foreground},
-      {{ThreadPool(), TaskPriority::BEST_EFFORT,
-        ThreadPolicy::MUST_USE_FOREGROUND},
+      {TaskTraits(TaskPriority::BEST_EFFORT, ThreadPolicy::MUST_USE_FOREGROUND),
        foreground},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE}, foreground},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE,
-        ThreadPolicy::PREFER_BACKGROUND},
+      {TaskTraits(TaskPriority::USER_VISIBLE), foreground},
+      {TaskTraits(TaskPriority::USER_VISIBLE, ThreadPolicy::PREFER_BACKGROUND),
        foreground},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE,
-        ThreadPolicy::MUST_USE_FOREGROUND},
+      {TaskTraits(TaskPriority::USER_VISIBLE,
+                  ThreadPolicy::MUST_USE_FOREGROUND),
        foreground},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING}, foreground},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING,
-        ThreadPolicy::PREFER_BACKGROUND},
+      {TaskTraits(TaskPriority::USER_BLOCKING), foreground},
+      {TaskTraits(TaskPriority::USER_BLOCKING, ThreadPolicy::PREFER_BACKGROUND),
        foreground},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING,
-        ThreadPolicy::MUST_USE_FOREGROUND},
+      {TaskTraits(TaskPriority::USER_BLOCKING,
+                  ThreadPolicy::MUST_USE_FOREGROUND),
        foreground},
 
       // MayBlock()
-      {{ThreadPool(), TaskPriority::BEST_EFFORT, MayBlock()},
+      {TaskTraits(TaskPriority::BEST_EFFORT, MayBlock()),
        CanUseBackgroundPriorityForWorkerThread() ? background_blocking
                                                  : foreground_blocking},
-      {{ThreadPool(), TaskPriority::BEST_EFFORT,
-        ThreadPolicy::PREFER_BACKGROUND, MayBlock()},
+      {TaskTraits(TaskPriority::BEST_EFFORT, ThreadPolicy::PREFER_BACKGROUND,
+                  MayBlock()),
        CanUseBackgroundPriorityForWorkerThread() ? background_blocking
                                                  : foreground_blocking},
-      {{ThreadPool(), TaskPriority::BEST_EFFORT,
-        ThreadPolicy::MUST_USE_FOREGROUND, MayBlock()},
+      {TaskTraits(TaskPriority::BEST_EFFORT, ThreadPolicy::MUST_USE_FOREGROUND,
+                  MayBlock()),
        foreground_blocking},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE, MayBlock()},
+      {TaskTraits(TaskPriority::USER_VISIBLE, MayBlock()), foreground_blocking},
+      {TaskTraits(TaskPriority::USER_VISIBLE, ThreadPolicy::PREFER_BACKGROUND,
+                  MayBlock()),
        foreground_blocking},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE,
-        ThreadPolicy::PREFER_BACKGROUND, MayBlock()},
-       foreground_blocking},
-      {{ThreadPool(), TaskPriority::USER_VISIBLE,
-        ThreadPolicy::MUST_USE_FOREGROUND, MayBlock()},
+      {TaskTraits(TaskPriority::USER_VISIBLE, ThreadPolicy::MUST_USE_FOREGROUND,
+                  MayBlock()),
 
        foreground_blocking},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING, MayBlock()},
+      {TaskTraits(TaskPriority::USER_BLOCKING, MayBlock()),
        foreground_blocking},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING,
-        ThreadPolicy::PREFER_BACKGROUND, MayBlock()},
+      {TaskTraits(TaskPriority::USER_BLOCKING, ThreadPolicy::PREFER_BACKGROUND,
+                  MayBlock()),
        foreground_blocking},
-      {{ThreadPool(), TaskPriority::USER_BLOCKING,
-        ThreadPolicy::MUST_USE_FOREGROUND, MayBlock()},
+      {TaskTraits(TaskPriority::USER_BLOCKING,
+                  ThreadPolicy::MUST_USE_FOREGROUND, MayBlock()),
        foreground_blocking}};
 
   for (auto& test_case : test_cases) {
@@ -425,9 +421,7 @@ TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest, PostTaskAfterDestroy) {
 TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest, CanRunPolicyBasic) {
   test::TestCanRunPolicyBasic(
       single_thread_task_runner_manager_.get(),
-      [this](TaskPriority priority) {
-        return CreateTaskRunner({ThreadPool(), priority});
-      },
+      [this](TaskPriority priority) { return CreateTaskRunner({priority}); },
       &task_tracker_);
 }
 
@@ -435,18 +429,14 @@ TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest,
        CanRunPolicyUpdatedBeforeRun) {
   test::TestCanRunPolicyChangedBeforeRun(
       single_thread_task_runner_manager_.get(),
-      [this](TaskPriority priority) {
-        return CreateTaskRunner({ThreadPool(), priority});
-      },
+      [this](TaskPriority priority) { return CreateTaskRunner({priority}); },
       &task_tracker_);
 }
 
 TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest, CanRunPolicyLoad) {
   test::TestCanRunPolicyLoad(
       single_thread_task_runner_manager_.get(),
-      [this](TaskPriority priority) {
-        return CreateTaskRunner({ThreadPool(), priority});
-      },
+      [this](TaskPriority priority) { return CreateTaskRunner({priority}); },
       &task_tracker_);
 }
 
@@ -506,10 +496,10 @@ TEST_F(PooledSingleThreadTaskRunnerManagerJoinTest, ConcurrentJoin) {
   WaitableEvent task_blocking;
 
   {
-    auto task_runner =
-        single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-            {ThreadPool(), WithBaseSyncPrimitives()},
-            SingleThreadTaskRunnerThreadMode::DEDICATED);
+    auto task_runner = single_thread_task_runner_manager_
+                           ->CreateSingleThreadTaskRunnerWithTraits(
+                               {WithBaseSyncPrimitives()},
+                               SingleThreadTaskRunnerThreadMode::DEDICATED);
     EXPECT_TRUE(task_runner->PostTask(
         FROM_HERE,
         BindOnce(&WaitableEvent::Signal, Unretained(&task_running))));
@@ -534,10 +524,10 @@ TEST_F(PooledSingleThreadTaskRunnerManagerJoinTest,
   WaitableEvent task_blocking;
 
   {
-    auto task_runner =
-        single_thread_task_runner_manager_->CreateSingleThreadTaskRunner(
-            {ThreadPool(), WithBaseSyncPrimitives()},
-            SingleThreadTaskRunnerThreadMode::DEDICATED);
+    auto task_runner = single_thread_task_runner_manager_
+                           ->CreateSingleThreadTaskRunnerWithTraits(
+                               {WithBaseSyncPrimitives()},
+                               SingleThreadTaskRunnerThreadMode::DEDICATED);
     EXPECT_TRUE(task_runner->PostTask(
         FROM_HERE,
         BindOnce(&WaitableEvent::Signal, Unretained(&task_running))));
@@ -559,7 +549,7 @@ TEST_F(PooledSingleThreadTaskRunnerManagerJoinTest,
 
 TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest, COMSTAInitialized) {
   scoped_refptr<SingleThreadTaskRunner> com_task_runner =
-      single_thread_task_runner_manager_->CreateCOMSTATaskRunner(
+      single_thread_task_runner_manager_->CreateCOMSTATaskRunnerWithTraits(
           {TaskShutdownBehavior::BLOCK_SHUTDOWN}, GetParam());
 
   com_task_runner->PostTask(FROM_HERE, BindOnce(&win::AssertComApartmentType,
@@ -570,11 +560,11 @@ TEST_P(PooledSingleThreadTaskRunnerManagerCommonTest, COMSTAInitialized) {
 
 TEST_F(PooledSingleThreadTaskRunnerManagerTest, COMSTASameThreadUsed) {
   scoped_refptr<SingleThreadTaskRunner> task_runner_1 =
-      single_thread_task_runner_manager_->CreateCOMSTATaskRunner(
+      single_thread_task_runner_manager_->CreateCOMSTATaskRunnerWithTraits(
           {TaskShutdownBehavior::BLOCK_SHUTDOWN},
           SingleThreadTaskRunnerThreadMode::SHARED);
   scoped_refptr<SingleThreadTaskRunner> task_runner_2 =
-      single_thread_task_runner_manager_->CreateCOMSTATaskRunner(
+      single_thread_task_runner_manager_->CreateCOMSTATaskRunnerWithTraits(
           {TaskShutdownBehavior::BLOCK_SHUTDOWN},
           SingleThreadTaskRunnerThreadMode::SHARED);
 
@@ -639,7 +629,7 @@ class PooledSingleThreadTaskRunnerManagerTestWin
 
 TEST_F(PooledSingleThreadTaskRunnerManagerTestWin, PumpsMessages) {
   scoped_refptr<SingleThreadTaskRunner> com_task_runner =
-      single_thread_task_runner_manager_->CreateCOMSTATaskRunner(
+      single_thread_task_runner_manager_->CreateCOMSTATaskRunnerWithTraits(
           {TaskShutdownBehavior::BLOCK_SHUTDOWN},
           SingleThreadTaskRunnerThreadMode::DEDICATED);
   HWND hwnd = nullptr;
@@ -689,8 +679,8 @@ TEST_F(PooledSingleThreadTaskRunnerManagerStartTest, PostTaskBeforeStart) {
   AtomicFlag manager_started;
   WaitableEvent task_finished;
   single_thread_task_runner_manager_
-      ->CreateSingleThreadTaskRunner(
-          {ThreadPool()}, SingleThreadTaskRunnerThreadMode::DEDICATED)
+      ->CreateSingleThreadTaskRunnerWithTraits(
+          TaskTraits(), SingleThreadTaskRunnerThreadMode::DEDICATED)
       ->PostTask(
           FROM_HERE,
           BindOnce(

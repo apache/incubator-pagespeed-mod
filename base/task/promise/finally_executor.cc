@@ -7,8 +7,7 @@
 namespace base {
 namespace internal {
 
-FinallyExecutorCommon::FinallyExecutorCommon(
-    internal::CallbackBase&& callback) noexcept
+FinallyExecutorCommon::FinallyExecutorCommon(internal::CallbackBase&& callback)
     : callback_(std::move(callback)) {}
 
 FinallyExecutorCommon::~FinallyExecutorCommon() = default;

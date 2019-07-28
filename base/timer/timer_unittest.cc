@@ -438,7 +438,7 @@ TEST(TimerTest, OneShotTimer_CustomTaskRunner) {
 
 TEST(TimerTest, OneShotTimerWithTickClock) {
   test::ScopedTaskEnvironment scoped_task_environment(
-      test::ScopedTaskEnvironment::TimeSource::MOCK_TIME);
+      test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME);
   Receiver receiver;
   OneShotTimer timer(scoped_task_environment.GetMockTickClock());
   timer.Start(FROM_HERE, TimeDelta::FromSeconds(1),
@@ -465,7 +465,7 @@ TEST_P(TimerTestWithThreadType, RepeatingTimerZeroDelay_Cancel) {
 
 TEST(TimerTest, RepeatingTimerWithTickClock) {
   test::ScopedTaskEnvironment scoped_task_environment(
-      test::ScopedTaskEnvironment::TimeSource::MOCK_TIME);
+      test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME);
   Receiver receiver;
   const int expected_times_called = 10;
   RepeatingTimer timer(scoped_task_environment.GetMockTickClock());
@@ -496,7 +496,7 @@ TEST_P(TimerTestWithThreadType, DelayTimer_Deleted) {
 
 TEST(TimerTest, DelayTimerWithTickClock) {
   test::ScopedTaskEnvironment scoped_task_environment(
-      test::ScopedTaskEnvironment::TimeSource::MOCK_TIME);
+      test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME);
   Receiver receiver;
   DelayTimer timer(FROM_HERE, TimeDelta::FromSeconds(1), &receiver,
                    &Receiver::OnCalled,

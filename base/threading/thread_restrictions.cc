@@ -150,25 +150,6 @@ ScopedAllowBaseSyncPrimitivesForTesting::
   g_base_sync_primitives_disallowed.Get().Set(was_disallowed_);
 }
 
-ScopedAllowUnresponsiveTasksForTesting::ScopedAllowUnresponsiveTasksForTesting()
-    : was_disallowed_base_sync_(g_base_sync_primitives_disallowed.Get().Get()),
-      was_disallowed_blocking_(g_blocking_disallowed.Get().Get()),
-      was_disallowed_cpu_(g_cpu_intensive_work_disallowed.Get().Get()) {
-  g_base_sync_primitives_disallowed.Get().Set(false);
-  g_blocking_disallowed.Get().Set(false);
-  g_cpu_intensive_work_disallowed.Get().Set(false);
-}
-
-ScopedAllowUnresponsiveTasksForTesting::
-    ~ScopedAllowUnresponsiveTasksForTesting() {
-  DCHECK(!g_base_sync_primitives_disallowed.Get().Get());
-  DCHECK(!g_blocking_disallowed.Get().Get());
-  DCHECK(!g_cpu_intensive_work_disallowed.Get().Get());
-  g_base_sync_primitives_disallowed.Get().Set(was_disallowed_base_sync_);
-  g_blocking_disallowed.Get().Set(was_disallowed_blocking_);
-  g_cpu_intensive_work_disallowed.Get().Set(was_disallowed_cpu_);
-}
-
 namespace internal {
 
 void AssertBaseSyncPrimitivesAllowed() {

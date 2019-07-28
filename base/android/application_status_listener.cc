@@ -6,9 +6,9 @@
 
 #include <jni.h>
 
-#include "base/base_jni_headers/ApplicationStatus_jni.h"
 #include "base/lazy_instance.h"
 #include "base/observer_list_threadsafe.h"
+#include "jni/ApplicationStatus_jni.h"
 
 namespace base {
 namespace android {

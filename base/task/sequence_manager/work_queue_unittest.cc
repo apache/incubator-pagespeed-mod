@@ -31,11 +31,11 @@ class MockObserver : public WorkQueueSets::Observer {
 void NopTask() {}
 
 struct Cancelable {
-  Cancelable() {}
+  Cancelable() : weak_ptr_factory(this) {}
 
   void NopTask() {}
 
-  WeakPtrFactory<Cancelable> weak_ptr_factory{this};
+  WeakPtrFactory<Cancelable> weak_ptr_factory;
 };
 
 class RealTimeDomainFake : public RealTimeDomain {

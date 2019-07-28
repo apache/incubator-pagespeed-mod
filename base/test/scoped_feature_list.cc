@@ -14,7 +14,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "base/test/mock_entropy_provider.h"
 
 namespace base {
 namespace test {
@@ -28,17 +27,6 @@ std::vector<StringPiece> GetFeatureVector(
   std::vector<StringPiece> output;
   for (const Feature& feature : features) {
     output.push_back(feature.name);
-  }
-
-  return output;
-}
-
-std::vector<StringPiece> GetFeatureVectorFromFeaturesAndParams(
-    const std::vector<ScopedFeatureList::FeatureAndParams>&
-        features_and_params) {
-  std::vector<StringPiece> output;
-  for (const auto& entry : features_and_params) {
-    output.push_back(entry.feature.name);
   }
 
   return output;
@@ -80,10 +68,9 @@ void OverrideFeatures(const std::string& features,
   for (StringPiece feature : features_list) {
     StringPiece feature_name = GetFeatureName(feature);
 
-    if (Contains(merged_features->enabled_feature_list, feature_name) ||
-        Contains(merged_features->disabled_feature_list, feature_name)) {
+    if (ContainsValue(merged_features->enabled_feature_list, feature_name) ||
+        ContainsValue(merged_features->disabled_feature_list, feature_name))
       continue;
-    }
 
     if (override_state == FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE) {
       merged_features->enabled_feature_list.push_back(feature);
@@ -95,62 +82,33 @@ void OverrideFeatures(const std::string& features,
   }
 }
 
-// Hex encode params so that special characters do not break formatting.
-std::string HexEncodeString(const std::string& input) {
-  return HexEncode(input.data(), input.size());
-}
-
-// Inverse of HexEncodeString().
-std::string HexDecodeString(const std::string& input) {
-  std::vector<uint8_t> bytes;
-  bool result = HexStringToBytes(input, &bytes);
-  DCHECK(result);
-  return std::string(reinterpret_cast<const char*>(&bytes[0]), bytes.size());
-}
-
 }  // namespace
-
-ScopedFeatureList::FeatureAndParams::FeatureAndParams(
-    const Feature& feature,
-    const FieldTrialParams& params)
-    : feature(feature), params(params) {}
-
-ScopedFeatureList::FeatureAndParams::~FeatureAndParams() = default;
-
-ScopedFeatureList::FeatureAndParams::FeatureAndParams(
-    const FeatureAndParams& other) = default;
 
 ScopedFeatureList::ScopedFeatureList() = default;
 
 ScopedFeatureList::~ScopedFeatureList() {
-  Reset();
-}
-
-void ScopedFeatureList::Reset() {
   // If one of the Init() functions was never called, don't reset anything.
   if (!init_called_)
     return;
 
-  init_called_ = false;
+  auto* field_trial_param_associator = FieldTrialParamAssociator::GetInstance();
+  for (const auto& field_trial_override : field_trial_overrides_) {
+    if (field_trial_override) {
+      field_trial_param_associator->ClearParamsForTesting(
+          field_trial_override->trial_name(),
+          field_trial_override->group_name());
+    }
+  }
 
   FeatureList::ClearInstanceForTesting();
-
-  if (field_trial_list_) {
-    field_trial_list_.reset();
-
-    // Restore params to how they were before.
-    FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
-    AssociateFieldTrialParamsFromString(original_params_, &HexDecodeString);
-
-    FieldTrialList::RestoreInstanceForTesting(original_field_trial_list_);
-    original_field_trial_list_ = nullptr;
-  }
   if (original_feature_list_)
     FeatureList::RestoreInstanceForTesting(std::move(original_feature_list_));
 }
 
 void ScopedFeatureList::Init() {
-  InitWithFeaturesImpl({}, {}, {});
+  std::unique_ptr<FeatureList> feature_list(new FeatureList);
+  feature_list->InitializeFromCommandLine(std::string(), std::string());
+  InitWithFeatureList(std::move(feature_list));
 }
 
 void ScopedFeatureList::InitWithFeatureList(
@@ -172,15 +130,15 @@ void ScopedFeatureList::InitFromCommandLine(
 void ScopedFeatureList::InitWithFeatures(
     const std::vector<Feature>& enabled_features,
     const std::vector<Feature>& disabled_features) {
-  InitWithFeaturesImpl(enabled_features, {}, disabled_features);
+  InitWithFeaturesAndFieldTrials(enabled_features, {}, disabled_features);
 }
 
 void ScopedFeatureList::InitAndEnableFeature(const Feature& feature) {
-  InitWithFeaturesImpl({feature}, {}, {});
+  InitWithFeaturesAndFieldTrials({feature}, {}, {});
 }
 
 void ScopedFeatureList::InitAndDisableFeature(const Feature& feature) {
-  InitWithFeaturesImpl({}, {}, {feature});
+  InitWithFeaturesAndFieldTrials({}, {}, {feature});
 }
 
 void ScopedFeatureList::InitWithFeatureState(const Feature& feature,
@@ -192,79 +150,49 @@ void ScopedFeatureList::InitWithFeatureState(const Feature& feature,
   }
 }
 
-void ScopedFeatureList::InitWithFeaturesImpl(
+void ScopedFeatureList::InitWithFeaturesAndFieldTrials(
     const std::vector<Feature>& enabled_features,
-    const std::vector<FeatureAndParams>& enabled_features_and_params,
+    const std::vector<FieldTrial*>& trials_for_enabled_features,
     const std::vector<Feature>& disabled_features) {
-  DCHECK(!init_called_);
-  DCHECK(enabled_features.empty() || enabled_features_and_params.empty());
+  DCHECK_LE(trials_for_enabled_features.size(), enabled_features.size());
 
   Features merged_features;
-  if (!enabled_features_and_params.empty()) {
-    merged_features.enabled_feature_list =
-        GetFeatureVectorFromFeaturesAndParams(enabled_features_and_params);
-  } else {
-    merged_features.enabled_feature_list = GetFeatureVector(enabled_features);
-  }
+  merged_features.enabled_feature_list = GetFeatureVector(enabled_features);
   merged_features.disabled_feature_list = GetFeatureVector(disabled_features);
 
+  FeatureList* feature_list = FeatureList::GetInstance();
+
+  // |current_enabled_features| and |current_disabled_features| must declare out
+  // of if scope to avoid them out of scope before JoinString calls because
+  // |merged_features| may contains StringPiece which holding pointer points to
+  // |current_enabled_features| and |current_disabled_features|.
   std::string current_enabled_features;
   std::string current_disabled_features;
-  FeatureList* feature_list = FeatureList::GetInstance();
   if (feature_list) {
-    feature_list->GetFeatureOverrides(&current_enabled_features,
-                                      &current_disabled_features);
+    FeatureList::GetInstance()->GetFeatureOverrides(&current_enabled_features,
+                                                    &current_disabled_features);
+    OverrideFeatures(current_enabled_features,
+                     FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE,
+                     &merged_features);
+    OverrideFeatures(current_disabled_features,
+                     FeatureList::OverrideState::OVERRIDE_DISABLE_FEATURE,
+                     &merged_features);
   }
 
-  // Save off the existing field trials and params.
-  std::string existing_trial_state;
-  FieldTrialList::AllStatesToString(&existing_trial_state, true);
-  original_params_ = FieldTrialList::AllParamsToString(true, &HexEncodeString);
-
-  // Back up the current field trial list, to be restored in Reset().
-  original_field_trial_list_ = FieldTrialList::BackupInstanceForTesting();
-
-  // Create a field trial list, to which we'll add trials corresponding to the
-  // features that have params, before restoring the field trial state from the
-  // previous instance, further down in this function.
-  field_trial_list_ =
-      std::make_unique<FieldTrialList>(std::make_unique<MockEntropyProvider>());
-
-  // Associate override params. This needs to be done before trial state gets
-  // restored, as that will activate trials, locking down param association.
-  auto* field_trial_param_associator = FieldTrialParamAssociator::GetInstance();
-  std::vector<std::string> features_with_trial;
+  // Add the field trial overrides. This assumes that |enabled_features| are at
+  // the begining of |merged_features.enabled_feature_list|, in the same order.
+  auto trial_it = trials_for_enabled_features.begin();
   auto feature_it = merged_features.enabled_feature_list.begin();
-  for (const auto& enabled_feature : enabled_features_and_params) {
-    const std::string feature_name = enabled_feature.feature.name;
-    const std::string trial_name =
-        "scoped_feature_list_trial_for_" + feature_name;
-
-    scoped_refptr<FieldTrial> field_trial_override =
-        FieldTrialList::CreateFieldTrial(trial_name, kTrialGroup);
-    DCHECK(field_trial_override);
-
-    field_trial_param_associator->ClearParamsForTesting(trial_name,
-                                                        kTrialGroup);
-    bool success = field_trial_param_associator->AssociateFieldTrialParams(
-        trial_name, kTrialGroup, enabled_feature.params);
-    DCHECK(success);
-
-    features_with_trial.push_back(feature_name + "<" + trial_name);
-    *feature_it = features_with_trial.back();
+  std::vector<std::unique_ptr<std::string>> features_with_trial;
+  features_with_trial.reserve(trials_for_enabled_features.size());
+  while (trial_it != trials_for_enabled_features.end()) {
+    features_with_trial.push_back(std::make_unique<std::string>(
+        feature_it->as_string() + "<" + (*trial_it)->trial_name()));
+    // |features_with_trial| owns the string, and feature_it points to it.
+    *feature_it = *(features_with_trial.back());
+    ++trial_it;
     ++feature_it;
   }
-  // Restore other field trials. Note: We don't need to do anything for params
-  // here because the param associator already has the right state, which has
-  // been backed up via |original_params_| to be restored later.
-  FieldTrialList::CreateTrialsFromString(existing_trial_state, {});
-
-  OverrideFeatures(current_enabled_features,
-                   FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE,
-                   &merged_features);
-  OverrideFeatures(current_disabled_features,
-                   FeatureList::OverrideState::OVERRIDE_DISABLE_FEATURE,
-                   &merged_features);
 
   std::string enabled = JoinString(merged_features.enabled_feature_list, ",");
   std::string disabled = JoinString(merged_features.disabled_feature_list, ",");
@@ -273,14 +201,47 @@ void ScopedFeatureList::InitWithFeaturesImpl(
 
 void ScopedFeatureList::InitAndEnableFeatureWithParameters(
     const Feature& feature,
-    const FieldTrialParams& feature_parameters) {
+    const std::map<std::string, std::string>& feature_parameters) {
   InitWithFeaturesAndParameters({{feature, feature_parameters}}, {});
 }
 
 void ScopedFeatureList::InitWithFeaturesAndParameters(
     const std::vector<FeatureAndParams>& enabled_features,
     const std::vector<Feature>& disabled_features) {
-  InitWithFeaturesImpl({}, enabled_features, disabled_features);
+  DCHECK(field_trial_overrides_.empty());
+
+  if (!FieldTrialList::IsGlobalSetForTesting()) {
+    field_trial_list_ = std::make_unique<base::FieldTrialList>(nullptr);
+  }
+
+  // Enabled features and field trials to use with
+  // InitWithFeaturesAndFieldTrials.
+  std::vector<Feature> features;
+  std::vector<FieldTrial*> field_trials;
+
+  auto* field_trial_param_associator = FieldTrialParamAssociator::GetInstance();
+
+  // TODO(crbug.com/794021) Remove this unique field trial name hack when there
+  // is a cleaner solution.
+  // Ensure that each call to this method uses a distinct field trial name.
+  // Otherwise, nested calls might fail due to the shared FieldTrialList
+  // already having the field trial registered.
+  static int num_calls = 0;
+  for (auto& enabled_feature : enabled_features) {
+    ++num_calls;
+    std::string trial_name =
+        "scoped_feature_list_trial_name" + base::NumberToString(num_calls);
+    scoped_refptr<FieldTrial> field_trial_override =
+        base::FieldTrialList::CreateFieldTrial(trial_name, kTrialGroup);
+    field_trial_overrides_.push_back(field_trial_override);
+    DCHECK(field_trial_overrides_.back());
+    field_trial_param_associator->AssociateFieldTrialParams(
+        trial_name, kTrialGroup, enabled_feature.params);
+    features.push_back(enabled_feature.feature);
+    field_trials.push_back(field_trial_override.get());
+  }
+
+  InitWithFeaturesAndFieldTrials(features, field_trials, disabled_features);
 }
 
 }  // namespace test

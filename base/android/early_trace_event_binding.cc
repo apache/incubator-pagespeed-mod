@@ -7,9 +7,9 @@
 #include <stdint.h>
 
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/EarlyTraceEvent_jni.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "jni/EarlyTraceEvent_jni.h"
 
 namespace base {
 namespace android {

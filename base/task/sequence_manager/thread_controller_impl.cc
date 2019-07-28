@@ -32,7 +32,8 @@ ThreadControllerImpl::ThreadControllerImpl(
                                     ? funneled_sequence_manager->GetTaskRunner()
                                     : nullptr),
       time_source_(time_source),
-      work_deduplicator_(associated_thread_) {
+      work_deduplicator_(associated_thread_),
+      weak_factory_(this) {
   if (task_runner_ || funneled_sequence_manager_)
     work_deduplicator_.BindToCurrentThread();
   immediate_do_work_closure_ =
@@ -163,8 +164,7 @@ void ThreadControllerImpl::WillQueueTask(PendingTask* pending_task,
 }
 
 void ThreadControllerImpl::DoWork(WorkType work_type) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("sequence_manager"),
-               "ThreadControllerImpl::DoWork");
+  TRACE_EVENT0("sequence_manager", "ThreadControllerImpl::DoWork");
 
   DCHECK_CALLED_ON_VALID_SEQUENCE(associated_thread_->sequence_checker);
   DCHECK(sequence_);

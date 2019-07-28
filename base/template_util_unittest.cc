@@ -25,9 +25,6 @@ struct StructWithOperator {};
 std::ostream& operator<<(std::ostream& os, const StructWithOperator& v) {
   return os;
 }
-struct StructWithToString {
-  std::string ToString() const { return ""; }
-};
 
 // is_non_const_reference<Type>
 static_assert(!is_non_const_reference<int>::value, "IsNonConstReference");
@@ -73,16 +70,6 @@ static_assert(internal::SupportsOstreamOperator<StructWithOperator>::value,
 static_assert(
     internal::SupportsOstreamOperator<const StructWithOperator&>::value,
     "struct with operator<< should be printable by const ref");
-
-// .ToString() support on structs.
-static_assert(!internal::SupportsToString<SimpleStruct>::value,
-              "simple struct value doesn't support .ToString()");
-static_assert(!internal::SupportsToString<const SimpleStruct&>::value,
-              "simple struct const ref doesn't support .ToString()");
-static_assert(internal::SupportsToString<StructWithToString>::value,
-              "struct with .ToString() should be printable by value");
-static_assert(internal::SupportsToString<const StructWithToString&>::value,
-              "struct with .ToString() should be printable by const ref");
 
 // base::is_trivially_copyable
 class TrivialCopy {

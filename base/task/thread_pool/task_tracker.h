@@ -93,15 +93,10 @@ class BASE_EXPORT TaskTracker {
   void SetCanRunPolicy(CanRunPolicy can_run_policy);
 
   // Informs this TaskTracker that |task| with |shutdown_behavior| is about to
-  // be pushed to a task source (if non-delayed) or be added to the
-  // DelayedTaskManager (if delayed). Returns true if this operation is allowed
-  // (the operation should be performed if-and-only-if it is). This method may
-  // also modify metadata on |task| if desired.
+  // be posted to a task source. Returns true if this operation is allowed
+  // (|task| should be pushed into its task source if-and-only-if it is). This
+  // method may also modify metadata on |task| if desired.
   bool WillPostTask(Task* task, TaskShutdownBehavior shutdown_behavior);
-
-  // Informs this TaskTracker that |task| that is about to be pushed to a task
-  // source with |priority|.
-  void WillPostTaskNow(const Task& task, TaskPriority priority);
 
   // Informs this TaskTracker that |task_source| is about to be queued. Returns
   // a RegisteredTaskSource that should be queued if-and-only-if it evaluates to
@@ -118,8 +113,7 @@ class BASE_EXPORT TaskTracker {
   // (which indicates that it should be reenqueued). WillPostTask() must have
   // allowed the task in front of |task_source| to be posted before this is
   // called.
-  RegisteredTaskSource RunAndPopNextTask(
-      RunIntentWithRegisteredTaskSource task_source);
+  RegisteredTaskSource RunAndPopNextTask(RegisteredTaskSource task_source);
 
   // Returns true once shutdown has started (StartShutdown() was called).
   // Note: sequential consistency with the thread calling StartShutdown() isn't
@@ -160,11 +154,6 @@ class BASE_EXPORT TaskTracker {
     return tracked_ref_factory_.GetTrackedRef();
   }
 
-  // Returns true if there are task sources that haven't completed their
-  // execution (still queued or in progress). If it returns false: the side-
-  // effects of all completed tasks are guaranteed to be visible to the caller.
-  bool HasIncompleteTaskSourcesForTesting() const;
-
  protected:
   // Runs and deletes |task| if |can_run_task| is true. Otherwise, just deletes
   // |task|. |task| is always deleted in the environment where it runs or would
@@ -176,6 +165,11 @@ class BASE_EXPORT TaskTracker {
                              TaskSource* task_source,
                              const TaskTraits& traits,
                              bool can_run_task);
+
+  // Returns true if there are task sources that haven't completed their
+  // execution (still queued or in progress). If it returns false: the side-
+  // effects of all completed tasks are guaranteed to be visible to the caller.
+  bool HasIncompleteTaskSourcesForTesting() const;
 
  private:
   friend class RegisteredTaskSource;
@@ -231,15 +225,8 @@ class BASE_EXPORT TaskTracker {
 
   TaskAnnotator task_annotator_;
 
-  // Indicates whether logging information about TaskPriority::BEST_EFFORT tasks
-  // was enabled with a command line switch.
-  const bool has_log_best_effort_tasks_switch_;
-
   // Number of tasks blocking shutdown and boolean indicating whether shutdown
-  // has started. |shutdown_lock_| should be held to access |shutdown_event_|
-  // when this indicates that shutdown has started because State doesn't provide
-  // memory barriers. It intentionally trades having to use a Lock on shutdown
-  // with not needing memory barriers at runtime.
+  // has started.
   const std::unique_ptr<State> state_;
 
   // Number of task sources that haven't completed their execution. Is
@@ -285,16 +272,12 @@ class BASE_EXPORT TaskTracker {
   // blocking tasks. Intentionally leaked.
   // TODO(scheduler-dev): Consider using STATIC_HISTOGRAM_POINTER_GROUP for
   // these.
-  static constexpr auto kNumTaskPriorities =
-      static_cast<TaskPriorityType>(TaskPriority::HIGHEST) + 1;
-  static constexpr TaskPriorityType kNumBlockingModes = 2;
-  HistogramBase* const task_latency_histograms_[kNumTaskPriorities]
-                                               [kNumBlockingModes];
-  HistogramBase* const heartbeat_latency_histograms_[kNumTaskPriorities]
-                                                    [kNumBlockingModes];
+  static constexpr int kNumTaskPriorities =
+      static_cast<int>(TaskPriority::HIGHEST) + 1;
+  HistogramBase* const task_latency_histograms_[kNumTaskPriorities][2];
+  HistogramBase* const heartbeat_latency_histograms_[kNumTaskPriorities][2];
   HistogramBase* const
-      num_tasks_run_while_queuing_histograms_[kNumTaskPriorities]
-                                             [kNumBlockingModes];
+      num_tasks_run_while_queuing_histograms_[kNumTaskPriorities][2];
 
   // Ensures all state (e.g. dangling cleaned up workers) is coalesced before
   // destroying the TaskTracker (e.g. in test environments).

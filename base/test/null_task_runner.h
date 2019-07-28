@@ -12,15 +12,9 @@
 
 namespace base {
 
-// ATTENTION: Prefer ScopedTaskEnvironment::ThreadPoolExecutionMode::QUEUED and
-// a task runner obtained from base/task/post_task.h over this class. A
-// NullTaskRunner might seem appealing, but not running tasks is under-testing
-// the side-effects of the code under tests. ThreadPoolExecutionMode::QUEUED
-// will delay execution until the end of the test (if not requested earlier) but
-// will at least exercise the tasks posted as a side-effect of the test.
-//
 // Helper class for tests that need to provide an implementation of a
 // *TaskRunner class but don't actually care about tasks being run.
+
 class NullTaskRunner : public base::SingleThreadTaskRunner {
  public:
   NullTaskRunner();

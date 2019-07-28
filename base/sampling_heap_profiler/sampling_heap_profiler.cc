@@ -17,6 +17,7 @@
 #include "base/no_destructor.h"
 #include "base/partition_alloc_buildflags.h"
 #include "base/sampling_heap_profiler/lock_free_address_hash_set.h"
+#include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_local_storage.h"
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"
 #include "build/build_config.h"
@@ -93,10 +94,7 @@ SamplingHeapProfiler::Sample::Sample(const Sample&) = default;
 SamplingHeapProfiler::Sample::~Sample() = default;
 
 SamplingHeapProfiler::SamplingHeapProfiler() = default;
-SamplingHeapProfiler::~SamplingHeapProfiler() {
-  if (record_thread_names_)
-    base::ThreadIdNameManager::GetInstance()->RemoveObserver(this);
-}
+SamplingHeapProfiler::~SamplingHeapProfiler() = default;
 
 uint32_t SamplingHeapProfiler::Start() {
 #if defined(OS_ANDROID) && BUILDFLAG(CAN_UNWIND_WITH_CFI_TABLE) && \
@@ -126,13 +124,10 @@ void SamplingHeapProfiler::SetSamplingInterval(size_t sampling_interval) {
 }
 
 void SamplingHeapProfiler::SetRecordThreadNames(bool value) {
-  if (record_thread_names_ == value)
-    return;
   record_thread_names_ = value;
   if (value) {
-    base::ThreadIdNameManager::GetInstance()->AddObserver(this);
-  } else {
-    base::ThreadIdNameManager::GetInstance()->RemoveObserver(this);
+    base::ThreadIdNameManager::GetInstance()->InstallSetNameCallback(
+        base::BindRepeating(IgnoreResult(&UpdateAndGetThreadName)));
   }
 }
 
@@ -287,10 +282,6 @@ void SamplingHeapProfiler::Init() {
 SamplingHeapProfiler* SamplingHeapProfiler::Get() {
   static NoDestructor<SamplingHeapProfiler> instance;
   return instance.get();
-}
-
-void SamplingHeapProfiler::OnThreadNameChanged(const char* name) {
-  UpdateAndGetThreadName(name);
 }
 
 }  // namespace base

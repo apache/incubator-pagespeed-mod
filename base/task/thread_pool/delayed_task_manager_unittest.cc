@@ -12,7 +12,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/thread_pool/task.h"
-#include "base/task/thread_pool/thread_pool_clock.h"
 #include "base/test/bind_test_util.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/threading/thread.h"
@@ -48,17 +47,20 @@ Task ConstructMockedTask(testing::StrictMock<MockTask>& mock_task,
 
 class ThreadPoolDelayedTaskManagerTest : public testing::Test {
  protected:
-  ThreadPoolDelayedTaskManagerTest() = default;
+  ThreadPoolDelayedTaskManagerTest()
+      : delayed_task_manager_(
+            service_thread_task_runner_->DeprecatedGetMockTickClock()),
+        task_(ConstructMockedTask(
+            mock_task_,
+            service_thread_task_runner_->GetMockTickClock()->NowTicks(),
+            kLongDelay)) {}
   ~ThreadPoolDelayedTaskManagerTest() override = default;
 
   const scoped_refptr<TestMockTimeTaskRunner> service_thread_task_runner_ =
       MakeRefCounted<TestMockTimeTaskRunner>();
-  ThreadPoolClock thread_pool_clock_{
-      service_thread_task_runner_->GetMockTickClock()};
   DelayedTaskManager delayed_task_manager_;
   testing::StrictMock<MockTask> mock_task_;
-  Task task_{
-      ConstructMockedTask(mock_task_, ThreadPoolClock::Now(), kLongDelay)};
+  Task task_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ThreadPoolDelayedTaskManagerTest);
@@ -154,16 +156,19 @@ TEST_F(ThreadPoolDelayedTaskManagerTest, DelayedTasksRunAfterDelay) {
   delayed_task_manager_.Start(service_thread_task_runner_);
 
   testing::StrictMock<MockTask> mock_task_a;
-  Task task_a = ConstructMockedTask(mock_task_a, ThreadPoolClock::Now(),
-                                    TimeDelta::FromHours(1));
+  Task task_a = ConstructMockedTask(
+      mock_task_a, service_thread_task_runner_->GetMockTickClock()->NowTicks(),
+      TimeDelta::FromHours(1));
 
   testing::StrictMock<MockTask> mock_task_b;
-  Task task_b = ConstructMockedTask(mock_task_b, ThreadPoolClock::Now(),
-                                    TimeDelta::FromHours(2));
+  Task task_b = ConstructMockedTask(
+      mock_task_b, service_thread_task_runner_->GetMockTickClock()->NowTicks(),
+      TimeDelta::FromHours(2));
 
   testing::StrictMock<MockTask> mock_task_c;
-  Task task_c = ConstructMockedTask(mock_task_c, ThreadPoolClock::Now(),
-                                    TimeDelta::FromHours(1));
+  Task task_c = ConstructMockedTask(
+      mock_task_c, service_thread_task_runner_->GetMockTickClock()->NowTicks(),
+      TimeDelta::FromHours(1));
 
   // Send tasks to the DelayedTaskManager.
   delayed_task_manager_.AddDelayedTask(std::move(task_a), BindOnce(&RunTask),

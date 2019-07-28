@@ -5,9 +5,9 @@
 #include "base/one_shot_event.h"
 
 #include "base/bind.h"
+#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "base/single_thread_task_runner.h"
-#include "base/test/scoped_task_environment.h"
 #include "base/test/test_simple_task_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -98,7 +98,7 @@ TEST(OneShotEventTest, PostDefaultsToCurrentMessageLoop) {
   OneShotEvent event;
   scoped_refptr<base::TestSimpleTaskRunner> runner(
       new base::TestSimpleTaskRunner);
-  base::test::ScopedTaskEnvironment scoped_task_environment;
+  base::MessageLoop loop;
   int runner_i = 0;
   int loop_i = 0;
 

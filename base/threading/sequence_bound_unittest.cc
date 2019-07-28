@@ -323,25 +323,4 @@ TEST_F(SequenceBoundTest, IsVirtualBaseClassOf) {
                 "|VirtuallyDerived shouldn't be a virtual base of |Base|");
 }
 
-TEST_F(SequenceBoundTest, LvalueConstructionParameter) {
-  // Note here that |value_ptr| is an lvalue, while |&value| would be an rvalue.
-  Value value = kInitialValue;
-  Value* value_ptr = &value;
-  SequenceBound<Derived> derived(task_runner_, value_ptr);
-  {
-    derived.Post(FROM_HERE, &Derived::SetValue, kDifferentValue);
-    base::RunLoop run_loop;
-    task_runner_->PostTask(FROM_HERE, run_loop.QuitClosure());
-    run_loop.Run();
-    EXPECT_EQ(value, kDifferentValue);
-  }
-  {
-    derived.Reset();
-    base::RunLoop run_loop;
-    task_runner_->PostTask(FROM_HERE, run_loop.QuitClosure());
-    run_loop.Run();
-    EXPECT_EQ(value, kDerivedDtorValue);
-  }
-}
-
 }  // namespace base

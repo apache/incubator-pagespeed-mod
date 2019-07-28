@@ -25,7 +25,7 @@ class PostTaskAndReplyWithTraitsTaskRunner
 
  private:
   bool PostTask(const Location& from_here, OnceClosure task) override {
-    ::base::PostTask(from_here, traits_, std::move(task));
+    PostTaskWithTraits(from_here, traits_, std::move(task));
     return true;
   }
 
@@ -61,129 +61,88 @@ bool PostTask(const Location& from_here, OnceClosure task) {
 bool PostDelayedTask(const Location& from_here,
                      OnceClosure task,
                      TimeDelta delay) {
-  return PostDelayedTask(from_here, {ThreadPool()}, std::move(task), delay);
+  return PostDelayedTaskWithTraits(from_here, TaskTraits(), std::move(task),
+                                   delay);
 }
 
 bool PostTaskAndReply(const Location& from_here,
                       OnceClosure task,
                       OnceClosure reply) {
-  return PostTaskAndReply(from_here, {ThreadPool()}, std::move(task),
-                          std::move(reply));
+  return PostTaskWithTraitsAndReply(from_here, TaskTraits(), std::move(task),
+                                    std::move(reply));
 }
 
-bool PostTask(const Location& from_here,
-              const TaskTraits& traits,
-              OnceClosure task) {
-  return PostDelayedTask(from_here, traits, std::move(task), TimeDelta());
-}
-
-bool PostDelayedTask(const Location& from_here,
-                     const TaskTraits& traits,
-                     OnceClosure task,
-                     TimeDelta delay) {
-  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
-  return GetTaskExecutorForTraits(adjusted_traits)
-      ->PostDelayedTask(from_here, adjusted_traits, std::move(task), delay);
-}
-
-bool PostTaskAndReply(const Location& from_here,
-                      const TaskTraits& traits,
-                      OnceClosure task,
-                      OnceClosure reply) {
-  return PostTaskAndReplyWithTraitsTaskRunner(traits).PostTaskAndReply(
-      from_here, std::move(task), std::move(reply));
-}
-
-scoped_refptr<TaskRunner> CreateTaskRunner(const TaskTraits& traits) {
-  return GetTaskExecutorForTraits(traits)->CreateTaskRunner(traits);
-}
-
-scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunner(
-    const TaskTraits& traits) {
-  return GetTaskExecutorForTraits(traits)->CreateSequencedTaskRunner(traits);
-}
-
-scoped_refptr<UpdateableSequencedTaskRunner>
-CreateUpdateableSequencedTaskRunner(const TaskTraits& traits) {
-  DCHECK(ThreadPoolInstance::Get())
-      << "Ref. Prerequisite section of post_task.h.\n\n"
-         "Hint: if this is in a unit test, you're likely merely missing a "
-         "base::test::ScopedTaskEnvironment member in your fixture.\n";
-  DCHECK(traits.use_thread_pool())
-      << "The base::UseThreadPool() trait is mandatory with "
-         "CreateUpdateableSequencedTaskRunner().";
-  CHECK_EQ(traits.extension_id(),
-           TaskTraitsExtensionStorage::kInvalidExtensionId)
-      << "Extension traits cannot be used with "
-         "CreateUpdateableSequencedTaskRunner().";
-  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
-  return static_cast<internal::ThreadPoolImpl*>(ThreadPoolInstance::Get())
-      ->CreateUpdateableSequencedTaskRunner(adjusted_traits);
-}
-
-scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunner(
-    const TaskTraits& traits,
-    SingleThreadTaskRunnerThreadMode thread_mode) {
-  return GetTaskExecutorForTraits(traits)->CreateSingleThreadTaskRunner(
-      traits, thread_mode);
-}
-
-#if defined(OS_WIN)
-scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunner(
-    const TaskTraits& traits,
-    SingleThreadTaskRunnerThreadMode thread_mode) {
-  return GetTaskExecutorForTraits(traits)->CreateCOMSTATaskRunner(traits,
-                                                                  thread_mode);
-}
-#endif  // defined(OS_WIN)
-
-// TODO(crbug.com/968047): Update all call sites and remove these forwarding
-// wrappers.
 bool PostTaskWithTraits(const Location& from_here,
                         const TaskTraits& traits,
                         OnceClosure task) {
-  return PostTask(from_here, traits, std::move(task));
+  return PostDelayedTaskWithTraits(from_here, traits, std::move(task),
+                                   TimeDelta());
 }
 
 bool PostDelayedTaskWithTraits(const Location& from_here,
                                const TaskTraits& traits,
                                OnceClosure task,
                                TimeDelta delay) {
-  return PostDelayedTask(from_here, traits, std::move(task), delay);
+  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
+  return GetTaskExecutorForTraits(adjusted_traits)
+      ->PostDelayedTaskWithTraits(from_here, adjusted_traits, std::move(task),
+                                  delay);
 }
 
 bool PostTaskWithTraitsAndReply(const Location& from_here,
                                 const TaskTraits& traits,
                                 OnceClosure task,
                                 OnceClosure reply) {
-  return PostTaskAndReply(from_here, traits, std::move(task), std::move(reply));
+  return PostTaskAndReplyWithTraitsTaskRunner(traits).PostTaskAndReply(
+      from_here, std::move(task), std::move(reply));
 }
 
 scoped_refptr<TaskRunner> CreateTaskRunnerWithTraits(const TaskTraits& traits) {
-  return CreateTaskRunner(traits);
+  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
+  return GetTaskExecutorForTraits(adjusted_traits)
+      ->CreateTaskRunnerWithTraits(adjusted_traits);
 }
 
 scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunnerWithTraits(
     const TaskTraits& traits) {
-  return CreateSequencedTaskRunner(traits);
+  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
+  return GetTaskExecutorForTraits(adjusted_traits)
+      ->CreateSequencedTaskRunnerWithTraits(adjusted_traits);
 }
 
 scoped_refptr<UpdateableSequencedTaskRunner>
 CreateUpdateableSequencedTaskRunnerWithTraits(const TaskTraits& traits) {
-  return CreateUpdateableSequencedTaskRunner(traits);
+  DCHECK(ThreadPoolInstance::Get())
+      << "Ref. Prerequisite section of post_task.h.\n\n"
+         "Hint: if this is in a unit test, you're likely merely missing a "
+         "base::test::ScopedTaskEnvironment member in your fixture.\n";
+  DCHECK(traits.use_thread_pool())
+      << "The base::UseThreadPool() trait is mandatory with "
+         "CreateUpdateableSequencedTaskRunnerWithTraits().";
+  CHECK_EQ(traits.extension_id(),
+           TaskTraitsExtensionStorage::kInvalidExtensionId)
+      << "Extension traits cannot be used with "
+         "CreateUpdateableSequencedTaskRunnerWithTraits().";
+  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
+  return static_cast<internal::ThreadPoolImpl*>(ThreadPoolInstance::Get())
+      ->CreateUpdateableSequencedTaskRunnerWithTraits(adjusted_traits);
 }
 
 scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunnerWithTraits(
     const TaskTraits& traits,
     SingleThreadTaskRunnerThreadMode thread_mode) {
-  return CreateSingleThreadTaskRunner(traits, thread_mode);
+  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
+  return GetTaskExecutorForTraits(adjusted_traits)
+      ->CreateSingleThreadTaskRunnerWithTraits(adjusted_traits, thread_mode);
 }
 
 #if defined(OS_WIN)
 scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunnerWithTraits(
     const TaskTraits& traits,
     SingleThreadTaskRunnerThreadMode thread_mode) {
-  return CreateCOMSTATaskRunner(traits, thread_mode);
+  const TaskTraits adjusted_traits = GetTaskTraitsWithExplicitPriority(traits);
+  return GetTaskExecutorForTraits(adjusted_traits)
+      ->CreateCOMSTATaskRunnerWithTraits(adjusted_traits, thread_mode);
 }
 #endif  // defined(OS_WIN)
 

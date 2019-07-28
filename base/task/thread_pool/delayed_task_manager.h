@@ -13,12 +13,12 @@
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/task/common/checked_lock.h"
 #include "base/task/common/intrusive_heap.h"
 #include "base/task/thread_pool/task.h"
-#include "base/thread_annotations.h"
+#include "base/time/default_tick_clock.h"
+#include "base/time/tick_clock.h"
 
 namespace base {
 
@@ -34,7 +34,9 @@ class BASE_EXPORT DelayedTaskManager {
   // Posts |task| for execution immediately.
   using PostTaskNowCallback = OnceCallback<void(Task task)>;
 
-  DelayedTaskManager();
+  // |tick_clock| can be specified for testing.
+  DelayedTaskManager(std::unique_ptr<const TickClock> tick_clock =
+                         std::make_unique<DefaultTickClock>());
   ~DelayedTaskManager();
 
   // Starts the delayed task manager, allowing past and future tasks to be
@@ -49,12 +51,6 @@ class BASE_EXPORT DelayedTaskManager {
   void AddDelayedTask(Task task,
                       PostTaskNowCallback post_task_now_callback,
                       scoped_refptr<TaskRunner> task_runner);
-
-  // Pop and post all the ripe tasks in the delayed task queue.
-  void ProcessRipeTasks();
-
-  // Returns the |delayed_run_time| of the next scheduled task, if any.
-  Optional<TimeTicks> NextScheduledRunTime() const;
 
  private:
   struct DelayedTask {
@@ -93,11 +89,13 @@ class BASE_EXPORT DelayedTaskManager {
     DISALLOW_COPY_AND_ASSIGN(DelayedTask);
   };
 
+  // Pop and post all the ripe tasks in the delayed task queue.
+  void ProcessRipeTasks();
+
   // Get the time at which to schedule the next |ProcessRipeTasks()| execution,
   // or TimeTicks::Max() if none needs to be scheduled (i.e. no task, or next
   // task already scheduled).
-  TimeTicks GetTimeToScheduleProcessRipeTasksLockRequired()
-      EXCLUSIVE_LOCKS_REQUIRED(queue_lock_);
+  TimeTicks GetTimeToScheduleProcessRipeTasksLockRequired();
 
   // Schedule |ProcessRipeTasks()| on the service thread to be executed at the
   // given |process_ripe_tasks_time|, provided the given time is not
@@ -107,16 +105,18 @@ class BASE_EXPORT DelayedTaskManager {
 
   const RepeatingClosure process_ripe_tasks_closure_;
 
-  // Synchronizes access to |delayed_task_queue_| and the setting of
-  // |service_thread_task_runner_|. Once |service_thread_task_runner_| is set,
-  // it is never modified. It is therefore safe to access
-  // |service_thread_task_runner_| without synchronization once it is observed
-  // that it is non-null.
-  mutable CheckedLock queue_lock_;
+  const std::unique_ptr<const TickClock> tick_clock_;
 
   scoped_refptr<TaskRunner> service_thread_task_runner_;
 
-  IntrusiveHeap<DelayedTask> delayed_task_queue_ GUARDED_BY(queue_lock_);
+  IntrusiveHeap<DelayedTask> delayed_task_queue_;
+
+  // Synchronizes access to |delayed_task_queue_| and the setting of
+  // |service_thread_task_runner|. Once |service_thread_task_runner_| is set,
+  // it is never modified. It is therefore safe to access
+  // |service_thread_task_runner_| without synchronization once it is observed
+  // that it is non-null.
+  CheckedLock queue_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(DelayedTaskManager);
 };

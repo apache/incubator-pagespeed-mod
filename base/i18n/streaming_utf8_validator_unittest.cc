@@ -116,7 +116,7 @@ TEST_F(StreamingUtf8ValidatorThoroughTest, TestEverything) {
     base::AutoLock al(lock_);
     uint32_t begin = 0;
     do {
-      base::PostTask(
+      base::PostTaskWithTraits(
           FROM_HERE, {base::TaskShutdownBehavior::BLOCK_SHUTDOWN},
           base::BindOnce(&StreamingUtf8ValidatorThoroughTest::TestRange,
                          base::Unretained(this), begin,

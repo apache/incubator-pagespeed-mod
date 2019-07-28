@@ -18,14 +18,6 @@ namespace base {
 
 class TimeDelta;
 
-// ATTENTION: Prefer using base::test::ScopedTaskEnvironment and a task runner
-// obtained from base/task/post_task.h over this class. This class isn't as
-// "simple" as it seems specifically because its attempt at being simple makes
-// it run tasks in a surprising order (delays aren't respected and nesting
-// doesn't behave as usual). Should you prefer to flush all tasks regardless of
-// delays, ScopedTaskEnvironment::TimeSource::MOCK_TIME and
-// ScopedTaskEnvironment::FastForwardUntilNoTasksRemain() have you covered.
-//
 // TestSimpleTaskRunner is a simple TaskRunner implementation that can
 // be used for testing.  It implements SingleThreadTaskRunner as that
 // interface implements SequencedTaskRunner, which in turn implements

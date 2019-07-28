@@ -1216,7 +1216,7 @@ StringType FilePath::GetHFSDecomposedForm(StringPieceType string) {
   ScopedCFTypeRef<CFStringRef> cfstring(
       CFStringCreateWithBytesNoCopy(
           NULL,
-          reinterpret_cast<const uint8_t*>(string.data()),
+          reinterpret_cast<const UInt8*>(string.data()),
           string.length(),
           kCFStringEncodingUTF8,
           false,
@@ -1260,10 +1260,11 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
 
   // GetHFSDecomposedForm() returns an empty string in an error case.
   if (hfs1.empty() || hfs2.empty()) {
+    NOTREACHED();
     ScopedCFTypeRef<CFStringRef> cfstring1(
         CFStringCreateWithBytesNoCopy(
             NULL,
-            reinterpret_cast<const uint8_t*>(string1.data()),
+            reinterpret_cast<const UInt8*>(string1.data()),
             string1.length(),
             kCFStringEncodingUTF8,
             false,
@@ -1271,25 +1272,11 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
     ScopedCFTypeRef<CFStringRef> cfstring2(
         CFStringCreateWithBytesNoCopy(
             NULL,
-            reinterpret_cast<const uint8_t*>(string2.data()),
+            reinterpret_cast<const UInt8*>(string2.data()),
             string2.length(),
             kCFStringEncodingUTF8,
             false,
             kCFAllocatorNull));
-    // If neither GetHFSDecomposedForm nor CFStringCreateWithBytesNoCopy
-    // succeed, fall back to strcmp. This can occur when the input string is
-    // invalid UTF-8.
-    if (!cfstring1 || !cfstring2) {
-      int comparison =
-          memcmp(string1.as_string().c_str(), string2.as_string().c_str(),
-                 std::min(string1.length(), string2.length()));
-      if (comparison < 0)
-        return -1;
-      if (comparison > 0)
-        return 1;
-      return 0;
-    }
-
     return CFStringCompare(cfstring1,
                            cfstring2,
                            kCFCompareCaseInsensitive);

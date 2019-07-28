@@ -83,10 +83,7 @@ class BASE_EXPORT Sequence : public TaskSource {
   // active Sequence::Transaction.
   Transaction BeginTransaction() WARN_UNUSED_RESULT;
 
-  // TaskSource:
   ExecutionEnvironment GetExecutionEnvironment() override;
-  RunIntent WillRunTask() override;
-  size_t GetRemainingConcurrency() const override;
 
   // Returns a token that uniquely identifies this Sequence.
   const SequenceToken& token() const { return token_; }
@@ -100,7 +97,7 @@ class BASE_EXPORT Sequence : public TaskSource {
 
   // TaskSource:
   Optional<Task> TakeTask() override WARN_UNUSED_RESULT;
-  bool DidProcessTask(RunResult run_result) override;
+  bool DidRunTask() override;
   SequenceSortKey GetSortKey() const override;
   void Clear() override;
 
@@ -113,7 +110,7 @@ class BASE_EXPORT Sequence : public TaskSource {
   // Queue of tasks to execute.
   base::queue<Task> queue_;
 
-  // True if a worker is currently associated with a Task from this Sequence.
+  // True if a worker is currently running a Task from this Sequence.
   bool has_worker_ = false;
 
   // Holds data stored through the SequenceLocalStorageSlot API.

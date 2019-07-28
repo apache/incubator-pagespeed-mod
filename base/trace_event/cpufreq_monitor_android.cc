@@ -109,9 +109,8 @@ void CPUFreqMonitorDelegate::RecordFrequency(unsigned int cpu_id,
 
 scoped_refptr<SingleThreadTaskRunner>
 CPUFreqMonitorDelegate::CreateTaskRunner() {
-  return base::CreateSingleThreadTaskRunner(
-      {base::ThreadPool(), base::MayBlock(),
-       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN,
+  return base::CreateSingleThreadTaskRunnerWithTraits(
+      {base::MayBlock(), base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN,
        base::TaskPriority::BEST_EFFORT},
       base::SingleThreadTaskRunnerThreadMode::SHARED);
 }

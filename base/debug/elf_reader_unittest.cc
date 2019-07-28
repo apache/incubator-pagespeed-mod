@@ -23,10 +23,10 @@ namespace debug {
 // builds.
 #if defined(OFFICIAL_BUILD) || defined(OS_FUCHSIA)
 
-#if defined(OFFICIAL_BUILD)
-constexpr size_t kExpectedBuildIdStringLength = 40;  // SHA1 hash in hex.
-#else
+#if defined(OS_FUCHSIA)
 constexpr size_t kExpectedBuildIdStringLength = 16;  // 64-bit int in hex.
+#else
+constexpr size_t kExpectedBuildIdStringLength = 40;  // SHA1 hash in hex.
 #endif
 
 TEST(ElfReaderTest, ReadElfBuildIdUppercase) {

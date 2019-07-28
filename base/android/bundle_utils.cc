@@ -9,9 +9,9 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/BundleUtils_jni.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "jni/BundleUtils_jni.h"
 
 // These symbols are added by the lld linker when creating a partitioned shared
 // library. The symbols live in the base library, and are used to properly load

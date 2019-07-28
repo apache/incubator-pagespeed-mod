@@ -33,8 +33,7 @@ class TestProfileBuilder : public ProfileBuilder {
 
   // ProfileBuilder
   ModuleCache* GetModuleCache() override { return module_cache_; }
-  void RecordMetadata(
-      base::ProfileBuilder::MetadataProvider* metadata_provider) override {}
+  void RecordMetadata() override {}
   void OnSampleCompleted(std::vector<Frame> frames) override {}
   void OnProfileCompleted(TimeDelta profile_duration,
                           TimeDelta sampling_period) override {}
@@ -61,7 +60,8 @@ class TestThreadDelegate : public ThreadDelegate {
                      // The register context will be initialized to
                      // *|thread_context| if non-null.
                      RegisterContext* thread_context = nullptr)
-      : fake_stack_(fake_stack), thread_context_(thread_context) {}
+      : fake_stack_(fake_stack),
+        thread_context_(thread_context) {}
 
   TestThreadDelegate(const TestThreadDelegate&) = delete;
   TestThreadDelegate& operator=(const TestThreadDelegate&) = delete;
@@ -596,7 +596,7 @@ TEST(StackSamplerImplTest, WalkStack_AuxThenNative) {
   module_cache.InjectModuleForTesting(std::make_unique<TestModule>(1u, 1u));
 
   FakeTestUnwinder aux_unwinder(
-      {{UnwindResult::UNRECOGNIZED_FRAME, {1u}}, false});
+      {{{UnwindResult::UNRECOGNIZED_FRAME, {1u}}, {false}}});
   FakeTestUnwinder native_unwinder({{UnwindResult::COMPLETED, {2u}}});
 
   std::vector<Frame> stack = StackSamplerImpl::WalkStackForTesting(

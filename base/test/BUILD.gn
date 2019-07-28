@@ -53,7 +53,7 @@ static_library("test_support") {
     "copy_only_int.h",
     "do_nothing_promise.cc",
     "do_nothing_promise.h",
-    "gmock_callback_support.h",
+    "fuzzed_data_provider.h",
     "gtest_util.cc",
     "gtest_util.h",
     "gtest_xml_unittest_result_printer.cc",
@@ -471,6 +471,7 @@ if (is_android) {
       "android/java/src/org/chromium/base/ContentUriTestUtils.java",
       "android/java/src/org/chromium/base/JavaHandlerThreadHelpers.java",
     ]
+    jni_package = "base"
   }
 
   generate_jni("test_support_jni_headers") {
@@ -481,6 +482,7 @@ if (is_android) {
       "android/javatests/src/org/chromium/base/test/task/ThreadPoolTestHelpers.java",
       "android/javatests/src/org/chromium/base/test/util/UrlUtils.java",
     ]
+    jni_package = "base"
   }
 
   android_library("test_support_java") {

@@ -92,6 +92,14 @@ void MessagePumpFuchsia::ZxHandleWatchController::HandleSignal(
 
   controller->handler = nullptr;
 
+  // |signal| can include other spurious things, in particular, that an fd
+  // is writable, when we only asked to know when it was readable. In that
+  // case, we don't want to call both the CanWrite and CanRead callback,
+  // when the caller asked for only, for example, readable callbacks. So,
+  // mask with the events that we actually wanted to know about.
+  zx_signals_t signals = signal->trigger & signal->observed;
+  DCHECK_NE(0u, signals);
+
   // In the case of a persistent Watch, the Watch may be stopped and
   // potentially deleted by the caller within the callback, in which case
   // |controller| should not be accessed again, and we mustn't continue the
@@ -100,7 +108,7 @@ void MessagePumpFuchsia::ZxHandleWatchController::HandleSignal(
   bool was_stopped = false;
   controller->was_stopped_ = &was_stopped;
 
-  controller->watcher_->OnZxHandleSignalled(wait->object, signal->observed);
+  controller->watcher_->OnZxHandleSignalled(wait->object, signals);
 
   if (was_stopped)
     return;
@@ -116,14 +124,6 @@ void MessagePumpFuchsia::FdWatchController::OnZxHandleSignalled(
     zx_signals_t signals) {
   uint32_t events;
   fdio_unsafe_wait_end(io_, signals, &events);
-
-  // |events| can include other spurious things, in particular, that an fd
-  // is writable, when we only asked to know when it was readable. In that
-  // case, we don't want to call both the CanWrite and CanRead callback,
-  // when the caller asked for only, for example, readable callbacks. So,
-  // mask with the events that we actually wanted to know about.
-  events &= desired_events_;
-  DCHECK_NE(0u, events);
 
   // Each |watcher_| callback we invoke may stop or delete |this|. The pump has
   // set |was_stopped_| to point to a safe location on the calling stack, so we

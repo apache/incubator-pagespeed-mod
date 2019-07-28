@@ -29,9 +29,10 @@ void ReportHighResolutionTimerUsage() {
 
 HighResolutionTimerManager::HighResolutionTimerManager()
     : hi_res_clock_available_(false) {
-  DCHECK(PowerMonitor::IsInitialized());
-  PowerMonitor::AddObserver(this);
-  UseHiResClock(!PowerMonitor::IsOnBatteryPower());
+  PowerMonitor* power_monitor = PowerMonitor::Get();
+  DCHECK(power_monitor != NULL);
+  power_monitor->AddObserver(this);
+  UseHiResClock(!power_monitor->IsOnBatteryPower());
 
   // Start polling the high resolution timer usage.
   Time::ResetHighResolutionTimerUsage();
@@ -40,7 +41,7 @@ HighResolutionTimerManager::HighResolutionTimerManager()
 }
 
 HighResolutionTimerManager::~HighResolutionTimerManager() {
-  PowerMonitor::RemoveObserver(this);
+  PowerMonitor::Get()->RemoveObserver(this);
   UseHiResClock(false);
 }
 

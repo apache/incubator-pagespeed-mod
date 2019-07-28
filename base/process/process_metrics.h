@@ -98,6 +98,37 @@ class BASE_EXPORT ProcessMetrics {
   BASE_EXPORT size_t GetResidentSetSize() const;
 #endif
 
+#if defined(OS_CHROMEOS)
+  // /proc/<pid>/totmaps is a syscall that returns memory summary statistics for
+  // the process.
+  // totmaps is a Linux specific concept, currently only being used on ChromeOS.
+  // Do not attempt to extend this to other platforms.
+  //
+  struct TotalsSummary {
+    size_t private_clean_kb;
+    size_t private_dirty_kb;
+    size_t swap_kb;
+  };
+  BASE_EXPORT TotalsSummary GetTotalsSummary() const;
+#endif
+
+#if defined(OS_MACOSX)
+  struct TaskVMInfo {
+    // Only available on macOS 10.12+.
+    // Anonymous, non-discardable memory, including non-volatile IOKit.
+    // Measured in bytes.
+    uint64_t phys_footprint = 0;
+
+    // Anonymous, non-discardable, non-compressed memory, excluding IOKit.
+    // Measured in bytes.
+    uint64_t internal = 0;
+
+    // Compressed memory measured in bytes.
+    uint64_t compressed = 0;
+  };
+  TaskVMInfo GetTaskVMInfo() const;
+#endif
+
   // Returns the percentage of time spent executing, across all threads of the
   // process, in the interval since the last time the method was called. Since
   // this considers the total execution time across all threads in a process,
@@ -253,9 +284,6 @@ BASE_EXPORT size_t GetPageSize();
 // Returns the maximum number of file descriptors that can be open by a process
 // at once. If the number is unavailable, a conservative best guess is returned.
 BASE_EXPORT size_t GetMaxFds();
-
-// Returns the maximum number of handles that can be open at once per process.
-BASE_EXPORT size_t GetHandleLimit();
 
 #if defined(OS_POSIX)
 // Increases the file descriptor soft limit to |max_descriptors| or the OS hard

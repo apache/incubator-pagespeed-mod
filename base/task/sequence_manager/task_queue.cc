@@ -136,7 +136,7 @@ void TaskQueue::ShutdownTaskQueueGracefully() {
 
   // If we've not been unregistered then this must occur on the main thread.
   DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
-  impl_->SetObserver(nullptr);
+  impl_->SetOnNextWakeUpChangedCallback(RepeatingCallback<void(TimeTicks)>());
   impl_->sequence_manager()->ShutdownTaskQueueGracefully(TakeTaskQueueImpl());
 }
 
@@ -315,13 +315,6 @@ bool TaskQueue::BlockedByFence() const {
   return impl_->BlockedByFence();
 }
 
-EnqueueOrder TaskQueue::GetLastUnblockEnqueueOrder() const {
-  DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
-  if (!impl_)
-    return EnqueueOrder();
-  return impl_->GetLastUnblockEnqueueOrder();
-}
-
 const char* TaskQueue::GetName() const {
   return name_;
 }
@@ -330,14 +323,15 @@ void TaskQueue::SetObserver(Observer* observer) {
   DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
   if (!impl_)
     return;
-
-  // Observer is guaranteed to outlive TaskQueue and TaskQueueImpl lifecycle is
-  // controlled by |this|.
-  impl_->SetObserver(observer);
-}
-
-void TaskQueue::SetShouldReportPostedTasksWhenDisabled(bool should_report) {
-  impl_->SetShouldReportPostedTasksWhenDisabled(should_report);
+  if (observer) {
+    // Observer is guaranteed to outlive TaskQueue and TaskQueueImpl lifecycle
+    // is controlled by |this|.
+    impl_->SetOnNextWakeUpChangedCallback(
+        BindRepeating(&TaskQueue::Observer::OnQueueNextWakeUpChanged,
+                      Unretained(observer), Unretained(this)));
+  } else {
+    impl_->SetOnNextWakeUpChangedCallback(RepeatingCallback<void(TimeTicks)>());
+  }
 }
 
 bool TaskQueue::IsOnMainThread() const {

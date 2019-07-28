@@ -17,7 +17,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
-#include "build/build_config.h"
 
 #include <windows.h>
 
@@ -116,14 +115,6 @@ bool CreateThreadInternal(size_t stack_size,
   unsigned int flags = 0;
   if (stack_size > 0) {
     flags = STACK_SIZE_PARAM_IS_A_RESERVATION;
-#if defined(ARCH_CPU_32_BITS)
-  } else {
-    // The process stack size is increased to give spaces to |RendererMain| in
-    // |chrome/BUILD.gn|, but keep the default stack size of other threads to
-    // 1MB for the address space pressure.
-    flags = STACK_SIZE_PARAM_IS_A_RESERVATION;
-    stack_size = 1024 * 1024;
-#endif
   }
 
   ThreadParams* params = new ThreadParams;

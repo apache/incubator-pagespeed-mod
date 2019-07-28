@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "base/lazy_instance_helpers.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/task/post_task.h"
 
@@ -45,20 +45,20 @@ LazyTaskRunner<SequencedTaskRunner, false>::Create() {
   // LazySequencedTaskRunner.
   DCHECK_EQ(thread_mode_, SingleThreadTaskRunnerThreadMode::SHARED);
 
-  return CreateSequencedTaskRunner(traits_);
+  return CreateSequencedTaskRunnerWithTraits(traits_);
 }
 
 template <>
 scoped_refptr<SingleThreadTaskRunner>
 LazyTaskRunner<SingleThreadTaskRunner, false>::Create() {
-  return CreateSingleThreadTaskRunner(traits_, thread_mode_);
+  return CreateSingleThreadTaskRunnerWithTraits(traits_, thread_mode_);
 }
 
 #if defined(OS_WIN)
 template <>
 scoped_refptr<SingleThreadTaskRunner>
 LazyTaskRunner<SingleThreadTaskRunner, true>::Create() {
-  return CreateCOMSTATaskRunner(traits_, thread_mode_);
+  return CreateCOMSTATaskRunnerWithTraits(traits_, thread_mode_);
 }
 #endif
 

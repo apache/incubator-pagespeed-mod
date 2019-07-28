@@ -70,7 +70,7 @@ class BASE_EXPORT PooledSingleThreadTaskRunnerManager final {
   // named "ThreadPoolSingleThread[Shared]" +
   // kEnvironmentParams[GetEnvironmentIndexForTraits(traits)].name_suffix +
   // index.
-  scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunner(
+  scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunnerWithTraits(
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode);
 
@@ -79,7 +79,7 @@ class BASE_EXPORT PooledSingleThreadTaskRunnerManager final {
   // STA thread named "ThreadPoolSingleThreadCOMSTA[Shared]" +
   // kEnvironmentParams[GetEnvironmentIndexForTraits(traits)].name_suffix +
   // index.
-  scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunner(
+  scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunnerWithTraits(
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode);
 #endif  // defined(OS_WIN)
@@ -99,7 +99,7 @@ class BASE_EXPORT PooledSingleThreadTaskRunnerManager final {
       const TaskTraits& traits);
 
   template <typename DelegateType>
-  scoped_refptr<PooledSingleThreadTaskRunner> CreateTaskRunnerImpl(
+  scoped_refptr<PooledSingleThreadTaskRunner> CreateTaskRunnerWithTraitsImpl(
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode);
 

@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
-#include "base/task/thread_pool/thread_pool_clock.h"
 
 namespace base {
 namespace internal {
@@ -21,11 +20,10 @@ AtomicSequenceNumber g_sequence_nums_for_tracing;
 Task::Task() = default;
 
 Task::Task(const Location& posted_from, OnceClosure task, TimeDelta delay)
-    : PendingTask(
-          posted_from,
-          std::move(task),
-          delay.is_zero() ? TimeTicks() : ThreadPoolClock::Now() + delay,
-          Nestable::kNonNestable) {
+    : PendingTask(posted_from,
+                  std::move(task),
+                  delay.is_zero() ? TimeTicks() : TimeTicks::Now() + delay,
+                  Nestable::kNonNestable) {
   // ThreadPoolImpl doesn't use |sequence_num| but tracing (toplevel.flow)
   // relies on it being unique. While this subtle dependency is a bit
   // overreaching, ThreadPoolImpl is the only task system that doesn't use

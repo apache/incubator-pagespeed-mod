@@ -5,7 +5,7 @@
 #ifndef BASE_FUCHSIA_SERVICE_DIRECTORY_TEST_BASE_H_
 #define BASE_FUCHSIA_SERVICE_DIRECTORY_TEST_BASE_H_
 
-#include <zircon/types.h>
+#include <lib/zx/channel.h>
 #include <memory>
 
 #include "base/fuchsia/scoped_service_binding.h"
@@ -13,7 +13,6 @@
 #include "base/fuchsia/test_interface_impl.h"
 #include "base/fuchsia/testfidl/cpp/fidl.h"
 #include "base/message_loop/message_loop.h"
-#include "base/run_loop.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -28,8 +27,6 @@ class ServiceDirectoryTestBase : public testing::Test {
                            zx_status_t expected_error);
 
  protected:
-  const RunLoop::ScopedRunTimeoutForTest run_timeout_;
-
   MessageLoopForIO message_loop_;
 
   std::unique_ptr<ServiceDirectory> service_directory_;

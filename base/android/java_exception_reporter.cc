@@ -6,8 +6,8 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/JavaExceptionReporter_jni.h"
 #include "base/debug/dump_without_crashing.h"
+#include "jni/JavaExceptionReporter_jni.h"
 
 using base::android::JavaParamRef;
 

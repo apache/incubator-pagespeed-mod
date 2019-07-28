@@ -9,11 +9,13 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.system.Os;
 import android.text.TextUtils;
 
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.MainDex;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
 
 import java.io.File;
@@ -70,7 +72,7 @@ public abstract class PathUtils {
             // already finished.
             if (sDirPathFetchTask.cancel(false)) {
                 // Allow disk access here because we have no other choice.
-                try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
+                try (StrictModeContext unused = StrictModeContext.allowDiskWrites()) {
                     // sDirPathFetchTask did not complete. We have to run the code it was supposed
                     // to be responsible for synchronously on the UI thread.
                     return PathUtils.setPrivateDataDirectorySuffixInternal();
@@ -153,11 +155,6 @@ public abstract class PathUtils {
             // inherently posts to the UI thread for onPostExecute().
             sDirPathFetchTask = new FutureTask<>(PathUtils::setPrivateDataDirectorySuffixInternal);
             AsyncTask.THREAD_POOL_EXECUTOR.execute(sDirPathFetchTask);
-        } else {
-            assert TextUtils.equals(sDataDirectorySuffix, suffix)
-                : String.format("%s != %s", suffix, sDataDirectorySuffix);
-            assert TextUtils.equals(sCacheSubDirectory, cacheSubDir)
-                : String.format("%s != %s", cacheSubDir, sCacheSubDirectory);
         }
     }
 
@@ -203,18 +200,26 @@ public abstract class PathUtils {
     @SuppressWarnings("unused")
     @CalledByNative
     private static String getDownloadsDirectory() {
-        // TODO(crbug.com/508615): Temporarily allowing disk access until more permanent fix is in.
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
+        // Temporarily allowing disk access while fixing. TODO: http://crbug.com/508615
+        try (StrictModeContext unused = StrictModeContext.allowDiskReads()) {
+            long time = SystemClock.elapsedRealtime();
+            String downloadsPath;
             if (BuildInfo.isAtLeastQ()) {
                 // https://developer.android.com/preview/privacy/scoped-storage
                 // In Q+, Android has bugun sandboxing external storage. Chrome may not have
                 // permission to write to Environment.getExternalStoragePublicDirectory(). Instead
                 // using Context.getExternalFilesDir() will return a path to sandboxed external
                 // storage for which no additional permissions are required.
-                return getAllPrivateDownloadsDirectories()[0];
+                downloadsPath = getAllPrivateDownloadsDirectories()[0];
+            } else {
+                downloadsPath =
+                        Environment
+                                .getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                                .getPath();
             }
-            return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                    .getPath();
+            RecordHistogram.recordTimesHistogram(
+                    "Android.StrictMode.DownloadsDir", SystemClock.elapsedRealtime() - time);
+            return downloadsPath;
         }
     }
 
@@ -227,7 +232,7 @@ public abstract class PathUtils {
     public static String[] getAllPrivateDownloadsDirectories() {
         File[] files;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
+            try (StrictModeContext unused = StrictModeContext.allowDiskWrites()) {
                 files = ContextUtils.getApplicationContext().getExternalFilesDirs(
                         Environment.DIRECTORY_DOWNLOADS);
             }

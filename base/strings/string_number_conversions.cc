@@ -359,7 +359,7 @@ std::string NumberToString(unsigned long long value) {
 string16 NumberToString16(unsigned long long value) {
   return IntToStringT<string16, unsigned long long>::IntToString(value);
 }
-/*
+
 std::string NumberToString(double value) {
   // According to g_fmt.cc, it is sufficient to declare a buffer of size 32.
   char buffer[32];
@@ -376,7 +376,7 @@ base::string16 NumberToString16(double value) {
   // iterator" variant which promotes from 8-bit to 16-bit via "=".
   return base::string16(&buffer[0], &buffer[strlen(buffer)]);
 }
- */
+
 bool StringToInt(StringPiece input, int* output) {
   return StringToIntImpl(input, output);
 }
@@ -416,7 +416,7 @@ bool StringToSizeT(StringPiece input, size_t* output) {
 bool StringToSizeT(StringPiece16 input, size_t* output) {
   return String16ToIntImpl(input, output);
 }
-/*
+
 bool StringToDouble(const std::string& input, double* output) {
   // Thread-safe?  It is on at least Mac, Linux, and Windows.
   internal::ScopedClearLastError clear_errno;
@@ -460,7 +460,7 @@ std::string HexEncode(const void* bytes, size_t size) {
   }
   return ret;
 }
- */
+
 bool HexStringToInt(StringPiece input, int* output) {
   return IteratorRangeToNumber<HexIteratorRangeToIntTraits>::Invoke(
     input.begin(), input.end(), output);

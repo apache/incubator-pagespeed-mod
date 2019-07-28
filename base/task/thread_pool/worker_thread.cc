@@ -14,7 +14,6 @@
 #include "base/task/thread_pool/environment_config.h"
 #include "base/task/thread_pool/task_tracker.h"
 #include "base/task/thread_pool/worker_thread_observer.h"
-#include "base/time/time_override.h"
 #include "base/trace_event/trace_event.h"
 
 #if defined(OS_MACOSX)
@@ -134,7 +133,7 @@ void WorkerThread::Cleanup() {
 void WorkerThread::BeginUnusedPeriod() {
   CheckedAutoLock auto_lock(thread_lock_);
   DCHECK(last_used_time_.is_null());
-  last_used_time_ = subtle::TimeTicksNowIgnoringOverride();
+  last_used_time_ = TimeTicks::Now();
 }
 
 void WorkerThread::EndUnusedPeriod() {
@@ -306,9 +305,8 @@ void WorkerThread::RunWorker() {
     UpdateThreadPriority(GetDesiredThreadPriority());
 
     // Get the task source containing the next task to execute.
-    RunIntentWithRegisteredTaskSource run_intent_with_task_source =
-        delegate_->GetWork(this);
-    if (!run_intent_with_task_source) {
+    RegisteredTaskSource task_source = delegate_->GetWork(this);
+    if (!task_source) {
       // Exit immediately if GetWork() resulted in detaching this worker.
       if (ShouldExit())
         break;
@@ -319,10 +317,9 @@ void WorkerThread::RunWorker() {
       continue;
     }
 
-    RegisteredTaskSource task_source = task_tracker_->RunAndPopNextTask(
-        std::move(run_intent_with_task_source));
+    task_source = task_tracker_->RunAndPopNextTask(std::move(task_source));
 
-    delegate_->DidProcessTask(std::move(task_source));
+    delegate_->DidRunTask(std::move(task_source));
 
     // Calling WakeUp() guarantees that this WorkerThread will run Tasks from
     // TaskSources returned by the GetWork() method of |delegate_| until it

@@ -88,10 +88,10 @@ PriorityQueue::~PriorityQueue() {
 PriorityQueue& PriorityQueue::operator=(PriorityQueue&& other) = default;
 
 void PriorityQueue::Push(
-    TransactionWithRegisteredTaskSource transaction_with_task_source) {
-  auto sequence_sort_key = transaction_with_task_source.GetSortKey();
+    RegisteredTaskSourceAndTransaction task_source_and_transaction) {
+  auto sequence_sort_key = task_source_and_transaction.transaction.GetSortKey();
   container_.insert(TaskSourceAndSortKey(
-      transaction_with_task_source.take_task_source(), sequence_sort_key));
+      std::move(task_source_and_transaction.task_source), sequence_sort_key));
   IncrementNumTaskSourcesForPriority(sequence_sort_key.priority());
 }
 
@@ -141,19 +141,19 @@ RegisteredTaskSource PriorityQueue::RemoveTaskSource(
 }
 
 void PriorityQueue::UpdateSortKey(
-    TransactionWithOwnedTaskSource transaction_with_task_source) {
-  DCHECK(transaction_with_task_source);
+    TaskSourceAndTransaction task_source_and_transaction) {
+  DCHECK(task_source_and_transaction.task_source);
 
   if (IsEmpty())
     return;
 
   const HeapHandle heap_handle =
-      transaction_with_task_source.task_source()->heap_handle();
+      task_source_and_transaction.task_source->heap_handle();
   if (!heap_handle.IsValid())
     return;
 
   auto old_sort_key = container_.at(heap_handle).sort_key();
-  auto new_sort_key = transaction_with_task_source.GetSortKey();
+  auto new_sort_key = task_source_and_transaction.transaction.GetSortKey();
   auto registered_task_source =
       const_cast<PriorityQueue::TaskSourceAndSortKey&>(
           container_.at(heap_handle))

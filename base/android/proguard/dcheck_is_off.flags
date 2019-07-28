@@ -5,6 +5,4 @@
 # Contains flags that are applied only when ENABLE_DCHECK=false.
 
 # Ensure that LifetimeAssert implementation is not reachable in release.
-# Temporarily commenting this out until R8 rolls with a fix to the optimization
-# that should remove this class. See b/135918413.
-#-checkdiscard class org.chromium.base.LifetimeAssert$WrappedReference { *; }
+-checkdiscard class org.chromium.base.LifetimeAssert$WrappedReference { *; }

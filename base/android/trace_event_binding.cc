@@ -7,10 +7,10 @@
 #include <set>
 
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/TraceEvent_jni.h"
 #include "base/macros.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_event_impl.h"
+#include "jni/TraceEvent_jni.h"
 
 namespace base {
 namespace android {

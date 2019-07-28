@@ -12,11 +12,6 @@ namespace win {
 // Global, const instance of an empty variant.
 const VARIANT ScopedVariant::kEmptyVariant = {{{VT_EMPTY}}};
 
-ScopedVariant::ScopedVariant(ScopedVariant&& var) {
-  var_.vt = VT_EMPTY;
-  Reset(var.Release());
-}
-
 ScopedVariant::~ScopedVariant() {
   static_assert(sizeof(ScopedVariant) == sizeof(VARIANT), "ScopedVariantSize");
   ::VariantClear(&var_);
@@ -225,12 +220,6 @@ void ScopedVariant::Set(const VARIANT& var) {
     DLOG(ERROR) << "VariantCopy failed";
     var_.vt = VT_EMPTY;
   }
-}
-
-ScopedVariant& ScopedVariant::operator=(ScopedVariant&& var) {
-  if (var.ptr() != &var_)
-    Reset(var.Release());
-  return *this;
 }
 
 ScopedVariant& ScopedVariant::operator=(const VARIANT& var) {

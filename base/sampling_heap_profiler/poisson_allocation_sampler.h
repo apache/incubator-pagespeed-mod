@@ -8,15 +8,15 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/compiler_specific.h"
 #include "base/macros.h"
-#include "base/sampling_heap_profiler/lock_free_address_hash_set.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
 
 template <typename T>
 class NoDestructor;
+
+class LockFreeAddressHashSet;
 
 // This singleton class implements Poisson sampling of the incoming allocations
 // stream. It hooks onto base::allocator and base::PartitionAlloc.
@@ -86,7 +86,7 @@ class BASE_EXPORT PoissonAllocationSampler {
                           size_t,
                           AllocatorType,
                           const char* context);
-  ALWAYS_INLINE static void RecordFree(void* address);
+  static void RecordFree(void* address);
 
   static PoissonAllocationSampler* Get();
 
@@ -119,14 +119,6 @@ class BASE_EXPORT PoissonAllocationSampler {
 
   DISALLOW_COPY_AND_ASSIGN(PoissonAllocationSampler);
 };
-
-// static
-ALWAYS_INLINE void PoissonAllocationSampler::RecordFree(void* address) {
-  if (UNLIKELY(address == nullptr))
-    return;
-  if (UNLIKELY(sampled_addresses_set().Contains(address)))
-    instance_->DoRecordFree(address);
-}
 
 }  // namespace base
 

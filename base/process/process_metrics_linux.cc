@@ -307,6 +307,66 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process)
 ProcessMetrics::ProcessMetrics(ProcessHandle process) : process_(process) {}
 #endif
 
+#if defined(OS_CHROMEOS)
+// Private, Shared and Proportional working set sizes are obtained from
+// /proc/<pid>/totmaps
+ProcessMetrics::TotalsSummary ProcessMetrics::GetTotalsSummary() const {
+  // The format of /proc/<pid>/totmaps is:
+  //
+  // Rss:                6120 kB
+  // Pss:                3335 kB
+  // Shared_Clean:       1008 kB
+  // Shared_Dirty:       4012 kB
+  // Private_Clean:         4 kB
+  // Private_Dirty:      1096 kB
+  // Referenced:          XXX kB
+  // Anonymous:           XXX kB
+  // AnonHugePages:       XXX kB
+  // Swap:                XXX kB
+  // Locked:              XXX kB
+  ProcessMetrics::TotalsSummary summary = {};
+
+  const size_t kPrivate_CleanIndex = (4 * 3) + 1;
+  const size_t kPrivate_DirtyIndex = (5 * 3) + 1;
+  const size_t kSwapIndex = (9 * 3) + 1;
+
+  std::string totmaps_data;
+  {
+    FilePath totmaps_file = internal::GetProcPidDir(process_).Append("totmaps");
+    ThreadRestrictions::ScopedAllowIO allow_io;
+    bool ret = ReadFileToString(totmaps_file, &totmaps_data);
+    if (!ret || totmaps_data.length() == 0)
+      return summary;
+  }
+
+  std::vector<std::string> totmaps_fields = SplitString(
+      totmaps_data, kWhitespaceASCII, KEEP_WHITESPACE, SPLIT_WANT_NONEMPTY);
+
+  DCHECK_EQ("Private_Clean:", totmaps_fields[kPrivate_CleanIndex - 1]);
+  DCHECK_EQ("Private_Dirty:", totmaps_fields[kPrivate_DirtyIndex - 1]);
+  DCHECK_EQ("Swap:", totmaps_fields[kSwapIndex-1]);
+
+  int private_clean_kb = 0;
+  int private_dirty_kb = 0;
+  int swap_kb = 0;
+  bool success = true;
+  success &=
+      StringToInt(totmaps_fields[kPrivate_CleanIndex], &private_clean_kb);
+  success &=
+      StringToInt(totmaps_fields[kPrivate_DirtyIndex], &private_dirty_kb);
+  success &= StringToInt(totmaps_fields[kSwapIndex], &swap_kb);
+
+  if (!success)
+    return summary;
+
+  summary.private_clean_kb = private_clean_kb;
+  summary.private_dirty_kb = private_dirty_kb;
+  summary.swap_kb = swap_kb;
+
+  return summary;
+}
+#endif
+
 size_t GetSystemCommitCharge() {
   SystemMemoryInfoKB meminfo;
   if (!GetSystemMemoryInfo(&meminfo))

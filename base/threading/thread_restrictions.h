@@ -115,7 +115,7 @@ class VideoFrameResourceProvider;
 }
 namespace cc {
 class CompletionEvent;
-class TileTaskManagerImpl;
+class SingleThreadTaskGraphRunner;
 }
 namespace chromeos {
 class BlockingMethodCaller;
@@ -137,8 +137,8 @@ class BrowserShutdownProfileDumper;
 class BrowserTestBase;
 class CategorizedWorkerPool;
 class DesktopCaptureDevice;
+class DWriteFontLookupTableBuilder;
 class GpuProcessTransportFactory;
-class InProcessUtilityThread;
 class NestedMessagePumpAndroid;
 class RenderWidgetHostViewMac;
 class RTCVideoDecoder;
@@ -395,6 +395,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
   friend class chrome_cleaner::SystemReportComponent;
   friend class content::BrowserMainLoop;
   friend class content::BrowserProcessSubThread;
+  friend class content::DWriteFontLookupTableBuilder;
   friend class content::ServiceWorkerContextClient;
   friend class content::SessionStorageDatabase;
   friend class functions::ExecScriptScopedAllowBaseSyncPrimitives;
@@ -453,10 +454,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class base::MessageLoopImpl;
   friend class base::ScopedAllowThreadRecallForStackSamplingProfiler;
   friend class base::StackSamplingProfiler;
-  friend class cc::TileTaskManagerImpl;
-  friend class content::CategorizedWorkerPool;
   friend class content::DesktopCaptureDevice;
-  friend class content::InProcessUtilityThread;
   friend class content::RTCVideoDecoder;
   friend class content::RTCVideoDecoderAdapter;
   friend class content::RTCVideoEncoder;
@@ -476,8 +474,10 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class ::chromeos::BlockingMethodCaller;  // http://crbug.com/125360
   friend class base::Thread;                      // http://crbug.com/918039
   friend class cc::CompletionEvent;               // http://crbug.com/902653
+  friend class cc::SingleThreadTaskGraphRunner;   // http://crbug.com/902823
   friend class content::
       BrowserGpuChannelHostFactory;                 // http://crbug.com/125248
+  friend class content::CategorizedWorkerPool;      // http://crbug.com/902823
   friend class dbus::Bus;                           // http://crbug.com/125222
   friend class disk_cache::BackendImpl;             // http://crbug.com/74623
   friend class disk_cache::InFlightIO;              // http://crbug.com/74623
@@ -520,23 +520,6 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesForTesting {
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(ScopedAllowBaseSyncPrimitivesForTesting);
-};
-
-// Counterpart to base::DisallowUnresponsiveTasks() for tests to allow them to
-// block their thread after it was banned.
-class BASE_EXPORT ScopedAllowUnresponsiveTasksForTesting {
- public:
-  ScopedAllowUnresponsiveTasksForTesting() EMPTY_BODY_IF_DCHECK_IS_OFF;
-  ~ScopedAllowUnresponsiveTasksForTesting() EMPTY_BODY_IF_DCHECK_IS_OFF;
-
- private:
-#if DCHECK_IS_ON()
-  const bool was_disallowed_base_sync_;
-  const bool was_disallowed_blocking_;
-  const bool was_disallowed_cpu_;
-#endif
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedAllowUnresponsiveTasksForTesting);
 };
 
 namespace internal {

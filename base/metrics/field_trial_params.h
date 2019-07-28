@@ -17,9 +17,6 @@ struct Feature;
 // Key-value mapping type for field trial parameters.
 typedef std::map<std::string, std::string> FieldTrialParams;
 
-// Param string decoding function for AssociateFieldTrialParamsFromString().
-typedef std::string (*FieldTrialParamsDecodeStringFunc)(const std::string& str);
-
 // Associates the specified set of key-value |params| with the field trial
 // specified by |trial_name| and |group_name|. Fails and returns false if the
 // specified field trial already has params associated with it or the trial
@@ -27,13 +24,6 @@ typedef std::string (*FieldTrialParamsDecodeStringFunc)(const std::string& str);
 BASE_EXPORT bool AssociateFieldTrialParams(const std::string& trial_name,
                                            const std::string& group_name,
                                            const FieldTrialParams& params);
-
-// Provides a mechanism to associate multiple set of params to multiple groups
-// with a formatted string as returned by FieldTrialList::AllParamsToString().
-// |decode_data_func| allows specifying a custom decoding function.
-BASE_EXPORT bool AssociateFieldTrialParamsFromString(
-    const std::string& params_string,
-    FieldTrialParamsDecodeStringFunc decode_data_func);
 
 // Retrieves the set of key-value |params| for the specified field trial, based
 // on its selected group. If the field trial does not exist or its selected

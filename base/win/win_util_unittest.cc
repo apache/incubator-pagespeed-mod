@@ -73,7 +73,7 @@ TEST(BaseWinUtilTest, TestGetLoadedModulesSnapshot) {
   ASSERT_NE(static_cast<HMODULE>(NULL), new_dll.get());
   ASSERT_TRUE(GetLoadedModulesSnapshot(::GetCurrentProcess(), &snapshot));
   ASSERT_GT(snapshot.size(), original_snapshot_size);
-  ASSERT_TRUE(Contains(snapshot, new_dll.get()));
+  ASSERT_TRUE(ContainsValue(snapshot, new_dll.get()));
 }
 
 TEST(BaseWinUtilTest, TestUint32ToInvalidHandle) {

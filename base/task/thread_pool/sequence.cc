@@ -11,7 +11,6 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/task/task_features.h"
-#include "base/task/thread_pool/thread_pool_clock.h"
 #include "base/time/time.h"
 
 namespace base {
@@ -41,7 +40,7 @@ void Sequence::Transaction::PushTask(Task task) {
   DCHECK(task.queue_time.is_null());
 
   bool should_be_queued = WillPushTask();
-  task.queue_time = ThreadPoolClock::Now();
+  task.queue_time = base::TimeTicks::Now();
 
   task.task = sequence()->traits_.shutdown_behavior() ==
                       TaskShutdownBehavior::BLOCK_SHUTDOWN
@@ -51,50 +50,29 @@ void Sequence::Transaction::PushTask(Task task) {
   sequence()->queue_.push(std::move(task));
 
   // AddRef() matched by manual Release() when the sequence has no more tasks
-  // to run (in DidProcessTask() or Clear()).
+  // to run (in DidRunTask() or Clear()).
   if (should_be_queued && sequence()->task_runner())
     sequence()->task_runner()->AddRef();
 }
 
-TaskSource::RunIntent Sequence::WillRunTask() {
-  // There should never be a second call to WillRunTask() before DidProcessTask
-  // since the RunIntent is always marked a saturated.
-  DCHECK(!has_worker_);
-
-  // It's ok to access |has_worker_| outside of a Transaction since
-  // WillRunTask() is externally synchronized, always called in sequence with
-  // TakeTask() and DidProcessTask() and only called if |!queue_.empty()|, which
-  // means it won't race with WillPushTask()/PushTask().
-  has_worker_ = true;
-  return MakeRunIntent(Saturated::kYes);
-}
-
-size_t Sequence::GetRemainingConcurrency() const {
-  return 1;
-}
-
 Optional<Task> Sequence::TakeTask() {
-  DCHECK(has_worker_);
+  DCHECK(!has_worker_);
   DCHECK(!queue_.empty());
   DCHECK(queue_.front().task);
 
+  has_worker_ = true;
   auto next_task = std::move(queue_.front());
   queue_.pop();
   return std::move(next_task);
 }
 
-bool Sequence::DidProcessTask(RunResult run_result) {
-  // There should never be a call to DidProcessTask without an associated
-  // WillRunTask().
+bool Sequence::DidRunTask() {
   DCHECK(has_worker_);
   has_worker_ = false;
   if (queue_.empty()) {
     ReleaseTaskRunner();
     return false;
   }
-  // Let the caller re-enqueue this non-empty Sequence regardless of
-  // |run_result| so it can continue churning through this Sequence's tasks and
-  // skip/delete them in the proper scope.
   return true;
 }
 

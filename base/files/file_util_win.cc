@@ -31,7 +31,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/threading/scoped_thread_priority.h"
 #include "base/time/time.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
@@ -179,10 +178,6 @@ bool DoCopyFile(const FilePath& from_path,
       to_path.value().length() >= MAX_PATH) {
     return false;
   }
-
-  // Mitigate the issues caused by loading DLLs on a background thread
-  // (http://crbug/973868).
-  base::ScopedThreadMayLoadLibraryOnBackgroundThread priority_boost(FROM_HERE);
 
   // Unlike the posix implementation that copies the file manually and discards
   // the ACL bits, CopyFile() copies the complete SECURITY_DESCRIPTOR and access
@@ -659,28 +654,14 @@ bool CreateDirectoryAndGetError(const FilePath& full_path,
 
 bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-  File file(path, File::FLAG_OPEN | File::FLAG_READ | File::FLAG_SHARE_DELETE);
-  if (!file.IsValid())
+  FilePath mapped_file;
+  if (!NormalizeToNativeFilePath(path, &mapped_file))
     return false;
-
-  // The expansion of |path| into a full path may make it longer.
-  constexpr int kMaxPathLength = MAX_PATH + 10;
-  char16 native_file_path[kMaxPathLength];
-  // kMaxPathLength includes space for trailing '\0' so we subtract 1.
-  // Returned length, used_wchars, does not include trailing '\0'.
-  // Failure is indicated by returning 0 or >= kMaxPathLength.
-  DWORD used_wchars = ::GetFinalPathNameByHandle(
-      file.GetPlatformFile(), as_writable_wcstr(native_file_path),
-      kMaxPathLength - 1, FILE_NAME_NORMALIZED | VOLUME_NAME_NT);
-
-  if (used_wchars >= kMaxPathLength || used_wchars == 0)
-    return false;
-
-  // GetFinalPathNameByHandle() returns the \\?\ syntax for file names and
-  // existing code expects we return a path starting 'X:\' so we call
-  // DevicePathToDriveLetterPath rather than using VOLUME_NAME_DOS above.
-  return DevicePathToDriveLetterPath(
-      FilePath(StringPiece16(native_file_path, used_wchars)), real_path);
+  // NormalizeToNativeFilePath() will return a path that starts with
+  // "\Device\Harddisk...".  Helper DevicePathToDriveLetterPath()
+  // will find a drive letter which maps to the path's device, so
+  // that we return a path starting with a drive letter.
+  return DevicePathToDriveLetterPath(mapped_file, real_path);
 }
 
 bool DevicePathToDriveLetterPath(const FilePath& nt_device_path,
@@ -727,6 +708,57 @@ bool DevicePathToDriveLetterPath(const FilePath& nt_device_path,
   // that is mounted as a drive letter.  This means there is no drive
   // letter path to the volume that holds |device_path|, so fail.
   return false;
+}
+
+bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+  // In Vista, GetFinalPathNameByHandle() would give us the real path
+  // from a file handle.  If we ever deprecate XP, consider changing the
+  // code below to a call to GetFinalPathNameByHandle().  The method this
+  // function uses is explained in the following msdn article:
+  // http://msdn.microsoft.com/en-us/library/aa366789(VS.85).aspx
+  win::ScopedHandle file_handle(
+      ::CreateFile(as_wcstr(path.value()), GENERIC_READ, kFileShareAll, NULL,
+                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+  if (!file_handle.IsValid())
+    return false;
+
+  // Create a file mapping object.  Can't easily use MemoryMappedFile, because
+  // we only map the first byte, and need direct access to the handle. You can
+  // not map an empty file, this call fails in that case.
+  win::ScopedHandle file_map_handle(
+      ::CreateFileMapping(file_handle.Get(),
+                          NULL,
+                          PAGE_READONLY,
+                          0,
+                          1,  // Just one byte.  No need to look at the data.
+                          NULL));
+  if (!file_map_handle.IsValid())
+    return false;
+
+  // Use a view of the file to get the path to the file.
+  void* file_view = MapViewOfFile(file_map_handle.Get(),
+                                  FILE_MAP_READ, 0, 0, 1);
+  if (!file_view)
+    return false;
+
+  // The expansion of |path| into a full path may make it longer.
+  // GetMappedFileName() will fail if the result is longer than MAX_PATH.
+  // Pad a bit to be safe.  If kMaxPathLength is ever changed to be less
+  // than MAX_PATH, it would be nessisary to test that GetMappedFileName()
+  // not return kMaxPathLength.  This would mean that only part of the
+  // path fit in |mapped_file_path|.
+  const int kMaxPathLength = MAX_PATH + 10;
+  char16 mapped_file_path[kMaxPathLength];
+  bool success = false;
+  HANDLE cp = GetCurrentProcess();
+  if (::GetMappedFileNameW(cp, file_view, as_writable_wcstr(mapped_file_path),
+                           kMaxPathLength)) {
+    *nt_path = FilePath(mapped_file_path);
+    success = true;
+  }
+  ::UnmapViewOfFile(file_view);
+  return success;
 }
 
 FilePath MakeLongFilePath(const FilePath& input) {

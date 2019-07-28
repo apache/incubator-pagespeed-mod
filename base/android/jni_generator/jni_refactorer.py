@@ -138,7 +138,7 @@ def add_chromium_import_to_java_file(contents, import_string):
     else:
       import_insert = match.end() + 1
 
-  return "%s%s\n%s" % (contents[:import_insert], import_string,
+  return "%s%s\n%s" % (contents[:import_insert], JCALLER_IMPORT_STRING,
                        contents[import_insert:])
 
 
@@ -370,10 +370,6 @@ def main(argv):
       ' instead of converting static methods to new jni.')
   arg_parser.add_argument(
       '--verbose', default=False, action='store_true', help='')
-  arg_parser.add_argument(
-      '--ignored-paths',
-      action='append',
-      help='Paths to ignore during conversion.')
 
   args = arg_parser.parse_args()
 
@@ -387,20 +383,28 @@ def main(argv):
       java_file_paths = pickle.load(file)
       print('Found %s java paths.' % len(java_file_paths))
   elif args.recursive:
-    for root, _, files in os.walk(os.path.abspath('.')):
-      java_file_paths.extend(
-          ['%s/%s' % (root, f) for f in files if f.endswith('.java')])
+    ignored_paths = [
+        'third_party', 'src/out', 'out/Debug', 'library_loader', '.cipd',
+        'jni_generator', 'media', 'accessibility', '/vr', 'website',
+        'gcm_driver', 'preferences'
+    ]
+
+    for root, dirs, files in os.walk(os.path.abspath('.')):
+
+      def getPaths():
+        for ignored_path in ignored_paths:
+          if ignored_path in root:
+            return
+
+          java_file_paths.extend(
+              ['%s/%s' % (root, f) for f in files if f.endswith('.java')])
+
+      getPaths()
 
   else:
     # Get all java files in current dir.
     java_file_paths = filter(lambda x: x.endswith('.java'),
                              map(os.path.abspath, os.listdir('.')))
-
-  if args.ignored_paths:
-    java_file_paths = [
-        path for path in java_file_paths
-        if all(p not in path for p in args.ignored_paths)
-    ]
 
   if args.cache:
     with open(PICKLE_LOCATION, 'w') as file:

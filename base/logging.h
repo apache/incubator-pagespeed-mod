@@ -1,18 +1,8 @@
 #pragma once
 
 #include "glog/logging.h"
-
-#include "base/base_export.h"
-#include "base/callback_forward.h"
-#include "base/compiler_specific.h"
-#include "base/debug/debugger.h"
-#include "base/immediate_crash.h"
-#include "base/logging_buildflags.h"
 #include "base/macros.h"
-#include "base/scoped_clear_last_error.h"
-#include "base/strings/string_piece_forward.h"
-#include "base/template_util.h"
-#include "build/build_config.h"
+#include "base/compiler_specific.h"
 
 #define NOTREACHED() DCHECK(false)
 
@@ -616,16 +606,6 @@ MakeCheckOpValueString(std::ostream* os, const T& v) {
   (*os) << v;
 }
 
-// Overload for types that no operator<< but do have .ToString() defined.
-template <typename T>
-inline typename std::enable_if<
-    !base::internal::SupportsOstreamOperator<const T&>::value &&
-        base::internal::SupportsToString<const T&>::value,
-    void>::type
-MakeCheckOpValueString(std::ostream* os, const T& v) {
-  (*os) << v.ToString();
-}
-
 // Provide an overload for functions and function pointers. Function pointers
 // don't implicitly convert to void* but do implicitly convert to bool, so
 // without this function pointers are always printed as 1 or 0. (MSVC isn't
@@ -873,17 +853,16 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 #define DCHECK_GE(val1, val2) DCHECK_OP(GE, >=, val1, val2)
 #define DCHECK_GT(val1, val2) DCHECK_OP(GT, > , val1, val2)
 
-// XXX(oschaaf):
-// #if BUILDFLAG(ENABLE_LOG_ERROR_NOT_REACHED)
+#if BUILDFLAG(ENABLE_LOG_ERROR_NOT_REACHED)
 // Implement logging of NOTREACHED() as a dedicated function to get function
 // call overhead down to a minimum.
-//void LogErrorNotReached(const char* file, int line);
-//#define NOTREACHED()                                       
-//  true ? ::logging::LogErrorNotReached(__FILE__, __LINE__) 
-//       : EAT_STREAM_PARAMETERS
-//#else
+void LogErrorNotReached(const char* file, int line);
+#define NOTREACHED()                                       \
+  true ? ::logging::LogErrorNotReached(__FILE__, __LINE__) \
+       : EAT_STREAM_PARAMETERS
+#else
 #define NOTREACHED() DCHECK(false)
-//#endif
+#endif
 
 // Redefine the standard assert to use our nice log files
 #undef assert

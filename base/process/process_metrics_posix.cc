@@ -71,15 +71,6 @@ size_t GetMaxFds() {
   return static_cast<size_t>(max_fds);
 }
 
-size_t GetHandleLimit() {
-#if defined(OS_MACOSX)
-  // Taken from a small test that allocated ports in a loop.
-  return static_cast<size_t>(1 << 18);
-#else
-  return GetMaxFds();
-#endif
-}
-
 void IncreaseFdLimitTo(unsigned int max_descriptors) {
   struct rlimit limits;
   if (getrlimit(RLIMIT_NOFILE, &limits) == 0) {

@@ -14,10 +14,10 @@ namespace internal {
 // Exists to reduce template bloat.
 class BASE_EXPORT FinallyExecutorCommon {
  public:
-  explicit FinallyExecutorCommon(CallbackBase&& callback) noexcept;
+  explicit FinallyExecutorCommon(CallbackBase&& callback);
   ~FinallyExecutorCommon();
 
-  // PromiseExecutor:
+  // AbstractPromise::Executor:
   bool IsCancelled() const;
 
   CallbackBase callback_;
@@ -31,15 +31,19 @@ class FinallyExecutor {
  public:
   using CallbackReturnT = typename CallbackTraits<CallbackT>::ReturnType;
 
-  explicit FinallyExecutor(CallbackBase&& callback) noexcept
-      : common_(std::move(callback)) {}
+  explicit FinallyExecutor(CallbackT&& callback)
+      : common_(std::move(callback)) {
+    static_assert(sizeof(CallbackBase) == sizeof(CallbackT),
+                  "We assume it's possible to cast from CallbackBase to "
+                  "CallbackT");
+  }
 
   ~FinallyExecutor() = default;
 
   bool IsCancelled() const { return common_.IsCancelled(); }
 
-  PromiseExecutor::PrerequisitePolicy GetPrerequisitePolicy() const {
-    return PromiseExecutor::PrerequisitePolicy::kAll;
+  AbstractPromise::Executor::PrerequisitePolicy GetPrerequisitePolicy() const {
+    return AbstractPromise::Executor::PrerequisitePolicy::kAll;
   }
 
   void Execute(AbstractPromise* promise) {
@@ -58,12 +62,14 @@ class FinallyExecutor {
   }
 
 #if DCHECK_IS_ON()
-  PromiseExecutor::ArgumentPassingType ResolveArgumentPassingType() const {
-    return PromiseExecutor::ArgumentPassingType::kNormal;
+  AbstractPromise::Executor::ArgumentPassingType ResolveArgumentPassingType()
+      const {
+    return AbstractPromise::Executor::ArgumentPassingType::kNormal;
   }
 
-  PromiseExecutor::ArgumentPassingType RejectArgumentPassingType() const {
-    return PromiseExecutor::ArgumentPassingType::kNormal;
+  AbstractPromise::Executor::ArgumentPassingType RejectArgumentPassingType()
+      const {
+    return AbstractPromise::Executor::ArgumentPassingType::kNormal;
   }
 
   bool CanResolve() const {

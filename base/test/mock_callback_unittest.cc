@@ -56,26 +56,5 @@ TEST(MockCallbackTest, WithArgsOnce) {
   EXPECT_EQ(42, std::move(two_int_callback).Run(1, 2));
 }
 
-TEST(MockCallbackTest, Typedefs) {
-  static_assert(std::is_same<MockCallback<RepeatingCallback<int()>>,
-                             MockRepeatingCallback<int()>>::value,
-                "Repeating typedef differs for zero args");
-  static_assert(std::is_same<MockCallback<RepeatingCallback<int(int, int)>>,
-                             MockRepeatingCallback<int(int, int)>>::value,
-                "Repeating typedef differs for multiple args");
-  static_assert(std::is_same<MockCallback<RepeatingCallback<void()>>,
-                             MockRepeatingClosure>::value,
-                "Repeating typedef differs for closure");
-  static_assert(std::is_same<MockCallback<OnceCallback<int()>>,
-                             MockOnceCallback<int()>>::value,
-                "Once typedef differs for zero args");
-  static_assert(std::is_same<MockCallback<OnceCallback<int(int, int)>>,
-                             MockOnceCallback<int(int, int)>>::value,
-                "Once typedef differs for multiple args");
-  static_assert(std::is_same<MockCallback<RepeatingCallback<void()>>,
-                             MockRepeatingClosure>::value,
-                "Once typedef differs for closure");
-}
-
 }  // namespace
 }  // namespace base

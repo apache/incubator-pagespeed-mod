@@ -18,7 +18,6 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
-#include "base/files/scoped_temp_dir.h"
 #include "base/format_macros.h"
 #include "base/hash/hash.h"
 #include "base/lazy_instance.h"
@@ -269,7 +268,7 @@ int LaunchChildTestProcessWithOptions(const CommandLine& command_line,
                                       const LaunchOptions& options,
                                       int flags,
                                       TimeDelta timeout,
-                                      TestLauncherDelegate* delegate,
+                                      ProcessLifetimeObserver* observer,
                                       bool* was_timeout) {
   TimeTicks start_time(TimeTicks::Now());
 
@@ -411,8 +410,8 @@ int LaunchChildTestProcessWithOptions(const CommandLine& command_line,
   }
 
   if (!did_exit) {
-    if (delegate)
-      delegate->OnTestTimedOut(command_line);
+    if (observer)
+      observer->OnTimedOut(command_line);
 
     *was_timeout = true;
     exit_code = -1;  // Set a non-zero exit code to signal a failure.
@@ -455,16 +454,13 @@ int LaunchChildTestProcessWithOptions(const CommandLine& command_line,
   return exit_code;
 }
 
-// This launches the child test process, waits for it to complete,
-// and returns the processed test results.
-std::vector<TestResult> DoLaunchChildTestProcess(
-    const std::vector<std::string>& test_names,
+void DoLaunchChildTestProcess(
     const CommandLine& command_line,
     TimeDelta timeout,
     const TestLauncher::LaunchOptions& test_launch_options,
     bool redirect_stdio,
-    const FilePath& result_file,
-    TestLauncherDelegate* delegate) {
+    SingleThreadTaskRunner* task_runner,
+    std::unique_ptr<ProcessLifetimeObserver> observer) {
   TimeTicks start_time = TimeTicks::Now();
 
   ScopedFILE output_file;
@@ -518,7 +514,7 @@ std::vector<TestResult> DoLaunchChildTestProcess(
 
   bool was_timeout = false;
   int exit_code = LaunchChildTestProcessWithOptions(
-      command_line, options, test_launch_options.flags, timeout, delegate,
+      command_line, options, test_launch_options.flags, timeout, observer.get(),
       &was_timeout);
 
   std::string output_file_contents;
@@ -537,9 +533,13 @@ std::vector<TestResult> DoLaunchChildTestProcess(
     }
   }
 
-  return delegate->ProcessTestResults(
-      test_names, result_file, output_file_contents,
-      TimeTicks::Now() - start_time, exit_code, was_timeout);
+  // Invoke OnCompleted on the thread it was originating from, not on a worker
+  // pool thread.
+  task_runner->PostTask(
+      FROM_HERE,
+      BindOnce(&ProcessLifetimeObserver::OnCompleted, std::move(observer),
+               exit_code, TimeTicks::Now() - start_time, was_timeout,
+               output_file_contents));
 }
 
 std::vector<std::string> ExtractTestsFromFilter(const std::string& filter,
@@ -554,113 +554,6 @@ std::vector<std::string> ExtractTestsFromFilter(const std::string& filter,
         SplitString(filter, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   }
   return tests;
-}
-
-// A test runner object to run tests across a number of sequence runners,
-// and control running pre tests in sequence.
-class TestRunner {
- public:
-  explicit TestRunner(TestLauncher* launcher,
-                      size_t runner_count = 1u,
-                      size_t batch_size = 1u)
-      : launcher_(launcher),
-        runner_count_(runner_count),
-        batch_size_(batch_size),
-        weak_ptr_factory_(this) {}
-
-  // Sets |test_names| to be run, with |batch_size| tests per process.
-  // Posts LaunchNextTask |runner_count| number of times, each with a separate
-  // task runner.
-  void Run(const std::vector<std::string>& test_names);
-
- private:
-  // Called to check if the next batch has to run on the same
-  // sequence task runner and using the same temporary directory.
-  bool ShouldReuseStateFromLastBatch(
-      const std::vector<std::string>& test_names) {
-    return test_names.size() == 1u &&
-           test_names.front().find(kPreTestPrefix) != std::string::npos;
-  }
-
-  // Launch next child process on |task_runner|.
-  void LaunchNextTask(scoped_refptr<TaskRunner> task_runner);
-
-  // Clear |temp_dir| and Launch next task on main thread.
-  // The method is called on |task_runner|.
-  void ClearAndLaunchNext(scoped_refptr<TaskRunner> main_thread_runner,
-                          scoped_refptr<TaskRunner> task_runner,
-                          std::unique_ptr<ScopedTempDir> temp_dir) {
-    main_thread_runner->PostTask(
-        FROM_HERE,
-        BindOnce(&TestRunner::LaunchNextTask, weak_ptr_factory_.GetWeakPtr(),
-                 RetainedRef(task_runner)));
-  }
-
-  ThreadChecker thread_checker_;
-
-  std::vector<std::string> tests_to_run_;
-  TestLauncher* const launcher_;
-  std::vector<scoped_refptr<TaskRunner>> task_runners_;
-  const size_t runner_count_;
-  size_t runners_done_ = 0;
-  const size_t batch_size_;
-  RunLoop run_loop_;
-
-  base::WeakPtrFactory<TestRunner> weak_ptr_factory_;
-};
-
-void TestRunner::Run(const std::vector<std::string>& test_names) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  // No sequence runners, fail immediately.
-  CHECK_GT(runner_count_, 0u);
-  tests_to_run_ = test_names;
-  // Reverse test order to avoid coping the whole vector when removing tests.
-  std::reverse(tests_to_run_.begin(), tests_to_run_.end());
-  runners_done_ = 0;
-  task_runners_.clear();
-  for (size_t i = 0; i < runner_count_; i++) {
-    task_runners_.push_back(CreateSequencedTaskRunnerWithTraits(
-        {MayBlock(), TaskShutdownBehavior::BLOCK_SHUTDOWN}));
-    ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE,
-        BindOnce(&TestRunner::LaunchNextTask, weak_ptr_factory_.GetWeakPtr(),
-                 RetainedRef(task_runners_.back())));
-  }
-  run_loop_.Run();
-}
-
-void TestRunner::LaunchNextTask(scoped_refptr<TaskRunner> task_runner) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  // No more tests to run, finish sequence.
-  if (tests_to_run_.empty()) {
-    runners_done_++;
-    // All sequence runners are done, quit the loop.
-    if (runners_done_ == runner_count_)
-      run_loop_.QuitWhenIdle();
-    return;
-  }
-  std::unique_ptr<ScopedTempDir> temp_dir = std::make_unique<ScopedTempDir>();
-  CHECK(temp_dir->CreateUniqueTempDir());
-  bool post_to_current_runner = true;
-  size_t batch_size = (batch_size_ == 0) ? tests_to_run_.size() : batch_size_;
-
-  while (post_to_current_runner && !tests_to_run_.empty()) {
-    batch_size = std::min(batch_size, tests_to_run_.size());
-    std::vector<std::string> batch(tests_to_run_.rbegin(),
-                                   tests_to_run_.rbegin() + batch_size);
-    tests_to_run_.erase(tests_to_run_.end() - batch_size, tests_to_run_.end());
-    task_runner->PostTask(
-        FROM_HERE,
-        BindOnce(&TestLauncher::LaunchChildGTestProcess, Unretained(launcher_),
-                 RetainedRef(ThreadTaskRunnerHandle::Get()), batch,
-                 temp_dir->GetPath()));
-    // Post next task to current task runner.
-    post_to_current_runner = ShouldReuseStateFromLastBatch(batch);
-  }
-  task_runner->PostTask(
-      FROM_HERE, BindOnce(&TestRunner::ClearAndLaunchNext, Unretained(this),
-                          RetainedRef(ThreadTaskRunnerHandle::Get()),
-                          RetainedRef(task_runner), std::move(temp_dir)));
 }
 
 }  // namespace
@@ -695,9 +588,6 @@ class TestLauncher::TestInfo {
 
   // Returns test name with PRE_ prefix added, excluding DISABLE_ prefix.
   std::string GetPreName() const;
-
-  // Returns test name excluding DISABLED_ and PRE_ prefixes.
-  std::string GetPrefixStrippedName() const;
 
   const std::string& test_case_name() const { return test_case_name_; }
   const std::string& test_name() const { return test_name_; }
@@ -746,12 +636,6 @@ std::string TestLauncher::TestInfo::GetPreName() const {
   return FormatFullTestName(case_name, kPreTestPrefix + name);
 }
 
-std::string TestLauncher::TestInfo::GetPrefixStrippedName() const {
-  std::string test_name = GetDisabledStrippedName();
-  ReplaceSubstringsAfterOffset(&test_name, 0, kPreTestPrefix, std::string());
-  return test_name;
-}
-
 TestLauncherDelegate::~TestLauncherDelegate() = default;
 
 TestLauncher::LaunchOptions::LaunchOptions() = default;
@@ -772,6 +656,8 @@ TestLauncher::TestLauncher(TestLauncherDelegate* launcher_delegate,
       test_broken_count_(0),
       retry_limit_(0),
       force_run_broken_tests_(false),
+      shuffle_(false),
+      shuffle_seed_(0),
       watchdog_timer_(FROM_HERE,
                       kOutputTimeout,
                       this,
@@ -847,27 +733,22 @@ bool TestLauncher::Run(CommandLine* command_line) {
 }
 
 void TestLauncher::LaunchChildGTestProcess(
-    scoped_refptr<TaskRunner> task_runner,
-    const std::vector<std::string>& test_names,
-    const FilePath& temp_dir) {
-  FilePath result_file;
-  CommandLine cmd_line =
-      launcher_delegate_->GetCommandLine(test_names, temp_dir, &result_file);
+    const CommandLine& command_line,
+    const std::string& wrapper,
+    TimeDelta timeout,
+    const LaunchOptions& options,
+    std::unique_ptr<ProcessLifetimeObserver> observer) {
+  DCHECK(thread_checker_.CalledOnValidThread());
 
   // Record the exact command line used to launch the child.
   CommandLine new_command_line(
-      PrepareCommandLineForGTest(cmd_line, launcher_delegate_->GetWrapper()));
-  LaunchOptions options;
-  options.flags = launcher_delegate_->GetLaunchOptions();
-  std::vector<TestResult> test_results = DoLaunchChildTestProcess(
-      test_names, new_command_line,
-      launcher_delegate_->GetTimeout() * test_names.size(), options,
-      redirect_stdio_, result_file, launcher_delegate_);
-  // Invoke OnTestFinished on the thread it was originating from, not on a
-  // worker pool thread.
-  for (const auto& result : test_results)
-    task_runner->PostTask(FROM_HERE, BindOnce(&TestLauncher::OnTestFinished,
-                                              Unretained(this), result));
+      PrepareCommandLineForGTest(command_line, wrapper));
+
+  PostTaskWithTraits(
+      FROM_HERE, {MayBlock(), TaskShutdownBehavior::BLOCK_SHUTDOWN},
+      BindOnce(&DoLaunchChildTestProcess, new_command_line, timeout, options,
+               redirect_stdio_, RetainedRef(ThreadTaskRunnerHandle::Get()),
+               std::move(observer)));
 }
 
 void TestLauncher::OnTestFinished(const TestResult& original_result) {
@@ -915,18 +796,10 @@ void TestLauncher::OnTestFinished(const TestResult& original_result) {
   if (result.status == TestResult::TEST_SUCCESS) {
     ++test_success_count_;
   } else {
-    // Records prefix stripped name to run all dependent tests.
-    std::string test_name(result.full_name);
-    ReplaceSubstringsAfterOffset(&test_name, 0, kPreTestPrefix, std::string());
-    ReplaceSubstringsAfterOffset(&test_name, 0, kDisabledTestPrefix,
-                                 std::string());
-    tests_to_retry_.insert(test_name);
+    tests_to_retry_.insert(result.full_name);
   }
 
-  // There are no results for this tests,
-  // most likley due to another test failing in the same batch.
-  if (result.status != TestResult::TEST_SKIPPED)
-    results_tracker_.AddTestResult(result);
+  results_tracker_.AddTestResult(result);
 
   // TODO(phajdan.jr): Align counter (padding).
   std::string status_line(StringPrintf("[%zu/%zu] %s ", test_finished_count_,
@@ -953,8 +826,11 @@ void TestLauncher::OnTestFinished(const TestResult& original_result) {
   // We just printed a status line, reset the watchdog timer.
   watchdog_timer_.Reset();
 
-  // Do not waste time on timeouts.
-  if (result.status == TestResult::TEST_TIMEOUT) {
+  // Do not waste time on timeouts. We include tests with unknown results here
+  // because sometimes (e.g. hang in between unit tests) that's how a timeout
+  // gets reported.
+  if (result.status == TestResult::TEST_TIMEOUT ||
+      result.status == TestResult::TEST_UNKNOWN) {
     test_broken_count_++;
   }
   if (!force_run_broken_tests_ && test_broken_count_ >= broken_threshold_) {
@@ -970,6 +846,8 @@ void TestLauncher::OnTestFinished(const TestResult& original_result) {
 
     exit(1);
   }
+  if (test_finished_count_ == test_started_count_)
+    RunLoop::QuitCurrentWhenIdleDeprecated();
 }
 
 // Helper used to parse test filter files. Syntax is documented in
@@ -1120,6 +998,38 @@ bool TestLauncher::Init(CommandLine* command_line) {
   force_run_broken_tests_ =
       command_line->HasSwitch(switches::kTestLauncherForceRunBrokenTests);
 
+  // Some of the TestLauncherDelegate implementations don't call into gtest
+  // until they've already split into test-specific processes. This results
+  // in gtest's native shuffle implementation attempting to shuffle one test.
+  // Shuffling the list of tests in the test launcher (before the delegate
+  // gets involved) ensures that the entire shard is shuffled.
+  if (command_line->HasSwitch(kGTestShuffleFlag)) {
+    shuffle_ = true;
+
+    if (command_line->HasSwitch(kGTestRandomSeedFlag)) {
+      const std::string custom_seed_str =
+          command_line->GetSwitchValueASCII(kGTestRandomSeedFlag);
+      uint32_t custom_seed = 0;
+      if (!StringToUint(custom_seed_str, &custom_seed)) {
+        LOG(ERROR) << "Unable to parse seed \"" << custom_seed_str << "\".";
+        return false;
+      }
+      if (custom_seed >= kRandomSeedUpperBound) {
+        LOG(ERROR) << "Seed " << custom_seed << " outside of expected range "
+                   << "[0, " << kRandomSeedUpperBound << ")";
+        return false;
+      }
+      shuffle_seed_ = custom_seed;
+    } else {
+      std::uniform_int_distribution<uint32_t> dist(0, kRandomSeedUpperBound);
+      std::random_device random_dev;
+      shuffle_seed_ = dist(random_dev);
+    }
+  } else if (command_line->HasSwitch(kGTestRandomSeedFlag)) {
+    LOG(ERROR) << kGTestRandomSeedFlag << " requires " << kGTestShuffleFlag;
+    return false;
+  }
+
   fprintf(stdout, "Using %zu parallel jobs.\n", parallel_jobs_);
   fflush(stdout);
 
@@ -1164,17 +1074,10 @@ bool TestLauncher::Init(CommandLine* command_line) {
     }
   }
 
-  skip_diabled_tests_ =
-      !command_line->HasSwitch(kGTestRunDisabledTestsFlag) &&
-      !command_line->HasSwitch(kIsolatedScriptRunDisabledTestsFlag);
-
   if (!InitTests())
     return false;
 
-  if (!ShuffleTests(command_line))
-    return false;
-
-  if (!ProcessAndValidateTests())
+  if (!ValidateTests())
     return false;
 
   if (command_line->HasSwitch(switches::kTestLauncherPrintTestStdio)) {
@@ -1193,6 +1096,10 @@ bool TestLauncher::Init(CommandLine* command_line) {
       return false;
     }
   }
+
+  skip_diabled_tests_ =
+      !command_line->HasSwitch(kGTestRunDisabledTestsFlag) &&
+      !command_line->HasSwitch(kIsolatedScriptRunDisabledTestsFlag);
 
   stop_on_failure_ = command_line->HasSwitch(kGTestBreakOnFailure);
 
@@ -1300,89 +1207,33 @@ bool TestLauncher::InitTests() {
   return true;
 }
 
-bool TestLauncher::ShuffleTests(CommandLine* command_line) {
-  if (command_line->HasSwitch(kGTestShuffleFlag)) {
-    uint32_t shuffle_seed;
-    if (command_line->HasSwitch(kGTestRandomSeedFlag)) {
-      const std::string custom_seed_str =
-          command_line->GetSwitchValueASCII(kGTestRandomSeedFlag);
-      uint32_t custom_seed = 0;
-      if (!StringToUint(custom_seed_str, &custom_seed)) {
-        LOG(ERROR) << "Unable to parse seed \"" << custom_seed_str << "\".";
-        return false;
-      }
-      if (custom_seed >= kRandomSeedUpperBound) {
-        LOG(ERROR) << "Seed " << custom_seed << " outside of expected range "
-                   << "[0, " << kRandomSeedUpperBound << ")";
-        return false;
-      }
-      shuffle_seed = custom_seed;
-    } else {
-      std::uniform_int_distribution<uint32_t> dist(0, kRandomSeedUpperBound);
-      std::random_device random_dev;
-      shuffle_seed = dist(random_dev);
-    }
-
-    std::mt19937 randomizer;
-    randomizer.seed(shuffle_seed);
-    std::shuffle(tests_.begin(), tests_.end(), randomizer);
-
-    fprintf(stdout, "Randomizing with seed %u\n", shuffle_seed);
-    fflush(stdout);
-  } else if (command_line->HasSwitch(kGTestRandomSeedFlag)) {
-    LOG(ERROR) << kGTestRandomSeedFlag << " requires " << kGTestShuffleFlag;
-    return false;
-  }
-  return true;
-}
-
-bool TestLauncher::ProcessAndValidateTests() {
+bool TestLauncher::ValidateTests() {
   bool result = true;
   std::unordered_set<std::string> disabled_tests;
-  std::unordered_map<std::string, TestInfo> pre_tests;
+  std::unordered_set<std::string> pre_tests;
 
   // Find disabled and pre tests
   for (const TestInfo& test_info : tests_) {
-    std::string test_name = test_info.GetFullName();
-    results_tracker_.AddTest(test_name);
-    if (test_info.disabled()) {
+    if (test_info.disabled())
       disabled_tests.insert(test_info.GetDisabledStrippedName());
-      results_tracker_.AddDisabledTest(test_name);
-    }
     if (test_info.pre_test())
-      pre_tests[test_info.GetDisabledStrippedName()] = test_info;
+      pre_tests.insert(test_info.GetDisabledStrippedName());
   }
 
-  std::vector<TestInfo> tests_to_run;
   for (const TestInfo& test_info : tests_) {
-    std::string test_name = test_info.GetFullName();
     // If any test has a matching disabled test, fail and log for audit.
-    if (base::Contains(disabled_tests, test_name)) {
-      LOG(ERROR) << test_name << " duplicated by a DISABLED_ test";
+    if (base::ContainsKey(disabled_tests, test_info.GetFullName())) {
+      LOG(ERROR) << test_info.GetFullName()
+                 << " duplicated by a DISABLED_ test";
       result = false;
     }
-
-    // Passes on PRE tests, those will append when final test is found.
-    if (test_info.pre_test())
-      continue;
-
-    std::vector<TestInfo> test_sequence;
-    test_sequence.push_back(test_info);
-    // Move Pre Tests prior to final test in order.
-    while (base::Contains(pre_tests, test_sequence.back().GetPreName())) {
-      test_sequence.push_back(pre_tests[test_sequence.back().GetPreName()]);
-      pre_tests.erase(test_sequence.back().GetDisabledStrippedName());
-    }
-    // Skip disabled tests unless explicitly requested.
-    if (!test_info.disabled() || !skip_diabled_tests_)
-      tests_to_run.insert(tests_to_run.end(), test_sequence.rbegin(),
-                          test_sequence.rend());
+    // Remove pre tests that have a matching subsequent test.
+    pre_tests.erase(test_info.GetPreName());
   }
-  tests_ = std::move(tests_to_run);
 
-  // If any tests remain in |pre_tests| map, fail and log for audit.
-  for (const auto& i : pre_tests) {
-    LOG(ERROR) << i.first << " is an orphaned pre test";
+  // If any tests remain in pre_tests set, fail and log for audit.
+  for (const std::string& pre_test : pre_tests) {
+    LOG(ERROR) << pre_test << " is an orphaned pre test";
     result = false;
   }
   return result;
@@ -1429,6 +1280,13 @@ void TestLauncher::RunTests() {
   size_t test_found_count = 0;
   for (const TestInfo& test_info : tests_) {
     std::string test_name = test_info.GetFullName();
+    results_tracker_.AddTest(test_name);
+    // Skip disabled tests unless explicitly requested.
+    if (test_info.disabled()) {
+      results_tracker_.AddDisabledTest(test_name);
+      if (skip_diabled_tests_)
+        continue;
+    }
 
     bool will_run_test = launcher_delegate_->WillRunTest(
         test_info.test_case_name(), test_info.test_name());
@@ -1438,14 +1296,14 @@ void TestLauncher::RunTests() {
     // Count tests in the binary, before we apply filter and sharding.
     test_found_count++;
 
-    std::string prefix_stripped_name = test_info.GetPrefixStrippedName();
+    std::string test_name_no_disabled = test_info.GetDisabledStrippedName();
 
     // Skip the test that doesn't match the filter (if given).
     if (has_at_least_one_positive_filter_) {
       bool found = false;
       for (auto filter : positive_test_filter_) {
         if (MatchPattern(test_name, filter) ||
-            MatchPattern(prefix_stripped_name, filter)) {
+            MatchPattern(test_name_no_disabled, filter)) {
           found = true;
           break;
         }
@@ -1458,7 +1316,7 @@ void TestLauncher::RunTests() {
       bool excluded = false;
       for (auto filter : negative_test_filter_) {
         if (MatchPattern(test_name, filter) ||
-            MatchPattern(prefix_stripped_name, filter)) {
+            MatchPattern(test_name_no_disabled, filter)) {
           excluded = true;
           break;
         }
@@ -1470,7 +1328,14 @@ void TestLauncher::RunTests() {
 
     // Tests with the name XYZ will cause tests with the name PRE_XYZ to run. We
     // should bucket all of these tests together.
-    if (Hash(prefix_stripped_name) % total_shards_ !=
+    std::string test_name_to_bucket = test_name;
+    size_t index_of_first_period = test_name_to_bucket.find(".");
+    if (index_of_first_period == std::string::npos)
+      index_of_first_period = 0;
+    base::ReplaceSubstringsAfterOffset(
+        &test_name_to_bucket, index_of_first_period, "PRE_", std::string());
+
+    if (Hash(test_name_to_bucket) % total_shards_ !=
         static_cast<uint32_t>(shard_index_)) {
       continue;
     }
@@ -1479,13 +1344,25 @@ void TestLauncher::RunTests() {
     // locations only for those tests that were run as part of this shard.
     results_tracker_.AddTestLocation(test_name, test_info.file(),
                                      test_info.line());
-    if (!test_info.pre_test()) {
+
+    bool should_run_test = launcher_delegate_->ShouldRunTest(
+        test_info.test_case_name(), test_info.test_name());
+    if (should_run_test) {
       // Only a subset of tests that are run require placeholders -- namely,
       // those that will output results.
       results_tracker_.AddTestPlaceholder(test_name);
-    }
 
-    test_names.push_back(test_name);
+      test_names.push_back(test_name);
+    }
+  }
+
+  if (shuffle_) {
+    std::mt19937 randomizer;
+    randomizer.seed(shuffle_seed_);
+    std::shuffle(test_names.begin(), test_names.end(), randomizer);
+
+    fprintf(stdout, "Randomizing with seed %u\n", shuffle_seed_);
+    fflush(stdout);
   }
 
   // Save an early test summary in case the launcher crashes or gets killed.
@@ -1494,26 +1371,32 @@ void TestLauncher::RunTests() {
 
   broken_threshold_ = std::max(static_cast<size_t>(20), test_found_count / 10);
 
-  test_started_count_ = test_names.size();
+  test_started_count_ = launcher_delegate_->RunTests(this, test_names);
 
-  TestRunner test_runner(this, parallel_jobs_,
-                         launcher_delegate_->GetBatchSize());
-  test_runner.Run(test_names);
+  if (test_started_count_ > 0)
+    RunLoop().Run();
 }
 
 bool TestLauncher::RunRetryTests() {
   // Number of retries in this iteration.
   size_t retry_count = 0;
   while (!tests_to_retry_.empty() && retry_count < retry_limit_) {
-    // Retry all tests that depend on a failing test.
-    std::vector<std::string> test_names;
-    for (const TestInfo& test_info : tests_) {
-      if (base::Contains(tests_to_retry_, test_info.GetPrefixStrippedName()))
-        test_names.push_back(test_info.GetFullName());
+    if (!force_run_broken_tests_ &&
+        tests_to_retry_.size() >= broken_threshold_) {
+      fprintf(stdout, "Too many failing tests (%zu), skipping retries.\n",
+              tests_to_retry_.size());
+      fflush(stdout);
+
+      results_tracker_.AddGlobalTag("BROKEN_TEST_SKIPPED_RETRIES");
+      return false;
     }
+    std::vector<std::string> test_names(tests_to_retry_.begin(),
+                                        tests_to_retry_.end());
     tests_to_retry_.clear();
 
-    size_t retry_started_count = test_names.size();
+    size_t retry_started_count =
+        launcher_delegate_->RetryTests(this, test_names);
+
     test_started_count_ += retry_started_count;
 
     // Only invoke RunLoop if there are any tasks to run.
@@ -1524,8 +1407,8 @@ bool TestLauncher::RunRetryTests() {
             retry_started_count > 1 ? "s" : "", retry_count);
     fflush(stdout);
 
-    TestRunner test_runner(this);
-    test_runner.Run(test_names);
+    RunLoop().Run();
+
     retry_count++;
   }
   return tests_to_retry_.empty();

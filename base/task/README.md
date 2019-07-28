@@ -11,4 +11,3 @@ Documentation:
 
 * [Threading and tasks](/docs/threading_and_tasks.md)
 * [Callbacks](/docs/callback.md)
-* [Vision for future API changes](https://docs.google.com/document/d/1pySz2xeJ6kLlbzDnS2jqAC1F8T_6pLEV8pgaMfURXAw/edit)

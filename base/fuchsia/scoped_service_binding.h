@@ -51,57 +51,6 @@ class ScopedServiceBinding {
   DISALLOW_COPY_AND_ASSIGN(ScopedServiceBinding);
 };
 
-// Scoped service binding which allows only a single client to be connected
-// at any time. By default a new connection will disconnect an existing client.
-enum class ScopedServiceBindingPolicy { kPreferNew, kPreferExisting };
-
-template <typename Interface,
-          ScopedServiceBindingPolicy Policy =
-              ScopedServiceBindingPolicy::kPreferNew>
-class ScopedSingleClientServiceBinding {
- public:
-  // |service_directory| and |impl| must outlive the binding.
-  ScopedSingleClientServiceBinding(ServiceDirectory* service_directory,
-                                   Interface* impl)
-      : directory_(service_directory), binding_(impl) {
-    directory_->AddService(BindRepeating(
-        &ScopedSingleClientServiceBinding::BindClient, Unretained(this)));
-  }
-
-  ~ScopedSingleClientServiceBinding() {
-    directory_->RemoveService(Interface::Name_);
-  }
-
-  typename Interface::EventSender_& events() { return binding_.events(); }
-
-  void SetOnLastClientCallback(base::OnceClosure on_last_client_callback) {
-    on_last_client_callback_ = std::move(on_last_client_callback);
-    binding_.set_error_handler(fit::bind_member(
-        this, &ScopedSingleClientServiceBinding::OnBindingEmpty));
-  }
-
-  bool has_clients() const { return binding_.is_bound(); }
-
- private:
-  void BindClient(fidl::InterfaceRequest<Interface> request) {
-    if (Policy == ScopedServiceBindingPolicy::kPreferExisting &&
-        binding_.is_bound())
-      return;
-    binding_.Bind(std::move(request));
-  }
-
-  void OnBindingEmpty() {
-    binding_.set_error_handler(nullptr);
-    std::move(on_last_client_callback_).Run();
-  }
-
-  ServiceDirectory* const directory_;
-  fidl::Binding<Interface> binding_;
-  base::OnceClosure on_last_client_callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedSingleClientServiceBinding);
-};
-
 }  // namespace fuchsia
 }  // namespace base
 

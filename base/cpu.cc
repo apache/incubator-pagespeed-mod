@@ -48,7 +48,6 @@ CPU::CPU()
     has_avx2_(false),
     has_aesni_(false),
     has_non_stop_time_stamp_counter_(false),
-    is_running_in_vm_(false),
     cpu_vendor_("unknown") {
   Initialize();
 }
@@ -157,6 +156,7 @@ void CPU::Initialize() {
   memcpy(cpu_string, &cpu_info[1], kVendorNameSize);
   cpu_string[kVendorNameSize] = '\0';
   cpu_vendor_ = cpu_string;
+  bool hypervisor = false;
 
   // Interpret CPU feature information.
   if (num_ids > 0) {
@@ -186,7 +186,7 @@ void CPU::Initialize() {
     // This is checking for any hypervisor. Hypervisors may choose not to
     // announce themselves. Hypervisors trap CPUID and sometimes return
     // different results to underlying hardware.
-    is_running_in_vm_ = (cpu_info[2] & 0x80000000) != 0;
+    hypervisor = (cpu_info[2] & 0x80000000) != 0;
 
     // AVX instructions will generate an illegal instruction exception unless
     //   a) they are supported by the CPU,
@@ -235,7 +235,7 @@ void CPU::Initialize() {
     has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
   }
 
-  if (!has_non_stop_time_stamp_counter_ && is_running_in_vm_) {
+  if (!has_non_stop_time_stamp_counter_ && hypervisor) {
     int cpu_info_hv[4] = {};
     __cpuid(cpu_info_hv, 0x40000000);
     if (cpu_info_hv[1] == 0x7263694D &&  // Micr

@@ -1706,7 +1706,7 @@ void ListValue::AppendStrings(const std::vector<string16>& in_values) {
 
 bool ListValue::AppendIfNotPresent(std::unique_ptr<Value> in_value) {
   DCHECK(in_value);
-  if (Contains(list_, *in_value))
+  if (ContainsValue(list_, *in_value))
     return false;
 
   list_.push_back(std::move(*in_value));

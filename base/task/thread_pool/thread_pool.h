@@ -59,7 +59,7 @@ class BASE_EXPORT ThreadPoolInstance {
       // Place the pool's *foreground* workers in a COM STA. This exists to
       // mimic the behavior of SequencedWorkerPool and BrowserThreadImpl that
       // ThreadPool has replaced. Tasks that need a COM STA should use
-      // CreateCOMSTATaskRunner() instead of
+      // CreateCOMSTATaskRunnerWithTraits() instead of
       // Create(Sequenced)TaskRunnerWithTraits() + this init param.
       DEPRECATED_COM_STA_IN_FOREGROUND_GROUP,
 #endif  // defined(OS_WIN)

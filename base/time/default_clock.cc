@@ -4,7 +4,7 @@
 
 #include "base/time/default_clock.h"
 
-#include "base/no_destructor.h"
+#include "base/lazy_instance.h"
 
 namespace base {
 
@@ -16,8 +16,8 @@ Time DefaultClock::Now() const {
 
 // static
 DefaultClock* DefaultClock::GetInstance() {
-  static base::NoDestructor<DefaultClock> instance;
-  return instance.get();
+  static LazyInstance<DefaultClock>::Leaky instance = LAZY_INSTANCE_INITIALIZER;
+  return instance.Pointer();
 }
 
 }  // namespace base

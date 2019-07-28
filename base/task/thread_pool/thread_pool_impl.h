@@ -14,7 +14,6 @@
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/atomic_flag.h"
@@ -30,7 +29,6 @@
 #include "base/task/thread_pool/thread_group.h"
 #include "base/task/thread_pool/thread_group_impl.h"
 #include "base/task/thread_pool/thread_pool.h"
-#include "base/task/thread_pool/thread_pool_clock.h"
 #include "base/updateable_sequenced_task_runner.h"
 #include "build/build_config.h"
 
@@ -65,11 +63,9 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   //|histogram_label| is used to label histograms, it must not be empty.
   explicit ThreadPoolImpl(StringPiece histogram_label);
 
-  // For testing only. Creates a ThreadPoolImpl with a custom TaskTracker and
-  // TickClock.
+  // For testing only. Creates a ThreadPoolImpl with a custom TaskTracker.
   ThreadPoolImpl(StringPiece histogram_label,
-                 std::unique_ptr<TaskTrackerImpl> task_tracker,
-                 const TickClock* tick_clock);
+                 std::unique_ptr<TaskTrackerImpl> task_tracker);
 
   ~ThreadPoolImpl() override;
 
@@ -86,33 +82,24 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   void SetHasBestEffortFence(bool has_best_effort_fence) override;
 
   // TaskExecutor:
-  bool PostDelayedTask(const Location& from_here,
-                       const TaskTraits& traits,
-                       OnceClosure task,
-                       TimeDelta delay) override;
-  scoped_refptr<TaskRunner> CreateTaskRunner(const TaskTraits& traits) override;
-  scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunner(
+  bool PostDelayedTaskWithTraits(const Location& from_here,
+                                 const TaskTraits& traits,
+                                 OnceClosure task,
+                                 TimeDelta delay) override;
+  scoped_refptr<TaskRunner> CreateTaskRunnerWithTraits(
       const TaskTraits& traits) override;
-  scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunner(
+  scoped_refptr<SequencedTaskRunner> CreateSequencedTaskRunnerWithTraits(
+      const TaskTraits& traits) override;
+  scoped_refptr<SingleThreadTaskRunner> CreateSingleThreadTaskRunnerWithTraits(
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode) override;
 #if defined(OS_WIN)
-  scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunner(
+  scoped_refptr<SingleThreadTaskRunner> CreateCOMSTATaskRunnerWithTraits(
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode) override;
 #endif  // defined(OS_WIN)
   scoped_refptr<UpdateableSequencedTaskRunner>
-  CreateUpdateableSequencedTaskRunner(const TaskTraits& traits);
-
-  // Returns the TimeTicks of the next task scheduled on ThreadPool (Now() if
-  // immediate, nullopt if none). This is thread-safe, i.e., it's safe if tasks
-  // are being posted in parallel with this call but such a situation obviously
-  // results in a race as to whether this call will see the new tasks in time.
-  Optional<TimeTicks> NextScheduledRunTimeForTesting() const;
-
-  // Forces ripe delayed tasks to be posted (e.g. when time is mocked and
-  // advances faster than the real-time delay on ServiceThread).
-  void ProcessRipeDelayedTasksForTesting();
+  CreateUpdateableSequencedTaskRunnerWithTraits(const TaskTraits& traits);
 
  private:
   // Invoked after |has_fence_| or |has_best_effort_fence_| is updated. Sets the
@@ -141,10 +128,6 @@ class BASE_EXPORT ThreadPoolImpl : public ThreadPoolInstance,
   bool IsRunningPoolWithTraits(const TaskTraits& traits) const override;
   void UpdatePriority(scoped_refptr<TaskSource> task_source,
                       TaskPriority priority) override;
-
-  // The clock instance used by all classes in base/task/thread_pool. Must
-  // outlive everything else to ensure no discrepancy in Now().
-  ThreadPoolClock thread_pool_clock_;
 
   const std::unique_ptr<TaskTrackerImpl> task_tracker_;
   std::unique_ptr<Thread> service_thread_;

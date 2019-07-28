@@ -9,8 +9,8 @@ namespace sequence_manager {
 
 Task::Task(internal::PostedTask posted_task,
            TimeTicks desired_run_time,
-           EnqueueOrder sequence_order,
-           EnqueueOrder enqueue_order,
+           internal::EnqueueOrder sequence_order,
+           internal::EnqueueOrder enqueue_order,
            internal::WakeUpResolution resolution)
     : PendingTask(posted_task.location,
                   std::move(posted_task.callback),

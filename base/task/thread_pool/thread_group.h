@@ -33,9 +33,9 @@ class BASE_EXPORT ThreadGroup {
    public:
     virtual ~Delegate() = default;
 
-    // Invoked when a TaskSource with |traits| is non-empty after the
-    // ThreadGroup has run a task from it. The implementation must return the
-    // thread group in which the TaskSource should be reenqueued.
+    // Invoked when the TaskSource in |task_source_and_transaction| is non-empty
+    // after the ThreadGroup has run a task from it. The implementation must
+    // return the thread group in which the TaskSource should be reenqueued.
     virtual ThreadGroup* GetThreadGroupForTraits(const TaskTraits& traits) = 0;
   };
 
@@ -67,21 +67,21 @@ class BASE_EXPORT ThreadGroup {
   // is running a task from it.
   RegisteredTaskSource RemoveTaskSource(scoped_refptr<TaskSource> task_source);
 
-  // Updates the position of the TaskSource in |transaction_with_task_source| in
+  // Updates the position of the TaskSource in |task_source_and_transaction| in
   // this ThreadGroup's PriorityQueue based on the TaskSource's current traits.
   //
   // Implementations should instantiate a concrete ScopedWorkersExecutor and
   // invoke UpdateSortKeyImpl().
   virtual void UpdateSortKey(
-      TransactionWithOwnedTaskSource transaction_with_task_source) = 0;
+      TaskSourceAndTransaction task_source_and_transaction) = 0;
 
-  // Pushes the TaskSource in |transaction_with_task_source| into this
+  // Pushes the TaskSource in |task_source_and_transaction| into this
   // ThreadGroup's PriorityQueue and wakes up workers as appropriate.
   //
   // Implementations should instantiate a concrete ScopedWorkersExecutor and
   // invoke PushTaskSourceAndWakeUpWorkersImpl().
   virtual void PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource transaction_with_task_source) = 0;
+      RegisteredTaskSourceAndTransaction task_source_and_transaction) = 0;
 
   // Removes all task sources from this ThreadGroup's PriorityQueue and enqueues
   // them in another |destination_thread_group|. After this method is called,
@@ -132,16 +132,16 @@ class BASE_EXPORT ThreadGroup {
     ScopedReenqueueExecutor();
     ~ScopedReenqueueExecutor();
 
-    // A TransactionWithRegisteredTaskSource and the ThreadGroup in which it
+    // A RegisteredTaskSourceAndTransaction and the ThreadGroup in which it
     // should be enqueued.
     void SchedulePushTaskSourceAndWakeUpWorkers(
-        TransactionWithRegisteredTaskSource transaction_with_task_source,
+        RegisteredTaskSourceAndTransaction task_source_and_transaction,
         ThreadGroup* destination_thread_group);
 
    private:
-    // A TransactionWithRegisteredTaskSource and the thread group in which it
+    // A RegisteredTaskSourceAndTransaction and the thread group in which it
     // should be enqueued.
-    Optional<TransactionWithRegisteredTaskSource> transaction_with_task_source_;
+    Optional<RegisteredTaskSourceAndTransaction> task_source_and_transaction_;
     ThreadGroup* destination_thread_group_ = nullptr;
 
     DISALLOW_COPY_AND_ASSIGN(ScopedReenqueueExecutor);
@@ -182,21 +182,20 @@ class BASE_EXPORT ThreadGroup {
   virtual void EnsureEnoughWorkersLockRequired(
       BaseScopedWorkersExecutor* executor) EXCLUSIVE_LOCKS_REQUIRED(lock_) = 0;
 
-  // Reenqueues a |transaction_with_task_source| from which a Task just ran in
+  // Reenqueues a |task_source_and_transaction| from which a Task just ran in
   // the current ThreadGroup into the appropriate ThreadGroup.
   void ReEnqueueTaskSourceLockRequired(
       BaseScopedWorkersExecutor* workers_executor,
       ScopedReenqueueExecutor* reenqueue_executor,
-      TransactionWithRegisteredTaskSource transaction_with_task_source)
+      RegisteredTaskSourceAndTransaction task_source_and_transaction)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Must be invoked by implementations of the corresponding non-Impl() methods.
-  void UpdateSortKeyImpl(
-      BaseScopedWorkersExecutor* executor,
-      TransactionWithOwnedTaskSource transaction_with_task_source);
+  void UpdateSortKeyImpl(BaseScopedWorkersExecutor* executor,
+                         TaskSourceAndTransaction task_source_and_transaction);
   void PushTaskSourceAndWakeUpWorkersImpl(
       BaseScopedWorkersExecutor* executor,
-      TransactionWithRegisteredTaskSource transaction_with_task_source);
+      RegisteredTaskSourceAndTransaction task_source_and_transaction);
 
   // Synchronizes accesses to all members of this class which are neither const,
   // atomic, nor immutable after start. Since this lock is a bottleneck to post

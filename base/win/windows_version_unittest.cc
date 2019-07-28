@@ -18,10 +18,7 @@ TEST(WindowsVersion, GetVersionExAndKernelVersionMatch) {
 }
 
 TEST(OSInfo, MajorMinorBuildToVersion) {
-  EXPECT_EQ(OSInfo::MajorMinorBuildToVersion(10, 0, 32767),
-            Version::WIN10_19H1);
-  EXPECT_EQ(OSInfo::MajorMinorBuildToVersion(10, 0, 18362),
-            Version::WIN10_19H1);
+  EXPECT_EQ(OSInfo::MajorMinorBuildToVersion(10, 0, 32767), Version::WIN10_RS5);
   EXPECT_EQ(OSInfo::MajorMinorBuildToVersion(10, 0, 17763), Version::WIN10_RS5);
   EXPECT_EQ(OSInfo::MajorMinorBuildToVersion(10, 0, 17134), Version::WIN10_RS4);
   EXPECT_EQ(OSInfo::MajorMinorBuildToVersion(10, 0, 16299), Version::WIN10_RS3);

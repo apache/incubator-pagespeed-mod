@@ -57,12 +57,6 @@ namespace util {
 // in StrongAlias's interface. It's also potentially unwanted (ex. you don't
 // want to be able to add two StrongAliases that represent socket handles).
 // A getter is provided in case you need to access the UnderlyingType.
-//
-// See also
-// - //styleguide/c++.md which provides recommendation and examples of
-//   using StrongAlias<Tag, bool> instead of a bare bool.
-// - base::util::IdType<...> which provides helpers for specializing
-//   StrongAlias to be used as an id.
 template <typename TagType, typename UnderlyingType>
 class StrongAlias {
  public:
@@ -77,7 +71,6 @@ class StrongAlias {
   StrongAlias& operator=(StrongAlias&& other) = default;
 
   const UnderlyingType& value() const { return value_; }
-  explicit operator UnderlyingType() const { return value_; }
 
   bool operator==(const StrongAlias& other) const {
     return value_ == other.value_;

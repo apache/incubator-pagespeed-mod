@@ -42,7 +42,7 @@
 //
 // Callbacks also support cancellation. A common use is binding the receiver
 // object as a WeakPtr<T>. If that weak pointer is invalidated, calling Run()
-// will be a no-op. Note that |IsCancelled()| and |is_null()| are distinct:
+// will be a no-op. Note that |is_cancelled()| and |is_null()| are distinct:
 // simply cancelling a callback will not also make it null.
 //
 // base::Callback is currently a type alias for base::RepeatingCallback. In the
@@ -123,6 +123,11 @@ class RepeatingCallback<R(Args...)> : public internal::CallbackBaseCopyable {
 
   bool operator!=(const RepeatingCallback& other) const {
     return !operator==(other);
+  }
+
+  // TODO(http://crbug.com/937566): Deprecated, use == or != instead.
+  bool Equals(const RepeatingCallback& other) const {
+    return EqualsInternal(other);
   }
 
   R Run(Args... args) const & {

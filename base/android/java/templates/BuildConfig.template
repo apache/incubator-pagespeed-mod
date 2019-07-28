@@ -46,6 +46,22 @@ public class BuildConfig {
     public static MAYBE_FINAL boolean IS_CHROME_BRANDED MAYBE_FALSE;
 #endif
 
+    // Sorted list of locales that have a compressed .pak within assets.
+    // Stored as an array because AssetManager.list() is slow.
+#if defined(COMPRESSED_LOCALE_LIST)
+    public static MAYBE_FINAL String[] COMPRESSED_LOCALES = COMPRESSED_LOCALE_LIST;
+#else
+    public static MAYBE_FINAL String[] COMPRESSED_LOCALES = {};
+#endif
+
+    // Sorted list of locales that have an uncompressed .pak within assets.
+    // Stored as an array because AssetManager.list() is slow.
+#if defined(UNCOMPRESSED_LOCALE_LIST)
+    public static MAYBE_FINAL String[] UNCOMPRESSED_LOCALES = UNCOMPRESSED_LOCALE_LIST;
+#else
+    public static MAYBE_FINAL String[] UNCOMPRESSED_LOCALES = {};
+#endif
+
     // The ID of the android string resource that stores the product version.
     // This layer of indirection is necessary to make the resource dependency
     // optional for android_apk targets/base_java (ex. for cronet).

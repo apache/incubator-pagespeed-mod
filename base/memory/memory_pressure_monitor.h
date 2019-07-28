@@ -40,7 +40,7 @@ class BASE_EXPORT MemoryPressureMonitor {
   static const base::TimeDelta kUMAMemoryPressureLevelPeriod;
 
   // Returns the currently observed memory pressure.
-  virtual MemoryPressureLevel GetCurrentPressureLevel() const = 0;
+  virtual MemoryPressureLevel GetCurrentPressureLevel() = 0;
 
   // Sets a notification callback. The default callback invokes
   // base::MemoryPressureListener::NotifyMemoryPressure.

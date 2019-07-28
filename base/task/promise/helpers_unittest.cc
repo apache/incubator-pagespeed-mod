@@ -6,10 +6,8 @@
 
 #include "base/bind.h"
 #include "base/task/promise/promise.h"
-#include "base/task_runner.h"
 #include "base/test/bind_test_util.h"
 #include "base/test/do_nothing_promise.h"
-#include "base/test/gtest_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -280,126 +278,6 @@ TEST(RunHelper, CallbackIntArgumentArgumentVoidResult) {
 
   EXPECT_EQ(value, 123);
   EXPECT_EQ(result->value().type(), TypeId::From<Resolved<void>>());
-}
-
-TEST(PromiseCallbackHelper, GetResolveCallback) {
-  PromiseCallbackHelper<int, int> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  OnceCallback<void(int)> resolve_cb = helper.GetResolveCallback(promise);
-
-  std::move(resolve_cb).Run(1234);
-
-  EXPECT_EQ(unique_any_cast<Resolved<int>>(promise->value()).value, 1234);
-}
-
-TEST(PromiseCallbackHelper, GetResolveReferenceCallback) {
-  int foo = 123;
-  PromiseCallbackHelper<int&, int&> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  OnceCallback<void(int&)> resolve_cb = helper.GetResolveCallback(promise);
-
-  std::move(resolve_cb).Run(foo);
-
-  EXPECT_EQ(&unique_any_cast<Resolved<int&>>(promise->value()).value, &foo);
-}
-
-TEST(PromiseCallbackHelper, GetRejectCallback) {
-  PromiseCallbackHelper<int, int> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetRejectPolicy(
-          RejectPolicy::kCatchNotRequired);
-
-  OnceCallback<void(int)> reject_cb = helper.GetRejectCallback(promise);
-
-  std::move(reject_cb).Run(1234);
-
-  EXPECT_EQ(unique_any_cast<Rejected<int>>(promise->value()).value, 1234);
-}
-
-TEST(PromiseCallbackHelper, GetRejectReferenceCallback) {
-  int foo = 123;
-  PromiseCallbackHelper<int&, int&> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetRejectPolicy(
-          RejectPolicy::kCatchNotRequired);
-
-  OnceCallback<void(int&)> reject_cb = helper.GetRejectCallback(promise);
-
-  std::move(reject_cb).Run(foo);
-
-  EXPECT_EQ(&unique_any_cast<Rejected<int&>>(promise->value()).value, &foo);
-}
-
-TEST(PromiseCallbackHelper, GetRepeatingResolveCallback) {
-  PromiseCallbackHelper<int, int> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  RepeatingCallback<void(int)> resolve_cb =
-      helper.GetRepeatingResolveCallback(promise);
-
-  resolve_cb.Run(1234);
-
-  EXPECT_EQ(unique_any_cast<Resolved<int>>(promise->value()).value, 1234);
-
-  // Can't run |resolve_cb| more than once.
-  EXPECT_DCHECK_DEATH({ resolve_cb.Run(1234); });
-}
-
-TEST(PromiseCallbackHelper, GetRepeatingResolveReferenceCallback) {
-  int foo = 123;
-  PromiseCallbackHelper<int&, int&> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  RepeatingCallback<void(int&)> resolve_cb =
-      helper.GetRepeatingResolveCallback(promise);
-
-  resolve_cb.Run(foo);
-
-  EXPECT_EQ(&unique_any_cast<Resolved<int&>>(promise->value()).value, &foo);
-
-  // Can't run |resolve_cb| more than once.
-  EXPECT_DCHECK_DEATH({ resolve_cb.Run(foo); });
-}
-
-TEST(PromiseCallbackHelper, GetRepeatingRejectCallback) {
-  PromiseCallbackHelper<int, int> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetRejectPolicy(
-          RejectPolicy::kCatchNotRequired);
-
-  RepeatingCallback<void(int)> reject_cb =
-      helper.GetRepeatingRejectCallback(promise);
-
-  reject_cb.Run(1234);
-
-  EXPECT_EQ(unique_any_cast<Rejected<int>>(promise->value()).value, 1234);
-
-  // Can't run |reject_cb| more than once.
-  EXPECT_DCHECK_DEATH({ reject_cb.Run(1234); });
-}
-
-TEST(PromiseCallbackHelper, GetRepeatingRejectReferenceCallback) {
-  int foo = 123;
-  PromiseCallbackHelper<int&, int&> helper;
-  scoped_refptr<AbstractPromise> promise =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetRejectPolicy(
-          RejectPolicy::kCatchNotRequired);
-
-  RepeatingCallback<void(int&)> reject_cb =
-      helper.GetRepeatingRejectCallback(promise);
-
-  reject_cb.Run(foo);
-
-  EXPECT_EQ(&unique_any_cast<Rejected<int&>>(promise->value()).value, &foo);
-
-  // Can't run |reject_cb| more than once.
-  EXPECT_DCHECK_DEATH({ reject_cb.Run(foo); });
 }
 
 }  // namespace internal

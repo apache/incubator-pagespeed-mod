@@ -32,9 +32,4 @@ int64_t SysInfo::AmountOfVirtualMemory() {
   return 0;
 }
 
-// static
-std::string SysInfo::OperatingSystemName() {
-  return "Fuchsia";
-}
-
 }  // namespace base

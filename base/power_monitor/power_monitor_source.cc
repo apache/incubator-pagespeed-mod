@@ -18,10 +18,11 @@ bool PowerMonitorSource::IsOnBatteryPower() {
 }
 
 void PowerMonitorSource::ProcessPowerEvent(PowerEvent event_id) {
-  if (!PowerMonitor::IsInitialized())
+  PowerMonitor* monitor = PowerMonitor::Get();
+  if (!monitor)
     return;
 
-  PowerMonitorSource* source = PowerMonitor::Source();
+  PowerMonitorSource* source = monitor->Source();
 
   // Suppress duplicate notifications.  Some platforms may
   // send multiple notifications of the same event.
@@ -40,29 +41,28 @@ void PowerMonitorSource::ProcessPowerEvent(PowerEvent event_id) {
         }
 
         if (changed)
-          PowerMonitor::NotifyPowerStateChange(new_on_battery_power);
+          monitor->NotifyPowerStateChange(new_on_battery_power);
       }
       break;
     case RESUME_EVENT:
       if (source->suspended_) {
         source->suspended_ = false;
-        PowerMonitor::NotifyResume();
+        monitor->NotifyResume();
       }
       break;
     case SUSPEND_EVENT:
       if (!source->suspended_) {
         source->suspended_ = true;
-        PowerMonitor::NotifySuspend();
+        monitor->NotifySuspend();
       }
       break;
   }
 }
 
 void PowerMonitorSource::SetInitialOnBatteryPowerState(bool on_battery_power) {
-  // Must only be called before an initialized PowerMonitor exists, otherwise
-  // the caller should have just used a normal
-  // ProcessPowerEvent(POWER_STATE_EVENT) call.
-  DCHECK(!PowerMonitor::Source());
+  // Must only be called before a monitor exists, otherwise the caller should
+  // have just used a normal ProcessPowerEvent(POWER_STATE_EVENT) call.
+  DCHECK(!PowerMonitor::Get());
   on_battery_power_ = on_battery_power;
 }
 

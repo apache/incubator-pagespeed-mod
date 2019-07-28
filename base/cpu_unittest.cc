@@ -129,6 +129,6 @@ TEST(CPU, RunExtendedInstructions) {
 // For https://crbug.com/249713
 TEST(CPU, BrandAndVendorContainsNoNUL) {
   base::CPU cpu;
-  EXPECT_FALSE(base::Contains(cpu.cpu_brand(), '\0'));
-  EXPECT_FALSE(base::Contains(cpu.vendor_name(), '\0'));
+  EXPECT_FALSE(base::ContainsValue(cpu.cpu_brand(), '\0'));
+  EXPECT_FALSE(base::ContainsValue(cpu.vendor_name(), '\0'));
 }

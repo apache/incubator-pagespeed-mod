@@ -42,7 +42,7 @@ class ThreadPoolTaskTrackerPosixTest : public testing::Test {
 
  protected:
   Thread service_thread_;
-  TaskTrackerPosix tracker_{"Test"};
+  TaskTrackerPosix tracker_ = {"Test"};
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ThreadPoolTaskTrackerPosixTest);
@@ -57,7 +57,7 @@ TEST_F(ThreadPoolTaskTrackerPosixTest, RunTask) {
       FROM_HERE,
       BindOnce([](bool* did_run) { *did_run = true; }, Unretained(&did_run)),
       TimeDelta());
-  constexpr TaskTraits default_traits = {ThreadPool()};
+  constexpr TaskTraits default_traits = {};
 
   EXPECT_TRUE(tracker_.WillPostTask(&task, default_traits.shutdown_behavior()));
 
@@ -78,7 +78,7 @@ TEST_F(ThreadPoolTaskTrackerPosixTest, FileDescriptorWatcher) {
             BindOnce(IgnoreResult(&FileDescriptorWatcher::WatchReadable),
                      fds[0], DoNothing()),
             TimeDelta());
-  constexpr TaskTraits default_traits = {ThreadPool()};
+  constexpr TaskTraits default_traits = {};
 
   EXPECT_TRUE(tracker_.WillPostTask(&task, default_traits.shutdown_behavior()));
 

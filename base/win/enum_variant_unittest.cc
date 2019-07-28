@@ -29,11 +29,9 @@ TEST(EnumVariantTest, EmptyEnumVariant) {
   ienumvariant->Release();
 
   VARIANT out_element;
-  ::VariantInit(&out_element);
   ULONG out_received = 0;
   EXPECT_EQ(S_FALSE, ev->Next(1, &out_element, &out_received));
   EXPECT_EQ(0u, out_received);
-  ::VariantClear(&out_element);
 
   EXPECT_EQ(S_FALSE, ev->Skip(1));
 
@@ -68,26 +66,20 @@ TEST(EnumVariantTest, SimpleEnumVariant) {
 
   // Get elements one at a time.
   VARIANT out_element;
-  ::VariantInit(&out_element);
   ULONG out_received = 0;
   EXPECT_EQ(S_OK, ev->Next(1, &out_element, &out_received));
   EXPECT_EQ(1u, out_received);
   EXPECT_EQ(VT_I4, out_element.vt);
   EXPECT_EQ(10, out_element.lVal);
-  ::VariantClear(&out_element);
   EXPECT_EQ(S_OK, ev->Skip(1));
   EXPECT_EQ(S_OK, ev->Next(1, &out_element, &out_received));
   EXPECT_EQ(1u, out_received);
   EXPECT_EQ(VT_I4, out_element.vt);
   EXPECT_EQ(30, out_element.lVal);
-  ::VariantClear(&out_element);
   EXPECT_EQ(S_FALSE, ev->Next(1, &out_element, &out_received));
-  ::VariantClear(&out_element);
 
   // Reset and get all elements at once.
   VARIANT out_elements[3];
-  for (int i = 0; i < 3; ++i)
-    ::VariantInit(&out_elements[i]);
   EXPECT_EQ(S_OK, ev->Reset());
   EXPECT_EQ(S_OK, ev->Next(3, out_elements, &out_received));
   EXPECT_EQ(3u, out_received);
@@ -97,29 +89,23 @@ TEST(EnumVariantTest, SimpleEnumVariant) {
   EXPECT_EQ(20, out_elements[1].lVal);
   EXPECT_EQ(VT_I4, out_elements[2].vt);
   EXPECT_EQ(30, out_elements[2].lVal);
-  for (int i = 0; i < 3; ++i)
-    ::VariantClear(&out_elements[i]);
   EXPECT_EQ(S_FALSE, ev->Next(1, &out_element, &out_received));
-  ::VariantClear(&out_element);
 
   // Clone it.
   IEnumVARIANT* ev2 = NULL;
   EXPECT_EQ(S_OK, ev->Clone(&ev2));
   EXPECT_TRUE(ev2 != NULL);
   EXPECT_EQ(S_FALSE, ev->Next(1, &out_element, &out_received));
-  ::VariantClear(&out_element);
   EXPECT_EQ(S_OK, ev2->Reset());
-  EXPECT_EQ(S_OK, ev2->Next(3, out_elements, nullptr));
+  EXPECT_EQ(S_OK, ev2->Next(3, out_elements, &out_received));
+  EXPECT_EQ(3u, out_received);
   EXPECT_EQ(VT_I4, out_elements[0].vt);
   EXPECT_EQ(10, out_elements[0].lVal);
   EXPECT_EQ(VT_I4, out_elements[1].vt);
   EXPECT_EQ(20, out_elements[1].lVal);
   EXPECT_EQ(VT_I4, out_elements[2].vt);
   EXPECT_EQ(30, out_elements[2].lVal);
-  for (int i = 0; i < 3; ++i)
-    ::VariantClear(&out_elements[i]);
-  EXPECT_EQ(S_FALSE, ev2->Next(1, &out_element, nullptr));
-  ::VariantClear(&out_element);
+  EXPECT_EQ(S_FALSE, ev2->Next(1, &out_element, &out_received));
 
   ULONG ev2_finalrefcount = ev2->Release();
   EXPECT_EQ(0u, ev2_finalrefcount);

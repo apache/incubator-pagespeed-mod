@@ -355,7 +355,6 @@ const char* const kAllocatorDumpNameWhitelist[] = {
     "sync/0x?/model_type/USER_CONSENT",
     "sync/0x?/model_type/USER_EVENT",
     "sync/0x?/model_type/WALLET_METADATA",
-    "sync/0x?/model_type/WEB_APP",
     "sync/0x?/model_type/WIFI_CONFIGURATION",
     "sync/0x?/model_type/WIFI_CREDENTIAL",
     "tab_restore/service_helper_0x?/entries",

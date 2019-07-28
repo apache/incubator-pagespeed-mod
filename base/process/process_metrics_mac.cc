@@ -25,6 +25,37 @@ namespace base {
 
 namespace {
 
+#if !defined(MAC_OS_X_VERSION_10_11) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_11
+// The |phys_footprint| field was introduced in 10.11.
+struct ChromeTaskVMInfo {
+  mach_vm_size_t virtual_size;
+  integer_t region_count;
+  integer_t page_size;
+  mach_vm_size_t resident_size;
+  mach_vm_size_t resident_size_peak;
+  mach_vm_size_t device;
+  mach_vm_size_t device_peak;
+  mach_vm_size_t internal;
+  mach_vm_size_t internal_peak;
+  mach_vm_size_t external;
+  mach_vm_size_t external_peak;
+  mach_vm_size_t reusable;
+  mach_vm_size_t reusable_peak;
+  mach_vm_size_t purgeable_volatile_pmap;
+  mach_vm_size_t purgeable_volatile_resident;
+  mach_vm_size_t purgeable_volatile_virtual;
+  mach_vm_size_t compressed;
+  mach_vm_size_t compressed_peak;
+  mach_vm_size_t compressed_lifetime;
+  mach_vm_size_t phys_footprint;
+};
+#else
+using ChromeTaskVMInfo = task_vm_info;
+#endif  // MAC_OS_X_VERSION_10_11
+mach_msg_type_number_t ChromeTaskVMInfoCount =
+    sizeof(ChromeTaskVMInfo) / sizeof(natural_t);
+
 bool GetTaskInfo(mach_port_t task, task_basic_info_64* task_info_data) {
   if (task == MACH_PORT_NULL)
     return false;
@@ -72,6 +103,23 @@ std::unique_ptr<ProcessMetrics> ProcessMetrics::CreateProcessMetrics(
     ProcessHandle process,
     PortProvider* port_provider) {
   return WrapUnique(new ProcessMetrics(process, port_provider));
+}
+
+ProcessMetrics::TaskVMInfo ProcessMetrics::GetTaskVMInfo() const {
+  TaskVMInfo info;
+  ChromeTaskVMInfo task_vm_info;
+  mach_msg_type_number_t count = ChromeTaskVMInfoCount;
+  kern_return_t result =
+      task_info(TaskForPid(process_), TASK_VM_INFO,
+                reinterpret_cast<task_info_t>(&task_vm_info), &count);
+  if (result != KERN_SUCCESS)
+    return info;
+
+  info.internal = task_vm_info.internal;
+  info.compressed = task_vm_info.compressed;
+  if (count == ChromeTaskVMInfoCount)
+    info.phys_footprint = task_vm_info.phys_footprint;
+  return info;
 }
 
 #define TIME_VALUE_TO_TIMEVAL(a, r) do {  \

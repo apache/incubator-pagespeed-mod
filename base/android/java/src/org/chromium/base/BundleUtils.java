@@ -32,7 +32,7 @@ public class BundleUtils {
     /* Returns absolute path to a native library in a feature module. */
     @CalledByNative
     private static String getNativeLibraryPath(String libraryName) {
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
+        try (StrictModeContext unused = StrictModeContext.allowDiskReads()) {
             return ((BaseDexClassLoader) ContextUtils.getApplicationContext().getClassLoader())
                     .findLibrary(libraryName);
         }

@@ -12,7 +12,7 @@
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
-//#include "base/gtest_prod_util.h"
+#include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
@@ -115,7 +115,7 @@ class BASE_EXPORT RefCountedBase {
   template <typename U>
   friend scoped_refptr<U> base::AdoptRef(U*);
 
-//  FRIEND_TEST_ALL_PREFIXES(RefCountedDeathTest, TestOverflowCheck);
+  FRIEND_TEST_ALL_PREFIXES(RefCountedDeathTest, TestOverflowCheck);
 
   void Adopted() const {
 #if DCHECK_IS_ON()
@@ -313,9 +313,6 @@ class BASE_EXPORT ScopedAllowCrossThreadRefCountAccess final {
   static constexpr ::base::subtle::StartRefCountFromOneTag \
       kRefCountPreference = ::base::subtle::kStartRefCountFromOneTag
 
-#define ANALYZER_SKIP_THIS_PATH() \
-  static_cast<void>(::logging::AnalyzerNoReturn())
-  
 template <class T, typename Traits>
 class RefCounted;
 
@@ -343,8 +340,7 @@ class RefCounted : public subtle::RefCountedBase {
       // Prune the code paths which the static analyzer may take to simulate
       // object destruction. Use-after-free errors aren't possible given the
       // lifetime guarantees of the refcounting system.
-      // XXX(oschaaf): no member named 'logging' in the global namespace
-      //ANALYZER_SKIP_THIS_PATH();
+      ANALYZER_SKIP_THIS_PATH();
 
       Traits::Destruct(static_cast<const T*>(this));
     }
@@ -407,8 +403,7 @@ class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
 
   void Release() const {
     if (subtle::RefCountedThreadSafeBase::Release()) {
-      // XXX(oschaaf): no member named 'logging' in the global namespace
-      // ANALYZER_SKIP_THIS_PATH();
+      ANALYZER_SKIP_THIS_PATH();
       Traits::Destruct(static_cast<const T*>(this));
     }
   }

@@ -30,7 +30,6 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/time/time_override.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -209,8 +208,8 @@ class ThreadGroupImpl::WorkerThreadDelegateImpl : public WorkerThread::Delegate,
   // WorkerThread::Delegate:
   WorkerThread::ThreadLabel GetThreadLabel() const override;
   void OnMainEntry(const WorkerThread* worker) override;
-  RunIntentWithRegisteredTaskSource GetWork(WorkerThread* worker) override;
-  void DidProcessTask(RegisteredTaskSource task_source) override;
+  RegisteredTaskSource GetWork(WorkerThread* worker) override;
+  void DidRunTask(RegisteredTaskSource task_source) override;
   TimeDelta GetSleepTimeout() override;
   void OnMainExit(WorkerThread* worker) override;
 
@@ -271,7 +270,7 @@ class ThreadGroupImpl::WorkerThreadDelegateImpl : public WorkerThread::Delegate,
     size_t num_tasks_since_last_detach = 0;
 
     // Whether the worker is currently running a task (i.e. GetWork() has
-    // returned a non-empty task source and DidProcessTask() hasn't been called
+    // returned a non-empty task source and DidRunTask() hasn't been called
     // yet).
     bool is_running_task = false;
 
@@ -434,16 +433,16 @@ ThreadGroupImpl::~ThreadGroupImpl() {
 }
 
 void ThreadGroupImpl::UpdateSortKey(
-    TransactionWithOwnedTaskSource transaction_with_task_source) {
+    TaskSourceAndTransaction task_source_and_transaction) {
   ScopedWorkersExecutor executor(this);
-  UpdateSortKeyImpl(&executor, std::move(transaction_with_task_source));
+  UpdateSortKeyImpl(&executor, std::move(task_source_and_transaction));
 }
 
 void ThreadGroupImpl::PushTaskSourceAndWakeUpWorkers(
-    TransactionWithRegisteredTaskSource transaction_with_task_source) {
+    RegisteredTaskSourceAndTransaction task_source_and_transaction) {
   ScopedWorkersExecutor executor(this);
   PushTaskSourceAndWakeUpWorkersImpl(&executor,
-                                     std::move(transaction_with_task_source));
+                                     std::move(task_source_and_transaction));
 }
 
 size_t ThreadGroupImpl::GetMaxConcurrentNonBlockedTasksDeprecated() const {
@@ -582,8 +581,8 @@ void ThreadGroupImpl::WorkerThreadDelegateImpl::OnMainEntry(
   SetBlockingObserverForCurrentThread(this);
 }
 
-RunIntentWithRegisteredTaskSource
-ThreadGroupImpl::WorkerThreadDelegateImpl::GetWork(WorkerThread* worker) {
+RegisteredTaskSource ThreadGroupImpl::WorkerThreadDelegateImpl::GetWork(
+    WorkerThread* worker) {
   DCHECK_CALLED_ON_VALID_THREAD(worker_thread_checker_);
   DCHECK(!worker_only().is_running_task);
   DCHECK(!read_worker().is_running_best_effort_task);
@@ -635,13 +634,10 @@ ThreadGroupImpl::WorkerThreadDelegateImpl::GetWork(WorkerThread* worker) {
   }
 
   // Pop the TaskSource from which to run a task from the PriorityQueue.
-  RegisteredTaskSource task_source = outer_->priority_queue_.PopTaskSource();
-  auto run_intent = task_source->WillRunTask();
-  DCHECK(run_intent);
-  return {std::move(task_source), std::move(run_intent)};
+  return outer_->priority_queue_.PopTaskSource();
 }
 
-void ThreadGroupImpl::WorkerThreadDelegateImpl::DidProcessTask(
+void ThreadGroupImpl::WorkerThreadDelegateImpl::DidRunTask(
     RegisteredTaskSource task_source) {
   DCHECK_CALLED_ON_VALID_THREAD(worker_thread_checker_);
   DCHECK(worker_only().is_running_task);
@@ -653,10 +649,10 @@ void ThreadGroupImpl::WorkerThreadDelegateImpl::DidProcessTask(
   // A transaction to the TaskSource to reenqueue, if any. Instantiated here as
   // |TaskSource::lock_| is a UniversalPredecessor and must always be acquired
   // prior to acquiring a second lock
-  Optional<TransactionWithRegisteredTaskSource> transaction_with_task_source;
+  Optional<RegisteredTaskSourceAndTransaction> task_source_and_transaction;
   if (task_source) {
-    transaction_with_task_source.emplace(
-        TransactionWithRegisteredTaskSource::FromTaskSource(
+    task_source_and_transaction.emplace(
+        RegisteredTaskSourceAndTransaction::FromTaskSource(
             std::move(task_source)));
   }
 
@@ -678,10 +674,10 @@ void ThreadGroupImpl::WorkerThreadDelegateImpl::DidProcessTask(
     write_worker().is_running_best_effort_task = false;
   }
 
-  if (transaction_with_task_source) {
+  if (task_source_and_transaction) {
     outer_->ReEnqueueTaskSourceLockRequired(
         &workers_executor, &reenqueue_executor,
-        std::move(transaction_with_task_source.value()));
+        std::move(task_source_and_transaction.value()));
   }
 }
 
@@ -725,7 +721,7 @@ bool ThreadGroupImpl::WorkerThreadDelegateImpl::CanCleanupLockRequired(
 
   const TimeTicks last_used_time = worker->GetLastUsedTime();
   return !last_used_time.is_null() &&
-         subtle::TimeTicksNowIgnoringOverride() - last_used_time >=
+         TimeTicks::Now() - last_used_time >=
              outer_->after_start().suggested_reclaim_time &&
          (outer_->workers_.size() > outer_->after_start().initial_max_tasks ||
           !FeatureList::IsEnabled(kNoDetachBelowInitialCapacity)) &&
@@ -738,7 +734,7 @@ void ThreadGroupImpl::WorkerThreadDelegateImpl::CleanupLockRequired(
 
   outer_->num_tasks_before_detach_histogram_->Add(
       worker_only().num_tasks_since_last_detach);
-  outer_->cleanup_timestamps_.push(subtle::TimeTicksNowIgnoringOverride());
+  outer_->cleanup_timestamps_.push(TimeTicks::Now());
   worker->Cleanup();
   outer_->idle_workers_stack_.Remove(worker);
 
@@ -877,7 +873,7 @@ void ThreadGroupImpl::WorkerThreadDelegateImpl::MayBlockEntered() {
 
   DCHECK(!incremented_max_tasks_since_blocked_);
   DCHECK(read_worker().may_block_start_time.is_null());
-  write_worker().may_block_start_time = subtle::TimeTicksNowIgnoringOverride();
+  write_worker().may_block_start_time = TimeTicks::Now();
   ++outer_->num_unresolved_may_block_;
   if (read_worker().is_running_best_effort_task)
     ++outer_->num_unresolved_best_effort_may_block_;
@@ -934,8 +930,7 @@ bool ThreadGroupImpl::WorkerThreadDelegateImpl::
     MustIncrementMaxTasksLockRequired() {
   if (!incremented_max_tasks_since_blocked_ &&
       !read_any().may_block_start_time.is_null() &&
-      subtle::TimeTicksNowIgnoringOverride() -
-              read_any().may_block_start_time >=
+      TimeTicks::Now() - read_any().may_block_start_time >=
           outer_->after_start().may_block_threshold) {
     incremented_max_tasks_since_blocked_ = true;
 
@@ -996,7 +991,7 @@ ThreadGroupImpl::CreateAndRegisterWorkerLockRequired(
   DCHECK_LE(workers_.size(), max_tasks_);
 
   if (!cleanup_timestamps_.empty()) {
-    detach_duration_histogram_->AddTime(subtle::TimeTicksNowIgnoringOverride() -
+    detach_duration_histogram_->AddTime(TimeTicks::Now() -
                                         cleanup_timestamps_.top());
     cleanup_timestamps_.pop();
   }

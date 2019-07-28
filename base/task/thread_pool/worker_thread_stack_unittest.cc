@@ -25,10 +25,10 @@ class MockWorkerThreadDelegate : public WorkerThread::Delegate {
     return WorkerThread::ThreadLabel::DEDICATED;
   }
   void OnMainEntry(const WorkerThread* worker) override {}
-  RunIntentWithRegisteredTaskSource GetWork(WorkerThread* worker) override {
+  RegisteredTaskSource GetWork(WorkerThread* worker) override {
     return nullptr;
   }
-  void DidProcessTask(RegisteredTaskSource task_source) override {
+  void DidRunTask(RegisteredTaskSource task_source) override {
     ADD_FAILURE() << "Unexpected call to DidRunTask()";
   }
   TimeDelta GetSleepTimeout() override { return TimeDelta::Max(); }
@@ -52,7 +52,7 @@ class ThreadPoolWorkerStackTest : public testing::Test {
   }
 
  private:
-  TaskTracker task_tracker_{"Test"};
+  TaskTracker task_tracker_ = {"Test"};
 
  protected:
   scoped_refptr<WorkerThread> worker_a_;

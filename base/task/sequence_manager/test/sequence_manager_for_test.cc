@@ -80,7 +80,7 @@ size_t SequenceManagerForTest::ActiveQueuesCount() const {
 }
 
 bool SequenceManagerForTest::HasImmediateWork() const {
-  return main_thread_only().selector.GetHighestPendingPriority().has_value();
+  return !main_thread_only().selector.AllEnabledWorkQueuesAreEmpty();
 }
 
 size_t SequenceManagerForTest::PendingTasksCount() const {

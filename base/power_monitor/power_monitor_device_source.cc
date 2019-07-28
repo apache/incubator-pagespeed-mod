@@ -25,4 +25,9 @@ PowerMonitorDeviceSource::~PowerMonitorDeviceSource() {
 #endif
 }
 
+// PowerMonitorDeviceSource does not need to take any special action to ensure
+// that it doesn't callback into PowerMonitor after this phase of shutdown has
+// completed.
+void PowerMonitorDeviceSource::Shutdown() {}
+
 }  // namespace base

@@ -165,15 +165,11 @@ TEST_F(CallbackTest, MaybeValidInvalidateWeakPtrsOnSameSequence) {
   RepeatingCallback<void()> cb =
       BindRepeating(&ClassWithAMethod::TheMethod, ptr);
   EXPECT_TRUE(cb.MaybeValid());
-  EXPECT_FALSE(cb.IsCancelled());
 
   factory.InvalidateWeakPtrs();
-  // MaybeValid() should be false and IsCancelled() should become true because
-  // InvalidateWeakPtrs() was called on the same thread.
+  // MaybeValid() should be false because InvalidateWeakPtrs() was called on
+  // the same thread.
   EXPECT_FALSE(cb.MaybeValid());
-  EXPECT_TRUE(cb.IsCancelled());
-  // is_null() is not affected by the invalidated WeakPtr.
-  EXPECT_FALSE(cb.is_null());
 }
 
 TEST_F(CallbackTest, MaybeValidInvalidateWeakPtrsOnOtherSequence) {

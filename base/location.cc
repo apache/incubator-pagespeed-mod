@@ -69,25 +69,6 @@ NOINLINE Location Location::CreateFromHere(const char* function_name,
   return Location(function_name, file_name, line_number, RETURN_ADDRESS());
 }
 
-#if SUPPORTS_LOCATION_BUILTINS && BUILDFLAG(ENABLE_LOCATION_SOURCE)
-// static
-NOINLINE Location Location::Current(const char* function_name,
-                                    const char* file_name,
-                                    int line_number) {
-  return Location(function_name, file_name, line_number, RETURN_ADDRESS());
-}
-#elif SUPPORTS_LOCATION_BUILTINS
-// static
-NOINLINE Location Location::Current(const char* file_name) {
-  return Location(file_name, RETURN_ADDRESS());
-}
-#else
-// static
-NOINLINE Location Location::Current() {
-  return Location(nullptr, RETURN_ADDRESS());
-}
-#endif
-
 //------------------------------------------------------------------------------
 NOINLINE const void* GetProgramCounter() {
   return RETURN_ADDRESS();

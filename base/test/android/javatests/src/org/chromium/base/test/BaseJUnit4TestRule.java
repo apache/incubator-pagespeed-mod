@@ -36,16 +36,17 @@ class BaseJUnit4TestRule implements TestRule {
 
                 InMemorySharedPreferencesContext context =
                         BaseChromiumAndroidJUnitRunner.sInMemorySharedPreferencesContext;
-                if (context == null) {
-                    throw new IllegalStateException("BaseJUnit4TestRule requires that you use "
-                            + "BaseChromiumAndroidJUnitRunner (or a subclass)");
+                if (context != null) {
+                    // Reset Application context in case any tests have replaced it.
+                    ContextUtils.initApplicationContextForTests(context);
+                    // Ensure all tests start with empty (InMemory)SharedPreferences.
+                    context.clearSharedPreferences();
+                    // Delete any files that leak state between tests.
+                    clearDataDirectory(context);
+                } else {
+                    // Delete any files that leak state between tests.
+                    clearDataDirectory(InstrumentationRegistry.getTargetContext());
                 }
-                // Reset Application context in case any tests have replaced it.
-                ContextUtils.initApplicationContextForTests(context);
-                // Ensure all tests start with empty (InMemory)SharedPreferences.
-                context.clearSharedPreferences();
-                // Delete any files that leak state between tests.
-                clearDataDirectory(context);
 
                 base.evaluate();
 
@@ -120,19 +121,13 @@ class BaseJUnit4TestRule implements TestRule {
             if (file.getName().equals("shared_prefs")) {
                 continue;
             }
-            if (file.isDirectory()
-                    && (file.getName().startsWith("app_") || file.getName().equals("cache"))) {
-                // Directories are lazily created by PathUtils only once, and so can be cleared but
-                // not removed.
-                for (File subFile : file.listFiles()) {
-                    if (!FileUtils.recursivelyDeleteFile(subFile)) {
-                        throw new RuntimeException(
-                                "Could not delete file: " + subFile.getAbsolutePath());
-                    }
-                }
-            } else if (!FileUtils.recursivelyDeleteFile(file)) {
+            if (!FileUtils.recursivelyDeleteFile(file)) {
                 throw new RuntimeException("Could not delete file: " + file.getAbsolutePath());
             }
         }
+        // We have to make sure the cache directory still exists, as the framework
+        // will try to create it otherwise and will fail for sandbox processes with
+        // a NullPointerException.
+        new File(dataDir, "cache").mkdir();
     }
 }

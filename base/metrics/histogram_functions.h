@@ -46,15 +46,38 @@ BASE_EXPORT void UmaHistogramExactLinear(const char* name,
 // Sample usage:
 //   // These values are persisted to logs. Entries should not be renumbered and
 //   // numeric values should never be reused.
-//   enum class NewTabPageAction {
-//     kUseOmnibox = 0,
-//     kClickTitle = 1,
-//     // kUseSearchbox = 2,  // no longer used, combined into omnibox
-//     kOpenBookmark = 3,
-//     kMaxValue = kOpenBookmark,
+//   enum class MyEnum {
+//     FIRST_VALUE = 0,
+//     SECOND_VALUE = 1,
+//     ...
+//     FINAL_VALUE = N,
+//     COUNT
 //   };
 //   base::UmaHistogramEnumeration("My.Enumeration",
-//                                 NewTabPageAction::kUseSearchbox);
+//                                 MyEnum::SOME_VALUE, MyEnum::COUNT);
+//
+// Note: The value in |sample| must be strictly less than |enum_size|.
+template <typename T>
+void UmaHistogramEnumeration(const std::string& name, T sample, T enum_size) {
+  static_assert(std::is_enum<T>::value,
+                "Non enum passed to UmaHistogramEnumeration");
+  DCHECK_LE(static_cast<uintmax_t>(enum_size), static_cast<uintmax_t>(INT_MAX));
+  DCHECK_LT(static_cast<uintmax_t>(sample), static_cast<uintmax_t>(enum_size));
+  return UmaHistogramExactLinear(name, static_cast<int>(sample),
+                                 static_cast<int>(enum_size));
+}
+template <typename T>
+void UmaHistogramEnumeration(const char* name, T sample, T enum_size) {
+  static_assert(std::is_enum<T>::value,
+                "Non enum passed to UmaHistogramEnumeration");
+  DCHECK_LE(static_cast<uintmax_t>(enum_size), static_cast<uintmax_t>(INT_MAX));
+  DCHECK_LT(static_cast<uintmax_t>(sample), static_cast<uintmax_t>(enum_size));
+  return UmaHistogramExactLinear(name, static_cast<int>(sample),
+                                 static_cast<int>(enum_size));
+}
+
+// Same as above, but uses T::kMaxValue as the inclusive maximum value of the
+// enum.
 template <typename T>
 void UmaHistogramEnumeration(const std::string& name, T sample) {
   static_assert(std::is_enum<T>::value,
@@ -76,41 +99,6 @@ void UmaHistogramEnumeration(const char* name, T sample) {
             static_cast<uintmax_t>(T::kMaxValue));
   return UmaHistogramExactLinear(name, static_cast<int>(sample),
                                  static_cast<int>(T::kMaxValue) + 1);
-}
-
-// Some legacy histograms may manually specify a max value, with a kCount,
-// COUNT, kMaxValue, or MAX_VALUE sentinel like so:
-//   // These values are persisted to logs. Entries should not be renumbered and
-//   // numeric values should never be reused.
-//   enum class NewTabPageAction {
-//     kUseOmnibox = 0,
-//     kClickTitle = 1,
-//     // kUseSearchbox = 2,  // no longer used, combined into omnibox
-//     kOpenBookmark = 3,
-//     kMaxValue,
-//   };
-//   base::UmaHistogramEnumeration("My.Enumeration",
-//                                 NewTabPageAction::kUseSearchbox,
-//                                 kMaxValue);
-// Note: The value in |sample| must be strictly less than |kMaxValue|. This is
-// otherwise functionally equivalent to the above.
-template <typename T>
-void UmaHistogramEnumeration(const std::string& name, T sample, T enum_size) {
-  static_assert(std::is_enum<T>::value,
-                "Non enum passed to UmaHistogramEnumeration");
-  DCHECK_LE(static_cast<uintmax_t>(enum_size), static_cast<uintmax_t>(INT_MAX));
-  DCHECK_LT(static_cast<uintmax_t>(sample), static_cast<uintmax_t>(enum_size));
-  return UmaHistogramExactLinear(name, static_cast<int>(sample),
-                                 static_cast<int>(enum_size));
-}
-template <typename T>
-void UmaHistogramEnumeration(const char* name, T sample, T enum_size) {
-  static_assert(std::is_enum<T>::value,
-                "Non enum passed to UmaHistogramEnumeration");
-  DCHECK_LE(static_cast<uintmax_t>(enum_size), static_cast<uintmax_t>(INT_MAX));
-  DCHECK_LT(static_cast<uintmax_t>(sample), static_cast<uintmax_t>(enum_size));
-  return UmaHistogramExactLinear(name, static_cast<int>(sample),
-                                 static_cast<int>(enum_size));
 }
 
 // For adding boolean sample to histogram.

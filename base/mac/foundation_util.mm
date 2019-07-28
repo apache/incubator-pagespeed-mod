@@ -451,7 +451,7 @@ base::ScopedCFTypeRef<CFURLRef> FilePathToCFURL(const FilePath& path) {
   // combined with base::ScopedCFTypeRef.
   const std::string& path_string = path.value();
   base::ScopedCFTypeRef<CFStringRef> path_cfstring(CFStringCreateWithBytes(
-      kCFAllocatorDefault, reinterpret_cast<const uint8_t*>(path_string.data()),
+      kCFAllocatorDefault, reinterpret_cast<const UInt8*>(path_string.data()),
       path_string.length(), kCFStringEncodingUTF8,
       /*isExternalRepresentation=*/FALSE));
   if (!path_cfstring)

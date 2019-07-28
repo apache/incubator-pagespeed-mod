@@ -57,7 +57,7 @@ NativeLibrary LoadNativeLibraryWithOptions(const FilePath& library_path,
   }
   ScopedCFTypeRef<CFURLRef> url(CFURLCreateFromFileSystemRepresentation(
       kCFAllocatorDefault,
-      (const uint8_t*)library_path.value().c_str(),
+      (const UInt8*)library_path.value().c_str(),
       library_path.value().length(),
       true));
   if (!url)

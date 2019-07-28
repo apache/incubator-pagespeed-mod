@@ -36,6 +36,20 @@ class FilePath;
 
 // Options for creating a shared memory object.
 struct BASE_EXPORT SharedMemoryCreateOptions {
+#if !defined(OS_FUCHSIA)
+  // DEPRECATED (crbug.com/345734):
+  // If NULL, the object is anonymous.  This pointer is owned by the caller
+  // and must live through the call to Create().
+  const std::string* name_deprecated = nullptr;
+
+  // DEPRECATED (crbug.com/345734):
+  // If true, and the shared memory already exists, Create() will open the
+  // existing shared memory and ignore the size parameter.  If false,
+  // shared memory must not exist.  This flag is meaningless unless
+  // name_deprecated is non-NULL.
+  bool open_existing_deprecated = false;
+#endif
+
   // Size of the shared memory object to be created.
   // When opening an existing object, this has no effect.
   size_t size = 0;
@@ -84,6 +98,9 @@ class BASE_EXPORT SharedMemory {
   // Closes a shared memory handle.
   static void CloseHandle(const SharedMemoryHandle& handle);
 
+  // Returns the maximum number of handles that can be open at once per process.
+  static size_t GetHandleLimit();
+
   // Duplicates The underlying OS primitive. Returns an invalid handle on
   // failure. The caller is responsible for destroying the duplicated OS
   // primitive.
@@ -109,6 +126,33 @@ class BASE_EXPORT SharedMemory {
     options.size = size;
     return Create(options);
   }
+
+#if (!defined(OS_MACOSX) || defined(OS_IOS)) && !defined(OS_FUCHSIA)
+  // DEPRECATED (crbug.com/345734):
+  // Creates or opens a shared memory segment based on a name.
+  // If open_existing is true, and the shared memory already exists,
+  // opens the existing shared memory and ignores the size parameter.
+  // If open_existing is false, shared memory must not exist.
+  // size is the size of the block to be created.
+  // Returns true on success, false on failure.
+  bool CreateNamedDeprecated(
+      const std::string& name, bool open_existing, size_t size) {
+    SharedMemoryCreateOptions options;
+    options.name_deprecated = &name;
+    options.open_existing_deprecated = open_existing;
+    options.size = size;
+    return Create(options);
+  }
+
+  // Deletes resources associated with a shared memory segment based on name.
+  // Not all platforms require this call.
+  bool Delete(const std::string& name);
+
+  // Opens a shared memory segment based on a name.
+  // If read_only is true, opens for read-only access.
+  // Returns true on success, false on failure.
+  bool Open(const std::string& name, bool read_only);
+#endif  // !defined(OS_MACOSX) || defined(OS_IOS)
 
   // Maps the shared memory into the caller's address space.
   // Returns true on success, false otherwise.  The memory address
@@ -180,6 +224,7 @@ class BASE_EXPORT SharedMemory {
   // If true indicates this came from an external source so needs extra checks
   // before being mapped.
   bool external_section_ = false;
+  string16 name_;
 #elif !defined(OS_ANDROID) && !defined(OS_FUCHSIA)
   // If valid, points to the same memory region as shm_, but with readonly
   // permissions.

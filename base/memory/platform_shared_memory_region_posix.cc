@@ -69,17 +69,6 @@ FDPair ScopedFDPair::get() const {
   return {fd.get(), readonly_fd.get()};
 }
 
-#if defined(OS_LINUX)
-// static
-ScopedFD PlatformSharedMemoryRegion::ExecutableRegion::CreateFD(size_t size) {
-  PlatformSharedMemoryRegion region =
-      Create(Mode::kUnsafe, size, true /* executable */);
-  if (region.IsValid())
-    return region.PassPlatformHandle().fd;
-  return ScopedFD();
-}
-#endif  // defined(OS_LINUX)
-
 // static
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Take(
     ScopedFDPair handle,
@@ -216,12 +205,7 @@ bool PlatformSharedMemoryRegion::MapAtInternal(off_t offset,
 
 // static
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
-                                                              size_t size
-#if defined(OS_LINUX)
-                                                              ,
-                                                              bool executable
-#endif
-) {
+                                                              size_t size) {
 #if defined(OS_NACL)
   // Untrusted code can't create descriptors or handles.
   return {};
@@ -243,13 +227,7 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
   // We don't use shm_open() API in order to support the --disable-dev-shm-usage
   // flag.
   FilePath directory;
-  if (!GetShmemTempDir(
-#if defined(OS_LINUX)
-          executable,
-#else
-          false /* executable */,
-#endif
-          &directory))
+  if (!GetShmemTempDir(false /* executable */, &directory))
     return {};
 
   FilePath path;

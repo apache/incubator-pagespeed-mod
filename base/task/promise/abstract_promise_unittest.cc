@@ -4,12 +4,10 @@
 
 #include "base/task/promise/abstract_promise.h"
 
-#include "base/task/post_task.h"
 #include "base/test/bind_test_util.h"
 #include "base/test/do_nothing_promise.h"
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_task_environment.h"
-#include "base/test/test_simple_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -27,25 +25,13 @@
 using testing::ElementsAre;
 
 using ArgumentPassingType =
-    base::internal::PromiseExecutor::ArgumentPassingType;
+    base::internal::AbstractPromise::Executor::ArgumentPassingType;
 
-using PrerequisitePolicy = base::internal::PromiseExecutor::PrerequisitePolicy;
+using PrerequisitePolicy =
+    base::internal::AbstractPromise::Executor::PrerequisitePolicy;
 
 namespace base {
 namespace internal {
-namespace {
-
-size_t CountTasksRunUntilIdle(
-    const scoped_refptr<TestSimpleTaskRunner>& task_runner) {
-  size_t count = 0;
-  while (task_runner->HasPendingTask()) {
-    count += task_runner->NumPendingTasks();
-    task_runner->RunPendingTasks();
-  }
-  return count;
-}
-
-}  // namespace
 
 class TestExecutor {
  public:
@@ -118,7 +104,7 @@ class AbstractPromiseTest : public testing::Test {
     std::unique_ptr<AbstractPromise::AdjacencyList> prerequisites;
 
     PrerequisitePolicy prerequisite_policy =
-        PromiseExecutor::PrerequisitePolicy::kAll;
+        AbstractPromise::Executor::PrerequisitePolicy::kAll;
 
     bool executor_can_resolve = true;
 
@@ -198,18 +184,17 @@ class AbstractPromiseTest : public testing::Test {
     }
 
     operator scoped_refptr<AbstractPromise>() {
-      PromiseExecutor::Data executor_data(
-          in_place_type_t<TestExecutor>(), settings.prerequisite_policy,
+      return AbstractPromise::Create(
+          std::move(settings.task_runner), settings.from_here,
+          std::move(settings.prerequisites), settings.reject_policy,
+          AbstractPromise::ConstructWith<DependentList::ConstructUnresolved,
+                                         TestExecutor>(),
+          settings.prerequisite_policy,
 #if DCHECK_IS_ON()
           settings.resolve_executor_type, settings.reject_executor_type,
           settings.executor_can_resolve, settings.executor_can_reject,
 #endif
           std::move(settings.callback));
-
-      return AbstractPromise::Create(
-          settings.task_runner, settings.from_here,
-          std::move(settings.prerequisites), settings.reject_policy,
-          DependentList::ConstructUnresolved(), std::move(executor_data));
     }
 
    private:
@@ -219,9 +204,9 @@ class AbstractPromiseTest : public testing::Test {
   PromiseSettingsBuilder ThenPromise(Location from_here,
                                      scoped_refptr<AbstractPromise> parent) {
     PromiseSettingsBuilder builder(
-        from_here,
-        parent ? std::make_unique<AbstractPromise::AdjacencyList>(parent.get())
-               : std::make_unique<AbstractPromise::AdjacencyList>());
+        from_here, parent ? std::make_unique<AbstractPromise::AdjacencyList>(
+                                std::move(parent))
+                          : std::make_unique<AbstractPromise::AdjacencyList>());
     builder.With(BindOnce([](AbstractPromise* p) {
       AbstractPromise* prerequisite = p->GetOnlyPrerequisite();
       if (prerequisite->IsResolved()) {
@@ -231,8 +216,6 @@ class AbstractPromiseTest : public testing::Test {
         // Consistent with BaseThenAndCatchExecutor::ProcessNullExecutor.
         p->emplace(scoped_refptr<AbstractPromise>(prerequisite));
         p->OnResolved();
-      } else {
-        NOTREACHED();
       }
     }));
     return builder;
@@ -241,9 +224,9 @@ class AbstractPromiseTest : public testing::Test {
   PromiseSettingsBuilder CatchPromise(Location from_here,
                                       scoped_refptr<AbstractPromise> parent) {
     PromiseSettingsBuilder builder(
-        from_here,
-        parent ? std::make_unique<AbstractPromise::AdjacencyList>(parent.get())
-               : std::make_unique<AbstractPromise::AdjacencyList>());
+        from_here, parent ? std::make_unique<AbstractPromise::AdjacencyList>(
+                                std::move(parent))
+                          : std::make_unique<AbstractPromise::AdjacencyList>());
     builder.With(CallbackResultType::kNoCallback)
         .With(CallbackResultType::kCanResolve)
         .WithResolve(ArgumentPassingType::kNoCallback)
@@ -257,8 +240,6 @@ class AbstractPromiseTest : public testing::Test {
           } else if (prerequisite->IsRejected()) {
             p->emplace(Resolved<void>());
             p->OnResolved();
-          } else {
-            NOTREACHED();
           }
         }));
     return builder;
@@ -266,19 +247,22 @@ class AbstractPromiseTest : public testing::Test {
 
   PromiseSettingsBuilder AllPromise(
       Location from_here,
-      std::vector<internal::DependentList::Node> prerequisite_list) {
+      std::vector<internal::AbstractPromise::AdjacencyListNode>
+          prerequisite_list) {
     PromiseSettingsBuilder builder(
         from_here, std::make_unique<AbstractPromise::AdjacencyList>(
                        std::move(prerequisite_list)));
     builder.With(PrerequisitePolicy::kAll)
         .With(BindOnce([](AbstractPromise* p) {
-          AbstractPromise* first_settled = p->GetFirstSettledPrerequisite();
-          if (first_settled && first_settled->IsRejected()) {
-            p->emplace(Rejected<void>());
-            p->OnRejected();
-            return;
+          // Reject if any prerequisites rejected.
+          for (const AbstractPromise::AdjacencyListNode& node :
+               *p->prerequisite_list()) {
+            if (node.prerequisite->IsRejected()) {
+              p->emplace(Rejected<void>());
+              p->OnRejected();
+              return;
+            }
           }
-
           p->emplace(Resolved<void>());
           p->OnResolved();
         }));
@@ -287,19 +271,22 @@ class AbstractPromiseTest : public testing::Test {
 
   PromiseSettingsBuilder AnyPromise(
       Location from_here,
-      std::vector<internal::DependentList::Node> prerequisite_list) {
+      std::vector<internal::AbstractPromise::AdjacencyListNode>
+          prerequisite_list) {
     PromiseSettingsBuilder builder(
         from_here, std::make_unique<AbstractPromise::AdjacencyList>(
                        std::move(prerequisite_list)));
     builder.With(PrerequisitePolicy::kAny)
         .With(BindOnce([](AbstractPromise* p) {
-          AbstractPromise* first_settled = p->GetFirstSettledPrerequisite();
-          if (first_settled && first_settled->IsRejected()) {
-            p->emplace(Rejected<void>());
-            p->OnRejected();
-            return;
+          // Reject if any prerequisites rejected.
+          for (const AbstractPromise::AdjacencyListNode& node :
+               *p->prerequisite_list()) {
+            if (node.prerequisite->IsRejected()) {
+              p->emplace(Rejected<void>());
+              p->OnRejected();
+              return;
+            }
           }
-
           p->emplace(Resolved<void>());
           p->OnResolved();
         }));
@@ -312,26 +299,26 @@ class AbstractPromiseTest : public testing::Test {
 TEST_F(AbstractPromiseTest, UnfulfilledPromise) {
   scoped_refptr<AbstractPromise> promise =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  EXPECT_FALSE(promise->IsResolvedForTesting());
-  EXPECT_FALSE(promise->IsRejectedForTesting());
+  EXPECT_FALSE(promise->IsResolved());
+  EXPECT_FALSE(promise->IsRejected());
   EXPECT_FALSE(promise->IsCanceled());
 }
 
 TEST_F(AbstractPromiseTest, OnResolve) {
   scoped_refptr<AbstractPromise> promise =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  EXPECT_FALSE(promise->IsResolvedForTesting());
+  EXPECT_FALSE(promise->IsResolved());
   promise->OnResolved();
-  EXPECT_TRUE(promise->IsResolvedForTesting());
+  EXPECT_TRUE(promise->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, OnReject) {
   scoped_refptr<AbstractPromise> promise =
       DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetRejectPolicy(
           RejectPolicy::kCatchNotRequired);
-  EXPECT_FALSE(promise->IsRejectedForTesting());
+  EXPECT_FALSE(promise->IsRejected());
   promise->OnRejected();
-  EXPECT_TRUE(promise->IsRejectedForTesting());
+  EXPECT_TRUE(promise->IsRejected());
 }
 
 TEST_F(AbstractPromiseTest, ExecuteOnResolve) {
@@ -341,9 +328,9 @@ TEST_F(AbstractPromiseTest, ExecuteOnResolve) {
         p->OnResolved();
       }));
 
-  EXPECT_FALSE(promise->IsResolvedForTesting());
+  EXPECT_FALSE(promise->IsResolved());
   promise->Execute();
-  EXPECT_TRUE(promise->IsResolvedForTesting());
+  EXPECT_TRUE(promise->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, ExecuteOnReject) {
@@ -356,9 +343,9 @@ TEST_F(AbstractPromiseTest, ExecuteOnReject) {
             p->OnRejected();
           }));
 
-  EXPECT_FALSE(promise->IsRejectedForTesting());
+  EXPECT_FALSE(promise->IsRejected());
   promise->Execute();
-  EXPECT_TRUE(promise->IsRejectedForTesting());
+  EXPECT_TRUE(promise->IsRejected());
 }
 
 TEST_F(AbstractPromiseTest, ExecutionChain) {
@@ -371,15 +358,15 @@ TEST_F(AbstractPromiseTest, ExecutionChain) {
 
   p1->OnResolved();
 
-  EXPECT_FALSE(p2->IsResolvedForTesting());
-  EXPECT_FALSE(p3->IsResolvedForTesting());
-  EXPECT_FALSE(p4->IsResolvedForTesting());
-  EXPECT_FALSE(p5->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsResolved());
+  EXPECT_FALSE(p3->IsResolved());
+  EXPECT_FALSE(p4->IsResolved());
+  EXPECT_FALSE(p5->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p1->IsResolvedForTesting());
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-  EXPECT_TRUE(p4->IsResolvedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(p1->IsResolved());
+  EXPECT_TRUE(p3->IsResolved());
+  EXPECT_TRUE(p4->IsResolved());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, MoveExecutionChain) {
@@ -400,15 +387,15 @@ TEST_F(AbstractPromiseTest, MoveExecutionChain) {
 
   p1->OnResolved();
 
-  EXPECT_FALSE(p2->IsResolvedForTesting());
-  EXPECT_FALSE(p3->IsResolvedForTesting());
-  EXPECT_FALSE(p4->IsResolvedForTesting());
-  EXPECT_FALSE(p5->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsResolved());
+  EXPECT_FALSE(p3->IsResolved());
+  EXPECT_FALSE(p4->IsResolved());
+  EXPECT_FALSE(p5->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p1->IsResolvedForTesting());
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-  EXPECT_TRUE(p4->IsResolvedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(p1->IsResolved());
+  EXPECT_TRUE(p3->IsResolved());
+  EXPECT_TRUE(p4->IsResolved());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, MoveResolveCatchExecutionChain) {
@@ -453,15 +440,15 @@ TEST_F(AbstractPromiseTest, MoveResolveCatchExecutionChain) {
 
   p1->OnResolved();
 
-  EXPECT_FALSE(p2->IsRejectedForTesting());
-  EXPECT_FALSE(p3->IsResolvedForTesting());
-  EXPECT_FALSE(p4->IsRejectedForTesting());
-  EXPECT_FALSE(p5->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsRejected());
+  EXPECT_FALSE(p3->IsResolved());
+  EXPECT_FALSE(p4->IsRejected());
+  EXPECT_FALSE(p5->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p2->IsRejectedForTesting());
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-  EXPECT_TRUE(p4->IsRejectedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(p2->IsRejected());
+  EXPECT_TRUE(p3->IsResolved());
+  EXPECT_TRUE(p4->IsRejected());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, MoveResolveCatchExecutionChainType2) {
@@ -541,23 +528,23 @@ TEST_F(AbstractPromiseTest, MoveResolveCatchExecutionChainType2) {
           }));
   p1->OnResolved();
 
-  EXPECT_FALSE(p2->IsRejectedForTesting());
-  EXPECT_FALSE(p3->IsRejectedForTesting());
-  EXPECT_FALSE(p4->IsResolvedForTesting());
-  EXPECT_FALSE(p5->IsResolvedForTesting());
-  EXPECT_FALSE(p6->IsRejectedForTesting());
-  EXPECT_FALSE(p7->IsRejectedForTesting());
-  EXPECT_FALSE(p8->IsResolvedForTesting());
-  EXPECT_FALSE(p9->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsRejected());
+  EXPECT_FALSE(p3->IsRejected());
+  EXPECT_FALSE(p4->IsResolved());
+  EXPECT_FALSE(p5->IsResolved());
+  EXPECT_FALSE(p6->IsRejected());
+  EXPECT_FALSE(p7->IsRejected());
+  EXPECT_FALSE(p8->IsResolved());
+  EXPECT_FALSE(p9->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p2->IsRejectedForTesting());
-  EXPECT_TRUE(p3->IsRejectedForTesting());
-  EXPECT_TRUE(p4->IsResolvedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
-  EXPECT_TRUE(p6->IsRejectedForTesting());
-  EXPECT_TRUE(p7->IsRejectedForTesting());
-  EXPECT_TRUE(p8->IsResolvedForTesting());
-  EXPECT_TRUE(p9->IsResolvedForTesting());
+  EXPECT_TRUE(p2->IsRejected());
+  EXPECT_TRUE(p3->IsRejected());
+  EXPECT_TRUE(p4->IsResolved());
+  EXPECT_TRUE(p5->IsResolved());
+  EXPECT_TRUE(p6->IsRejected());
+  EXPECT_TRUE(p7->IsRejected());
+  EXPECT_TRUE(p8->IsResolved());
+  EXPECT_TRUE(p9->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, MixedMoveAndNormalExecutionChain) {
@@ -576,15 +563,15 @@ TEST_F(AbstractPromiseTest, MixedMoveAndNormalExecutionChain) {
 
   p1->OnResolved();
 
-  EXPECT_FALSE(p2->IsResolvedForTesting());
-  EXPECT_FALSE(p3->IsResolvedForTesting());
-  EXPECT_FALSE(p4->IsResolvedForTesting());
-  EXPECT_FALSE(p5->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsResolved());
+  EXPECT_FALSE(p3->IsResolved());
+  EXPECT_FALSE(p4->IsResolved());
+  EXPECT_FALSE(p5->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p1->IsResolvedForTesting());
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-  EXPECT_TRUE(p4->IsResolvedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(p1->IsResolved());
+  EXPECT_TRUE(p3->IsResolved());
+  EXPECT_TRUE(p4->IsResolved());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, MoveAtEndOfChain) {
@@ -605,15 +592,15 @@ TEST_F(AbstractPromiseTest, BranchedExecutionChain) {
 
   p1->OnResolved();
 
-  EXPECT_FALSE(p2->IsResolvedForTesting());
-  EXPECT_FALSE(p3->IsResolvedForTesting());
-  EXPECT_FALSE(p4->IsResolvedForTesting());
-  EXPECT_FALSE(p5->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsResolved());
+  EXPECT_FALSE(p3->IsResolved());
+  EXPECT_FALSE(p4->IsResolved());
+  EXPECT_FALSE(p5->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p2->IsResolvedForTesting());
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-  EXPECT_TRUE(p4->IsResolvedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(p2->IsResolved());
+  EXPECT_TRUE(p3->IsResolved());
+  EXPECT_TRUE(p4->IsResolved());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, PrerequisiteAlreadyResolved) {
@@ -623,9 +610,9 @@ TEST_F(AbstractPromiseTest, PrerequisiteAlreadyResolved) {
 
   scoped_refptr<AbstractPromise> p2 = ThenPromise(FROM_HERE, p1);
 
-  EXPECT_FALSE(p2->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p2->IsResolvedForTesting());
+  EXPECT_TRUE(p2->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, PrerequisiteAlreadyRejected) {
@@ -637,16 +624,14 @@ TEST_F(AbstractPromiseTest, PrerequisiteAlreadyRejected) {
   scoped_refptr<AbstractPromise> p2 =
       CatchPromise(FROM_HERE, p1)
           .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            EXPECT_TRUE(
-                p->GetFirstSettledPrerequisite()->IsRejectedForTesting());
-            EXPECT_EQ(p->GetFirstSettledPrerequisite(), p1);
+            EXPECT_EQ(p->GetFirstRejectedPrerequisite(), p1);
             p->emplace(Resolved<void>());
             p->OnResolved();
           }));
 
-  EXPECT_FALSE(p2->IsResolvedForTesting());
+  EXPECT_FALSE(p2->IsResolved());
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p2->IsResolvedForTesting());
+  EXPECT_TRUE(p2->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, MultipleResolvedPrerequisitePolicyALL) {
@@ -659,11 +644,12 @@ TEST_F(AbstractPromiseTest, MultipleResolvedPrerequisitePolicyALL) {
   scoped_refptr<AbstractPromise> p4 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(4);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
-  prerequisite_list[3].SetPrerequisite(p4.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      4);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
+  prerequisite_list[3].prerequisite = p4;
 
   scoped_refptr<AbstractPromise> all_promise =
       AllPromise(FROM_HERE, std::move(prerequisite_list));
@@ -673,11 +659,11 @@ TEST_F(AbstractPromiseTest, MultipleResolvedPrerequisitePolicyALL) {
   p3->OnResolved();
   RunLoop().RunUntilIdle();
 
-  EXPECT_FALSE(all_promise->IsResolvedForTesting());
+  EXPECT_FALSE(all_promise->IsResolved());
   p4->OnResolved();
 
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(all_promise->IsResolvedForTesting());
+  EXPECT_TRUE(all_promise->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest,
@@ -692,10 +678,11 @@ TEST_F(AbstractPromiseTest,
   }
 
   scoped_refptr<AbstractPromise> promise[num_promises];
-  std::vector<internal::DependentList::Node> prerequisite_list(num_promises);
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      num_promises);
   for (int i = 0; i < num_promises; i++) {
     promise[i] = DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-    prerequisite_list[i].SetPrerequisite(promise[i].get());
+    prerequisite_list[i].prerequisite = promise[i];
   }
 
   scoped_refptr<AbstractPromise> all_promise =
@@ -704,17 +691,15 @@ TEST_F(AbstractPromiseTest,
   RunLoop run_loop;
   scoped_refptr<AbstractPromise> p2 =
       ThenPromise(FROM_HERE, all_promise)
-          .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            run_loop.Quit();
-            p->OnResolved();
-          }));
+          .With(BindLambdaForTesting(
+              [&](AbstractPromise* p) { run_loop.Quit(); }));
 
   for (int i = 0; i < num_promises; i++) {
     thread[i % num_threads]->task_runner()->PostTask(
         FROM_HERE, BindOnce(
                        [](scoped_refptr<AbstractPromise> all_promise,
                           scoped_refptr<AbstractPromise> promise) {
-                         EXPECT_FALSE(all_promise->IsResolvedForTesting());
+                         EXPECT_FALSE(all_promise->IsResolved());
                          promise->OnResolved();
                        },
                        all_promise, promise[i]));
@@ -723,10 +708,10 @@ TEST_F(AbstractPromiseTest,
   run_loop.Run();
 
   for (int i = 0; i < num_promises; i++) {
-    EXPECT_TRUE(promise[i]->IsResolvedForTesting());
+    EXPECT_TRUE(promise[i]->IsResolved());
   }
 
-  EXPECT_TRUE(all_promise->IsResolvedForTesting());
+  EXPECT_TRUE(all_promise->IsResolved());
 
   for (int i = 0; i < num_threads; i++) {
     thread[i]->Stop();
@@ -747,19 +732,18 @@ TEST_F(AbstractPromiseTest, SingleRejectPrerequisitePolicyALL) {
       DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetCanResolve(
           false);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(4);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
-  prerequisite_list[3].SetPrerequisite(p4.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      4);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
+  prerequisite_list[3].prerequisite = p4;
 
   scoped_refptr<AbstractPromise> all_promise =
       AllPromise(FROM_HERE, std::move(prerequisite_list))
           .With(CallbackResultType::kCanResolveOrReject)
           .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            EXPECT_TRUE(
-                p->GetFirstSettledPrerequisite()->IsRejectedForTesting());
-            EXPECT_EQ(p->GetFirstSettledPrerequisite(), p3);
+            EXPECT_EQ(p->GetFirstRejectedPrerequisite(), p3);
             p->emplace(Rejected<void>());
             p->OnRejected();
           }));
@@ -768,8 +752,8 @@ TEST_F(AbstractPromiseTest, SingleRejectPrerequisitePolicyALL) {
 
   p3->OnRejected();
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(all_promise->IsRejectedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(all_promise->IsRejected());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, MultipleRejectPrerequisitePolicyALL) {
@@ -786,19 +770,19 @@ TEST_F(AbstractPromiseTest, MultipleRejectPrerequisitePolicyALL) {
       DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetCanResolve(
           false);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(4);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
-  prerequisite_list[3].SetPrerequisite(p4.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      4);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
+  prerequisite_list[3].prerequisite = p4;
 
   scoped_refptr<AbstractPromise> all_promise =
       AllPromise(FROM_HERE, std::move(prerequisite_list))
           .With(CallbackResultType::kCanResolveOrReject)
           .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            AbstractPromise* settled = p->GetFirstSettledPrerequisite();
-            if (settled && settled->IsRejected()) {
-              EXPECT_EQ(settled, p2);
+            if (AbstractPromise* rejected = p->GetFirstRejectedPrerequisite()) {
+              EXPECT_EQ(rejected, p2);
               p->emplace(Rejected<void>());
               p->OnRejected();
             } else {
@@ -810,9 +794,7 @@ TEST_F(AbstractPromiseTest, MultipleRejectPrerequisitePolicyALL) {
       CatchPromise(FROM_HERE, all_promise)
           .With(BindLambdaForTesting([&](AbstractPromise* p) {
             EXPECT_FALSE(p->IsSettled());  // Should only happen once.
-            EXPECT_TRUE(
-                p->GetFirstSettledPrerequisite()->IsRejectedForTesting());
-            EXPECT_EQ(p->GetFirstSettledPrerequisite(), all_promise);
+            EXPECT_EQ(p->GetFirstRejectedPrerequisite(), all_promise);
             p->emplace(Resolved<void>());
             p->OnResolved();
           }));
@@ -821,11 +803,11 @@ TEST_F(AbstractPromiseTest, MultipleRejectPrerequisitePolicyALL) {
   p1->OnRejected();
   p3->OnRejected();
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(all_promise->IsRejectedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(all_promise->IsRejected());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
-TEST_F(AbstractPromiseTest, SingleResolvedPrerequisitePolicyANY) {
+TEST_F(AbstractPromiseTest, SingleResolvedPrerequisitesPrerequisitePolicyANY) {
   scoped_refptr<AbstractPromise> p1 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
   scoped_refptr<AbstractPromise> p2 =
@@ -835,43 +817,19 @@ TEST_F(AbstractPromiseTest, SingleResolvedPrerequisitePolicyANY) {
   scoped_refptr<AbstractPromise> p4 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(4);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
-  prerequisite_list[3].SetPrerequisite(p4.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      4);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
+  prerequisite_list[3].prerequisite = p4;
 
   scoped_refptr<AbstractPromise> any_promise =
       AnyPromise(FROM_HERE, std::move(prerequisite_list));
 
   p2->OnResolved();
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(any_promise->IsResolvedForTesting());
-}
-
-TEST_F(AbstractPromiseTest, MultipleResolvedPrerequisitePolicyANY) {
-  scoped_refptr<AbstractPromise> p1 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  scoped_refptr<AbstractPromise> p2 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  scoped_refptr<AbstractPromise> p3 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  scoped_refptr<AbstractPromise> p4 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  std::vector<internal::DependentList::Node> prerequisite_list(4);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
-  prerequisite_list[3].SetPrerequisite(p4.get());
-
-  scoped_refptr<AbstractPromise> any_promise =
-      AnyPromise(FROM_HERE, std::move(prerequisite_list));
-
-  p1->OnResolved();
-  p2->OnResolved();
-  RunLoop().RunUntilIdle();
-  EXPECT_TRUE(any_promise->IsResolvedForTesting());
+  EXPECT_TRUE(any_promise->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, SingleRejectPrerequisitePolicyANY) {
@@ -888,11 +846,12 @@ TEST_F(AbstractPromiseTest, SingleRejectPrerequisitePolicyANY) {
       DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetCanResolve(
           false);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(4);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
-  prerequisite_list[3].SetPrerequisite(p4.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      4);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
+  prerequisite_list[3].prerequisite = p4;
 
   scoped_refptr<AbstractPromise> any_promise =
       AnyPromise(FROM_HERE, std::move(prerequisite_list))
@@ -902,8 +861,8 @@ TEST_F(AbstractPromiseTest, SingleRejectPrerequisitePolicyANY) {
 
   p3->OnRejected();
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(any_promise->IsRejectedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(any_promise->IsRejected());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, SingleResolvePrerequisitePolicyANY) {
@@ -916,11 +875,12 @@ TEST_F(AbstractPromiseTest, SingleResolvePrerequisitePolicyANY) {
   scoped_refptr<AbstractPromise> p4 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(4);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
-  prerequisite_list[3].SetPrerequisite(p4.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      4);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
+  prerequisite_list[3].prerequisite = p4;
 
   scoped_refptr<AbstractPromise> any_promise =
       AnyPromise(FROM_HERE, std::move(prerequisite_list));
@@ -929,8 +889,8 @@ TEST_F(AbstractPromiseTest, SingleResolvePrerequisitePolicyANY) {
 
   p3->OnResolved();
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(any_promise->IsResolvedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(any_promise->IsResolved());
+  EXPECT_TRUE(p5->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, IsCanceled) {
@@ -1020,10 +980,11 @@ TEST_F(AbstractPromiseTest, CancelationPrerequisitePolicyALL) {
   scoped_refptr<AbstractPromise> p3 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(3);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      3);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
 
   scoped_refptr<AbstractPromise> all_promise =
       AllPromise(FROM_HERE, std::move(prerequisite_list));
@@ -1040,10 +1001,11 @@ TEST_F(AbstractPromiseTest, CancelationPrerequisitePolicyANY) {
   scoped_refptr<AbstractPromise> p3 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(3);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      3);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
 
   scoped_refptr<AbstractPromise> any_promise =
       AnyPromise(FROM_HERE, std::move(prerequisite_list));
@@ -1064,10 +1026,11 @@ TEST_F(AbstractPromiseTest, AlreadyCanceledPrerequisitePolicyALL) {
   scoped_refptr<AbstractPromise> p3 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(3);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      3);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
   p2->OnCanceled();
 
   scoped_refptr<AbstractPromise> all_promise =
@@ -1084,10 +1047,11 @@ TEST_F(AbstractPromiseTest, SomeAlreadyCanceledPrerequisitePolicyANY) {
   scoped_refptr<AbstractPromise> p3 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(3);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      3);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
   p2->OnCanceled();
 
   scoped_refptr<AbstractPromise> any_promise =
@@ -1104,10 +1068,11 @@ TEST_F(AbstractPromiseTest, AllAlreadyCanceledPrerequisitePolicyANY) {
   scoped_refptr<AbstractPromise> p3 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
 
-  std::vector<internal::DependentList::Node> prerequisite_list(3);
-  prerequisite_list[0].SetPrerequisite(p1.get());
-  prerequisite_list[1].SetPrerequisite(p2.get());
-  prerequisite_list[2].SetPrerequisite(p3.get());
+  std::vector<internal::AbstractPromise::AdjacencyListNode> prerequisite_list(
+      3);
+  prerequisite_list[0].prerequisite = p1;
+  prerequisite_list[1].prerequisite = p2;
+  prerequisite_list[2].prerequisite = p3;
   p1->OnCanceled();
   p2->OnCanceled();
   p3->OnCanceled();
@@ -1116,62 +1081,6 @@ TEST_F(AbstractPromiseTest, AllAlreadyCanceledPrerequisitePolicyANY) {
       AnyPromise(FROM_HERE, std::move(prerequisite_list));
 
   EXPECT_TRUE(any_promise->IsCanceled());
-}
-
-TEST_F(AbstractPromiseTest, CurriedResolvedPromiseAny) {
-  scoped_refptr<AbstractPromise> p0 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  scoped_refptr<AbstractPromise> p2 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  scoped_refptr<AbstractPromise> p1 =
-      ThenPromise(FROM_HERE, p0)
-          .With(BindOnce(
-              [](scoped_refptr<AbstractPromise> p2, AbstractPromise* p) {
-                p->emplace(std::move(p2));
-                p->OnResolved();
-              },
-              p2))
-          .With(PrerequisitePolicy::kAny);
-
-  scoped_refptr<TestSimpleTaskRunner> task_runner =
-      MakeRefCounted<TestSimpleTaskRunner>();
-  scoped_refptr<AbstractPromise> p3 =
-      ThenPromise(FROM_HERE, p1).With(task_runner);
-
-  p0->OnResolved();
-  p2->OnResolved();
-  RunLoop().RunUntilIdle();
-
-  // |p3| should run.
-  EXPECT_EQ(1u, CountTasksRunUntilIdle(task_runner));
-}
-
-TEST_F(AbstractPromiseTest, CurriedRejectedPromiseAny) {
-  scoped_refptr<AbstractPromise> p0 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  scoped_refptr<AbstractPromise> p2 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true);
-  scoped_refptr<AbstractPromise> p1 =
-      ThenPromise(FROM_HERE, p0)
-          .With(BindOnce(
-              [](scoped_refptr<AbstractPromise> p2, AbstractPromise* p) {
-                p->emplace(std::move(p2));
-                p->OnResolved();
-              },
-              p2))
-          .With(PrerequisitePolicy::kAny);
-
-  scoped_refptr<TestSimpleTaskRunner> task_runner =
-      MakeRefCounted<TestSimpleTaskRunner>();
-  scoped_refptr<AbstractPromise> p3 =
-      CatchPromise(FROM_HERE, p1).With(task_runner);
-
-  p0->OnResolved();
-  p2->OnRejected();
-  RunLoop().RunUntilIdle();
-
-  // |p3| should run.
-  EXPECT_EQ(1u, CountTasksRunUntilIdle(task_runner));
 }
 
 TEST_F(AbstractPromiseTest,
@@ -1972,43 +1881,6 @@ TEST_F(AbstractPromiseTest, UnresolvedCurriedPromise) {
   EXPECT_THAT(run_order, ElementsAre(3, 4));
 }
 
-TEST_F(AbstractPromiseTest, NeverResolvedCurriedPromise) {
-  scoped_refptr<AbstractPromise> p1 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-  std::vector<int> run_order;
-
-  // Promise |p3| will be resolved with.
-  scoped_refptr<AbstractPromise> p2 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  scoped_refptr<AbstractPromise> p3 =
-      ThenPromise(FROM_HERE, p1)
-          .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            run_order.push_back(3);
-            // Resolve with a promise.
-            ThreadTaskRunnerHandle::Get()->PostTask(
-                FROM_HERE, BindOnce(&AbstractPromise::Execute, p2));
-            p->emplace(p2);
-            p->OnResolved();
-
-            EXPECT_TRUE(p3->IsResolvedWithPromise());
-          }));
-
-  scoped_refptr<AbstractPromise> p4 =
-      ThenPromise(FROM_HERE, p3)
-          .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            run_order.push_back(4);
-            p->emplace(Resolved<void>());
-            p->OnResolved();
-          }));
-
-  p1->OnResolved();
-  RunLoop().RunUntilIdle();
-  EXPECT_THAT(run_order, ElementsAre(3));
-
-  // This shouldn't leak.
-}
-
 TEST_F(AbstractPromiseTest, CanceledCurriedPromise) {
   scoped_refptr<AbstractPromise> p1 =
       DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
@@ -2024,10 +1896,8 @@ TEST_F(AbstractPromiseTest, CanceledCurriedPromise) {
             // Resolve with a promise.
             ThreadTaskRunnerHandle::Get()->PostTask(
                 FROM_HERE, BindOnce(&AbstractPromise::Execute, p2));
-            EXPECT_TRUE(p2->IsCanceled());
             p->emplace(p2);
             p->OnResolved();
-            EXPECT_TRUE(p->IsCanceled());
           }));
 
   scoped_refptr<AbstractPromise> p4 =
@@ -2132,7 +2002,7 @@ TEST_F(AbstractPromiseTest, CurriedPromiseChainType2) {
   p1->OnResolved();
   RunLoop().RunUntilIdle();
 
-  EXPECT_TRUE(p4->IsResolvedForTesting());
+  EXPECT_TRUE(p4->IsResolved());
   EXPECT_EQ(p1.get(), p4->FindNonCurriedAncestor());
 }
 
@@ -2180,7 +2050,7 @@ TEST_F(AbstractPromiseTest, CatchCurriedPromise) {
   scoped_refptr<AbstractPromise> p2 =
       ThenPromise(FROM_HERE, p0)
           .With(BindOnce(
-              [](scoped_refptr<AbstractPromise> p1, AbstractPromise* p) {
+              [&](scoped_refptr<AbstractPromise> p1, AbstractPromise* p) {
                 // Resolve with a promise that can and does reject.
                 ThreadTaskRunnerHandle::Get()->PostTask(
                     FROM_HERE, BindOnce(&AbstractPromise::Execute, p1));
@@ -2192,93 +2062,10 @@ TEST_F(AbstractPromiseTest, CatchCurriedPromise) {
   scoped_refptr<AbstractPromise> p3 = CatchPromise(FROM_HERE, p2);
 
   p0->OnResolved();
-  EXPECT_FALSE(p3->IsResolvedForTesting());
+  EXPECT_FALSE(p3->IsResolved());
 
   RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-}
-
-TEST_F(AbstractPromiseTest, ManuallyResolveWithNonSettledCurriedPromise) {
-  scoped_refptr<AbstractPromise> p0 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  scoped_refptr<AbstractPromise> p1 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  scoped_refptr<AbstractPromise> p2 = ThenPromise(FROM_HERE, p1);
-
-  p1->emplace(p0);
-  p1->OnResolved();
-  RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p1->IsResolvedForTesting());
-  EXPECT_FALSE(p2->IsResolvedForTesting());
-
-  p0->OnResolved();
-  RunLoop().RunUntilIdle();
-  EXPECT_TRUE(p2->IsResolvedForTesting());
-}
-
-TEST_F(AbstractPromiseTest, ExecuteCalledOnceForLateResolvedCurriedPromise) {
-  scoped_refptr<AbstractPromise> p0 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  scoped_refptr<AbstractPromise> p1 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  scoped_refptr<TestSimpleTaskRunner> task_runner =
-      MakeRefCounted<TestSimpleTaskRunner>();
-  scoped_refptr<AbstractPromise> p2 =
-      ThenPromise(FROM_HERE, p0)
-          .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            p->emplace(p1);
-            p->OnResolved();
-          }))
-          .With(task_runner);
-
-  scoped_refptr<AbstractPromise> p3 =
-      ThenPromise(FROM_HERE, p1).With(task_runner);
-
-  p0->OnResolved();
-  // |p2| should run but not |p3|.
-  EXPECT_EQ(1u, CountTasksRunUntilIdle(task_runner));
-  EXPECT_FALSE(p3->IsResolvedForTesting());
-
-  p1->OnResolved();
-  // |p3| should run.
-  EXPECT_EQ(1u, CountTasksRunUntilIdle(task_runner));
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-}
-
-TEST_F(AbstractPromiseTest, ExecuteCalledOnceForLateRejectedCurriedPromise) {
-  scoped_refptr<AbstractPromise> p0 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanResolve(true);
-
-  scoped_refptr<AbstractPromise> p1 =
-      DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetRejectPolicy(
-          RejectPolicy::kCatchNotRequired);
-
-  scoped_refptr<TestSimpleTaskRunner> task_runner =
-      MakeRefCounted<TestSimpleTaskRunner>();
-  scoped_refptr<AbstractPromise> p2 =
-      ThenPromise(FROM_HERE, p0)
-          .With(BindLambdaForTesting([&](AbstractPromise* p) {
-            p->emplace(p1);
-            p->OnResolved();
-          }))
-          .With(task_runner);
-
-  scoped_refptr<AbstractPromise> p3 =
-      CatchPromise(FROM_HERE, p1).With(task_runner);
-
-  p0->OnResolved();
-  // |p2| should run but not |p3|.
-  EXPECT_EQ(1u, CountTasksRunUntilIdle(task_runner));
-  EXPECT_FALSE(p3->IsResolvedForTesting());
-
-  p1->OnRejected();
-  // |p3| should run.
-  EXPECT_EQ(1u, CountTasksRunUntilIdle(task_runner));
-  EXPECT_TRUE(p3->IsResolvedForTesting());
+  EXPECT_TRUE(p3->IsResolved());
 }
 
 TEST_F(AbstractPromiseTest, ThreadHopping) {
@@ -2334,12 +2121,12 @@ TEST_F(AbstractPromiseTest, ThreadHopping) {
 
   p1->OnResolved();
 
-  EXPECT_FALSE(p5->IsResolvedForTesting());
+  EXPECT_FALSE(p5->IsResolved());
   run_loop.Run();
-  EXPECT_TRUE(p2->IsResolvedForTesting());
-  EXPECT_TRUE(p3->IsResolvedForTesting());
-  EXPECT_TRUE(p4->IsResolvedForTesting());
-  EXPECT_TRUE(p5->IsResolvedForTesting());
+  EXPECT_TRUE(p2->IsResolved());
+  EXPECT_TRUE(p3->IsResolved());
+  EXPECT_TRUE(p4->IsResolved());
+  EXPECT_TRUE(p5->IsResolved());
 
   thread_a->Stop();
   thread_b->Stop();
@@ -2348,7 +2135,7 @@ TEST_F(AbstractPromiseTest, ThreadHopping) {
 
 TEST_F(AbstractPromiseTest, MutipleThreadsAddingDependants) {
   constexpr int num_threads = 4;
-  constexpr int num_promises = 100000;
+  constexpr int num_promises = 10000;
 
   std::unique_ptr<Thread> thread[num_threads];
   for (int i = 0; i < num_threads; i++) {
@@ -2367,7 +2154,6 @@ TEST_F(AbstractPromiseTest, MutipleThreadsAddingDependants) {
     int count = pending_count.fetch_sub(1, std::memory_order_acq_rel);
     if (count == 1)
       run_loop.Quit();
-    p->OnResolved();
   });
 
   // Post a bunch of tasks on multiple threads that create Then promises
@@ -2391,59 +2177,6 @@ TEST_F(AbstractPromiseTest, MutipleThreadsAddingDependants) {
 
   for (int i = 0; i < num_threads; i++) {
     thread[i]->Stop();
-  }
-}
-
-TEST_F(AbstractPromiseTest, SingleRejectPrerequisitePolicyALLModified) {
-  // Regression test to ensure cross thread rejection works as intended. Loop
-  // increaces chances of catching any bugs.
-  for (size_t i = 0; i < 1000; ++i) {
-    scoped_refptr<AbstractPromise> p1 =
-        DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetCanResolve(
-            false);
-    scoped_refptr<AbstractPromise> p2 =
-        DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetCanResolve(
-            false);
-    scoped_refptr<AbstractPromise> p3 =
-        DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetCanResolve(
-            false);
-    scoped_refptr<AbstractPromise> p4 =
-        DoNothingPromiseBuilder(FROM_HERE).SetCanReject(true).SetCanResolve(
-            false);
-
-    std::vector<internal::DependentList::Node> prerequisite_list(4);
-    prerequisite_list[0].SetPrerequisite(p1.get());
-    prerequisite_list[1].SetPrerequisite(p2.get());
-    prerequisite_list[2].SetPrerequisite(p3.get());
-    prerequisite_list[3].SetPrerequisite(p4.get());
-
-    scoped_refptr<AbstractPromise> all_promise =
-        AllPromise(FROM_HERE, std::move(prerequisite_list))
-            .With(CallbackResultType::kCanResolveOrReject)
-            .With(BindLambdaForTesting([&](AbstractPromise* p) {
-              p->emplace(Rejected<void>());
-              p->OnRejected();
-            }));
-
-    base::PostTaskWithTraits(
-        FROM_HERE, {},
-        base::Bind([](scoped_refptr<AbstractPromise> p2) { p2->OnRejected(); },
-                   p2));
-
-    RunLoop run_loop;
-    scoped_refptr<AbstractPromise> p5 =
-        CatchPromise(FROM_HERE, all_promise)
-            .With(BindLambdaForTesting([&](AbstractPromise* p) {
-              p->emplace(Resolved<void>());
-              p->OnResolved();
-              run_loop.Quit();
-            }));
-
-    p3->OnRejected();
-    run_loop.Run();
-    EXPECT_TRUE(all_promise->IsRejected());
-    EXPECT_TRUE(p5->IsResolved());
-    scoped_task_environment_.RunUntilIdle();
   }
 }
 

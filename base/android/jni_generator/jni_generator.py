@@ -494,14 +494,14 @@ class JniParams(object):
     for p in params.split(','):
       items = p.split()
 
-      if 'final' in items:
-        items.remove('final')
-
       # Remove @Annotations from parameters.
       annotations = []
       while items[0].startswith('@'):
         annotations.append(items[0])
         del items[0]
+
+      if 'final' in items:
+        items.remove('final')
 
       param = Param(
           annotations=annotations,
