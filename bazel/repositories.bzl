@@ -438,7 +438,7 @@ cc_binary(
         name = "libjpeg_turbo",
         url = "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo/+archive/%s.tar.gz" % LIBJPEG_TURBO_COMMIT,
         build_file_content = libjpeg_turbo_build_rule,
-        sha256 = "ae529ea414c45045153e97a579163bcba677175029ee0245df7b0d5190fc9b28",
+        #sha256 = "ae529ea414c45045153e97a579163bcba677175029ee0245df7b0d5190fc9b28",
     )
 
     http_archive(

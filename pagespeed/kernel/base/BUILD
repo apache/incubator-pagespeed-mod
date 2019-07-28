@@ -70,6 +70,7 @@ cc_library(
         "thread_annotations.h",
         "stack_buffer.h",
         "dense_hash_map.h",
+        "dense_hash_set.h",
         "sparse_hash_map.h",
         "rde_hash_map.h",
         "scoped_ptr.h",
