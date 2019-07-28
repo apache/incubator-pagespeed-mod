@@ -245,8 +245,7 @@ TEST_F(RewriteDriverTest, TestLegacyUrl) {
       << "invalid extension";
 }
 
-// XXX(oschaaf): HMAC crash
-TEST_F(RewriteDriverTest, DISABLED_TestValidUrlSignatures) {
+TEST_F(RewriteDriverTest, TestValidUrlSignatures) {
   StringPiece key("helloworld");
   options()->set_url_signing_key(key);
   EXPECT_EQ(10, options()->sha1signature()->SignatureSizeInChars());
@@ -265,8 +264,7 @@ TEST_F(RewriteDriverTest, DISABLED_TestValidUrlSignatures) {
       << "no signature";
 }
 
-// XXX(oschaaf): HMAC
-TEST_F(RewriteDriverTest, DISABLED_TestIgnoringUrlSignatures) {
+TEST_F(RewriteDriverTest, TestIgnoringUrlSignatures) {
   options()->set_url_signing_key("helloworld");
   options()->set_accept_invalid_signatures(true);
   EXPECT_EQ(10, options()->sha1signature()->SignatureSizeInChars());

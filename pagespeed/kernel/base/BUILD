@@ -194,7 +194,8 @@ cc_library(
         "//third_party/base64:base64",
         "@jsoncpp//:jsoncpp",
         ":proto_matcher_test_proto_cc",
-        "@com_google_googletest//:gtest",# for gtest_prod.h        
+        "@com_google_googletest//:gtest",# for gtest_prod.h   
+        "@boringssl//:ssl",     
     ],
 )
 
