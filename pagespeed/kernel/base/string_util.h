@@ -31,15 +31,15 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-// XXX(oschaaf): internal util
-#include "absl/strings/internal/memutil.h"
+#include "absl/strings/internal/memutil.h" // StripAsciiWhitespace
 #include "absl/strings/match.h"
 
-//#include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 
+#include "fmt/format.h"
 #include "fmt/printf.h"
+#include "base/strings/stringprintf.h"
 
 #include <cstdlib> // NOLINT
 #include <string>  // NOLINT
@@ -90,108 +90,17 @@ public:
   }
 };
 
+using base::StringAppendV;
+using base::StringAppendF;
+using base::SStringPrintf;
+using base::StringPrintf;
 
-#include "fmt/format.h"
-
-// XXX(oschaaf): modified copy of what chromium base has. check this one 
-// very carefully.
-inline void StringAppendV(std::string* dst, const char* format, va_list ap) {
-  // First try with a small fixed size buffer.
-  // This buffer size should be kept in sync with StringUtilTest.GrowBoundary
-  // and StringUtilTest.StringPrintfBounds.
-  std::string::value_type stack_buf[1024];
-
-  va_list ap_copy;
-  va_copy(ap_copy, ap);
-
-#if !defined(OS_WIN)
-  errno = 0;
-#endif
-  int result = vsnprintf(stack_buf, arraysize(stack_buf), format, ap_copy);
-  va_end(ap_copy);
-
-  if (result >= 0 && result < static_cast<int>(arraysize(stack_buf))) {
-    // It fit.
-    dst->append(stack_buf, result);
-    return;
-  }
-
-  // Repeatedly increase buffer size until it fits.
-  int mem_length = arraysize(stack_buf);
-  while (true) {
-    if (result < 0) {
-#if !defined(OS_WIN)
-      // On Windows, vsnprintfT always returns the number of characters in a
-      // fully-formatted string, so if we reach this point, something else is
-      // wrong and no amount of buffer-doubling is going to fix it.
-      if (errno != 0 && errno != EOVERFLOW)
-#endif
-      {
-        // If an error other than overflow occurred, it's never going to work.
-        DLOG(WARNING) << "Unable to printf the requested string due to error.";
-        return;
-      }
-      // Try doubling the buffer size.
-      mem_length *= 2;
-    } else {
-      // We need exactly "result + 1" characters.
-      mem_length = result + 1;
-    }
-
-    if (mem_length > 32 * 1024 * 1024) {
-      // That should be plenty, don't try anything larger.  This protects
-      // against huge allocations when using vsnprintfT implementations that
-      // return -1 for reasons other than overflow without setting errno.
-      DLOG(WARNING) << "Unable to printf the requested string due to size.";
-      return;
-    }
-
-    std::vector<std::string::value_type> mem_buf(mem_length);
-
-    // NOTE: You can only use a va_list once.  Since we're in a while loop, we
-    // need to make a new copy each time so we don't use up the original.
-    va_copy(ap_copy, ap);
-    result = vsnprintf(&mem_buf[0], mem_length, format, ap_copy);
-    va_end(ap_copy);
-
-    if ((result >= 0) && (result < mem_length)) {
-      // It fit.
-      dst->append(&mem_buf[0], result);
-      return;
-    }
-  }
-}
-
-// TODO(oschaaf): re-implemented these chromium:base functions
-// with variadic template ones leaning upon fmt.
-template <typename... Args>
-inline void StringAppendF(std::string *dst, const char *format,
-                          const Args &... args) {
-  dst->append(fmt::sprintf(format, args...));
-}
-
-// TODO(oschaaf): changed return type, its never used. voided it.
-template <typename... Args>
-inline void SStringPrintf(std::string *dst, const char *format,
-                          const Args &... args) {
-  *dst = fmt::sprintf(format, args...);
-}
-
-template <typename... Args>
-inline std::string StringPrintf(const char *format, const Args &... args) {
-  return fmt::sprintf(format, args...);
-}
-
-// XXX(oschaaf): check where ssize_t is used (!!)
+// XXX(oschaaf): check(!!)
 typedef size_t stringpiece_ssize_type;
 
 namespace strings {
-inline bool StartsWith(StringPiece a, StringPiece b) {
-  return absl::StartsWith(a, b);
-}
-inline bool EndsWith(StringPiece a, StringPiece b) {
-  return absl::EndsWith(a, b);
-}
+using absl::StartsWith;
+using absl::EndsWith;
 } // namespace strings
 
 // Quick macro to get the size of a static char[] without trailing '\0'.
