@@ -46,7 +46,7 @@ class HtmlName {
     kAddress,
     kAlt,
     kAmp,
-    kAmp-img,
+    kAmpimg,
     kArea,
     kArticle,
     kAs,
