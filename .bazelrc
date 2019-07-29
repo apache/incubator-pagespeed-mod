@@ -1,5 +1,5 @@
 build --cxxopt='-std=c++14' 
-build --copt=-Wno-old-style-cast
+build --cxxopt=-Wno-old-style-cast
 build --copt=-Wno-unused-const-variable
 build --copt=-Wno-unused-parameter
 build --copt=-Wno-sign-compare

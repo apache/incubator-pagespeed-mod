@@ -34,11 +34,11 @@ proto_library(
         "rendered_image.proto",
         "static_asset_config.proto",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         "//net/instaweb/spriter:spriter_protos",
         "//pagespeed/kernel/http:http_proto",
     ],
-    visibility = ["//visibility:public"],
 )
 
 cc_proto_library(
@@ -96,16 +96,16 @@ data2c_gen2_opt(
 cc_library(
     name = "html_minifier_main_lib",
     srcs = [
-        "html_minifier_main.cc"
-    ],
-    deps  = [
-        ":rewriter"
+        "html_minifier_main.cc",
     ],
     copts = [
         "-Ithird_party/css_parser/src/",
         "-Ithird_party/css_parser/src/third_party/utf",
-    ],    
+    ],
     visibility = ["//visibility:public"],
+    deps = [
+        ":rewriter",
+    ],
 )
 
 cc_library(
@@ -449,29 +449,29 @@ pagespeed_cc_test_library(
         "test_url_namer.cc",
     ],
     hdrs = [
+        "image_testing_peer.h",
         "public/critical_images_finder_test_base.h",
         "public/css_rewrite_test_base.h",
+        "public/custom_rewrite_test_base.h",
         "public/image_test_base.h",
         "public/mock_critical_images_finder.h",
         "public/mock_resource_callback.h",
         "public/notifying_fetch.h",
+        "public/rewrite_context_test_base.h",
         "public/rewrite_options_test_base.h",
         "public/rewrite_test_base.h",
         "public/test_rewrite_driver_factory.h",
         "public/test_url_namer.h",
-        "public/rewrite_context_test_base.h",
-        "public/custom_rewrite_test_base.h",
-        "image_testing_peer.h",
     ],
     deps = [
         ":rewriter",
         "//net/instaweb/http:http_test_base",
-        "//pagespeed/kernel/http:http_test_base",
         "//pagespeed/kernel/cache:cache_test_base",
         "//pagespeed/kernel/html:html_test_base",
+        "//pagespeed/kernel/http:http_test_base",
+        "//pagespeed/kernel/image:image_test_base",
         "//pagespeed/kernel/thread:thread_test_base",
         "//pagespeed/kernel/util:util_test_base",
-        "//pagespeed/kernel/image:image_test_base",
         "//pagespeed/opt/http:http_test_base",
         "//pagespeed/opt/logging:logging_test_base",
         "@glog",
@@ -496,7 +496,7 @@ pagespeed_cc_test(
         "cacheable_resource_base_test.cc",
         "collect_dependencies_filter_test.cc",
         "common_filter_test.cc",
-#        "config/measurement_proxy_rewrite_options_manager_test.cc", pulls in pagespeed/automatic
+        "config/measurement_proxy_rewrite_options_manager_test.cc",
         "config/rewrite_options_manager_test.cc",
         "critical_css_beacon_filter_test.cc",
         "critical_finder_support_util_test.cc",
@@ -508,14 +508,11 @@ pagespeed_cc_test(
         "css_combine_filter_test.cc",
         "css_embedded_config_test.cc",
         "css_filter_test.cc",
-        # XXX(oschaaf): css_flatten_imports_test dchecks, disable to get test ot continue running.
-        # probably, I messed up the css parsing with some of the stuff involving CssStringPiece.
         "css_flatten_imports_test.cc",
         "css_hierarchy_test.cc",
         "css_image_rewriter_test.cc",
         "css_inline_filter_test.cc",
         "css_inline_import_to_link_filter_test.cc",
-        #"css_minify_speed_test.cc",
         "css_minify_test.cc",
         "css_move_to_head_filter_test.cc",
         "css_outline_filter_test.cc",
@@ -532,7 +529,6 @@ pagespeed_cc_test(
         "deterministic_js_filter_test.cc",
         "device_properties_test.cc",
         "dom_stats_filter_test.cc",
-        #"domain_lawyer_speed_test.cc",
         "domain_lawyer_test.cc",
         "domain_rewrite_filter_test.cc",
         "downstream_cache_purger_test.cc",
@@ -549,7 +545,6 @@ pagespeed_cc_test(
         "image_combine_filter_test.cc",
         "image_endian_test.cc",
         "image_rewrite_filter_test.cc",
-        #"image_speed_test.cc",
         "image_test.cc",
         "image_url_encoder_test.cc",
         "in_place_rewrite_context_test.cc",
@@ -558,7 +553,6 @@ pagespeed_cc_test(
         "insert_ga_filter_test.cc",
         "javascript_code_block_test.cc",
         "javascript_filter_test.cc",
-        #"javascript_minify_speed_test.cc",
         "js_combine_filter_test.cc",
         "js_defer_disabled_filter_test.cc",
         "js_disable_filter_test.cc",
@@ -583,7 +577,6 @@ pagespeed_cc_test(
         "resource_update_test.cc",
         "responsive_image_filter_test.cc",
         "rewrite_context_test.cc",
-        #"rewrite_driver_speed_test.cc",
         "rewrite_driver_test.cc",
         "rewrite_options_test.cc",
         "rewrite_query_test.cc",
@@ -606,14 +599,20 @@ pagespeed_cc_test(
         "url_namer_test.cc",
         "url_partnership_test.cc",
         "webp_optimizer_test.cc",
+        #"css_minify_speed_test.cc", # TODO(oschaaf): the speed tests.
+        #"domain_lawyer_speed_test.cc",
+        #"image_speed_test.cc",
+        #"javascript_minify_speed_test.cc",
+        #"rewrite_driver_speed_test.cc",
     ],
     copts = [
         "-Ithird_party/css_parser/src/",
         "-Ithird_party/css_parser/src/third_party/utf",
     ],
     data = [":testdata"],
-    #shard_count = 10,
+    shard_count = 10,
     deps = [
         ":rewriter_test_base",
+        "//pagespeed/automatic:automatic_test_base",
     ],
 )

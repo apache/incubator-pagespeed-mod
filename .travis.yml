@@ -20,19 +20,10 @@ env:
     - MAKEFLAGS=-j3
   matrix:
     - BIT_FLAG=
-    # This would do another build for 32-bit, but we're already borderline
-    # too slow on faster 64-bit, so skip this for now.
-    # - BIT_FLAG=--32bit
 
 script:
-  # Travis will time out our build if doesn't output anything for > 10 mintes,
-  # but --verbose sometimes outputs more than 4 MB of data, which will also
-  # cause our build to be killed. travis_wait allows the command to be silent
-  # for longer, but has the downside of not producing output if we timeout. See:
-  # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
-  # For now, stick with --verbose and keep an eye on the logs.
-  # - bazel build --jobs=3 -c dbg //:mod_pagespeed
-  - bazel test --jobs=3 -c dbg //pagespeed/...
+  - bazel build --jobs=3 -c dbg //net/... //pagespeed/...
+  - bazel test --jobs=3 -c dbg //net/... //pagespeed/...
 
 notifications:
   email:

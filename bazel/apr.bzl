@@ -174,7 +174,7 @@ cc_library(
         "-Iexternal/apr/include/",
         "-Iexternal/apr/include/arch/unix/",
         "-Iexternal/apr/",
-        "-Wnoerror=int-conversion",
+        "-Wno-int-conversion",
     ],
     visibility = ["//visibility:public"],
 )
