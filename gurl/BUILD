@@ -1,4 +1,3 @@
-
 cc_library(
     name = "url",
     srcs = [
@@ -34,7 +33,6 @@ cc_library(
         "gurl.h",
         "url_util_internal.h",
         #"origin.h",        "url_util.cc",
-
         "scheme_host_port.h",
         "third_party/mozilla/url_parse.h",
         "url_canon.h",
@@ -44,14 +42,17 @@ cc_library(
         "url_canon_ip.h",
         "url_canon_stdstring.h",
     ],
-    include_prefix="url/",
-    deps = ["@mod_pagespeed//base:base", "@icu//:icuuc"],
-    visibility = ["//visibility:public"],
     copts = [
-        '-std=c++14', 
+        "-std=c++14",
         "-Iexternal/icu/source/common",
         "-Iexternal/icu/genfiles/arch/linux/common/include",
         "-Iexternal/icu/source/i18n",
-        "-Iexternal/icu/source/i18n/unicode",        
-    ]
+        "-Iexternal/icu/source/i18n/unicode",
+    ],
+    include_prefix = "url/",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@icu//:icuuc",
+        "@mod_pagespeed//base",
+    ],
 )

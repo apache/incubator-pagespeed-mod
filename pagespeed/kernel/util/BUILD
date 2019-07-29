@@ -11,95 +11,99 @@ cc_library(
     hdrs = [
         "re2.h",
     ],
+    copts = [
+        "-Wno-error=old-style-cast",
+        "-Wno-error=unused-parameter",
+        "-Wno-unused-parameter",
+    ],
     visibility = ["//visibility:public"],
-    copts = ["-Wno-error=old-style-cast", "-Wno-error=unused-parameter", "-Wno-unused-parameter"],
 )
 
 cc_library(
     name = "util",
     srcs = [
-        "statistics_logger.cc",
-        "url_to_filename_encoder.cc",
-        "url_escaper.cc",
-        "platform.cc",
         "brotli_inflater.cc",
+        "file_system_lock_manager.cc",
+        "gflags.cc",  # XXX
         "gzip_inflater.cc",
-        "mem_lock_manager.cc",
         "hashed_nonce_generator.cc",
         "input_file_nonce_generator.cc",
-        "file_system_lock_manager.cc",
-        "threadsafe_lock_manager.cc",
         "mem_lock.cc",
-        "nonce_generator.cc",
+        "mem_lock_manager.cc",
         "mem_lock_state.cc",
+        "nonce_generator.cc",
+        "platform.cc",
+        "simple_random.cc",
+        "simple_stats.cc",
+        "statistics_logger.cc",
+        "threadsafe_lock_manager.cc",
+        "url_escaper.cc",
         "url_multipart_encoder.cc",
         "url_segment_encoder.cc",
-        "simple_stats.cc",
-        "simple_random.cc",
-        "gflags.cc", # XXX
+        "url_to_filename_encoder.cc",
     ],
     hdrs = [
-        "statistics_logger.h",
-        "url_to_filename_encoder.h",
-        "url_escaper.h",
         "brotli_inflater.h",
-        "platform.h",
-        "gzip_inflater.h",
+        "categorized_refcount.h",
         "copy_on_write.h",
-        "mem_lock_manager.h",
+        "file_system_lock_manager.h",
+        "gflags.h",  # XXX
+        "grpc.h",  # XXX
+        "gzip_inflater.h",
         "hashed_nonce_generator.h",
         "input_file_nonce_generator.h",
-        "categorized_refcount.h",
-        "file_system_lock_manager.h",
-        "threadsafe_lock_manager.h",
         "mem_lock.h",
-        "nonce_generator.h",
+        "mem_lock_manager.h",
         "mem_lock_state.h",
+        "nonce_generator.h",
+        "platform.h",
+        "simple_random.h",
+        "simple_stats.h",
+        "statistics_logger.h",
+        "threadsafe_lock_manager.h",
+        "url_escaper.h",
         "url_multipart_encoder.h",
         "url_segment_encoder.h",
-        "simple_stats.h",
-        "simple_random.h",
-        "gflags.h", # XXX
-        "grpc.h", # XXX
+        "url_to_filename_encoder.h",
+    ],
+    copts = [
+        "-std=c++14",
     ],
     visibility = ["//visibility:public"],
-    copts = [
-        '-std=c++14',        
-    ],    
     deps = [
+        ":util_re2",
         "//gurl:url",
         "//pagespeed/kernel/base:pagespeed_base",
-        "//pagespeed/kernel/html:html",
-        "//pagespeed/kernel/thread:thread",
-        "//pagespeed/kernel/http:http",
-        "@brotli//:brotli_enc",
+        "//pagespeed/kernel/html",
+        "//pagespeed/kernel/http",
+        "//pagespeed/kernel/thread",
         "@brotli//:brotli_dec",
-        "@zlib//:zlib",
-        ":util_re2",
+        "@brotli//:brotli_enc",
         "@grpc//:grpc++",
+        "@zlib",
     ],
 )
 
-pagespeed_cc_test_library (
+pagespeed_cc_test_library(
     name = "util_test_base",
     srcs = [
-        "nonce_generator_test_base.cc",
         "lock_manager_spammer.cc",
         "mock_nonce_generator.cc",
+        "nonce_generator_test_base.cc",
     ],
     hdrs = [
-        "nonce_generator_test_base.h",
         "lock_manager_spammer.h",
         "mock_nonce_generator.h",
+        "nonce_generator_test_base.h",
     ],
     deps = [
         ":util",
-        "//pagespeed/kernel/base:pagespeed_gtest",
         "//pagespeed/kernel/base:kernel_test_util",
+        "//pagespeed/kernel/base:pagespeed_gtest",
         "//pagespeed/kernel/thread:thread_test_base",
-        "@re2//:re2",
+        "@re2",
         "@re2//:benchmark",
-    ]
+    ],
 )
 
 pagespeed_cc_test(

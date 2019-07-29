@@ -63,7 +63,6 @@ cc_library(
         "//gurl:url",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/http:http",
-#        "//net/instaweb/genfiles:htmlparse",
     ],
 )
 

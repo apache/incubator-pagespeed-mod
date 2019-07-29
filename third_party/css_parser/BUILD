@@ -118,17 +118,17 @@ cc_library(
         "src/util/utf8/public/unilib_utf8_utils.h",
     ] + glob(["src/util/gtl/*.h"]),
     copts = [
-        "-std=c++14",        
+        "-std=c++14",
         "-Ithird_party/css_parser/src",
         "-Ithird_party/css_parser/src/base",
         "-Ithird_party/css_parser/src/third_party/utf",
     ],
-    deps = [
-        "//base",
-        ":utf",
-        "@com_google_googletest//:gtest",# for gtest_prod.h        
-        "@google_sparsehash//:google_sparsehash",
-        "//third_party/google-sparsehash:google_sparsehash_gen",
-    ],
     visibility = ["//visibility:public"],
+    deps = [
+        ":utf",
+        "//base",
+        "//third_party/google-sparsehash:google_sparsehash_gen",
+        "@com_google_googletest//:gtest",  # for gtest_prod.h
+        "@google_sparsehash",
+    ],
 )
