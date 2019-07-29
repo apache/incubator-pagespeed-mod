@@ -96,6 +96,13 @@ semantic_type::Category CategorizeAttributeBySpec(
     case HtmlName::kScript:
       return (attribute_name == HtmlName::kSrc ?
               semantic_type::kScript : semantic_type::kUndefined);
+    case HtmlName::kAmp-Img:
+      if (attribute_name == HtmlName::kSrc) {
+        return semantic_type::kImage;
+      }
+      if (attribute_name == HtmlName::kSrcset) {
+        return semantic_type::kSrcSetImage;
+      }
     case HtmlName::kImg:
       if (attribute_name == HtmlName::kSrc) {
         return semantic_type::kImage;
