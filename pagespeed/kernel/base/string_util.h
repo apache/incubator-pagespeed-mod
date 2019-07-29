@@ -47,20 +47,24 @@
 static const int32 kint32max = 0x7FFFFFFF;
 static const int32 kint32min = -kint32max - 1;
 
-using namespace absl;
+using absl::StrCat;
+using absl::StrAppend;
 
-class StringPiece : public string_view {
+class StringPiece : public absl::string_view {
 public:
   StringPiece(const absl::string_view& s) : absl::string_view(s) {}
   StringPiece(const GoogleString& s) : absl::string_view(s.data(), s.size()) {}
 
   using string_view::string_view;
+
   void CopyToString(GoogleString* dest) const {
     *dest = std::string(*this);
   }
+
   void AppendToString(GoogleString* dest) const {
-    (*dest).append(std::string(*this));
+    (*dest).append(this->data(), this->size());
   }
+
   GoogleString as_string() const {
     return std::string(*this);
   }
@@ -75,7 +79,7 @@ public:
 
   void set(StringPiece newvalue, uint32_t size) {
     absl::string_view tmp(newvalue.data(), size);
-    this->swap(tmp);
+    *this = tmp;
   }
 
   StringPiece substr(uint32_t from, uint32_t to) const {
