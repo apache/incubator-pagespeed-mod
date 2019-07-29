@@ -42,7 +42,7 @@
 #include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/thread/thread_synchronizer.h"
 #include "pagespeed/system/external_server_spec.h"
-#include "third_party/hiredis/src/hiredis.h"
+#include "external/hiredis/hiredis.h"
 
 namespace net_instaweb {
 

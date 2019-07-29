@@ -98,12 +98,9 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":controller",
-        #        "//pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/base:pagespeed_gtest",
-        "//pagespeed/kernel/util",
         "//pagespeed/kernel/thread:thread_test_base",
-        #        "//pagespeed/kernel/thread:thread_test_base",
-        #        "//pagespeed/kernel/sharedmem:shared_mem_test_base",
+        "//pagespeed/kernel/util",
     ],
 )
 
@@ -149,8 +146,8 @@ pagespeed_cc_test(
         "work_bound_expensive_operation_controller_test.cc",
     ],
     deps = [
-        "//pagespeed/kernel/base:pagespeed_base",        
         ":controller_test_base",
         ":grpc_test_proto_grpc",
+        "//pagespeed/kernel/base:pagespeed_base",
     ],
 )

@@ -162,7 +162,7 @@
         {
             "label": "test-pagespeed-system",
             "type": "shell",
-            "command": "bazel test --test_env=MEMCACHED_PORT=11211   -c dbg //pagespeed/system/...",
+            "command": "bazel test --test_env=REDIS_PORT=6379 --test_output=all --test_env=MEMCACHED_PORT=11211   -c dbg //pagespeed/system/...",
             "problemMatcher": [
                 "$gcc"
             ],
