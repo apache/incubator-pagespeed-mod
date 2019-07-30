@@ -15,6 +15,8 @@ before_install:
   - wget https://github.com/bazelbuild/bazel/releases/download/0.28.1/bazel-0.28.1-installer-linux-x86_64.sh
   - chmod +x bazel-0.28.1-installer-linux-x86_64.sh
   - ./bazel-0.28.1-installer-linux-x86_64.sh --user
+  - sudo service memcached start
+  - sudo service redis start
 env:
   global:
     - MAKEFLAGS=-j3
@@ -23,7 +25,7 @@ env:
 
 script:
   - bazel build --jobs=3 -c dbg //net/... //pagespeed/...
-  - bazel test --test_output=errors --jobs=3 -c dbg //net/... //pagespeed/...
+  - bazel test -c dbg --test_output=errors --jobs=3 //net/... //pagespeed/...
 
 notifications:
   email:
