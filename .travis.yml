@@ -11,12 +11,11 @@ before_install:
   - sudo add-apt-repository -y ppa:git-core/ppa
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
-  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached redis redis-server
+  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached
   - wget https://github.com/bazelbuild/bazel/releases/download/0.28.1/bazel-0.28.1-installer-linux-x86_64.sh
   - chmod +x bazel-0.28.1-installer-linux-x86_64.sh
   - ./bazel-0.28.1-installer-linux-x86_64.sh --user
   - sudo service memcached start
-  - sudo service redis start
 env:
   global:
     - MAKEFLAGS=-j3
