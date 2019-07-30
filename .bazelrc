@@ -3,3 +3,7 @@ build --cxxopt=-Wno-old-style-cast
 build --copt=-Wno-unused-const-variable
 build --copt=-Wno-unused-parameter
 build --copt=-Wno-sign-compare
+
+test --test_env=REDIS_PORT=6379
+test --test_env=MEMCACHED_PORT=11211
+test --test_env=HTTPS_TEST=1

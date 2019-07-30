@@ -12,7 +12,7 @@ cc_library(
         "html_detector.cc",
         "proxy_fetch.cc",
         "proxy_interface.cc",
-#        "rewriter_speed_test.cc",
+        #        "rewriter_speed_test.cc",
     ],
     hdrs = [
         "html_detector.h",
@@ -21,14 +21,14 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//net/instaweb/http",
+        "//net/instaweb/rewriter",
         "//pagespeed/kernel/base:pagespeed_base",
-        "//net/instaweb/http:http",
-        "//net/instaweb/rewriter:rewriter",
-        "//pagespeed/kernel/thread:thread",
+        "//pagespeed/kernel/thread",
     ],
 )
 
-pagespeed_cc_test_library (
+pagespeed_cc_test_library(
     name = "automatic_test_base",
     srcs = [
         "proxy_interface_test_base.cc",
@@ -38,22 +38,22 @@ pagespeed_cc_test_library (
     ],
     deps = [
         ":automatic",
+        "//net/instaweb/rewriter:rewriter_test_base",
+        "//pagespeed/kernel/base:benchmark",
         "//pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
-        "//pagespeed/kernel/base:benchmark",
-        "//net/instaweb/rewriter:rewriter_test_base",
-    ]
+    ],
 )
 
 pagespeed_cc_test(
     name = "automatic_test",
     srcs = [
         "html_detector_test.cc",
-        "proxy_interface_test.cc",
         "proxy_fetch_test.cc",
+        "proxy_interface_test.cc",
     ],
+    data = ["//net/instaweb/rewriter:testdata"],
     deps = [
         ":automatic_test_base",
     ],
-    data = ["//net/instaweb/rewriter:testdata"],
 )

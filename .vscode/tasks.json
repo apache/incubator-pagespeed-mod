@@ -219,5 +219,17 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "pagespeed-automatic-static",
+            "type": "shell",
+            "command": " bazel build -c dbg //pagespeed/automatic:automatic",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
     ]
 }
