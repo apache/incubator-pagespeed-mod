@@ -1,34 +1,5 @@
 apr_build_rule = """
 
-genrule(
-  name = "copy_apr_h",
-  srcs = [
-      '@mod_pagespeed//third_party/apr:apr_gen_h_linux_x64',
-    ],
-  outs = ["apr.h"],
-  cmd = "cp $< $@",
-)
-
-genrule(
-  name = "copy_apr_private_h",
-  srcs = [
-      '@mod_pagespeed//third_party/apr:apr_gen_private_h_linux_x64',
-    ],
-  outs = ["apr_private.h"],
-  cmd = "cp $< $@",
-)
-
-# sha_glue.c includes apr.h using '<>'. 
-# somehow that fails for us, so we transform the file to use quotes instead.
-genrule(
-  name = "sha2_glue_transformed",
-  srcs = [
-      'random/unix/sha2_glue.c',
-    ],
-  outs = ["random/unix/sha2_glue_transformed.c"],
-  cmd = 'sed "s/<apr.h>/\\"\\\\"apr.h\\\\"\\"/g" $< > $@',
-)
-
 cc_library(
     name = "apr",
     srcs = [
@@ -87,8 +58,7 @@ cc_library(
         'poll/unix/wakeup.c',
         'random/unix/apr_random.c',
         'random/unix/sha2.c',
-        ':sha2_glue_transformed',
-        #'random/unix/sha2_glue.c',
+        'random/unix/sha2_glue.c',
         'shmem/unix/shm.c',
         'strings/apr_cpystrn.c',
         'strings/apr_fnmatch.c',
@@ -110,8 +80,7 @@ cc_library(
         'user/unix/userinfo.c',
     ],
     hdrs = [
-        ":copy_apr_private_h",
-        ":copy_apr_h",
+        "@mod_pagespeed//third_party/apr:apr_pagespeed",
         "random/unix/sha2.h",
         "include/apr_ring.h",
         "include/apr_hash.h",
@@ -170,6 +139,7 @@ cc_library(
         "include/apr_random.h",
     ],
     copts = [
+        "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
         "-Iexternal/apr/random/unix",
         "-Iexternal/apr/include/",
         "-Iexternal/apr/include/arch/unix/",

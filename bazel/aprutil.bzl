@@ -1,46 +1,9 @@
 aprutil_build_rule = """
 
-genrule(
-  name = "copy_apu_h",
-  srcs = [
-      '@mod_pagespeed//third_party/aprutil:apu_gen_h_linux_x64',
-    ],
-  outs = ["apu.h"],
-  cmd = "cp $< $@",
-)
-
-genrule(
-  name = "copy_apu_private_h",
-  srcs = [
-      '@mod_pagespeed//third_party/aprutil:apu_gen_private_h_linux_x64',
-    ],
-  outs = ["apu_config.h"],
-  cmd = "cp $< $@",
-)
-
-genrule(
-  name = "copy_memcache2_h",
-  srcs = [
-      '@mod_pagespeed//third_party/aprutil:memcache2_h',
-    ],
-  outs = ["apr_memcache2.h"],
-  cmd = "cp $< $@",
-)
-
-genrule(
-  name = "copy_memcache2_c",
-  srcs = [
-      '@mod_pagespeed//third_party/aprutil:memcache2_c',
-    ],
-  outs = ["apr_memcache2.c"],
-  cmd = "cp $< $@",
-)
-
-
 cc_library(
     name = "aprutil",
     srcs = [
-        ":copy_memcache2_c",
+        "@mod_pagespeed//third_party/aprutil:aprutil_pagespeed_memcache_c",
         'buckets/apr_brigade.c',
         'buckets/apr_buckets.c',
         'buckets/apr_buckets_alloc.c',
@@ -80,9 +43,7 @@ cc_library(
         'xlate/xlate.c',
     ],
     hdrs = [
-        ":copy_memcache2_h",
-        ":copy_apu_private_h",
-        ":copy_apu_h",
+        "@mod_pagespeed//third_party/aprutil:aprutil_pagespeed",
         "crypto/crypt_blowfish.h",
         "test/test_apu.h",
         "test/abts_tests.h",
@@ -130,13 +91,15 @@ cc_library(
         "include/apr_crypto.h",
     ],
     copts = [
-        "-Iexternal/aprutil/include/",
-        "-Iexternal/aprutil/include/private/",
-        "-Iexternal/aprutil/include/arch/unix/",
-        "-Iexternal/aprutil/",
-        "-Iexternal/apr/include/",
-        "-Iexternal/apr/include/arch/unix/",
-        "-Iexternal/apr/",
+      "-Iexternal/mod_pagespeed/third_party/aprutil/gen/arch/linux/x64/include/",
+      "-Iexternal/mod_pagespeed/third_party/aprutil/gen/arch/linux/x64/include/private",
+      "-Iexternal/aprutil/include/",
+      "-Iexternal/aprutil/include/private/",
+      "-Iexternal/aprutil/include/arch/unix/",
+      "-Iexternal/aprutil/",
+      "-Iexternal/apr/include/",
+      "-Iexternal/apr/include/arch/unix/",
+      "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
     ],
     deps = [
         "@apr//:apr",

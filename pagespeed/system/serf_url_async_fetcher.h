@@ -36,7 +36,7 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/response_headers_parser.h"
 
-#include "third_party/serf/src/serf.h"
+#include "external/serf/serf.h"
 
 // To enable HTTPS fetching with serf, we must link against OpenSSL,
 // which is a a large library with licensing restrictions not known to
