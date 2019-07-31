@@ -20,13 +20,8 @@
 #ifndef STRINGS_STRINGPIECE_H_
 #define STRINGS_STRINGPIECE_H_
 
-#include "base/strings/string_piece.h"
+#include "pagespeed/kernel/base/string_util.h"
 
-//using CssStringPiece;
-// using namespace base;
-
-
-typedef base::BasicStringPiece<std::string> CssStringPiece;
-
+typedef StringPiece CssStringPiece;
 
 #endif  // STRINGS_STRINGPIECE_H_

@@ -51,6 +51,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "@icu//:icuuc",
-        "@mod_pagespeed//base",
+        "//base:base",
     ],
 )

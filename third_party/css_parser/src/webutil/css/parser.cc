@@ -1778,7 +1778,7 @@ Declarations* Parser::ParseRawDeclarations() {
         // this declaration correctly. This is saved so that it can be
         // serialized back out in case it was actually meaningful even though
         // we could not understand it.
-        base::StringPiece bytes_in_original_buffer(decl_start, in_ - decl_start);
+        StringPiece bytes_in_original_buffer(decl_start, in_ - decl_start);
         declarations->push_back(new Declaration(bytes_in_original_buffer));
         // All errors that occurred sinse we started this declaration are
         // demoted to unparseable sections now that we've saved the dummy
@@ -2659,7 +2659,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
       // this @-rule correctly. This is saved so that it can be
       // serialized back out in case it was actually meaningful even though
       // we could not understand it.
-      base::StringPiece bytes_in_original_buffer(oldin, in_ - oldin);
+      StringPiece bytes_in_original_buffer(oldin, in_ - oldin);
 
       Ruleset* ruleset =
           new Ruleset(new UnparsedRegion(bytes_in_original_buffer));
