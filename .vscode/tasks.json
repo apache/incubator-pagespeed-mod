@@ -232,6 +232,18 @@
             }
         },
         {
+            "label": "build-all",
+            "type": "shell",
+            "command": " bazel build -c dbg //net/... //pagespeed/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+        {
             "label": "pagespeed-apache-test",
             "type": "shell",
             "command": " bazel test -c dbg --test_output=streamed //pagespeed/apache:apache_test",
