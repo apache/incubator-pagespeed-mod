@@ -231,5 +231,17 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "pagespeed-apache-test",
+            "type": "shell",
+            "command": " bazel test -c dbg --test_output=streamed //pagespeed/apache:apache_test",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
     ]
 }

@@ -12,18 +12,6 @@ cc_library(
 )
 
 cc_library(
-    name = "dynamic_annotations",
-    srcs = [
-        "third_party/dynamic_annotations/dynamic_annotations.c",
-    ],
-    hdrs = [
-        "third_party/dynamic_annotations/dynamic_annotations.h",
-        "third_party/valgrind/valgrind.h",
-        "third_party/valgrind/memcheck.h",
-    ]
-)
-
-cc_library(
     name = "base",
     srcs = [
         "debug/alias.cc",
@@ -71,9 +59,7 @@ cc_library(
     ],
     deps = [
         "//build",
-        "@glog",
         "@icu",
         "@mod_pagespeed//base:log_shim",
-        ":dynamic_annotations",
     ],
 )

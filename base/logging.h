@@ -1,6 +1,14 @@
 #pragma once
 
 #include "glog/logging.h"
+
+namespace logging {
+  constexpr int LOG_INFO = google::GLOG_INFO;
+  constexpr int LOG_ERROR = google::GLOG_ERROR;
+  constexpr int LOG_WARNING = google::GLOG_WARNING;
+  constexpr int LOG_FATAL = google::GLOG_FATAL;
+}
+
 #include "base/macros.h"
 #include "base/compiler_specific.h"
 

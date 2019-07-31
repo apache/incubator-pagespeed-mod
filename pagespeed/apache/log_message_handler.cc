@@ -25,8 +25,8 @@
 #include <limits>
 #include <string>
 
-#include "base/debug/debugger.h"
-#include "base/debug/stack_trace.h"
+//#include "base/debug/debugger.h"
+//#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/apache/apache_logging_includes.h"
@@ -55,8 +55,8 @@ int GetApacheLogLevel(int severity) {
       return APLOG_WARNING;
     case logging::LOG_ERROR:
       return APLOG_ERR;
-    case logging::LOG_ERROR_REPORT:
-      return APLOG_CRIT;
+    //case logging::LOG_ERROR_REPORT:
+    //  return APLOG_CRIT;
     case logging::LOG_FATAL:
       return APLOG_ALERT;
     default:  // For VLOG()s
@@ -71,6 +71,7 @@ bool LogMessageHandler(int severity, const char* file, int line,
 
   GoogleString message = str;
   if (severity == logging::LOG_FATAL) {
+    /* XXX(oschaaf):
     if (base::debug::BeingDebugged()) {
       base::debug::BreakDebugger();
     } else {
@@ -79,6 +80,7 @@ bool LogMessageHandler(int severity, const char* file, int line,
       trace.OutputToStream(&stream);
       message.append(stream.str());
     }
+     */
   }
 
   // Trim the newline off the end of the message string.
@@ -98,8 +100,9 @@ bool LogMessageHandler(int severity, const char* file, int line,
   }
 
   if (severity == logging::LOG_FATAL) {
+    // XXX(oschaaf):
     // Crash the process to generate a dump.
-    base::debug::BreakDebugger();
+    // base::debug::BreakDebugger();
   }
 
   return true;
@@ -114,7 +117,8 @@ namespace log_message_handler {
 
 void Install(apr_pool_t* pool) {
   log_pool = pool;
-  logging::SetLogMessageHandler(&LogMessageHandler);
+  // XXX(oschaaf):
+  // logging::SetLogMessageHandler(&LogMessageHandler);
 }
 
 void ShutDown() {
@@ -146,7 +150,8 @@ void AddServerConfig(const server_rec* server, const StringPiece& version) {
 
   // Get VLOG(x) and above if LogLevel is set to Debug.
   if (log_level_cutoff >= APLOG_DEBUG) {
-    logging::SetMinLogLevel(kDebugLogLevel);
+      // XXX(oschaaf):
+      // logging::SetMinLogLevel(kDebugLogLevel);
   }
   if (mod_pagespeed_version == NULL) {
     mod_pagespeed_version = new GoogleString(version.as_string());
