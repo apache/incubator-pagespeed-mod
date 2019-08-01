@@ -17,7 +17,7 @@ load(":aprutil.bzl", "aprutil_build_rule")
 load(":serf.bzl", "serf_build_rule")
 
 ENVOY_COMMIT = "46df72abbd0383676190143d881f29ccf11440f1"
-BROTLI_COMMIT = "882f41850b679c1ff4a3804d5515d142a5807376"
+BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 ZLIB_COMMIT = "cacf7f1d4e3d44d871b605da3b647f07d718623f"
 HIREDIS_COMMIT = "010756025e8cefd1bc66c6d4ed3b1648ef6f1f95"
 JSONCPP_COMMIT = "7165f6ac4c482e68475c9e1dac086f9e12fff0d0"
@@ -51,7 +51,7 @@ def mod_pagespeed_dependencies():
         name = "brotli",
         strip_prefix = "brotli-%s" % BROTLI_COMMIT,
         url = "https://github.com/google/brotli/archive/%s.tar.gz" % BROTLI_COMMIT,
-        sha256 = "0090aab052b515e1f35390aca5979d2665c88581a3930b06205cf2646a4f5b68",
+        sha256 = "",
     )
 
     http_archive(

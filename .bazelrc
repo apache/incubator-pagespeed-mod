@@ -3,10 +3,13 @@ build --cxxopt=-Wno-old-style-cast
 build --copt=-Wno-unused-const-variable
 build --copt=-Wno-unused-parameter
 build --copt=-Wno-sign-compare
+build --copt=-Wimplicit-fallthrough=0 
+#build --copt=-Wno-inconsistent-missing-override
 # objcopy 2.31 doesn't like clang-7's output unless we pass in -fno-addrsig
 # https://github.com/travitch/whole-program-llvm/issues/75
 # not passing this in will make the scripts that rename symbols fail
-build --copt=-fno-addrsig 
+#build --copt=-fno-addrsig 
+
 
 test --test_env=REDIS_PORT=6379
 test --test_env=MEMCACHED_PORT=11211

@@ -72,7 +72,7 @@ pagespeed_cc_test(
     copts = [
         "-Wno-error=unused-parameter",
         "-Wno-error=old-style-cast",
-        "-Wno-error=inconsistent-missing-override",
+#        "-Wno-error=inconsistent-missing-override",
     ],
     deps = [
         ":http_test_base",

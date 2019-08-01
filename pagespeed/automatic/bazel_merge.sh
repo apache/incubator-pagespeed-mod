@@ -1,9 +1,9 @@
 #!/bin/bash
 
-ADIR=$(bazel info bazel-bin -c dbg)
+ADIR=$(bazel info bazel-bin)
 ALIST=$(find $ADIR | grep \\.a$ | grep -v main | grep -v copy | xargs echo)
-rm ~/test.a.dirty
-rm ~/test.a
+
+find $ADIR | grep \\.a$ | grep -v main | grep -v copy 
 
 set -e
 echo "merging libs"
@@ -16,4 +16,5 @@ echo "renaming symbols"
 # not passing this in will make the scripts that rename symbols fail
 ./rename_c_symbols.sh ~/pagespeed_automatic.a.dirty ~/pagespeed_automatic.a > symbol-rename.log
 rm ~/pagespeed_automatic.a.dirty
+mv ~/pagespeed_automatic.a ~/incubator-pagespeed-ngx-latest-stable/psol/lib/Release/linux/x64
 echo "done"

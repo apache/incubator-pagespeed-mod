@@ -474,7 +474,6 @@ pagespeed_cc_test_library(
         "//pagespeed/kernel/util:util_test_base",
         "//pagespeed/opt/http:http_test_base",
         "//pagespeed/opt/logging:logging_test_base",
-        "@glog",
     ],
 )
 

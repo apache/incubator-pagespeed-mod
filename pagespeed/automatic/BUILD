@@ -20,6 +20,7 @@ cc_library(
         "proxy_interface.h",
     ],
     visibility = ["//visibility:public"],
+    linkstatic = True,
     deps = [
         "//net/instaweb/http",
         "//net/instaweb/rewriter",

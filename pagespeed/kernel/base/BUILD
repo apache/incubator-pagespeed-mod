@@ -86,6 +86,7 @@ cc_library(
         "@icu//:icudata",
         "@icu//:icuuc",
         "@mod_pagespeed//base:log_shim",
+        "@glog",
         #"//pagespeed/kernel/sharedmem:shared_mem",
         #"//pagespeed/kernel/util:util",
         "@com_google_absl//absl/base:base",

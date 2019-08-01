@@ -68,6 +68,7 @@ cc_library(
     ],
     copts = [
         "-std=c++14",
+        "-Wno-implicit-fallthrough",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -77,8 +78,8 @@ cc_library(
         "//pagespeed/kernel/html",
         "//pagespeed/kernel/http",
         "//pagespeed/kernel/thread",
-        "@brotli//:brotli_dec",
-        "@brotli//:brotli_enc",
+        "@brotli//:brotlidec",
+        "@brotli//:brotlienc",
         "@grpc//:grpc++",
         "@zlib",
     ],

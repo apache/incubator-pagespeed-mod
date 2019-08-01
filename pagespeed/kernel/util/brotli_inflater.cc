@@ -23,8 +23,8 @@
 #include <cstddef>
 
 #include "base/logging.h"
-#include "external/brotli/dec/decode.h"
-#include "external/brotli/enc/encode.h"
+#include "external/brotli/c/include/brotli/decode.h"
+#include "external/brotli/c/include/brotli/encode.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/writer.h"
