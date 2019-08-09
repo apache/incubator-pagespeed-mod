@@ -3,7 +3,7 @@ build --cxxopt=-Wno-old-style-cast
 build --copt=-Wno-unused-const-variable
 build --copt=-Wno-unused-parameter
 build --copt=-Wno-sign-compare
-build --copt=-Wimplicit-fallthrough=0 
+build --copt=-Wno-implicit-fallthrough
 #build --copt=-Wno-inconsistent-missing-override
 # objcopy 2.31 doesn't like clang-7's output unless we pass in -fno-addrsig
 # https://github.com/travitch/whole-program-llvm/issues/75

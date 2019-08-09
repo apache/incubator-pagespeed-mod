@@ -6,9 +6,9 @@ cc_library(
     deps = [
         "//third_party/base64:base64",
         "//third_party/rdestl:rdestl",
-        "@brotli//:brotli_common",
-        "@brotli//:brotli_enc",
-        "@brotli//:brotli_dec",
+        #"@brotli//:brotli_common",
+        #"@brotli//:brotli_enc",
+        #"@brotli//:brotli_dec",
         "@zlib//:zlib",
         "@hiredis//:hiredis",
         "@jsoncpp//:jsoncpp",
