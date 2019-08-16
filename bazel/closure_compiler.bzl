@@ -58,7 +58,7 @@ def closure_compiler_with_dependency_mode_loose(name, js_src, js_includes=[], js
             js_externs += " --externs $$(find ../../../../../execroot/mod_pagespeed/" + str+")"
 
         if opt == True:
-            BUILD_FLAGS = " --compilation_level=ADVANCED"
+            BUILD_FLAGS = " --compilation_level=ADVANCED "
             name = js_file.split(sep = "/")[len(js_file.split(sep = "/"))-1].split(sep = ".js")[0] +"_opt"
         else:
             BUILD_FLAGS = "  --compilation_level=SIMPLE --formatting=PRETTY_PRINT "
@@ -71,10 +71,9 @@ def closure_compiler_with_dependency_mode_loose(name, js_src, js_includes=[], js
             cmd  = ("java -jar $(location //third_party/closure:compiler_script)/compiler.jar" +
                     " --js $$(find ../../../../../execroot/mod_pagespeed/" + js_file +" )" + 
                     " --js_output_file $@" +
-                    js_include_str+
+                    js_include_str +
                     BUILD_FLAGS +
                     js_externs +
-                    " --dependency_mode LOOSE" +
                     " --warning_level VERBOSE" +
                     " --generate_exports" +
                     " --output_wrapper=\"(function(){%output%})();\""), 
