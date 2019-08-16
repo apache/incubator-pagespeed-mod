@@ -45,3 +45,41 @@ def closure_compiler_gen(name, js_src, js_includes=[], js_dir=[],entry_points=[]
                 "//third_party/closure:compiler_script",
         ],
     )
+
+def closure_compiler_with_dependency_mode_loose(name, js_src, js_includes=[], js_dir=[], externs=[],opt=True):
+
+    for js_file in js_src:
+        js_include_str = ""
+        for str in js_includes:
+            js_include_str += " --js $$(find ../../../../../execroot/mod_pagespeed/" + str +" )"    
+
+        js_externs = ""
+        for str in externs:
+            js_externs += " --externs $$(find ../../../../../execroot/mod_pagespeed/" + str+")"
+
+        if opt == True:
+            BUILD_FLAGS = " --compilation_level=ADVANCED"
+            name = js_file.split(sep = "/rewriter/")[1].split(sep = ".js")[0] +"_opt"
+        else:
+            BUILD_FLAGS = "  --compilation_level=SIMPLE --formatting=PRETTY_PRINT "
+            name = js_file.split(sep = "/rewriter/")[1].split(sep = ".js")[0] +"_dbg"
+
+        native.genrule(
+            name =  name,
+            srcs = ["@closure_library//:runfiles"],
+            outs = [name + ".js"],
+            cmd  = ("java -jar $(location //third_party/closure:compiler_script)/compiler.jar" +
+                    " --js $$(find ../../../../../execroot/mod_pagespeed/" + js_file +" )" + 
+                    " --js_output_file $@" +
+                    js_include_str+
+                    BUILD_FLAGS +
+                    js_externs +
+                    " --dependency_mode LOOSE" +
+                    " --warning_level VERBOSE" +
+                    " --generate_exports" +
+                    " --output_wrapper=\"(function(){%output%})();\""), 
+            tools=[
+                    "//third_party/closure:compiler_script",
+            ],
+        )
+
