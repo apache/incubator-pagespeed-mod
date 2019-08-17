@@ -275,7 +275,6 @@ cc_library(
         ":data2c_generated_responsive_js",
         ":data2c_generated_responsive_js_opt",
         ":rewrite_filter_names_gperf",
-        ":add_instrumentation_opt",
     ],
     hdrs = [
         "config/measurement_proxy_rewrite_options_manager.h",
@@ -643,34 +642,28 @@ closure_compiler_gen(
     name = "console_js_opt",
     js_src = "pagespeed/system/console.js",
     js_dir = "system",
-    # js_includes = [
-    #     "/pagespeed/system/console_start.js",
-    # ],
     entry_points = [
         "goog:pagespeed.Console",
         "goog:pagespeed.statistics",
     ],
     externs = [
-        "/pagespeed/system/js_externs.js",
-        "/third_party/closure/externs/google_visualization_api.js",
+        "pagespeed/system/js_externs.js",
+        "third_party/closure/externs/google_visualization_api.js",
     ],
     opt = True,
 )
 
 closure_compiler_gen(
     name = "console_js_dbg",
-    js_src = "/pagespeed/system/console.js",
+    js_src = "pagespeed/system/console.js",
     js_dir = "system",
-    # js_includes = [
-    #     "/pagespeed/system/console_start.js",
-    # ],
     entry_points = [
         "goog:pagespeed.Console",
         "goog:pagespeed.statistics",
     ],
     externs = [
-        "/pagespeed/system/js_externs.js",
-        "/third_party/closure/externs/google_visualization_api.js",
+        "pagespeed/system/js_externs.js",
+        "third_party/closure/externs/google_visualization_api.js",
     ],
     opt = False,
 )
@@ -735,7 +728,7 @@ closure_compiler_gen(
         "goog:pagespeed.Graphs",
     ],
     externs = [
-        "/third_party/closure/externs/google_visualization_api.js",
+        "third_party/closure/externs/google_visualization_api.js",
     ],
     opt = False,
 )
@@ -748,7 +741,7 @@ closure_compiler_gen(
         "goog:pagespeed.Graphs",
     ],
     externs = [
-        "/third_party/closure/externs/google_visualization_api.js",
+        "third_party/closure/externs/google_visualization_api.js",
     ],
     opt = True,
 )
@@ -815,13 +808,14 @@ closure_compiler_gen(
 
 closure_compiler_with_dependency_mode_loose(
     name = "without_dependency",
-    js_src = ["net/instaweb/rewriter/add_instrumentation.js",
-              "net/instaweb/rewriter/client_domain_rewriter.js",
-              "net/instaweb/rewriter/dedup_inlined_images.js",
-              "net/instaweb/rewriter/defer_iframe.js",
-              "net/instaweb/rewriter/delay_images_inline.js",
-              "net/instaweb/rewriter/deterministic.js",
-              "net/instaweb/rewriter/extended_instrumentation.js",
+    js_src = [
+        "net/instaweb/rewriter/add_instrumentation.js",
+        "net/instaweb/rewriter/client_domain_rewriter.js",
+        "net/instaweb/rewriter/dedup_inlined_images.js",
+        "net/instaweb/rewriter/defer_iframe.js",
+        "net/instaweb/rewriter/delay_images_inline.js",
+        "net/instaweb/rewriter/deterministic.js",
+        "net/instaweb/rewriter/extended_instrumentation.js",
     ],
     js_dir = "rewriter",
     externs = [
@@ -832,13 +826,14 @@ closure_compiler_with_dependency_mode_loose(
 
 closure_compiler_with_dependency_mode_loose(
     name = "without_dependency",
-    js_src = ["net/instaweb/rewriter/add_instrumentation.js",
-              "net/instaweb/rewriter/client_domain_rewriter.js",
-              "net/instaweb/rewriter/dedup_inlined_images.js",
-              "net/instaweb/rewriter/defer_iframe.js",
-              "net/instaweb/rewriter/delay_images_inline.js",
-              "net/instaweb/rewriter/deterministic.js",
-              "net/instaweb/rewriter/extended_instrumentation.js",
+    js_src = [
+        "net/instaweb/rewriter/add_instrumentation.js",
+        "net/instaweb/rewriter/client_domain_rewriter.js",
+        "net/instaweb/rewriter/dedup_inlined_images.js",
+        "net/instaweb/rewriter/defer_iframe.js",
+        "net/instaweb/rewriter/delay_images_inline.js",
+        "net/instaweb/rewriter/deterministic.js",
+        "net/instaweb/rewriter/extended_instrumentation.js",
     ],
     js_dir = "rewriter",
     externs = [
@@ -849,11 +844,12 @@ closure_compiler_with_dependency_mode_loose(
 
 closure_compiler_with_dependency_mode_loose(
     name = "with_dependency",
-    js_src = ["net/instaweb/rewriter/critical_css_beacon.js",
-              "net/instaweb/rewriter/lazyload_images.js",
-              "net/instaweb/rewriter/delay_images.js",
-              "net/instaweb/rewriter/js_defer.js",
-              "net/instaweb/rewriter/local_storage_cache.js",
+    js_src = [
+        "net/instaweb/rewriter/critical_css_beacon.js",
+        "net/instaweb/rewriter/lazyload_images.js",
+        "net/instaweb/rewriter/delay_images.js",
+        "net/instaweb/rewriter/js_defer.js",
+        "net/instaweb/rewriter/local_storage_cache.js",
     ],
     js_dir = "rewriter",
     js_includes = [
@@ -867,11 +863,12 @@ closure_compiler_with_dependency_mode_loose(
 
 closure_compiler_with_dependency_mode_loose(
     name = "with_dependency",
-    js_src = ["net/instaweb/rewriter/critical_css_beacon.js",
-              "net/instaweb/rewriter/lazyload_images.js",
-              "net/instaweb/rewriter/delay_images.js",
-              "net/instaweb/rewriter/js_defer.js",
-              "net/instaweb/rewriter/local_storage_cache.js",
+    js_src = [
+        "net/instaweb/rewriter/critical_css_beacon.js",
+        "net/instaweb/rewriter/lazyload_images.js",
+        "net/instaweb/rewriter/delay_images.js",
+        "net/instaweb/rewriter/js_defer.js",
+        "net/instaweb/rewriter/local_storage_cache.js",
     ],
     js_dir = "rewriter",
     js_includes = [
