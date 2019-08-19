@@ -11,7 +11,6 @@ def data2c_gen2(name, srcs):
 # XXX(oschaaf): actually minify these.
 def data2c_gen2_opt(name, srcs):
     for f in srcs:
-        print("ashish...source file ", f)
         native.genrule(
             name = name + "_" + f + "_opt",
             srcs = [f + "_opt.js"],
