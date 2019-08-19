@@ -46,7 +46,7 @@ def closure_compiler_gen(name, js_src, js_includes=[], js_dir=[],entry_points=[]
         ],
     )
 
-def closure_compiler_with_dependency_mode_loose(name, js_src, js_includes=[], js_dir=[], externs=[],opt=True):
+def closure_compiler_without_dependency_mode(name, js_src, js_includes=[], js_dir=[], externs=[],opt=True):
 
     for js_file in js_src:
         js_include_str = ""
