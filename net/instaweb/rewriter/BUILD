@@ -619,7 +619,7 @@ pagespeed_cc_test(
 )
 
 closure_compiler_gen(
-    name = "caches_js_dbg",
+    name = "caches_dbg",
     js_src = "pagespeed/system/caches.js",
     js_dir = "system",
     entry_points = [
@@ -629,7 +629,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "caches_js_opt",
+    name = "caches_opt",
     js_src = "pagespeed/system/caches.js",
     js_dir = "system",
     entry_points = [
@@ -639,7 +639,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "console_js_opt",
+    name = "console_opt",
     js_src = "pagespeed/system/console.js",
     js_dir = "system",
     entry_points = [
@@ -654,7 +654,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "console_js_dbg",
+    name = "console_dbg",
     js_src = "pagespeed/system/console.js",
     js_dir = "system",
     entry_points = [
@@ -669,7 +669,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "critical_css_loader_js_dbg",
+    name = "critical_css_loader_dbg",
     js_src = "net/instaweb/rewriter/critical_css_loader.js",
     js_dir = "rewriter",
     js_includes = [
@@ -682,7 +682,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "critical_css_loader_js_opt",
+    name = "critical_css_loader_opt",
     js_src = "net/instaweb/rewriter/critical_css_loader.js",
     js_dir = "rewriter",
     js_includes = [
@@ -695,7 +695,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "critical_images_beacon_js_dbg",
+    name = "critical_images_beacon_dbg",
     js_src = "net/instaweb/rewriter/critical_images_beacon.js",
     js_dir = "rewriter",
     js_includes = [
@@ -708,7 +708,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "critical_images_beacon_js_opt",
+    name = "critical_images_beacon_opt",
     js_src = "net/instaweb/rewriter/critical_images_beacon.js",
     js_dir = "rewriter",
     js_includes = [
@@ -721,7 +721,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "graphs_js_dbg",
+    name = "graphs_dbg",
     js_src = "pagespeed/system/graphs.js",
     js_dir = "system",
     entry_points = [
@@ -734,7 +734,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "graphs_js_opt",
+    name = "graphs_opt",
     js_src = "pagespeed/system/graphs.js",
     js_dir = "system",
     entry_points = [
@@ -747,7 +747,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "messages_js_dbg",
+    name = "messages_dbg",
     js_src = "pagespeed/system/messages.js",
     js_dir = "system",
     entry_points = [
@@ -757,7 +757,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "messages_js_opt",
+    name = "messages_opt",
     js_src = "pagespeed/system/messages.js",
     js_dir = "system",
     entry_points = [
@@ -767,7 +767,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "statistics_js_dbg",
+    name = "statistics_dbg",
     js_src = "pagespeed/system/statistics.js",
     js_dir = "system",
     entry_points = [
@@ -777,7 +777,7 @@ closure_compiler_gen(
 )
 
 closure_compiler_gen(
-    name = "statistics_js_opt",
+    name = "statistics_opt",
     js_src = "pagespeed/system/statistics.js",
     js_dir = "system",
     entry_points = [

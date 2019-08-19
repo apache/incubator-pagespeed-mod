@@ -855,7 +855,7 @@ TEST_F(DelayImagesFilterTest, ResizeForResolutionNegative) {
   EXPECT_EQ(byte_count_mobile, byte_count_desktop);
 }
 
-TEST_F(DelayImagesFilterTest, DISABLED_DelayImagesScriptOptimized) {
+TEST_F(DelayImagesFilterTest, DelayImagesScriptOptimized) {
   options()->set_enable_aggressive_rewriters_for_mobile(true);
   AddFilter(RewriteOptions::kDelayImages);
   SetupUserAgentTest(UserAgentMatcherTestBase::kAndroidICSUserAgent);
