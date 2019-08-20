@@ -867,7 +867,7 @@ TEST_F(DelayImagesFilterTest, DelayImagesScriptOptimized) {
       << "There should be no comments in the optimized code";
 }
 
-TEST_F(DelayImagesFilterTest, DISABLED_DelayImagesScriptDebug) {
+TEST_F(DelayImagesFilterTest, DelayImagesScriptDebug) {
   options()->EnableFilter(RewriteOptions::kDebug);
   options()->set_enable_aggressive_rewriters_for_mobile(true);
   AddFilter(RewriteOptions::kDelayImages);
