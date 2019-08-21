@@ -9,57 +9,6 @@ load("//bazel:closure_compiler.bzl", "closure_compiler_gen", "closure_compiler_w
 
 licenses(["notice"])  # Apache 2
 
-
-closure_compiler_gen(
-    name = "caches_dbg",
-    js_src = "pagespeed/system/caches.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Caches",
-    ],
-    opt = False,
-)
-
-closure_compiler_gen(
-    name = "caches_opt",
-    js_src = "pagespeed/system/caches.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Caches",
-    ],
-    opt = True,
-)
-
-closure_compiler_gen(
-    name = "console_opt",
-    js_src = "pagespeed/system/console.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Console",
-        "goog:pagespeed.statistics",
-    ],
-    externs = [
-        "pagespeed/system/js_externs.js",
-        "third_party/closure/externs/google_visualization_api.js",
-    ],
-    opt = True,
-)
-
-closure_compiler_gen(
-    name = "console_dbg",
-    js_src = "pagespeed/system/console.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Console",
-        "goog:pagespeed.statistics",
-    ],
-    externs = [
-        "pagespeed/system/js_externs.js",
-        "third_party/closure/externs/google_visualization_api.js",
-    ],
-    opt = False,
-)
-
 closure_compiler_gen(
     name = "critical_css_loader_dbg",
     js_src = "net/instaweb/rewriter/critical_css_loader.js",
@@ -108,72 +57,6 @@ closure_compiler_gen(
     ],
     entry_points = [
         "goog:pagespeed.CriticalImages",
-    ],
-    opt = True,
-)
-
-closure_compiler_gen(
-    name = "graphs_dbg",
-    js_src = "pagespeed/system/graphs.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Graphs",
-    ],
-    externs = [
-        "third_party/closure/externs/google_visualization_api.js",
-    ],
-    opt = False,
-)
-
-closure_compiler_gen(
-    name = "graphs_opt",
-    js_src = "pagespeed/system/graphs.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Graphs",
-    ],
-    externs = [
-        "third_party/closure/externs/google_visualization_api.js",
-    ],
-    opt = True,
-)
-
-closure_compiler_gen(
-    name = "messages_dbg",
-    js_src = "pagespeed/system/messages.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Messages",
-    ],
-    opt = False,
-)
-
-closure_compiler_gen(
-    name = "messages_opt",
-    js_src = "pagespeed/system/messages.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Messages",
-    ],
-    opt = True,
-)
-
-closure_compiler_gen(
-    name = "statistics_dbg",
-    js_src = "pagespeed/system/statistics.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Statistics",
-    ],
-    opt = False,
-)
-
-closure_compiler_gen(
-    name = "statistics_opt",
-    js_src = "pagespeed/system/statistics.js",
-    js_dir = "system",
-    entry_points = [
-        "goog:pagespeed.Statistics",
     ],
     opt = True,
 )

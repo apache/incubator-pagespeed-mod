@@ -1,3 +1,4 @@
+load("//bazel:closure_compiler.bzl", "closure_compiler_gen")
 load("//bazel:data2c.bzl", "data2c_gen2_admin_js", "data2c_gen2_admin_css")
 
 load(
@@ -8,6 +9,122 @@ load(
 
 
 licenses(["notice"])  # Apache 2
+
+closure_compiler_gen(
+    name = "caches_dbg",
+    js_src = "pagespeed/system/caches.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Caches",
+    ],
+    opt = False,
+)
+
+closure_compiler_gen(
+    name = "caches_opt",
+    js_src = "pagespeed/system/caches.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Caches",
+    ],
+    opt = True,
+)
+
+closure_compiler_gen(
+    name = "console_opt",
+    js_src = "pagespeed/system/console.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Console",
+        "goog:pagespeed.statistics",
+    ],
+    externs = [
+        "pagespeed/system/js_externs.js",
+        "third_party/closure/externs/google_visualization_api.js",
+    ],
+    opt = True,
+)
+
+closure_compiler_gen(
+    name = "console_dbg",
+    js_src = "pagespeed/system/console.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Console",
+        "goog:pagespeed.statistics",
+    ],
+    externs = [
+        "pagespeed/system/js_externs.js",
+        "third_party/closure/externs/google_visualization_api.js",
+    ],
+    opt = False,
+)
+
+closure_compiler_gen(
+    name = "graphs_dbg",
+    js_src = "pagespeed/system/graphs.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Graphs",
+    ],
+    externs = [
+        "third_party/closure/externs/google_visualization_api.js",
+    ],
+    opt = False,
+)
+
+closure_compiler_gen(
+    name = "graphs_opt",
+    js_src = "pagespeed/system/graphs.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Graphs",
+    ],
+    externs = [
+        "third_party/closure/externs/google_visualization_api.js",
+    ],
+    opt = True,
+)
+
+closure_compiler_gen(
+    name = "messages_dbg",
+    js_src = "pagespeed/system/messages.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Messages",
+    ],
+    opt = False,
+)
+
+closure_compiler_gen(
+    name = "messages_opt",
+    js_src = "pagespeed/system/messages.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Messages",
+    ],
+    opt = True,
+)
+
+closure_compiler_gen(
+    name = "statistics_dbg",
+    js_src = "pagespeed/system/statistics.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Statistics",
+    ],
+    opt = False,
+)
+
+closure_compiler_gen(
+    name = "statistics_opt",
+    js_src = "pagespeed/system/statistics.js",
+    js_dir = "system",
+    entry_points = [
+        "goog:pagespeed.Statistics",
+    ],
+    opt = True,
+)
 
 data2c_gen2_admin_js(
     name = "data2c_generated",
