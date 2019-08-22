@@ -142,7 +142,7 @@ TEST_F(StaticAssetManagerTest, TestDeferJsNonGStaticDebug) {
       StaticAssetEnum::DEFER_JS, options_));
 }
 
-TEST_F(StaticAssetManagerTest, DISABLED_TestJsDebug) {
+TEST_F(StaticAssetManagerTest, TestJsDebug) {
   options_->EnableFilter(RewriteOptions::kDebug);
   for (int i = 0; i < StaticAssetEnum::StaticAsset_ARRAYSIZE; ++i) {
     StaticAssetEnum::StaticAsset module =
@@ -160,7 +160,7 @@ TEST_F(StaticAssetManagerTest, DISABLED_TestJsDebug) {
   }
 }
 
-TEST_F(StaticAssetManagerTest, DISABLED_TestJsOpt) {
+TEST_F(StaticAssetManagerTest, TestJsOpt) {
   for (int i = 0; i < StaticAssetEnum::StaticAsset_ARRAYSIZE; ++i) {
     StaticAssetEnum::StaticAsset module =
         static_cast<StaticAssetEnum::StaticAsset>(i);
