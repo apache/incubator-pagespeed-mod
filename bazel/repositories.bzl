@@ -15,6 +15,7 @@ load(":libjpeg_turbo.bzl", "libjpeg_turbo_build_rule")
 load(":apr.bzl", "apr_build_rule")
 load(":aprutil.bzl", "aprutil_build_rule")
 load(":serf.bzl", "serf_build_rule")
+load(":closure_compiler.bzl", "closure_library_rules")
 
 ENVOY_COMMIT = "46df72abbd0383676190143d881f29ccf11440f1"
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
@@ -38,6 +39,7 @@ LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
 APR_COMMIT = "a194e7afd16d2bd88c5394dfb6d066614161b1ed"
 APRUTIL_COMMIT = "13ed779e56669007dffe9a27ffab3790b59cbfaa"
 SERF_COMMIT = "95cf7547361549e192ac34d94d44c01c7a57b642"
+CLOSURE_LIBRARY_COMMIT = "cd0e79408e4ec90e0da2eaee846a3400fae30445"
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -464,5 +466,13 @@ cc_binary(
         url = "https://github.com/apache/serf/archive/%s.tar.gz" % SERF_COMMIT,
         build_file_content = serf_build_rule,
         sha256 = "bcc7ddc4b82bf76ba862261cdb580db044ff62dcd523f8eb6acde87518b10257",
+    )
+
+    http_archive(
+        name = "closure_library",
+        strip_prefix = "closure-library-%s" % CLOSURE_LIBRARY_COMMIT,
+        url = "https://github.com/google/closure-library/archive/%s.tar.gz" % CLOSURE_LIBRARY_COMMIT,
+        sha256 = "bd5966814e6fdced42e97f8461fcbae52849cf589292a1c589585fcd9fdb3cd2",
+        build_file_content = closure_library_rules,
     )
 

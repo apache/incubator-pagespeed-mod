@@ -173,7 +173,7 @@ TEST_F(AddInstrumentationFilterTest, TestExperimentIdReporting) {
 }
 
 // Test that extended instrumentation is injected properly.
-TEST_F(AddInstrumentationFilterTest, DISABLED_TestExtendedInstrumentation) {
+TEST_F(AddInstrumentationFilterTest, TestExtendedInstrumentation) {
   options()->set_enable_extended_instrumentation(true);
   RunInjection();
   EXPECT_TRUE(output_buffer_.find(

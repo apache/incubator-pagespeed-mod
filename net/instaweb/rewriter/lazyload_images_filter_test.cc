@@ -429,7 +429,7 @@ TEST_F(LazyloadImagesFilterTest, NoImages) {
   EXPECT_EQ(0, logging_info()->rewriter_info().size());
 }
 
-TEST_F(LazyloadImagesFilterTest, DISABLED_LazyloadScriptOptimized) {
+TEST_F(LazyloadImagesFilterTest, LazyloadScriptOptimized) {
   InitLazyloadImagesFilter(false);
   Parse("optimized",
         "<head></head><body><img src=\"1.jpg\"></body>");
@@ -437,7 +437,7 @@ TEST_F(LazyloadImagesFilterTest, DISABLED_LazyloadScriptOptimized) {
       << "There should be no comments in the optimized code";
 }
 
-TEST_F(LazyloadImagesFilterTest, DISABLED_LazyloadScriptDebug) {
+TEST_F(LazyloadImagesFilterTest, LazyloadScriptDebug) {
   InitLazyloadImagesFilter(true);
   Parse("debug",
         "<head></head><body><img src=\"1.jpg\"></body>");
