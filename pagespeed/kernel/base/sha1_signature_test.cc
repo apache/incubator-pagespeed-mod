@@ -29,8 +29,7 @@ namespace {
 
 class Sha1SignatureTest : public ::testing::Test {};
 
-// XX(oschaaf): HMAC segfaults
-TEST_F(Sha1SignatureTest, DISABLED_CorrectSignatureSize) {
+TEST_F(Sha1SignatureTest, CorrectSignatureSize) {
   // This test verifies that Sha1Signature outputs signatures of the proper
   // size.
   // SHA1 is 160 bit, which is 27 6-bit chars (there are 2 additional bits for
@@ -47,7 +46,7 @@ TEST_F(Sha1SignatureTest, DISABLED_CorrectSignatureSize) {
   }
 }
 
-TEST_F(Sha1SignatureTest, DISABLED_SignaturesDiffer) {
+TEST_F(Sha1SignatureTest, SignaturesDiffer) {
 #if ENABLE_URL_SIGNATURES
   SHA1Signature signature;
   // Basic sanity tests.
