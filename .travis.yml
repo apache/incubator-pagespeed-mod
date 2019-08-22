@@ -24,9 +24,13 @@ env:
     - BIT_FLAG=
 
 script:
-  - bazel build --jobs=3 -c dbg //net/... //pagespeed/...
-  - bazel test -c dbg --test_output=errors --jobs=3 //net/... //pagespeed/...
+  - bazel build --jobs=3 -c dbg //net/... //pagespeed/... > build.log 2>&1
+  - bazel test -c dbg --test_output=errors --jobs=3 //net/... //pagespeed/... >> build.log 2>&1
 
+after_failure:
+  # dump the last 2000 lines of our build, and hope the error is in that!
+  - tail --lines=2000 build.log
+  
 notifications:
   email:
     - pagespeed-ci@googlegroups.com
