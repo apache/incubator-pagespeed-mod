@@ -228,7 +228,7 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::ReadDone(RefPtrT ref) {
 template <typename AsyncService, typename RequestT, typename ResponseT>
 bool RpcHandler<AsyncService, RequestT, ResponseT>::Finish(
     const ::grpc::Status& status) {
-  if (state_ == FINISHED) {
+  if (state_ == FINISHED || state_ == INIT) {
     return false;
   }
   if (IsClientWriteable()) {
