@@ -174,7 +174,7 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::Start() {
   // "this" without calling HandleError(), because state_ is INIT.
   InitResponder(service_, &ctx_, &responder_, cq_,
                 MakeFunction(this, &RpcHandler::InitDone,
-                            &RpcHandler::CallHandleError, RefPtrT(this)));
+                           &RpcHandler::CallHandleError, RefPtrT(this)));
 }
 
 template <typename AsyncService, typename RequestT, typename ResponseT>
@@ -187,9 +187,8 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::InitDone(RefPtrT ref) {
     // point in the future we could implement a callback to signal that.
     AttemptRead(ref);
   } else {
-    // When state is FINISHED, it shouldn't be possible for anything else to be
-    // holding a ref to "this" right now, so we rely on the refcount to actually
-    // force a disconnect.
+    // When state is FINISHED, we were shutdown before we started. 
+    // Propagate that as CANCELLED to any client.
     ::grpc::Status status(::grpc::StatusCode::CANCELLED, "not started");
     responder_.Finish(
         status, MakeFunction(this, &RpcHandler::FinishDone,
