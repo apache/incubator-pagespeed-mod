@@ -174,7 +174,7 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::Start() {
   // "this" without calling HandleError(), because state_ is INIT.
   InitResponder(service_, &ctx_, &responder_, cq_,
                 MakeFunction(this, &RpcHandler::InitDone,
-                             &RpcHandler::CallHandleError, RefPtrT(this)));
+                            &RpcHandler::CallHandleError, RefPtrT(this)));
 }
 
 template <typename AsyncService, typename RequestT, typename ResponseT>
@@ -196,6 +196,10 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::InitDone(RefPtrT ref) {
     // Function).
     // Note that the status from our Finish() call does not make it to the
     // client in this case.
+    ::grpc::Status status(::grpc::StatusCode::FAILED_PRECONDITION, "not started");
+    responder_.Finish(
+        status, MakeFunction(this, &RpcHandler::FinishDone,
+                             &RpcHandler::CallHandleError, RefPtrT(this)));
   }
 }
 
@@ -228,7 +232,7 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::ReadDone(RefPtrT ref) {
 template <typename AsyncService, typename RequestT, typename ResponseT>
 bool RpcHandler<AsyncService, RequestT, ResponseT>::Finish(
     const ::grpc::Status& status) {
-  if (state_ == FINISHED || state_ == INIT) {
+  if (state_ == FINISHED) {
     return false;
   }
   if (IsClientWriteable()) {
