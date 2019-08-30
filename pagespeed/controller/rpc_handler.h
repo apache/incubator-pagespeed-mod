@@ -174,7 +174,7 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::Start() {
   // "this" without calling HandleError(), because state_ is INIT.
   InitResponder(service_, &ctx_, &responder_, cq_,
                 MakeFunction(this, &RpcHandler::InitDone,
-                           &RpcHandler::CallHandleError, RefPtrT(this)));
+                             &RpcHandler::CallHandleError, RefPtrT(this)));
 }
 
 template <typename AsyncService, typename RequestT, typename ResponseT>
