@@ -255,5 +255,29 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "test envoy filter",
+            "type": "shell",
+            "command": " bazel test pagespeed/envoy:http_filter_integration_test",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build envoy filter",
+            "type": "shell",
+            "command": " bazel build pagespeed/envoy:envoy",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
     ]
 }
