@@ -106,10 +106,8 @@ using absl::EndsWith;
 // Quick macro to get the size of a static char[] without trailing '\0'.
 // Note: Cannot be used for char*, std::string, etc.
 
-#ifndef STATIC_STRLEN
 #define STATIC_STRLEN(static_string) (arraysize(static_string) - 1)
-#endif
- 
+
 namespace net_instaweb {
 
 struct StringCompareInsensitive;
