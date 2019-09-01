@@ -7,6 +7,9 @@
 
 #include "pagespeed/envoy/http_filter.pb.h"
 #include "pagespeed/envoy/http_filter.pb.validate.h"
+#include "pagespeed/envoy/envoy_rewrite_driver_factory.h"
+
+using namespace net_instaweb;
 
 namespace Envoy {
 namespace Server {
@@ -59,6 +62,8 @@ private:
     JSON_UTIL_SET_STRING(json_config, proto_config, key);
     JSON_UTIL_SET_STRING(json_config, proto_config, val);
   }
+
+  std::shared_ptr<EnvoyRewriteDriverFactory> rewrite_driver_factory_;
 };
 
 /**
