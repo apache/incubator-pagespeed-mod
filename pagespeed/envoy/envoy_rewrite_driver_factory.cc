@@ -68,7 +68,7 @@ EnvoyRewriteDriverFactory::EnvoyRewriteDriverFactory(
     const ProcessContext &process_context,
     SystemThreadSystem *system_thread_system, StringPiece hostname, int port)
     : SystemRewriteDriverFactory(process_context, system_thread_system,
-                                 NULL /* default shared memory runtime */, hostname, port),
+                                 new PthreadSharedMem() /* default shared memory runtime */, hostname, port),
       threads_started_(false),
       envoy_message_handler_(
           new EnvoyMessageHandler(timer(), thread_system()->NewMutex())),
@@ -79,21 +79,50 @@ EnvoyRewriteDriverFactory::EnvoyRewriteDriverFactory(
       port_(port),
       shut_down_(false)
 {
-    InitializeDefaultOptions();
-    default_options()->set_beacon_url("/envoy_pagespeed_beacon");
-    SystemRewriteOptions *system_options = dynamic_cast<SystemRewriteOptions *>(
-        default_options());
-    system_options->set_file_cache_clean_inode_limit(500000);
-    system_options->set_avoid_renaming_introspective_javascript(true);
-    set_message_handler(envoy_message_handler_);
-    set_html_parse_message_handler(envoy_html_parse_message_handler_);
+
+  InitializeDefaultOptions();
+  default_options()->set_beacon_url("/envoy_pagespeed_beacon");
+  default_options()->set_enabled(RewriteOptions::kEnabledOn);
+  default_options()->SetRewriteLevel(RewriteOptions::kCoreFilters);
+
+  SystemRewriteOptions *system_options = dynamic_cast<SystemRewriteOptions *>(default_options());
+  system_options->set_log_dir("/tmp/envoy_pagespeed_log/");
+  system_options->set_statistics_logging_enabled(true);
+  //ExternalClusterSpec spec = {{ExternalServerSpec("127.0.0.1", 11211)}};
+  //system_options->set_memcached_servers(spec);
+
+  system_options->set_file_cache_clean_inode_limit(500000);
+  system_options->set_file_cache_clean_size_kb(1024 * 10000); // 10 GB
+  system_options->set_avoid_renaming_introspective_javascript(true);
+  system_options->set_file_cache_path("/tmp/envoy_pagespeed_cache/");
+  system_options->set_lru_cache_byte_limit(163840);
+  system_options->set_lru_cache_kb_per_process(1024 * 500); // 500 MB
+
+  system_options->set_flush_html(true);
+
+  //EnvoyRewriteOptions *options = (EnvoyRewriteOptions *)system_options;
+  //std::vector<std::string> args;
+  //args.push_back("RateLimitBackgroundFetches");
+  //args.push_back("on");
+  //global_settings settings;
+  //const char *msg = options->ParseAndSetOptions(args, envoy_message_handler_, settings);
+  //CHECK(!msg);
+
+  set_message_buffer_size(1024 * 128);
+  set_message_handler(envoy_message_handler_);
+  set_html_parse_message_handler(envoy_html_parse_message_handler_);
+  StartThreads();
+
 }
 
 EnvoyRewriteDriverFactory::~EnvoyRewriteDriverFactory()
 {
-    ShutDown();
+  ShutDown();
     envoy_shared_circular_buffer_ = NULL;
-    STLDeleteElements(&uninitialized_server_contexts_);
+  // message handlers are owned by RewriteDriverFactory
+  envoy_message_handler_ = NULL;
+  envoy_html_parse_message_handler_ = NULL;
+  STLDeleteElements(&uninitialized_server_contexts_);
 }
 
 Hasher *EnvoyRewriteDriverFactory::NewHasher()
@@ -195,17 +224,18 @@ void EnvoyRewriteDriverFactory::ShutDownMessageHandlers()
 
 void EnvoyRewriteDriverFactory::StartThreads()
 {
+    std::cerr << "@@@@ pre starting scheduler thread!" << std::endl;
     if (threads_started_)
     {
         return;
     }
-    // TODO(jefftk): use a native Envoy timer instead of running our own thread.
-    // See issue #111.
+    // TODO(oschaaf): Can we use Envoy-native scheduling?
     SchedulerThread *thread = new SchedulerThread(thread_system(), scheduler());
     bool ok = thread->Start();
     CHECK(ok) << "Unable to start scheduler thread";
     defer_cleanup(thread->MakeDeleter());
     threads_started_ = true;
+    std::cerr << "@@@@ post starting scheduler thread!" << std::endl;
 }
 
 void EnvoyRewriteDriverFactory::SetMainConf(EnvoyRewriteOptions *main_options)
@@ -230,6 +260,15 @@ void EnvoyRewriteDriverFactory::LoggingInit(bool may_install_crash_handler)
     envoy_message_handler_->set_log(log);
     envoy_html_parse_message_handler_->set_log(log);
     */
+}
+
+void EnvoyRewriteDriverFactory::SetServerContextMessageHandler(
+    ServerContext* server_context) {
+  EnvoyMessageHandler* handler = new EnvoyMessageHandler(timer(), thread_system()->NewMutex());
+  handler->set_buffer(envoy_shared_circular_buffer_);
+  server_context_message_handlers_.insert(handler);
+  defer_cleanup(new Deleter<EnvoyMessageHandler>(handler));
+  server_context->set_message_handler(handler);
 }
 
 void EnvoyRewriteDriverFactory::SetCircularBuffer(

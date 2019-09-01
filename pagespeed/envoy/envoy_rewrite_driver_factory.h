@@ -82,6 +82,8 @@ public:
 
   void LoggingInit(bool may_install_crash_handler);
 
+  void SetServerContextMessageHandler(ServerContext* server_context);
+
   virtual void ShutDownMessageHandlers();
 
   virtual void SetCircularBuffer(SharedCircularBuffer *buffer);

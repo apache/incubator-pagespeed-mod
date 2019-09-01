@@ -101,9 +101,9 @@ namespace log_message_handler {
 
 
 void Install() {
-  // logging::SetLogMessageHandler(&LogMessageHandler);
   // TODO(oschaaF): Set log filter here according to configuration
-  // logging::SetMinLogLevel(-2);
+    //logging::SetLogMessageHandler(&LogMessageHandler);
+    //logging::SetMinLogLevel(-2);
 }
 
 }  // namespace log_message_handler

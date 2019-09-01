@@ -65,8 +65,11 @@ const std::string HttpPageSpeedDecoderFilter::headerValue() const {
 }
 
 FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(HeaderMap& headers, bool) {
+  std::cerr << "@@@@@ yeah " << std::endl;
+  headers.dumpState(std::cerr, 2);
   // add a header
   headers.addCopy(headerKey(), headerValue());
+  headers.addCopy(LowerCaseString("x-page-speed"), "yeah");
 
   net_instaweb::RequestHeaders request_headers;
 
