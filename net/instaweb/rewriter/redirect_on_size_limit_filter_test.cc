@@ -184,14 +184,14 @@ TEST_F(RedirectOnSizeLimitFilterTest, TestFlushBeforeLimit) {
   CheckOutput(150, 160, true, input, input);
 }
 
-TEST_F(RedirectOnSizeLimitFilterTest, DISABLED_TestEscapingAndFlush) {
+TEST_F(RedirectOnSizeLimitFilterTest, TestEscapingAndFlush) {
   SetupDriver(100);
   static const char kOutput[] =
       "<html>"
       "<input type=\"text\"/>"
       "<script type=\"text/javascript\">"
       "window.location=\"http://test.com/in.html?"
-      "\\'"
+      "%27"
       "(&PageSpeed=off\";"
       "</script>"
       "<script type=\"text/javascript\">alert('123');</script>"
