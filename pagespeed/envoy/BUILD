@@ -101,6 +101,8 @@ envoy_cc_library(
     deps = [
         ":http_filter_lib",
         "@envoy//include/envoy/server:filter_config_interface",
+        "@envoy//source/common/common:minimal_logger_lib_with_external_headers",
+        "@envoy//source/exe:envoy_common_lib_with_external_headers",
     ],
 )
 

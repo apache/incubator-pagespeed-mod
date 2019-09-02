@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-#include <unistd.h> //for usleep
 
 #include "pagespeed/envoy/envoy_base_fetch.h"
 
@@ -29,106 +27,73 @@
 #include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/http/response_headers.h"
 
+#include "pagespeed/envoy/http_filter.h"
+
 namespace net_instaweb {
 
 int EnvoyBaseFetch::active_base_fetches = 0;
 
-EnvoyBaseFetch::EnvoyBaseFetch(StringPiece url,
-                           EnvoyServerContext* server_context,
-                           const RequestContextPtr& request_ctx,
-                           PreserveCachingHeaders preserve_caching_headers,
-                           EnvoyBaseFetchType base_fetch_type,
-                           const RewriteOptions* options)
-    : AsyncFetch(request_ctx),
-      url_(url.data(), url.size()),
-      server_context_(server_context),
-      options_(options),
-      need_flush_(false),
-      done_called_(false),
-      last_buf_sent_(false),
-      references_(2),
-      base_fetch_type_(base_fetch_type),
-      preserve_caching_headers_(preserve_caching_headers),
-      detached_(false),
-      suppress_(false) {
-  if (pthread_mutex_init(&mutex_, NULL)) CHECK(0);
+EnvoyBaseFetch::EnvoyBaseFetch(StringPiece url, EnvoyServerContext* server_context,
+                               const RequestContextPtr& request_ctx,
+                               PreserveCachingHeaders preserve_caching_headers,
+                               EnvoyBaseFetchType base_fetch_type, const RewriteOptions* options,
+                               Envoy::Http::HttpPageSpeedDecoderFilter* decoder)
+    : AsyncFetch(request_ctx), url_(url.data(), url.size()), server_context_(server_context),
+      options_(options), need_flush_(false), done_called_(false), last_buf_sent_(false),
+      references_(2), base_fetch_type_(base_fetch_type),
+      preserve_caching_headers_(preserve_caching_headers), detached_(false), suppress_(false),
+      decoder_(decoder) {
+  RELEASE_ASSERT(decoder_ != nullptr, "decoder not set!");
   __sync_add_and_fetch(&EnvoyBaseFetch::active_base_fetches, 1);
 }
 
 EnvoyBaseFetch::~EnvoyBaseFetch() {
-  pthread_mutex_destroy(&mutex_);
+  std::cerr << "EnvoyBaseFetch destruct()" << std::endl;
   __sync_add_and_fetch(&EnvoyBaseFetch::active_base_fetches, -1);
 }
 
-
 const char* BaseFetchTypeToCStr(EnvoyBaseFetchType type) {
-  switch(type) {
-    case kPageSpeedResource:
-      return "ps resource";
-    case kHtmlTransform:
-      return "html transform";
-    case kAdminPage:
-      return "admin page";
-    case kIproLookup:
-      return "ipro lookup";
-    case kPageSpeedProxy:
-      return "pagespeed proxy";
+  switch (type) {
+  case kPageSpeedResource:
+    return "ps resource";
+  case kHtmlTransform:
+    return "html transform";
+  case kAdminPage:
+    return "admin page";
+  case kIproLookup:
+    return "ipro lookup";
+  case kPageSpeedProxy:
+    return "pagespeed proxy";
   }
   CHECK(false);
   return "can't get here";
 }
 
-void EnvoyBaseFetch::Lock() {
-  pthread_mutex_lock(&mutex_);
-}
-
-void EnvoyBaseFetch::Unlock() {
-  pthread_mutex_unlock(&mutex_);
-}
-
-bool EnvoyBaseFetch::HandleWrite(const StringPiece& sp,
-                               MessageHandler* handler) {
-  Lock();
+bool EnvoyBaseFetch::HandleWrite(const StringPiece& sp, MessageHandler*) {
   buffer_.append(sp.data(), sp.size());
-  Unlock();
   return true;
 }
-
 
 void EnvoyBaseFetch::HandleHeadersComplete() {
   int status_code = response_headers()->status_code();
-  bool status_ok = (status_code != 0) && (status_code < 400);
-
-  if ((base_fetch_type_ != kIproLookup) || status_ok) {
-    // If this is a 404 response we need to count it in the stats.
-    if (response_headers()->status_code() == HttpStatus::kNotFound) {
-      server_context_->rewrite_stats()->resource_404_count()->Add(1);
-    }
+  std::cerr << "EnvoyBaseFetch::HandleHeadersComplete() -> " << status_code << std::endl;
+  // If this is a 404 response we need to count it in the stats.
+  if (base_fetch_type_ != kIproLookup && status_code == HttpStatus::kNotFound) {
+    server_context_->rewrite_stats()->resource_404_count()->Add(1);
   }
-
-  // For the IPRO lookup, supress notification of the Envou side here.
-  // If we send both the headerscomplete event and the one from done, nasty
-  // stuff will happen if we loose the race with with the Envoy side destructing
-  // this base fetch instance.
-  if (base_fetch_type_ == kIproLookup && !status_ok) {
-    suppress_ = true;
-  }
+  suppress_ = (base_fetch_type_ == kIproLookup) && (status_code < 0 || status_code >= 400);
+  decoder_->decoderCallbacks()->dispatcher().post(
+      [this]() { decoder_->decoderCallbacks()->continueDecoding(); });
 }
 
-bool EnvoyBaseFetch::HandleFlush(MessageHandler* handler) {
-  Lock();
+bool EnvoyBaseFetch::HandleFlush(MessageHandler*) {
   need_flush_ = true;
-  Unlock();
   return true;
 }
 
-int EnvoyBaseFetch::DecrementRefCount() {
-  return DecrefAndDeleteIfUnreferenced();
-}
+int EnvoyBaseFetch::DecrementRefCount() { return DecrefAndDeleteIfUnreferenced(); }
 
-int EnvoyBaseFetch::IncrementRefCount() {
-  return __sync_add_and_fetch(&references_, 1);
-}
+int EnvoyBaseFetch::IncrementRefCount() { return __sync_add_and_fetch(&references_, 1); }
 
 int EnvoyBaseFetch::DecrefAndDeleteIfUnreferenced() {
   // Creates a full memory barrier.
@@ -140,16 +105,16 @@ int EnvoyBaseFetch::DecrefAndDeleteIfUnreferenced() {
 }
 
 void EnvoyBaseFetch::HandleDone(bool success) {
-  CHECK(!done_called_) << "Done already called!";
-  Lock();
+  std::cerr << "EnvoyBaseFetch::HandleDone()" << std::endl;
   done_called_ = true;
-  Unlock();
+  if (!suppress_) {
+    // do something
+  }
   DecrefAndDeleteIfUnreferenced();
 }
 
 bool EnvoyBaseFetch::IsCachedResultValid(const ResponseHeaders& headers) {
-  return OptionsAwareHTTPCacheCallback::IsCacheValid(
-      url_, *options_, request_context(), headers);
+  return OptionsAwareHTTPCacheCallback::IsCacheValid(url_, *options_, request_context(), headers);
 }
 
-}  // namespace net_instaweb
+} // namespace net_instaweb

@@ -25,23 +25,18 @@
 
 #include <pthread.h>
 
-#include "pagespeed/system/system_thread_system.h"
+#include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/pthread_rw_lock.h"
-#include "pagespeed/kernel/base/condvar.h"
+#include "pagespeed/system/system_thread_system.h"
 
-namespace net_instaweb
-{
-class EnvoyThreadSystem : public net_instaweb::SystemThreadSystem
-{
+namespace net_instaweb {
+class EnvoyThreadSystem : public net_instaweb::SystemThreadSystem {
 public:
-  virtual void
-  BeforeThreadRunHook()
-  {
-  }
+  virtual void BeforeThreadRunHook() {}
 
   virtual ~EnvoyThreadSystem() {}
 };
 
-} // net_instaweb
+} // namespace net_instaweb

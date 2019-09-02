@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,10 +21,6 @@
 
 #include <cstdio>
 
-#include "pagespeed/envoy/log_message_handler.h"
-#include "pagespeed/envoy/envoy_message_handler.h"
-#include "pagespeed/envoy/envoy_rewrite_options.h"
-#include "pagespeed/envoy/envoy_server_context.h"
 #include "net/instaweb/http/public/rate_controller.h"
 #include "net/instaweb/http/public/rate_controlling_url_async_fetcher.h"
 #include "net/instaweb/http/public/wget_url_fetcher.h"
@@ -32,6 +28,10 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/property_cache.h"
+#include "pagespeed/envoy/envoy_message_handler.h"
+#include "pagespeed/envoy/envoy_rewrite_options.h"
+#include "pagespeed/envoy/envoy_server_context.h"
+#include "pagespeed/envoy/log_message_handler.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/null_shared_mem.h"
 #include "pagespeed/kernel/base/posix_timer.h"
@@ -50,8 +50,7 @@
 #include "pagespeed/system/system_caches.h"
 #include "pagespeed/system/system_rewrite_options.h"
 
-namespace net_instaweb
-{
+namespace net_instaweb {
 
 class FileSystem;
 class Hasher;
@@ -64,32 +63,29 @@ class Writer;
 
 class SharedCircularBuffer;
 
-EnvoyRewriteDriverFactory::EnvoyRewriteDriverFactory(
-    const ProcessContext &process_context,
-    SystemThreadSystem *system_thread_system, StringPiece hostname, int port)
+EnvoyRewriteDriverFactory::EnvoyRewriteDriverFactory(const ProcessContext& process_context,
+                                                     SystemThreadSystem* system_thread_system,
+                                                     StringPiece hostname, int port)
     : SystemRewriteDriverFactory(process_context, system_thread_system,
-                                 new PthreadSharedMem() /* default shared memory runtime */, hostname, port),
+                                 new PthreadSharedMem() /* default shared memory runtime */,
+                                 hostname, port),
       threads_started_(false),
-      envoy_message_handler_(
-          new EnvoyMessageHandler(timer(), thread_system()->NewMutex())),
+      envoy_message_handler_(new EnvoyMessageHandler(timer(), thread_system()->NewMutex())),
       envoy_html_parse_message_handler_(
           new EnvoyMessageHandler(timer(), thread_system()->NewMutex())),
-      envoy_shared_circular_buffer_(NULL),
-      hostname_(hostname.as_string()),
-      port_(port),
-      shut_down_(false)
-{
+      envoy_shared_circular_buffer_(NULL), hostname_(hostname.as_string()), port_(port),
+      shut_down_(false) {
 
   InitializeDefaultOptions();
   default_options()->set_beacon_url("/envoy_pagespeed_beacon");
   default_options()->set_enabled(RewriteOptions::kEnabledOn);
   default_options()->SetRewriteLevel(RewriteOptions::kCoreFilters);
 
-  SystemRewriteOptions *system_options = dynamic_cast<SystemRewriteOptions *>(default_options());
+  SystemRewriteOptions* system_options = dynamic_cast<SystemRewriteOptions*>(default_options());
   system_options->set_log_dir("/tmp/envoy_pagespeed_log/");
   system_options->set_statistics_logging_enabled(true);
-  //ExternalClusterSpec spec = {{ExternalServerSpec("127.0.0.1", 11211)}};
-  //system_options->set_memcached_servers(spec);
+  // ExternalClusterSpec spec = {{ExternalServerSpec("127.0.0.1", 11211)}};
+  // system_options->set_memcached_servers(spec);
 
   system_options->set_file_cache_clean_inode_limit(500000);
   system_options->set_file_cache_clean_size_kb(1024 * 10000); // 10 GB
@@ -100,170 +96,138 @@ EnvoyRewriteDriverFactory::EnvoyRewriteDriverFactory(
 
   system_options->set_flush_html(true);
 
-  //EnvoyRewriteOptions *options = (EnvoyRewriteOptions *)system_options;
-  //std::vector<std::string> args;
-  //args.push_back("RateLimitBackgroundFetches");
-  //args.push_back("on");
-  //global_settings settings;
-  //const char *msg = options->ParseAndSetOptions(args, envoy_message_handler_, settings);
-  //CHECK(!msg);
+  // EnvoyRewriteOptions *options = (EnvoyRewriteOptions *)system_options;
+  // std::vector<std::string> args;
+  // args.push_back("RateLimitBackgroundFetches");
+  // args.push_back("on");
+  // global_settings settings;
+  // const char *msg = options->ParseAndSetOptions(args, envoy_message_handler_, settings);
+  // CHECK(!msg);
 
   set_message_buffer_size(1024 * 128);
   set_message_handler(envoy_message_handler_);
   set_html_parse_message_handler(envoy_html_parse_message_handler_);
   StartThreads();
-
 }
 
-EnvoyRewriteDriverFactory::~EnvoyRewriteDriverFactory()
-{
+EnvoyRewriteDriverFactory::~EnvoyRewriteDriverFactory() {
   ShutDown();
-    envoy_shared_circular_buffer_ = NULL;
+  envoy_shared_circular_buffer_ = NULL;
   // message handlers are owned by RewriteDriverFactory
   envoy_message_handler_ = NULL;
   envoy_html_parse_message_handler_ = NULL;
   STLDeleteElements(&uninitialized_server_contexts_);
 }
 
-Hasher *EnvoyRewriteDriverFactory::NewHasher()
-{
-    return new MD5Hasher;
+Hasher* EnvoyRewriteDriverFactory::NewHasher() { return new MD5Hasher; }
+
+UrlAsyncFetcher* EnvoyRewriteDriverFactory::AllocateFetcher(SystemRewriteOptions* config) {
+  return SystemRewriteDriverFactory::AllocateFetcher(config);
 }
 
-UrlAsyncFetcher *EnvoyRewriteDriverFactory::AllocateFetcher(
-    SystemRewriteOptions *config)
-{
-    return SystemRewriteDriverFactory::AllocateFetcher(config);
+MessageHandler* EnvoyRewriteDriverFactory::DefaultHtmlParseMessageHandler() {
+  return envoy_html_parse_message_handler_;
 }
 
-MessageHandler *EnvoyRewriteDriverFactory::DefaultHtmlParseMessageHandler()
-{
-    return envoy_html_parse_message_handler_;
+MessageHandler* EnvoyRewriteDriverFactory::DefaultMessageHandler() {
+  return envoy_message_handler_;
 }
 
-MessageHandler *EnvoyRewriteDriverFactory::DefaultMessageHandler()
-{
-    return envoy_message_handler_;
+FileSystem* EnvoyRewriteDriverFactory::DefaultFileSystem() { return new StdioFileSystem(); }
+
+Timer* EnvoyRewriteDriverFactory::DefaultTimer() { return new PosixTimer; }
+
+NamedLockManager* EnvoyRewriteDriverFactory::DefaultLockManager() {
+  CHECK(false);
+  return NULL;
 }
 
-FileSystem *EnvoyRewriteDriverFactory::DefaultFileSystem()
-{
-    return new StdioFileSystem();
+RewriteOptions* EnvoyRewriteDriverFactory::NewRewriteOptions() {
+  EnvoyRewriteOptions* options = new EnvoyRewriteOptions(thread_system());
+  // TODO(jefftk): figure out why using SetDefaultRewriteLevel like
+  // mod_pagespeed does in mod_instaweb.cc:create_dir_config() isn't enough here
+  // -- if you use that instead then envoy_pagespeed doesn't actually end up
+  // defaulting CoreFilters.
+  // See: https://github.com/apache/incubator-pagespeed-envoy/issues/1190
+  options->SetRewriteLevel(RewriteOptions::kCoreFilters);
+  return options;
 }
 
-Timer *EnvoyRewriteDriverFactory::DefaultTimer()
-{
-    return new PosixTimer;
+RewriteOptions* EnvoyRewriteDriverFactory::NewRewriteOptionsForQuery() {
+  return new EnvoyRewriteOptions(thread_system());
 }
 
-NamedLockManager *EnvoyRewriteDriverFactory::DefaultLockManager()
-{
-    CHECK(false);
-    return NULL;
+EnvoyServerContext* EnvoyRewriteDriverFactory::MakeEnvoyServerContext(StringPiece hostname,
+                                                                      int port) {
+  EnvoyServerContext* server_context = new EnvoyServerContext(this, hostname, port);
+  uninitialized_server_contexts_.insert(server_context);
+  return server_context;
 }
 
-RewriteOptions *EnvoyRewriteDriverFactory::NewRewriteOptions()
-{
-    EnvoyRewriteOptions *options = new EnvoyRewriteOptions(thread_system());
-    // TODO(jefftk): figure out why using SetDefaultRewriteLevel like
-    // mod_pagespeed does in mod_instaweb.cc:create_dir_config() isn't enough here
-    // -- if you use that instead then envoy_pagespeed doesn't actually end up
-    // defaulting CoreFilters.
-    // See: https://github.com/apache/incubator-pagespeed-envoy/issues/1190
-    options->SetRewriteLevel(RewriteOptions::kCoreFilters);
-    return options;
+ServerContext* EnvoyRewriteDriverFactory::NewDecodingServerContext() {
+  ServerContext* sc = new EnvoyServerContext(this, hostname_, port_);
+  InitStubDecodingServerContext(sc);
+  return sc;
 }
 
-RewriteOptions *EnvoyRewriteDriverFactory::NewRewriteOptionsForQuery()
-{
-    return new EnvoyRewriteOptions(thread_system());
+ServerContext* EnvoyRewriteDriverFactory::NewServerContext() {
+  LOG(DFATAL) << "MakeEnvoyServerContext should be used instead";
+  return NULL;
 }
 
-EnvoyServerContext *EnvoyRewriteDriverFactory::MakeEnvoyServerContext(
-    StringPiece hostname, int port)
-{
-    EnvoyServerContext *server_context = new EnvoyServerContext(this, hostname, port);
-    uninitialized_server_contexts_.insert(server_context);
-    return server_context;
+void EnvoyRewriteDriverFactory::ShutDown() {
+  if (!shut_down_) {
+    shut_down_ = true;
+    SystemRewriteDriverFactory::ShutDown();
+  }
 }
 
-ServerContext *EnvoyRewriteDriverFactory::NewDecodingServerContext()
-{
-    ServerContext *sc = new EnvoyServerContext(this, hostname_, port_);
-    InitStubDecodingServerContext(sc);
-    return sc;
+void EnvoyRewriteDriverFactory::ShutDownMessageHandlers() {
+  envoy_message_handler_->set_buffer(NULL);
+  envoy_html_parse_message_handler_->set_buffer(NULL);
+  for (EnvoyMessageHandlerSet::iterator p = server_context_message_handlers_.begin();
+       p != server_context_message_handlers_.end(); ++p) {
+    (*p)->set_buffer(NULL);
+  }
+  server_context_message_handlers_.clear();
 }
 
-ServerContext *EnvoyRewriteDriverFactory::NewServerContext()
-{
-    LOG(DFATAL) << "MakeEnvoyServerContext should be used instead";
-    return NULL;
+void EnvoyRewriteDriverFactory::StartThreads() {
+  std::cerr << "@@@@ pre starting scheduler thread!" << std::endl;
+  if (threads_started_) {
+    return;
+  }
+  // TODO(oschaaf): Can we use Envoy-native scheduling?
+  SchedulerThread* thread = new SchedulerThread(thread_system(), scheduler());
+  bool ok = thread->Start();
+  CHECK(ok) << "Unable to start scheduler thread";
+  defer_cleanup(thread->MakeDeleter());
+  threads_started_ = true;
+  std::cerr << "@@@@ post starting scheduler thread!" << std::endl;
 }
 
-void EnvoyRewriteDriverFactory::ShutDown()
-{
-    if (!shut_down_)
-    {
-        shut_down_ = true;
-        SystemRewriteDriverFactory::ShutDown();
-    }
+void EnvoyRewriteDriverFactory::SetMainConf(EnvoyRewriteOptions* main_options) {
+  // Propagate process-scope options from the copy we had during Envoy option
+  // parsing to our own.
+  if (main_options != NULL) {
+    default_options()->MergeOnlyProcessScopeOptions(*main_options);
+  }
 }
 
-void EnvoyRewriteDriverFactory::ShutDownMessageHandlers()
-{
-    envoy_message_handler_->set_buffer(NULL);
-    envoy_html_parse_message_handler_->set_buffer(NULL);
-    for (EnvoyMessageHandlerSet::iterator p =
-             server_context_message_handlers_.begin();
-         p != server_context_message_handlers_.end(); ++p)
-    {
-        (*p)->set_buffer(NULL);
-    }
-    server_context_message_handlers_.clear();
+void EnvoyRewriteDriverFactory::LoggingInit(bool may_install_crash_handler) {
+  /*
+  log_ = log;
+  net_instaweb::log_message_handler::Install(log);
+  if (may_install_crash_handler && install_crash_handler())
+  {
+      EnvoyMessageHandler::InstallCrashHandler(log);
+  }
+  envoy_message_handler_->set_log(log);
+  envoy_html_parse_message_handler_->set_log(log);
+  */
 }
 
-void EnvoyRewriteDriverFactory::StartThreads()
-{
-    std::cerr << "@@@@ pre starting scheduler thread!" << std::endl;
-    if (threads_started_)
-    {
-        return;
-    }
-    // TODO(oschaaf): Can we use Envoy-native scheduling?
-    SchedulerThread *thread = new SchedulerThread(thread_system(), scheduler());
-    bool ok = thread->Start();
-    CHECK(ok) << "Unable to start scheduler thread";
-    defer_cleanup(thread->MakeDeleter());
-    threads_started_ = true;
-    std::cerr << "@@@@ post starting scheduler thread!" << std::endl;
-}
-
-void EnvoyRewriteDriverFactory::SetMainConf(EnvoyRewriteOptions *main_options)
-{
-    // Propagate process-scope options from the copy we had during Envoy option
-    // parsing to our own.
-    if (main_options != NULL)
-    {
-        default_options()->MergeOnlyProcessScopeOptions(*main_options);
-    }
-}
-
-void EnvoyRewriteDriverFactory::LoggingInit(bool may_install_crash_handler)
-{
-    /*
-    log_ = log;
-    net_instaweb::log_message_handler::Install(log);
-    if (may_install_crash_handler && install_crash_handler())
-    {
-        EnvoyMessageHandler::InstallCrashHandler(log);
-    }
-    envoy_message_handler_->set_log(log);
-    envoy_html_parse_message_handler_->set_log(log);
-    */
-}
-
-void EnvoyRewriteDriverFactory::SetServerContextMessageHandler(
-    ServerContext* server_context) {
+void EnvoyRewriteDriverFactory::SetServerContextMessageHandler(ServerContext* server_context) {
   EnvoyMessageHandler* handler = new EnvoyMessageHandler(timer(), thread_system()->NewMutex());
   handler->set_buffer(envoy_shared_circular_buffer_);
   server_context_message_handlers_.insert(handler);
@@ -271,39 +235,34 @@ void EnvoyRewriteDriverFactory::SetServerContextMessageHandler(
   server_context->set_message_handler(handler);
 }
 
-void EnvoyRewriteDriverFactory::SetCircularBuffer(
-    SharedCircularBuffer *buffer)
-{
-    envoy_shared_circular_buffer_ = buffer;
-    envoy_message_handler_->set_buffer(buffer);
-    envoy_html_parse_message_handler_->set_buffer(buffer);
+void EnvoyRewriteDriverFactory::SetCircularBuffer(SharedCircularBuffer* buffer) {
+  envoy_shared_circular_buffer_ = buffer;
+  envoy_message_handler_->set_buffer(buffer);
+  envoy_html_parse_message_handler_->set_buffer(buffer);
 }
 
-void EnvoyRewriteDriverFactory::InitStats(Statistics *statistics)
-{
-    // Init standard PSOL stats.
-    SystemRewriteDriverFactory::InitStats(statistics);
-    RewriteDriverFactory::InitStats(statistics);
-    RateController::InitStats(statistics);
+void EnvoyRewriteDriverFactory::InitStats(Statistics* statistics) {
+  // Init standard PSOL stats.
+  SystemRewriteDriverFactory::InitStats(statistics);
+  RewriteDriverFactory::InitStats(statistics);
+  RateController::InitStats(statistics);
 
-    // Init Envoy-specific stats.
-    EnvoyServerContext::InitStats(statistics);
-    InPlaceResourceRecorder::InitStats(statistics);
+  // Init Envoy-specific stats.
+  EnvoyServerContext::InitStats(statistics);
+  InPlaceResourceRecorder::InitStats(statistics);
 }
 
-void EnvoyRewriteDriverFactory::PrepareForkedProcess(const char *name)
-{
-    //envoy_pid = envoy_getpid(); // Needed for logging to have the right PIDs.
-    SystemRewriteDriverFactory::PrepareForkedProcess(name);
+void EnvoyRewriteDriverFactory::PrepareForkedProcess(const char* name) {
+  // envoy_pid = envoy_getpid(); // Needed for logging to have the right PIDs.
+  SystemRewriteDriverFactory::PrepareForkedProcess(name);
 }
 
-void EnvoyRewriteDriverFactory::NameProcess(const char *name)
-{
-    SystemRewriteDriverFactory::NameProcess(name);
-    //char name_for_setproctitle[32];
-    //snprintf(name_for_setproctitle, sizeof(name_for_setproctitle),
-    //         "pagespeed %s", name);
-    //envoy_setproctitle(name_for_setproctitle);
+void EnvoyRewriteDriverFactory::NameProcess(const char* name) {
+  SystemRewriteDriverFactory::NameProcess(name);
+  // char name_for_setproctitle[32];
+  // snprintf(name_for_setproctitle, sizeof(name_for_setproctitle),
+  //         "pagespeed %s", name);
+  // envoy_setproctitle(name_for_setproctitle);
 }
 
 } // namespace net_instaweb

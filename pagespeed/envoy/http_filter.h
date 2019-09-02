@@ -6,6 +6,9 @@
 
 #include "pagespeed/envoy/http_filter.pb.h"
 
+#include "pagespeed/envoy/envoy_base_fetch.h"
+#include "pagespeed/envoy/envoy_server_context.h"
+
 namespace Envoy {
 namespace Http {
 
@@ -25,7 +28,8 @@ typedef std::shared_ptr<HttpPageSpeedDecoderFilterConfig> HttpPageSpeedDecoderFi
 
 class HttpPageSpeedDecoderFilter : public StreamDecoderFilter {
 public:
-  HttpPageSpeedDecoderFilter(HttpPageSpeedDecoderFilterConfigSharedPtr);
+  HttpPageSpeedDecoderFilter(HttpPageSpeedDecoderFilterConfigSharedPtr,
+                             net_instaweb::EnvoyServerContext*);
   ~HttpPageSpeedDecoderFilter();
 
   // Http::StreamFilterBase
@@ -36,13 +40,16 @@ public:
   FilterDataStatus decodeData(Buffer::Instance&, bool) override;
   FilterTrailersStatus decodeTrailers(HeaderMap&) override;
   void setDecoderFilterCallbacks(StreamDecoderFilterCallbacks&) override;
+  StreamDecoderFilterCallbacks* decoderCallbacks() { return decoder_callbacks_; };
 
 private:
   const HttpPageSpeedDecoderFilterConfigSharedPtr config_;
+  net_instaweb::EnvoyServerContext* server_context_{nullptr};
   StreamDecoderFilterCallbacks* decoder_callbacks_;
 
   const LowerCaseString headerKey() const;
   const std::string headerValue() const;
+  net_instaweb::EnvoyBaseFetch* base_fetch_{nullptr};
 };
 
 } // namespace Http

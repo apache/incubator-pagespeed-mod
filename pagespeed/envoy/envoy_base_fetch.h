@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,7 @@
  * under the License.
  */
 
-
-
 #pragma once
-
-#include <pthread.h>
 
 #include "pagespeed/envoy/envoy_server_context.h"
 
@@ -29,6 +25,12 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/http/headers.h"
+
+namespace Envoy {
+namespace Http {
+class HttpPageSpeedDecoderFilter;
+}
+} // namespace Envoy
 
 namespace net_instaweb {
 
@@ -41,20 +43,18 @@ enum EnvoyBaseFetchType {
 };
 
 enum PreserveCachingHeaders {
-  kPreserveAllCachingHeaders,  // Cache-Control, ETag, Last-Modified, etc
-  kPreserveOnlyCacheControl,   // Only Cache-Control.
+  kPreserveAllCachingHeaders, // Cache-Control, ETag, Last-Modified, etc
+  kPreserveOnlyCacheControl,  // Only Cache-Control.
   kDontPreserveHeaders,
 };
 
-
 class EnvoyBaseFetch : public AsyncFetch {
- public:
-  EnvoyBaseFetch(StringPiece url,
-               EnvoyServerContext* server_context,
-               const RequestContextPtr& request_ctx,
-               PreserveCachingHeaders preserve_caching_headers,
-               EnvoyBaseFetchType base_fetch_type,
-               const RewriteOptions* options);
+public:
+  EnvoyBaseFetch(StringPiece url, EnvoyServerContext* server_context,
+                 const RequestContextPtr& request_ctx,
+                 PreserveCachingHeaders preserve_caching_headers,
+                 EnvoyBaseFetchType base_fetch_type, const RewriteOptions* options,
+                 Envoy::Http::HttpPageSpeedDecoderFilter* decoder);
   virtual ~EnvoyBaseFetch();
 
   // Called by Envoy to decrement the refcount.
@@ -67,7 +67,10 @@ class EnvoyBaseFetch : public AsyncFetch {
   // sets detached_ to true and decrements the refcount. We need to know
   // this to be able to handle events which Envoy request context has been
   // released while the event was in-flight.
-  void Detach() { detached_ = true; DecrementRefCount(); }
+  void Detach() {
+    detached_ = true;
+    DecrementRefCount();
+  }
 
   bool detached() { return detached_; }
 
@@ -75,14 +78,11 @@ class EnvoyBaseFetch : public AsyncFetch {
 
   bool IsCachedResultValid(const ResponseHeaders& headers) override;
 
- private:
+private:
   virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler);
   virtual bool HandleFlush(MessageHandler* handler);
   virtual void HandleHeadersComplete();
   virtual void HandleDone(bool success);
-
-  void Lock();
-  void Unlock();
 
   // Called by Done() and Release().  Decrements our reference count, and if
   // it's zero we delete ourself.
@@ -103,14 +103,14 @@ class EnvoyBaseFetch : public AsyncFetch {
   // Incremented for each event written by pagespeed for this EnvoyBaseFetch, and
   // decremented on the Envoy side for each event read for it.
   int references_;
-  pthread_mutex_t mutex_;
   EnvoyBaseFetchType base_fetch_type_;
   PreserveCachingHeaders preserve_caching_headers_;
   // Set to true just before the Envoy side releases its reference
   bool detached_;
   bool suppress_;
+  Envoy::Http::HttpPageSpeedDecoderFilter* decoder_{nullptr};
 
   DISALLOW_COPY_AND_ASSIGN(EnvoyBaseFetch);
 };
 
-}  // namespace net_instaweb
+} // namespace net_instaweb

@@ -28,10 +28,10 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/time_util.h"
+#include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/query_params.h"
-#include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/thread/pthread_shared_mem.h"
 #include "pagespeed/kernel/util/gzip_inflater.h"
 #include "pagespeed/kernel/util/statistics_logger.h"
@@ -49,10 +49,15 @@ HttpPageSpeedDecoderFilterConfig::HttpPageSpeedDecoderFilterConfig(
     const pagespeed::Decoder& proto_config)
     : key_(proto_config.key()), val_(proto_config.val()) {}
 
-HttpPageSpeedDecoderFilter::HttpPageSpeedDecoderFilter(HttpPageSpeedDecoderFilterConfigSharedPtr config)
-    : config_(config) {}
+HttpPageSpeedDecoderFilter::HttpPageSpeedDecoderFilter(
+    HttpPageSpeedDecoderFilterConfigSharedPtr config,
+    net_instaweb::EnvoyServerContext* server_context)
+    : config_(config), server_context_(server_context) {}
 
-HttpPageSpeedDecoderFilter::~HttpPageSpeedDecoderFilter() {}
+HttpPageSpeedDecoderFilter::~HttpPageSpeedDecoderFilter() {
+  base_fetch_->DecrementRefCount();
+  base_fetch_ = nullptr;
+}
 
 void HttpPageSpeedDecoderFilter::onDestroy() {}
 
@@ -60,20 +65,33 @@ const LowerCaseString HttpPageSpeedDecoderFilter::headerKey() const {
   return LowerCaseString(config_->key());
 }
 
-const std::string HttpPageSpeedDecoderFilter::headerValue() const {
-  return config_->val();
-}
+const std::string HttpPageSpeedDecoderFilter::headerValue() const { return config_->val(); }
 
 FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(HeaderMap& headers, bool) {
-  std::cerr << "@@@@@ yeah " << std::endl;
-  headers.dumpState(std::cerr, 2);
-  // add a header
-  headers.addCopy(headerKey(), headerValue());
-  headers.addCopy(LowerCaseString("x-page-speed"), "yeah");
+  RELEASE_ASSERT(base_fetch_ == nullptr, "Base fetch not null");
+  net_instaweb::GoogleUrl gurl("http://127.0.0.1/");
+  net_instaweb::RequestContextPtr request_context(server_context_->NewRequestContext());
+  auto* options = server_context_->global_options();
+  request_context->set_options(options->ComputeHttpOptions());
+  RELEASE_ASSERT(options != nullptr, "server context global options not set!");
+  base_fetch_ = new net_instaweb::EnvoyBaseFetch(
+      gurl.Spec(), server_context_, request_context, net_instaweb::kDontPreserveHeaders,
+      net_instaweb::EnvoyBaseFetchType::kIproLookup, options, this);
+  net_instaweb::RewriteDriver* rewrite_driver =
+      server_context_->NewRewriteDriver(base_fetch_->request_context());
+  rewrite_driver->SetRequestHeaders(*base_fetch_->request_headers());
 
-  net_instaweb::RequestHeaders request_headers;
+  auto callback = [](const HeaderEntry& entry, void* base_fetch) -> HeaderMap::Iterate {
+    static_cast<net_instaweb::EnvoyBaseFetch*>(base_fetch)
+        ->request_headers()
+        ->Add(entry.key().getStringView(), entry.value().getStringView());
+    return HeaderMap::Iterate::Continue;
+  };
+  headers.iterate(callback, base_fetch_);
 
-  return FilterHeadersStatus::Continue;
+  rewrite_driver->FetchInPlaceResource(gurl, false /* proxy_mode */, base_fetch_);
+
+  return FilterHeadersStatus::StopIteration;
 }
 
 FilterDataStatus HttpPageSpeedDecoderFilter::decodeData(Buffer::Instance&, bool) {
@@ -84,7 +102,8 @@ FilterTrailersStatus HttpPageSpeedDecoderFilter::decodeTrailers(HeaderMap&) {
   return FilterTrailersStatus::Continue;
 }
 
-void HttpPageSpeedDecoderFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callbacks) {
+void HttpPageSpeedDecoderFilter::setDecoderFilterCallbacks(
+    StreamDecoderFilterCallbacks& callbacks) {
   decoder_callbacks_ = &callbacks;
 }
 

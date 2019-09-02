@@ -7,33 +7,28 @@
 #include "common/config/json_utility.h"
 
 #include "net/instaweb/rewriter/public/process_context.h"
-#include "pagespeed/envoy/envoy_rewrite_driver_factory.h"
-#include "pagespeed/envoy/envoy_server_context.h"
-#include "pagespeed/envoy/envoy_rewrite_options.h"
+#include "pagespeed/automatic/proxy_fetch.h"
 #include "pagespeed/envoy/envoy_process_context.h"
+#include "pagespeed/envoy/envoy_rewrite_driver_factory.h"
+#include "pagespeed/envoy/envoy_rewrite_options.h"
+#include "pagespeed/envoy/envoy_server_context.h"
 #include "pagespeed/envoy/http_filter.pb.h"
 #include "pagespeed/envoy/http_filter.pb.validate.h"
 #include "pagespeed/system/system_thread_system.h"
-#include "pagespeed/automatic/proxy_fetch.h"
 
 using namespace net_instaweb;
 
 // XXX(oschaaf): use in-proc shared mem?
 // #define PAGESPEED_SUPPORT_POSIX_SHARED_MEM
 
-namespace Envoy
-{
-namespace Server
-{
-namespace Configuration
-{
+namespace Envoy {
+namespace Server {
+namespace Configuration {
 
-class HttpPageSpeedDecoderFilterConfig : public NamedHttpFilterConfigFactory
-{
+class HttpPageSpeedDecoderFilterConfig : public NamedHttpFilterConfigFactory {
 public:
-  Http::FilterFactoryCb createFilterFactory(const Json::Object &json_config, const std::string &,
-                                            FactoryContext &context) override
-  {
+  Http::FilterFactoryCb createFilterFactory(const Json::Object& json_config, const std::string&,
+                                            FactoryContext& context) override {
 
     pagespeed::Decoder proto_config;
     translateHttpPageSpeedDecoderFilter(json_config, proto_config);
@@ -41,48 +36,48 @@ public:
     return createFilter(proto_config, context);
   }
 
-  Http::FilterFactoryCb createFilterFactoryFromProto(const Protobuf::Message &proto_config,
-                                                     const std::string &,
-                                                     FactoryContext &context) override
-  {
+  Http::FilterFactoryCb createFilterFactoryFromProto(const Protobuf::Message& proto_config,
+                                                     const std::string&,
+                                                     FactoryContext& context) override {
     std::cerr << "1 start" << std::endl;
     SystemRewriteDriverFactory::InitApr();
     EnvoyRewriteOptions::Initialize();
     EnvoyRewriteDriverFactory::Initialize();
-    //net_instaweb::log_message_handler::Install();
+    // net_instaweb::log_message_handler::Install();
 
     process_context_ = std::make_shared<EnvoyProcessContext>();
     std::cerr << "2 start" << std::endl;
-    return createFilter(
-        Envoy::MessageUtil::downcastAndValidate<const pagespeed::Decoder &>(proto_config, context.messageValidationVisitor()), context);
+    return createFilter(Envoy::MessageUtil::downcastAndValidate<const pagespeed::Decoder&>(
+                            proto_config, context.messageValidationVisitor()),
+                        context);
   }
 
   /**
    *  Return the Protobuf Message that represents your config incase you have config proto
    */
-  ProtobufTypes::MessagePtr createEmptyConfigProto() override
-  {
+  ProtobufTypes::MessagePtr createEmptyConfigProto() override {
     return ProtobufTypes::MessagePtr{new pagespeed::Decoder()};
   }
 
   std::string name() override { return "pagespeed"; }
 
+  net_instaweb::ServerContext* server_context() const { return server_context_.get(); }
+
 private:
-  Http::FilterFactoryCb createFilter(const pagespeed::Decoder &proto_config, FactoryContext &)
-  {
+  Http::FilterFactoryCb createFilter(const pagespeed::Decoder& proto_config, FactoryContext&) {
     Http::HttpPageSpeedDecoderFilterConfigSharedPtr config =
         std::make_shared<Http::HttpPageSpeedDecoderFilterConfig>(
             Http::HttpPageSpeedDecoderFilterConfig(proto_config));
 
-    return [config](Http::FilterChainFactoryCallbacks &callbacks) -> void {
-      auto filter = new Http::HttpPageSpeedDecoderFilter(config);
+    return [config, this](Http::FilterChainFactoryCallbacks& callbacks) -> void {
+      auto filter =
+          new Http::HttpPageSpeedDecoderFilter(config, process_context_->server_context());
       callbacks.addStreamDecoderFilter(Http::StreamDecoderFilterSharedPtr{filter});
     };
   }
 
-  void translateHttpPageSpeedDecoderFilter(const Json::Object &json_config,
-                                           pagespeed::Decoder &proto_config)
-  {
+  void translateHttpPageSpeedDecoderFilter(const Json::Object& json_config,
+                                           pagespeed::Decoder& proto_config) {
 
     // normally we want to validate the json_config againts a defined json-schema here.
     JSON_UTIL_SET_STRING(json_config, proto_config, key);

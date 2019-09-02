@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,17 +37,17 @@ class Timer;
 // Implementation of a message handler that uses envoy_log_error()
 // logging to emit messages, with a fallback to GoogleMessageHandler
 class EnvoyMessageHandler : public SystemMessageHandler {
- public:
+public:
   explicit EnvoyMessageHandler(Timer* timer, AbstractMutex* mutex);
- protected:
+
+protected:
   virtual void MessageSImpl(MessageType type, const GoogleString& message);
 
-  virtual void FileMessageSImpl(MessageType type, const char* file,
-                                int line, const GoogleString& message);
+  virtual void FileMessageSImpl(MessageType type, const char* file, int line,
+                                const GoogleString& message);
 
- private:
+private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyMessageHandler);
 };
 
-}  // namespace net_instaweb
-
+} // namespace net_instaweb

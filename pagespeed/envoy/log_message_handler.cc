@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -55,57 +55,55 @@ ngx_uint_t GetNgxLogLevel(int severity) {
 }
 */
 
-bool LogMessageHandler(int severity, const char* file, int line,
-                       size_t message_start, const GoogleString& str) {
-/*
-  ngx_uint_t this_log_level = GetNgxLogLevel(severity);
+bool LogMessageHandler(int severity, const char* file, int line, size_t message_start,
+                       const GoogleString& str) {
+  /*
+    ngx_uint_t this_log_level = GetNgxLogLevel(severity);
 
-  GoogleString message = str;
-  if (severity == logging::LOG_FATAL) {
-    if (base::debug::BeingDebugged()) {
-      base::debug::BreakDebugger();
-    } else {
-      base::debug::StackTrace trace;
-      std::ostringstream stream;
-      trace.OutputToStream(&stream);
-      message.append(stream.str());
+    GoogleString message = str;
+    if (severity == logging::LOG_FATAL) {
+      if (base::debug::BeingDebugged()) {
+        base::debug::BreakDebugger();
+      } else {
+        base::debug::StackTrace trace;
+        std::ostringstream stream;
+        trace.OutputToStream(&stream);
+        message.append(stream.str());
+      }
     }
-  }
 
-  // Trim the newline off the end of the message string.
-  size_t last_msg_character_index = message.length() - 1;
-  if (message[last_msg_character_index] == '\n') {
-    message.resize(last_msg_character_index);
-  }
+    // Trim the newline off the end of the message string.
+    size_t last_msg_character_index = message.length() - 1;
+    if (message[last_msg_character_index] == '\n') {
+      message.resize(last_msg_character_index);
+    }
 
-  ngx_log_error(this_log_level, ngx_log, 0, "[ngx_pagespeed %s] %s",
-                net_instaweb::kModPagespeedVersion,
-                message.c_str());
+    ngx_log_error(this_log_level, ngx_log, 0, "[ngx_pagespeed %s] %s",
+                  net_instaweb::kModPagespeedVersion,
+                  message.c_str());
 
-  if (severity == logging::LOG_FATAL) {
-    // Crash the process to generate a dump.
-    base::debug::BreakDebugger();
-  }
-*/
+    if (severity == logging::LOG_FATAL) {
+      // Crash the process to generate a dump.
+      base::debug::BreakDebugger();
+    }
+  */
   GoogleString message = str;
   std::cerr << "pagespeed fix logging: " << message << std::endl;
   return true;
 }
 
-}  // namespace
-
+} // namespace
 
 namespace net_instaweb {
 
 namespace log_message_handler {
 
-
 void Install() {
   // TODO(oschaaF): Set log filter here according to configuration
-    //logging::SetLogMessageHandler(&LogMessageHandler);
-    //logging::SetMinLogLevel(-2);
+  // logging::SetLogMessageHandler(&LogMessageHandler);
+  // logging::SetMinLogLevel(-2);
 }
 
-}  // namespace log_message_handler
+} // namespace log_message_handler
 
-}  // namespace net_instaweb
+} // namespace net_instaweb

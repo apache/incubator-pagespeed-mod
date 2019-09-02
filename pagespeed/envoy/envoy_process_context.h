@@ -20,48 +20,37 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
- 
+
 #pragma once
 
+#include "net/instaweb/rewriter/public/process_context.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "net/instaweb/rewriter/public/process_context.h"
 
-namespace net_instaweb
-{
+namespace net_instaweb {
 class EnvoyRewriteDriverFactory;
 class ProxyFetchFactory;
 class EnvoyServerContext;
 
-class EnvoyProcessContext : ProcessContext
-{
+class EnvoyProcessContext : ProcessContext {
 public:
   explicit EnvoyProcessContext();
   virtual ~EnvoyProcessContext();
 
-  //MessageHandler* message_handler()
- // {
- //   return message_handler_.get();
+  // MessageHandler* message_handler()
+  // {
+  //   return message_handler_.get();
   //}
-  EnvoyRewriteDriverFactory * driver_factory()
-  {
-    return driver_factory_.get();
-  }
-  ProxyFetchFactory * proxy_fetch_factory()
-  {
-    return proxy_fetch_factory_.get();
-  }
-  EnvoyServerContext * server_context()
-  {
-    return server_context_;
-  }
+  EnvoyRewriteDriverFactory* driver_factory() { return driver_factory_.get(); }
+  ProxyFetchFactory* proxy_fetch_factory() { return proxy_fetch_factory_.get(); }
+  EnvoyServerContext* server_context() { return server_context_; }
 
 private:
   scoped_ptr<MessageHandler> message_handler_;
   scoped_ptr<EnvoyRewriteDriverFactory> driver_factory_;
   scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
-  EnvoyServerContext *server_context_;
+  EnvoyServerContext* server_context_;
 };
 
 } // namespace net_instaweb

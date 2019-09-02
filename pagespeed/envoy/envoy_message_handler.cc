@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/envoy/envoy_message_handler.h"
 
@@ -33,20 +32,17 @@
 namespace net_instaweb {
 
 EnvoyMessageHandler::EnvoyMessageHandler(Timer* timer, AbstractMutex* mutex)
-    : SystemMessageHandler(timer, mutex) {
-}
+    : SystemMessageHandler(timer, mutex) {}
 
-
-void EnvoyMessageHandler::MessageSImpl(MessageType type,
-                                     const GoogleString& message) {
+void EnvoyMessageHandler::MessageSImpl(MessageType type, const GoogleString& message) {
   GoogleMessageHandler::MessageSImpl(type, message);
   AddMessageToBuffer(type, message);
 }
 
-void EnvoyMessageHandler::FileMessageSImpl(
-    MessageType type, const char* file, int line, const GoogleString& message) {
+void EnvoyMessageHandler::FileMessageSImpl(MessageType type, const char* file, int line,
+                                           const GoogleString& message) {
   GoogleMessageHandler::FileMessageSImpl(type, file, line, message);
   AddMessageToBuffer(type, file, line, message);
 }
 
-}  // namespace net_instaweb
+} // namespace net_instaweb
