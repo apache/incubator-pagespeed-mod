@@ -4,10 +4,15 @@
 
 #include "envoy/server/filter_config.h"
 
-#include "pagespeed/envoy/http_filter.pb.h"
-
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_stats.h"
 #include "pagespeed/envoy/envoy_base_fetch.h"
 #include "pagespeed/envoy/envoy_server_context.h"
+#include "pagespeed/envoy/header_utils.h"
+#include "pagespeed/envoy/http_filter.pb.h"
+#include "pagespeed/system/in_place_resource_recorder.h"
+#include "pagespeed/system/system_request_context.h"
+#include "pagespeed/system/system_rewrite_options.h"
 
 namespace Envoy {
 namespace Http {
@@ -26,7 +31,7 @@ private:
 
 typedef std::shared_ptr<HttpPageSpeedDecoderFilterConfig> HttpPageSpeedDecoderFilterConfigSharedPtr;
 
-class HttpPageSpeedDecoderFilter : public StreamDecoderFilter {
+class HttpPageSpeedDecoderFilter : public StreamFilter {
 public:
   HttpPageSpeedDecoderFilter(HttpPageSpeedDecoderFilterConfigSharedPtr,
                              net_instaweb::EnvoyServerContext*);
@@ -40,16 +45,52 @@ public:
   FilterDataStatus decodeData(Buffer::Instance&, bool) override;
   FilterTrailersStatus decodeTrailers(HeaderMap&) override;
   void setDecoderFilterCallbacks(StreamDecoderFilterCallbacks&) override;
+
+  // Http::StreamEncoderFilter
+  FilterHeadersStatus encode100ContinueHeaders(HeaderMap& headers) override {
+    std::cerr << "encode100ContinueHeaders()" << std::endl;
+    return FilterHeadersStatus::Continue;
+  };
+
+  FilterHeadersStatus encodeHeaders(HeaderMap& headers, bool end_stream) override;
+
+  FilterDataStatus encodeData(Buffer::Instance& data, bool end_stream) override;
+
+  FilterTrailersStatus encodeTrailers(HeaderMap& trailers) override {
+    return FilterTrailersStatus::Continue;
+  };
+  FilterMetadataStatus encodeMetadata(MetadataMap& metadata_map) override {
+    return FilterMetadataStatus::Continue;
+  };
+
+  void setEncoderFilterCallbacks(StreamEncoderFilterCallbacks& callbacks) override {
+    std::cerr << "setEncoderFilterCallbacks()" << std::endl;
+    encoder_callbacks_ = &callbacks;
+  };
+  virtual void encodeComplete() { std::cerr << "encodeComplete()" << std::endl; }
+
+  // HttpPageSpeedDecoderFilter
+  void prepareForIproRecording();
+  void sendReply(int status_code, std::string body);
+
   StreamDecoderFilterCallbacks* decoderCallbacks() { return decoder_callbacks_; };
+  StreamEncoderFilterCallbacks* encoderCallbacks() { return encoder_callbacks_; };
+
 
 private:
   const HttpPageSpeedDecoderFilterConfigSharedPtr config_;
   net_instaweb::EnvoyServerContext* server_context_{nullptr};
   StreamDecoderFilterCallbacks* decoder_callbacks_;
+  StreamEncoderFilterCallbacks* encoder_callbacks_;
 
   const LowerCaseString headerKey() const;
   const std::string headerValue() const;
   net_instaweb::EnvoyBaseFetch* base_fetch_{nullptr};
+  net_instaweb::RewriteOptions* options_{nullptr};
+  net_instaweb::RewriteDriver* rewrite_driver_{nullptr};
+  net_instaweb::InPlaceResourceRecorder* recorder_{nullptr};
+  net_instaweb::GoogleMessageHandler message_handler_;
+  std::unique_ptr<net_instaweb::ResponseHeaders> response_headers_;
 };
 
 } // namespace Http

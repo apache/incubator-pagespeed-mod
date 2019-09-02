@@ -44,6 +44,7 @@ envoy_cc_library(
         "envoy_thread_system.h",
         "http_filter.h",
         "log_message_handler.h",
+        "header_utils.h",
     ],
     copts = [
         "-Iexternal/aprutil/include/",

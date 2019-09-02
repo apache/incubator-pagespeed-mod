@@ -77,13 +77,25 @@ bool EnvoyBaseFetch::HandleWrite(const StringPiece& sp, MessageHandler*) {
 void EnvoyBaseFetch::HandleHeadersComplete() {
   int status_code = response_headers()->status_code();
   std::cerr << "EnvoyBaseFetch::HandleHeadersComplete() -> " << status_code << std::endl;
-  // If this is a 404 response we need to count it in the stats.
-  if (base_fetch_type_ != kIproLookup && status_code == HttpStatus::kNotFound) {
-    server_context_->rewrite_stats()->resource_404_count()->Add(1);
+
+  if (base_fetch_type_ == kIproLookup) {
+    suppress_ = (base_fetch_type_ == kIproLookup) && (status_code < 0 || status_code >= 400);
+    if (status_code == CacheUrlAsyncFetcher::kNotInCacheStatus) {
+      decoder_->prepareForIproRecording();      
+    } else {
+      // We'll write out the cached IPRO entry in HandleDone()
+      return;
+    }
+  } else {
+    if (status_code == HttpStatus::kNotFound) {
+      server_context_->rewrite_stats()->resource_404_count()->Add(1);
+    }
   }
-  suppress_ = (base_fetch_type_ == kIproLookup) && (status_code < 0 || status_code >= 400);
+
   decoder_->decoderCallbacks()->dispatcher().post(
-      [this]() { decoder_->decoderCallbacks()->continueDecoding(); });
+      [this]() {
+        decoder_->decoderCallbacks()->continueDecoding(); 
+      });
 }
 
 bool EnvoyBaseFetch::HandleFlush(MessageHandler*) {
@@ -107,9 +119,22 @@ int EnvoyBaseFetch::DecrefAndDeleteIfUnreferenced() {
 void EnvoyBaseFetch::HandleDone(bool success) {
   std::cerr << "EnvoyBaseFetch::HandleDone()" << std::endl;
   done_called_ = true;
-  if (!suppress_) {
-    // do something
+  if (suppress_) {
+    return;
   }
+
+  if (!success) {
+    decoder_->decoderCallbacks()->dispatcher().post(
+        [this]() {
+          decoder_->decoderCallbacks()->continueDecoding(); 
+        });
+  } else {
+    decoder_->decoderCallbacks()->dispatcher().post(
+        [this]() {
+          decoder_->sendReply(response_headers()->status_code(), buffer_); 
+        });
+  }
+
   DecrefAndDeleteIfUnreferenced();
 }
 

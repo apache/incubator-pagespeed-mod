@@ -72,7 +72,7 @@ private:
     return [config, this](Http::FilterChainFactoryCallbacks& callbacks) -> void {
       auto filter =
           new Http::HttpPageSpeedDecoderFilter(config, process_context_->server_context());
-      callbacks.addStreamDecoderFilter(Http::StreamDecoderFilterSharedPtr{filter});
+      callbacks.addStreamFilter(Http::StreamFilterSharedPtr{filter});
     };
   }
 

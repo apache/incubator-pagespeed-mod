@@ -55,8 +55,18 @@ HttpPageSpeedDecoderFilter::HttpPageSpeedDecoderFilter(
     : config_(config), server_context_(server_context) {}
 
 HttpPageSpeedDecoderFilter::~HttpPageSpeedDecoderFilter() {
-  base_fetch_->DecrementRefCount();
-  base_fetch_ = nullptr;
+  if (rewrite_driver_ != nullptr) {
+    rewrite_driver_->Cleanup();
+    rewrite_driver_ = NULL;
+  }
+  if (recorder_ != nullptr) {
+    recorder_->DoneAndSetHeaders(NULL, false /* incomplete response */);
+    recorder_ = NULL;
+  }
+  if (base_fetch_ != nullptr) {
+    base_fetch_->DecrementRefCount();
+    base_fetch_ = nullptr;
+  }
 }
 
 void HttpPageSpeedDecoderFilter::onDestroy() {}
@@ -67,19 +77,21 @@ const LowerCaseString HttpPageSpeedDecoderFilter::headerKey() const {
 
 const std::string HttpPageSpeedDecoderFilter::headerValue() const { return config_->val(); }
 
-FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(HeaderMap& headers, bool) {
+// decode = client side request
+FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(HeaderMap& headers,
+                                                              bool end_response) {
+  std::cerr << "decodeHeaders() end_response: " << end_response << std::endl;
   RELEASE_ASSERT(base_fetch_ == nullptr, "Base fetch not null");
   net_instaweb::GoogleUrl gurl("http://127.0.0.1/");
   net_instaweb::RequestContextPtr request_context(server_context_->NewRequestContext());
-  auto* options = server_context_->global_options();
+  auto* options = options_ = server_context_->global_options();
   request_context->set_options(options->ComputeHttpOptions());
   RELEASE_ASSERT(options != nullptr, "server context global options not set!");
   base_fetch_ = new net_instaweb::EnvoyBaseFetch(
       gurl.Spec(), server_context_, request_context, net_instaweb::kDontPreserveHeaders,
       net_instaweb::EnvoyBaseFetchType::kIproLookup, options, this);
-  net_instaweb::RewriteDriver* rewrite_driver =
-      server_context_->NewRewriteDriver(base_fetch_->request_context());
-  rewrite_driver->SetRequestHeaders(*base_fetch_->request_headers());
+  rewrite_driver_ = server_context_->NewRewriteDriver(base_fetch_->request_context());
+  rewrite_driver_->SetRequestHeaders(*base_fetch_->request_headers());
 
   auto callback = [](const HeaderEntry& entry, void* base_fetch) -> HeaderMap::Iterate {
     static_cast<net_instaweb::EnvoyBaseFetch*>(base_fetch)
@@ -88,9 +100,7 @@ FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(HeaderMap& headers
     return HeaderMap::Iterate::Continue;
   };
   headers.iterate(callback, base_fetch_);
-
-  rewrite_driver->FetchInPlaceResource(gurl, false /* proxy_mode */, base_fetch_);
-
+  rewrite_driver_->FetchInPlaceResource(gurl, false /* proxy_mode */, base_fetch_);
   return FilterHeadersStatus::StopIteration;
 }
 
@@ -106,6 +116,78 @@ void HttpPageSpeedDecoderFilter::setDecoderFilterCallbacks(
     StreamDecoderFilterCallbacks& callbacks) {
   decoder_callbacks_ = &callbacks;
 }
+
+void HttpPageSpeedDecoderFilter::prepareForIproRecording() {
+  std::cerr << "prepareForIproRecording() " << std::endl;
+  const std::string cache_url = "http://127.0.0.1/";
+  server_context_->rewrite_stats()->ipro_not_in_cache()->Add(1);
+  server_context_->message_handler()->Message(net_instaweb::kInfo,
+                                              "Could not rewrite resource in-place "
+                                              "because URL is not in cache: %s",
+                                              cache_url.c_str());
+  const net_instaweb::SystemRewriteOptions* options =
+      net_instaweb::SystemRewriteOptions::DynamicCast(rewrite_driver_->options());
+  net_instaweb::RequestContextPtr request_context(server_context_->NewRequestContext());
+  request_context->set_options(options->ComputeHttpOptions());
+
+  // This URL was not found in cache (neither the input resource nor
+  // a ResourceNotCacheable entry) so we need to get it into cache
+  // (or at least a note that it cannot be cached stored there).
+  // We do that using an Apache output filter.
+  recorder_ = new net_instaweb::InPlaceResourceRecorder(
+      request_context, cache_url, rewrite_driver_->CacheFragment(),
+      base_fetch_->request_headers()->GetProperties(), options->ipro_max_response_bytes(),
+      options->ipro_max_concurrent_recordings(), server_context_->http_cache(),
+      server_context_->statistics(), &message_handler_);
+}
+
+void HttpPageSpeedDecoderFilter::sendReply(int status_code, std::string body) {
+  /*
+    sendLocalReply(Code response_code, absl::string_view body_text,
+                              std::function<void(HeaderMap& headers)> modify_headers,
+                              const absl::optional<Grpc::Status::GrpcStatus> grpc_status,
+                              absl::string_view details) PURE;
+
+*/
+
+  std::function<void(Http::HeaderMap&)> modify_headers = [](Http::HeaderMap&) {};
+  // XXX(oschaaf): cast
+  decoder_callbacks_->sendLocalReply(static_cast<Envoy::Http::Code>(status_code), body,
+                                     modify_headers, absl::nullopt, "details");
+}
+
+FilterHeadersStatus HttpPageSpeedDecoderFilter::encodeHeaders(HeaderMap& headers, bool end_stream) {
+  if (end_stream || !recorder_) {
+    return FilterHeadersStatus::Continue;
+  }
+
+  if (recorder_ != nullptr) {
+    response_headers_ = net_instaweb::HeaderUtils::toPageSpeedResponseHeaders(headers);
+    std::cerr << response_headers_->ToString() << std::endl;
+    recorder_->ConsiderResponseHeaders(net_instaweb::InPlaceResourceRecorder::kPreliminaryHeaders,
+                                       response_headers_.get());
+  }
+  return FilterHeadersStatus::Continue;
+};
+
+FilterDataStatus HttpPageSpeedDecoderFilter::encodeData(Buffer::Instance& data, bool end_stream) {
+  std::cerr << "encodeData()" << std::endl;
+
+  if (recorder_ != nullptr) {
+    // XXX(oschaaf): update s-max-age
+    // ResponseHeaders::ApplySMaxAge(s_maxage_sec,
+    //                            existing_cache_control,
+    //                            &updated_cache_control)
+    // XXX(oschaaf): can we get a string view?
+    recorder_->Write(data.toString(), recorder_->handler());
+    if (end_stream) {
+      recorder_->DoneAndSetHeaders(response_headers_.get(), true);
+      recorder_ = nullptr;
+    }
+  }
+
+  return FilterDataStatus::Continue;
+};
 
 } // namespace Http
 } // namespace Envoy
