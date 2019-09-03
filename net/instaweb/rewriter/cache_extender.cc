@@ -256,8 +256,8 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
           driver()->GetSrcSetSlotCollection(this, element, srcset));
       for (int i = 0; i < slot_collection->num_image_candidates(); ++i) {
         SrcSetSlot* slot = slot_collection->slot(i);
-        slot will be null if resource could not be created due to URL parsing
-        or being against our policy (not authorized domain, etc).
+        // slot will be null if resource could not be created due to URL parsing
+        // or being against our policy (not authorized domain, etc).
         if (slot == nullptr) {
           continue;
         }
