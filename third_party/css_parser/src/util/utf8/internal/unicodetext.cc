@@ -147,7 +147,11 @@ void UnicodeText::Repr::clear() {
 
 void UnicodeText::Repr::Copy(const char* data, int size) {
   resize(size);
-  memcpy(data_, data, size);
+  // XXX(oschaaf): sanitizer fix -> can't pass nullptr as the first arg.
+  // data_ will be null here when size == 0
+  if (size) {
+    memcpy(data_, data, size);
+  }
 }
 
 void UnicodeText::Repr::TakeOwnershipOf(char* data, int size, int capacity) {

@@ -255,5 +255,92 @@
                 "isDefault": true
             }
         },
+<<<<<<< Updated upstream
+=======
+        {
+            "label": "test envoy filter",
+            "type": "shell",
+            "command": " bazel test pagespeed/envoy:http_filter_integration_test",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build envoy filter",
+            "type": "shell",
+            "command": " bazel build pagespeed/envoy:envoy",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build envoy filter debug",
+            "type": "shell",
+            "command": " bazel build -c dbg pagespeed/envoy:envoy",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build envoy filter opt",
+            "type": "shell",
+            "command": " bazel build -c opt pagespeed/envoy:envoy",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "asan test",
+            "type": "shell",
+            "command": "bazel test -c dbg --config=clang-asan //net/... //pagespeed/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "msan test",
+            "type": "shell",
+            "command": "bazel test -c dbg --config=clang-msan //net/... //pagespeed/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "tsan test",
+            "type": "shell",
+            "command": "bazel test -c dbg --config=clang-tsan //net/... //pagespeed/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
+>>>>>>> Stashed changes
     ]
 }
