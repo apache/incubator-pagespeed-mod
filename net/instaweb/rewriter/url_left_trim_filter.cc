@@ -65,8 +65,7 @@ void UrlLeftTrimFilter::StartElementImpl(HtmlElement* element) {
     resource_tag_scanner::ScanElement(
         element, driver()->options(), &attributes);
     for (int i = 0, n = attributes.size(); i < n; ++i) {
-      if (attributes(i).category == semantic_type::kSrcSetImage)
-       {continue;}
+      if (attributes(i).category == semantic_type::kSrcSetImage) {continue;}
       TrimAttribute(attributes[i].url);
     }
   }
