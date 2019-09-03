@@ -2176,8 +2176,8 @@ void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
         continue;
       case semantic_type::kSrcSetImage: {
         // NOTE: We make HtmlName::kSrcset and HtmlName::kDataSrcset belong to this semantic type
-        HtmlElement::Attribute* datasrcset = attribute.url;
-        handleSemanticSrcSet(element, datasrcset);
+        HtmlElement::Attribute* data_srcset = attribute.url;
+        handleSemanticSrcSet(element, data_srcset);
         continue;
       }
       default:
