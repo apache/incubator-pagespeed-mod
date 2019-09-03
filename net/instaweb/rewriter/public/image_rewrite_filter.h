@@ -233,7 +233,7 @@ class ImageRewriteFilter : public RewriteFilter {
                                         Image* image);
   void BeginRewriteImageUrl(HtmlElement* element, HtmlElement::Attribute* src);
   void BeginRewriteSrcSet(HtmlElement* element, HtmlElement::Attribute* srcset);
-  void handleSemanticSrcSet(HtmlElement* element, HtmlElement::Attribute* datasrcset);
+  void handleSemanticSrcSet(HtmlElement* element, HtmlElement::Attribute* data_srcset);
   void handleSemanticImage(HtmlElement* element, resource_tag_scanner::UrlCategoryPair attribute);
 
 
