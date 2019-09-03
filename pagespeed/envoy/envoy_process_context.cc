@@ -39,6 +39,7 @@ namespace net_instaweb
 EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
 {
   EnvoyThreadSystem *ts = new EnvoyThreadSystem();
+  message_handler_ = std::make_unique<GoogleMessageHandler>();
   driver_factory_.reset(new EnvoyRewriteDriverFactory(*this, ts, "" /*hostname, not used*/, -1 /*port, not used*/));
   driver_factory_->Init();
   server_context_ = driver_factory()->MakeEnvoyServerContext("",-1);
@@ -52,8 +53,8 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
   server_context_->global_options()->Merge(*server_options);
   delete server_options;
 
-  std::cerr << "Process context constructed: " << driver_factory_->default_options()->OptionsToString() << std::endl;
-  std::cerr << "server ctx default options:\r\n[%s]" << server_context_->global_options()->OptionsToString() << std::endl;
+  message_handler_->Message(kInfo, "Process context constructed:\r\n %s", driver_factory_->default_options()->OptionsToString().c_str());
+  message_handler_->Message(kInfo, "Server context global options:\r\n %s", server_context_->global_options()->OptionsToString().c_str());
 
   std::vector<SystemServerContext *> server_contexts;
   server_contexts.push_back(server_context_);
@@ -76,10 +77,6 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
 
   proxy_fetch_factory_.reset(new ProxyFetchFactory(server_context_));
   std::cerr << "Process context constructed" << std::endl;
-}
-
-EnvoyProcessContext::~EnvoyProcessContext()
-{
 }
 
 } // namespace net_instaweb

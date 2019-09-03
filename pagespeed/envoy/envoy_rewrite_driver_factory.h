@@ -43,27 +43,27 @@ public:
   explicit EnvoyRewriteDriverFactory(const ProcessContext& process_context,
                                      SystemThreadSystem* system_thread_system, StringPiece hostname,
                                      int port);
-  virtual ~EnvoyRewriteDriverFactory();
-  virtual Hasher* NewHasher();
-  virtual UrlAsyncFetcher* AllocateFetcher(SystemRewriteOptions* config);
-  virtual MessageHandler* DefaultHtmlParseMessageHandler();
-  virtual MessageHandler* DefaultMessageHandler();
-  virtual FileSystem* DefaultFileSystem();
-  virtual Timer* DefaultTimer();
-  virtual NamedLockManager* DefaultLockManager();
+  ~EnvoyRewriteDriverFactory() override;
+  Hasher* NewHasher() override;
+  UrlAsyncFetcher* AllocateFetcher(SystemRewriteOptions* config) override;
+  MessageHandler* DefaultHtmlParseMessageHandler() override;
+  MessageHandler* DefaultMessageHandler() override;
+  FileSystem* DefaultFileSystem() override;
+  Timer* DefaultTimer() override;
+  NamedLockManager* DefaultLockManager() override;
   // Create a new RewriteOptions.  In this implementation it will be an
   // EnvoyRewriteOptions, and it will have CoreFilters explicitly set.
-  virtual RewriteOptions* NewRewriteOptions();
-  virtual RewriteOptions* NewRewriteOptionsForQuery();
-  virtual ServerContext* NewDecodingServerContext();
+  RewriteOptions* NewRewriteOptions() override;
+  RewriteOptions* NewRewriteOptionsForQuery() override;
+  ServerContext* NewDecodingServerContext() override;
 
   // Initializes all the statistics objects created transitively by
   // EnvoyRewriteDriverFactory, including envoy-specific and
   // platform-independent statistics.
   static void InitStats(Statistics* statistics);
   EnvoyServerContext* MakeEnvoyServerContext(StringPiece hostname, int port);
-  virtual ServerContext* NewServerContext();
-  virtual void ShutDown();
+  ServerContext* NewServerContext() override;
+  void ShutDown() override;
 
   // Starts pagespeed threads if they've not been started already.  Must be
   // called after the caller has finished any forking it intends to do.
@@ -71,7 +71,7 @@ public:
 
   EnvoyMessageHandler* envoy_message_handler() { return envoy_message_handler_; }
 
-  virtual void NonStaticInitStats(Statistics* statistics) { InitStats(statistics); }
+  void NonStaticInitStats(Statistics* statistics) override { InitStats(statistics); }
 
   void SetMainConf(EnvoyRewriteOptions* main_conf);
 
@@ -79,13 +79,13 @@ public:
 
   void SetServerContextMessageHandler(ServerContext* server_context);
 
-  virtual void ShutDownMessageHandlers();
+  void ShutDownMessageHandlers() override;
 
-  virtual void SetCircularBuffer(SharedCircularBuffer* buffer);
+  void SetCircularBuffer(SharedCircularBuffer* buffer) override;
 
-  virtual void PrepareForkedProcess(const char* name);
+  void PrepareForkedProcess(const char* name) override;
 
-  virtual void NameProcess(const char* name);
+  void NameProcess(const char* name) override;
 
 private:
   // Timer *timer_;

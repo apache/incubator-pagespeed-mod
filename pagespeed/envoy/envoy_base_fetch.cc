@@ -31,43 +31,13 @@
 
 namespace net_instaweb {
 
-int EnvoyBaseFetch::active_base_fetches = 0;
-
 EnvoyBaseFetch::EnvoyBaseFetch(StringPiece url, EnvoyServerContext* server_context,
                                const RequestContextPtr& request_ctx,
                                PreserveCachingHeaders preserve_caching_headers,
-                               EnvoyBaseFetchType base_fetch_type, const RewriteOptions* options,
+                               const RewriteOptions* options,
                                Envoy::Http::HttpPageSpeedDecoderFilter* decoder)
     : AsyncFetch(request_ctx), url_(url.data(), url.size()), server_context_(server_context),
-      options_(options), need_flush_(false), done_called_(false), last_buf_sent_(false),
-      references_(2), base_fetch_type_(base_fetch_type),
-      preserve_caching_headers_(preserve_caching_headers), detached_(false), suppress_(false),
-      decoder_(decoder) {
-  RELEASE_ASSERT(decoder_ != nullptr, "decoder not set!");
-  __sync_add_and_fetch(&EnvoyBaseFetch::active_base_fetches, 1);
-}
-
-EnvoyBaseFetch::~EnvoyBaseFetch() {
-  std::cerr << "EnvoyBaseFetch destruct()" << std::endl;
-  __sync_add_and_fetch(&EnvoyBaseFetch::active_base_fetches, -1);
-}
-
-const char* BaseFetchTypeToCStr(EnvoyBaseFetchType type) {
-  switch (type) {
-  case kPageSpeedResource:
-    return "ps resource";
-  case kHtmlTransform:
-    return "html transform";
-  case kAdminPage:
-    return "admin page";
-  case kIproLookup:
-    return "ipro lookup";
-  case kPageSpeedProxy:
-    return "pagespeed proxy";
-  }
-  CHECK(false);
-  return "can't get here";
-}
+      options_(options), preserve_caching_headers_(preserve_caching_headers), decoder_(decoder) {}
 
 bool EnvoyBaseFetch::HandleWrite(const StringPiece& sp, MessageHandler*) {
   buffer_.append(sp.data(), sp.size());
@@ -76,32 +46,23 @@ bool EnvoyBaseFetch::HandleWrite(const StringPiece& sp, MessageHandler*) {
 
 void EnvoyBaseFetch::HandleHeadersComplete() {
   int status_code = response_headers()->status_code();
-  std::cerr << "EnvoyBaseFetch::HandleHeadersComplete() -> " << status_code << std::endl;
+  bool continue_decoding = false;
 
-  if (base_fetch_type_ == kIproLookup) {
-    suppress_ = (base_fetch_type_ == kIproLookup) && (status_code < 0 || status_code >= 400);
-    if (status_code == CacheUrlAsyncFetcher::kNotInCacheStatus) {
-      decoder_->prepareForIproRecording();      
-    } else {
-      // We'll write out the cached IPRO entry in HandleDone()
-      return;
-    }
+  if (status_code == CacheUrlAsyncFetcher::kNotInCacheStatus) {
+    decoder_->prepareForIproRecording();
+    continue_decoding = true;
   } else {
-    if (status_code == HttpStatus::kNotFound) {
-      server_context_->rewrite_stats()->resource_404_count()->Add(1);
-    }
+    have_ipro_response_ = !(status_code < 0 || status_code >= 400);
+    continue_decoding = !have_ipro_response_;
   }
 
-  decoder_->decoderCallbacks()->dispatcher().post(
-      [this]() {
-        decoder_->decoderCallbacks()->continueDecoding(); 
-      });
+  if (continue_decoding) {
+    decoder_->decoderCallbacks()->dispatcher().post(
+        [this]() { decoder_->decoderCallbacks()->continueDecoding(); });
+  }
 }
 
-bool EnvoyBaseFetch::HandleFlush(MessageHandler*) {
-  need_flush_ = true;
-  return true;
-}
+bool EnvoyBaseFetch::HandleFlush(MessageHandler*) { return true; }
 
 int EnvoyBaseFetch::DecrementRefCount() { return DecrefAndDeleteIfUnreferenced(); }
 
@@ -117,22 +78,16 @@ int EnvoyBaseFetch::DecrefAndDeleteIfUnreferenced() {
 }
 
 void EnvoyBaseFetch::HandleDone(bool success) {
-  std::cerr << "EnvoyBaseFetch::HandleDone()" << std::endl;
-  done_called_ = true;
-  if (suppress_) {
-    return;
-  }
-
-  if (!success) {
-    decoder_->decoderCallbacks()->dispatcher().post(
-        [this]() {
-          decoder_->decoderCallbacks()->continueDecoding(); 
-        });
-  } else {
-    decoder_->decoderCallbacks()->dispatcher().post(
-        [this]() {
-          decoder_->sendReply(response_headers()->status_code(), buffer_); 
-        });
+  if (have_ipro_response_) {
+    if (!success) {
+      decoder_->decoderCallbacks()->dispatcher().post(
+          [this]() { decoder_->decoderCallbacks()->continueDecoding(); });
+    } else {
+      decoder_->decoderCallbacks()->dispatcher().post(
+          [this]() { 
+            decoder_->sendReply(response_headers(), buffer_); 
+          });
+    }
   }
 
   DecrefAndDeleteIfUnreferenced();

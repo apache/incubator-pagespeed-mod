@@ -193,7 +193,6 @@ void EnvoyRewriteDriverFactory::ShutDownMessageHandlers() {
 }
 
 void EnvoyRewriteDriverFactory::StartThreads() {
-  std::cerr << "@@@@ pre starting scheduler thread!" << std::endl;
   if (threads_started_) {
     return;
   }
@@ -203,7 +202,6 @@ void EnvoyRewriteDriverFactory::StartThreads() {
   CHECK(ok) << "Unable to start scheduler thread";
   defer_cleanup(thread->MakeDeleter());
   threads_started_ = true;
-  std::cerr << "@@@@ post starting scheduler thread!" << std::endl;
 }
 
 void EnvoyRewriteDriverFactory::SetMainConf(EnvoyRewriteOptions* main_options) {

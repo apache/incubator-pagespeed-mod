@@ -48,7 +48,6 @@ public:
 
   // Http::StreamEncoderFilter
   FilterHeadersStatus encode100ContinueHeaders(HeaderMap& headers) override {
-    std::cerr << "encode100ContinueHeaders()" << std::endl;
     return FilterHeadersStatus::Continue;
   };
 
@@ -64,18 +63,18 @@ public:
   };
 
   void setEncoderFilterCallbacks(StreamEncoderFilterCallbacks& callbacks) override {
-    std::cerr << "setEncoderFilterCallbacks()" << std::endl;
     encoder_callbacks_ = &callbacks;
   };
-  virtual void encodeComplete() { std::cerr << "encodeComplete()" << std::endl; }
+  virtual void encodeComplete() {
+    // std::cerr << "encodeComplete()" << std::endl;
+  }
 
   // HttpPageSpeedDecoderFilter
   void prepareForIproRecording();
-  void sendReply(int status_code, std::string body);
+  void sendReply(net_instaweb::ResponseHeaders* response_headers, std::string body);
 
   StreamDecoderFilterCallbacks* decoderCallbacks() { return decoder_callbacks_; };
   StreamEncoderFilterCallbacks* encoderCallbacks() { return encoder_callbacks_; };
-
 
 private:
   const HttpPageSpeedDecoderFilterConfigSharedPtr config_;

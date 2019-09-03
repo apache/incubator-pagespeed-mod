@@ -57,11 +57,11 @@ HttpPageSpeedDecoderFilter::HttpPageSpeedDecoderFilter(
 HttpPageSpeedDecoderFilter::~HttpPageSpeedDecoderFilter() {
   if (rewrite_driver_ != nullptr) {
     rewrite_driver_->Cleanup();
-    rewrite_driver_ = NULL;
+    rewrite_driver_ = nullptr;
   }
   if (recorder_ != nullptr) {
-    recorder_->DoneAndSetHeaders(NULL, false /* incomplete response */);
-    recorder_ = NULL;
+    recorder_->DoneAndSetHeaders(NULL, false);
+    recorder_ = nullptr;
   }
   if (base_fetch_ != nullptr) {
     base_fetch_->DecrementRefCount();
@@ -80,16 +80,14 @@ const std::string HttpPageSpeedDecoderFilter::headerValue() const { return confi
 // decode = client side request
 FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(HeaderMap& headers,
                                                               bool end_response) {
-  std::cerr << "decodeHeaders() end_response: " << end_response << std::endl;
   RELEASE_ASSERT(base_fetch_ == nullptr, "Base fetch not null");
   net_instaweb::GoogleUrl gurl("http://127.0.0.1/");
   net_instaweb::RequestContextPtr request_context(server_context_->NewRequestContext());
   auto* options = options_ = server_context_->global_options();
   request_context->set_options(options->ComputeHttpOptions());
   RELEASE_ASSERT(options != nullptr, "server context global options not set!");
-  base_fetch_ = new net_instaweb::EnvoyBaseFetch(
-      gurl.Spec(), server_context_, request_context, net_instaweb::kDontPreserveHeaders,
-      net_instaweb::EnvoyBaseFetchType::kIproLookup, options, this);
+  base_fetch_ = new net_instaweb::EnvoyBaseFetch(gurl.Spec(), server_context_, request_context,
+                                                 net_instaweb::kDontPreserveHeaders, options, this);
   rewrite_driver_ = server_context_->NewRewriteDriver(base_fetch_->request_context());
   rewrite_driver_->SetRequestHeaders(*base_fetch_->request_headers());
 
@@ -118,7 +116,6 @@ void HttpPageSpeedDecoderFilter::setDecoderFilterCallbacks(
 }
 
 void HttpPageSpeedDecoderFilter::prepareForIproRecording() {
-  std::cerr << "prepareForIproRecording() " << std::endl;
   const std::string cache_url = "http://127.0.0.1/";
   server_context_->rewrite_stats()->ipro_not_in_cache()->Add(1);
   server_context_->message_handler()->Message(net_instaweb::kInfo,
@@ -141,18 +138,21 @@ void HttpPageSpeedDecoderFilter::prepareForIproRecording() {
       server_context_->statistics(), &message_handler_);
 }
 
-void HttpPageSpeedDecoderFilter::sendReply(int status_code, std::string body) {
-  /*
-    sendLocalReply(Code response_code, absl::string_view body_text,
-                              std::function<void(HeaderMap& headers)> modify_headers,
-                              const absl::optional<Grpc::Status::GrpcStatus> grpc_status,
-                              absl::string_view details) PURE;
+void HttpPageSpeedDecoderFilter::sendReply(net_instaweb::ResponseHeaders* response_headers,
+                                           std::string body) {
+  CHECK(response_headers != nullptr);
 
-*/
-
-  std::function<void(Http::HeaderMap&)> modify_headers = [](Http::HeaderMap&) {};
+  std::function<void(Http::HeaderMap&)> modify_headers = [response_headers](Http::HeaderMap& envoy_headers) {
+    for (uint32_t i = 0, n = response_headers->NumAttributes(); i < n; ++i) {
+      const GoogleString& name = response_headers->Name(i);
+      const GoogleString& value = response_headers->Value(i);
+      auto lcase_key = Envoy::Http::LowerCaseString(name);
+      envoy_headers.remove(lcase_key);
+      envoy_headers.addCopy(lcase_key, value);
+    }
+  };
   // XXX(oschaaf): cast
-  decoder_callbacks_->sendLocalReply(static_cast<Envoy::Http::Code>(status_code), body,
+  decoder_callbacks_->sendLocalReply(static_cast<Envoy::Http::Code>(response_headers->status_code()), body,
                                      modify_headers, absl::nullopt, "details");
 }
 
@@ -163,7 +163,7 @@ FilterHeadersStatus HttpPageSpeedDecoderFilter::encodeHeaders(HeaderMap& headers
 
   if (recorder_ != nullptr) {
     response_headers_ = net_instaweb::HeaderUtils::toPageSpeedResponseHeaders(headers);
-    std::cerr << response_headers_->ToString() << std::endl;
+    // std::cerr << response_headers_->ToString() << std::endl;
     recorder_->ConsiderResponseHeaders(net_instaweb::InPlaceResourceRecorder::kPreliminaryHeaders,
                                        response_headers_.get());
   }
@@ -171,8 +171,6 @@ FilterHeadersStatus HttpPageSpeedDecoderFilter::encodeHeaders(HeaderMap& headers
 };
 
 FilterDataStatus HttpPageSpeedDecoderFilter::encodeData(Buffer::Instance& data, bool end_stream) {
-  std::cerr << "encodeData()" << std::endl;
-
   if (recorder_ != nullptr) {
     // XXX(oschaaf): update s-max-age
     // ResponseHeaders::ApplySMaxAge(s_maxage_sec,

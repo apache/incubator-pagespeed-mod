@@ -42,10 +42,9 @@ public:
 
   EnvoyRewriteOptions(const StringPiece& description, ThreadSystem* thread_system);
   explicit EnvoyRewriteOptions(ThreadSystem* thread_system);
-  virtual ~EnvoyRewriteOptions() {}
 
   // Make an identical copy of these options and return it.
-  virtual EnvoyRewriteOptions* Clone() const;
+  EnvoyRewriteOptions* Clone() const override;
 
   // Returns a suitably down cast version of 'instance' if it is an instance
   // of this class, NULL if not.

@@ -39,14 +39,12 @@ public:
   Http::FilterFactoryCb createFilterFactoryFromProto(const Protobuf::Message& proto_config,
                                                      const std::string&,
                                                      FactoryContext& context) override {
-    std::cerr << "1 start" << std::endl;
     SystemRewriteDriverFactory::InitApr();
     EnvoyRewriteOptions::Initialize();
     EnvoyRewriteDriverFactory::Initialize();
     // net_instaweb::log_message_handler::Install();
 
     process_context_ = std::make_shared<EnvoyProcessContext>();
-    std::cerr << "2 start" << std::endl;
     return createFilter(Envoy::MessageUtil::downcastAndValidate<const pagespeed::Decoder&>(
                             proto_config, context.messageValidationVisitor()),
                         context);

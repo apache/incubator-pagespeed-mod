@@ -39,7 +39,7 @@ namespace net_instaweb {
 class ProcessContext {
  public:
   ProcessContext();
-  ~ProcessContext();
+  virtual ~ProcessContext();
 
   // Returns a js_tokenizer_patterns object that was allocated by the
   // ProcessContext constructor, once per process startup.  The reason

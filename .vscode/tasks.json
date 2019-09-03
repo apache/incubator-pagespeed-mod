@@ -291,5 +291,17 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "build envoy filter opt",
+            "type": "shell",
+            "command": " bazel build -c opt pagespeed/envoy:envoy",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
     ]
 }

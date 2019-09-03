@@ -33,11 +33,10 @@ class SystemRequestContext;
 class EnvoyServerContext : public SystemServerContext {
 public:
   EnvoyServerContext(EnvoyRewriteDriverFactory* factory, StringPiece hostname, int port);
-  virtual ~EnvoyServerContext();
 
   // We don't allow ProxyFetch to fetch HTML via MapProxyDomain. We will call
   // set_trusted_input() on any ProxyFetches we use to transform internal HTML.
-  virtual bool ProxiesHtml() const { return false; }
+  bool ProxiesHtml() const override { return false; }
 
   // Call only when you need an EnvoyRewriteOptions.  If you don't need
   // Envoy-specific behavior, call global_options() instead which doesn't
@@ -51,7 +50,7 @@ public:
     return dynamic_cast<EnvoyMessageHandler*>(message_handler());
   }
 
-  virtual GoogleString FormatOption(StringPiece option_name, StringPiece args);
+  GoogleString FormatOption(StringPiece option_name, StringPiece args) override;
 
 private:
   EnvoyRewriteDriverFactory* envoy_factory_;

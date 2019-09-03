@@ -36,8 +36,6 @@ EnvoyServerContext::EnvoyServerContext(
     : SystemServerContext(factory, hostname, port) {
 }
 
-EnvoyServerContext::~EnvoyServerContext() { }
-
 EnvoyRewriteOptions* EnvoyServerContext::config() {
   return EnvoyRewriteOptions::DynamicCast(global_options());
 }

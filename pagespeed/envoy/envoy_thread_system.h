@@ -34,9 +34,7 @@
 namespace net_instaweb {
 class EnvoyThreadSystem : public net_instaweb::SystemThreadSystem {
 public:
-  virtual void BeforeThreadRunHook() {}
-
-  virtual ~EnvoyThreadSystem() {}
+  void BeforeThreadRunHook() override {}
 };
 
 } // namespace net_instaweb
