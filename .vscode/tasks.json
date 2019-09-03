@@ -255,8 +255,6 @@
                 "isDefault": true
             }
         },
-<<<<<<< Updated upstream
-=======
         {
             "label": "test envoy filter",
             "type": "shell",
@@ -341,6 +339,5 @@
                 "isDefault": true
             }
         },
->>>>>>> Stashed changes
     ]
 }
