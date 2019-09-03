@@ -2132,7 +2132,7 @@ void ImageRewriteFilter::handleSemanticImage(HtmlElement* element, resource_tag_
 }
 
 void ImageRewriteFilter::handleSemanticSrcSet(HtmlElement* element, HtmlElement::Attribute* data_srcset) {
-      BeginRewriteSrcSet(element, datasrcset);
+      BeginRewriteSrcSet(element, data_srcset);
 
 }
 
