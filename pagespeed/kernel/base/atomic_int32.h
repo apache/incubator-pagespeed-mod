@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_
 #define PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_
@@ -75,39 +74,27 @@ namespace net_instaweb {
 // (increment, CompareAndSwap) occur as atomic actions.
 
 class AtomicInt32 {
- public:
-  explicit AtomicInt32(int32 value) {
-    set_value(value);
-  }
-  AtomicInt32() {
-    set_value(0);
-  }
+public:
+  explicit AtomicInt32(int32 value) { set_value(value); }
+  AtomicInt32() { set_value(0); }
   ~AtomicInt32() {}
 
   // Return the value currently stored.  Has acquire semantics (see above).
-  int32 value() const {
-    return value_;
-  }
+  int32 value() const { return value_.load(std::memory_order::memory_order_acquire); }
 
   // Store value.  Has release semantics (see above).
-  void set_value(int32 value) {
-    value_ = value;
-  }
+  void set_value(int32 value) { value_.store(value, std::memory_order_release); }
 
   // Atomically add an amount to the value currently stored, return the new
   // value. Has *no ordering semantics* with respect to operations on other
   // memory locations.
   int32 NoBarrierIncrement(int32 amount) {
-    value_ += amount;
-    return value_;
+    return amount + value_.fetch_add(amount, std::memory_order_relaxed);
   }
 
   // Atomically add an amount to the value stored, return the new value.
   // Provides a full barrier --- both acquire and release.
-  int32 BarrierIncrement(int32 amount) {
-    value_ += amount;
-    return value_;
-  }
+  int32 BarrierIncrement(int32 amount) { return amount + value_.fetch_add(amount); }
 
   // Atomic compare and swap.  If current value == expected_value, atomically
   // replace it with new_value.  Return the original value regardless of whether
@@ -120,17 +107,16 @@ class AtomicInt32 {
   // semantics, use the value() method and validate its result when you
   // CompareAndSwap.
   int32 CompareAndSwap(int32 expected_value, int32 new_value) {
-    return value_.compare_exchange_strong(expected_value, new_value, std::memory_order::memory_order_acquire);
+    value_.compare_exchange_strong(expected_value, new_value, std::memory_order_release,
+                                          std::memory_order_relaxed);
     return expected_value;
-    //base::subtle::Release_CompareAndSwap(
-    //    &value_, expected_value, new_value);
   }
 
- private:
-  std::atomic<int32_t> value_;
+private:
+  std::atomic<int32> value_;
   DISALLOW_COPY_AND_ASSIGN(AtomicInt32);
 };
- 
-}  // namespace net_instaweb
 
-#endif  // PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_
+} // namespace net_instaweb
+
+#endif // PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_

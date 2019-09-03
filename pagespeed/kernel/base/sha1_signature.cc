@@ -48,10 +48,9 @@ SHA1Signature::SHA1Signature(int signature_size)
 SHA1Signature::~SHA1Signature() {}
 
 GoogleString SHA1Signature::RawSign(StringPiece key, StringPiece data) const {
-unsigned char hmac[20];
+unsigned char hmac[EVP_MAX_MD_SIZE];
 unsigned int signature_length;
-// XXX(oschaaf): Figure out why segfault when passing in a null hmac.
-// (See  diff w/ master).
+
 #if ENABLE_URL_SIGNATURES
   unsigned char* md = HMAC(EVP_sha1(), key.data(), key.size(),
                            reinterpret_cast<const unsigned char*>(data.data()),

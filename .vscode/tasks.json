@@ -303,5 +303,41 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "asan test",
+            "type": "shell",
+            "command": "bazel test -c dbg --config=clang-asan //net/... //pagespeed/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "msan test",
+            "type": "shell",
+            "command": "bazel test -c dbg --config=clang-msan //net/... //pagespeed/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "tsan test",
+            "type": "shell",
+            "command": "bazel test -c dbg --config=clang-tsan //net/... //pagespeed/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "test",
+                "isDefault": true
+            }
+        },
     ]
 }

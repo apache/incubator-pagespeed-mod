@@ -45,6 +45,7 @@ const char* const Value::kDimensionUnitText[] = {
 
 Value::Value(ValueType ty)
     : type_(ty),
+      unit_(Unit::EM),
       color_(0, 0, 0) {
   DCHECK(ty == COMMA || ty == DEFAULT || ty == UNKNOWN);
 }
@@ -52,6 +53,7 @@ Value::Value(ValueType ty)
 Value::Value(double num, const UnicodeText& unit)
     : type_(NUMBER),
       num_(num),
+      unit_(Unit::EM),
       color_(0, 0, 0) {
   unit_ = UnitFromText(unit.utf8_data(), unit.utf8_length());
   if (unit_ == OTHER)
@@ -62,12 +64,13 @@ Value::Value(double num, Unit unit)
     : type_(NUMBER),
       num_(num),
       unit_(unit),
-      color_(0, 0, 0)  {
+      color_(0, 0, 0) {
   DCHECK_NE(unit, OTHER);
 }
 
 Value::Value(ValueType ty, const UnicodeText& str)
     : type_(ty),
+      unit_(Unit::EM),
       str_(str),
       color_(0, 0, 0) {
   DCHECK(ty == STRING || ty == URI);
@@ -75,6 +78,7 @@ Value::Value(ValueType ty, const UnicodeText& str)
 
 Value::Value(const Identifier& identifier)
     : type_(IDENT),
+      unit_(Unit::EM),
       identifier_(identifier),
       color_(0, 0, 0) {
 }
@@ -82,13 +86,15 @@ Value::Value(const Identifier& identifier)
 Value::Value(const Identifier::Ident ident)
     : type_(IDENT),
       identifier_(Identifier(ident)),
-      color_(0, 0, 0) {
+      color_(0, 0, 0),
+      unit_(Unit::EM) {
 }
 
 Value::Value(ValueType ty, FunctionParameters* params)
     : type_(ty),
       params_(params),
-      color_(0, 0, 0) {
+      color_(0, 0, 0),
+      unit_(Unit::EM) {
   DCHECK(params != NULL);
   DCHECK(ty == RECT);
 }
@@ -97,13 +103,15 @@ Value::Value(const UnicodeText& func, FunctionParameters* params)
     : type_(FUNCTION),
       str_(func),
       params_(params),
-      color_(0, 0, 0) {
+      color_(0, 0, 0),
+      unit_(Unit::EM) {
   DCHECK(params != NULL);
 }
 
 Value::Value(HtmlColor c)
     : type_(COLOR),
-      color_(c) {
+      color_(c),
+      unit_(Unit::EM) {
 }
 
 Value::Value(const Value& other)
