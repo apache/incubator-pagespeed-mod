@@ -250,8 +250,8 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
         driver()->InitiateRewrite(context);
       }
     }
-    HtmlElement::Attribute* datasrcset = element->FindAttribute(HtmlName::kDataSrcset);
-    if (datasrcset != nullptr) {
+    HtmlElement::Attribute* data_srcset = element->FindAttribute(HtmlName::kDataSrcset);
+    if (data_srcset != nullptr) {
       SrcSetSlotCollectionPtr slot_collection(
           driver()->GetSrcSetSlotCollection(this, element, srcset));
       for (int i = 0; i < slot_collection->num_image_candidates(); ++i) {
