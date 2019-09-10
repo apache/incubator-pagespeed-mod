@@ -38,6 +38,11 @@ namespace net_instaweb
 {
 EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
 {
+  SystemRewriteDriverFactory::InitApr();
+  EnvoyRewriteOptions::Initialize();
+  EnvoyRewriteDriverFactory::Initialize();
+  // net_instaweb::log_message_handler::Install();
+
   EnvoyThreadSystem *ts = new EnvoyThreadSystem();
   message_handler_ = std::make_unique<GoogleMessageHandler>();
   driver_factory_.reset(new EnvoyRewriteDriverFactory(*this, ts, "" /*hostname, not used*/, -1 /*port, not used*/));

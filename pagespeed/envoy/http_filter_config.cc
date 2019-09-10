@@ -25,6 +25,16 @@ namespace Envoy {
 namespace Server {
 namespace Configuration {
 
+// XXX(oschaaf): fix process context construction
+static std::shared_ptr<EnvoyProcessContext> process_context = nullptr;
+
+EnvoyProcessContext* getProcessContext() {
+  if (process_context == nullptr) {
+    process_context = std::make_shared<EnvoyProcessContext>();
+  }
+  return process_context.get();
+}
+
 class HttpPageSpeedDecoderFilterConfig : public NamedHttpFilterConfigFactory {
 public:
   Http::FilterFactoryCb createFilterFactory(const Json::Object& json_config, const std::string&,
@@ -39,12 +49,6 @@ public:
   Http::FilterFactoryCb createFilterFactoryFromProto(const Protobuf::Message& proto_config,
                                                      const std::string&,
                                                      FactoryContext& context) override {
-    SystemRewriteDriverFactory::InitApr();
-    EnvoyRewriteOptions::Initialize();
-    EnvoyRewriteDriverFactory::Initialize();
-    // net_instaweb::log_message_handler::Install();
-
-    process_context_ = std::make_shared<EnvoyProcessContext>();
     return createFilter(Envoy::MessageUtil::downcastAndValidate<const pagespeed::Decoder&>(
                             proto_config, context.messageValidationVisitor()),
                         context);
@@ -59,17 +63,14 @@ public:
 
   std::string name() override { return "pagespeed"; }
 
-  net_instaweb::ServerContext* server_context() const { return server_context_.get(); }
-
 private:
   Http::FilterFactoryCb createFilter(const pagespeed::Decoder& proto_config, FactoryContext&) {
     Http::HttpPageSpeedDecoderFilterConfigSharedPtr config =
         std::make_shared<Http::HttpPageSpeedDecoderFilterConfig>(
             Http::HttpPageSpeedDecoderFilterConfig(proto_config));
 
-    return [config, this](Http::FilterChainFactoryCallbacks& callbacks) -> void {
-      auto filter =
-          new Http::HttpPageSpeedDecoderFilter(config, process_context_->server_context());
+    return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
+      auto filter = new Http::HttpPageSpeedDecoderFilter(config, getProcessContext()->server_context());
       callbacks.addStreamFilter(Http::StreamFilterSharedPtr{filter});
     };
   }
@@ -81,11 +82,6 @@ private:
     JSON_UTIL_SET_STRING(json_config, proto_config, key);
     JSON_UTIL_SET_STRING(json_config, proto_config, val);
   }
-
-  std::shared_ptr<EnvoyProcessContext> process_context_;
-  std::shared_ptr<net_instaweb::ProxyFetchFactory> proxy_fetch_factory_;
-  std::shared_ptr<EnvoyRewriteDriverFactory> rewrite_driver_factory_;
-  std::unique_ptr<EnvoyServerContext> server_context_;
 };
 
 /**
