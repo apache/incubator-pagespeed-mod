@@ -186,6 +186,31 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
         may_load = driver()->MayCacheExtendImages();
         input_role = RewriteDriver::InputRole::kImg;
         break;
+      case semantic_type::kSrcSetImage:
+
+	if ( driver()->MayCacheExtendImages()) {
+		HtmlElement::Attribute* srcset = attributes[i].url;
+		if (srcset != nullptr) {
+			SrcSetSlotCollectionPtr slot_collection(
+			   driver()->GetSrcSetSlotCollection(this, element, srcset));
+			for (int i = 0; i < slot_collection->num_image_candidates(); ++i) {
+			    SrcSetSlot* slot = slot_collection->slot(i);
+			    // slot will be null if resource could not be created due to URL parsing
+			   // or being against our policy (not authorized domain, etc).
+			   if (slot == nullptr) {
+				continue;
+			   }
+			   Context* context = new Context(
+				RewriteDriver::InputRole::kImg, this,
+				driver(), nullptr /* !nested */);
+				context->AddSlot(RefCountedPtr<ResourceSlot>(slot));
+				driver()->InitiateRewrite(context);
+			}
+		}
+	}
+	break;
+
+
       case semantic_type::kScript:
         may_load = driver()->MayCacheExtendScripts();
         input_role = RewriteDriver::InputRole::kScript;
@@ -230,45 +255,6 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
     }
   }
 
-  if (element->keyword() == HtmlName::kImg &&
-      driver()->MayCacheExtendImages()) {
-    HtmlElement::Attribute* srcset = element->FindAttribute(HtmlName::kSrcset);
-    if (srcset != nullptr) {
-      SrcSetSlotCollectionPtr slot_collection(
-          driver()->GetSrcSetSlotCollection(this, element, srcset));
-      for (int i = 0; i < slot_collection->num_image_candidates(); ++i) {
-        SrcSetSlot* slot = slot_collection->slot(i);
-        // slot will be null if resource could not be created due to URL parsing
-        // or being against our policy (not authorized domain, etc).
-        if (slot == nullptr) {
-          continue;
-        }
-        Context* context = new Context(
-              RewriteDriver::InputRole::kImg, this,
-              driver(), nullptr /* !nested */);
-        context->AddSlot(RefCountedPtr<ResourceSlot>(slot));
-        driver()->InitiateRewrite(context);
-      }
-    }
-    HtmlElement::Attribute* data_srcset = element->FindAttribute(HtmlName::kDataSrcset);
-    if (data_srcset != nullptr) {
-      SrcSetSlotCollectionPtr slot_collection(
-          driver()->GetSrcSetSlotCollection(this, element, srcset));
-      for (int i = 0; i < slot_collection->num_image_candidates(); ++i) {
-        SrcSetSlot* slot = slot_collection->slot(i);
-        // slot will be null if resource could not be created due to URL parsing
-        // or being against our policy (not authorized domain, etc).
-        if (slot == nullptr) {
-          continue;
-        }
-        Context* context = new Context(
-              RewriteDriver::InputRole::kImg, this,
-              driver(), nullptr /* !nested */);
-        context->AddSlot(RefCountedPtr<ResourceSlot>(slot));
-        driver()->InitiateRewrite(context);
-      }
-    }
-  }
 }
 
 bool CacheExtender::ComputeOnTheFly() const {
