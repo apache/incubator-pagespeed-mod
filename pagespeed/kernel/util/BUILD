@@ -81,7 +81,7 @@ cc_library(
         "@brotli//:brotlidec",
         "@brotli//:brotlienc",
         "@com_github_grpc_grpc//:grpc++",
-        "@zlib",
+        "@envoy//bazel/foreign_cc:zlib",
     ],
 )
 

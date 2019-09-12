@@ -40,7 +40,7 @@ extern "C" {
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"  // NOLINT
 #else
-#include "external/zlib/zlib.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
 #endif
 
 #include "external/optipng/src/opngreduc/opngreduc.h"

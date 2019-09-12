@@ -252,7 +252,9 @@ std::string SchemeHostPort::SerializeInternal(url::Parsed* parsed) const {
     return result;
   if (port_ != default_port) {
     result.push_back(':');
-    std::string port(base::NumberToString(port_));
+    //std::string port(base::NumberToString(port_));
+    std::string port;
+    CHECK(false);
     parsed->port = Component(result.length(), port.length());
     result.append(std::move(port));
   }

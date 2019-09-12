@@ -58,7 +58,7 @@ def mod_pagespeed_dependencies():
 
     http_archive(
         # TODO : Rename library as per bazel naming conventions
-        name = "zlib",
+        name = "xzlib",
         strip_prefix = "zlib-%s" % ZLIB_COMMIT,
         url = "https://github.com/madler/zlib/archive/%s.tar.gz" % ZLIB_COMMIT,
         build_file_content = zlib_build_rule,
@@ -430,11 +430,6 @@ cc_binary(
         strip_prefix = "grpc-%s" % GRPC_COMMIT,
         url = "https://github.com/grpc/grpc/archive/%s.tar.gz" % GRPC_COMMIT,
         sha256 = "1528bc20e9bb2921964d354116e1650d6e14b88eef7a6263c4469705ceaef8aa",
-    )
-
-    native.bind(
-        name = "madler_zlib",
-        actual = "@zlib//:zlib",
     )
 
     http_archive(

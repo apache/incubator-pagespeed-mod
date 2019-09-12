@@ -339,5 +339,30 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "build mod_pagespeed",
+            "type": "shell",
+            "command": " bazel build //pagespeed/apache:libmod_pagespeed.so",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build mod_pagespeed dbg",
+            "type": "shell",
+            "command": " bazel build -c dbg //pagespeed/apache:libmod_pagespeed.so",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+
     ]
 }

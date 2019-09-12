@@ -132,6 +132,7 @@ build --copt=-Wno-unused-const-variable
 build --copt=-Wno-unused-parameter
 build --copt=-Wno-sign-compare
 build --copt=-Wno-implicit-fallthrough
+build --copt=-fPIC
 #build --copt=-Wno-inconsistent-missing-override
 # objcopy 2.31 doesn't like 
 clang-7's output unless we pass in -fno-addrsig
