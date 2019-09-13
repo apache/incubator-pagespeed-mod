@@ -9,7 +9,7 @@ cc_library(
         #"@brotli//:brotli_common",
         #"@brotli//:brotli_enc",
         #"@brotli//:brotli_dec",
-        "@zlib//:zlib",
+        #"@zlib//:zlib",
         "@hiredis//:hiredis",
         "@jsoncpp//:jsoncpp",
         "@re2//:re2",

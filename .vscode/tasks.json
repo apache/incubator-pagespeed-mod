@@ -363,6 +363,18 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "build mod_pagespeed dbg debian package",
+            "type": "shell",
+            "command": " bazel build -c dbg //pagespeed/apache:modpagespeed-debian",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
 
     ]
 }
