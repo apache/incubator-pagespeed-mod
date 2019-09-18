@@ -417,6 +417,7 @@ void InPlaceRewriteContext::FixFetchFallbackHeaders(
         Options()->implicit_cache_ttl_ms();
 
     headers->RemoveAll(HttpAttributes::kLastModified);
+    headers->Replace(HttpAttributes::kXContentTypeOptions,HttpAttributes::kNosniff);
     headers->set_implicit_cache_ttl_ms(implicit_ttl_ms);
     headers->ComputeCaching();
     int64 expire_at_ms = kint64max;
