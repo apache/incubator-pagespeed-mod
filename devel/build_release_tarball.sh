@@ -89,10 +89,8 @@ if openssl version | grep "^OpenSSL 1[.]0[.][01]\|^OpenSSL 0[.]"; then
 fi
 
 tar xjf "$TARBALL"
-cd modpagespeed*
 ./generate.sh -Dsystem_include_path_apr=/usr/include/apr-1.0/ \
               -Dsystem_include_path_httpd=/usr/include/apache2
-cd src
 make -j6
 out/Debug/mod_pagespeed_test
 # These tests fail because they are golded against a specific version of
