@@ -13,7 +13,7 @@
 	url = https://github.com/google/closure-library.git
 [submodule "third_party/aprutil/src"]
 	path = third_party/aprutil/src
-	url = https://github.com/apache//apr-util.git
+	url = https://github.com/apache/apr-util.git
 [submodule "third_party/re2/src"]
 	path = third_party/re2/src
 	url = https://github.com/google/re2.git
