@@ -1,10 +1,10 @@
 # The two httpds are the longest syncs, so we'd like to start them first.
 [submodule "third_party/httpd/src"]
 	path = third_party/httpd/src
-	url = https://git.apache.org/httpd.git
+	url = https://github.com/apache/httpd.git
 [submodule "third_party/httpd24/src"]
 	path = third_party/httpd24/src
-	url = https://git.apache.org/httpd.git
+	url = https://github.com/apache/httpd.git
 [submodule "third_party/brotli/src"]
 	path = third_party/brotli/src
 	url = https://github.com/google/brotli.git
@@ -13,7 +13,7 @@
 	url = https://github.com/google/closure-library.git
 [submodule "third_party/aprutil/src"]
 	path = third_party/aprutil/src
-	url = https://git.apache.org/apr-util.git
+	url = https://github.com/apache//apr-util.git
 [submodule "third_party/re2/src"]
 	path = third_party/re2/src
 	url = https://github.com/google/re2.git
@@ -39,7 +39,7 @@
 	url = https://github.com/redis/hiredis.git
 [submodule "third_party/apr/src"]
 	path = third_party/apr/src
-	url = https://git.apache.org/apr.git
+	url = https://github.com/apache/apr.git
 [submodule "third_party/optipng"]
 	path = third_party/optipng
 	url = https://github.com/apache/incubator-pagespeed-optipng.git
@@ -49,7 +49,7 @@
 	url = https://chromium.googlesource.com/webm/libwebp.git
 [submodule "third_party/serf/src"]
 	path = third_party/serf/src
-	url = https://git.apache.org/serf.git
+	url = https://github.com/apache/serf.git
 [submodule "third_party/grpc/src"]
 	path = third_party/grpc/src
 	url = https://github.com/grpc/grpc.git
