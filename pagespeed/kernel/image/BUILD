@@ -70,7 +70,6 @@ cc_library(
         "@giflib//:egiflib",
         "@libwebp//:libwebp",
         "@libjpeg_turbo//:libjpeg",
-        "@zlib//:zlib",
         "//pagespeed/kernel/base:pagespeed_base",
     ],
 )
