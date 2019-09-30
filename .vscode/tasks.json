@@ -28,6 +28,18 @@
             }
         },
         {
+            "label": "test-all-except-envoy",
+            "type": "shell",
+            "command": "bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -c dbg -- //... -//pagespeed/envoy/...
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
             "label": "test-base",
             "type": "shell",
             "command": "bazel test -c dbg //pagespeed/kernel/base/...",
