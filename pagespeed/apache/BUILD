@@ -6,12 +6,13 @@ load(
     "pagespeed_cc_test_library",
 )
 
-#cc_binary(
-#    name = "mod_pagespeed.so",
-#    linkshared = True,
-#    visibility = ["//visibility:public"],
-#    deps = ["//pagespeed/kernel/base:pagespeed_base"],
-#)
+cc_binary(
+    name = "libmod_pagespeed.so",
+    linkshared = True,
+    linkstatic= True,
+    visibility = ["//visibility:public"],
+    deps = [":apache"],
+)
 
 cc_library(
     name = "apache",

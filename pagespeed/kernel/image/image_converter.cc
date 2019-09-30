@@ -36,7 +36,7 @@ extern "C" {
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
-#include "external/zlib/zlib.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
 #endif
 }  // extern "C"
 

@@ -18,7 +18,7 @@
         {
             "label": "test-all",
             "type": "shell",
-            "command": "bazel test -c dbg //...",
+            "command": "bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -c dbg //...",
             "problemMatcher": [
                 "$gcc"
             ],
@@ -339,5 +339,42 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "build mod_pagespeed",
+            "type": "shell",
+            "command": " bazel build //pagespeed/apache:libmod_pagespeed.so",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build mod_pagespeed dbg",
+            "type": "shell",
+            "command": " bazel build -c dbg //pagespeed/apache:libmod_pagespeed.so",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build mod_pagespeed dbg debian package",
+            "type": "shell",
+            "command": " bazel build -c dbg //pagespeed/apache:modpagespeed-debian",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind" : "build",
+                "isDefault": true
+            }
+        },
+
     ]
 }

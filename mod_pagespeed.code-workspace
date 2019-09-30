@@ -76,7 +76,18 @@
 			"future": "cpp",
 			"shared_mutex": "cpp",
 			"typeindex": "cpp",
-			"sparsetable": "cpp"
+			"sparsetable": "cpp",
+			"dense_hash_set": "cpp",
+			"sparse_hash_map": "cpp",
+			"sparse_hash_set": "cpp",
+			"string": "cpp",
+			"complex": "cpp",
+			"iterator": "cpp",
+			"map": "cpp",
+			"memory_resource": "cpp",
+			"random": "cpp",
+			"regex": "cpp",
+			"set": "cpp"
 		}
 	}
 }

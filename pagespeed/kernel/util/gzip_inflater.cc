@@ -27,8 +27,8 @@
 #include "zlib.h"  // NOLINT
 #include "zconf.h"  // NOLINT
 #else
-#include "external/zlib/zlib.h"
-#include "external/zlib/zconf.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zconf.h"
 #endif
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/stack_buffer.h"

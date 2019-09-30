@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package pagespeed;
+
+import "validate/validate.proto";
+
+message Decoder {
+    string key = 1 [(validate.rules).string.min_bytes = 1];
+    string val = 2 [(validate.rules).string.min_bytes = 1];
+}

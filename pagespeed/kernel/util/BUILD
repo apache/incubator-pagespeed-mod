@@ -80,8 +80,8 @@ cc_library(
         "//pagespeed/kernel/thread",
         "@brotli//:brotlidec",
         "@brotli//:brotlienc",
-        "@grpc//:grpc++",
-        "@zlib",
+        "@com_github_grpc_grpc//:grpc++",
+        "@envoy//bazel/foreign_cc:zlib",
     ],
 )
 

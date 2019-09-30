@@ -251,6 +251,7 @@ cc_library(
         "-Iexternal/apr/",
         "-Iexternal/serf/include/",
         "-Iexternal/serf/",
+        "-DPAGESPEED_SUPPORT_POSIX_SHARED_MEM=1",       
     ],
     visibility = ["//visibility:public"],
     deps = [
