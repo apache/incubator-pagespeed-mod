@@ -687,29 +687,34 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::GetFetcher(
   return iter->second;
 }
 
-UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(
-    SystemRewriteOptions* config) {
-  SerfUrlAsyncFetcher* serf = new SerfUrlAsyncFetcher(
-      config->fetcher_proxy().c_str(),
-      NULL,  // Do not use the Factory pool so we can control deletion.
-      thread_system(), statistics(), timer(),
-      config->blocking_fetch_timeout_ms(),
-      message_handler());
-  serf->set_list_outstanding_urls_on_error(list_outstanding_urls_on_error_);
-  serf->set_fetch_with_gzip(config->fetch_with_gzip());
-  serf->set_track_original_content_length(track_original_content_length_);
-  serf->SetHttpsOptions(config->https_options());
-  serf->SetSslCertificatesDir(config->ssl_cert_directory());
-  serf->SetSslCertificatesFile(config->ssl_cert_file());
-  return serf;
+UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(SystemRewriteOptions* config) {
+  if (use_envoy_fetcher_) {
+    // envoy_fetcher
+    // EnvoyUrlAsyncFetcher* envoyFetcher =
+    //     new EnvoyUrlAsyncFetcher(config->fetcher_proxy().c_str(), thread_system(), statistics(),
+    //                              timer(), config->blocking_fetch_timeout_ms(),
+    //                              message_handler());
+    // return envoyFetcher;
+  } else {
+    SerfUrlAsyncFetcher* serf =
+        new SerfUrlAsyncFetcher(config->fetcher_proxy().c_str(),
+                                NULL, // Do not use the Factory pool so we can control deletion.
+                                thread_system(), statistics(), timer(),
+                                config->blocking_fetch_timeout_ms(), message_handler());
+    serf->set_list_outstanding_urls_on_error(list_outstanding_urls_on_error_);
+    serf->set_fetch_with_gzip(config->fetch_with_gzip());
+    serf->set_track_original_content_length(track_original_content_length_);
+    serf->SetHttpsOptions(config->https_options());
+    serf->SetSslCertificatesDir(config->ssl_cert_directory());
+    serf->SetSslCertificatesFile(config->ssl_cert_file());
+    return serf;
+  }
 }
 
-
-UrlAsyncFetcher* SystemRewriteDriverFactory::GetBaseFetcher(
-    SystemRewriteOptions* config) {
+UrlAsyncFetcher* SystemRewriteDriverFactory::GetBaseFetcher(SystemRewriteOptions* config) {
   GoogleString cache_key = GetFetcherKey(false, config);
-  std::pair<FetcherMap::iterator, bool> result = base_fetcher_map_.insert(
-      std::make_pair(cache_key, static_cast<UrlAsyncFetcher*>(NULL)));
+  std::pair<FetcherMap::iterator, bool> result =
+      base_fetcher_map_.insert(std::make_pair(cache_key, static_cast<UrlAsyncFetcher*>(NULL)));
   FetcherMap::iterator iter = result.first;
   if (result.second) {
     iter->second = AllocateFetcher(config);

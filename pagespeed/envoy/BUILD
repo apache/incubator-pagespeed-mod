@@ -11,8 +11,12 @@ package(default_visibility = ["//visibility:public"])
 envoy_cc_binary(
     name = "envoy",
     repository = "@envoy",
+    linkopts = [
+        "-lrt",
+    ],
     deps = [
         ":http_filter_config",
+        ":envoy_fetcher",
         "@envoy//source/exe:envoy_main_entry_lib",
     ],
 )
@@ -115,4 +119,50 @@ envoy_cc_test(
         ":http_filter_config",
         "@envoy//test/integration:http_integration_lib",
     ],
+)
+
+envoy_cc_library(
+    name = "envoy_fetcher",
+    srcs = [
+        "envoy_url_async_fetcher.cc"
+    ],
+    hdrs = [
+        "envoy_url_async_fetcher.h"
+    ],
+    copts = [
+        "-std=c++14",
+    ],
+    repository = "@envoy",
+    deps = [
+        "@envoy//source/common/config:remote_data_fetcher_lib_with_external_headers",
+        "@envoy//source/common/access_log:access_log_manager_lib_with_external_headers",
+        "@envoy//source/common/common:minimal_logger_lib_with_external_headers",
+        "@envoy//source/common/event:real_time_system_lib_with_external_headers",
+        "@envoy//source/common/http:context_lib_with_external_headers",
+        "@envoy//source/common/protobuf:message_validator_lib_with_external_headers",
+        "@envoy//source/common/secret:secret_manager_impl_lib_with_external_headers",
+        "@envoy//source/common/stats:allocator_lib_with_external_headers",
+        "@envoy//source/common/stats:thread_local_store_lib_with_external_headers",
+        "@envoy//source/common/thread_local:thread_local_lib_with_external_headers",
+        "@envoy//source/common/upstream:cluster_manager_lib_with_external_headers",
+        "@envoy//source/exe:platform_header_lib_with_external_headers",
+        "@envoy//source/exe:process_wide_lib_with_external_headers",
+        "@envoy//source/extensions/transport_sockets/tls:context_lib_with_external_headers",
+        "@envoy//source/server/config_validation:admin_lib_with_external_headers",
+        "@envoy//source/common/runtime:runtime_lib_with_external_headers",
+        "@envoy//source/common/http/http1:conn_pool_lib_with_external_headers",
+        "@envoy//source/common/api:api_lib_with_external_headers",
+        "@envoy//source/common/common:cleanup_lib_with_external_headers",
+        "@envoy//source/common/config:utility_lib_with_external_headers",
+        "@envoy//source/common/event:dispatcher_includes_with_external_headers",
+        "@envoy//include/envoy/event:dispatcher_interface_with_external_headers",
+        "@envoy//source/common/init:manager_lib_with_external_headers",
+        "@envoy//source/common/local_info:local_info_lib_with_external_headers",
+        "@envoy//source/common/singleton:manager_impl_lib_with_external_headers",
+        "@envoy//source/extensions/transport_sockets:well_known_names_with_external_headers",
+        "@envoy//source/server:options_lib_with_external_headers",
+        "@envoy//source/exe:platform_impl_lib_with_external_headers",
+        "@envoy//source/exe:envoy_common_lib_with_external_headers",
+    ],
+    visibility = ["//visibility:public"],
 )
