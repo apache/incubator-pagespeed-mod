@@ -17,92 +17,92 @@
  * under the License.
  */
 
- //
+//
 // Fetch the resources asynchronously using envoy. The fetcher is called in
 // the rewrite thread.
 //
 
- #ifndef NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_
+#ifndef NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_
 
- #include <vector>
+#include <vector>
 
- #include "apr_network_io.h"
+#include "apr_network_io.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
 
- namespace net_instaweb {
+namespace net_instaweb {
 
- class AsyncFetch;
+class AsyncFetch;
 class MessageHandler;
 class Statistics;
 class Variable;
 
- class EnvoyUrlAsyncFetcher : public UrlAsyncFetcher {
+class EnvoyUrlAsyncFetcher : public UrlAsyncFetcher {
 public:
   EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thread_system, Statistics* statistics,
                        Timer* timer, int64 timeout_ms, MessageHandler* handler);
 
-   ~EnvoyUrlAsyncFetcherer();
+  ~EnvoyUrlAsyncFetcherer();
 
-   // It should be called in the module init_process callback function. Do some
+  // It should be called in the module init_process callback function. Do some
   // intializations which can't be done in the master process
   bool Init();
 
-   // shutdown all the fetches.
+  // shutdown all the fetches.
   virtual void ShutDown();
 
-   virtual bool SupportsHttps() const { return false; }
+  virtual bool SupportsHttps() const { return false; }
 
-   virtual void Fetch(const GoogleString& url, MessageHandler* message_handler,
+  virtual void Fetch(const GoogleString& url, MessageHandler* message_handler,
                      AsyncFetch* callback);
 
-   bool StartFetch(EnvoyFetch* fetch);
+  bool StartFetch(EnvoyFetch* fetch);
 
-   // Remove the completed fetch from the active fetch set, and put it into a
+  // Remove the completed fetch from the active fetch set, and put it into a
   // completed fetch list to be cleaned up.
   void FetchComplete(EnvoyFetch* fetch);
   void PrintActiveFetches(MessageHandler* handler) const;
 
-   // Indicates that it should track the original content length for
+  // Indicates that it should track the original content length for
   // fetched resources.
   bool track_original_content_length() { return track_original_content_length_; }
   void set_track_original_content_length(bool x) { track_original_content_length_ = x; }
 
-   // AnyPendingFetches is accurate only at the time of call; this is
+  // AnyPendingFetches is accurate only at the time of call; this is
   // used conservatively during shutdown.  It counts fetches that have been
   // requested by some thread, and can include fetches for which no action
   // has yet been taken (ie fetches that are not active).
   virtual bool AnyPendingFetches() { return !active_fetches_.empty(); }
 
-   // ApproximateNumActiveFetches can under- or over-count and is used only for
+  // ApproximateNumActiveFetches can under- or over-count and is used only for
   // error reporting.
   int ApproximateNumActiveFetches() { return active_fetches_.size(); }
 
-   void CancelActiveFetches();
+  void CancelActiveFetches();
 
-   // These must be accessed with mutex_ held.
+  // These must be accessed with mutex_ held.
   bool shutdown() const { return shutdown_; }
   void set_shutdown(bool s) { shutdown_ = s; }
 
- protected:
+protected:
   typedef Pool<EnvoyFetch> EnvoyFetchPool;
 
- private:
+private:
   static void TimeoutHandler();
   static bool ParseUrl();
   friend class EnvoyFetch;
 
-   EnvoyFetchPool active_fetches_;
+  EnvoyFetchPool active_fetches_;
   // Add the pending task to this list
   EnvoyFetchPool pending_fetches_;
   EnvoyFetchPool completed_fetches_;
   char* proxy_;
 
-   int fetchers_count_;
+  int fetchers_count_;
   bool shutdown_;
   bool track_original_content_length_;
   int64 byte_count_;
@@ -112,16 +112,16 @@ public:
   // active_fetches, pending_fetches
   ThreadSystem::CondvarCapableMutex* mutex_;
 
-   apr_pool_t* pool_;
+  apr_pool_t* pool_;
   int max_keepalive_requests_;
   int64 resolver_timeout_;
   int64 fetch_timeout_;
 
-   DISALLOW_COPY_AND_ASSIGN(EnvoyUrlAsyncFetcher);
+  DISALLOW_COPY_AND_ASSIGN(EnvoyUrlAsyncFetcher);
 };
 
- class EnvoyFetch {};
+class EnvoyFetch {};
 
- } // namespace net_instaweb
+} // namespace net_instaweb
 
- #endif // NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_$
+#endif // NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_$
