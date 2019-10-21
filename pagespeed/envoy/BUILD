@@ -124,13 +124,20 @@ envoy_cc_test(
 envoy_cc_library(
     name = "envoy_fetcher",
     srcs = [
-        "envoy_url_async_fetcher.cc"
+        "envoy_url_async_fetcher.cc",
+        "envoy_cluster_manager.cc",
     ],
     hdrs = [
-        "envoy_url_async_fetcher.h"
+        "envoy_url_async_fetcher.h",
+        "envoy_cluster_manager.h",
     ],
     copts = [
-        "-std=c++14",
+        "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
+        "-Iexternal/apr/include/",
+        "-Iexternal/apr/include/arch/unix/",
+        "-Iexternal/apr/",
+        "-Iexternal/apr/gen",
+        "-Wno-error=unused-parameter",
     ],
     repository = "@envoy",
     deps = [
@@ -163,6 +170,8 @@ envoy_cc_library(
         "@envoy//source/server:options_lib_with_external_headers",
         "@envoy//source/exe:platform_impl_lib_with_external_headers",
         "@envoy//source/exe:envoy_common_lib_with_external_headers",
+        "@apr",
+        "//net/instaweb/http",
     ],
     visibility = ["//visibility:public"],
 )

@@ -41,12 +41,13 @@ class MessageHandler;
 class Statistics;
 class Variable;
 
+class EnvoyFetch {};
 class EnvoyUrlAsyncFetcher : public UrlAsyncFetcher {
 public:
   EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thread_system, Statistics* statistics,
                        Timer* timer, int64 timeout_ms, MessageHandler* handler);
 
-  ~EnvoyUrlAsyncFetcherer();
+  ~EnvoyUrlAsyncFetcher();
 
   // It should be called in the module init_process callback function. Do some
   // intializations which can't be done in the master process
@@ -59,8 +60,6 @@ public:
 
   virtual void Fetch(const GoogleString& url, MessageHandler* message_handler,
                      AsyncFetch* callback);
-
-  bool StartFetch(EnvoyFetch* fetch);
 
   // Remove the completed fetch from the active fetch set, and put it into a
   // completed fetch list to be cleaned up.
@@ -113,14 +112,11 @@ private:
   ThreadSystem::CondvarCapableMutex* mutex_;
 
   apr_pool_t* pool_;
-  int max_keepalive_requests_;
   int64 resolver_timeout_;
   int64 fetch_timeout_;
 
   DISALLOW_COPY_AND_ASSIGN(EnvoyUrlAsyncFetcher);
 };
-
-class EnvoyFetch {};
 
 } // namespace net_instaweb
 
