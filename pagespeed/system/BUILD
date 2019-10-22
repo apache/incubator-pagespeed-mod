@@ -238,6 +238,7 @@ cc_library(
         "system_rewrite_options.h",
         "system_server_context.h",
         "system_thread_system.h",
+        "//pagespeed/envoy:envoy_fetcher_headers",
     ],
     copts = [
         "-Iexternal/aprutil/include/",

@@ -73,6 +73,7 @@
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/util/input_file_nonce_generator.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
+#include "pagespeed/envoy/envoy_url_async_fetcher.h"
 
 namespace net_instaweb {
 
@@ -689,12 +690,11 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::GetFetcher(
 
 UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(SystemRewriteOptions* config) {
   if (use_envoy_fetcher_) {
-    // envoy_fetcher
-    // EnvoyUrlAsyncFetcher* envoyFetcher =
-    //     new EnvoyUrlAsyncFetcher(config->fetcher_proxy().c_str(), thread_system(), statistics(),
-    //                              timer(), config->blocking_fetch_timeout_ms(),
-    //                              message_handler());
-    // return envoyFetcher;
+    EnvoyUrlAsyncFetcher* envoyFetcher =
+        new EnvoyUrlAsyncFetcher(config->fetcher_proxy().c_str(), thread_system(), statistics(),
+                                 timer(), config->blocking_fetch_timeout_ms(),
+                                 message_handler());
+    return envoyFetcher;
   } else {
     SerfUrlAsyncFetcher* serf =
         new SerfUrlAsyncFetcher(config->fetcher_proxy().c_str(),

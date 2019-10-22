@@ -121,6 +121,14 @@ envoy_cc_test(
     ],
 )
 
+filegroup(
+    name = "envoy_fetcher_headers",
+    srcs = [
+        "envoy_url_async_fetcher.h",
+        "envoy_cluster_manager.h",
+    ],
+)
+
 envoy_cc_library(
     name = "envoy_fetcher",
     srcs = [
@@ -128,8 +136,7 @@ envoy_cc_library(
         "envoy_cluster_manager.cc",
     ],
     hdrs = [
-        "envoy_url_async_fetcher.h",
-        "envoy_cluster_manager.h",
+        ":envoy_fetcher_headers",
     ],
     copts = [
         "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
