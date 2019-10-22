@@ -58,7 +58,10 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
 EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
 }
 
-bool EnvoyUrlAsyncFetcher::Init() { return false; }
+bool EnvoyUrlAsyncFetcher::Init() {
+  cluster_manager_ = new EnvoyClusterManager(); 
+  return true;
+}
 
 void EnvoyUrlAsyncFetcher::ShutDown() {}
 

@@ -238,7 +238,6 @@ cc_library(
         "system_rewrite_options.h",
         "system_server_context.h",
         "system_thread_system.h",
-        "//pagespeed/envoy:envoy_fetcher_headers",
     ],
     copts = [
         "-Iexternal/aprutil/include/",
@@ -260,6 +259,7 @@ cc_library(
         "//net/instaweb/http",
         "//net/instaweb/rewriter",
         "//pagespeed/kernel/sharedmem:shared_mem",
+        "//pagespeed/envoy:envoy_fetcher",
         "//third_party/redis-crc",
         "@apr",
         "@aprutil",

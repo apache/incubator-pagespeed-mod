@@ -145,6 +145,11 @@ envoy_cc_library(
         "-Iexternal/apr/",
         "-Iexternal/apr/gen",
         "-Wno-error=unused-parameter",
+        "-Wno-error=macro-redefined",
+        "-Wno-error=inconsistent-missing-override",
+        "-Wno-error=thread-safety-attributes",
+        "-Wno-error=old-style-cast",
+        "-Wno-error=thread-safety-analysis",
     ],
     repository = "@envoy",
     deps = [

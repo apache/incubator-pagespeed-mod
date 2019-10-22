@@ -33,6 +33,7 @@
 #include "pagespeed/kernel/base/pool.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
+#include "envoy_cluster_manager.h"
 
 namespace net_instaweb {
 
@@ -97,6 +98,7 @@ private:
 
   EnvoyFetchPool active_fetches_;
   // Add the pending task to this list
+  EnvoyClusterManager* cluster_manager_;
   EnvoyFetchPool pending_fetches_;
   EnvoyFetchPool completed_fetches_;
   char* proxy_;

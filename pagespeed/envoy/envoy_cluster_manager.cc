@@ -40,7 +40,7 @@ Envoy::ProcessWide process_wide_;
 std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory> cluster_manager_factory_;
 
 EnvoyClusterManager::EnvoyClusterManager(){
-  //cluster_manager_ = nullptr;
+  initClusterManager();
 }
 
 void configureComponentLogLevels(spdlog::level::level_enum level) {
