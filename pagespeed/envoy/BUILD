@@ -150,6 +150,8 @@ envoy_cc_library(
         "-Wno-error=thread-safety-attributes",
         "-Wno-error=old-style-cast",
         "-Wno-error=thread-safety-analysis",
+        "-Wno-error=unused-variable",
+        "-Wno-error=unused-lambda-capture",
     ],
     repository = "@envoy",
     deps = [

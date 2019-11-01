@@ -425,7 +425,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   int num_expensive_rewrite_threads_;
 
   // if true, pagespeed will use envoy fetcher
-  bool use_envoy_fetcher_;
+  bool use_envoy_fetcher_ = false;
 
 
   std::shared_ptr<CentralControllerRpcClient> central_controller_;

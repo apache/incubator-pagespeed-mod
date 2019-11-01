@@ -239,6 +239,9 @@ cc_library(
         "system_server_context.h",
         "system_thread_system.h",
     ],
+    linkopts = [
+        "-lrt",
+    ],
     copts = [
         "-Iexternal/aprutil/include/",
         "-Iexternal/aprutil/include/private/",

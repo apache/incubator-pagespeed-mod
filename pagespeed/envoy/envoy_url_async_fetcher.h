@@ -43,6 +43,28 @@ class Statistics;
 class Variable;
 
 class EnvoyFetch {};
+
+class EnvoyRemoteDataFetcher : public Envoy::Config::DataFetcher::RemoteDataFetcher {
+public:
+  EnvoyRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm,
+                         const ::envoy::api::v2::core::HttpUri& uri,
+                         const std::string& content_hash,
+                         Envoy::Config::DataFetcher::RemoteDataFetcherCallback& callback)
+      : Envoy::Config::DataFetcher::RemoteDataFetcher(cm, uri, content_hash, callback) {}
+
+  void onSuccess(Envoy::Http::MessagePtr&& response) override;
+  void onFailure(Envoy::Http::AsyncClient::FailureReason reason) override;
+};
+
+class EnvoyRemoteDataCallback : public Envoy::Config::DataFetcher::RemoteDataFetcherCallback {
+public:
+  // Config::DataFetcher::RemoteDataFetcherCallback
+  void onSuccess(const std::string& data) override {}
+
+  // Config::DataFetcher::RemoteDataFetcherCallback
+  void onFailure(Envoy::Config::DataFetcher::FailureReason failure) override {}
+};
+
 class EnvoyUrlAsyncFetcher : public UrlAsyncFetcher {
 public:
   EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thread_system, Statistics* statistics,
@@ -98,6 +120,7 @@ private:
 
   EnvoyFetchPool active_fetches_;
   // Add the pending task to this list
+  std::unique_ptr<EnvoyRemoteDataFetcher> EnvoyRemoteDataFetcherPtr;
   EnvoyClusterManager* cluster_manager_;
   EnvoyFetchPool pending_fetches_;
   EnvoyFetchPool completed_fetches_;

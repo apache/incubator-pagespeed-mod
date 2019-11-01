@@ -36,8 +36,15 @@
 
 namespace net_instaweb {
 
-Envoy::ProcessWide process_wide_;
+Envoy::ThreadLocal::InstanceImpl tls_;
 std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory> cluster_manager_factory_;
+Envoy::Init::ManagerImpl init_manager_("init_manager");
+Envoy::Stats::SymbolTableImpl symbol_table_;
+Envoy::Stats::AllocatorImpl stats_allocator_(symbol_table_);
+Envoy::Stats::ThreadLocalStoreImpl store_root_(stats_allocator_);
+Envoy::Api::ApiPtr api_;
+Envoy::Init::WatcherImpl init_watcher_("envoyfetcher", []() {});
+Envoy::Singleton::ManagerPtr singleton_manager_;
 
 EnvoyClusterManager::EnvoyClusterManager(){
   initClusterManager();
@@ -56,22 +63,12 @@ void EnvoyClusterManager::initClusterManager() {
                                                                   "[%T.%f][%t][%L] %v", log_lock);
   configureComponentLogLevels(spdlog::level::from_str("trace"));
 
-  Envoy::Stats::AllocatorImpl stats_allocator_(symbol_table_);
-  Envoy::Stats::ThreadLocalStoreImpl store_root_(stats_allocator_);
-
-  Envoy::Api::ApiPtr api_(std::make_unique<Envoy::Api::Impl>(
-      platform_impl_.threadFactory(), store_root_, time_system_, platform_impl_.fileSystem()));
-  Envoy::Event::DispatcherPtr dispatcher_(api_->allocateDispatcher());
+  api_ = std::make_unique<Envoy::Api::Impl>(
+      platform_impl_.threadFactory(), store_root_, time_system_, platform_impl_.fileSystem());
+  dispatcher_ = api_->allocateDispatcher();
 
   tls_.registerThread(*dispatcher_, true);
-
-  std::unique_ptr<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>
-      ssl_context_manager_ =
-          std::make_unique<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>(
-              time_system_);
-
-  ssl_context_manager_ =
-      std::make_unique<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>(time_system_);
+  store_root_.initializeThreading(*dispatcher_, tls_);
 
   Envoy::LocalInfo::LocalInfoPtr local_info_(new Envoy::LocalInfo::LocalInfoImpl(
       {}, Envoy::Network::Utility::getLocalAddress(Envoy::Network::Address::IpVersion::v4),
@@ -83,16 +80,17 @@ void EnvoyClusterManager::initClusterManager() {
   Envoy::AccessLog::AccessLogManagerImpl access_log_manager_(
       std::chrono::milliseconds(1000), *api_, *dispatcher_, access_log_lock_, store_root_);
 
-  Envoy::Init::ManagerImpl init_manager_("init_manager");
-
   runtime_singleton_ = std::make_unique<Envoy::Runtime::ScopedLoaderSingleton>(
       Envoy::Runtime::LoaderPtr{new Envoy::Runtime::LoaderImpl(
           *dispatcher_, tls_, {}, *local_info_, init_manager_, store_root_, generator_,
           Envoy::ProtobufMessage::getStrictValidationVisitor(), *api_)});
 
-  Envoy::Singleton::ManagerPtr singleton_manager_(
-      std::make_unique<Envoy::Singleton::ManagerImpl>(api_->threadFactory()));
+  singleton_manager_ = std::make_unique<Envoy::Singleton::ManagerImpl>(api_->threadFactory());
   Envoy::Runtime::LoaderSingleton::get();
+
+  ssl_context_manager_ =
+      std::make_unique<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>(time_system_);
+
   cluster_manager_factory_ = std::make_unique<Envoy::Upstream::ProdClusterManagerFactory>(
       admin_, Envoy::Runtime::LoaderSingleton::get(), store_root_, tls_, generator_,
       dispatcher_->createDnsResolver({}), *ssl_context_manager_, *dispatcher_, *local_info_,
@@ -102,13 +100,14 @@ void EnvoyClusterManager::initClusterManager() {
   std::cout << "Initializing bootstrap\n";
   std::cout.flush();
   envoy::config::bootstrap::v2::Bootstrap bootstrap;
-  Envoy::MessageUtil::loadFromFile("cluster.yaml", bootstrap,
+  Envoy::MessageUtil::loadFromFile("/home/ashish/project/ashishk-pagespeed/incubator-pagespeed-mod/pagespeed/envoy/cluster.yaml", bootstrap,
                                    Envoy::ProtobufMessage::getStrictValidationVisitor(), *api_);
 
   std::cout << "Bootstrap created from string\n";
   std::cout.flush();
 
   cluster_manager_ = cluster_manager_factory_->clusterManagerFromProto(bootstrap);
+  cluster_manager_->setInitializedCb([this]() -> void { init_manager_.initialize(init_watcher_); });
   //clusters_.push_back(cluster_manager_factory_->clusterManagerFromProto(bootstrap));
 }
 
