@@ -86,7 +86,7 @@ void EnvoyClusterManager::initClusterManager() {
       *singleton_manager_);
 
   Envoy::MessageUtil::loadFromFile(
-      "/home/ashish/project/ashishk-pagespeed/incubator-pagespeed-mod/pagespeed/envoy/cluster.yaml",
+      "pagespeed/envoy/cluster.yaml",
       bootstrap, Envoy::ProtobufMessage::getStrictValidationVisitor(), *api_);
 
   cluster_manager_ = cluster_manager_factory_->clusterManagerFromProto(bootstrap);

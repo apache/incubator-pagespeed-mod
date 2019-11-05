@@ -129,7 +129,14 @@ filegroup(
     ],
 )
 
-envoy_cc_library(
+filegroup(
+    name = "envoy_cluster_config",
+    srcs = [
+        "cluster.yaml",
+    ],
+)
+
+cc_library(
     name = "envoy_fetcher",
     srcs = [
         "envoy_url_async_fetcher.cc",
@@ -137,6 +144,9 @@ envoy_cc_library(
     ],
     hdrs = [
         ":envoy_fetcher_headers",
+    ],
+    data = [
+        ":envoy_cluster_config",
     ],
     copts = [
         "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
@@ -154,7 +164,6 @@ envoy_cc_library(
         "-Wno-error=unused-lambda-capture",
         "-Wno-error=reorder",
     ],
-    repository = "@envoy",
     deps = [
         "@envoy//source/common/config:remote_data_fetcher_lib_with_external_headers",
         "@envoy//source/common/access_log:access_log_manager_lib_with_external_headers",
