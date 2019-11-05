@@ -51,7 +51,7 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
       thread_system_(thread_system), message_handler_(handler), mutex_(NULL) {
   if (!Init()) {
     shutdown_ = true;
-    message_handler_->Message(kError, "NgxUrlAsyncFetcher failed to init, fetching disabled.");
+    message_handler_->Message(kError, "EnvoyUrlAsyncFetcher failed to init, fetching disabled.");
   }
 }
 
@@ -60,11 +60,8 @@ EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
 
 void EnvoyRemoteDataFetcher::onSuccess(Envoy::Http::MessagePtr &&response)
 {
-  std::cout << "PagespeedRemoteDataFetcher::onSuccess\n";
-  std::cout.flush();
   std::cout << "PagespeedRemoteDataFetcher::onSuccess data: " << response->body()->toString() << "\n";
   std::cout.flush();
-
 }
 
 void EnvoyRemoteDataFetcher::onFailure(Envoy::Http::AsyncClient::FailureReason reason)
@@ -73,34 +70,25 @@ void EnvoyRemoteDataFetcher::onFailure(Envoy::Http::AsyncClient::FailureReason r
   std::cout.flush();
 }
 
-bool EnvoyUrlAsyncFetcher::Init() {
-  cluster_manager_ = new EnvoyClusterManager();
-  Envoy::Upstream::ClusterManagerPtr& cluster_manager_ptr(cluster_manager_->getClusterManager());
+void EnvoyUrlAsyncFetcher::fetch(){
   envoy::api::v2::core::HttpUri http_uri;
   http_uri.set_uri("http://127.0.0.1:80");
   http_uri.set_cluster("cluster1");
   std::string uriHash("123456789");
 
-  Envoy::Config::DataFetcher::RemoteDataFetcherCallback *cb = new EnvoyRemoteDataCallback();
-  EnvoyRemoteDataFetcherPtr = std::make_unique<EnvoyRemoteDataFetcher>(*cluster_manager_ptr, http_uri, uriHash, *cb);
-
-  std::cout << "fetcher object created\n";
-  std::cout.flush();
-
-  if (EnvoyRemoteDataFetcherPtr) {
-    std::cout << "EnvoyRemoteDataFetcherPtr valid\n";
-    std::cout.flush();
-  } else {
-    std::cout << "EnvoyRemoteDataFetcherPtr not valid\n";
-    std::cout.flush();
-
-  }
+  Envoy::Config::DataFetcher::RemoteDataFetcherCallback* cb = new EnvoyRemoteDataCallback();
+  std::unique_ptr<EnvoyRemoteDataFetcher> EnvoyRemoteDataFetcherPtr =
+      std::make_unique<EnvoyRemoteDataFetcher>(*cluster_manager_->getClusterManager(), http_uri, uriHash, *cb);
 
   EnvoyRemoteDataFetcherPtr->fetch();
-  std::cout << "fetch called\n";
-  std::cout.flush();
 
-  cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::RunUntilExit);
+  cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
+}
+
+bool EnvoyUrlAsyncFetcher::Init() {
+  cluster_manager_ = new EnvoyClusterManager();
+
+  fetch();
 
   return true;
 }

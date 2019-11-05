@@ -114,6 +114,8 @@ protected:
   typedef Pool<EnvoyFetch> EnvoyFetchPool;
 
 private:
+  void fetch();
+
   static void TimeoutHandler();
   static bool ParseUrl();
   friend class EnvoyFetch;

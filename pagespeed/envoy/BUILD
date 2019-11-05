@@ -152,6 +152,7 @@ envoy_cc_library(
         "-Wno-error=thread-safety-analysis",
         "-Wno-error=unused-variable",
         "-Wno-error=unused-lambda-capture",
+        "-Wno-error=reorder",
     ],
     repository = "@envoy",
     deps = [
