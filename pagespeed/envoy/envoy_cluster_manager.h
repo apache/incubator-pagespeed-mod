@@ -1,4 +1,3 @@
-#include "external/envoy/source/common/config/remote_data_fetcher.h"
 
 #include "external/envoy/source/common/access_log/access_log_manager_impl.h"
 #include "external/envoy/source/common/event/real_time_system.h"

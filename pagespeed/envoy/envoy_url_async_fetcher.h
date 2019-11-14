@@ -25,6 +25,7 @@
 #ifndef NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_
 
+#pragma once
 #include <vector>
 
 #include "apr_network_io.h"
@@ -33,7 +34,10 @@
 #include "pagespeed/kernel/base/pool.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "envoy_cluster_manager.h"
+#include "pagespeed_remote_data_fetcher.h"
+
+#include "external/envoy_api/envoy/api/v2/core/http_uri.pb.h"
+
 
 namespace net_instaweb {
 
@@ -44,25 +48,13 @@ class Variable;
 
 class EnvoyFetch {};
 
-class EnvoyRemoteDataFetcher : public Envoy::Config::DataFetcher::RemoteDataFetcher {
-public:
-  EnvoyRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm,
-                         const ::envoy::api::v2::core::HttpUri& uri,
-                         const std::string& content_hash,
-                         Envoy::Config::DataFetcher::RemoteDataFetcherCallback& callback)
-      : Envoy::Config::DataFetcher::RemoteDataFetcher(cm, uri, content_hash, callback) {}
-
-  void onSuccess(Envoy::Http::MessagePtr&& response) override;
-  void onFailure(Envoy::Http::AsyncClient::FailureReason reason) override;
-};
-
-class EnvoyRemoteDataCallback : public Envoy::Config::DataFetcher::RemoteDataFetcherCallback {
+class PagespeedDataFetcherCallback : public PagespeedRemoteDataFetcherCallback {
 public:
   // Config::DataFetcher::RemoteDataFetcherCallback
-  void onSuccess(const std::string& data) override {}
+  void onSuccess(const std::string& data) override;
 
   // Config::DataFetcher::RemoteDataFetcherCallback
-  void onFailure(Envoy::Config::DataFetcher::FailureReason failure) override {}
+  void onFailure(FailureReason reason) override;
 };
 
 class EnvoyUrlAsyncFetcher : public UrlAsyncFetcher {
@@ -122,7 +114,7 @@ private:
 
   EnvoyFetchPool active_fetches_;
   // Add the pending task to this list
-  std::unique_ptr<EnvoyRemoteDataFetcher> EnvoyRemoteDataFetcherPtr;
+  std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr;
   EnvoyClusterManager* cluster_manager_;
   EnvoyFetchPool pending_fetches_;
   EnvoyFetchPool completed_fetches_;

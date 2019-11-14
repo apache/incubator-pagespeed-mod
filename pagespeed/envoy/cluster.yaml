@@ -27,7 +27,7 @@ static_resources:
   clusters:
   - name: cluster1
     connect_timeout: 0.25s
-    type: strict_dns
+    # type: strict_dns
     lb_policy: round_robin
     hosts:
     - socket_address:

@@ -12,7 +12,6 @@
 
 #include "external/envoy/include/envoy/event/dispatcher.h"
 #include "external/envoy/source/common/api/api_impl.h"
-#include "external/envoy/source/common/config/remote_data_fetcher.h"
 #include "external/envoy/source/common/config/utility.h"
 #include "external/envoy/source/common/event/real_time_system.h"
 #include "external/envoy/source/common/init/manager_impl.h"

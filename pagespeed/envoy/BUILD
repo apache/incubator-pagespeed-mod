@@ -126,6 +126,7 @@ filegroup(
     srcs = [
         "envoy_url_async_fetcher.h",
         "envoy_cluster_manager.h",
+        "pagespeed_remote_data_fetcher.h",
     ],
 )
 
@@ -137,17 +138,21 @@ filegroup(
 )
 
 cc_library(
+   name = "config",
+   data = [":envoy_cluster_config"],
+)
+
+envoy_cc_library(
     name = "envoy_fetcher",
     srcs = [
         "envoy_url_async_fetcher.cc",
         "envoy_cluster_manager.cc",
+        "pagespeed_remote_data_fetcher.cc",
     ],
     hdrs = [
         ":envoy_fetcher_headers",
     ],
-    data = [
-        ":envoy_cluster_config",
-    ],
+    repository = "@envoy",
     copts = [
         "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
         "-Iexternal/apr/include/",
@@ -165,7 +170,8 @@ cc_library(
         "-Wno-error=reorder",
     ],
     deps = [
-        "@envoy//source/common/config:remote_data_fetcher_lib_with_external_headers",
+        ":config",
+        "@envoy//source/common/config:datasource_lib_with_external_headers",
         "@envoy//source/common/access_log:access_log_manager_lib_with_external_headers",
         "@envoy//source/common/common:minimal_logger_lib_with_external_headers",
         "@envoy//source/common/event:real_time_system_lib_with_external_headers",

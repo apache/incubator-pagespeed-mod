@@ -58,15 +58,13 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
 EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
 }
 
-void EnvoyRemoteDataFetcher::onSuccess(Envoy::Http::MessagePtr &&response)
-{
-  std::cout << "PagespeedRemoteDataFetcher::onSuccess data: " << response->body()->toString() << "\n";
+void PagespeedDataFetcherCallback::onSuccess(const std::string& data){
+  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << data <<"\n";
   std::cout.flush();
 }
 
-void EnvoyRemoteDataFetcher::onFailure(Envoy::Http::AsyncClient::FailureReason reason)
-{
-  std::cout << "PagespeedRemoteDataFetcher::onFailure\n";
+void PagespeedDataFetcherCallback::onFailure(FailureReason reason){
+  std::cout << "PagespeedDataFetcherCallback::onFailure\n";
   std::cout.flush();
 }
 
@@ -76,20 +74,21 @@ void EnvoyUrlAsyncFetcher::fetch(){
   http_uri.set_cluster("cluster1");
   std::string uriHash("123456789");
 
-  Envoy::Config::DataFetcher::RemoteDataFetcherCallback* cb = new EnvoyRemoteDataCallback();
-  std::unique_ptr<EnvoyRemoteDataFetcher> EnvoyRemoteDataFetcherPtr =
-      std::make_unique<EnvoyRemoteDataFetcher>(*cluster_manager_->getClusterManager(), http_uri, uriHash, *cb);
+  PagespeedDataFetcherCallback* cb = new PagespeedDataFetcherCallback();
+  std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr =
+      std::make_unique<PagespeedRemoteDataFetcher>(*cluster_manager_->getClusterManager(), http_uri,
+                                               uriHash, *cb);
 
-  EnvoyRemoteDataFetcherPtr->fetch();
-
+  PagespeedRemoteDataFetcherPtr->fetch();
   cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
+
 }
 
 bool EnvoyUrlAsyncFetcher::Init() {
   cluster_manager_ = new EnvoyClusterManager();
-
-  fetch();
-
+  std::function<void()> fun_ptr = std::bind(&EnvoyUrlAsyncFetcher::fetch, this);
+  cluster_manager_->getDispatcher()->post(fun_ptr);
+  cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::NonBlock);
   return true;
 }
 
