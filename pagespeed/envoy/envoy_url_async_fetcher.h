@@ -45,6 +45,29 @@ class AsyncFetch;
 class MessageHandler;
 class Statistics;
 class Variable;
+struct EnvoyStats {
+  static const char kEnvoyFetchRequestCount[];
+  static const char kEnvoyFetchByteCount[];
+  static const char kEnvoyFetchTimeDurationMs[];
+  static const char kEnvoyFetchCancelCount[];
+  static const char kEnvoyFetchActiveCount[];
+  static const char kEnvoyFetchTimeoutCount[];
+  static const char kEnvoyFetchFailureCount[];
+  static const char kEnvoyFetchCertErrors[];
+  static const char kEnvoyFetchReadCalls[];
+
+  // A fetch that finished with a 2xx or a 3xx code --- and not just a
+  // mechanically successful one that's a 4xx or such.
+  static const char kEnvoyFetchUltimateSuccess[];
+
+  // A failure or an error status. Doesn't include fetches dropped due to
+  // process exit and the like.
+  static const char kEnvoyFetchUltimateFailure[];
+
+  // When we last checked the ultimate failure/success numbers for a
+  // possible concern.
+  static const char kEnvoyFetchLastCheckTimestampMs[];
+};
 
 class EnvoyFetch {};
 
@@ -63,6 +86,7 @@ public:
                        Timer* timer, int64 timeout_ms, MessageHandler* handler);
 
   ~EnvoyUrlAsyncFetcher();
+  static void InitStats(Statistics* statistics);
 
   // It should be called in the module init_process callback function. Do some
   // intializations which can't be done in the master process

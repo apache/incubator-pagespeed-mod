@@ -353,6 +353,7 @@ pagespeed_cc_test(
         "serf_url_async_fetcher_test.cc",
         "system_caches_test.cc",
         "system_message_handler_test.cc",
+        "envoy_url_async_fetcher_test.cc",
     ],
     copts = [
         "-Iexternal/aprutil/include/",

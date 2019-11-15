@@ -43,6 +43,18 @@
 #include "pagespeed/kernel/http/response_headers_parser.h"
 
 namespace net_instaweb {
+const char EnvoyStats::kEnvoyFetchRequestCount[] = "envoy_fetch_request_count";
+const char EnvoyStats::kEnvoyFetchByteCount[] = "envoy_fetch_bytes_count";
+const char EnvoyStats::kEnvoyFetchTimeDurationMs[] = "envoy_fetch_time_duration_ms";
+const char EnvoyStats::kEnvoyFetchCancelCount[] = "envoy_fetch_cancel_count";
+const char EnvoyStats::kEnvoyFetchActiveCount[] = "envoy_fetch_active_count";
+const char EnvoyStats::kEnvoyFetchTimeoutCount[] = "envoy_fetch_timeout_count";
+const char EnvoyStats::kEnvoyFetchFailureCount[] = "envoy_fetch_failure_count";
+const char EnvoyStats::kEnvoyFetchCertErrors[] = "envoy_fetch_cert_errors";
+const char EnvoyStats::kEnvoyFetchReadCalls[] = "envoy_fetch_num_calls_to_read";
+const char EnvoyStats::kEnvoyFetchUltimateSuccess[] = "envoy_fetch_ultimate_success";
+const char EnvoyStats::kEnvoyFetchUltimateFailure[] = "envoy_fetch_ultimate_failure";
+const char EnvoyStats::kEnvoyFetchLastCheckTimestampMs[] = "envoy_fetch_last_check_timestamp_ms";
 
 EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thread_system,
                                            Statistics* statistics, Timer* timer, int64 timeout_ms,
@@ -90,6 +102,23 @@ bool EnvoyUrlAsyncFetcher::Init() {
   cluster_manager_->getDispatcher()->post(fun_ptr);
   cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::NonBlock);
   return true;
+}
+
+void EnvoyUrlAsyncFetcher::InitStats(Statistics* statistics) {
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchRequestCount);
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchByteCount);
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchTimeDurationMs);
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchCancelCount);
+  statistics->AddUpDownCounter(EnvoyStats::kEnvoyFetchActiveCount);
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchTimeoutCount);
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchFailureCount);
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchCertErrors);
+#ifndef NDEBUG
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchReadCalls);
+#endif
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchUltimateSuccess);
+  statistics->AddVariable(EnvoyStats::kEnvoyFetchUltimateFailure);
+  statistics->AddUpDownCounter(EnvoyStats::kEnvoyFetchLastCheckTimestampMs);
 }
 
 void EnvoyUrlAsyncFetcher::ShutDown() {}

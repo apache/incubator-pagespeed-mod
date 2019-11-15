@@ -54,7 +54,6 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "pagespeed/system/tcp_server_thread_for_testing.h"
-#include "pagespeed/envoy/envoy_url_async_fetcher.h"
 
 namespace {
 
@@ -177,10 +176,6 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
     timer_.reset(Platform::CreateTimer());
     statistics_.reset(new SimpleStats(thread_system_.get()));
     SerfUrlAsyncFetcher::InitStats(statistics_.get());
-    envoy_url_async_fetcher_.reset(
-    new EnvoyUrlAsyncFetcher(proxy, thread_system_.get(),
-                            statistics_.get(), timer_.get(),
-                            fetcher_timeout_ms_, &message_handler_));
     serf_url_async_fetcher_.reset(
         new SerfUrlAsyncFetcher(proxy, pool_, thread_system_.get(),
                                 statistics_.get(), timer_.get(),
@@ -435,7 +430,6 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   std::vector<SerfTestFetch*> fetches_;
   // The fetcher to be tested.
   scoped_ptr<SerfUrlAsyncFetcher> serf_url_async_fetcher_;
-  scoped_ptr<EnvoyUrlAsyncFetcher> envoy_url_async_fetcher_;
   scoped_ptr<Timer> timer_;
   size_t prev_done_count;
   scoped_ptr<AbstractMutex> mutex_;
