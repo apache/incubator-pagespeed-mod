@@ -1,4 +1,9 @@
 
+#ifndef PAGESPEED_ENVOY_CLUSTER_MANAGER_H_
+#define PAGESPEED_ENVOY_CLUSTER_MANAGER_H_
+
+#pragma once
+
 #include "external/envoy/source/common/access_log/access_log_manager_impl.h"
 #include "external/envoy/source/common/event/real_time_system.h"
 #include "external/envoy/source/common/http/context_impl.h"
@@ -58,3 +63,5 @@ private:
 };
 
 } // namespace net_instaweb
+
+#endif  // PAGESPEED_ENVOY_CLUSTER_MANAGER_H_

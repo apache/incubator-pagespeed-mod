@@ -127,6 +127,7 @@ filegroup(
         "envoy_url_async_fetcher.h",
         "envoy_cluster_manager.h",
         "pagespeed_remote_data_fetcher.h",
+        "envoy_fetch.h",
     ],
 )
 
@@ -148,6 +149,7 @@ envoy_cc_library(
         "envoy_url_async_fetcher.cc",
         "envoy_cluster_manager.cc",
         "pagespeed_remote_data_fetcher.cc",
+        "envoy_fetch.cc",
     ],
     hdrs = [
         ":envoy_fetcher_headers",
@@ -204,4 +206,28 @@ envoy_cc_library(
         "//net/instaweb/http",
     ],
     visibility = ["//visibility:public"],
+)
+
+envoy_cc_test(
+    name = "envoy_fetcher_test",
+    srcs = ["envoy_url_async_fetcher_test.cc",],
+    repository = "@envoy",
+    copts = [
+        "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
+        "-Iexternal/apr/include/",
+        "-Wno-error=unused-parameter",
+        "-Wno-error=macro-redefined",
+        "-Wno-error=inconsistent-missing-override",
+        "-Wno-error=thread-safety-attributes",
+        "-Wno-error=old-style-cast",
+        "-Wno-error=thread-safety-analysis",
+        "-Wno-error=unused-variable",
+        "-Wno-error=unused-lambda-capture",
+        "-Wno-error=reorder",
+    ],
+    deps = [
+        ":envoy_fetcher",
+        "//pagespeed/kernel/base:kernel_test_util",
+        "//pagespeed/kernel/base:pagespeed_gtest",
+    ],
 )

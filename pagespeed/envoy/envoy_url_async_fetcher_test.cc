@@ -42,7 +42,6 @@
 #include "pagespeed/kernel/util/gzip_inflater.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
-#include "pagespeed/system/tcp_server_thread_for_testing.h"
 
 namespace net_instaweb {
 const int kFetcherTimeoutMs = 5 * 1000;

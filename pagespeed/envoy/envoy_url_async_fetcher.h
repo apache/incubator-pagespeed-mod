@@ -22,8 +22,8 @@
 // the rewrite thread.
 //
 
-#ifndef NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_
-#define NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_
+#ifndef PAGESPEED_ENVOY_URL_ASYNC_FETCHER_H_
+#define PAGESPEED_ENVOY_URL_ASYNC_FETCHER_H_
 
 #pragma once
 #include <vector>
@@ -35,6 +35,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed_remote_data_fetcher.h"
+#include "envoy_fetch.h"
 
 #include "external/envoy_api/envoy/api/v2/core/http_uri.pb.h"
 
@@ -45,6 +46,8 @@ class AsyncFetch;
 class MessageHandler;
 class Statistics;
 class Variable;
+class EnvoyFetch;
+
 struct EnvoyStats {
   static const char kEnvoyFetchRequestCount[];
   static const char kEnvoyFetchByteCount[];
@@ -68,8 +71,6 @@ struct EnvoyStats {
   // possible concern.
   static const char kEnvoyFetchLastCheckTimestampMs[];
 };
-
-class EnvoyFetch {};
 
 class PagespeedDataFetcherCallback : public PagespeedRemoteDataFetcherCallback {
 public:
@@ -130,7 +131,7 @@ protected:
   typedef Pool<EnvoyFetch> EnvoyFetchPool;
 
 private:
-  void fetch();
+  void FetchWithEnvoy();
 
   static void TimeoutHandler();
   static bool ParseUrl();
@@ -163,4 +164,4 @@ private:
 
 } // namespace net_instaweb
 
-#endif // NET_INSTAWEB_ENVOY_URL_ASYNC_FETCHER_H_$
+#endif // PAGESPEED_ENVOY_URL_ASYNC_FETCHER_H_

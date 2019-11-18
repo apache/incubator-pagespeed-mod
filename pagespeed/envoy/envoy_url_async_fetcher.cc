@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include "envoy_fetch.h"
+
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/inflating_fetch.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -67,40 +69,21 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
   }
 }
 
-EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
-}
+EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {}
 
-void PagespeedDataFetcherCallback::onSuccess(const std::string& data){
-  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << data <<"\n";
+void PagespeedDataFetcherCallback::onSuccess(const std::string& data) {
+  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << data << "\n";
   std::cout.flush();
 }
 
-void PagespeedDataFetcherCallback::onFailure(FailureReason reason){
+void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
   std::cout << "PagespeedDataFetcherCallback::onFailure\n";
   std::cout.flush();
 }
 
-void EnvoyUrlAsyncFetcher::fetch(){
-  envoy::api::v2::core::HttpUri http_uri;
-  http_uri.set_uri("http://127.0.0.1:80");
-  http_uri.set_cluster("cluster1");
-  std::string uriHash("123456789");
-
-  PagespeedDataFetcherCallback* cb = new PagespeedDataFetcherCallback();
-  std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr =
-      std::make_unique<PagespeedRemoteDataFetcher>(*cluster_manager_->getClusterManager(), http_uri,
-                                               uriHash, *cb);
-
-  PagespeedRemoteDataFetcherPtr->fetch();
-  cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
-
-}
-
 bool EnvoyUrlAsyncFetcher::Init() {
   cluster_manager_ = new EnvoyClusterManager();
-  std::function<void()> fun_ptr = std::bind(&EnvoyUrlAsyncFetcher::fetch, this);
-  cluster_manager_->getDispatcher()->post(fun_ptr);
-  cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::NonBlock);
+  Fetch("http://localhost:80", nullptr, nullptr);
   return true;
 }
 
@@ -124,19 +107,18 @@ void EnvoyUrlAsyncFetcher::InitStats(Statistics* statistics) {
 void EnvoyUrlAsyncFetcher::ShutDown() {}
 
 void EnvoyUrlAsyncFetcher::Fetch(const GoogleString& url, MessageHandler* message_handler,
-                                 AsyncFetch* async_fetch) {}
+                                 AsyncFetch* async_fetch) {
+  EnvoyFetch *envoy_fetch_ptr = new EnvoyFetch(url, async_fetch, message_handler, cluster_manager_);
 
-void EnvoyUrlAsyncFetcher::FetchComplete(EnvoyFetch* fetch) {
+  envoy_fetch_ptr->Start();
 }
 
-void EnvoyUrlAsyncFetcher::PrintActiveFetches(MessageHandler* handler) const {
-}
+void EnvoyUrlAsyncFetcher::FetchComplete(EnvoyFetch* fetch) {}
 
-void EnvoyUrlAsyncFetcher::CancelActiveFetches() {
-}
+void EnvoyUrlAsyncFetcher::PrintActiveFetches(MessageHandler* handler) const {}
 
-bool EnvoyUrlAsyncFetcher::ParseUrl(){
-  return false;
-}
+void EnvoyUrlAsyncFetcher::CancelActiveFetches() {}
+
+bool EnvoyUrlAsyncFetcher::ParseUrl() { return false; }
 
 } // namespace net_instaweb
