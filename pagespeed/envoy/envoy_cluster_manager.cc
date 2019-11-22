@@ -44,6 +44,15 @@ EnvoyClusterManager::EnvoyClusterManager()
   initClusterManager();
 }
 
+EnvoyClusterManager::~EnvoyClusterManager() {
+  tls_.shutdownGlobalThreading();
+  store_root_.shutdownThreading();
+  if (cluster_manager_ != nullptr) {
+    cluster_manager_->shutdown();
+  }
+  tls_.shutdownThread();
+}
+
 void configureComponentLogLevels(spdlog::level::level_enum level) {
   // TODO(oschaaf): Add options to tweak the log level of the various log tags
   // that are available.

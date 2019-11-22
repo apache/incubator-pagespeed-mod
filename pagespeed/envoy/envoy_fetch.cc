@@ -17,15 +17,10 @@
  * under the License.
  */
 
-
-
 #include "envoy_fetch.h"
-
-#include "base/logging.h"
 
 #include <algorithm>
 #include <string>
-#include <typeinfo>
 #include <vector>
 #include <list>
 #include <map>
@@ -38,9 +33,7 @@
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/pool.h"
 #include "pagespeed/kernel/base/pool_element.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
@@ -48,15 +41,22 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/response_headers_parser.h"
-
-#include "external/envoy_api/envoy/api/v2/core/http_uri.pb.h"
-
-#include "envoy_fetch.h"
+#include "pagespeed_remote_data_fetcher.h"
 
 namespace net_instaweb {
 
 // Default keepalive 60s.
 const int64 keepalive_timeout_ms = 60000;
+
+void PagespeedDataFetcherCallback::onSuccess(const std::string& data) {
+  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << data << "\n";
+  std::cout.flush();
+}
+
+void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
+  std::cout << "PagespeedDataFetcherCallback::onFailure\n";
+  std::cout.flush();
+}
 
 EnvoyFetch::EnvoyFetch(const GoogleString& url,
                    AsyncFetch* async_fetch,
@@ -77,7 +77,6 @@ EnvoyFetch::EnvoyFetch(const GoogleString& url,
 }
 
 EnvoyFetch::~EnvoyFetch() {
-  
 }
 
 void EnvoyFetch::FetchWithEnvoy() {
@@ -87,12 +86,12 @@ void EnvoyFetch::FetchWithEnvoy() {
   std::string uriHash("123456789");
 
   PagespeedDataFetcherCallback* cb = new PagespeedDataFetcherCallback();
-  std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr =
-      std::make_unique<PagespeedRemoteDataFetcher>(*cluster_manager_->getClusterManager(), http_uri,
-                                                   uriHash, *cb);
+  std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = std::make_unique<PagespeedRemoteDataFetcher>(
+    cluster_manager_->getClusterManager(), http_uri, uriHash, *cb);
 
   PagespeedRemoteDataFetcherPtr->fetch();
   cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
+  delete this;
 }
 
 

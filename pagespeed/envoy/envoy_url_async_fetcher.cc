@@ -69,16 +69,8 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
   }
 }
 
-EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {}
-
-void PagespeedDataFetcherCallback::onSuccess(const std::string& data) {
-  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << data << "\n";
-  std::cout.flush();
-}
-
-void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
-  std::cout << "PagespeedDataFetcherCallback::onFailure\n";
-  std::cout.flush();
+EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
+  delete cluster_manager_;
 }
 
 bool EnvoyUrlAsyncFetcher::Init() {

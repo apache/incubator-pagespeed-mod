@@ -24,8 +24,9 @@ namespace net_instaweb {
 class EnvoyClusterManager {
 public:
   EnvoyClusterManager();
+  ~EnvoyClusterManager();
   void initClusterManager();
-  Envoy::Upstream::ClusterManagerPtr& getClusterManager() { return cluster_manager_; }
+  Envoy::Upstream::ClusterManager& getClusterManager() { return *cluster_manager_; }
   Envoy::Event::DispatcherPtr& getDispatcher() { return dispatcher_; }
 
 private:

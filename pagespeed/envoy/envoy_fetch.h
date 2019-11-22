@@ -22,21 +22,33 @@
 
 #pragma once
 
-#include "envoy_url_async_fetcher.h"
 #include <vector>
+
+#include "envoy_url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/response_headers_parser.h"
-#include "pagespeed/kernel/thread/pthread_mutex.h"
+#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed_remote_data_fetcher.h"
+
+#include "external/envoy_api/envoy/api/v2/core/http_uri.pb.h"
 
 namespace net_instaweb {
 
 class EnvoyUrlAsyncFetcher;
+
+class PagespeedDataFetcherCallback : public PagespeedRemoteDataFetcherCallback {
+public:
+  // Config::DataFetcher::RemoteDataFetcherCallback
+  void onSuccess(const std::string& data) override;
+
+  // Config::DataFetcher::RemoteDataFetcherCallback
+  void onFailure(FailureReason reason) override;
+};
 
 class EnvoyFetch : public PoolElement<EnvoyFetch> {
  public:

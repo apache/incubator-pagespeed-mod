@@ -62,6 +62,8 @@ protected:
   }
 
   virtual void TearDown() { timer_.reset(NULL); }
+  scoped_ptr<EnvoyUrlAsyncFetcher> envoy_url_async_fetcher_;
+  GoogleString test_host_;
   scoped_ptr<Timer> timer_;
   scoped_ptr<ThreadSystem> thread_system_;
   MockMessageHandler message_handler_;
@@ -75,8 +77,10 @@ TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
   statistics_.reset(new SimpleStats(thread_system_.get()));
   EnvoyUrlAsyncFetcher::InitStats(statistics_.get());
 
-  new EnvoyUrlAsyncFetcher("", thread_system_.get(), statistics_.get(), timer_.get(),
-                           fetcher_timeout_ms_, &message_handler_);
+  envoy_url_async_fetcher_.reset(
+        new EnvoyUrlAsyncFetcher("", thread_system_.get(), statistics_.get(), timer_.get(),
+                           fetcher_timeout_ms_, &message_handler_));
+  
 }
 
 } // namespace net_instaweb

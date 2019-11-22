@@ -169,6 +169,7 @@ envoy_cc_library(
         "-Wno-error=thread-safety-analysis",
         "-Wno-error=unused-variable",
         "-Wno-error=unused-lambda-capture",
+        "-Wno-error=unused-private-field",
         "-Wno-error=reorder",
     ],
     deps = [
