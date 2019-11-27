@@ -77,6 +77,7 @@ EnvoyFetch::EnvoyFetch(const GoogleString& url,
 }
 
 EnvoyFetch::~EnvoyFetch() {
+  delete cb;
 }
 
 void EnvoyFetch::FetchWithEnvoy() {
@@ -85,7 +86,7 @@ void EnvoyFetch::FetchWithEnvoy() {
   http_uri.set_cluster("cluster1");
   std::string uriHash("123456789");
 
-  PagespeedDataFetcherCallback* cb = new PagespeedDataFetcherCallback();
+  cb = new PagespeedDataFetcherCallback();
   std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = std::make_unique<PagespeedRemoteDataFetcher>(
     cluster_manager_->getClusterManager(), http_uri, uriHash, *cb);
 

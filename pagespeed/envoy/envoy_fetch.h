@@ -88,6 +88,7 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
 
   const GoogleString str_url_;
   EnvoyUrlAsyncFetcher* fetcher_;
+  PagespeedDataFetcherCallback* cb;
   AsyncFetch* async_fetch_;
   ResponseHeadersParser parser_;
   MessageHandler* message_handler_;
