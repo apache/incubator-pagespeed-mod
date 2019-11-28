@@ -30,9 +30,9 @@ void PagespeedRemoteDataFetcher::fetch() {
 }
 
 void PagespeedRemoteDataFetcher::onSuccess(Envoy::Http::MessagePtr&& response) {
-  std::cout << "PagespeedRemoteDataFetcher::onSuccess data:" << response->body()->toString() << "\n";
-  std::cout.flush();
-  // callback_.onSuccess(response->body()->toString());
+
+  // TODO : check for response status
+  callback_.onSuccess(response);
   request_ = nullptr;
 }
 

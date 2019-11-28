@@ -48,9 +48,19 @@ namespace net_instaweb {
 // Default keepalive 60s.
 const int64 keepalive_timeout_ms = 60000;
 
-void PagespeedDataFetcherCallback::onSuccess(const std::string& data) {
-  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << data << "\n";
+PagespeedDataFetcherCallback::PagespeedDataFetcherCallback(EnvoyFetch* fetch) { 
+  fetch_ = fetch;
+}
+
+void PagespeedDataFetcherCallback::onSuccess(Envoy::Http::MessagePtr& response) {
+  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << response->bodyAsString() << "\n";
   std::cout.flush();
+
+  fetch_->setResponse(response->headers(), response->body());
+
+  // set response body
+  // fetch_->async_fetch_->Write(StringPiece(response->body()->toString(), response->body()->length()),
+  //                             fetch_->message_handler());
 }
 
 void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
@@ -86,7 +96,7 @@ void EnvoyFetch::FetchWithEnvoy() {
   http_uri.set_cluster("cluster1");
   std::string uriHash("123456789");
 
-  cb = new PagespeedDataFetcherCallback();
+  cb = new PagespeedDataFetcherCallback(this);
   std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = std::make_unique<PagespeedRemoteDataFetcher>(
     cluster_manager_->getClusterManager(), http_uri, uriHash, *cb);
 
@@ -113,6 +123,12 @@ bool EnvoyFetch::Init() {
 // This function should be called only once. The only argument is sucess or
 // not.
 void EnvoyFetch::CallbackDone(bool success) {
+}
+
+void EnvoyFetch::setResponse(Envoy::Http::HeaderMap& headers, Envoy::Buffer::InstancePtr& body) {
+  // if (async_fetch_->response_headers()->Has(HttpAttributes::kXOriginalContentLength)) {
+  //     async_fetch_->extra_response_headers()->SetOriginalContentLength(body->length());
+  // }
 }
 
 MessageHandler* EnvoyFetch::message_handler() {

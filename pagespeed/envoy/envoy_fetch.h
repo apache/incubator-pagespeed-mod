@@ -40,14 +40,19 @@
 namespace net_instaweb {
 
 class EnvoyUrlAsyncFetcher;
+class EnvoyFetch;
 
 class PagespeedDataFetcherCallback : public PagespeedRemoteDataFetcherCallback {
 public:
+  PagespeedDataFetcherCallback(EnvoyFetch* fetch);
   // Config::DataFetcher::RemoteDataFetcherCallback
-  void onSuccess(const std::string& data) override;
+  void onSuccess(Envoy::Http::MessagePtr& response) override;
 
   // Config::DataFetcher::RemoteDataFetcherCallback
   void onFailure(FailureReason reason) override;
+
+private:
+  EnvoyFetch *fetch_;
 };
 
 class EnvoyFetch : public PoolElement<EnvoyFetch> {
@@ -68,6 +73,8 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
   void CallbackDone(bool success);
 
   MessageHandler* message_handler();
+
+  void setResponse(Envoy::Http::HeaderMap& headers, Envoy::Buffer::InstancePtr& body);
 
   int get_status_code() {
     return 0;
