@@ -204,7 +204,6 @@ protected:
 };
 
 TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
-  // int index = AddTestUrl("http://localhost:80", "");
   envoy_fetch_ = new EnvoyTestFetch(
             RequestContext::NewTestRequestContext(thread_system_.get()),
             mutex_.get());

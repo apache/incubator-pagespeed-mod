@@ -70,12 +70,10 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
 }
 
 EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
-  delete cluster_manager_;
 }
 
 bool EnvoyUrlAsyncFetcher::Init() {
-  cluster_manager_ = new EnvoyClusterManager();
-  Fetch("http://localhost:80", nullptr, nullptr);
+  cluster_manager_ptr_ = std::make_unique<EnvoyClusterManager>();
   return true;
 }
 
@@ -100,8 +98,7 @@ void EnvoyUrlAsyncFetcher::ShutDown() {}
 
 void EnvoyUrlAsyncFetcher::Fetch(const GoogleString& url, MessageHandler* message_handler,
                                  AsyncFetch* async_fetch) {
-  EnvoyFetch *envoy_fetch_ptr = new EnvoyFetch(url, async_fetch, message_handler, cluster_manager_);
-
+  std::unique_ptr<EnvoyFetch> envoy_fetch_ptr = std::make_unique<EnvoyFetch>(url, async_fetch, message_handler, *cluster_manager_ptr_);
   envoy_fetch_ptr->Start();
 }
 

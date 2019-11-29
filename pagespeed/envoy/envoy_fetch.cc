@@ -71,23 +71,19 @@ void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
 EnvoyFetch::EnvoyFetch(const GoogleString& url,
                    AsyncFetch* async_fetch,
                    MessageHandler* message_handler,
-                   EnvoyClusterManager* cluster_manager)
+                   EnvoyClusterManager& cluster_manager)
     : str_url_(url),
       fetcher_(NULL),
       async_fetch_(async_fetch),
-      // TODO : Replace parser_ initialization
-      // parser_(async_fetch->response_headers()),
-      parser_(nullptr),
+      parser_(async_fetch->response_headers()),
       message_handler_(message_handler),
       cluster_manager_(cluster_manager),
       done_(false),
       content_length_(-1),
       content_length_known_(false) {
-
 }
 
 EnvoyFetch::~EnvoyFetch() {
-  delete cb;
 }
 
 void EnvoyFetch::FetchWithEnvoy() {
@@ -96,13 +92,12 @@ void EnvoyFetch::FetchWithEnvoy() {
   http_uri.set_cluster("cluster1");
   std::string uriHash("123456789");
 
-  cb = new PagespeedDataFetcherCallback(this);
+  cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);
   std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = std::make_unique<PagespeedRemoteDataFetcher>(
-    cluster_manager_->getClusterManager(), http_uri, uriHash, *cb);
+    cluster_manager_.getClusterManager(), http_uri, uriHash, *cb_ptr_);
 
   PagespeedRemoteDataFetcherPtr->fetch();
-  cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
-  delete this;
+  cluster_manager_.getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
 }
 
 
@@ -110,8 +105,8 @@ void EnvoyFetch::FetchWithEnvoy() {
 void EnvoyFetch::Start() {
   std::function<void()> fetch_fun_ptr =
       std::bind(&EnvoyFetch::FetchWithEnvoy, this);
-  cluster_manager_->getDispatcher()->post(fetch_fun_ptr);
-  cluster_manager_->getDispatcher()->run(Envoy::Event::Dispatcher::RunType::NonBlock);
+  cluster_manager_.getDispatcher()->post(fetch_fun_ptr);
+  cluster_manager_.getDispatcher()->run(Envoy::Event::Dispatcher::RunType::NonBlock);
 }
 
 

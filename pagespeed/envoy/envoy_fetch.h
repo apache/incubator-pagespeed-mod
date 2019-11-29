@@ -60,7 +60,7 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
   EnvoyFetch(const GoogleString& url,
            AsyncFetch* async_fetch,
            MessageHandler* message_handler,
-           EnvoyClusterManager* cluster_manager);
+           EnvoyClusterManager& cluster_manager);
   ~EnvoyFetch();
 
  void FetchWithEnvoy();
@@ -95,11 +95,11 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
 
   const GoogleString str_url_;
   EnvoyUrlAsyncFetcher* fetcher_;
-  PagespeedDataFetcherCallback* cb;
+  std::unique_ptr<PagespeedDataFetcherCallback> cb_ptr_;
   AsyncFetch* async_fetch_;
   ResponseHeadersParser parser_;
   MessageHandler* message_handler_;
-  EnvoyClusterManager* cluster_manager_;
+  EnvoyClusterManager& cluster_manager_;
   bool done_;
   int64 content_length_;
   bool content_length_known_;

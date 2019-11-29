@@ -126,9 +126,8 @@ private:
   friend class EnvoyFetch;
 
   EnvoyFetchPool active_fetches_;
-  // Add the pending task to this list
-  //std::unique_ptr<EnvoyClusterManager> cluster_manager_;
-  EnvoyClusterManager *cluster_manager_;
+
+  std::unique_ptr<EnvoyClusterManager> cluster_manager_ptr_;
   EnvoyFetchPool pending_fetches_;
   EnvoyFetchPool completed_fetches_;
   char* proxy_;
