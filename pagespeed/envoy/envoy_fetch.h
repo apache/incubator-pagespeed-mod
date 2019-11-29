@@ -74,7 +74,7 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
 
   MessageHandler* message_handler();
 
-  void setResponse(Envoy::Http::HeaderMap& headers, Envoy::Buffer::InstancePtr& body);
+  void setResponse(Envoy::Http::HeaderMap& headers, Envoy::Buffer::InstancePtr& response_body);
 
   int get_status_code() {
     return 0;
@@ -97,7 +97,6 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
   EnvoyUrlAsyncFetcher* fetcher_;
   std::unique_ptr<PagespeedDataFetcherCallback> cb_ptr_;
   AsyncFetch* async_fetch_;
-  ResponseHeadersParser parser_;
   MessageHandler* message_handler_;
   EnvoyClusterManager& cluster_manager_;
   bool done_;
