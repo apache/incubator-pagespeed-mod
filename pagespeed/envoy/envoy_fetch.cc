@@ -42,6 +42,7 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/response_headers_parser.h"
 #include "pagespeed_remote_data_fetcher.h"
+#include "pagespeed/envoy/header_utils.h"
 
 namespace net_instaweb {
 
@@ -59,38 +60,6 @@ void PagespeedDataFetcherCallback::onSuccess(Envoy::Http::MessagePtr& response) 
 void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
   std::cout << "PagespeedDataFetcherCallback::onFailure\n";
   std::cout.flush();
-}
-
-std::unique_ptr<ResponseHeaders> toPageSpeedResponseHeaders(Envoy::Http::HeaderMap& headers) {
-  std::unique_ptr<ResponseHeaders> response_headers = std::make_unique<ResponseHeaders>();
-  auto callback = [](const Envoy::Http::HeaderEntry& entry,
-                     void* response_headers) -> Envoy::Http::HeaderMap::Iterate {
-    net_instaweb::ResponseHeaders* response_headers_ptr =
-        static_cast<ResponseHeaders*>(response_headers);
-    auto key = entry.key().getStringView();
-    auto value = entry.value().getStringView();
-
-    if (key == ":status") {
-      int status_code;
-      if (absl::SimpleAtoi(value, &status_code)) {
-        // XXX(oschaaf): safety
-        auto code = static_cast<net_instaweb::HttpStatus::Code>(status_code);
-        response_headers_ptr->set_status_code(code);
-        response_headers_ptr->set_reason_phrase(net_instaweb::HttpStatus::GetReasonPhrase(code));
-      } else {
-        // XXX(oschaaf)
-      }
-    } else {
-      response_headers_ptr->Add(entry.key().getStringView(), value);
-    }
-    return Envoy::Http::HeaderMap::Iterate::Continue;
-  };
-  // response_headers->set_major_version(r->http_version / 1000);
-  // response_headers->set_minor_version(r->http_version % 1000);
-  headers.iterate(callback, response_headers.get());
-  response_headers->ComputeCaching();
-
-  return response_headers;
 }
 
 EnvoyFetch::EnvoyFetch(const GoogleString& url,
@@ -148,7 +117,7 @@ void EnvoyFetch::setResponse(Envoy::Http::HeaderMap& headers,
                              Envoy::Buffer::InstancePtr& response_body) {
 
   ResponseHeaders* res_header = async_fetch_->response_headers();
-  std::unique_ptr<ResponseHeaders> response_headers_ptr = toPageSpeedResponseHeaders(headers);
+  std::unique_ptr<ResponseHeaders> response_headers_ptr = HeaderUtils::toPageSpeedResponseHeaders(headers);
   res_header->CopyFrom(*response_headers_ptr);
 
   async_fetch_->response_headers()->SetOriginalContentLength(response_body->length());

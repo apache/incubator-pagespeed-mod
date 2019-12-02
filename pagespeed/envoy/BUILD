@@ -150,6 +150,7 @@ envoy_cc_library(
         "envoy_cluster_manager.cc",
         "pagespeed_remote_data_fetcher.cc",
         "envoy_fetch.cc",
+        "header_utils.h",    
     ],
     hdrs = [
         ":envoy_fetcher_headers",
