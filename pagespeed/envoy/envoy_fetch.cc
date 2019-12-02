@@ -53,9 +53,6 @@ PagespeedDataFetcherCallback::PagespeedDataFetcherCallback(EnvoyFetch* fetch) {
 }
 
 void PagespeedDataFetcherCallback::onSuccess(Envoy::Http::MessagePtr& response) {
-  std::cout << "PagespeedDataFetcherCallback::onSuccess data:" << response->bodyAsString() << "\n";
-  std::cout.flush();
-
   fetch_->setResponse(response->headers(), response->body());
 }
 

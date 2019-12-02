@@ -208,6 +208,8 @@ TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
             RequestContext::NewTestRequestContext(thread_system_.get()),
             mutex_.get());
   envoy_url_async_fetcher_->Fetch("http://localhost:80", &message_handler_, envoy_fetch_);
+
+  EXPECT_TRUE(envoy_fetch_->buffer().find("Apache2 Ubuntu Default Page") != GoogleString::npos);
 }
 
 } // namespace net_instaweb
