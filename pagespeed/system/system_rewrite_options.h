@@ -282,6 +282,9 @@ class SystemRewriteOptions : public RewriteOptions {
   bool fetch_with_gzip() const {
     return fetch_with_gzip_.value();
   }
+  bool fetch_using_envoy() const {
+    return fetch_using_envoy_.value();
+  }
   int64 ipro_max_response_bytes() const {
     return ipro_max_response_bytes_.value();
   }
@@ -508,6 +511,10 @@ class SystemRewriteOptions : public RewriteOptions {
   // accept-encoding:gzip, even when used in a context when we want
   // cleartext.  We'll decompress as we read the content if needed.
   Option<bool> fetch_with_gzip_;
+
+  // If true, resources will be fetched using envoy fetcher,
+  // instead of default serf fetcher 
+  Option<bool> fetch_using_envoy_;
 
   ControllerPortOption controller_port_;
   Option<int> popularity_contest_max_inflight_requests_;

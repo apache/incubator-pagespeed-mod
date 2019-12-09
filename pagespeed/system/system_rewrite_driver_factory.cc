@@ -689,7 +689,7 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::GetFetcher(
 }
 
 UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(SystemRewriteOptions* config) {
-  if (use_envoy_fetcher_) {
+  if (config->fetch_using_envoy()) {
     EnvoyUrlAsyncFetcher* envoyFetcher =
         new EnvoyUrlAsyncFetcher(config->fetcher_proxy().c_str(), thread_system(), statistics(),
                                  timer(), config->blocking_fetch_timeout_ms(),

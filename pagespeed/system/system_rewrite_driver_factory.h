@@ -213,13 +213,6 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
     list_outstanding_urls_on_error_ = x;
   }
 
-  bool use_envoy_fetcher() {
-    return use_envoy_fetcher_;
-  }
-  void set_use_envoy_fetcher(bool x) {
-    use_envoy_fetcher_ = x;
-  }
-
   // When RateLimitBackgroundFetches is enabled the fetcher needs to apply some
   // limits.  An implementation may need to tune these based on conditions only
   // observable at startup, in which case they can override these.

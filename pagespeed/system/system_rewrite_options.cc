@@ -276,6 +276,11 @@ void SystemRewriteOptions::AddProperties() {
                     "FetchWithGzip", kLegacyProcessScope,
                     "Request http content from origin servers using gzip",
                     true);
+  AddSystemProperty(false, &SystemRewriteOptions::fetch_using_envoy_, "fue",
+                    "FetchUsingEnvoy", kLegacyProcessScope,
+                    "Resources will be fetched using envoy fetcher,"
+                    "instead of default serf fetcher",
+                    true);
   AddSystemProperty(1024 * 1024 * 10,  /* 10 Megabytes */
                     &SystemRewriteOptions::ipro_max_response_bytes_,
                     "imrb", "IproMaxResponseBytes", kLegacyProcessScope,
