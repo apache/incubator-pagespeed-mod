@@ -48,6 +48,7 @@ namespace net_instaweb {
 
 // Default keepalive 60s.
 const int64 keepalive_timeout_ms = 60000;
+static const char cluster_str[] = "cluster1";
 
 PagespeedDataFetcherCallback::PagespeedDataFetcherCallback(EnvoyFetch* fetch) { 
   fetch_ = fetch;
@@ -85,7 +86,7 @@ void EnvoyFetch::FetchWithEnvoy() {
   std::string uriHash("DUMMY_HASH");
 
   // TODO : Remove hardcoding of cluster
-  http_uri.set_cluster("cluster1");
+  http_uri.set_cluster(cluster_str);
 
   cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);
   std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = std::make_unique<PagespeedRemoteDataFetcher>(
@@ -130,8 +131,6 @@ void EnvoyFetch::setResponse(Envoy::Http::HeaderMap& headers,
   async_fetch_->Write(StringPiece(response_body->toString()), message_handler());
 
   async_fetch_->Done(true);
-
-  // async_fetch_ = NULL;
 }
 
 MessageHandler* EnvoyFetch::message_handler() {

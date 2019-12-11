@@ -17,9 +17,6 @@
  * under the License.
  */
 
-#ifndef PAGESPEED_ENVOY_FETCH_H_
-#define PAGESPEED_ENVOY_FETCH_H_
-
 #pragma once
 
 #include <vector>
@@ -109,5 +106,3 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
 };
 
 }  // namespace net_instaweb
-
-#endif  // PAGESPEED_ENVOY_FETCH_H_

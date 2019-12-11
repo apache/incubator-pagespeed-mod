@@ -22,13 +22,9 @@
 // the rewrite thread.
 //
 
-#ifndef PAGESPEED_ENVOY_URL_ASYNC_FETCHER_H_
-#define PAGESPEED_ENVOY_URL_ASYNC_FETCHER_H_
-
 #pragma once
 #include <vector>
 
-#include "apr_network_io.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool.h"
@@ -142,7 +138,6 @@ private:
   // active_fetches, pending_fetches
   ThreadSystem::CondvarCapableMutex* mutex_;
 
-  apr_pool_t* pool_;
   int64 resolver_timeout_;
   int64 fetch_timeout_;
 
@@ -150,5 +145,3 @@ private:
 };
 
 } // namespace net_instaweb
-
-#endif // PAGESPEED_ENVOY_URL_ASYNC_FETCHER_H_
