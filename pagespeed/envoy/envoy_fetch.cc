@@ -81,9 +81,11 @@ EnvoyFetch::~EnvoyFetch() {
 
 void EnvoyFetch::FetchWithEnvoy() {
   envoy::api::v2::core::HttpUri http_uri;
-  http_uri.set_uri("http://localhost:80");
+  http_uri.set_uri(str_url_);
+  std::string uriHash("DUMMY_HASH");
+
+  // TODO : Remove hardcoding of cluster
   http_uri.set_cluster("cluster1");
-  std::string uriHash("123456789");
 
   cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);
   std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = std::make_unique<PagespeedRemoteDataFetcher>(
