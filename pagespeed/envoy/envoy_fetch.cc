@@ -83,14 +83,17 @@ EnvoyFetch::~EnvoyFetch() {
 void EnvoyFetch::FetchWithEnvoy() {
   envoy::api::v2::core::HttpUri http_uri;
   http_uri.set_uri(str_url_);
-  std::string uriHash("DUMMY_HASH");
+  // dummy response content hash as we want to keep
+  // PagespeedRemoteDataFetcher structure same as
+  // envoy RemoteDataFetcher
+  std::string response_content_hash("DUMMY_HASH");
 
   // TODO : Remove hardcoding of cluster
   http_uri.set_cluster(cluster_str);
 
   cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);
   std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = std::make_unique<PagespeedRemoteDataFetcher>(
-    cluster_manager_.getClusterManager(), http_uri, uriHash, *cb_ptr_);
+    cluster_manager_.getClusterManager(), http_uri, response_content_hash, *cb_ptr_);
 
   PagespeedRemoteDataFetcherPtr->fetch();
   cluster_manager_.getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
