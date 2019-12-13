@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "exception.h"
 #include "external/envoy/source/common/access_log/access_log_manager_impl.h"
 #include "external/envoy/source/common/event/real_time_system.h"
 #include "external/envoy/source/common/http/context_impl.h"
@@ -33,6 +34,10 @@
 #include "external/envoy/source/exe/process_wide.h"
 #include "external/envoy/source/extensions/transport_sockets/tls/context_manager_impl.h"
 #include "external/envoy/source/server/config_validation/admin.h"
+#include "pagespeed/kernel/base/scoped_ptr.h"
+#include "pagespeed/kernel/base/string.h"
+#include "uri_impl.h"
+#include "utility.h"
 
 namespace net_instaweb {
 
@@ -41,8 +46,9 @@ public:
   EnvoyClusterManager();
   ~EnvoyClusterManager();
   void initClusterManager();
-  Envoy::Upstream::ClusterManager& getClusterManager() { return *cluster_manager_; }
+  Envoy::Upstream::ClusterManager& getClusterManager(const GoogleString str_url_);
   Envoy::Event::DispatcherPtr& getDispatcher() { return dispatcher_; }
+  const envoy::config::bootstrap::v2::Bootstrap createBootstrapConfiguration(const Uri& uri) const;
 
 private:
   Envoy::ThreadLocal::InstanceImpl tls_;

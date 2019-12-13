@@ -49,6 +49,8 @@
 
 namespace net_instaweb {
 
+static const char cluster_str[] = "cluster1";
+
 EnvoyClusterManager::EnvoyClusterManager()
     : init_watcher_("envoyfetcher", []() {}), secret_manager_(config_tracker_),
       validation_context_(false, false), init_manager_("init_manager"),
@@ -107,13 +109,38 @@ void EnvoyClusterManager::initClusterManager() {
       dispatcher_->createDnsResolver({}), *ssl_context_manager_, *dispatcher_, *local_info_,
       secret_manager_, validation_context_, *api_, http_context_, *access_log_manager_,
       *singleton_manager_);
+}
 
-  Envoy::MessageUtil::loadFromFile(
-      "pagespeed/envoy/cluster.yaml",
-      bootstrap, Envoy::ProtobufMessage::getStrictValidationVisitor(), *api_);
-
-  cluster_manager_ = cluster_manager_factory_->clusterManagerFromProto(bootstrap);
+Envoy::Upstream::ClusterManager&
+EnvoyClusterManager::getClusterManager(const GoogleString str_url_) {
+  UriImpl uri(str_url_);
+  try {
+    uri.resolve(*dispatcher_, Envoy::Network::DnsLookupFamily::Auto);
+  } catch (UriException) {
+    // TODO : Error Handling.
+    std::cout << "UriException \n";
+    std::cout.flush();
+  }
+  cluster_manager_ =
+      cluster_manager_factory_->clusterManagerFromProto(createBootstrapConfiguration(uri));
   cluster_manager_->setInitializedCb([this]() -> void { init_manager_.initialize(init_watcher_); });
+  return *cluster_manager_;
+}
+
+const envoy::config::bootstrap::v2::Bootstrap
+EnvoyClusterManager::createBootstrapConfiguration(const Uri& uri) const {
+  envoy::config::bootstrap::v2::Bootstrap bootstrap;
+  auto* cluster = bootstrap.mutable_static_resources()->add_clusters();
+  cluster->set_name(cluster_str);
+  cluster->mutable_connect_timeout()->set_seconds(15);
+  cluster->set_type(envoy::api::v2::Cluster::DiscoveryType::Cluster_DiscoveryType_STATIC);
+  auto* host = cluster->add_hosts();
+  auto* socket_address = host->mutable_socket_address();
+  socket_address->set_address(uri.address()->ip()->addressAsString());
+  socket_address->set_port_value(uri.port());
+
+
+  return bootstrap;
 }
 
 } // namespace net_instaweb
