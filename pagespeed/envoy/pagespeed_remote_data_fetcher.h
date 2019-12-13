@@ -61,7 +61,7 @@ class PagespeedRemoteDataFetcher : public Envoy::Logger::Loggable<Envoy::Logger:
                           public Envoy::Http::AsyncClient::Callbacks {
 public:
   PagespeedRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm, const ::envoy::api::v2::core::HttpUri& uri,
-                    const std::string& content_hash, PagespeedRemoteDataFetcherCallback& callback);
+                    PagespeedRemoteDataFetcherCallback& callback);
 
   ~PagespeedRemoteDataFetcher() override;
 
@@ -85,7 +85,6 @@ public:
 private:
   Envoy::Upstream::ClusterManager& cm_;
   const envoy::api::v2::core::HttpUri& uri_;
-  const std::string content_hash_;
   PagespeedRemoteDataFetcherCallback& callback_;
 
   Envoy::Http::AsyncClient::Request* request_{};

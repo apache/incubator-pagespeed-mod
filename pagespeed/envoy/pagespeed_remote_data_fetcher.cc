@@ -23,9 +23,8 @@ namespace net_instaweb {
 
 PagespeedRemoteDataFetcher::PagespeedRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm,
                                      const ::envoy::api::v2::core::HttpUri& uri,
-                                     const std::string& content_hash,
                                      PagespeedRemoteDataFetcherCallback& callback)
-    : cm_(cm), uri_(uri), content_hash_(content_hash), callback_(callback) {}
+    : cm_(cm), uri_(uri), callback_(callback) {}
 
 PagespeedRemoteDataFetcher::~PagespeedRemoteDataFetcher() { cancel(); }
 
