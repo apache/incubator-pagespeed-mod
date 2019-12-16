@@ -128,25 +128,10 @@ filegroup(
         "envoy_cluster_manager.h",
         "pagespeed_remote_data_fetcher.h",
         "header_utils.h",
-        "exception.h",
-        "uri_impl.h",
-        "uri.h",
         "envoy_fetch.h",
-        "utility.h",
     ],
 )
 
-filegroup(
-    name = "envoy_cluster_config",
-    srcs = [
-        "cluster.yaml",
-    ],
-)
-
-cc_library(
-   name = "config",
-   data = [":envoy_cluster_config"],
-)
 
 envoy_cc_library(
     name = "envoy_fetcher",
@@ -155,8 +140,6 @@ envoy_cc_library(
         "envoy_cluster_manager.cc",
         "pagespeed_remote_data_fetcher.cc",
         "envoy_fetch.cc",
-        "uri_impl.cc",
-        "utility.cc",
     ],
     hdrs = [
         ":envoy_fetcher_headers",
@@ -175,7 +158,6 @@ envoy_cc_library(
         "-Wno-error=reorder",
     ],
     deps = [
-        ":config",
         "@envoy//source/common/config:datasource_lib_with_external_headers",
         "@envoy//source/common/access_log:access_log_manager_lib_with_external_headers",
         "@envoy//source/common/common:minimal_logger_lib_with_external_headers",
