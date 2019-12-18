@@ -74,6 +74,8 @@ EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
 
 bool EnvoyUrlAsyncFetcher::Init() {
   cluster_manager_ptr_ = std::make_unique<EnvoyClusterManager>();
+  envoy_log_sink_ = std::make_unique<PagespeedLogSink>(Envoy::Logger::Registry::getSink(), message_handler_);
+
   return true;
 }
 

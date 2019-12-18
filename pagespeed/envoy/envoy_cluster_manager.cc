@@ -74,13 +74,12 @@ EnvoyClusterManager::~EnvoyClusterManager() {
 
 void configureComponentLogLevels(spdlog::level::level_enum level) {
   Envoy::Logger::Registry::setLogLevel(level);
-  Envoy::Logger::Logger* logger_to_change = Envoy::Logger::Registry::logger("main");
+  Envoy::Logger::Logger* logger_to_change = Envoy::Logger::Registry::logger(logger_str);
   logger_to_change->setLevel(level);
 }
 
 void EnvoyClusterManager::initClusterManager() {
-  auto logging_context = std::make_unique<Envoy::Logger::Context>(spdlog::level::from_str("error"),
-                                                                  "[%T.%f][%t][%L] %v", log_lock);
+
   configureComponentLogLevels(spdlog::level::from_str("error"));
 
   api_ = std::make_unique<Envoy::Api::Impl>(platform_impl_.threadFactory(), store_root_,

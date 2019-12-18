@@ -129,6 +129,7 @@ filegroup(
         "pagespeed_remote_data_fetcher.h",
         "header_utils.h",
         "envoy_fetch.h",
+        "envoy_logger.h",
     ],
 )
 
@@ -140,6 +141,7 @@ envoy_cc_library(
         "envoy_cluster_manager.cc",
         "pagespeed_remote_data_fetcher.cc",
         "envoy_fetch.cc",
+        "envoy_logger.cc",
     ],
     hdrs = [
         ":envoy_fetcher_headers",

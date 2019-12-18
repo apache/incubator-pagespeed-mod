@@ -35,6 +35,7 @@
 #include "external/envoy/source/server/config_validation/admin.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
+#include "envoy_logger.h"
 
 namespace net_instaweb {
 
@@ -69,7 +70,6 @@ private:
   Envoy::Http::ContextImpl http_context_;
   Envoy::Event::RealTimeSystem time_system_;
   Envoy::PlatformImpl platform_impl_;
-  Envoy::Thread::MutexBasicLockable log_lock;
   Envoy::LocalInfo::LocalInfoPtr local_info_ptr;
   Envoy::ProcessWide process_wide_;
 
