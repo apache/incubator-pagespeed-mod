@@ -48,7 +48,6 @@ namespace net_instaweb {
 
 // Default keepalive 60s.
 const int64 keepalive_timeout_ms = 60000;
-static const char cluster_str[] = "cluster1";
 
 PagespeedDataFetcherCallback::PagespeedDataFetcherCallback(EnvoyFetch* fetch) { fetch_ = fetch; }
 
@@ -80,7 +79,7 @@ EnvoyFetch::EnvoyFetch(const GoogleString& url,
 void EnvoyFetch::FetchWithEnvoy() {
   envoy::api::v2::core::HttpUri http_uri;
   http_uri.set_uri(str_url_);
-  http_uri.set_cluster(cluster_str);
+  http_uri.set_cluster(cluster_manager_.getClusterName());
   cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);
 
   std::unique_ptr<PagespeedRemoteDataFetcher> pagespeed_remote_data_fetch_ptr = 

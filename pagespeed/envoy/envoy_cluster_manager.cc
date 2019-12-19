@@ -49,15 +49,9 @@
 
 namespace net_instaweb {
 
-static const char cluster_str[] = "cluster1";
-
 EnvoyClusterManager::EnvoyClusterManager()
     : init_watcher_("envoyfetcher", []() {}), secret_manager_(config_tracker_),
       validation_context_(false, false), init_manager_("init_manager"),
-      local_info_(new Envoy::LocalInfo::LocalInfoImpl(
-          {}, Envoy::Network::Utility::getLocalAddress(Envoy::Network::Address::IpVersion::v4),
-          "envoyfetcher_service_zone", "envoyfetcher_service_cluster",
-          "envoyfetcher_service_node")),
       stats_allocator_(symbol_table_), store_root_(stats_allocator_),
       http_context_(store_root_.symbolTable()) {
   initClusterManager();
@@ -81,6 +75,10 @@ void configureComponentLogLevels(spdlog::level::level_enum level) {
 void EnvoyClusterManager::initClusterManager() {
 
   configureComponentLogLevels(spdlog::level::from_str("error"));
+
+  local_info_ = std::make_unique<Envoy::LocalInfo::LocalInfoImpl>(
+      envoy_node_, Envoy::Network::Utility::getLocalAddress(Envoy::Network::Address::IpVersion::v4),
+      "envoyfetcher_service_zone", "envoyfetcher_service_cluster", "envoyfetcher_service_node");
 
   api_ = std::make_unique<Envoy::Api::Impl>(platform_impl_.threadFactory(), store_root_,
                                             time_system_, platform_impl_.fileSystem());
@@ -112,8 +110,8 @@ void EnvoyClusterManager::initClusterManager() {
 
 Envoy::Upstream::ClusterManager&
 EnvoyClusterManager::getClusterManager(const GoogleString str_url_) {
-  std::string host_name = "127.0.0.1";
-  std::string scheme = "http";
+  const std::string host_name = "127.0.0.1";
+  const std::string scheme = "http";
   auto port = 80;
 
   cluster_manager_ = cluster_manager_factory_->clusterManagerFromProto(
@@ -127,7 +125,7 @@ EnvoyClusterManager::createBootstrapConfiguration(const std::string scheme, cons
                                                   const int port) const {
   envoy::config::bootstrap::v2::Bootstrap bootstrap;
   auto* cluster = bootstrap.mutable_static_resources()->add_clusters();
-  cluster->set_name(cluster_str);
+  cluster->set_name(getClusterName());
   cluster->mutable_connect_timeout()->set_seconds(15);
   cluster->set_type(envoy::api::v2::Cluster::DiscoveryType::Cluster_DiscoveryType_STATIC);
   auto* host = cluster->add_hosts();

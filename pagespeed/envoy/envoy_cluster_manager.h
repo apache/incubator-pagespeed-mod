@@ -59,6 +59,12 @@ public:
    */
   Envoy::Event::DispatcherPtr& getDispatcher() { return dispatcher_; }
 
+  /**
+   * This function gets envoy cluster name
+   * @return std::string clusterName
+   */
+  const std::string getClusterName() const { return "cluster1"; }
+
 private:
   Envoy::ThreadLocal::InstanceImpl tls_;
   Envoy::Upstream::ClusterManagerPtr cluster_manager_{};
@@ -81,10 +87,10 @@ private:
   Envoy::Http::ContextImpl http_context_;
   Envoy::Event::RealTimeSystem time_system_;
   Envoy::PlatformImpl platform_impl_;
-  Envoy::LocalInfo::LocalInfoPtr local_info_ptr;
   Envoy::ProcessWide process_wide_;
 
   envoy::config::bootstrap::v2::Bootstrap bootstrap;
+  envoy::api::v2::core::Node envoy_node_{};
 
   std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory> cluster_manager_factory_;
   std::unique_ptr<Envoy::Runtime::ScopedLoaderSingleton> runtime_singleton_;

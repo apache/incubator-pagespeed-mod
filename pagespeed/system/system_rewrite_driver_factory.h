@@ -419,8 +419,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
 
   // if true, pagespeed will use envoy fetcher
   bool use_envoy_fetcher_ = false;
-
-
+  
   std::shared_ptr<CentralControllerRpcClient> central_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemRewriteDriverFactory);

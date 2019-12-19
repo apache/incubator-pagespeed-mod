@@ -185,24 +185,22 @@ protected:
     }
   }
 
-  std::vector<GoogleString> content_starts_;
-  std::vector<GoogleString> urls_;
-
   scoped_ptr<EnvoyUrlAsyncFetcher> envoy_url_async_fetcher_;
-  scoped_ptr<Timer> timer_;
   scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<AbstractMutex> mutex_;
-  scoped_ptr<SimpleStats> statistics_;
-
-  int64 flaky_retries_;
-  int64 fetcher_timeout_ms_;
-
   EnvoyTestFetch* envoy_fetch_;
-  GoogleString test_host_;
   MockMessageHandler message_handler_;
+  int64 flaky_retries_;
 
 private:
   std::vector<EnvoyTestFetch*> fetches_;
+  std::vector<GoogleString> content_starts_;
+  std::vector<GoogleString> urls_;
+  scoped_ptr<Timer> timer_;
+  scoped_ptr<SimpleStats> statistics_;
+
+  int64 fetcher_timeout_ms_;
+  GoogleString test_host_;
 };
 
 TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {

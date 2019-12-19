@@ -24,7 +24,7 @@
 
 namespace net_instaweb {
 
-static const char logger_str[] = "main";
+static constexpr char logger_str[] = "main";
 
 /**
  * SinkDelegate that redirects logs to pagespeed message handler.
