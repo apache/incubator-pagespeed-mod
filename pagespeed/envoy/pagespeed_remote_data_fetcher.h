@@ -43,7 +43,7 @@ public:
 
   /**
    * This function will be called when data is fetched successfully from remote.
-   * @param data remote data
+   * @param response remote data
    */
   virtual void onSuccess(Envoy::Http::MessagePtr& response) PURE;
 
@@ -71,9 +71,6 @@ public:
 
   /**
    * Fetch data from remote.
-   * @param uri remote URI
-   * @param content_hash for verifying data integrity
-   * @param callback callback when fetch is done.
    */
   void fetch();
 
@@ -90,6 +87,6 @@ private:
   Envoy::Http::AsyncClient::Request* request_{};
 };
 
-using PagespeedRemoteDataFetcherPtr = std::unique_ptr<PagespeedRemoteDataFetcher>;
+using pagespeed_remote_data_fetch_ptr = std::unique_ptr<PagespeedRemoteDataFetcher>;
 
 } // namespace net_instaweb

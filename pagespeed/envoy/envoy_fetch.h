@@ -41,10 +41,17 @@ class EnvoyFetch;
 class PagespeedDataFetcherCallback : public PagespeedRemoteDataFetcherCallback {
 public:
   PagespeedDataFetcherCallback(EnvoyFetch* fetch);
-  // Config::DataFetcher::RemoteDataFetcherCallback
+
+  /**
+   * This function will be called when data is fetched successfully from remote.
+   * @param response remote data
+   */
   void onSuccess(Envoy::Http::MessagePtr& response) override;
 
-  // Config::DataFetcher::RemoteDataFetcherCallback
+  /**
+   * This function will be called when data fetched is failed.
+   * @param reason cause of failure
+   */
   void onFailure(FailureReason reason) override;
 
 private:
@@ -57,24 +64,19 @@ public:
            AsyncFetch* async_fetch,
            MessageHandler* message_handler,
            EnvoyClusterManager& cluster_manager);
-  ~EnvoyFetch();
 
-  void FetchWithEnvoy();
-
-  // Start the fetch.
+  /**
+   * This function starts fetching url by posting an event to dispatcher
+   * url is passed during EnvoyFetch creation
+   */
   void Start();
 
-  // This fetch task is done. Call Done() on the async_fetch. It will copy the
-  // buffer to cache.
-  void CallbackDone(bool success);
-
-  MessageHandler* message_handler();
-
+  /**
+   * This function sets the response header and body using fetched data
+   * @param headers Response header of fetched url
+   * @param response_body Response body of fetched url
+   */
   void setResponse(Envoy::Http::HeaderMap& headers, Envoy::Buffer::InstancePtr& response_body);
-
-  int get_status_code() {
-    return 0;
-  }
 
 private:
   // Do the initialized work and start the resolver work.
@@ -82,8 +84,11 @@ private:
 
   // Prepare the request and write it to remote server.
   int InitRequest();
+  
   // Create the connection with remote server.
   int Connect();
+  void FetchWithEnvoy();
+  MessageHandler* message_handler();
 
   // Add the pagespeed User-Agent.
   void FixUserAgent();

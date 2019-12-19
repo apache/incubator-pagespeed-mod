@@ -33,11 +33,10 @@ class PagespeedLogSink : public Envoy::Logger::SinkDelegate {
 public:
   PagespeedLogSink(Envoy::Logger::DelegatingLogSinkPtr log_sink, MessageHandler* handler);
 
-  void log(absl::string_view msg) override;
-  void flush() override;
-
 private:
   int getPagespeedLogLevel(spdlog::level::level_enum log_level);
+  void log(absl::string_view msg) override;
+  void flush() override;
 
   MessageHandler* pagespeed_message_handler_;
   spdlog::level::level_enum log_level_;

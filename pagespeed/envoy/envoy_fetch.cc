@@ -57,8 +57,10 @@ void PagespeedDataFetcherCallback::onSuccess(Envoy::Http::MessagePtr& response) 
 }
 
 void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
-  std::cout << "PagespeedDataFetcherCallback::onFailure\n";
-  std::cout.flush();
+  // TODO : Handle fetch failure conditions
+  // Possible failures can be
+  // 1. host not reachable
+  // 2. timeout error
 }
 
 EnvoyFetch::EnvoyFetch(const GoogleString& url,
@@ -75,20 +77,16 @@ EnvoyFetch::EnvoyFetch(const GoogleString& url,
       content_length_known_(false) {
 }
 
-EnvoyFetch::~EnvoyFetch() {
-}
-
 void EnvoyFetch::FetchWithEnvoy() {
-
   envoy::api::v2::core::HttpUri http_uri;
   http_uri.set_uri(str_url_);
-
   http_uri.set_cluster(cluster_str);
   cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);
-  std::unique_ptr<PagespeedRemoteDataFetcher> PagespeedRemoteDataFetcherPtr = 
+
+  std::unique_ptr<PagespeedRemoteDataFetcher> pagespeed_remote_data_fetch_ptr = 
       std::make_unique<PagespeedRemoteDataFetcher>(cluster_manager_.getClusterManager(str_url_), http_uri, *cb_ptr_);
 
-  PagespeedRemoteDataFetcherPtr->fetch();
+  pagespeed_remote_data_fetch_ptr->fetch();
   cluster_manager_.getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
 }
 
@@ -101,10 +99,6 @@ void EnvoyFetch::Start() {
 
 bool EnvoyFetch::Init() {
   return true;
-}
-// This function should be called only once. The only argument is sucess or
-// not.
-void EnvoyFetch::CallbackDone(bool success) {
 }
 
 void EnvoyFetch::setResponse(Envoy::Http::HeaderMap& headers,

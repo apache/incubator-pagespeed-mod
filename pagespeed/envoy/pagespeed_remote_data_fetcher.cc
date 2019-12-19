@@ -55,11 +55,9 @@ void PagespeedRemoteDataFetcher::onSuccess(Envoy::Http::MessagePtr&& response) {
 }
 
 void PagespeedRemoteDataFetcher::onFailure(Envoy::Http::AsyncClient::FailureReason reason) {
-  // ENVOY_LOG(debug, "fetch remote data [uri = {}]: network error {}", uri_.uri(), enumToInt(reason));
-  std::cout << "PagespeedRemoteDataFetcher::onFailure \n";
-  std::cout.flush();
+  // TODO : Handle various failure causes
+  callback_.onFailure(FailureReason::Network);
   request_ = nullptr;
-  // callback_.onFailure(FailureReason::Network);
 }
 
 } // namespace net_instaweb

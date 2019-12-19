@@ -39,14 +39,25 @@
 
 namespace net_instaweb {
 
+// Implementation to create and manage envoy cluster configuration
+// Cluster manager gets created from manager factory for every url to be fetched
 class EnvoyClusterManager {
 public:
   EnvoyClusterManager();
   ~EnvoyClusterManager();
-  void initClusterManager();
+
+  /**
+   * This function creates envoy cluster manager for url to be fetched
+   * @param str_url_ url to be fetched
+   * @return Envoy::Upstream::ClusterManager& Cluster manager reference
+   */
   Envoy::Upstream::ClusterManager& getClusterManager(const GoogleString str_url_);
+
+  /**
+   * This function gets envoy dispatcher which is a event dispatching loop
+   * @return Envoy::Event::DispatcherPtr& Event dispatcher reference
+   */
   Envoy::Event::DispatcherPtr& getDispatcher() { return dispatcher_; }
-  const envoy::config::bootstrap::v2::Bootstrap createBootstrapConfiguration(const std::string scheme,const std::string host_name,const int port) const;
 
 private:
   Envoy::ThreadLocal::InstanceImpl tls_;
@@ -79,6 +90,13 @@ private:
   std::unique_ptr<Envoy::Runtime::ScopedLoaderSingleton> runtime_singleton_;
   std::unique_ptr<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>
       ssl_context_manager_;
+
+
+  void initClusterManager();
+
+  const envoy::config::bootstrap::v2::Bootstrap
+  createBootstrapConfiguration(const std::string scheme, const std::string host_name,
+                               const int port) const;
 };
 
 } // namespace net_instaweb

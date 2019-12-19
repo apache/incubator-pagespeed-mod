@@ -185,7 +185,6 @@ protected:
     }
   }
 
-  std::vector<EnvoyTestFetch*> fetches_;
   std::vector<GoogleString> content_starts_;
   std::vector<GoogleString> urls_;
 
@@ -201,15 +200,20 @@ protected:
   EnvoyTestFetch* envoy_fetch_;
   GoogleString test_host_;
   MockMessageHandler message_handler_;
+
+private:
+  std::vector<EnvoyTestFetch*> fetches_;
 };
 
 TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
-  envoy_fetch_ = new EnvoyTestFetch(
-            RequestContext::NewTestRequestContext(thread_system_.get()),
-            mutex_.get());
-  envoy_url_async_fetcher_->Fetch("http://localhost:80", &message_handler_, envoy_fetch_);
+  GoogleString starts_with = "<!doctype html";
+  envoy_fetch_ =
+      new EnvoyTestFetch(RequestContext::NewTestRequestContext(thread_system_.get()), mutex_.get());
+  envoy_url_async_fetcher_->Fetch(
+      "http://selfsigned.modpagespeed.com/mod_pagespeed_example/index.html", &message_handler_,
+      envoy_fetch_);
 
-  EXPECT_TRUE(envoy_fetch_->buffer().find("Apache2 Ubuntu Default Page") != GoogleString::npos);
+  EXPECT_STREQ(starts_with, envoy_fetch_->buffer().substr(0, starts_with.size()));
 }
 
 } // namespace net_instaweb
