@@ -143,7 +143,7 @@ tar cj --dereference --exclude='.git' --exclude='.svn' --exclude='.hg' -f $TARBA
     --exclude=net/instaweb/genfiles/*/*.cc \
     -C $DIR \
     generate.sh \
-    DISCLAIMER \
+    DISCLAIMER-WIP \
     LICENSE \
     NOTICE \
     README.md \
