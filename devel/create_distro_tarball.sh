@@ -84,8 +84,10 @@ touch "$TARBALL"
 TARBALL="$(realpath $TARBALL)"
 MPS_CHECKOUT="$PWD"
 
-git submodule update --init --recursive
-
+git clean -xfd
+git submodule deinit --all -f
+git submodule update --init --recursive --depth=10 --jobs=10 || true
+#exit 1
 # Pick up our version info, and wrap src inside a modpagespeed-version dir.
 source net/instaweb/public/VERSION
 VER_STRING="$MAJOR.$MINOR.$BUILD.$PATCH"
@@ -138,7 +140,11 @@ fi
 # script that's on the branch you're making a tarball for.
 cd "$TEMP_DIR"
 tar cj --dereference --exclude='.git' --exclude='.svn' --exclude='.hg' -f $TARBALL \
-    --exclude='*.mk' --exclude='*.pyc' \
+    --exclude=pagespeed/automatic/static_rewriter  \
+    --exclude=pagespeed/automatic/rewriter_speed_test  \
+    --exclude='*.mk' --exclude='*.pyc' --exclude='*.jar' --exclude='*.a' \
+    --exclude='*.binast' --exclude='*.o' \
+    --exclude="$LIBWEBP/webp_js/test_*" \
     --exclude=third_party/chromium/src/build/android/* \
     --exclude=net/instaweb/genfiles/*/*.cc \
     -C $DIR \
