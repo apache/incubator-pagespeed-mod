@@ -128,6 +128,8 @@ const char UserAgentMatcherTestBase::kFirefox42AndroidUserAgent[] =
     "Mozilla/5.0 (Android 5.0.1; Mobile; rv:42.0) Gecko/42.0 Firefox/42.0";
 const char UserAgentMatcherTestBase::kFirefox5UserAgent[] =
     "Mozilla/5.0 (X11; U; Linux i586; de; rv:5.0) Gecko/20100101 Firefox/5.0";
+const char UserAgentMatcherTestBase::kFirefox7UserAgent[] =
+    "Mozilla/5.0 (X11; Linux i586; rv:31.0) Gecko/20100101 Firefox/72.0"; //webp capable
 const char UserAgentMatcherTestBase::kFirefoxMobileUserAgent[] =
     "Mozilla/5.0 (Android; Mobile; rv:38.0) Gecko/38.0 Firefox/38.0";
 const char UserAgentMatcherTestBase::kFirefoxNokiaN800[] =

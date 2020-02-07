@@ -133,6 +133,12 @@ const char* kDeferJSMobileWhitelist[] = {
 //     "Firefox" in the user agent.
 const char* kLegacyWebpWhitelist[] = {
   "*Android *",
+  "*Firefox/66.*",
+  "*Firefox/67.*",
+  "*Firefox/68.*",
+  "*Firefox/69.*",
+  "*Firefox/70.*",
+  "*Firefox/71.*", // These Firefox versions are webp capable but don´t send webp header
 };
 
 // Based on https://github.com/apache/incubator-pagespeed-mod/issues/978,
@@ -150,6 +156,17 @@ const char* kLegacyWebpBlacklist[] = {
   "*Windows Phone*",
   "*Chrome/*",       // Genuine Chrome always sends Accept: webp.
   "*CriOS/*",        // Paranoia: we should not see Android and CriOS together.
+  "*Firefox/?.*",
+  "*Firefox/1?.*",
+  "*Firefox/2?.*",
+  "*Firefox/3?.*",
+  "*Firefox/4?.*",
+  "*Firefox/5?.*",
+  "*Firefox/60.*",
+  "*Firefox/61.*",
+  "*Firefox/62.*",
+  "*Firefox/63.*",
+  "*Firefox/64.*",  // Firefox versions not webp capables
 };
 
 // To determine lossless webp support and animated webp support, we must
@@ -161,6 +178,7 @@ const char* kWebpLosslessAlphaWhitelist[] = {
   // User agent used only for internal testing.
   "webp-la",
   "webp-animated",
+  "*Firefox/*", // Do this way to permit Firefox webcapable to convert png
 };
 
 const char* kWebpLosslessAlphaBlacklist[] = {
@@ -179,6 +197,17 @@ const char* kWebpLosslessAlphaBlacklist[] = {
   "*CriOS/26.*",
   "*CriOS/27.*",
   "*CriOS/28.*",
+  "*Firefox/?.*",
+  "*Firefox/1?.*",
+  "*Firefox/2?.*",
+  "*Firefox/3?.*",
+  "*Firefox/4?.*",
+  "*Firefox/5?.*",
+  "*Firefox/60.*",
+  "*Firefox/61.*",
+  "*Firefox/62.*",
+  "*Firefox/63.*",
+  "*Firefox/64.*", // Black list Firefox not webp capable
 };
 
 // Animated WebP is supported by browsers based on Chromium v32+, including
@@ -190,6 +219,7 @@ const char* kWebpAnimatedWhitelist[] = {
   "*Chrome/??.*",
   "*CriOS/??.*",
   "webp-animated",  // User agent for internal testing.
+  "*Firefox/*",
 };
 
 const char* kWebpAnimatedBlacklist[] = {
@@ -203,6 +233,17 @@ const char* kWebpAnimatedBlacklist[] = {
   "*CriOS/2?.*",
   "*CriOS/30.*",
   "*CriOS/31.*",
+  "*Firefox/?.*",
+  "*Firefox/1?.*",
+  "*Firefox/2?.*",
+  "*Firefox/3?.*",
+  "*Firefox/4?.*",
+  "*Firefox/5?.*",
+  "*Firefox/60.*",
+  "*Firefox/61.*",
+  "*Firefox/62.*",
+  "*Firefox/63.*",
+  "*Firefox/64.*",
 };
 
 const char* kInsertDnsPrefetchWhitelist[] = {
