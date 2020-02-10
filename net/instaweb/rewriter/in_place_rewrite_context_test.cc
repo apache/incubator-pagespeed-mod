@@ -365,6 +365,12 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
     EXPECT_EQ(expected_ttl, response_headers_.cache_ttl_ms()) << url;
     EXPECT_STREQ(etag, response_headers_.Lookup1(HttpAttributes::kEtag)) << url;
     EXPECT_EQ(date_ms, response_headers_.date_ms()) << url;
+    const char* expected_nosfiff = "nosniff";
+    if (StringCaseEndsWith(url, ".js") || StringCaseEndsWith(url, ".css")) {
+     std::cout << "TEST " ;
+        EXPECT_STREQ(expected_nosfiff, response_headers_.Lookup1(HttpAttributes::kXContentTypeOptions)) << url;
+    }
+
   }
 
   void ResetHeadersAndStats() {
