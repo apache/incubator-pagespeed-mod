@@ -139,7 +139,7 @@ cc_library(
         "include/apr_random.h",
     ],
     copts = [
-        "-Iexternal/mod_pagespeed/third_party/apr/gen/arch/linux/x64/include/",
+        "-Ithird_party/apr/gen/arch/linux/x64/include/",
         "-Iexternal/apr/random/unix",
         "-Iexternal/apr/include/",
         "-Iexternal/apr/include/arch/unix/",
