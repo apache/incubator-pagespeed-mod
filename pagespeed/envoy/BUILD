@@ -4,7 +4,7 @@ load(
     "envoy_cc_library",
     "envoy_cc_test",
 )
-load("@envoy_api//bazel:api_build_system.bzl", "api_proto_library")
+load("@envoy_api//bazel:api_build_system.bzl", "api_cc_py_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -17,7 +17,7 @@ envoy_cc_binary(
     ],
 )
 
-api_proto_library(
+api_cc_py_proto_library(
     name = "http_filter_proto",
     srcs = ["http_filter.proto"],
 )
@@ -69,7 +69,7 @@ envoy_cc_library(
     repository = "@envoy",
     visibility = ["//visibility:public"],
     deps = [
-        ":http_filter_proto_cc",
+        ":http_filter_proto_cc_proto",
         "//base",
         "//pagespeed/automatic",
         "//pagespeed/system",
