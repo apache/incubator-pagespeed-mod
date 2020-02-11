@@ -6,7 +6,7 @@
         "compilerPath": "/usr/bin/clang-8",
         "includePath": [
           "${workspaceFolder}",
-          "${workspaceFolder}/bazel-genfiles/**",
+          "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",
           "/usr/include/x86_64-linux-gnu/5/include",
           "/usr/local/include",
           "/usr/include/x86_64-linux-gnu/5/include-fixed",
@@ -17,7 +17,7 @@
         "browse": {
           "path": [
             "${workspaceFolder}",
-            "${workspaceFolder}/bazel-genfiles/**",
+            "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",
             "/usr/include/x86_64-linux-gnu/5/include",
             "/usr/local/include",
             "/usr/include/x86_64-linux-gnu/5/include-fixed",
