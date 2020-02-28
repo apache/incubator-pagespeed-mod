@@ -218,7 +218,7 @@ source "${BUILDDIR}/install/common/mod-pagespeed.info"
 eval $(sed -e "s/^\([^=]\+\)=\(.*\)$/export \1='\2'/" \
   "${BUILDDIR}/install/common/BRANDING")
 
-REPOCONFIG="http://dl.google.com/linux/${PACKAGE#google-}/rpm/stable"
+REPOCONFIG=""
 verify_channel
 
 APACHE_CONFDIR="/etc/httpd/conf.d"

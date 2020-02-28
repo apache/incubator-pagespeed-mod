@@ -6,7 +6,7 @@
 # mod-pagespeed packages for various platforms.
 
 # Base name of the package.
-PACKAGE="mod-pagespeed"
+PACKAGE="mod-pagespeed-apache-incubating"
 
 # Brief package description.
 SHORTDESC="Apache 2 module to optimize web content."
@@ -16,5 +16,5 @@ FULLDESC="mod_pagespeed is an Apache module that aims to speed up load time of p
 
 # Package maintainer information.
 MAINTNAME="mod_pagespeed developers"
-MAINTMAIL="mod-pagespeed-dev@googlegroups.com"
+MAINTMAIL="dev@pagespeed.incubator.apache.org"
 PRODUCTURL="https://github.com/apache/incubator-pagespeed-mod/"
