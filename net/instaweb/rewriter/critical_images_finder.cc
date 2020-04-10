@@ -399,18 +399,18 @@ RenderedImages* CriticalImagesFinder::ExtractRenderedImageDimensionsFromCache(
 RenderedImages* CriticalImagesFinder::JsonMapToRenderedImagesMap(
     const GoogleString& str,
     const RewriteOptions* options) {
-  Json::Reader reader;
-  Json::Value json_rendered_image_map;
-  if (!reader.parse(str, json_rendered_image_map)) {
-    LOG(WARNING) << "Unable to parse Json data for rendered images";
-    return NULL;
-  }
-  // Parse json data into a map.
-  if (json_rendered_image_map.isNull() || !json_rendered_image_map.isObject()) {
-    LOG(WARNING) << "Bad Json rendered image dimensions map";
-    return NULL;
-  }
   try {
+    Json::Reader reader;
+    Json::Value json_rendered_image_map;
+    if (!reader.parse(str, json_rendered_image_map)) {
+      LOG(WARNING) << "Unable to parse Json data for rendered images";
+      return NULL;
+    }
+    // Parse json data into a map.
+    if (json_rendered_image_map.isNull() || !json_rendered_image_map.isObject()) {
+      LOG(WARNING) << "Bad Json rendered image dimensions map";
+      return NULL;
+    }
     // Put the extracted map into RenderedImages proto data.
     RenderedImages* rendered_images = new RenderedImages();
     Json::Value::Members imgs = json_rendered_image_map.getMemberNames();

@@ -381,4 +381,10 @@ TEST_F(CriticalImagesFinderTest, TestRenderedImageExtractionFromPropertyCache) {
   EXPECT_EQ(std::make_pair(40, 54), dimensions);
 }
 
+TEST_F(CriticalImagesFinderTest, TestJsonMapToRenderedImagesMapReturnsNullOnBadType) {
+  RenderedImages* actual =
+    finder()->JsonMapToRenderedImagesMap("{\"2758473226\":{\"rw\":\"137\"}}", NULL);
+  EXPECT_TRUE(actual == NULL);
+}
+
 }  // namespace net_instaweb
