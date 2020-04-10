@@ -410,33 +410,38 @@ RenderedImages* CriticalImagesFinder::JsonMapToRenderedImagesMap(
     LOG(WARNING) << "Bad Json rendered image dimensions map";
     return NULL;
   }
-  // Put the extracted map into RenderedImages proto data.
-  RenderedImages* rendered_images = new RenderedImages();
-  Json::Value::Members imgs = json_rendered_image_map.getMemberNames();
-  for (int i = 0, n = imgs.size(); i < n; ++i) {
-    const GoogleString& img_src = imgs[i];
-    int original_width = json_rendered_image_map[img_src].get(
-        kOriginalImageJsonWidthKey, 0).asInt();
-    int original_height = json_rendered_image_map[img_src].get(
-        kOriginalImageJsonHeightKey, 0).asInt();
-    int rendered_width = json_rendered_image_map[img_src].get(
-        kRenderedImageJsonWidthKey, 0).asInt();
-    int rendered_height = json_rendered_image_map[img_src].get(
-        kRenderedImageJsonHeightKey, 0).asInt();
-    int original_area = (original_width * original_height);
-    int rendered_area = (rendered_width * rendered_height);
-    // Store renderedWidth and renderedHeight for the image only if
-    // the rendered sizes are lower than the original sizes by at least the
-    // percentage threshold set.
-    if (100 * rendered_area < original_area *
-        options->image_limit_rendered_area_percent()) {
-      RenderedImages_Image* images = rendered_images->add_image();
-      images->set_src(img_src);
-      images->set_rendered_width(rendered_width);
-      images->set_rendered_height(rendered_height);
+  try {
+    // Put the extracted map into RenderedImages proto data.
+    RenderedImages* rendered_images = new RenderedImages();
+    Json::Value::Members imgs = json_rendered_image_map.getMemberNames();
+    for (int i = 0, n = imgs.size(); i < n; ++i) {
+      const GoogleString& img_src = imgs[i];
+      int original_width = json_rendered_image_map[img_src].get(
+          kOriginalImageJsonWidthKey, 0).asInt();
+      int original_height = json_rendered_image_map[img_src].get(
+          kOriginalImageJsonHeightKey, 0).asInt();
+      int rendered_width = json_rendered_image_map[img_src].get(
+          kRenderedImageJsonWidthKey, 0).asInt();
+      int rendered_height = json_rendered_image_map[img_src].get(
+          kRenderedImageJsonHeightKey, 0).asInt();
+      int original_area = (original_width * original_height);
+      int rendered_area = (rendered_width * rendered_height);
+      // Store renderedWidth and renderedHeight for the image only if
+      // the rendered sizes are lower than the original sizes by at least the
+      // percentage threshold set.
+      if (100 * rendered_area < original_area *
+          options->image_limit_rendered_area_percent()) {
+        RenderedImages_Image* images = rendered_images->add_image();
+        images->set_src(img_src);
+        images->set_rendered_width(rendered_width);
+        images->set_rendered_height(rendered_height);
+      }
     }
+    return rendered_images;
+  } catch (std::exception& e) {
+    LOG(WARNING) << "Bad Json rendered image dimensions map";
+    return NULL;
   }
-  return rendered_images;
 }
 
 CriticalImagesInfo* CriticalImagesFinder::ExtractCriticalImagesFromCache(
