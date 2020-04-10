@@ -1,0 +1,7 @@
+FROM ubuntu:16.04
+RUN apt update && apt install -y apache2 g++ python subversion gperf make devscripts fakeroot git curl zlib1g-dev openjdk-8-jre uuid-dev
+RUN useradd -ms /bin/bash mps
+USER mps
+WORKDIR /home/mps
+
+CMD ["/bin/bash"]
