@@ -22,7 +22,7 @@
 namespace net_instaweb {
 
 PagespeedRemoteDataFetcher::PagespeedRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm,
-                                     const ::envoy::api::v2::core::HttpUri& uri,
+                                     const ::envoy::config::core::v3::HttpUri& uri,
                                      PagespeedRemoteDataFetcherCallback& callback)
     : cm_(cm), uri_(uri), callback_(callback) {}
 
@@ -38,8 +38,8 @@ void PagespeedRemoteDataFetcher::cancel() {
 }
 
 void PagespeedRemoteDataFetcher::fetch() {
-  Envoy::Http::MessagePtr message = Envoy::Http::Utility::prepareHeaders(uri_);
-  message->headers().insertMethod().value().setReference(Envoy::Http::Headers::get().MethodValues.Get);
+  Envoy::Http::RequestMessagePtr message = Envoy::Http::Utility::prepareHeaders(uri_);
+  message->headers().setReferenceMethod(Envoy::Http::Headers::get().MethodValues.Get);
   ENVOY_LOG(debug, "fetch remote data from [uri = {}]: start", uri_.uri());
   request_ = cm_.httpAsyncClientForCluster(uri_.cluster())
                  .send(std::move(message), *this,
@@ -47,14 +47,14 @@ void PagespeedRemoteDataFetcher::fetch() {
                            Envoy::DurationUtil::durationToMilliseconds(uri_.timeout()))));
 }
 
-void PagespeedRemoteDataFetcher::onSuccess(Envoy::Http::MessagePtr&& response) {
+void PagespeedRemoteDataFetcher::onSuccess(const Envoy::Http::AsyncClient::Request& , Envoy::Http::ResponseMessagePtr&& response) {
 
   // TODO : check for response status
   callback_.onSuccess(response);
   request_ = nullptr;
 }
 
-void PagespeedRemoteDataFetcher::onFailure(Envoy::Http::AsyncClient::FailureReason reason) {
+void PagespeedRemoteDataFetcher::onFailure(const Envoy::Http::AsyncClient::Request& , Envoy::Http::AsyncClient::FailureReason reason) {
   // TODO : Handle various failure causes
   callback_.onFailure(FailureReason::Network);
   request_ = nullptr;

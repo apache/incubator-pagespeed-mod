@@ -22,6 +22,7 @@
 #include "external/envoy/source/common/access_log/access_log_manager_impl.h"
 #include "external/envoy/source/common/event/real_time_system.h"
 #include "external/envoy/source/common/http/context_impl.h"
+#include "external/envoy/source/common/grpc/context_impl.h"
 #include "external/envoy/source/common/protobuf/message_validator_impl.h"
 #include "external/envoy/source/common/runtime/runtime_impl.h"
 #include "external/envoy/source/common/secret/secret_manager_impl.h"
@@ -75,7 +76,7 @@ private:
   Envoy::Server::ConfigTrackerImpl config_tracker_;
   Envoy::Secret::SecretManagerImpl secret_manager_;
   Envoy::ProtobufMessage::ProdValidationContextImpl validation_context_;
-  Envoy::AccessLog::AccessLogManagerImpl* access_log_manager_;
+  std::unique_ptr<Envoy::AccessLog::AccessLogManagerImpl> access_log_manager_;
   Envoy::Event::DispatcherPtr dispatcher_;
   Envoy::LocalInfo::LocalInfoPtr local_info_;
   Envoy::Server::ValidationAdmin admin_;
@@ -85,12 +86,13 @@ private:
   Envoy::Stats::AllocatorImpl stats_allocator_;
   Envoy::Stats::ThreadLocalStoreImpl store_root_;
   Envoy::Http::ContextImpl http_context_;
+  Envoy::Grpc::ContextImpl grpc_context_;
   Envoy::Event::RealTimeSystem time_system_;
   Envoy::PlatformImpl platform_impl_;
   Envoy::ProcessWide process_wide_;
 
-  envoy::config::bootstrap::v2::Bootstrap bootstrap;
-  envoy::api::v2::core::Node envoy_node_{};
+  envoy::config::bootstrap::v3::Bootstrap bootstrap;
+  envoy::config::core::v3::Node envoy_node_{};
 
   std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory> cluster_manager_factory_;
   std::unique_ptr<Envoy::Runtime::ScopedLoaderSingleton> runtime_singleton_;
@@ -100,7 +102,7 @@ private:
 
   void initClusterManager();
 
-  const envoy::config::bootstrap::v2::Bootstrap
+  const envoy::config::bootstrap::v3::Bootstrap
   createBootstrapConfiguration(const std::string scheme, const std::string host_name,
                                const int port) const;
 };

@@ -45,7 +45,7 @@ public:
    * This function will be called when data is fetched successfully from remote.
    * @param response remote data
    */
-  virtual void onSuccess(Envoy::Http::MessagePtr& response) PURE;
+  virtual void onSuccess(Envoy::Http::ResponseMessagePtr& response) PURE;
 
   /**
    * This function is called when error happens during fetching data.
@@ -60,14 +60,14 @@ public:
 class PagespeedRemoteDataFetcher : public Envoy::Logger::Loggable<Envoy::Logger::Id::config>,
                           public Envoy::Http::AsyncClient::Callbacks {
 public:
-  PagespeedRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm, const ::envoy::api::v2::core::HttpUri& uri,
+  PagespeedRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm, const ::envoy::config::core::v3::HttpUri& uri,
                     PagespeedRemoteDataFetcherCallback& callback);
 
   ~PagespeedRemoteDataFetcher() override;
 
   // Http::AsyncClient::Callbacks
-  void onSuccess(Envoy::Http::MessagePtr&& response) override;
-  void onFailure(Envoy::Http::AsyncClient::FailureReason reason) override;
+  void onSuccess(const Envoy::Http::AsyncClient::Request& request, Envoy::Http::ResponseMessagePtr&& response) override;
+  void onFailure(const Envoy::Http::AsyncClient::Request& request, Envoy::Http::AsyncClient::FailureReason reason) override;
 
   /**
    * Fetch data from remote.
@@ -81,7 +81,7 @@ public:
 
 private:
   Envoy::Upstream::ClusterManager& cm_;
-  const envoy::api::v2::core::HttpUri& uri_;
+  const ::envoy::config::core::v3::HttpUri& uri_;
   PagespeedRemoteDataFetcherCallback& callback_;
 
   Envoy::Http::AsyncClient::Request* request_{};

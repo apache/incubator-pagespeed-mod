@@ -53,7 +53,7 @@ EnvoyClusterManager::EnvoyClusterManager()
     : init_watcher_("envoyfetcher", []() {}), secret_manager_(config_tracker_),
       validation_context_(false, false), init_manager_("init_manager"),
       stats_allocator_(symbol_table_), store_root_(stats_allocator_),
-      http_context_(store_root_.symbolTable()) {
+      http_context_(store_root_.symbolTable()), grpc_context_(store_root_.symbolTable()) {
   initClusterManager();
 }
 
@@ -82,17 +82,17 @@ void EnvoyClusterManager::initClusterManager() {
 
   api_ = std::make_unique<Envoy::Api::Impl>(platform_impl_.threadFactory(), store_root_,
                                             time_system_, platform_impl_.fileSystem());
-  dispatcher_ = api_->allocateDispatcher();
+  dispatcher_ = api_->allocateDispatcher("envoy_fetcher");
 
   tls_.registerThread(*dispatcher_, true);
   store_root_.initializeThreading(*dispatcher_, tls_);
 
-  access_log_manager_ = new Envoy::AccessLog::AccessLogManagerImpl(
+  access_log_manager_ = std::make_unique<Envoy::AccessLog::AccessLogManagerImpl>(
       std::chrono::milliseconds(1000), *api_, *dispatcher_, access_log_lock_, store_root_);
 
   runtime_singleton_ = std::make_unique<Envoy::Runtime::ScopedLoaderSingleton>(
       Envoy::Runtime::LoaderPtr{new Envoy::Runtime::LoaderImpl(
-          *dispatcher_, tls_, {}, *local_info_, init_manager_, store_root_, generator_,
+          *dispatcher_, tls_, {}, *local_info_, store_root_, generator_,
           Envoy::ProtobufMessage::getStrictValidationVisitor(), *api_)});
 
   singleton_manager_ = std::make_unique<Envoy::Singleton::ManagerImpl>(api_->threadFactory());
@@ -103,8 +103,8 @@ void EnvoyClusterManager::initClusterManager() {
 
   cluster_manager_factory_ = std::make_unique<Envoy::Upstream::ProdClusterManagerFactory>(
       admin_, Envoy::Runtime::LoaderSingleton::get(), store_root_, tls_, generator_,
-      dispatcher_->createDnsResolver({}), *ssl_context_manager_, *dispatcher_, *local_info_,
-      secret_manager_, validation_context_, *api_, http_context_, *access_log_manager_,
+      dispatcher_->createDnsResolver({}, false), *ssl_context_manager_, *dispatcher_, *local_info_,
+      secret_manager_, validation_context_, *api_, http_context_, grpc_context_, *access_log_manager_,
       *singleton_manager_);
 }
 
@@ -120,15 +120,15 @@ EnvoyClusterManager::getClusterManager(const GoogleString str_url_) {
   return *cluster_manager_;
 }
 
-const envoy::config::bootstrap::v2::Bootstrap
+const envoy::config::bootstrap::v3::Bootstrap
 EnvoyClusterManager::createBootstrapConfiguration(const std::string scheme, const std::string host_name,
                                                   const int port) const {
-  envoy::config::bootstrap::v2::Bootstrap bootstrap;
+  envoy::config::bootstrap::v3::Bootstrap bootstrap;
   auto* cluster = bootstrap.mutable_static_resources()->add_clusters();
   cluster->set_name(getClusterName());
   cluster->mutable_connect_timeout()->set_seconds(15);
-  cluster->set_type(envoy::api::v2::Cluster::DiscoveryType::Cluster_DiscoveryType_STATIC);
-  auto* host = cluster->add_hosts();
+  cluster->set_type(envoy::config::cluster::v3::Cluster::STATIC);
+  auto* host = cluster->add_hidden_envoy_deprecated_hosts();
   auto* socket_address = host->mutable_socket_address();
 
   socket_address->set_address(host_name);

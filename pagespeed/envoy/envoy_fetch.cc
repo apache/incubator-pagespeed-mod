@@ -51,7 +51,7 @@ const int64 keepalive_timeout_ms = 60000;
 
 PagespeedDataFetcherCallback::PagespeedDataFetcherCallback(EnvoyFetch* fetch) { fetch_ = fetch; }
 
-void PagespeedDataFetcherCallback::onSuccess(Envoy::Http::MessagePtr& response) {
+void PagespeedDataFetcherCallback::onSuccess(Envoy::Http::ResponseMessagePtr& response) {
   fetch_->setResponse(response->headers(), response->body());
 }
 
@@ -77,7 +77,7 @@ EnvoyFetch::EnvoyFetch(const GoogleString& url,
 }
 
 void EnvoyFetch::FetchWithEnvoy() {
-  envoy::api::v2::core::HttpUri http_uri;
+  envoy::config::core::v3::HttpUri http_uri;
   http_uri.set_uri(str_url_);
   http_uri.set_cluster(cluster_manager_.getClusterName());
   cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);

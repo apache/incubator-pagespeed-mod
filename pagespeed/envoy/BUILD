@@ -165,6 +165,7 @@ envoy_cc_library(
         "@envoy//source/common/common:minimal_logger_lib_with_external_headers",
         "@envoy//source/common/event:real_time_system_lib_with_external_headers",
         "@envoy//source/common/http:context_lib_with_external_headers",
+        "@envoy//source/common/grpc:context_lib_with_external_headers",
         "@envoy//source/common/http:utility_lib_with_external_headers",
         "@envoy//source/common/protobuf:message_validator_lib_with_external_headers",
         "@envoy//source/common/secret:secret_manager_impl_lib_with_external_headers",

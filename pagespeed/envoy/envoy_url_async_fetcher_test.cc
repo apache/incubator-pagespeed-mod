@@ -134,7 +134,7 @@ protected:
 
   void SetUpWithProxy(const char* proxy) {
     const char* env_host = getenv("PAGESPEED_TEST_HOST");
-    if (env_host != NULL) {
+    if (env_host != nullptr) {
       test_host_ = env_host;
     }
     if (test_host_.empty()) {
@@ -156,10 +156,9 @@ protected:
   }
 
   virtual void TearDown() {
-    // Need to free the fetcher before destroy the pool.
-    delete envoy_fetch_;
-    envoy_url_async_fetcher_.reset(NULL);
-    timer_.reset(NULL);
+    envoy_url_async_fetcher_->ShutDown();
+    envoy_url_async_fetcher_.reset(nullptr);
+    timer_.reset(nullptr);
     STLDeleteElements(&fetches_);
   }
 
@@ -188,7 +187,6 @@ protected:
   scoped_ptr<EnvoyUrlAsyncFetcher> envoy_url_async_fetcher_;
   scoped_ptr<ThreadSystem> thread_system_;
   scoped_ptr<AbstractMutex> mutex_;
-  EnvoyTestFetch* envoy_fetch_;
   MockMessageHandler message_handler_;
   int64 flaky_retries_;
 
@@ -204,14 +202,13 @@ private:
 };
 
 TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
-  GoogleString starts_with = "<!doctype html";
-  envoy_fetch_ =
-      new EnvoyTestFetch(RequestContext::NewTestRequestContext(thread_system_.get()), mutex_.get());
+  GoogleString starts_with = "<!DOCTYPE HTML";
+  EnvoyTestFetch envoy_fetch(RequestContext::NewTestRequestContext(thread_system_.get()), mutex_.get());
   envoy_url_async_fetcher_->Fetch(
       "http://selfsigned.modpagespeed.com/mod_pagespeed_example/index.html", &message_handler_,
-      envoy_fetch_);
+      &envoy_fetch);
 
-  EXPECT_STREQ(starts_with, envoy_fetch_->buffer().substr(0, starts_with.size()));
+  EXPECT_STREQ(starts_with, envoy_fetch.buffer().substr(0, starts_with.size()));
 }
 
 } // namespace net_instaweb

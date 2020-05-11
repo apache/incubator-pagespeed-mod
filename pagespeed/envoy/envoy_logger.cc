@@ -24,7 +24,7 @@
 
 namespace net_instaweb {
 
-PagespeedLogSink::PagespeedLogSink(Envoy::Logger::DelegatingLogSinkPtr log_sink,
+PagespeedLogSink::PagespeedLogSink(Envoy::Logger::DelegatingLogSinkSharedPtr log_sink,
                                    MessageHandler* handler)
     : SinkDelegate(log_sink), pagespeed_message_handler_(handler) {
   log_level_ = Envoy::Logger::Registry::logger(logger_str)->level();

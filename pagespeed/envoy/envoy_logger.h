@@ -31,7 +31,7 @@ static constexpr char logger_str[] = "main";
  */
 class PagespeedLogSink : public Envoy::Logger::SinkDelegate {
 public:
-  PagespeedLogSink(Envoy::Logger::DelegatingLogSinkPtr log_sink, MessageHandler* handler);
+  PagespeedLogSink(Envoy::Logger::DelegatingLogSinkSharedPtr log_sink, MessageHandler* handler);
 
 private:
   int getPagespeedLogLevel(spdlog::level::level_enum log_level);

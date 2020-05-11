@@ -46,7 +46,7 @@ public:
    * This function will be called when data is fetched successfully from remote.
    * @param response remote data
    */
-  void onSuccess(Envoy::Http::MessagePtr& response) override;
+  void onSuccess(Envoy::Http::ResponseMessagePtr& response) override;
 
   /**
    * This function will be called when data fetched is failed.
