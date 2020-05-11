@@ -41,21 +41,21 @@ public:
   void onDestroy() override;
 
   // Http::StreamDecoderFilter
-  FilterHeadersStatus decodeHeaders(HeaderMap&, bool) override;
+  FilterHeadersStatus decodeHeaders(RequestHeaderMap&, bool) override;
   FilterDataStatus decodeData(Buffer::Instance&, bool) override;
-  FilterTrailersStatus decodeTrailers(HeaderMap&) override;
+  FilterTrailersStatus decodeTrailers(RequestTrailerMap&) override;
   void setDecoderFilterCallbacks(StreamDecoderFilterCallbacks&) override;
 
   // Http::StreamEncoderFilter
-  FilterHeadersStatus encode100ContinueHeaders(HeaderMap& headers) override {
+  FilterHeadersStatus encode100ContinueHeaders(ResponseHeaderMap& headers) override {
     return FilterHeadersStatus::Continue;
   };
 
-  FilterHeadersStatus encodeHeaders(HeaderMap& headers, bool end_stream) override;
+  FilterHeadersStatus encodeHeaders(ResponseHeaderMap& headers, bool end_stream) override;
 
   FilterDataStatus encodeData(Buffer::Instance& data, bool end_stream) override;
 
-  FilterTrailersStatus encodeTrailers(HeaderMap& trailers) override {
+  FilterTrailersStatus encodeTrailers(ResponseTrailerMap& trailers) override {
     return FilterTrailersStatus::Continue;
   };
   FilterMetadataStatus encodeMetadata(MetadataMap& metadata_map) override {

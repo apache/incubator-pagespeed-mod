@@ -78,7 +78,7 @@ const LowerCaseString HttpPageSpeedDecoderFilter::headerKey() const {
 const std::string HttpPageSpeedDecoderFilter::headerValue() const { return config_->val(); }
 
 // decode = client side request
-FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(HeaderMap& headers,
+FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(RequestHeaderMap& headers,
                                                               bool end_response) {
   RELEASE_ASSERT(base_fetch_ == nullptr, "Base fetch not null");
   const std::string url = absl::StrCat("http://127.0.0.1", headers.Path()->value().getStringView());
@@ -107,7 +107,7 @@ FilterDataStatus HttpPageSpeedDecoderFilter::decodeData(Buffer::Instance&, bool)
   return FilterDataStatus::Continue;
 }
 
-FilterTrailersStatus HttpPageSpeedDecoderFilter::decodeTrailers(HeaderMap&) {
+FilterTrailersStatus HttpPageSpeedDecoderFilter::decodeTrailers(RequestTrailerMap&) {
   return FilterTrailersStatus::Continue;
 }
 
@@ -156,7 +156,7 @@ void HttpPageSpeedDecoderFilter::sendReply(net_instaweb::ResponseHeaders* respon
                                      modify_headers, absl::nullopt, "details");
 }
 
-FilterHeadersStatus HttpPageSpeedDecoderFilter::encodeHeaders(HeaderMap& headers, bool end_stream) {
+FilterHeadersStatus HttpPageSpeedDecoderFilter::encodeHeaders(ResponseHeaderMap& headers, bool end_stream) {
   if (end_stream || !recorder_) {
     return FilterHeadersStatus::Continue;
   }

@@ -22,7 +22,7 @@ INSTANTIATE_TEST_SUITE_P(IpVersions, HttpFilterPageSpeedIntegrationTest,
 
 // TODO(oschaaf): this test hangs. Seems to be a test-only issue.
 TEST_P(HttpFilterPageSpeedIntegrationTest, DISABLED_Test1) {
-  Http::TestHeaderMapImpl headers{{":method", "GET"}, {":path", "/"}, {":authority", "host"}};
+  Http::TestRequestHeaderMapImpl headers{{":method", "GET"}, {":path", "/"}, {":authority", "host"}};
 
   IntegrationCodecClientPtr codec_client;
   FakeHttpConnectionPtr fake_upstream_connection;
