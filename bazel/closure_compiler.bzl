@@ -59,10 +59,10 @@ def closure_compiler_without_dependency_mode(name, js_src, js_includes=[], js_di
 
         if opt == True:
             BUILD_FLAGS = " --compilation_level=ADVANCED "
-            name = js_file.split(sep = "/")[len(js_file.split(sep = "/"))-1].split(sep = ".js")[0] +"_opt"
+            name = js_file.split("/")[len(js_file.split("/"))-1].split(".js")[0] +"_opt"
         else:
             BUILD_FLAGS = "  --compilation_level=SIMPLE --formatting=PRETTY_PRINT "
-            name = js_file.split(sep = "/")[len(js_file.split(sep = "/"))-1].split(sep = ".js")[0] +"_dbg"
+            name = js_file.split("/")[len(js_file.split("/"))-1].split(".js")[0] +"_dbg"
 
         native.genrule(
             name =  name,

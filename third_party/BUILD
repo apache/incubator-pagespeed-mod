@@ -24,9 +24,9 @@ cc_library(
         "@giflib//:dgiflib",
         "@giflib//:egiflib",
         "@optipng//:opngreduc",
-        "@grpc//:grpc++",        # grpc++ target corresponds to grpc_cpp target of gyp
-        "@grpc//:grpc",          # grpc target corresponds to grpc_core target of gyp
-        "@grpc//:gpr",
-        "@grpc//:grpc_cpp_plugin",
+        #"@grpc//:grpc++",        # grpc++ target corresponds to grpc_cpp target of gyp
+        #"@grpc//:grpc",          # grpc target corresponds to grpc_core target of gyp
+        #"@grpc//:gpr",
+        #"@grpc//:grpc_cpp_plugin",
     ],
 )
