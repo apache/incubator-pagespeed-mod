@@ -46,7 +46,7 @@ def mod_pagespeed_dependencies():
         name = "envoy",
         strip_prefix = "envoy-%s" % ENVOY_COMMIT,
         url = "https://github.com/envoyproxy/envoy/archive/%s.tar.gz" % ENVOY_COMMIT,
-        sha256 = "2160f94072a247e047f651a3233f50b2737147c39bdea603029a33e1e0d8ce83",
+        sha256 = "5c60b46f849ea447ef853e4d7d72ffa6e4540bb8faf2f1fa1f0cf3b768df8d61",
     )
 
     http_archive(
