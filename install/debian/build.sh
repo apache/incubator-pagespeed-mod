@@ -238,7 +238,7 @@ source "${BUILDDIR}/install/common/mod-pagespeed.info"
 eval $(sed -e "s/^\([^=]\+\)=\(.*\)$/export \1='\2'/" \
   "${BUILDDIR}/install/common/BRANDING")
 
-REPOCONFIG="deb http://dl.google.com/linux/${PACKAGE#google-}/deb/ stable main"
+REPOCONFIG=""
 verify_channel
 
 # Some Debian packaging tools want these set.
