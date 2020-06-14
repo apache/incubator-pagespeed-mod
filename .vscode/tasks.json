@@ -16,6 +16,30 @@
             }
         },
         {
+            "label": "test-all fastbuild",
+            "type": "shell",
+            "command": "bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 //...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test-all-except-envoy fastbuild",
+            "type": "shell",
+            "command": "bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -- //... -//pagespeed/envoy/...",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
             "label": "test-all",
             "type": "shell",
             "command": "bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -c dbg //...",
