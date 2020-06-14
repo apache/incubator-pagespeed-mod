@@ -12,9 +12,9 @@ before_install:
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
   - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached apache2-dev
-  - wget https://github.com/bazelbuild/bazel/releases/download/2.1.0/bazel-2.1.0-installer-linux-x86_64.sh
-  - chmod +x bazel-2.1.0-installer-linux-x86_64.sh
-  - ./bazel-2.1.0-installer-linux-x86_64.sh --user
+  - wget https://github.com/bazelbuild/bazel/releases/download/3.1.0/bazel-3.1.0-installer-linux-x86_64.sh
+  - chmod +x bazel-3.1.0-installer-linux-x86_64.sh
+  - ./bazel-3.1.0-installer-linux-x86_64.sh --user
   - sudo service memcached start
   - sudo service redis-server start
 env:
