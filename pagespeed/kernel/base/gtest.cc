@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <unistd.h>  // For getpid()
 #include <vector>
+
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -55,8 +56,12 @@ GoogleString GTestSrcDir() {
 }
 
 GoogleString GTestTempDir() {
-  return StringPrintf("/tmp/gtest.%d", getpid());
+  GoogleString dir = StringPrintf("/tmp/gtest.%d", getpid());
+  struct stat info;
+  if(stat(dir.c_str(), &info) != 0) {
+    CHECK(!mkdir(dir.c_str(), 0777));
+  }
+  return dir;
 }
-
 
 }  // namespace net_instaweb
