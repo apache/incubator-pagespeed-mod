@@ -137,7 +137,7 @@ class SharedMemTestTemplate : public SharedMemTestBase {
   }
 };
 
-TYPED_TEST_CASE_P(SharedMemTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemTestTemplate);
 
 TYPED_TEST_P(SharedMemTestTemplate, TestRewrite) {
   SharedMemTestBase::TestReadWrite(false);
@@ -171,7 +171,7 @@ TYPED_TEST_P(SharedMemTestTemplate, TestMutex) {
   SharedMemTestBase::TestMutex();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemTestTemplate, TestRewrite,
+REGISTER_TYPED_TEST_SUITE_P(SharedMemTestTemplate, TestRewrite,
                            TestRewriteReattach, TestLarge, TestDistinct,
                            TestDestroy, TestCreateTwice, TestTwoKids,
                            TestMutex);

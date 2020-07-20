@@ -29,7 +29,7 @@
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
 #include "pagespeed/kernel/image/webp_optimizer.h"
-#include "third_party/optipng/src/opngreduc/opngreduc.h"
+#include "external/optipng/src/opngreduc/opngreduc.h"
 
 namespace net_instaweb {
 class MessageHandler;

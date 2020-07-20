@@ -139,7 +139,7 @@ void AppendEscapedAsciiChar(char c, string* dest) {
 
 }  // namespace
 
-string EscapeString(StringPiece src) {
+string EscapeString(CssStringPiece src) {
   string dest;
   dest.reserve(src.size());  // Minimum possible expansion
 
@@ -156,10 +156,10 @@ string EscapeString(StringPiece src) {
 }
 
 string EscapeString(const UnicodeText& src) {
-  return EscapeString(StringPiece(src.utf8_data(), src.utf8_length()));
+  return EscapeString(CssStringPiece(src.utf8_data(), src.utf8_length()));
 }
 
-string EscapeUrl(StringPiece src) {
+string EscapeUrl(CssStringPiece src) {
   string dest;
   dest.reserve(src.size());  // Minimum possible expansion
 
@@ -176,10 +176,10 @@ string EscapeUrl(StringPiece src) {
 }
 
 string EscapeUrl(const UnicodeText& src) {
-  return EscapeUrl(StringPiece(src.utf8_data(), src.utf8_length()));
+  return EscapeUrl(CssStringPiece(src.utf8_data(), src.utf8_length()));
 }
 
-string EscapeIdentifier(StringPiece src) {
+string EscapeIdentifier(CssStringPiece src) {
   string dest;
   dest.reserve(src.size());  // Minimum possible expansion
 
@@ -199,7 +199,7 @@ string EscapeIdentifier(StringPiece src) {
 
 string EscapeIdentifier(const UnicodeText& text) {
   // TODO(sligocki): Should we Unicode escape all non-ASCII symbols?
-  return EscapeIdentifier(StringPiece(text.utf8_data(), text.utf8_length()));
+  return EscapeIdentifier(CssStringPiece(text.utf8_data(), text.utf8_length()));
 }
 
 template <typename Container>

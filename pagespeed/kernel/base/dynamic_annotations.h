@@ -26,6 +26,6 @@
 #ifndef PAGESPEED_KERNEL_BASE_DYNAMIC_ANNOTATIONS_H_
 #define PAGESPEED_KERNEL_BASE_DYNAMIC_ANNOTATIONS_H_
 
-#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
+#include "absl/base/dynamic_annotations.h"
 
 #endif  // PAGESPEED_KERNEL_BASE_DYNAMIC_ANNOTATIONS_H_

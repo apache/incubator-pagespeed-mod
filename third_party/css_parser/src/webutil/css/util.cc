@@ -21,7 +21,7 @@
 
 #include "webutil/css/util.h"
 
-#include "base/commandlineflags.h"
+//#include "base/commandlineflags.h"
 #include "strings/ascii_ctype.h"
 #include "strings/memutil.h"
 #include "strings/stringpiece_utils.h"
@@ -31,9 +31,12 @@
 #include "webutil/css/parser.h"
 #include "webutil/css/string_util.h"
 
+// XXX(oschaaf):
+/*
 DEFINE_double(font_size_adjustment,
               0.58,
               "Ratio of x-height to font-size in CSS terms");
+*/
 
 namespace Css {
 namespace Util {
@@ -94,7 +97,7 @@ bool GetCssLength(const Css::Value* val, double parent_size,
       *size = val->GetFloatValue() * font_size;
       return true;
     case Css::Value::EX:
-      *size = val->GetFloatValue() * font_size * FLAGS_font_size_adjustment;
+      *size = val->GetFloatValue() * font_size * 0.58;
       return true;
     case Css::Value::MM:
       *size = val->GetFloatValue() / 0.265;
@@ -289,7 +292,7 @@ bool GetSystemColor(const string& colorstr, HtmlColor* color) {
 
 namespace {
 
-bool MediumAppliesToScreen(const StringPiece& medium) {
+bool MediumAppliesToScreen(const CssStringPiece& medium) {
   return (StringCaseEquals(medium, "all") ||
           StringCaseEquals(medium, "screen"));
 }
@@ -300,12 +303,12 @@ bool MediumAppliesToScreen(const UnicodeText& medium) {
 
 }  // namespace
 
-bool MediaAppliesToScreen(const StringPiece& media) {
-  std::vector<StringPiece> values = Css::SplitSkippingEmpty(media, ',');
+bool MediaAppliesToScreen(const CssStringPiece& media) {
+  std::vector<CssStringPiece> values = Css::SplitSkippingEmpty(media, ',');
 
   if (values.empty()) return true;
 
-  for (std::vector<StringPiece>::iterator iter = values.begin();
+  for (std::vector<CssStringPiece>::iterator iter = values.begin();
        iter < values.end(); ++iter) {
     strings::RemoveWhitespaceContext(&(*iter));
     if (MediumAppliesToScreen(*iter))

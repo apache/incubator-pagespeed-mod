@@ -22,7 +22,7 @@
 
 #include <cstddef>                     // for size_t
 
-#include "third_party/domain_registry_provider/src/domain_registry/domain_registry.h"
+#include "external/drp/src/domain_registry/domain_registry.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 

@@ -36,8 +36,6 @@
 
 namespace {
 
-using net_instaweb::StrCat;
-
 void ReadFileToStringOrDie(const char* filename,
                            GoogleString* dest) {
   std::ifstream file_stream;

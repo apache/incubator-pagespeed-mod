@@ -24,6 +24,12 @@
 #include "base/macros.h"
 #include "base/stringprintf.h"
 
+
+#define arraysize(a)                                                           \
+  ((sizeof(a) / sizeof(*(a))) /                                                \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
+
+
 const char* HtmlTagEnumNames[] =
 {    "Unknown",
      "A", "Abbr", "Acronym", "Address", "Applet",
@@ -89,6 +95,6 @@ string HtmlTagNameOrUnknown(int i) {
   if (i >= 0 && i < kHtmlTagBuiltinMax) {
     return HtmlTagEnumNames[i];
   } else {
-    return StringPrintf("UNKNOWN%d", i);
+    return base::StringPrintf("UNKNOWN%d", i);
   }
 }

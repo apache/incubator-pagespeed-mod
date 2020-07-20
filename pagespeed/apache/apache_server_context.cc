@@ -35,7 +35,7 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "net/instaweb/config/measurement_proxy_rewrite_options_manager.h"
+#include "net/instaweb/rewriter/config/measurement_proxy_rewrite_options_manager.h"
 #include "net/instaweb/rewriter/public/measurement_proxy_url_namer.h"
 
 namespace net_instaweb {

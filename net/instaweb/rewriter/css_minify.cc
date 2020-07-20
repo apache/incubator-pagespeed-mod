@@ -51,7 +51,9 @@ bool CssMinify::Stylesheet(const Css::Stylesheet& stylesheet,
 
 bool CssMinify::ParseStylesheet(StringPiece stylesheet_text) {
   ok_ = true;
-  Css::Parser parser(stylesheet_text);
+  // XXX(oschaaf): css
+  CssStringPiece tmp(stylesheet_text.data(), stylesheet_text.size());
+  Css::Parser parser(tmp);
   parser.set_preservation_mode(true);  // Leave in unparseable regions.
   parser.set_quirks_mode(false);  // Don't fix badly formatted colors.
   scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
@@ -110,7 +112,8 @@ void CssMinify::WriteURL(const UnicodeText& url) {
   if (url_collector_ != NULL) {
     string_url.CopyToString(StringVectorAdd(url_collector_));
   }
-  Write(Css::EscapeUrl(string_url));
+  // XXX(oschaaf): css
+  Write(Css::EscapeUrl(CssStringPiece(string_url.data(),string_url.size())));
 }
 
 // Write out minified version of each element of vector using supplied function
@@ -276,7 +279,9 @@ void CssMinify::MinifyRulesetIgnoringMedia(const Css::Ruleset& ruleset) {
   switch (ruleset.type()) {
     case Css::Ruleset::RULESET:
       if (ruleset.selectors().is_dummy()) {
-        Write(ruleset.selectors().bytes_in_original_buffer());
+        // XXX(oschaaf): css
+        CssStringPiece tmp = ruleset.selectors().bytes_in_original_buffer();
+        Write(StringPiece(tmp.data(), tmp.size()));
       } else {
         JoinMinify(ruleset.selectors(), ",");
       }
@@ -406,7 +411,9 @@ void CssMinify::MinifyFont(const Css::Values& font_values) {
 
 void CssMinify::Minify(const Css::Declaration& declaration) {
   if (declaration.prop() == Css::Property::UNPARSEABLE) {
-    Write(declaration.bytes_in_original_buffer());
+    // XXX(oschaaf): css
+    CssStringPiece tmp = declaration.bytes_in_original_buffer();
+    Write(StringPiece(tmp.data(), tmp.size()));
   } else {
     Write(Css::EscapeIdentifier(declaration.prop_text()));
     Write(":");
@@ -454,7 +461,9 @@ void CssMinify::Minify(const Css::Value& value) {
       if (!value.bytes_in_original_buffer().empty()) {
         // All parsed values should have verbatim bytes set and we use them
         // to ensure we keep the original precision.
-        number_string = value.bytes_in_original_buffer();
+        // XXX(oschaaf): css
+        CssStringPiece tmp = value.bytes_in_original_buffer();
+        number_string = StringPiece(tmp.data(), tmp.size());
       } else {
         // Values added or modified outside of the parsing code need
         // to be converted to strings by us.
@@ -515,7 +524,9 @@ void CssMinify::Minify(const Css::Value& value) {
       if (!value.bytes_in_original_buffer().empty()) {
         // All parsed strings should have verbatim bytes set.
         // Note: bytes_in_original_buffer() contains quote chars.
-        Write(value.bytes_in_original_buffer());
+        // XXX(oschaaf): css
+        CssStringPiece tmp = value.bytes_in_original_buffer();
+        Write(StringPiece(tmp.data(), tmp.size()));
       } else {
         // Strings added or modified outside of the parsing code will need
         // to be serialized by us.
@@ -558,7 +569,10 @@ void CssMinify::Minify(const Css::FunctionParameters& parameters) {
 }
 
 void CssMinify::Minify(const Css::UnparsedRegion& unparsed_region) {
-  Write(unparsed_region.bytes_in_original_buffer());
+  // XXX(oschaaf): css
+  CssStringPiece tmp = unparsed_region.bytes_in_original_buffer();
+  StringPiece original_bytes(tmp.data(), tmp.size());
+  Write(original_bytes);
 }
 
 

@@ -191,7 +191,7 @@ TEST_F(RedirectOnSizeLimitFilterTest, TestEscapingAndFlush) {
       "<input type=\"text\"/>"
       "<script type=\"text/javascript\">"
       "window.location=\"http://test.com/in.html?"
-      "\\'"
+      "%27"
       "(&PageSpeed=off\";"
       "</script>"
       "<script type=\"text/javascript\">alert('123');</script>"

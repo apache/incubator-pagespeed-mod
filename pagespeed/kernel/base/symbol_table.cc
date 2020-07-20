@@ -111,7 +111,7 @@ Atom SymbolTable<CharTransform>::Intern(const StringPiece& src) {
     StringPiece new_sp(new_symbol_storage, src.size());
     pieces_.push_back(new_sp);
     StringPiece* canonical_sp = &pieces_.back();
-    string_map_.insert(make_pair(new_sp, canonical_sp));
+    string_map_.insert(std::make_pair(new_sp, canonical_sp));
     string_bytes_allocated_ += bytes_required;
     return Atom(canonical_sp);
   }

@@ -136,7 +136,7 @@ class SharedMemCacheTestTemplate : public SharedMemCacheTestBase {
   }
 };
 
-TYPED_TEST_CASE_P(SharedMemCacheTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemCacheTestTemplate);
 
 TYPED_TEST_P(SharedMemCacheTestTemplate, TestBasic) {
   SharedMemCacheTestBase::TestBasic();
@@ -174,7 +174,7 @@ TYPED_TEST_P(SharedMemCacheTestTemplate, TestCheckpointAndRestore) {
   SharedMemCacheTestBase::TestCheckpointAndRestore();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemCacheTestTemplate, TestBasic, TestReinsert,
+REGISTER_TYPED_TEST_SUITE_P(SharedMemCacheTestTemplate, TestBasic, TestReinsert,
                            TestReplacement, TestReaderWriter, TestConflict,
                            TestEvict, TestSnapshot,
                            TestRegisterSnapshotFileCache,

@@ -30,8 +30,6 @@
 
 namespace {
 
-using net_instaweb::StrAppend;
-
 // This sample code comes from Douglas Crockford's jsmin example.
 const char* kBeforeCompilation =
     "// is.js\n"
@@ -139,14 +137,14 @@ class JsMinifyTest : public testing::Test {
     net_instaweb::GoogleMessageHandler message_handler;
     GoogleString original;
     {
-      const GoogleString filepath = net_instaweb::StrCat(
+      const GoogleString filepath = StrCat(
           net_instaweb::GTestSrcDir(), kTestRootDir, before_filename);
       ASSERT_TRUE(file_system.ReadFile(
           filepath.c_str(), &original, &message_handler));
     }
     GoogleString expected;
     {
-      const GoogleString filepath = net_instaweb::StrCat(
+      const GoogleString filepath = StrCat(
           net_instaweb::GTestSrcDir(), kTestRootDir, after_filename);
       ASSERT_TRUE(file_system.ReadFile(
           filepath.c_str(), &expected, &message_handler));
@@ -413,8 +411,8 @@ TEST_F(JsMinifyTest, KeywordPrecedesRegex) {
   for (pagespeed::JsKeywords::Iterator iter; !iter.AtEnd(); iter.Next()) {
     if (pagespeed::JsKeywords::CanKeywordPrecedeRegEx(iter.name())) {
       GoogleString input =
-          net_instaweb::StrCat(iter.name(), " /./   /* hi there */;");
-      GoogleString expected = net_instaweb::StrCat(iter.name(), "/./;");
+          StrCat(iter.name(), " /./   /* hi there */;");
+      GoogleString expected = StrCat(iter.name(), "/./;");
       CheckMinification(input, expected);
     }
   }

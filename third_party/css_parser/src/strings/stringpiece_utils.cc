@@ -24,7 +24,7 @@
 
 namespace strings {
 
-int RemoveLeadingWhitespace(StringPiece* text) {
+int RemoveLeadingWhitespace(CssStringPiece* text) {
   int count = 0;
   const char* ptr = text->data();
   while (count < text->size() && ascii_isspace(*ptr)) {
@@ -35,7 +35,7 @@ int RemoveLeadingWhitespace(StringPiece* text) {
   return count;
 }
 
-int RemoveTrailingWhitespace(StringPiece* text) {
+int RemoveTrailingWhitespace(CssStringPiece* text) {
   int count = 0;
   const char* ptr = text->data() + text->size() - 1;
   while (count < text->size() && ascii_isspace(*ptr)) {
@@ -46,7 +46,7 @@ int RemoveTrailingWhitespace(StringPiece* text) {
   return count;
 }
 
-int RemoveWhitespaceContext(StringPiece* text) {
+int RemoveWhitespaceContext(CssStringPiece* text) {
   // use RemoveLeadingWhitespace() and RemoveTrailingWhitespace() to do the job
   return (RemoveLeadingWhitespace(text) + RemoveTrailingWhitespace(text));
 }

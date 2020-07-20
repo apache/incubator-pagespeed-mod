@@ -24,7 +24,7 @@
 #include <string>
 
 #include "testing/base/public/googletest.h"
-#include "testing/base/public/gunit.h"
+#include "gtest/gtest.h"
 #include "webutil/css/string.h"
 
 namespace {

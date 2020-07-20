@@ -24,7 +24,7 @@
 
 #include <cstdlib>
 
-#include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/reflecting_test_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"

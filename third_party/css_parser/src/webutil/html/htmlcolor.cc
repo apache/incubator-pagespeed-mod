@@ -38,6 +38,9 @@ typedef struct RgbValue {
   unsigned char b_;
 } RgbValue;
 
+
+using namespace base;
+
 // color table
 // when making change to known_color_values, please
 // also change the GetKnownColorValue function because
@@ -195,7 +198,7 @@ static const RgbValue known_color_values[] = {
 
 // here the entire table is hardcoded into the function
 // mainly because of consideration of efficiency
-static const RgbValue* GetKnownColorValue(StringPiece colorstr) {
+static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
   if (colorstr.size() <= 2) {
     return NULL;
   }
@@ -738,12 +741,12 @@ const unsigned char HtmlColor::kGoodColorValue;
 const unsigned char HtmlColor::kBadColorName;
 const unsigned char HtmlColor::kBadColorHex;
 
-static inline int TwoXDigitsToNum(StringPiece xstr) {
+static inline int TwoXDigitsToNum(CssStringPiece xstr) {
   return (strings::hex_digit_to_int(xstr[0]) * 16 +
           strings::hex_digit_to_int(xstr[1]));
 }
 
-void HtmlColor::SetValueFromHexStr(StringPiece hexstr) {
+void HtmlColor::SetValueFromHexStr(CssStringPiece hexstr) {
   int hexstr_len = hexstr.size();
   const char* finalstr = hexstr.data();
   char hexbuf[7];
@@ -777,13 +780,13 @@ void HtmlColor::SetValueFromHexStr(StringPiece hexstr) {
   is_bad_value_ = kGoodColorValue;
 }
 
-HtmlColor::HtmlColor(StringPiece str) { SetValueFromStr(str); }
+HtmlColor::HtmlColor(CssStringPiece str) { SetValueFromStr(str); }
 
 HtmlColor::HtmlColor(const char* str, int colorstrlen) {
-  SetValueFromStr(StringPiece(str, colorstrlen));
+  SetValueFromStr(CssStringPiece(str, colorstrlen));
 }
 
-void HtmlColor::SetValueFromStr(StringPiece colorstr) {
+void HtmlColor::SetValueFromStr(CssStringPiece colorstr) {
   if (colorstr.size() > 0 && colorstr[0] == '#') {
     // rgb value
     colorstr.remove_prefix(1);
@@ -797,7 +800,7 @@ void HtmlColor::SetValueFromStr(StringPiece colorstr) {
   }
 }
 
-void HtmlColor::SetValueFromName(StringPiece str) {
+void HtmlColor::SetValueFromName(CssStringPiece str) {
   const RgbValue* p_rgb = GetKnownColorValue(str);
   if (p_rgb) {
     r_ = p_rgb->r_;
@@ -1024,7 +1027,7 @@ bool HtmlColor::Equals(const HtmlColor& color) const {
 //
 // == HtmlColorUtils ==
 //
-string HtmlColorUtils::MaybeConvertToCssShorthand(StringPiece orig_color) {
+string HtmlColorUtils::MaybeConvertToCssShorthand(CssStringPiece orig_color) {
   HtmlColor color(orig_color);
   if (!color.IsDefined()) return orig_color.as_string();
 

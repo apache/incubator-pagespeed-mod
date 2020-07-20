@@ -97,8 +97,8 @@ void ResponsiveImageFirstFilter::AddHiResImages(HtmlElement* element) {
     element->FindAttribute(HtmlName::kSrc);
   // TODO(sligocki): width and height attributes can lie. Perhaps we should
   // look at rendered image dimensions (via beaconing back from clients).
-  const char* width_str = element->AttributeValue(HtmlName::kWidth);
-  const char* height_str = element->AttributeValue(HtmlName::kHeight);
+  StringPiece width_str = element->AttributeValue(HtmlName::kWidth);
+  StringPiece height_str = element->AttributeValue(HtmlName::kHeight);
   if ((src_attr == NULL) || (width_str == NULL) || (height_str == NULL)) {
     driver()->InsertDebugComment(
         "ResponsiveImageFilter: Not adding srcset because image does not "
@@ -210,13 +210,13 @@ ImageDim ActualDims(const HtmlElement* element) {
   ImageDim dims;
 
   int height;
-  const char* height_str = element->AttributeValue(HtmlName::kDataActualHeight);
+  StringPiece height_str = element->AttributeValue(HtmlName::kDataActualHeight);
   if (height_str != NULL && StringToInt(height_str, &height)) {
     dims.set_height(height);
   }
 
   int width;
-  const char* width_str = element->AttributeValue(HtmlName::kDataActualWidth);
+  StringPiece width_str = element->AttributeValue(HtmlName::kDataActualWidth);
   if (width_str != NULL && StringToInt(width_str, &width)) {
     dims.set_width(width);
   }

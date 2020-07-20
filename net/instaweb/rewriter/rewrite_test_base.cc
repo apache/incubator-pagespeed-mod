@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -93,7 +93,8 @@ const char kPsaWasGzipped[] = "x-psa-was-gzipped";
 class RewriteTestBaseProcessContext : public ProcessContext {
  public:
   RewriteTestBaseProcessContext() {
-    logging::SetMinLogLevel(logging::LOG_WARNING);
+    // XXX
+    //::logging::SetMinLogLevel(::logging::LOG_WARNING);
   }
 
  private:

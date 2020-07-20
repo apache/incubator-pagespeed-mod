@@ -143,10 +143,10 @@ class Value {
   // like strings and numbers where the original contents may not be fully
   // recoverable after value parsing.
   // Note: May be invalid UTF8.
-  StringPiece bytes_in_original_buffer() const {
+  CssStringPiece bytes_in_original_buffer() const {
     return bytes_in_original_buffer_;
   }
-  void set_bytes_in_original_buffer(const StringPiece& bytes) {
+  void set_bytes_in_original_buffer(const CssStringPiece& bytes) {
     bytes.CopyToString(&bytes_in_original_buffer_);
   }
 

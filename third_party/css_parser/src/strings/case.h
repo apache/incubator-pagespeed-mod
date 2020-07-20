@@ -23,7 +23,7 @@
 
 #include "memutil.h"  // NOLINT
 
-inline bool CaseEqual(StringPiece s1, StringPiece s2) {
+inline bool CaseEqual(CssStringPiece s1, CssStringPiece s2) {
   if (s1.size() != s2.size()) return false;
   return memcasecmp(s1.data(), s2.data(), s1.size()) == 0;
 }

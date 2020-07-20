@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,27 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 #define PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 
+//#include "base/basictypes.h"
+//#include "base/macros.h"
 
-#include "base/basictypes.h"
-#include "base/macros.h"
+#include <inttypes.h>
+
+typedef int64_t int64;
+typedef uint64_t uint64;
+typedef uint32_t uint32;
+typedef int32_t int32;
+typedef uint8_t uint8;
+typedef int8_t int8;
+
+// this gets us check/dcheck/(v)log etc
+#include "base/logging.h"
+
+#define arraysize(a)                                                           \
+  ((sizeof(a) / sizeof(*(a))) /                                                \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
 // between switch labels:
@@ -59,20 +73,56 @@
 //  of code.
 #if defined(__clang__) && __cplusplus >= 201103L && defined(__has_warning)
 #if __has_feature(cxx_attributes) && __has_warning("-Wimplicit-fallthrough")
-#define FALLTHROUGH_INTENDED [[clang::fallthrough]]  // NOLINT
+#define FALLTHROUGH_INTENDED [[clang::fallthrough]] // NOLINT
 #endif
 #endif
 
 #ifndef FALLTHROUGH_INTENDED
-#define FALLTHROUGH_INTENDED do { } while (0)
+#define FALLTHROUGH_INTENDED                                                   \
+  do {                                                                         \
+  } while (0)
 #endif
 
-
 // Lazily-initialized boolean value
-enum LazyBool {
-  kNotSet = -1,
-  kFalse = 0,
-  kTrue = 1
-};
+enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
 
-#endif  // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
+#endif // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
+
+// XXX(oschaaf): check licence. copied this in here because chromium dropped it.
+/*
+ * libjingle
+ * Copyright 2013, Google Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  1. Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ *  2. Redistributions in binary form must reproduce the above copyright notice,
+ *     this list of conditions and the following disclaimer in the documentation
+ *     and/or other materials provided with the distribution.
+ *  3. The name of the author may not be used to endorse or promote products
+ *     derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+#ifndef TALK_BASE_COMPILE_ASSERT_H_
+#define TALK_BASE_COMPILE_ASSERT_H_
+#if !defined(COMPILE_ASSERT)
+template <bool>
+struct CompileAssert {
+};
+#define COMPILE_ASSERT(expr, msg) \
+  typedef CompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]  // NOLINT
+#endif  // COMPILE_ASSERT
+#endif  // TALK_BASE_COMPILE_ASSERT_H_
+

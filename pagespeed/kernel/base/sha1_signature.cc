@@ -48,12 +48,15 @@ SHA1Signature::SHA1Signature(int signature_size)
 SHA1Signature::~SHA1Signature() {}
 
 GoogleString SHA1Signature::RawSign(StringPiece key, StringPiece data) const {
-  unsigned int signature_length;
+unsigned char hmac[EVP_MAX_MD_SIZE];
+unsigned int signature_length;
+
 #if ENABLE_URL_SIGNATURES
   unsigned char* md = HMAC(EVP_sha1(), key.data(), key.size(),
                            reinterpret_cast<const unsigned char*>(data.data()),
-                           data.size(), NULL, &signature_length);
+                           data.size(), (uint8_t*)hmac, &signature_length);
   const unsigned char* result = const_cast<const unsigned char*>(md);
+  DCHECK(md != nullptr);
 #else
   const unsigned char result[kSHA1NumBytes] = {0};
   signature_length = kSHA1NumBytes;

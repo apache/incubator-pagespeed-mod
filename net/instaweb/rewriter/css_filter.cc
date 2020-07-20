@@ -406,7 +406,8 @@ bool CssFilter::Context::RewriteCssText(const GoogleUrl& css_base_gurl,
                                         MessageHandler* handler) {
   // Load stylesheet w/o expanding background attributes and preserving as
   // much content as possible from the original document.
-  Css::Parser parser(in_text);
+  CssStringPiece tmp(in_text.data(), in_text.size());
+  Css::Parser parser(tmp);
   parser.set_preservation_mode(true);
   // We avoid quirks-mode so that we do not "fix" something we shouldn't have.
   parser.set_quirks_mode(false);

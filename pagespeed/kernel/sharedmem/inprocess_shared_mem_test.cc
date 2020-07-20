@@ -109,19 +109,19 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
   std::vector<ThreadSystem::Thread*> child_threads_;
 };
 
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedCircularBufferTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedCircularBufferTestTemplate,
                               InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedDynamicStringMapTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedDynamicStringMapTestTemplate,
                               InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemCacheTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemCacheTestTemplate,
                               InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemCacheDataTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemCacheDataTestTemplate,
                               InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemLockManagerTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemLockManagerTestTemplate,
                               InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemStatisticsTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemStatisticsTestTemplate,
                               InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemTestTemplate,
                               InProcessSharedMemEnv);
 
 }  // namespace

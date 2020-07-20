@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
 #define PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
 
 #include "pagespeed/kernel/base/atomicops.h"
 #include "pagespeed/kernel/base/basictypes.h"
+
+#include <atomic>
 
 namespace net_instaweb {
 
@@ -31,28 +32,21 @@ namespace net_instaweb {
 // incomprehensible  ways; most of the time, you probably want to use a mutex
 // instead.
 class AtomicBool {
- public:
+public:
   // Guaranteed to be initialized to false.
-  AtomicBool() {
-    set_value(false);
-  }
+  AtomicBool() { set_value(false); }
 
   ~AtomicBool() {}
 
-  bool value() const {
-    return base::subtle::Acquire_Load(&value_);
-  }
+  bool value() const { return value_.load(std::memory_order::memory_order_acquire); }
 
-  void set_value(bool v) {
-    base::subtle::Release_Store(&value_, v);
-  }
+  void set_value(bool v) { value_.store(v, std::memory_order_release); }
 
- private:
-  base::subtle::AtomicWord value_;
+private:
+  std::atomic<bool> value_;
   DISALLOW_COPY_AND_ASSIGN(AtomicBool);
 };
 
+} // namespace net_instaweb
 
-}  // namespace net_instaweb
-
-#endif  // PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
+#endif // PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_

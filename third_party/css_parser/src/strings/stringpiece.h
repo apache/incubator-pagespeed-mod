@@ -20,9 +20,8 @@
 #ifndef STRINGS_STRINGPIECE_H_
 #define STRINGS_STRINGPIECE_H_
 
-//#include "third_party/chromium/src/base/strings/string_piece.h"
-#include "base/strings/string_piece.h"
+#include "pagespeed/kernel/base/string_util.h"
 
-using base::StringPiece;
+typedef StringPiece CssStringPiece;
 
 #endif  // STRINGS_STRINGPIECE_H_

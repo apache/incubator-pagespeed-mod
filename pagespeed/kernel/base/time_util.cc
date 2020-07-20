@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/base/time_util.h"
 #include <ctime>
-#include "prtime.h"  // NOLINT
+#include "third_party/nspr/prtime.h"  // NOLINT
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"

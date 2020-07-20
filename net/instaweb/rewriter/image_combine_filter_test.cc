@@ -393,7 +393,7 @@ TEST_F(CssImageCombineTest, CombineManyFiles) {
   const int kImagesInCombination = 47;
   GoogleString html = "<head><style>";
   for (int i = 0; i < kNumImages; ++i) {
-    GoogleString url = StringPrintf("%s%.02d%s", kTestDomain, i, kBikePngFile);
+    GoogleString url = StringPrintf("%s%02d%s", kTestDomain, i, kBikePngFile);
     AddFileToMockFetcher(url, kBikePngFile, kContentTypePng, 100);
     html.append(StringPrintf(
         "#div%d{background:url(%s) 0 0;width:10px;height:10px}",
@@ -408,7 +408,8 @@ TEST_F(CssImageCombineTest, CombineManyFiles) {
     StringVector combo;
     int end_index = std::min(image_index + kImagesInCombination, kNumImages);
     while (image_index < end_index) {
-      combo.push_back(StringPrintf("%.02d%s", image_index, kBikePngFile));
+      // fmt::sprintf wants '%02d%s' instead of '%.02d%s'
+      combo.push_back(StringPrintf("%02d%s", image_index, kBikePngFile));
       ++image_index;
     }
     // Original URL is absolute, so rewritten one is as well.

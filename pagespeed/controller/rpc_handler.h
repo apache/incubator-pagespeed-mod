@@ -187,15 +187,12 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::InitDone(RefPtrT ref) {
     // point in the future we could implement a callback to signal that.
     AttemptRead(ref);
   } else {
-    // When state is FINISHED, it shouldn't be possible for anything else to be
-    // holding a ref to "this" right now, so we rely on the refcount to actually
-    // force a disconnect. If somehow that's not true, we'd need to actually
-    // wire up a call to responder_.Finish(). It would be nice to:
-    // DCHECK(ref->HasOneRef());
-    // but there are at least 2 copies of the RefPtr (one here, one in the
-    // Function).
-    // Note that the status from our Finish() call does not make it to the
-    // client in this case.
+    // When state is FINISHED, we were shutdown before we started. 
+    // Propagate that as CANCELLED to any client.
+    ::grpc::Status status(::grpc::StatusCode::CANCELLED, "not started");
+    responder_.Finish(
+        status, MakeFunction(this, &RpcHandler::FinishDone,
+                             &RpcHandler::CallHandleError, RefPtrT(this)));
   }
 }
 

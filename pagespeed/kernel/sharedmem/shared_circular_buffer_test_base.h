@@ -92,7 +92,7 @@ class SharedCircularBufferTestTemplate : public SharedCircularBufferTestBase {
   }
 };
 
-TYPED_TEST_CASE_P(SharedCircularBufferTestTemplate);
+TYPED_TEST_SUITE_P(SharedCircularBufferTestTemplate);
 
 TYPED_TEST_P(SharedCircularBufferTestTemplate, TestCreate) {
   SharedCircularBufferTestBase::TestCreate();
@@ -110,7 +110,7 @@ TYPED_TEST_P(SharedCircularBufferTestTemplate, TestCircular) {
   SharedCircularBufferTestBase::TestCircular();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedCircularBufferTestTemplate, TestCreate,
+REGISTER_TYPED_TEST_SUITE_P(SharedCircularBufferTestTemplate, TestCreate,
                            TestAdd, TestClear, TestCircular);
 
 }  // namespace net_instaweb

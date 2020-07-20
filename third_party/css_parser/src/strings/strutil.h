@@ -20,8 +20,6 @@
 #ifndef STRINGS_STRUTIL_H_
 #define STRINGS_STRUTIL_H_
 
-#include "base/strings/string_util.h"
-
 // Like the CONSIDER macro above except that it supports enums from another
 // class -- e.g., if:   enum Status { VERIFIED, NOT_VERIFIED, WHITE_LISTED }
 // is in class Foo and you are using it in another class, use:

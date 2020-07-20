@@ -23,12 +23,11 @@
 
 #include "pagespeed/kernel/base/string.h"
 
-#include "base/strings/string_piece.h"
+//#include "base/strings/string_piece.h"
 #include "third_party/base64/base64.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
-
-typedef base::StringPiece StringPiece;
 
 inline void Web64Encode(const StringPiece& in, GoogleString* out) {
   *out = web64_encode(reinterpret_cast<const unsigned char*>(in.data()),

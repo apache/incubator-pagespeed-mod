@@ -29,25 +29,13 @@
 #include "pagespeed/kernel/base/string_util.h"
 
 
-#include "third_party/chromium/src/googleurl/src/gurl.h"
-#include "third_party/chromium/src/googleurl/src/url_parse.h"
-#include "third_party/chromium/src/googleurl/src/url_util.h"
+#include "url/gurl.h"
+#include "url/url_parse_internal.h"
+#include "url/url_util.h"
 
 namespace net_instaweb {
 
 // Prepare for flattening of the namespaces in newer Chromiums.
-
-namespace url {
-
-using url_canon::Replacements;
-using url_parse::PORT_UNSPECIFIED;
-using url_parse::PORT_INVALID;
-using url_parse::Component;
-using url_parse::Parsed;
-using url_util::Initialize;
-using url_util::Shutdown;
-
-};  // namespace url
 
 
 enum UrlRelativity {

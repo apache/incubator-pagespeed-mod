@@ -109,7 +109,7 @@ class CentralControllerRpcClient : public CentralController {
 
   std::unique_ptr<::grpc::CompletionQueue> queue_;
   std::shared_ptr<::grpc::ChannelInterface> channel_;
-  std::unique_ptr<grpc::CentralControllerRpcService::Stub> stub_;
+  std::unique_ptr<CentralControllerRpcService::Stub> stub_;
 
   // This must be last so that it's destructed first.
   std::unique_ptr<GrpcClientThread> client_thread_ GUARDED_BY(mutex_);

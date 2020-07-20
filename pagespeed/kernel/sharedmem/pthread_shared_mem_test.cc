@@ -133,33 +133,33 @@ class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
 };
 
 
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedCircularBufferTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedCircularBufferTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedDynamicStringMapTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedDynamicStringMapTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemCacheTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemCacheTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemCacheDataTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemCacheDataTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemLockManagerTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemLockManagerTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemStatisticsTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemStatisticsTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadProc, SharedMemTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemTestTemplate,
                               PthreadSharedMemProcEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedCircularBufferTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedCircularBufferTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedDynamicStringMapTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedDynamicStringMapTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemCacheTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemCacheTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemCacheDataTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemCacheDataTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemLockManagerTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemLockManagerTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemStatisticsTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemStatisticsTestTemplate,
                               PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, SharedMemTestTemplate,
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemTestTemplate,
                               PthreadSharedMemThreadEnv);
 
 }  // namespace

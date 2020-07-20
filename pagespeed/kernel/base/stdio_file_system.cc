@@ -498,7 +498,12 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
   } else {
     dirent* entry = NULL;
     dirent buffer;
+
+// XXX(oschaaf):
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     while (readdir_r(mydir, &buffer, &entry) == 0 && entry != NULL) {
+#pragma GCC diagnostic pop
       if ((strcmp(entry->d_name, ".") != 0) &&
           (strcmp(entry->d_name, "..") != 0)) {
         files->push_back(dir_string + entry->d_name);

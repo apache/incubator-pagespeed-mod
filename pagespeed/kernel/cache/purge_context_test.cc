@@ -376,7 +376,7 @@ TEST_P(PurgeContextTest, InvalidTimestampInPurgeRecord) {
 }
 
 // We test with use_null_statistics == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(PurgeContextTestInstance, PurgeContextTest,
+INSTANTIATE_TEST_SUITE_P(PurgeContextTestInstance, PurgeContextTest,
                         ::testing::Bool());
 
 }  // namespace net_instaweb
