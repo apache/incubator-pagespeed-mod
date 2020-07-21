@@ -24,7 +24,6 @@
 #include <string>
 #include <vector>
 
-#include "base/stringprintf.h"
 #include "strings/join.h"
 #include "strings/strutil.h"
 #include "webutil/css/parser.h"

@@ -26,7 +26,6 @@
 #include <algorithm>                    // for max
 
 #include "base/logging.h"               // for operator<<, CHECK, etc
-#include "base/stringprintf.h"          // for StringPrintf, StringAppendF
 #include "strings/stringpiece.h"        // for CssStringPiece, etc
 #include "third_party/utf/utf.h"        // for isvalidcharntorune, etc
 #include "util/utf8/public/unilib.h"    // for IsInterchangeValid, etc

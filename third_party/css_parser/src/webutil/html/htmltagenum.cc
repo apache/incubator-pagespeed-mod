@@ -21,8 +21,6 @@
 
 #include "webutil/html/htmltagenum.h"
 
-#include "base/macros.h"
-#include "base/stringprintf.h"
 #include "absl/strings/str_format.h"
 
 #define arraysize(a)                                                           \

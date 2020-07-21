@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
+//#include "base/macros.h"
 #include "util/utf8/public/unicodetext.h"
 
 namespace Css {

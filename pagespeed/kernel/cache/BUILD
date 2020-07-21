@@ -48,7 +48,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "@com_googlesource_googleurl//url",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/thread:thread",
         "//pagespeed/kernel/util:util",

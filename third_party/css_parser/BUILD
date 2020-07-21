@@ -113,7 +113,6 @@ cc_library(
         "src/base/integral_types.h",
         "src/base/scoped_ptr.h",
         "src/base/basictypes.h",
-        "src/base/stringprintf.h",
         "src/testing/production_stub/public/gunit_prod.h",
         "src/util/utf8/public/unilib_utf8_utils.h",
     ] + glob(["src/util/gtl/*.h"]),

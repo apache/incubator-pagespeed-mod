@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/macros.h"
+//#include "base/macros.h"
 #include "strings/strutil.h"
 #include "third_party/utf/utf.h"
 #include "util/gtl/stl_util.h"
