@@ -149,11 +149,11 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
     double lower_bound = BucketStart(i);
     double upper_bound = BucketLimit(i);
 
-    GoogleString lower_bound_string = StringPrintf("%.0f", lower_bound);
+    GoogleString lower_bound_string = absl::StrFormat("%.0f", lower_bound);
     if (lower_bound == -std::numeric_limits<double>::infinity()) {
       lower_bound_string = "-&infin;";
     }
-    GoogleString upper_bound_string = StringPrintf("%.0f", upper_bound);
+    GoogleString upper_bound_string = absl::StrFormat("%.0f", upper_bound);
     if (upper_bound == std::numeric_limits<double>::infinity()) {
       upper_bound_string = "&infin;";
     }
@@ -161,12 +161,12 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
     perc = value * 100 / count;
     cumulative_perc += perc;
     GoogleString output = StrCat(
-        StringPrintf(bucket_style, lower_bound_string.c_str(),
+        absl::StrFormat(bucket_style, lower_bound_string.c_str(),
                      upper_bound_string.c_str()),
-        StringPrintf(value_style, value),
-        StringPrintf(perc_style, perc),
-        StringPrintf(perc_style, cumulative_perc),
-        StringPrintf(bar_style, (perc * kBarWidthTotal) / 100,
+        absl::StrFormat(value_style, value),
+        absl::StrFormat(perc_style, perc),
+        absl::StrFormat(perc_style, cumulative_perc),
+        absl::StrFormat(bar_style, (perc * kBarWidthTotal) / 100,
                      kBarHeightPerBucket));
     writer->Write(output, handler);
   }
@@ -175,7 +175,7 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
 }
 
 void Histogram::Render(int index, Writer* writer, MessageHandler* handler) {
-  writer->Write(StringPrintf("<div id='hist_%d' style='display:none'>", index),
+  writer->Write (absl::StrFormat("<div id='hist_%d' style='display:none'>", index),
                 handler);
 
   // Don't hold a lock while calling the writer, as this can deadlock if
@@ -320,7 +320,7 @@ void Statistics::RenderHistograms(Writer* writer, MessageHandler* handler) {
 
 GoogleString Histogram::HtmlTableRow(const GoogleString& title, int index) {
   ScopedMutex hold(lock());
-  return StringPrintf(
+  return absl::StrFormat(
       kHistogramRowFormat,
       index,
       (index == 0) ? " selected" : "",
@@ -361,7 +361,7 @@ void Statistics::RenderTimedVariables(Writer* writer,
     // Write each statistic as a row in the table.
     for (int i = 0, n = p->second.size(); i < n; ++i) {
       timedvar = FindTimedVariable(p->second[i]);
-      const GoogleString content = StringPrintf("<tr><td> %s </td>"
+      const GoogleString content = absl::StrFormat("<tr><td> %s </td>"
           "<td align=right> %s </td><td align=right> %s </td>"
           "<td align=right> %s </td><td align=right> %s </td></tr>",
       p->second[i].c_str(),

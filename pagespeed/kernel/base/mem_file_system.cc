@@ -245,7 +245,7 @@ FileSystem::OutputFile* MemFileSystem::OpenOutputFileHelper(
 FileSystem::OutputFile* MemFileSystem::OpenTempFileHelper(
     const StringPiece& prefix, MessageHandler* message_handler) {
   ScopedMutex lock(all_else_mutex_.get());
-  GoogleString filename = StringPrintf("tmpfile%d", temp_file_index_++);
+  GoogleString filename = absl::StrFormat("tmpfile%d", temp_file_index_++);
   UpdateAtime(filename);
   UpdateMtime(filename);
   ++num_temp_file_opens_;

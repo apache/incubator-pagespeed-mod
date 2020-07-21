@@ -116,7 +116,7 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
       "url(%s)"
       "url(%s)"
       "url(%s)";
-  const GoogleString css_before = StringPrintf(
+  const GoogleString css_before = absl::StrFormat(
       css_template, "image.gif", "before.css", "http://example.com/before.css",
       "http://other.org/foo.ttf", "data:text/plain,Foobar");
 
@@ -157,7 +157,7 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
                                            &handler));
 
   // Check that contents was rewritten correctly.
-  const GoogleString css_after = StringPrintf(
+  const GoogleString css_after = absl::StrFormat(
       css_template,
       // image.gif did not have an association set, so it was passed to
       // DummyTransformer.

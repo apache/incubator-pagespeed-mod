@@ -667,7 +667,7 @@ StringPiece HtmlKeywords::EscapeHelper(const StringPiece& unescaped,
       StringStringSparseHashMapSensitive::const_iterator p =
           escape_map_.find(char_to_escape);
       if (p == escape_map_.end()) {
-        StringAppendF(buf, "&#%02d;", static_cast<int>(ch));
+        absl::StrAppendFormat(buf, "&#%02d;", static_cast<int>(ch));
       } else {
         *buf += '&';
         *buf += p->second;

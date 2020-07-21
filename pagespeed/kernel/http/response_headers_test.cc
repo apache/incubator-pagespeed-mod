@@ -102,7 +102,7 @@ class ResponseHeadersTest : public testing::Test {
       const GoogleString& max_age_string,
       const GoogleString& start_time_plus_implicit_ttl_string) {
     GoogleString header_text =
-        StringPrintf("HTTP/1.0 %d OK\r\n"
+        absl::StrFormat("HTTP/1.0 %d OK\r\n"
                      "Date: %s\r\n"
                      "Content-type: %s\r\n\r\n",
                      status_code, start_time_string_.c_str(), content_type);

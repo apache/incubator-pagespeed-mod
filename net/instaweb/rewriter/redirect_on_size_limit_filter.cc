@@ -74,7 +74,7 @@ void RedirectOnSizeLimitFilter::InsertScriptIfNeeded(HtmlElement* element,
         element, HtmlName::kScript);
     driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
     HtmlNode* script_code = driver()->NewCharactersNode(
-      script, StringPrintf(kScript, url_str.c_str()));
+      script, absl::StrFormat(kScript, url_str.c_str()));
     // For HTML elements, add the script as a child. Otherwise, insert the
     // script before or after the element.
     if (element->keyword() == HtmlName::kHtml) {

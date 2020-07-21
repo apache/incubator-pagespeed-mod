@@ -39,10 +39,10 @@ namespace net_instaweb {
 namespace {
 
 // Filenames of resource files.
-const char kCuppaPngFilename[] = "Cuppa.png";
-const char kPuzzleJpgFilename[] = "Puzzle.jpg";
+constexpr absl::string_view kCuppaPngFilename = "Cuppa.png";
+constexpr absl::string_view kPuzzleJpgFilename = "Puzzle.jpg";
 
-const char kCuppaPngInlineData[] =
+constexpr absl::string_view kCuppaPngInlineData =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEEAAABGCAIAAAAckG6qAAAACX"
     "BIWXMAAAsTAAALEwEAmpwYAAAGlUlEQVRoBe1aWUhXTxTOykrJMisNqSihTaQFF1JJkaSFRM"
     "Egg3oo6CHFhyBI6SECwciHFoSKlodQkKJEbYfIFjFNxUSiKEwqKQsCy62y5f/FicNh7k3mzr"
@@ -76,16 +76,16 @@ const char kCuppaPngInlineData[] =
     "Mao2yafwOt6A05wAv+DYCuJsZMMIUOHjwov5cq4DSL5hwoAPZy67/86LDKzMzElV8T5ejV3H"
     "KA9+vXr9MbvQ50qrNnz57RYTmyevPO19bWRo/HmjTwXYs/Q2o2GaWaNxxGCTAGJq070BjgcB"
     "MiwMFN73nXNjAO3vWlG0+BcXDTe961DYyDd33pxtN/Wk9wIrGXNoUAAAAASUVORK5CYII=";
-const char kCuppaPngWildcardData[] = "data:image/png;base64*";
+constexpr absl::string_view kCuppaPngWildcardData = "data:image/png;base64*";
 
-const char kInlinedScriptFormat[] =
+constexpr absl::string_view kInlinedScriptFormat =
     "<script type=\"text/javascript\""
     " id=\"pagespeed_script_%d\" data-pagespeed-no-defer>"
     "pagespeed.dedupInlinedImages.inlineImg("
     "'pagespeed_img_0%d','pagespeed_img_0%d','pagespeed_script_%d'"
     ");</script>";
 
-const char kHtmlWrapperFormat[] =
+constexpr absl::string_view kHtmlWrapperFormat =
     "<head>\n"
     "  <title>Dedup Inlined Images Test</title>\n"
     "%s"
@@ -133,12 +133,12 @@ class DedupInlinedImagesTest : public RewriteTestBase,
                        const GoogleString& body_html_out) {
     GoogleString url(StrCat(
         "http://test.com/", case_id, ".html?PageSpeed=noscript"));
-    GoogleString html_in(StringPrintf(
+    GoogleString html_in (absl::StrFormat(
         kHtmlWrapperFormat, head_html_in.c_str(), body_html_in.c_str()));
-    GoogleString body_out(StrCat(StringPrintf(kNoScriptRedirectFormatter,
+    GoogleString body_out(StrCat (absl::StrFormat(kNoScriptRedirectFormatter,
                                               url.c_str(), url.c_str()),
                                  body_html_out));
-    GoogleString html_out(StringPrintf(
+    GoogleString html_out (absl::StrFormat(
         kHtmlWrapperFormat, head_html_out.c_str(), body_out.c_str()));
 
     Parse(case_id, html_in);
@@ -183,7 +183,7 @@ TEST_F(DedupInlinedImagesTest, DedupSecondSmallImage) {
              "' id=\"pagespeed_img_01\">\n",
              InsertScriptBefore(
                  StrCat("<img id=\"pagespeed_img_02\">",
-                        StringPrintf(kInlinedScriptFormat, 3, 1, 2, 3)))));
+                        absl::StrFormat(kInlinedScriptFormat, 3, 1, 2, 3)))));
 }
 
 TEST_F(DedupInlinedImagesTest, DedupManySmallImages) {
@@ -195,9 +195,9 @@ TEST_F(DedupInlinedImagesTest, DedupManySmallImages) {
       StrCat("<img src='", kCuppaPngInlineData, "' id=\"pagespeed_img_01\">\n",
              InsertScriptBefore(
                  StrCat("<img id=\"pagespeed_img_02\">",
-                        StringPrintf(kInlinedScriptFormat, 3, 1, 2, 3), "\n",
+                        absl::StrFormat(kInlinedScriptFormat, 3, 1, 2, 3), "\n",
                         "<img id=\"pagespeed_img_04\">",
-                        StringPrintf(kInlinedScriptFormat, 5, 1, 4, 5)))));
+                        absl::StrFormat(kInlinedScriptFormat, 5, 1, 4, 5)))));
 }
 
 TEST_F(DedupInlinedImagesTest, DedupSecondSmallImageWithId) {
@@ -246,7 +246,7 @@ TEST_F(DedupInlinedImagesTest, DisabledForOldBlackberry) {
   GoogleString repeated_inlined_image = StrCat(
       "<img src='", kCuppaPngFilename, "'>\n",
       "<img src='", kCuppaPngFilename, "'>");
-  GoogleString html_in_out(StringPrintf(
+  GoogleString html_in_out (absl::StrFormat(
       kHtmlWrapperFormat, "", repeated_inlined_image.c_str()));
   Parse(case_id, html_in_out);
   GoogleString expected_out = doctype_string_ + AddHtmlBody(html_in_out);
@@ -266,7 +266,7 @@ class DedupInlinePreviewImagesTest : public DedupInlinedImagesTest {
   }
 
   GoogleString GetNoscript() const {
-    return StringPrintf(
+    return absl::StrFormat(
         kNoScriptRedirectFormatter,
         "http://test.com/dedup_inline_preview_images.html?PageSpeed=noscript",
         "http://test.com/dedup_inline_preview_images.html?PageSpeed=noscript");
@@ -302,10 +302,10 @@ TEST_F(DedupInlinePreviewImagesTest, DedupInlinePreviewImages) {
              "\" onerror=\"this.onerror=null;",
              DelayImagesFilter::kImageOnloadCode,
              "\" id=\"pagespeed_img_0%d\"/>");
-  GoogleString scripted_img_1 = StringPrintf(scripted_img_fmt.c_str(), 2);
-  GoogleString scripted_img_2 = StringPrintf(scripted_img_fmt.c_str(), 4);
-  GoogleString script_1 = StringPrintf(kInlinedScriptFormat, 3, 1, 2, 3);
-  GoogleString script_2 = StringPrintf(kInlinedScriptFormat, 5, 1, 4, 5);
+  GoogleString scripted_img_1 = absl::StrFormat(*absl::ParsedFormat<'d'>::New(scripted_img_fmt), 2);
+  GoogleString scripted_img_2 = absl::StrFormat(*absl::ParsedFormat<'d'>::New(scripted_img_fmt), 4);
+  GoogleString script_1 = absl::StrFormat(kInlinedScriptFormat, 3, 1, 2, 3);
+  GoogleString script_2 = absl::StrFormat(kInlinedScriptFormat, 5, 1, 4, 5);
   GoogleString input_html = StrCat("<head></head>"
                                    "<body>",
                                    input_img, input_img, input_img,

@@ -49,7 +49,7 @@ bool MinifyCss_main(int argc, char** argv) {
   // Read text from file.
   GoogleString in_text;
   if (!file_system.ReadFile(infilename, &in_text, &handler)) {
-    error_file->Write(StringPrintf(
+    error_file->Write (absl::StrFormat(
         "Failed to read input file %s\n", infilename), &handler);
     return false;
   }

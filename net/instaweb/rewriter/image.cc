@@ -691,7 +691,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
                            handler_.get()));
   if (image_reader == NULL) {
     resize_debug_message_ =
-        StringPrintf("Cannot resize: Cannot open the image%s to resize",
+        absl::StrFormat("Cannot resize: Cannot open the image%s to resize",
                      debug_message_url_.c_str());
     PS_LOG_INFO(handler_, "Cannot open the image to resize.");
     return false;
@@ -701,7 +701,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   if (!resizer.Initialize(image_reader.get(), new_dim.width(),
                           new_dim.height())) {
     resize_debug_message_ =
-        StringPrintf("Cannot resize%s: Unable to initialize resizer",
+        absl::StrFormat("Cannot resize%s: Unable to initialize resizer",
                      debug_message_url_.c_str());
     return false;
   }
@@ -741,7 +741,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
 
     default:
       resize_debug_message_ =
-          StringPrintf("Cannot resize%s: Unsupported image format",
+          absl::StrFormat("Cannot resize%s: Unsupported image format",
                        debug_message_url_.c_str());
       PS_LOG_DFATAL(handler_, "Unsupported image format");
   }
@@ -755,20 +755,20 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   while (resizer.HasMoreScanLines()) {
     if (!resizer.ReadNextScanline(&scanline)) {
       resize_debug_message_ =
-          StringPrintf("Cannot resize%s: Reading image failed",
+          absl::StrFormat("Cannot resize%s: Reading image failed",
                        debug_message_url_.c_str());
       return false;
     }
     if (!writer->WriteNextScanline(scanline)) {
       resize_debug_message_ =
-          StringPrintf("Cannot resize%s: Writing image failed",
+          absl::StrFormat("Cannot resize%s: Writing image failed",
                        debug_message_url_.c_str());
       return false;
     }
   }
   if (!writer->FinalizeWrite()) {
     resize_debug_message_ =
-        StringPrintf("Cannot resize%s: Finalizing writing image failed",
+        absl::StrFormat("Cannot resize%s: Finalizing writing image failed",
                      debug_message_url_.c_str());
     return false;
   }
@@ -778,7 +778,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   rewrite_attempted_ = false;
   output_contents_.clear();
   resized_dimensions_ = new_dim;
-  resize_debug_message_ = StringPrintf(
+  resize_debug_message_ = absl::StrFormat(
       "Resized image%s from %dx%d to %dx%d",
       debug_message_url_.c_str(),
       dims_.width(), dims_.height(),
@@ -1058,7 +1058,7 @@ inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
                &is_animated, &has_transparency, &is_photo,
                NULL /* quality */, NULL /* reader */, handler_.get());
 
-  debug_message_ = StringPrintf("Image%s has%s transparent pixels,"
+  debug_message_ = absl::StrFormat("Image%s has%s transparent pixels,"
                                 " is%s sensitive to compression noise, and"
                                 " has%s animation.",
                                 debug_message_url_.c_str(),

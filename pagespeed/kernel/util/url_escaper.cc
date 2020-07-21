@@ -102,7 +102,7 @@ void UrlEscaper::EncodeToUrlSegment(const StringPiece& in,
         if (isalnum(c) || (strchr(kPassThroughChars, c) != NULL)) {
           url_segment->push_back(c);
         } else {
-          StringAppendF(url_segment, ",%02X", static_cast<unsigned char>(c));
+          absl::StrAppendFormat(url_segment, ",%02X", static_cast<unsigned char>(c));
         }
     }
   }

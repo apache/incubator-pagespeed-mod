@@ -131,7 +131,7 @@ void Parser::ReportParsingError(uint64 error_flag,
   CHECK_LE(context_begin, context_end);
   CHECK_LE(context_end, end_);
   string context(context_begin, context_end - context_begin);
-  string full_message = StringPrintf(
+  string full_message = absl::StrFormat(
       "%s at byte %d \"...%s...\"",
       message.as_string().c_str(), CurrentOffset(), context.c_str());
   VLOG(1) << full_message;
@@ -551,7 +551,7 @@ char32 Parser::ParseEscape() {
     //   contain a character with Unicode codepoint zero.
     // We replace them (and all other improper escapes with a space
     // and log an error.
-    ReportParsingError(kUtf8Error, StringPrintf(
+    ReportParsingError(kUtf8Error, absl::StrFormat(
         "Invalid CSS-escaped Unicode value: 0x%lX",
         static_cast<unsigned long int>(codepoint)));
     codepoint = ' ';
@@ -665,7 +665,7 @@ Value* Parser::ParseNumber() {
   }
   double num = 0;
   if (in_ == begin || !ParseDouble(begin, in_ - begin, &num)) {
-    ReportParsingError(kNumberError, StringPrintf(
+    ReportParsingError(kNumberError, absl::StrFormat(
         "Failed to parse number %s", string(begin, in_ - begin).c_str()));
     return NULL;
   }
@@ -825,7 +825,7 @@ FunctionParameters* Parser::ParseFunction(int max_function_depth) {
           return NULL;
         }
         if (!Done() && *in_ != ' ' && *in_ != ',' && *in_ != ')') {
-          ReportParsingError(kFunctionError, StringPrintf(
+          ReportParsingError(kFunctionError, absl::StrFormat(
               "Function parameter contains unexpected char '%c'", *in_));
           return NULL;
         }
@@ -990,7 +990,7 @@ Value* Parser::ParseAnyWithFunctionDepth(int max_function_depth) {
       toret = ParseNumber();
       break;
     case '(': case '[': {
-      ReportParsingError(kValueError, StringPrintf(
+      ReportParsingError(kValueError, absl::StrFormat(
           "Unsupported value starting with %c", *in_));
       char delim = *in_ == '(' ? ')' : ']';
       // Move past this delimiter so that we don't double count it.
@@ -1055,7 +1055,7 @@ Value* Parser::ParseAnyWithFunctionDepth(int max_function_depth) {
             if (params.get() != NULL) {
               toret = new Value(id, params.release());
             } else {
-              ReportParsingError(kFunctionError, StringPrintf(
+              ReportParsingError(kFunctionError, absl::StrFormat(
                   "Could not parse function parameters for function %s",
                   UnicodeTextToUTF8(id).c_str()));
             }
@@ -1669,7 +1669,7 @@ Declarations* Parser::ParseRawDeclarations() {
         SkipSpace();
         if (Done() || *in_ != ':') {
           ReportParsingError(kDeclarationError,
-                             StringPrintf("Ignoring property with no values %s",
+                             absl::StrFormat("Ignoring property with no values %s",
                                           prop.prop_text().c_str()));
           ignore_this_decl = true;
           break;
@@ -1695,7 +1695,7 @@ Declarations* Parser::ParseRawDeclarations() {
         }
 
         if (vals.get() == NULL) {
-          ReportParsingError(kDeclarationError, StringPrintf(
+          ReportParsingError(kDeclarationError, absl::StrFormat(
               "Failed to parse values for property %s",
               prop.prop_text().c_str()));
           ignore_this_decl = true;
@@ -1714,7 +1714,7 @@ Declarations* Parser::ParseRawDeclarations() {
         // So, we are not worried about failing to preserve values when
         // errors_seen_mask_ is already non-0.
         if (preservation_mode_ && errors_seen_mask_ != start_errors_seen_mask) {
-          ReportParsingError(kDeclarationError, StringPrintf(
+          ReportParsingError(kDeclarationError, absl::StrFormat(
               "Error while parsing values for property %s",
               prop.prop_text().c_str()));
           ignore_this_decl = true;
@@ -1729,7 +1729,7 @@ Declarations* Parser::ParseRawDeclarations() {
           if (StringCaseEquals(ident, "important")) {
             important = true;
           } else {
-            ReportParsingError(kDeclarationError, StringPrintf(
+            ReportParsingError(kDeclarationError, absl::StrFormat(
                 "Unexpected !-identifier: !%s",
                 UnicodeTextToUTF8(ident).c_str()));
             ignore_this_decl = true;
@@ -1743,7 +1743,7 @@ Declarations* Parser::ParseRawDeclarations() {
           declarations->push_back(
               new Declaration(prop, vals.release(), important));
         } else {
-          ReportParsingError(kDeclarationError, StringPrintf(
+          ReportParsingError(kDeclarationError, absl::StrFormat(
               "Unexpected char %c at end of declaration", *in_));
           ignore_this_decl = true;
           break;
@@ -2041,7 +2041,7 @@ Selectors* Parser::ParseSelectors() {
           success = false;
           if (in_ == oldin) {
             DCHECK(!Done());
-            ReportParsingError(kSelectorError, StringPrintf(
+            ReportParsingError(kSelectorError, absl::StrFormat(
                 "Could not parse selector: illegal char %c", *in_));
             in_++;
           }
@@ -2397,10 +2397,10 @@ MediaQuery* Parser::ParseMediaQuery() {
           if (in_ >= end_) {
             ReportParsingError(kMediaError, "Unexpected EOF");
           } else if (ident.empty()) {
-            ReportParsingError(kMediaError, StringPrintf(
+            ReportParsingError(kMediaError, absl::StrFormat(
                 "Unexpected char in media query: %c", *in_));
           } else {
-            ReportParsingError(kMediaError, StringPrintf(
+            ReportParsingError(kMediaError, absl::StrFormat(
                 "Unexpected identifier separating media queries: %s",
                 UnicodeTextToUTF8(ident).c_str()));
           }
@@ -2609,7 +2609,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
             // Parse either a ruleset or at-rule.
             ParseStatement(media_queries.get(), stylesheet);
             if (in_ == oldin) {
-              ReportParsingError(kSelectorError, StringPrintf(
+              ReportParsingError(kSelectorError, absl::StrFormat(
                   "Could not parse ruleset: illegal char %c", *in_));
               in_++;
             }
@@ -2645,7 +2645,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
       // Unexpected @-rule.
     } else {
       string ident_string(ident.utf8_data(), ident.utf8_length());
-      ReportParsingError(kAtRuleError, StringPrintf(
+      ReportParsingError(kAtRuleError, absl::StrFormat(
           "Cannot parse unknown @-statement: %s", ident_string.c_str()));
       correctly_terminated = SkipToAtRuleEnd();
     }
@@ -2677,7 +2677,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
   } else {
     scoped_ptr<Ruleset> ruleset(ParseRuleset());
     if (ruleset.get() == NULL && oldin == in_) {
-      ReportParsingError(kSelectorError, StringPrintf(
+      ReportParsingError(kSelectorError, absl::StrFormat(
           "Could not parse ruleset: illegal char %c", *in_));
       in_++;
     }

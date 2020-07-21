@@ -60,7 +60,7 @@ cc_library(
         '-std=c++14',        
     ],    
     deps = [
-        "//gurl:url",
+        "@com_googlesource_googleurl//url",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/http:http",
     ],

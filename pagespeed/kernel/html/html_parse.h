@@ -389,7 +389,7 @@ class HtmlParse {
   int line_number() const { return line_number_; }
   // Returns URL (or id) and line number as a string, to be used in messages.
   GoogleString UrlLine() const {
-    return StringPrintf("%s:%d", id(), line_number());
+    return absl::StrFormat("%s:%d", id(), line_number());
   }
 
   // Return the current assumed doctype of the document (based on the content

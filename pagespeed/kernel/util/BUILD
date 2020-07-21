@@ -22,7 +22,7 @@ cc_library(
 cc_library(
     name = "util",
     srcs = [
-        "brotli_inflater.cc",
+        #"brotli_inflater.cc",
         "file_system_lock_manager.cc",
         "gflags.cc",  # XXX
         "gzip_inflater.cc",
@@ -43,7 +43,7 @@ cc_library(
         "url_to_filename_encoder.cc",
     ],
     hdrs = [
-        "brotli_inflater.h",
+        #"brotli_inflater.h",
         "categorized_refcount.h",
         "copy_on_write.h",
         "file_system_lock_manager.h",
@@ -65,21 +65,21 @@ cc_library(
         "url_multipart_encoder.h",
         "url_segment_encoder.h",
         "url_to_filename_encoder.h",
-    ],
+    ],    
     copts = [
         "-std=c++14",
-        "-Wno-implicit-fallthrough",
     ],
+
     visibility = ["//visibility:public"],
     deps = [
         ":util_re2",
-        "//gurl:url",
+        "@com_googlesource_googleurl//url",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/html",
         "//pagespeed/kernel/http",
         "//pagespeed/kernel/thread",
-        "@brotli//:brotlidec",
-        "@brotli//:brotlienc",
+        #"@brotli//:brotlidec",
+        #"@brotli//:brotlienc",
         "@com_github_grpc_grpc//:grpc++",
         "@envoy//bazel/foreign_cc:zlib",
     ],
@@ -109,7 +109,7 @@ pagespeed_cc_test_library(
 
 pagespeed_cc_test(
     name = "util_test",
-    srcs = glob(["*_test.cc"]),
+    srcs = glob(["*_test.cc"], exclude=glob(["*brotli*"])),
     deps = [
         ":util_test_base",
     ],

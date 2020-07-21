@@ -334,7 +334,7 @@ class AddInstrumentationAmpTest : public AddInstrumentationFilterTest {
       }
       SetupWriter();
       rewrite_driver_->StartParse(
-          StringPrintf("http://example.com/amp_doc_%d.html", i));
+          absl::StrFormat("http://example.com/amp_doc_%d.html", i));
       rewrite_driver_->ParseText(html.substr(0, i));
       rewrite_driver_->Flush();
       rewrite_driver_->ParseText(html.substr(i));

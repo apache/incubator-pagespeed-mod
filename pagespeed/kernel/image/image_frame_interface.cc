@@ -63,7 +63,7 @@ bool ImageSpec::CanContainFrame(const FrameSpec& frame_spec) const {
 }
 
 GoogleString ImageSpec::ToString() const {
-  return StringPrintf(
+  return absl::StrFormat(
       "Image: %d x %d : %u frames, repeated %u times; "
       "bg_color: %s, RGBA: 0x%08X",
       width, height, num_frames, loop_count,
@@ -99,7 +99,7 @@ void  FrameSpec::Reset() {
 }
 
 GoogleString FrameSpec::ToString() const {
-  return StringPrintf(
+  return absl::StrFormat(
       "Frame: size %u x %u at (%u, %u) "
       "pixel_format: %s, duration_ms: %lu, disposal: %d, progressive: %s",
       width, height, top, left, GetPixelFormatString(pixel_format),

@@ -81,16 +81,13 @@ cc_library(
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
         "@google_sparsehash",
-        "//gurl:url",
-        "//third_party/nspr:prtime",
-        "@icu//:icudata",
-        "@icu//:icuuc",
+        "@com_googlesource_googleurl//url",
         "@mod_pagespeed//base:log_shim",
         "@glog",
-        #"//pagespeed/kernel/sharedmem:shared_mem",
-        #"//pagespeed/kernel/util:util",
+        "@com_google_absl//absl/time:time",
         "@com_google_absl//absl/base:base",
         "@com_google_absl//absl/strings:strings",
+        "@com_google_absl//absl/strings:str_format",
         "@com_github_fmtlib_fmt//:fmtlib"
     ],
 )

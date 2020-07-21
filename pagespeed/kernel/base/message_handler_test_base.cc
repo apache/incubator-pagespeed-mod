@@ -44,7 +44,7 @@ void TestMessageHandler::FileMessageVImpl(MessageType type,
                                           int line, const char* msg,
                                           va_list args) {
   GoogleString message;
-  StringAppendF(&message, "%s: %s: %d: ", MessageTypeToString(type),
+  absl::StrAppendFormat(&message, "%s: %s: %d: ", MessageTypeToString(type),
                 filename, line);
   StringAppendV(&message, msg, args);
   messages_.push_back(message);
@@ -54,7 +54,7 @@ void TestMessageHandler::FileMessageSImpl(
     MessageType type, const char* filename, int line,
     const GoogleString& message) {
   GoogleString actual;
-  StringAppendF(&actual, "%s: %s: %d: ", MessageTypeToString(type),
+  absl::StrAppendFormat(&actual, "%s: %s: %d: ", MessageTypeToString(type),
                 filename, line);
   StrAppend(&actual, message);
   messages_.push_back(actual);

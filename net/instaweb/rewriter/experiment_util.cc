@@ -81,7 +81,7 @@ void SetExperimentCookie(ResponseHeaders* headers,
   if (host.length() == 0) {
     return;
   }
-  GoogleString value = StringPrintf(
+  GoogleString value = absl::StrFormat(
       "%s=%s; Expires=%s; Domain=.%s; Path=/",
       kExperimentCookie, ExperimentStateToCookieString(state).c_str(),
       expires.c_str(), host.as_string().c_str());

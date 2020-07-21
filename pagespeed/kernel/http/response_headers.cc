@@ -316,7 +316,7 @@ bool ResponseHeaders::CombineContentTypes(const StringPiece& orig,
       if (mime_type.empty()) {
         mime_type = fresh_mime_type;
       }
-      GoogleString full_type = StringPrintf(
+      GoogleString full_type = absl::StrFormat(
           "%s;%s%s",
           mime_type.c_str(),
           charset.empty()? "" : " charset=",

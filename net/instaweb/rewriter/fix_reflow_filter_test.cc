@@ -99,7 +99,7 @@ TEST_F(FixReflowFilterTest, NotInCache) {
       "</body>";
   const GoogleString expected = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\"><h3>Hello 3</h3></div></div>"
       "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
@@ -134,7 +134,7 @@ TEST_F(FixReflowFilterTest, InCache) {
       "</body>";
   const GoogleString expected = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\" style=\"min-height:10px\" "
       "data-pagespeed-fix-reflow=\"\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\"><h3>Hello 3</h3></div></div>"
@@ -165,7 +165,7 @@ TEST_F(FixReflowFilterTest, InCacheExpires) {
       "</body>";
   const GoogleString expected = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\"><h3>Hello 3</h3></div></div>"
       "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
@@ -177,7 +177,7 @@ TEST_F(FixReflowFilterTest, InCacheExpires) {
 
   const GoogleString expected2 = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\" style=\"min-height:20px\" "
       "data-pagespeed-fix-reflow=\"\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\" style=\"min-height:10px\" "

@@ -225,18 +225,18 @@ static string StylesheetTypeString(Stylesheet::StylesheetType type) {
 string Value::ToString() const {
   switch (GetLexicalUnitType()) {
     case NUMBER:
-      return StringPrintf("%g%s",
+      return absl::StrFormat("%g%s",
                           GetFloatValue(),
                           GetDimensionUnitText().c_str());
     case URI:
-      return StringPrintf("url(%s)",
+      return absl::StrFormat("url(%s)",
                           Css::EscapeUrl(GetStringValue()).c_str());
     case FUNCTION:
-      return StringPrintf("%s(%s)",
+      return absl::StrFormat("%s(%s)",
                           Css::EscapeIdentifier(GetFunctionName()).c_str(),
                           GetParametersWithSeparators()->ToString().c_str());
     case RECT:
-      return StringPrintf("rect(%s)",
+      return absl::StrFormat("rect(%s)",
                           GetParametersWithSeparators()->ToString().c_str());
     case COLOR:
       if (GetColorValue().IsDefined())
@@ -244,7 +244,7 @@ string Value::ToString() const {
       else
         return "bad";
     case STRING:
-      return StringPrintf("\"%s\"",
+      return absl::StrFormat("\"%s\"",
                           Css::EscapeString(GetStringValue()).c_str());
     case IDENT:
       return Css::EscapeIdentifier(GetIdentifierText());
@@ -288,7 +288,7 @@ string SimpleSelector::ToString() const {
     case UNIVERSAL:
       return "*";
     case EXIST_ATTRIBUTE:
-      return StringPrintf("[%s]",
+      return absl::StrFormat("[%s]",
                           Css::EscapeIdentifier(attribute()).c_str());
     case EXACT_ATTRIBUTE:
       // TODO(sligocki): Maybe print value out as identifier if that's smaller.
@@ -296,42 +296,42 @@ string SimpleSelector::ToString() const {
       // We currently always print it as a string because that is easier and
       // more failsafe (note for example that [height="1"] would need to be
       // converted to [height=\49 ] to remain an identifier :/).
-      return StringPrintf("[%s=\"%s\"]",
+      return absl::StrFormat("[%s=\"%s\"]",
                           Css::EscapeIdentifier(attribute()).c_str(),
                           Css::EscapeString(value()).c_str());
     case ONE_OF_ATTRIBUTE:
-      return StringPrintf("[%s~=\"%s\"]",
+      return absl::StrFormat("[%s~=\"%s\"]",
                           Css::EscapeIdentifier(attribute()).c_str(),
                           Css::EscapeString(value()).c_str());
     case BEGIN_HYPHEN_ATTRIBUTE:
-      return StringPrintf("[%s|=\"%s\"]",
+      return absl::StrFormat("[%s|=\"%s\"]",
                           Css::EscapeIdentifier(attribute()).c_str(),
                           Css::EscapeString(value()).c_str());
     case SUBSTRING_ATTRIBUTE:
-      return StringPrintf("[%s*=\"%s\"]",
+      return absl::StrFormat("[%s*=\"%s\"]",
                           Css::EscapeIdentifier(attribute()).c_str(),
                           Css::EscapeString(value()).c_str());
     case BEGIN_WITH_ATTRIBUTE:
-      return StringPrintf("[%s^=\"%s\"]",
+      return absl::StrFormat("[%s^=\"%s\"]",
                           Css::EscapeIdentifier(attribute()).c_str(),
                           Css::EscapeString(value()).c_str());
     case END_WITH_ATTRIBUTE:
-      return StringPrintf("[%s$=\"%s\"]",
+      return absl::StrFormat("[%s$=\"%s\"]",
                           Css::EscapeIdentifier(attribute()).c_str(),
                           Css::EscapeString(value()).c_str());
     case CLASS:
-      return StringPrintf(".%s",
+      return absl::StrFormat(".%s",
                           Css::EscapeIdentifier(value()).c_str());
     case ID:
-      return StringPrintf("#%s",
+      return absl::StrFormat("#%s",
                           Css::EscapeIdentifier(value()).c_str());
     case PSEUDOCLASS:
-      return StringPrintf("%s%s",
+      return absl::StrFormat("%s%s",
                           // pseudoclass_separator() is either ":" or "::".
                           UnicodeTextToUTF8(pseudoclass_separator()).c_str(),
                           Css::EscapeIdentifier(pseudoclass()).c_str());
     case LANG:
-      return StringPrintf(":lang(%s)",
+      return absl::StrFormat(":lang(%s)",
                           Css::EscapeIdentifier(lang()).c_str());
   }
   LOG(FATAL) << "Invalid type";
@@ -459,7 +459,7 @@ string MediaQueries::ToString() const {
 string Ruleset::ToString() const {
   string result;
   if (!media_queries().empty())
-    result += StringPrintf("@media %s { ", media_queries().ToString().c_str());
+    result += absl::StrFormat("@media %s { ", media_queries().ToString().c_str());
   switch (type()) {
     case RULESET:
       result += selectors().ToString() + " {" + declarations().ToString() + "}";
@@ -476,14 +476,14 @@ string Ruleset::ToString() const {
 string Charsets::ToString() const {
   string result;
   for (const_iterator iter = begin(); iter != end(); ++iter) {
-    result += StringPrintf("@charset \"%s\";",
+    result += absl::StrFormat("@charset \"%s\";",
                            Css::EscapeString(*iter).c_str());
   }
   return result;
 }
 
 string Import::ToString() const {
-  return StringPrintf("@import url(\"%s\") %s;",
+  return absl::StrFormat("@import url(\"%s\") %s;",
                       Css::EscapeUrl(link()).c_str(),
                       media_queries().ToString().c_str());
 }
@@ -491,7 +491,7 @@ string Import::ToString() const {
 string FontFace::ToString() const {
   string result;
   if (!media_queries().empty())
-    result += StringPrintf("@media %s { ", media_queries().ToString().c_str());
+    result += absl::StrFormat("@media %s { ", media_queries().ToString().c_str());
   result += "@font-face { " + declarations().ToString() + " }";
   if (!media_queries().empty())
     result += " }";

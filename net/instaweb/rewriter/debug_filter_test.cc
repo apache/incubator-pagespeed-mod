@@ -97,13 +97,13 @@ class DebugFilterTest : public RewriteTestBase {
   }
 
   GoogleString OptScriptHtml() {
-    return StringPrintf(kScriptFormat,
+    return absl::StrFormat(kScriptFormat,
                         Encode("", "ce", "0", kScript, "js").c_str());
   }
 
   void InitiateScriptRewrite() {
     rewrite_driver()->StartParse(kTestDomain);
-    rewrite_driver()->ParseText(StringPrintf(kScriptFormat, kScript));
+    rewrite_driver()->ParseText (absl::StrFormat(kScriptFormat, kScript));
   }
 
   void RewriteScriptToWarmTheCache() {

@@ -220,7 +220,7 @@ SharedMemCache<kBlockSize>::SharedMemCache(
 
 template<size_t kBlockSize>
 GoogleString SharedMemCache<kBlockSize>::FormatName() {
-  return StringPrintf("SharedMemCache<%d>", static_cast<int>(kBlockSize));
+  return absl::StrFormat("SharedMemCache<%d>", static_cast<int>(kBlockSize));
 }
 
 template<size_t kBlockSize>

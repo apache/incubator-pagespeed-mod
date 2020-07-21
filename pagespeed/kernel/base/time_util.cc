@@ -20,10 +20,10 @@
 
 #include "pagespeed/kernel/base/time_util.h"
 #include <ctime>
-#include "third_party/nspr/prtime.h"  // NOLINT
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "absl/time/time.h"
 #ifdef WIN32
 #include <time.h>
 #endif  // WIN32
@@ -74,7 +74,7 @@ bool TimeToString(int64 time, GoogleString* time_string,
 
   // If us is true, time is down to microseconds, the format is like this:
   //    Wed, 24 Nov 2010 21:14:12.12345 GMT
-  *time_string = StringPrintf("%s, %02d %s %4d %02d:%02d:%02d",
+  *time_string = absl::StrFormat("%s, %02d %s %4d %02d:%02d:%02d",
                               kWeekDay[time_buf.tm_wday],
                               time_buf.tm_mday,
                               kMonth[time_buf.tm_mon],
@@ -112,15 +112,16 @@ bool ConvertStringToTime(const StringPiece& time_string, int64 *time_ms) {
     *time_ms = 0;
     return false;
   }
-  PRTime result_time_us = 0;
-  PRStatus result = PR_ParseTimeString(time_string.as_string().c_str(),
-                                       PR_FALSE, &result_time_us);
-  if (PR_SUCCESS != result) {
-    return false;
+ absl::Time time;
+ static const auto& rfc7231_date_formats = *new std::array<std::string, 3>{
+      "%a, %d %b %Y %H:%M:%S GMT", "%A, %d-%b-%y %H:%M:%S GMT", "%a %b %e %H:%M:%S %Y"};
+  for (const std::string& format : rfc7231_date_formats) {
+    if (absl::ParseTime(format, time_string, &time, nullptr)) {
+      *time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(absl::ToChronoTime(time).time_since_epoch()).count();
+      return true;
+    }
   }
-
-  *time_ms = result_time_us / 1000;
-  return true;
+  return false;
 }
 
 }  // namespace net_instaweb

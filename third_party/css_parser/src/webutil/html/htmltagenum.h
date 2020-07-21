@@ -233,7 +233,7 @@ enum HtmlTagEnum {
 // NULL if tag >= kHtmlTagBuiltinMax.
 extern const char* HtmlTagName(HtmlTagEnum tag);
 
-// StringPrintf("UNKNOWN%d", tag) if tag >= kHtmlTag
+// absl::StrFormat("UNKNOWN%d", tag) if tag >= kHtmlTag
 extern string HtmlTagNameOrUnknown(int i);
 
 #endif  // WEBUTIL_HTML_HTMLTAGENUM_H__

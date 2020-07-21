@@ -1800,7 +1800,7 @@ TEST_F(RewriteContextTest, CacheExtendCacheableResource) {
                               &content,
                               &headers));
     EXPECT_EQ("a", content);
-    EXPECT_STREQ(StringPrintf("max-age=%lld",
+    EXPECT_STREQ (absl::StrFormat("max-age=%lld",
                               static_cast<long long int>(
                                   ServerContext::kGeneratedMaxAgeMs / 1000)),
                  headers.Lookup1(HttpAttributes::kCacheControl));
@@ -4793,8 +4793,8 @@ TEST_F(RewriteContextTest, DropFetchesAndRecover) {
       kExcessResources;
   GoogleString html;
   for (int i = 0; i < kResourceCount; ++i) {
-    GoogleString url = StringPrintf("x%d.css", i);
-    GoogleString content = StringPrintf("a%d", i);  // Rewriter will upper-case.
+    GoogleString url = absl::StrFormat("x%d.css", i);
+    GoogleString content = absl::StrFormat("a%d", i);  // Rewriter will upper-case.
     SetResponseWithDefaultHeaders(url, kContentTypeCss, content, 100 /* sec */);
     StrAppend(&html, CssLinkHref(url));
   }
@@ -4872,8 +4872,8 @@ TEST_F(RewriteContextTest, DropFetchesAndRecoverFetchPath) {
       kExcessResources;
   GoogleString html;
   for (int i = 0; i < kResourceCount; ++i) {
-    GoogleString url = StringPrintf("x%d.css", i);
-    GoogleString content = StringPrintf("a%d", i);  // Rewriter will upper-case.
+    GoogleString url = absl::StrFormat("x%d.css", i);
+    GoogleString content = absl::StrFormat("a%d", i);  // Rewriter will upper-case.
     SetResponseWithDefaultHeaders(url, kContentTypeCss, content, 100 /* sec */);
     StrAppend(&html, CssLinkHref(url));
   }
@@ -4888,7 +4888,7 @@ TEST_F(RewriteContextTest, DropFetchesAndRecoverFetchPath) {
 
   // Try fetching rewritten versions.
   for (int i = 0; i < kResourceCount; ++i) {
-    GoogleString base_url = StringPrintf("x%d.css", i);
+    GoogleString base_url = absl::StrFormat("x%d.css", i);
     GoogleString out_url = Encode(
         kTestDomain, UpperCaseRewriter::kFilterId, "0", base_url, "css");
     EXPECT_TRUE(TryFetchResource(out_url));

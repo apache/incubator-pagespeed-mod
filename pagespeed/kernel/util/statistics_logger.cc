@@ -231,7 +231,7 @@ void StatisticsLogger::UpdateAndDumpIfRequired() {
 
 void StatisticsLogger::DumpConsoleVarsToWriter(
     int64 current_time_ms, Writer* writer) {
-  writer->Write(StringPrintf("timestamp: %s\n",
+  writer->Write (absl::StrFormat("timestamp: %s\n",
       Integer64ToString(current_time_ms).c_str()), message_handler_);
 
   for (VariableMap::const_iterator iter = variables_to_log_.begin();

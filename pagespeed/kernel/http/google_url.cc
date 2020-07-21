@@ -643,7 +643,7 @@ GoogleString GoogleUrl::EscapeQueryParam(StringPiece unescaped) {
       escaped.push_back('+');
     } else {
       // Escape both reserved chars (ex: '/') and uncategorized chars (ex: ' ').
-      StrAppend(&escaped, StringPrintf(
+      StrAppend(&escaped, absl::StrFormat(
           "%%%02x", static_cast<unsigned int>(static_cast<unsigned char>(c))));
     }
   }
@@ -676,7 +676,7 @@ GoogleString GoogleUrl::Sanitize(StringPiece url) {
       escaped.push_back(c);
     } else {
       // Escape uncategorized chars (ex: ' ', '^', '"')
-      StrAppend(&escaped, StringPrintf(
+      StrAppend(&escaped, absl::StrFormat(
           "%%%02X", static_cast<unsigned int>(static_cast<unsigned char>(c))));
     }
   }

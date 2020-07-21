@@ -123,7 +123,7 @@ void EscapeToJsonStringLiteral(const StringPiece& original,
 
     if (code <= 0x1F || code > 0x7F || code == '<' || code == '>' ||
         code == '"' || code == '\\') {
-      *(escaped) += StringPrintf("\\u00%02x", code);
+      *(escaped) += absl::StrFormat("\\u00%02x", code);
     } else {
       *(escaped) += original[c];
     }

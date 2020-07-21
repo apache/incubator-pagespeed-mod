@@ -62,7 +62,7 @@ void SupportNoscriptFilter::StartElement(HtmlElement* element) {
     // TODO(sriharis): Replace the usage of HtmlCharactersNode with HtmlElement
     // and Attribute.
     HtmlCharactersNode* noscript_node = rewrite_driver_->NewCharactersNode(
-        element, StringPrintf(kNoScriptRedirectFormatter,
+        element, absl::StrFormat(kNoScriptRedirectFormatter,
                               escaped_url.c_str(), escaped_url.c_str()));
     rewrite_driver_->PrependChild(element, noscript_node);
     should_insert_noscript_ = false;

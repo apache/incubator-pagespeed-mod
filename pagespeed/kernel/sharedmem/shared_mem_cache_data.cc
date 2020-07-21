@@ -274,32 +274,32 @@ void SectorStats::Add(const SectorStats& other) {
 GoogleString SectorStats::Dump(size_t total_entries,
                                size_t total_blocks) const {
   GoogleString out;
-  StringAppendF(&out, "Total put operations: %s\n",
+  absl::StrAppendFormat(&out, "Total put operations: %s\n",
                 Integer64ToString(num_put).c_str());
-  StringAppendF(&out, "  updating an existing key: %s\n",
+  absl::StrAppendFormat(&out, "  updating an existing key: %s\n",
                 Integer64ToString(num_put_update).c_str());
-  StringAppendF(&out, "  replace/conflict miss: %s\n",
+  absl::StrAppendFormat(&out, "  replace/conflict miss: %s\n",
                 Integer64ToString(num_put_replace).c_str());
-  StringAppendF(
+  absl::StrAppendFormat(
       &out, "  simultaneous same-key insert: %s\n",
       Integer64ToString(num_put_concurrent_create).c_str());
-  StringAppendF(
+  absl::StrAppendFormat(
       &out, "  dropped since all of associativity set locked: %s\n",
       Integer64ToString(num_put_concurrent_full_set).c_str());
-  StringAppendF(
+  absl::StrAppendFormat(
       &out, "  spinning sleeps performed by writers: %s\n",
       Integer64ToString(num_put_spins).c_str());
 
-  StringAppendF(&out, "Total get operations: %s\n",
+  absl::StrAppendFormat(&out, "Total get operations: %s\n",
                 Integer64ToString(num_get).c_str());
-  StringAppendF(&out, "  hits: %s (%.2f%%)\n",
+  absl::StrAppendFormat(&out, "  hits: %s (%.2f%%)\n",
                 Integer64ToString(num_get_hit).c_str(),
                 percent(num_get_hit, num_get));
 
-  StringAppendF(&out, "Entries used: %s (%.2f%%)\n",
+  absl::StrAppendFormat(&out, "Entries used: %s (%.2f%%)\n",
                 Integer64ToString(used_entries).c_str(),
                 percent(used_entries, total_entries));
-  StringAppendF(&out, "Blocks used: %s (%.2f%%)\n",
+  absl::StrAppendFormat(&out, "Blocks used: %s (%.2f%%)\n",
                 Integer64ToString(used_blocks).c_str(),
                 percent(used_blocks, total_blocks));
   return out;

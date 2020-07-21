@@ -225,7 +225,7 @@ class CacheTestBase : public testing::Test {
   // and values in pattern v0 v1 v2 v3...
   void PopulateCache(int num) {
     for (int i = 0; i < num; ++i) {
-      CheckPut(StringPrintf("n%d", i), StringPrintf("v%d", i));
+      CheckPut (absl::StrFormat("n%d", i), absl::StrFormat("v%d", i));
     }
   }
 

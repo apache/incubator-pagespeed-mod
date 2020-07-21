@@ -61,12 +61,12 @@ bool CssMinify::ParseStylesheet(StringPiece stylesheet_text) {
   // Report error summary.
   if (error_writer_ != NULL) {
     if (parser.errors_seen_mask() != Css::Parser::kNoError) {
-      error_writer_->Write(StringPrintf(
+      error_writer_->Write (absl::StrFormat(
           "CSS parsing error mask %s\n",
           Integer64ToString(parser.errors_seen_mask()).c_str()), handler_);
     }
     if (parser.unparseable_sections_seen_mask() != Css::Parser::kNoError) {
-      error_writer_->Write(StringPrintf(
+      error_writer_->Write (absl::StrFormat(
           "CSS unparseable sections mask %s\n",
           Integer64ToString(parser.unparseable_sections_seen_mask()).c_str()),
                         handler_);
@@ -467,7 +467,7 @@ void CssMinify::Minify(const Css::Value& value) {
       } else {
         // Values added or modified outside of the parsing code need
         // to be converted to strings by us.
-        buffer = StringPrintf("%.16g", value.GetFloatValue());
+        buffer = absl::StrFormat("%.16g", value.GetFloatValue());
         number_string = buffer;
       }
       if (number_string.starts_with("0.")) {

@@ -132,7 +132,7 @@ void RequestHeaders::set_message_body(const GoogleString& data) {
 bool RequestHeaders::WriteAsHttp(
     const StringPiece& url, Writer* writer, MessageHandler* handler) const {
   bool ret = true;
-  GoogleString buf = StringPrintf("%s %s HTTP/%d.%d\r\n",
+  GoogleString buf = absl::StrFormat("%s %s HTTP/%d.%d\r\n",
                                   method_string(), url.as_string().c_str(),
                                   major_version(), minor_version());
   ret &= writer->Write(buf, handler);

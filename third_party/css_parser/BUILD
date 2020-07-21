@@ -126,7 +126,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":utf",
-        "//base",
         "//pagespeed/kernel/base:pagespeed_base",
         "//third_party/google-sparsehash:google_sparsehash_gen",
         "@com_google_googletest//:gtest",  # for gtest_prod.h

@@ -80,91 +80,6 @@ namespace net_instaweb {
 //   kContentExperimentsSetExpAndVariantSnippet goes inside the analytics js
 //   snippet, just before the ga(send, pageview) call.
 
-// Google Analytics snippet for setting experiment related variables.  Use with
-// old ga.js and custom variable experiment reporting. Arguments are:
-//   %s: Optional snippet to increase site speed tracking.
-//   %u: Which ga.js custom variable to support to.
-//   %s: Experiment spec string, shown in the GA UI.
-extern const char kGAExperimentSnippet[] =
-    "var _gaq = _gaq || [];"
-    "%s"
-    "_gaq.push(['_setCustomVar', %u, 'ExperimentState', '%s'"
-    "]);";
-
-// Google Analytics async snippet along with the _trackPageView call.
-extern const char kGAJsSnippet[] =
-    "if (window.parent == window) {"
-    "var _gaq = _gaq || [];"
-    "_gaq.push(['_setAccount', '%s']);"  // %s is the GA account number.
-    "_gaq.push(['_setDomainName', '%s']);"  // %s is the domain name
-    "_gaq.push(['_setAllowLinker', true]);"
-    "%s"  // Optional snippet to increase site speed tracking.
-    "_gaq.push(['_trackPageview']);"
-    "(function() {"
-    "var ga = document.createElement('script'); ga.type = 'text/javascript';"
-    "ga.async = true;"
-    "ga.src = 'https://ssl.google-analytics.com/ga.js';"
-    "var s = document.getElementsByTagName('script')[0];"
-    "s.parentNode.insertBefore(ga, s);"
-    "})();"
-    "}";
-
-// Google Universal analytics snippet.  First argument is the GA account number,
-// second is kContentExperimentsSetExpAndVariantSnippet or nothing.
-extern const char kAnalyticsJsSnippet[] =
-    "if (window.parent == window) {"
-    "(function(i,s,o,g,r,a,m){"
-    "i['GoogleAnalyticsObject']=r;"
-    "i[r]=i[r]||function(){"
-    "(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();"
-    "a=s.createElement(o), m=s.getElementsByTagName(o)[0];"
-    "a.async=1;a.src=g;m.parentNode.insertBefore(a,m)"
-    "})(window,document,'script',"
-    "'//www.google-analytics.com/analytics.js','ga');"
-    "ga('create', '%s', 'auto'%s);"
-    "%s"
-    "ga('send', 'pageview');"
-    "}";
-
-// Increase site speed tracking to 100% when using analytics.js
-// Use the first one if we're inserting the snippet, or if the site we're
-// modifying isn't already using a fields object with ga('create'), the second
-// one if there is an existing snippet with a fields object.
-extern const char kAnalyticsJsIncreaseSiteSpeedTracking[] =
-    ", {'siteSpeedSampleRate': 100}";
-extern const char kAnalyticsJsIncreaseSiteSpeedTrackingMinimal[] =
-    "'siteSpeedSampleRate': 100,";
-
-// When using content experiments with ga.js you need to do a sychronous load
-// of /cx/api.js first.
-extern const char kContentExperimentsJsClientUrl[] =
-    "//www.google-analytics.com/cx/api.js";
-
-// When using content experiments with ga.js, after /cx/api.js has loaded and
-// before ga.js loads you need to call this.  The first argument is the
-// variant id, the second is the experiment id.
-extern const char kContentExperimentsSetChosenVariationSnippet[] =
-    "cxApi.setChosenVariation(%d, '%s');";
-
-// When using content experiments with ga.js, the variant ID must be numeric.
-// If the user requests a non-numeric variant with ga.js, we inject this
-// comment. The string is bracketed with newlines because otherwise it's
-// invisible in a wall of JavaScript.
-extern const char kContentExperimentsNonNumericVariantComment[] =
-    "\n/* mod_pagespeed cannot inject experiment variant '%s' "
-    "because it's not a number */\n";
-
-// When using content experiments with analytics.js, after ga('create', ..._)
-// and before ga('[...].send', 'pageview'), we need to insert:
-extern const char kContentExperimentsSetExpAndVariantSnippet[] =
-    "ga('set', 'expId', '%s');"
-    "ga('set', 'expVar', '%s');";
-
-// Set the sample rate to 100%.
-// TODO(nforman): Allow this to be configurable through RewriteOptions.
-extern const char kGASpeedTracking[] =
-    "_gaq.push(['_setSiteSpeedSampleRate', 100]);";
-
 InsertGAFilter::InsertGAFilter(RewriteDriver* rewrite_driver)
     : CommonFilter(rewrite_driver),
       script_element_(NULL),
@@ -261,7 +176,7 @@ InsertGAFilter::AnalyticsStatus InsertGAFilter::FindSnippetInScript(
 }
 
 GoogleString InsertGAFilter::AnalyticsJsExperimentSnippet() const {
-  return StringPrintf(
+  return absl::StrFormat(
       kContentExperimentsSetExpAndVariantSnippet,
       driver()->options()->content_experiment_id().c_str(),
       driver()->options()->content_experiment_variant_id().c_str());
@@ -274,12 +189,12 @@ GoogleString InsertGAFilter::GaJsExperimentSnippet() const {
       driver()->options()->content_experiment_variant_id().c_str();
   int numeric_variant_id;
   if (StringToInt(variant_id, &numeric_variant_id)) {
-    return StringPrintf(
+    return absl::StrFormat(
         kContentExperimentsSetChosenVariationSnippet, numeric_variant_id,
         driver()->options()->content_experiment_id().c_str());
   } else {
     // Variant ID was non-numeric, so inject a warning.
-    return StringPrintf(kContentExperimentsNonNumericVariantComment,
+    return absl::StrFormat(kContentExperimentsNonNumericVariantComment,
                         variant_id);
   }
 }
@@ -305,7 +220,7 @@ void InsertGAFilter::EndDocument() {
 
   GoogleString js_text;
   GoogleString experiment_snippet;
-  const char* speed_tracking = "";
+  absl::string_view speed_tracking = "";
   if (driver()->options()->use_analytics_js()) {
     if (increase_speed_tracking_) {
       speed_tracking = kAnalyticsJsIncreaseSiteSpeedTracking;
@@ -313,7 +228,7 @@ void InsertGAFilter::EndDocument() {
     if (ShouldInsertExperimentTracking(true /* analytics.js */)) {
       experiment_snippet = AnalyticsJsExperimentSnippet();
     }
-    js_text = StringPrintf(
+    js_text = absl::StrFormat(
         kAnalyticsJsSnippet,
         ga_id_.c_str(),
         speed_tracking,
@@ -327,7 +242,7 @@ void InsertGAFilter::EndDocument() {
         InsertNodeAtBodyEnd(cxapi);
         experiment_snippet = GaJsExperimentSnippet();
       } else {
-        experiment_snippet = StringPrintf(
+        experiment_snippet = absl::StrFormat(
             kGAExperimentSnippet,
             "" /* don't change speed tracking here, we add it below */,
             driver()->options()->experiment_ga_slot(),
@@ -341,7 +256,7 @@ void InsertGAFilter::EndDocument() {
       speed_tracking = kGASpeedTracking;
     }
     js_text = StrCat(experiment_snippet,
-                     StringPrintf(kGAJsSnippet,
+                     absl::StrFormat(kGAJsSnippet,
                                   ga_id_.c_str(),
                                   domain.c_str(),
                                   speed_tracking));
@@ -449,7 +364,7 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
         // Saw end of function call without any fields object.  Insert
         // standard speed tracking here.
         if (increase_speed_tracking_) {
-          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTracking);
+          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTracking.data());
           inserted_speed_tracking = true;
         }
         state = kInitial;
@@ -464,7 +379,7 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
       } else if (state == kGotFieldsObject) {
         // Add our field setting before any of the others.
         if (increase_speed_tracking_) {
-          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTrackingMinimal);
+          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTrackingMinimal.data());
           inserted_speed_tracking = true;
         }
         state = kInitial;
@@ -522,9 +437,9 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
       postponed_script_body_ = characters->contents();
       characters->mutable_contents()->clear();
     } else {
-      const char* speed_tracking =
+      const absl::string_view speed_tracking =
           increase_speed_tracking_ ? kGASpeedTracking : "";
-      GoogleString snippet_text = StringPrintf(
+      GoogleString snippet_text = absl::StrFormat(
           kGAExperimentSnippet,
           speed_tracking,
           driver()->options()->experiment_ga_slot(),

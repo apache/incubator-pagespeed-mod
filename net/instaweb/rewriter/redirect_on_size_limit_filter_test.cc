@@ -110,7 +110,7 @@ TEST_F(RedirectOnSizeLimitFilterTest, TestOneFlushWindow) {
 
   CheckOutput(0, 1, false, input, input);
 
-  CheckOutput(1, 149, false, input,  StringPrintf("<html>%s</html>", kScript));
+  CheckOutput(1, 149, false, input,  absl::StrFormat("<html>%s</html>", kScript));
 
   CheckOutput(150, 180, false, input, input);
 }
@@ -130,53 +130,53 @@ TEST_F(RedirectOnSizeLimitFilterTest, TestFlushBeforeLimit) {
 
   CheckOutput(0, 1, true, input, input);
 
-  CheckOutput(1, 6, true, input,  StringPrintf("<html>%s</html>", kScript));
+  CheckOutput(1, 6, true, input,  absl::StrFormat("<html>%s</html>", kScript));
 
   CheckOutput(6, 26, true, input,
-              StringPrintf("<html>%s<input type=\"text\"/></html>",  kScript));
+              absl::StrFormat("<html>%s<input type=\"text\"/></html>",  kScript));
 
   CheckOutput(26, 57, true, input,
-      StringPrintf("<html><input type=\"text\"/>%s"
+      absl::StrFormat("<html><input type=\"text\"/>%s"
                    "<script type=\"text/javascript\"></script></html>",
                    kScript));
 
   CheckOutput(57, 79, true, input,
-      StringPrintf("<html><input type=\"text\"/>"
+      absl::StrFormat("<html><input type=\"text\"/>"
                    "%s<script type=\"text/javascript\">alert('123');</script>"
                    "</html>", kScript));
 
   CheckOutput(79, 113, true, input,
-      StringPrintf("<html><input type=\"text\"/>"
+      absl::StrFormat("<html><input type=\"text\"/>"
                    "<script type=\"text/javascript\">alert('123');</script>"
                    "<!--[if IE]>...<![endif]-->%s<table></table></html>",
                    kScript));
 
   CheckOutput(113, 117, true, input,
-      StringPrintf("<html><input type=\"text\"/>"
+      absl::StrFormat("<html><input type=\"text\"/>"
       "<script type=\"text/javascript\">alert('123');</script>"
       "<!--[if IE]>...<![endif]-->"
       "<table>%s<tr></tr></table></html>", kScript));
 
   CheckOutput(117, 121, true, input,
-      StringPrintf("<html><input type=\"text\"/>"
+      absl::StrFormat("<html><input type=\"text\"/>"
                    "<script type=\"text/javascript\">alert('123');</script>"
                    "<!--[if IE]>...<![endif]-->"
                    "<table><tr>%s<td></td></tr></table></html>", kScript));
 
   CheckOutput(121, 130, true, input,
-      StringPrintf("<html><input type=\"text\"/>"
+      absl::StrFormat("<html><input type=\"text\"/>"
                    "<script type=\"text/javascript\">alert('123');</script>"
                    "<!--[if IE]>...<![endif]-->"
                    "<table><tr><td>blah</td>%s</tr></table></html>", kScript));
 
   CheckOutput(130, 135, true, input,
-      StringPrintf("<html><input type=\"text\"/>"
+      absl::StrFormat("<html><input type=\"text\"/>"
                    "<script type=\"text/javascript\">alert('123');</script>"
                    "<!--[if IE]>...<![endif]-->"
                    "<table><tr><td>blah</td></tr>%s</table></html>", kScript));
 
   CheckOutput(135, 150, true, input,
-      StringPrintf("<html><input type=\"text\"/>"
+      absl::StrFormat("<html><input type=\"text\"/>"
                    "<script type=\"text/javascript\">alert('123');</script>"
                    "<!--[if IE]>...<![endif]-->"
                    "<table><tr><td>blah</td></tr></table>%s</html>", kScript));

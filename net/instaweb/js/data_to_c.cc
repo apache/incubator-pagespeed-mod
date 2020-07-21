@@ -56,7 +56,7 @@ bool DataToC(int argc, char* argv[]) {
     GoogleString part = input.substr(i, 60);
     StrAppend(&joined, "\n    \"", CEscape(part), "\"");
   }
-  GoogleString output = StringPrintf(kOutputTemplate, FLAGS_data_file.c_str(),
+  GoogleString output = absl::StrFormat(kOutputTemplate, FLAGS_data_file.c_str(),
       FLAGS_varname.c_str(), joined.c_str());
 
   file_system.RemoveFile(FLAGS_c_file.c_str(), &handler);

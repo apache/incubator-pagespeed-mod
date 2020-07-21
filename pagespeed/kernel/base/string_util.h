@@ -30,6 +30,7 @@
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/internal/memutil.h" // StripAsciiWhitespace
 #include "absl/strings/match.h"
@@ -39,7 +40,7 @@
 
 #include "fmt/format.h"
 #include "fmt/printf.h"
-#include "base/strings/stringprintf.h"
+//#include "base/strings/stringprintf.h"
 
 #include <cstdlib> // NOLINT
 #include <string>  // NOLINT
@@ -55,7 +56,7 @@ public:
   StringPiece(const absl::string_view& s) : absl::string_view(s) {}
   StringPiece(const GoogleString& s) : absl::string_view(s.data(), s.size()) {}
 
-  using string_view::string_view;
+  using absl::string_view::string_view;
 
   void CopyToString(GoogleString* dest) const {
     *dest = std::string(*this);
@@ -83,17 +84,14 @@ public:
   }
 
   StringPiece substr(uint32_t from, uint32_t to) const {
-    return string_view::substr(from, to);
+    return absl::string_view::substr(from, to);
   }
   StringPiece substr(uint32_t from) const {
-    return string_view::substr(from);
+    return absl::string_view::substr(from);
   }
 };
 
-using base::StringAppendV;
-using base::StringAppendF;
-using base::SStringPrintf;
-using base::StringPrintf;
+void StringAppendV(std::string* dst, const char* format, va_list ap);
 
 // XXX(oschaaf): check(!!)
 typedef size_t stringpiece_ssize_type;

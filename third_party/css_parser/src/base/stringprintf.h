@@ -21,8 +21,8 @@
 #ifndef BASE_STRINGPRINTF_H_
 #define BASE_STRINGPRINTF_H_
 
-#include "base/strings/stringprintf.h"
+//#include "base/strings/stringprintf.h"
 
-using base::StringPrintf;
+//using base::StringPrintf;
 
 #endif  // BASE_STRINGPRINTF_H_

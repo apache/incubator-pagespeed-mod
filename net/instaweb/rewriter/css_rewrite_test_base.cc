@@ -226,7 +226,7 @@ GoogleString CssRewriteTestBase::MakeHtmlWithExternalCssLink(
     debug_message = DebugMessage(css_url);
   }
 
-  return StringPrintf("<head>\n"
+  return absl::StrFormat("<head>\n"
                       "  <title>Example style outline</title>\n"
                       "%s"
                       "  <!-- Style starts here -->\n"

@@ -64,7 +64,7 @@ class CssInlineFilterTest : public RewriteTestBase {
       filters_added_ = true;
     }
 
-    GoogleString html_template = StrCat(
+    const GoogleString html_template = StrCat(
         "<head>\n",
         head_extras,
         "  <link rel=\"stylesheet\" href=\"%s\"",
@@ -73,14 +73,14 @@ class CssInlineFilterTest : public RewriteTestBase {
         "<body>Hello, world!</body>\n");
 
     const GoogleString html_input =
-        StringPrintf(html_template.c_str(), css_url.c_str(), "");
+        absl::StrFormat(*absl::ParsedFormat<'s', 's'>::New(html_template), css_url.c_str(), "");
 
     const GoogleString outline_html_output =
-        StringPrintf(html_template.c_str(), css_out_url.c_str(), "");
+        absl::StrFormat(*absl::ParsedFormat<'s', 's'>::New(html_template), css_out_url.c_str(), "");
 
     const GoogleString outline_debug_html_output = debug_string.empty()
         ? outline_html_output
-        : StringPrintf(html_template.c_str(), css_out_url.c_str(),
+        : absl::StrFormat(*absl::ParsedFormat<'s', 's'>::New(html_template), css_out_url.c_str(),
                        StrCat("<!--", debug_string, "-->").c_str());
 
     // Put original CSS file into our fetcher.
@@ -92,7 +92,7 @@ class CssInlineFilterTest : public RewriteTestBase {
     ParseUrl(html_url, html_input);
 
     const GoogleString expected_output =
-        (!expect_inline ? outline_html_output :
+        (!expect_inline ? GoogleString(outline_html_output) :
          StrCat("<head>\n",
                 head_extras,
                 StrCat("  <style",
@@ -379,8 +379,8 @@ TEST_F(CssInlineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
   SetFetchResponse(StrCat(kTestDomain, "a.css"), default_css_header, ".a {}");
   AddFilter(RewriteOptions::kInlineCss);
   ValidateExpected("claims_xhtml_but_has_unclosed_links",
-                   StringPrintf(html_format, kXhtmlDtd, unclosed_css),
-                   StringPrintf(html_format, kXhtmlDtd, inlined_css));
+                   absl::StrFormat(html_format, kXhtmlDtd, unclosed_css),
+                   absl::StrFormat(html_format, kXhtmlDtd, inlined_css));
 }
 
 TEST_F(CssInlineFilterTest, DontInlineInNoscript) {

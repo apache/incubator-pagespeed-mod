@@ -198,7 +198,7 @@ TEST_F(PropertyCacheTest, TrackStability) {
   // least for now this tests the system is working as expected.
   GoogleString prev_value = "Value2";
   for (int i = 0; i < 19; ++i) {
-    GoogleString new_value = StringPrintf("Value%d", i + 3);
+    GoogleString new_value = absl::StrFormat("Value%d", i + 3);
     EXPECT_TRUE(ReadWriteTestStable(kCacheKey1, prev_value, new_value)) <<
         " still stable after " << i << " mutations";
     prev_value = new_value;

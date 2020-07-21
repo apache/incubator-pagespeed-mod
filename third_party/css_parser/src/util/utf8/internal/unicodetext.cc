@@ -32,8 +32,6 @@
 #include "util/utf8/public/unilib.h"    // for IsInterchangeValid, etc
 #include "util/utf8/public/unilib_utf8_utils.h"    // for OneCharLen
 
-using namespace base;
-
 static int CodepointDistance(const char* start, const char* end) {
   int n = 0;
   // Increment n on every non-trail-byte.
@@ -178,7 +176,7 @@ void UnicodeText::Repr::append(const char* bytes, int byte_length) {
 }
 
 string UnicodeText::Repr::DebugString() const {
-  return StringPrintf("{Repr %p data=%p size=%d capacity=%d %s}",
+  return absl::StrFormat("{Repr %p data=%p size=%d capacity=%d %s}",
                       this,
                       data_, size_, capacity_,
                       ours_ ? "Owned" : "Alias");
@@ -386,7 +384,7 @@ bool operator==(const UnicodeText& lhs, const UnicodeText& rhs) {
 }
 
 string UnicodeText::DebugString() const {
-  return StringPrintf("{UnicodeText %p chars=%d repr=%s}",
+  return absl::StrFormat("{UnicodeText %p chars=%d repr=%s}",
                       this,
                       size(),
                       repr_.DebugString().c_str());
@@ -489,7 +487,7 @@ UnicodeText::const_iterator UnicodeText::MakeIterator(const char* p) const {
 }
 
 string UnicodeText::const_iterator::DebugString() const {
-  return StringPrintf("{iter %p}", it_);
+  return absl::StrFormat("{iter %p}", it_);
 }
 
 
@@ -498,6 +496,6 @@ string UnicodeText::const_iterator::DebugString() const {
 string CodepointString(const UnicodeText& t) {
   string s;
   UnicodeText::const_iterator it = t.begin(), end = t.end();
-  while (it != end) StringAppendF(&s, "%X ", *it++);
+  while (it != end) absl::StrAppendFormat(&s, "%X ", *it++);
   return s;
 }

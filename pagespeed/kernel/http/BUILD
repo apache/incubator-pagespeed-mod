@@ -69,8 +69,7 @@ cc_library(
     deps = [
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/util:util_re2",
-        "//gurl:url",
-        "//base:base",
+        "@com_googlesource_googleurl//url",
         "@drp//:drp",
         "@re2//:re2",
         ":http_proto_cc",

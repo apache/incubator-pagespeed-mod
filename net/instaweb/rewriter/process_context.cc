@@ -58,7 +58,7 @@ ProcessContext::ProcessContext()
   // url/url_util.cc lazily initializes its "standard_schemes" table in a
   // thread-unsafe way and so it must be explicitly initialized prior to thread
   // creation, and explicitly terminated after thread quiescence.
-  url::Initialize();
+  //url::Initialize();
 
   // XXX(oschaaf)
   //if (at_exit_manager == NULL) {
@@ -74,7 +74,7 @@ ProcessContext::~ProcessContext() {
   // function InitShutdownFunctionsOnce.
   google::protobuf::ShutdownProtobufLibrary();
 
-  url::Shutdown();
+  //url::Shutdown();
   HtmlKeywords::ShutDown();
   // XXX(oschaaf)
   /*

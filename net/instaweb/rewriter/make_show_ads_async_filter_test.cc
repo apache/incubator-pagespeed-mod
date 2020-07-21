@@ -96,15 +96,15 @@ const char kShowAdsDataContentFormat1Output[] =
 // Help methods to get variants of input and the expected output for showads
 // snippet1.
 GoogleString GetShowAdsDataContent1() {
-  return StringPrintf(kShowAdsDataContentFormat1, "", "", "");
+  return absl::StrFormat(kShowAdsDataContentFormat1, "", "", "");
 }
 
 GoogleString GetShowAdsDataContent1WithComments() {
-  return StringPrintf(kShowAdsDataContentFormat1, "", "/* comment */", "");
+  return absl::StrFormat(kShowAdsDataContentFormat1, "", "/* comment */", "");
 }
 
 GoogleString GetShowAdsDataContent1WithCommentTags() {
-  return StringPrintf(kShowAdsDataContentFormat1,
+  return absl::StrFormat(kShowAdsDataContentFormat1,
                       "<!--", "", "//-->");
 }
 
@@ -293,7 +293,7 @@ TEST_F(MakeShowAdsAsyncFilterTest, ShowsAdsHtmlGoogleAdOutput) {
       test_info_->name(),
       GetPage(StrCat(
           GetShowAdsDataSnippetWithContent(
-              StringPrintf(kShowAdsDataContentFormat1,
+              absl::StrFormat(kShowAdsDataContentFormat1,
                            "google_ad_output='html';",
                            "", "")),
           kShowAdsApiCall)),
@@ -432,7 +432,7 @@ TEST_F(MakeShowAdsAsyncFilterTest, ShowsAdsJsGoogleAdOutput) {
       test_info_->name(),
       GetPage(StrCat(
           GetShowAdsDataSnippetWithContent(
-              StringPrintf(kShowAdsDataContentFormat1, "google_ad_output='js';",
+              absl::StrFormat(kShowAdsDataContentFormat1, "google_ad_output='js';",
                            "", "")),
           kShowAdsApiCall)));
 }

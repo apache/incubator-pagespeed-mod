@@ -67,7 +67,7 @@ class HtmlKeywordsTest : public testing::Test {
 
   void TestEscape(const GoogleString& symbolic_code, char value) {
     GoogleString symbolic_escaped = StrCat("&", symbolic_code, ";");
-    GoogleString numeric_escaped = StringPrintf(
+    GoogleString numeric_escaped = absl::StrFormat(
         "&#%02d;", static_cast<unsigned char>(value));
     GoogleString unescaped(&value, 1), buf;
     BiTest(symbolic_escaped, unescaped);

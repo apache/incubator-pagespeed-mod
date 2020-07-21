@@ -226,7 +226,7 @@ ImageDim ActualDims(const HtmlElement* element) {
 
 GoogleString ResolutionToString(double resolution) {
   // Max 4 digits of precission.
-  return StringPrintf("%.4g", resolution);
+  return absl::StrFormat("%.4g", resolution);
 }
 
 }  // namespace

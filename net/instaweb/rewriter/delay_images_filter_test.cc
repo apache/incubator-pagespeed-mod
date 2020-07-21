@@ -99,7 +99,7 @@ class DelayImagesFilterTest : public RewriteTestBase {
   }
 
   GoogleString GetNoscript() const {
-    return StringPrintf(
+    return absl::StrFormat(
         kNoScriptRedirectFormatter,
         "http://test.com/inline_preview_images.html?PageSpeed=noscript",
         "http://test.com/inline_preview_images.html?PageSpeed=noscript");
@@ -107,7 +107,7 @@ class DelayImagesFilterTest : public RewriteTestBase {
 
   GoogleString GenerateAddLowResScript(const GoogleString& url,
                                        const GoogleString& image_data) {
-    return StringPrintf(
+    return absl::StrFormat(
         kScriptTemplate,
         StrCat("\npagespeed.delayImagesInline.addLowResImages(\'", url,
                "\', \'", image_data, "\');\n"
@@ -124,7 +124,7 @@ class DelayImagesFilterTest : public RewriteTestBase {
   }
 
   GoogleString GetInlineScript() {
-    return StringPrintf(
+    return absl::StrFormat(
         kScriptTemplate,
         StrCat(GetDelayImagesInlineCode(),
                GetJsCode(StaticAssetEnum::DELAY_IMAGES_JS,
@@ -132,12 +132,12 @@ class DelayImagesFilterTest : public RewriteTestBase {
   }
 
   GoogleString GetHighResScript() {
-    return StringPrintf(kScriptTemplate,
+    return absl::StrFormat(kScriptTemplate,
                         "\npagespeed.delayImages.replaceWithHighRes();\n");
   }
 
   GoogleString GetLazyHighResScript() {
-    return StringPrintf(kScriptTemplate,
+    return absl::StrFormat(kScriptTemplate,
                         "\npagespeed.delayImages.registerLazyLoadHighRes();\n");
   }
 

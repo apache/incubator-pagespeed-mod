@@ -307,7 +307,7 @@ class ImageTest : public ImageTestBase {
     EXPECT_TRUE(ImageUrlEncoder::HasValidDimensions(image_dim));
     EXPECT_EQ(expected_width, image_dim.width());
     EXPECT_EQ(expected_height, image_dim.height());
-    EXPECT_EQ(StringPrintf("%dx%dxZZ", image_dim.width(), image_dim.height()),
+    EXPECT_EQ (absl::StrFormat("%dx%dxZZ", image_dim.width(), image_dim.height()),
               EncodeUrlAndDimensions("ZZ", image_dim));
   }
 

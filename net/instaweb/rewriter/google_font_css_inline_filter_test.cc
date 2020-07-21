@@ -178,12 +178,12 @@ TEST_F(GoogleFontCssInlineFilterAndImportTest, ViaInlineImport) {
   // convert a <style>@import'ing </style> this as well.
   ResetUserAgent("Chromezilla");
   ValidateExpected("import",
-                   StringPrintf("<style>@import \"%s\";</style>", kRoboto),
+                   absl::StrFormat("<style>@import \"%s\";</style>", kRoboto),
                    "<style>font_chromezilla</style>");
 
   ResetUserAgent("Safieri");
   ValidateExpected("import",
-                   StringPrintf("<style>@import \"%s\";</style>", kRoboto),
+                   absl::StrFormat("<style>@import \"%s\";</style>", kRoboto),
                    "<style>font_safieri</style>");
 }
 

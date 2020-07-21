@@ -831,7 +831,7 @@ class ImageRewriteTest : public RewriteTestBase {
 
     const char html_boilerplate[] = "<img src='%s'%s>";
     GoogleString html_input =
-        StringPrintf(html_boilerplate, initial_url.c_str(), initial_attributes);
+        absl::StrFormat(html_boilerplate, initial_url.c_str(), initial_attributes);
 
     ParseUrl(page_url, html_input);
 
@@ -865,7 +865,7 @@ class ImageRewriteTest : public RewriteTestBase {
     }
 
     GoogleString html_expected_output =
-        StringPrintf(html_boilerplate, rewritten_url.c_str(), final_attributes);
+        absl::StrFormat(html_boilerplate, rewritten_url.c_str(), final_attributes);
     EXPECT_EQ(AddHtmlBody(html_expected_output), output_buffer_);
   }
 
@@ -1516,12 +1516,12 @@ TEST_F(ImageRewriteTest, NoDimsInNonImg) {
   const char html_boilerplate[] =
       "<link rel='apple-touch-icon-precomposed' sizes='100x100' href='%s'>";
   GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str());
+      absl::StrFormat(html_boilerplate, initial_url.c_str());
 
   ParseUrl(page_url, html_input);
 
   GoogleString html_expected_output =
-      StringPrintf(html_boilerplate, initial_url.c_str());
+      absl::StrFormat(html_boilerplate, initial_url.c_str());
   EXPECT_EQ(AddHtmlBody(html_expected_output), output_buffer_);
 }
 
@@ -1943,7 +1943,7 @@ TEST_F(ImageRewriteTest, ImageRewriteDropSometimes) {
   AddFileToMockFetcher(initial_url, kBikePngFile, kContentTypePng, 100);
   const char html_boilerplate[] = "<img src='%s'%s>";
   GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), "");
+      absl::StrFormat(html_boilerplate, initial_url.c_str(), "");
 
   // Note that this could flake, but for it to flake we'd have to have 100
   // heads or 100 tails in a row, a probability of 1.6e-30 when
@@ -1985,7 +1985,7 @@ TEST_F(ImageRewriteTest, ImageRewriteRandomDropRepeatedImages) {
   const char html_boilerplate[] =
       "<img src='%s'> <img src='%s'> <img src='%s'>";
   GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), initial_url.c_str(),
+      absl::StrFormat(html_boilerplate, initial_url.c_str(), initial_url.c_str(),
                    initial_url.c_str());
   ParseUrl(page_url, html_input);
   StringVector image_urls;
@@ -2289,7 +2289,7 @@ TEST_F(ImageRewriteTest, DebugResizeTest) {
   AddFileToMockFetcher(initial_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
   const char html_boilerplate[] = "<img src='%s'%s>";
   GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), kResizedDims);
+      absl::StrFormat(html_boilerplate, initial_url.c_str(), kResizedDims);
   ParseUrl(page_url, html_input);
   EXPECT_THAT(
       output_buffer_,
@@ -2306,7 +2306,7 @@ TEST_F(ImageRewriteTest, DebugNoResizeTest) {
   GoogleString page_url = StrCat(kTestDomain, "test.html");
   AddFileToMockFetcher(initial_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
   const char html_boilerplate[] = "<img src='%s'>";
-  GoogleString html_input = StringPrintf(html_boilerplate, initial_url.c_str());
+  GoogleString html_input = absl::StrFormat(html_boilerplate, initial_url.c_str());
   ParseUrl(page_url, html_input);
   EXPECT_THAT(
       output_buffer_,
@@ -2326,7 +2326,7 @@ TEST_F(ImageRewriteTest, DebugWithMapRewriteDomain) {
   GoogleString page_url = StrCat(kTestDomain, "test.html");
   AddFileToMockFetcher(initial_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
   const char html_boilerplate[] = "<img src='%s'>";
-  GoogleString html_input = StringPrintf(html_boilerplate, initial_url.c_str());
+  GoogleString html_input = absl::StrFormat(html_boilerplate, initial_url.c_str());
   ParseUrl(page_url, html_input);
   EXPECT_THAT(
       output_buffer_,
@@ -2348,7 +2348,7 @@ TEST_F(ImageRewriteTest, DebugWithMapRewriteDomainOptOnly) {
   GoogleString page_url = StrCat(kTestDomain, "test.html");
   AddFileToMockFetcher(initial_url, kPuzzleJpgFile, kContentTypeJpeg, 100);
   const char html_boilerplate[] = "<img src='%s'>";
-  GoogleString html_input = StringPrintf(html_boilerplate, initial_url.c_str());
+  GoogleString html_input = absl::StrFormat(html_boilerplate, initial_url.c_str());
   ParseUrl(page_url, html_input);
   EXPECT_THAT(
       output_buffer_,
@@ -2506,7 +2506,7 @@ TEST_F(ImageRewriteTest, InlineTestWithResizeKeepDims) {
   const char kResizedDims[] = " width=48 height=64";
   const char html_boilerplate[] = "<td background='%s'%s></td>";
   GoogleString html_input =
-      StringPrintf(html_boilerplate, initial_url.c_str(), kResizedDims);
+      absl::StrFormat(html_boilerplate, initial_url.c_str(), kResizedDims);
   ParseUrl(page_url, html_input);
   // Image should have been resized
   EXPECT_THAT(
@@ -2701,7 +2701,7 @@ TEST_F(ImageRewriteTest, RespectsBaseUrl) {
       "</body>";
 
   GoogleString html_input =
-      StringPrintf(html_format, "bar/a.png", "/baz/b.jpeg", "c.gif");
+      absl::StrFormat(html_format, "bar/a.png", "/baz/b.jpeg", "c.gif");
 
   // Rewrite
   options()->EnableFilter(RewriteOptions::kConvertGifToPng);
@@ -2724,7 +2724,7 @@ TEST_F(ImageRewriteTest, RespectsBaseUrl) {
   EXPECT_NE("c.gif", new_gif_url);
 
   GoogleString expected_output =
-      StringPrintf(html_format, new_png_url.c_str(),
+      absl::StrFormat(html_format, new_png_url.c_str(),
                    new_jpeg_url.c_str(), new_gif_url.c_str());
 
   EXPECT_EQ(AddHtmlBody(expected_output), output_buffer_);
@@ -2961,7 +2961,7 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
   const char kCssTemplate[] = "div{background-image:url(%s)}";
   AddFileToMockFetcher(StrCat(kTestDomain, kPngFile), kBikePngFile,
                        kContentTypePng, 100);
-  GoogleString in_css = StringPrintf(kCssTemplate, kPngFile);
+  GoogleString in_css = absl::StrFormat(kCssTemplate, kPngFile);
   SetResponseWithDefaultHeaders(kCssFile,  kContentTypeCss, in_css, 100);
 
   GoogleString out_css_url = Encode("", "cf", "0", kCssFile, "css");
@@ -2987,7 +2987,7 @@ TEST_F(ImageRewriteTest, NestedConcurrentRewritesLimit) {
   ValidateExpected("img_in_css", CssLinkHref(kCssFile),
                    CssLinkHref(out_css_url));
   GoogleString expected_out_css =
-      StringPrintf(kCssTemplate, out_png_url.c_str());
+      absl::StrFormat(kCssTemplate, out_png_url.c_str());
   EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, out_css_url), &out_css));
   // This time, however, CSS should be altered (and the drop count still be 1).
   EXPECT_EQ(expected_out_css, out_css);
@@ -3108,7 +3108,7 @@ TEST_F(ImageRewriteTest, InlinableCssImagesInsertedIntoPropertyCache) {
   const char kCssFile[] = "a.css";
   // We include a duplicate image here to verify that duplicate suppression
   // is working.
-  GoogleString css_contents = StringPrintf(
+  GoogleString css_contents = absl::StrFormat(
       "div{background-image:url(%s)}"
       "h1{background-image:url(%s)}"
       "p{background-image:url(%s)}", kPngFile1, kPngFile1, kPngFile2);
@@ -4011,7 +4011,7 @@ TEST_F(ImageRewriteTest, DebugMessageInline) {
   GoogleString page_url = StrCat(kTestDomain, "test.html");
   AddFileToMockFetcher(initial_url, kChefGifFile, kContentTypeGif, 100);
   const char html_boilerplate[] = "<img src='%s' width='10' height='12'>";
-  GoogleString html_input = StringPrintf(html_boilerplate, initial_url.c_str());
+  GoogleString html_input = absl::StrFormat(html_boilerplate, initial_url.c_str());
 
   ParseUrl(page_url, html_input);
 
