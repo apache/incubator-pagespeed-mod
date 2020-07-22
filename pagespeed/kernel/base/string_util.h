@@ -40,7 +40,7 @@
 
 #include "fmt/format.h"
 #include "fmt/printf.h"
-//#include "base/strings/stringprintf.h"
+#include "base/logging.h"
 
 #include <cstdlib> // NOLINT
 #include <string>  // NOLINT

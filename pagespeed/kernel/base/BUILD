@@ -80,7 +80,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
-        "@google_sparsehash",
         "@mod_pagespeed//base:log_shim",
         "@glog",
         "@com_google_absl//absl/time:time",

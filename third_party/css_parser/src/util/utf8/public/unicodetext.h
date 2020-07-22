@@ -29,7 +29,6 @@
 #include <utility>                      // for pair
 
 #include "base/integral_types.h"        // for char32
-//#include "base/port.h"
 #include "util/utf8/public/config.h"
 
 // ***************************** UnicodeText **************************

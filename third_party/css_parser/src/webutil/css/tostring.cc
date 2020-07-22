@@ -30,6 +30,8 @@
 #include "webutil/css/string.h"
 #include "webutil/css/string_util.h"
 
+#include "absl/strings/str_format.h"
+
 class UnicodeText;
 
 namespace Css {
@@ -359,7 +361,7 @@ string Selector::ToString() const {
 string Selectors::ToString() const {
   if (is_dummy()) {
     string result = "/* Unparsed selectors: */ ";
-    bytes_in_original_buffer().AppendToString(&result);
+    result.append(bytes_in_original_buffer().data(), bytes_in_original_buffer().size());
     return result;
   } else {
     return JoinElementStrings(*this, ", ");
@@ -371,7 +373,7 @@ string Declaration::ToString() const {
   switch (prop()) {
     case Property::UNPARSEABLE:
       result = "/* Unparsed declaration: */ ";
-      bytes_in_original_buffer().AppendToString(&result);
+      result.append(bytes_in_original_buffer().data(), bytes_in_original_buffer().size());
       return result;
       break;
     case Property::FONT_FAMILY:
@@ -413,7 +415,7 @@ string Declarations::ToString() const {
 
 string UnparsedRegion::ToString() const {
   string result = "/* Unparsed region: */ ";
-  bytes_in_original_buffer().AppendToString(&result);
+  result.append(bytes_in_original_buffer().data(), bytes_in_original_buffer().size());
   return result;
 }
 

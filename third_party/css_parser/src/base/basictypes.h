@@ -20,18 +20,12 @@
 #ifndef PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 #define PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 
-//#include "base/basictypes.h"
-//#include "base/macros.h"
-
 #include <inttypes.h>
 
 typedef int64_t int64;
 typedef uint64_t uint64;
 typedef uint32_t uint32;
 typedef int32_t int32;
-
-// this gets us check/dcheck/(v)log etc
-#include "base/logging.h"
 
 #define arraysize(a)                                                           \
   ((sizeof(a) / sizeof(*(a))) /                                                \

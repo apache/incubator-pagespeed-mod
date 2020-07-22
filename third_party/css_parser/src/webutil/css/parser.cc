@@ -30,7 +30,6 @@
 #include <vector>
 
 #include "base/logging.h"
-//#include "base/macros.h"
 #include "strings/strutil.h"
 #include "third_party/utf/utf.h"
 #include "util/gtl/stl_util.h"
@@ -40,6 +39,8 @@
 #include "webutil/css/string_util.h"
 #include "webutil/css/util.h"
 #include "webutil/css/value.h"
+
+#include "absl/strings/str_format.h"
 
 namespace Css {
 
@@ -133,7 +134,7 @@ void Parser::ReportParsingError(uint64 error_flag,
   string context(context_begin, context_end - context_begin);
   string full_message = absl::StrFormat(
       "%s at byte %d \"...%s...\"",
-      message.as_string().c_str(), CurrentOffset(), context.c_str());
+      message, CurrentOffset(), context.c_str());
   VLOG(1) << full_message;
   if (errors_seen_.size() < kMaxErrorsRemembered) {
     ErrorInfo info = {ErrorNumber(error_flag), CurrentOffset(), full_message};
@@ -1778,7 +1779,7 @@ Declarations* Parser::ParseRawDeclarations() {
         // this declaration correctly. This is saved so that it can be
         // serialized back out in case it was actually meaningful even though
         // we could not understand it.
-        StringPiece bytes_in_original_buffer(decl_start, in_ - decl_start);
+        CssStringPiece bytes_in_original_buffer(decl_start, in_ - decl_start);
         declarations->push_back(new Declaration(bytes_in_original_buffer));
         // All errors that occurred sinse we started this declaration are
         // demoted to unparseable sections now that we've saved the dummy
@@ -2659,7 +2660,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
       // this @-rule correctly. This is saved so that it can be
       // serialized back out in case it was actually meaningful even though
       // we could not understand it.
-      StringPiece bytes_in_original_buffer(oldin, in_ - oldin);
+      CssStringPiece bytes_in_original_buffer(oldin, in_ - oldin);
 
       Ruleset* ruleset =
           new Ruleset(new UnparsedRegion(bytes_in_original_buffer));

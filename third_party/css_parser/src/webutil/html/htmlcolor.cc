@@ -31,6 +31,8 @@
 #include "strings/case.h"
 #include "strings/escaping.h"
 
+#include "absl/strings/str_format.h"
+
 typedef struct RgbValue {
   unsigned char r_;
   unsigned char g_;
@@ -1025,13 +1027,13 @@ bool HtmlColor::Equals(const HtmlColor& color) const {
 //
 string HtmlColorUtils::MaybeConvertToCssShorthand(CssStringPiece orig_color) {
   HtmlColor color(orig_color);
-  if (!color.IsDefined()) return orig_color.as_string();
+  if (!color.IsDefined()) return std::string(orig_color);
 
   string shorthand = MaybeConvertToCssShorthand(color);
   if (shorthand.size() < orig_color.size()) {
     return shorthand;
   } else {
-    return orig_color.as_string();
+    return std::string(orig_color);
   }
 }
 

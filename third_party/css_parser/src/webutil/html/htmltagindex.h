@@ -38,6 +38,7 @@
 #include "base/basictypes.h"
 #include "util/gtl/dense_hash_map.h"
 #include "webutil/html/htmltagenum.h"
+#include "strings/stringpiece.h"
 
 class HtmlTagIndex {
  public:
