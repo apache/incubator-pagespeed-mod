@@ -67,9 +67,8 @@ cc_library(
         "url_to_filename_encoder.h",
     ],    
     copts = [
-        "-std=c++14",
-    ],
-
+        '-std=c++17',        
+    ],    
     visibility = ["//visibility:public"],
     deps = [
         ":util_re2",

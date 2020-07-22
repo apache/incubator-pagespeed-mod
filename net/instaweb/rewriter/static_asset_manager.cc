@@ -344,7 +344,7 @@ void StaticAssetManager::InitializeAssetUrls() {
     // Generated urls are in the format "<filename>.<md5>.<extension>".
     asset->opt_url = StrCat(static_asset_base_,
                             library_url_prefix_,
-                            asset->file_name,
+                            asset->file_name == nullptr ? "" : asset->file_name,
                             ".", asset->js_opt_hash,
                             asset->content_type.file_extension());
 
@@ -352,7 +352,7 @@ void StaticAssetManager::InitializeAssetUrls() {
     // "<filename>_debug.<md5>.<extension>".
     asset->debug_url = StrCat(static_asset_base_,
                               library_url_prefix_,
-                              asset->file_name,
+                              asset->file_name == nullptr ? "" : asset->file_name,
                               "_debug.", asset->js_debug_hash,
                               asset->content_type.file_extension());
   }

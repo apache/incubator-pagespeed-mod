@@ -1,7 +1,7 @@
 language: c++
 compiler:
   - clang
-dist: bionic
+dist: focal
 git:
   # Dependencies will be fetched via bazel. So no submodules here.
   submodules: false

@@ -57,11 +57,12 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     copts = [
-        '-std=c++14',        
+        '-std=c++17',        
     ],    
     deps = [
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/http:http",
+        "@com_google_absl//absl/strings:strings",
     ],
 )
 

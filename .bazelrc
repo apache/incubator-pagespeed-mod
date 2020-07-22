@@ -30,7 +30,7 @@ build --enable_platform_specific_config
 
 # Enable position independent code, this option is not supported on Windows and default on on macOS.
 build:linux --copt=-fPIC
-build:linux --cxxopt=-std=c++14
+build:linux --cxxopt=-std=c++17
 
 # We already have absl in the build, define absl=1 to tell googletest to use absl for backtrace.
 build --define absl=1
@@ -320,8 +320,6 @@ try-import %workspace%/user.bazelrc
 ###### modifications for pagespeed
 
 
-build --cxxopt="-std=c++14"
-build:linux --cxxopt=-std=c++14
 build --cxxopt=-Wno-old-style-cast
 build --copt=-Wno-unused-const-variable
 build --copt=-Wno-unused-parameter

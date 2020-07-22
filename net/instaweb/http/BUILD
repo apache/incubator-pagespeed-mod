@@ -34,7 +34,7 @@ cc_library(
     ],
     hdrs = glob(["public/*.h"]),
     copts = [
-        '-std=c++14',        
+        '-std=c++17',        
     ],    
     visibility = ["//visibility:public"],
     deps = [

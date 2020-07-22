@@ -64,7 +64,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     copts = [
-        '-std=c++14',        
+        '-std=c++17',        
     ],    
     deps = [
         "//pagespeed/kernel/base:pagespeed_base",

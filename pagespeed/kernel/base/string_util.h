@@ -53,10 +53,20 @@ using absl::StrAppend;
 
 class StringPiece : public absl::string_view {
 public:
+  // We accept nullptr for historical reasons.
+  StringPiece(const char* c) : absl::string_view(absl::NullSafeStringView(c)) {}
   StringPiece(const absl::string_view& s) : absl::string_view(s) {}
   StringPiece(const GoogleString& s) : absl::string_view(s.data(), s.size()) {}
 
   using absl::string_view::string_view;
+
+  constexpr bool operator==(const char* rhs) noexcept {
+    return absl::NullSafeStringView(rhs) == *this;
+  }
+  
+  constexpr bool operator!=(const char* rhs) noexcept {
+    return absl::NullSafeStringView(rhs) != *this;
+  }
 
   void CopyToString(GoogleString* dest) const {
     *dest = std::string(*this);
@@ -67,7 +77,7 @@ public:
   }
 
   GoogleString as_string() const {
-    return std::string(*this);
+    return empty() ? std::string() : std::string(*this);
   }
 
   bool starts_with(StringPiece prefix) const {
@@ -79,15 +89,15 @@ public:
   }
 
   void set(StringPiece newvalue, uint32_t size) {
-    absl::string_view tmp(newvalue.data(), size);
+    StringPiece tmp(newvalue.data(), size);
     *this = tmp;
   }
 
   StringPiece substr(uint32_t from, uint32_t to) const {
-    return absl::string_view::substr(from, to);
+    return StringPiece(absl::string_view::substr(from, to));
   }
   StringPiece substr(uint32_t from) const {
-    return absl::string_view::substr(from);
+    return StringPiece(absl::string_view::substr(from));
   }
 };
 
@@ -134,7 +144,7 @@ inline GoogleString PointerToString(void *pointer) {
 
 // NOTE: For a string of the form "45x", this sets *out = 45 but returns false.
 // It sets *out = 0 given "Junk45" or "".
-inline bool StringToInt(absl::string_view in, int *out) {
+inline bool StringToInt(StringPiece in, int *out) {
   return absl::SimpleAtoi<int>(in, out);
 }
 
@@ -146,7 +156,7 @@ inline bool StringToInt64(const char* in, int64 *out) {
   return absl::SimpleAtoi<int64>(StringPiece(in), out);
 }
 
-inline bool StringToInt64(absl::string_view in, int64 *out) {
+inline bool StringToInt64(StringPiece in, int64 *out) {
   return absl::SimpleAtoi<int64>(in, out);
 }
 
