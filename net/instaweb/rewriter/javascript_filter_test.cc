@@ -55,38 +55,38 @@
 
 namespace {
 
-constexpr absl::string_view kHtmlFormat =
+const char kHtmlFormat[] =
     "<script type='text/javascript' src='%s'></script>\n";
-constexpr absl::string_view kInlineScriptFormat =
+const char kInlineScriptFormat[] =
     "<script type='text/javascript'>"
     "%s"
     "</script>";
-constexpr absl::string_view kEndInlineScript = "<script type='text/javascript'>";
+const char kEndInlineScript[] = "<script type='text/javascript'>";
 
-constexpr absl::string_view kCdataWrapper = "//<![CDATA[\n%s\n//]]>";
-constexpr absl::string_view  kCdataAltWrapper = "//<![CDATA[\r%s\r//]]>";
+const char kCdataWrapper[] = "//<![CDATA[\n%s\n//]]>";
+const char kCdataAltWrapper[] = "//<![CDATA[\r%s\r//]]>";
 
-constexpr absl::string_view kInlineJs =
+const char kInlineJs[] =
     "<script type='text/javascript'>%s</script>\n";
 
-constexpr absl::string_view kJsData =
+const char kJsData[] =
     "alert     (    'hello, world!'    ) "
     " /* removed */ <!-- removed --> "
     " // single-line-comment";
-constexpr absl::string_view kJsMinData = "alert('hello, world!')";
-constexpr absl::string_view kFilterId = "jm";
-constexpr absl::string_view kOrigJsName = "hello.js";
-constexpr absl::string_view kOrigJsNameRegexp = "*hello.js*";
-constexpr absl::string_view kUnauthorizedJs = "http://other.domain.com/hello.js";
-constexpr absl::string_view kRewrittenJsName = "hello.js";
-constexpr absl::string_view kLibraryUrl = "https://www.example.com/hello/1.0/hello.js";
-constexpr absl::string_view kIntrospectiveJS =
+const char kJsMinData[] = "alert('hello, world!')";
+const char kFilterId[] = "jm";
+const char kOrigJsName[] = "hello.js";
+const char kOrigJsNameRegexp[] = "*hello.js*";
+const char kUnauthorizedJs[] = "http://other.domain.com/hello.js";
+const char kRewrittenJsName[] = "hello.js";
+const char kLibraryUrl[] = "https://www.example.com/hello/1.0/hello.js";
+const char kIntrospectiveJS[] =
     "<script type='text/javascript' src='introspective.js'></script>";
 
-constexpr absl::string_view kJsonData = "  {  'foo' :  [ 'bar' , 'baz' ]  }  ";
-constexpr absl::string_view kJsonMinData = "{'foo':['bar','baz']}";
-constexpr absl::string_view kOrigJsonName = "hello.json";
-constexpr absl::string_view kRewrittenJsonName = "hello.json";
+const char kJsonData[] = "  {  'foo' :  [ 'bar' , 'baz' ]  }  ";
+const char kJsonMinData[] = "{'foo':['bar','baz']}";
+const char kOrigJsonName[] = "hello.json";
+const char kRewrittenJsonName[] = "hello.json";
 
 GoogleString ScriptSrc(const StringPiece& url) {
   return StrCat("<script src=\"", url, "\"></script>");
@@ -145,22 +145,22 @@ class JavascriptFilterTest : public RewriteTestBase,
     GoogleString hash = hasher.Hash(kJsMinData);
     EXPECT_TRUE(
         options()->RegisterLibrary(
-            kJsMinData.size(), hash, kLibraryUrl));
+            STATIC_STRLEN(kJsMinData), hash, kLibraryUrl));
     EXPECT_EQ(JavascriptLibraryIdentification::kNumHashChars, hash.size());
   }
 
   // Generate HTML loading a single script with the specified URL.
-  GoogleString GenerateHtml(absl::string_view a) {
+  GoogleString GenerateHtml(const char* a) {
     return absl::StrFormat(kHtmlFormat, a);
   }
 
   // Generate HTML loading a single script twice from the specified URL.
-  GoogleString GenerateTwoHtml(absl::string_view a) {
+  GoogleString GenerateTwoHtml(const char* a) {
     GoogleString once = GenerateHtml(a);
     return StrCat(once, once);
   }
 
-  void TestCorruptUrl(absl::string_view new_suffix) {
+  void TestCorruptUrl(const char* new_suffix) {
     // Do a normal rewrite test
     InitFiltersAndTest(100);
     ValidateExpected("no_ext_corruption",
@@ -208,12 +208,12 @@ TEST_P(JavascriptFilterTest, DoRewrite) {
 
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(0, minification_failures_->Get());
-  EXPECT_EQ(kJsData.size() -kJsMinData.size(),
+  EXPECT_EQ(STATIC_STRLEN(kJsData) - STATIC_STRLEN(kJsMinData),
             total_bytes_saved_->Get());
-  EXPECT_EQ(kJsData.size(), total_original_bytes_->Get());
+  EXPECT_EQ(STATIC_STRLEN(kJsData), total_original_bytes_->Get());
   EXPECT_EQ(1, num_uses_->Get());
   EXPECT_STREQ(kFilterId, AppliedRewriterStringFromLog());
-  VerifyRewriterInfoEntry(log_record, GoogleString(kFilterId), 0, 0, 1, 1,
+  VerifyRewriterInfoEntry(log_record, kFilterId, 0, 0, 1, 1,
                         "http://test.com/hello.js");
 }
 
@@ -606,9 +606,9 @@ TEST_P(JavascriptFilterTest, ServeFiles) {
 
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(0, minification_failures_->Get());
-  EXPECT_EQ(kJsData.size() - kJsMinData.size(),
+  EXPECT_EQ(STATIC_STRLEN(kJsData) - STATIC_STRLEN(kJsMinData),
             total_bytes_saved_->Get());
-  EXPECT_EQ(kJsData.size(), total_original_bytes_->Get());
+  EXPECT_EQ(STATIC_STRLEN(kJsData), total_original_bytes_->Get());
   // Note: We do not count any uses, because we did not write the URL into
   // an HTML file, just served it on request.
   EXPECT_EQ(0, num_uses_->Get());
@@ -658,9 +658,9 @@ TEST_P(JavascriptFilterTest, ServeJsonFile) {
 
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(0, minification_failures_->Get());
-  EXPECT_EQ(kJsonData.size() - kJsonMinData.size(),
+  EXPECT_EQ(STATIC_STRLEN(kJsonData) - STATIC_STRLEN(kJsonMinData),
             total_bytes_saved_->Get());
-  EXPECT_EQ(kJsonData.size(), total_original_bytes_->Get());
+  EXPECT_EQ(STATIC_STRLEN(kJsonData), total_original_bytes_->Get());
   // Note: We do not count any uses, because we did not write the URL into
   // an HTML file, just served it on request.
   EXPECT_EQ(0, num_uses_->Get());
@@ -743,9 +743,9 @@ TEST_P(JavascriptFilterTest, InlineJavascript) {
 
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(0, minification_failures_->Get());
-  EXPECT_EQ(kJsData.size() - kJsMinData.size(),
+  EXPECT_EQ(STATIC_STRLEN(kJsData) - STATIC_STRLEN(kJsMinData),
             total_bytes_saved_->Get());
-  EXPECT_EQ(kJsData.size(), total_original_bytes_->Get());
+  EXPECT_EQ(STATIC_STRLEN(kJsData), total_original_bytes_->Get());
   EXPECT_EQ(1, num_uses_->Get());
 }
 
@@ -834,7 +834,7 @@ TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
   // Test minification of a simple inline script in xhtml
   // where it must be wrapped in CDATA.
   InitFiltersAndTest(100);
-  const GoogleString xhtml_script_format =
+   const GoogleString xhtml_script_format =
       StrCat(kXhtmlDtd, absl::StrFormat(kInlineJs, kCdataWrapper));
   ValidateExpected("xhtml inline javascript",
                    absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_format), kJsData),
@@ -1365,9 +1365,9 @@ TEST_P(JavascriptFilterTest, InlineAndNotExternal) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_not_external",
-                   StrCat (absl::StrFormat(kInlineJs, kJsData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
                           absl::StrFormat(kHtmlFormat, kOrigJsName)),
-                   StrCat (absl::StrFormat(kInlineJs, kJsMinData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
                           absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
@@ -1380,9 +1380,9 @@ TEST_P(JavascriptFilterTest, InlineAndNotExternalPreserve) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_not_external",
-                   StrCat (absl::StrFormat(kInlineJs, kJsData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
                           absl::StrFormat(kHtmlFormat, kOrigJsName)),
-                   StrCat (absl::StrFormat(kInlineJs, kJsMinData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
                           absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
@@ -1393,9 +1393,9 @@ TEST_P(JavascriptFilterTest, InlineAndCanonicalNotExternal) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_and_canonical_and_not_external",
-                   StrCat (absl::StrFormat(kInlineJs, kJsData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
                           absl::StrFormat(kHtmlFormat, kOrigJsName)),
-                   StrCat (absl::StrFormat(kInlineJs, kJsMinData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
                           absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
@@ -1405,9 +1405,9 @@ TEST_P(JavascriptFilterTest, ExternalAndNotInline) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("external_not_inline",
-                   StrCat (absl::StrFormat(kInlineJs, kJsData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
                           absl::StrFormat(kHtmlFormat, kOrigJsName)),
-                   StrCat (absl::StrFormat(kInlineJs, kJsData),
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
                           absl::StrFormat(kHtmlFormat,
                                        expected_rewritten_path_.c_str())));
 }

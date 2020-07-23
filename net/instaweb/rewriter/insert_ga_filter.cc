@@ -220,7 +220,7 @@ void InsertGAFilter::EndDocument() {
 
   GoogleString js_text;
   GoogleString experiment_snippet;
-  absl::string_view speed_tracking = "";
+  const char* speed_tracking = "";
   if (driver()->options()->use_analytics_js()) {
     if (increase_speed_tracking_) {
       speed_tracking = kAnalyticsJsIncreaseSiteSpeedTracking;
@@ -364,7 +364,7 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
         // Saw end of function call without any fields object.  Insert
         // standard speed tracking here.
         if (increase_speed_tracking_) {
-          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTracking.data());
+          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTracking);
           inserted_speed_tracking = true;
         }
         state = kInitial;
@@ -379,7 +379,7 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
       } else if (state == kGotFieldsObject) {
         // Add our field setting before any of the others.
         if (increase_speed_tracking_) {
-          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTrackingMinimal.data());
+          rewritten.append(kAnalyticsJsIncreaseSiteSpeedTrackingMinimal);
           inserted_speed_tracking = true;
         }
         state = kInitial;
@@ -437,7 +437,7 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
       postponed_script_body_ = characters->contents();
       characters->mutable_contents()->clear();
     } else {
-      const absl::string_view speed_tracking =
+      const char* speed_tracking =
           increase_speed_tracking_ ? kGASpeedTracking : "";
       GoogleString snippet_text = absl::StrFormat(
           kGAExperimentSnippet,

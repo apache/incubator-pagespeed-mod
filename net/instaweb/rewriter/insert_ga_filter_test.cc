@@ -35,21 +35,21 @@ namespace net_instaweb {
 
 namespace {
 
-constexpr absl::string_view kGaId = "UA-21111111-1";
+constexpr char kGaId[] = "UA-21111111-1";
 
-constexpr absl::string_view kHtmlInput =
+constexpr char kHtmlInput[] =
     "<head>\n"
     "<title>Something</title>\n"
     "</head>"
     "<body> Hello World!</body>";
 
-constexpr absl::string_view kHtmlNoCloseBody =
+constexpr char kHtmlNoCloseBody[] =
     "<head>\n"
     "<title>Something</title>\n"
     "</head>"
     "<body> Hello World!%s";
 
-constexpr absl::string_view kHtmlOutputFormat =
+constexpr char kHtmlOutputFormat[] =
     "<head>\n"
     "<title>Something</title>\n"
     "</head><body> Hello World!"
@@ -57,20 +57,20 @@ constexpr absl::string_view kHtmlOutputFormat =
     "<script>%s%s</script>"
     "</body>";
 
-constexpr absl::string_view kUrchinScript =
+constexpr char kUrchinScript[] =
     "%s"
     "<script src=\"http://www.google-analytics.com/urchin.js\""
     " type=\"text/javascript\"></script>"
     " <script>_uacct = \"%s\";"
     " urchinTracker();</script>";
 
-constexpr absl::string_view kUnusableSnippet =
+constexpr char kUnusableSnippet[] =
     "%s"
     "<script>"
     "var ga_id = '%s';"
     "</script>";
 
-constexpr absl::string_view kSynchronousGA =
+constexpr char kSynchronousGA[] =
     "%s"
     "<script>"
     " var gaJsHost = ((\"https:\" == document.location.protocol) ?"
@@ -84,7 +84,7 @@ constexpr absl::string_view kSynchronousGA =
     "       pageTracker._trackPageview(); } catch(err) {}"
     "</script>";
 
-constexpr absl::string_view kAsyncGA =
+constexpr char kAsyncGA[] =
     "%s"
     "<script type='text/javascript'>document.write('another script');</script>"
     "<script>%s"
@@ -101,7 +101,7 @@ constexpr absl::string_view kAsyncGA =
     "})();"
     "</script>";
 
-constexpr absl::string_view kSynchronousDC =
+constexpr char kSynchronousDC[] =
     "%s"
     "<script>"
     " var gaJsHost = ((\"https:\" == document.location.protocol) ?"
@@ -115,7 +115,7 @@ constexpr absl::string_view kSynchronousDC =
     "       pageTracker._trackPageview(); } catch(err) {}"
     "</script>";
 
-constexpr absl::string_view kAsyncDC =
+constexpr char kAsyncDC[] =
     "%s"
     "<script type='text/javascript'>document.write('another script');</script>"
     "<script>%s"
@@ -132,11 +132,11 @@ constexpr absl::string_view kAsyncDC =
     "})();"
     "</script>";
 
-constexpr absl::string_view kAsyncGAPart1 =
+constexpr char kAsyncGAPart1[] =
     "<script type='text/javascript'>document.write('another script');</script>"
     "<script>";
 
-constexpr absl::string_view kAsyncGAPart2 =
+constexpr char kAsyncGAPart2[] =
     "var _gaq = _gaq || [];"
     "_gaq.push(['_setAccount', '%s']);"
     "_gaq.push(['_trackPageview']);"
@@ -149,9 +149,9 @@ constexpr absl::string_view kAsyncGAPart2 =
     "  document.documentElement.firstChild.appendChild(ga);"
     "})();";
 
-constexpr absl::string_view kAsyncGAPart3 = "</script>";
+constexpr char kAsyncGAPart3[] = "</script>";
 
-constexpr absl::string_view kAnalyticsJS =
+constexpr char kAnalyticsJS[] =
    "%s"
     "<script>"
     "(function(i,s,o,g,r,a,m){"
@@ -167,7 +167,7 @@ constexpr absl::string_view kAnalyticsJS =
     "%s"
     "</script>";
 
-constexpr absl::string_view kAnalyticsJSNoCreate =
+constexpr char kAnalyticsJSNoCreate[] =
    "%s"
     "<script>"
     "(function(i,s,o,g,r,a,m){"
@@ -183,7 +183,7 @@ constexpr absl::string_view kAnalyticsJSNoCreate =
     "ga('send', 'pageview');"
     "</script>";
 
-constexpr absl::string_view kAnalyticsJSInvalid =
+constexpr char kAnalyticsJSInvalid[] =
    "%s"
     "<script>"
     "(functioni,s,o,g,r,a,m){"
@@ -199,14 +199,14 @@ constexpr absl::string_view kAnalyticsJSInvalid =
     "%s"
     "</script>";
 
-constexpr absl::string_view const kSendPageviews[] = {
+constexpr char* const kSendPageviews[] = {
   "ga('send', 'pageview');",
   "ga(\"send\", \"pageview\");",
   "ga   (   'send'    ,        'pageview'    )    ;",
   "ga(\n'send',\n'pageview'\n);",
   "ga('MyTracker.send','pageview', 'foo', 'bar');" };
 
-constexpr absl::string_view kNotSendPageviews[] = {
+constexpr char* const kNotSendPageviews[] = {
   "ga('sendpageview');",
   "ga('send''pageview');",
   "ga('send' 'pageview');",
@@ -214,7 +214,7 @@ constexpr absl::string_view kNotSendPageviews[] = {
   "ga('send', 'pageview'[1]);",
   "ga('send', 'event', 'link', 'click');" };
 
-constexpr absl::string_view kNoFieldObjectGaCreates[] = {
+constexpr char* const kNoFieldObjectGaCreates[] = {
   "ga('create', '%s', 'auto'%s);",
   "ga(\"create\", \"%s\", \"auto\"%s);",
   "ga('create','%s','auto'%s);",
@@ -223,7 +223,7 @@ constexpr absl::string_view kNoFieldObjectGaCreates[] = {
   "ga('create', '%s'%s);",
   "ga('create','%s','example.com', 'myTracker'%s);" };
 
-constexpr absl::string_view kYesFieldObjectGaCreates[] = {
+constexpr char* const kYesFieldObjectGaCreates[] = {
   "ga('create', '%s', {%stransport: 'beacon'});",
   "ga('create', '%s', {%stransport: \"beacon\"});",
   "ga('create', '%s', {%stransport: 'beacon', cookieDomain: 'auto'});",
@@ -232,7 +232,7 @@ constexpr absl::string_view kYesFieldObjectGaCreates[] = {
   "ga('create', {%2$strackingId: '%1$s'});",
   "ga('create', '%s', 'auto', 'foo', {%stransport: 'beacon'});"};
 
-constexpr absl::string_view kGaNoCreates[] = {
+constexpr char* const kGaNoCreates[] = {
   "ga('create \"%s\" auto');",
   "ga('create, \"%s\", auto');",
   "ga[0]('create', '%s', 'auto');",
@@ -258,7 +258,7 @@ constexpr absl::string_view kGaNoCreates[] = {
 class InsertGAFilterTest : public RewriteTestBase {
  protected:
   virtual void SetUp() {
-    options()->set_ga_id(GoogleString(kGaId));
+    options()->set_ga_id(kGaId);
     options()->EnableFilter(RewriteOptions::kInsertGA);
     RewriteTestBase::SetUp();
   }
@@ -293,7 +293,7 @@ class InsertGAFilterTest : public RewriteTestBase {
     RewriteOptions* options = rewrite_driver()->options()->Clone();
     options->set_use_analytics_js(use_analytics_js);
     options->set_running_experiment(true);
-    ASSERT_TRUE(options->AddExperimentSpec (absl::StrFormat(
+    ASSERT_TRUE(options->AddExperimentSpec(absl::StrFormat(
         "id=2;percent=10;slot=4;options="
         "ContentExperimentID=123,"
         "ContentExperimentVariantID=%s", variant_id.c_str()), &handler));
@@ -315,7 +315,7 @@ GoogleString GenerateExpectedHtml(GoogleString domain_name,
                                   int experiment_var,
                                   GoogleString experiment_state,
                                   bool include_speed_tracking) {
-  GoogleString speed_tracking = include_speed_tracking ? GoogleString(kGASpeedTracking) : "";
+  GoogleString speed_tracking = include_speed_tracking ? kGASpeedTracking : "";
 
   GoogleString snippet_addition;
   if (experiment_var != -1 && !experiment_state.empty()) {
@@ -412,7 +412,7 @@ TEST_F(InsertGAFilterTest, ExperimentGaJsCx) {
              kContentExperimentsJsClientUrl,
              "\"></script>").c_str(),
       "",
-      StrCat (absl::StrFormat(kContentExperimentsSetChosenVariationSnippet,
+      StrCat(absl::StrFormat(kContentExperimentsSetChosenVariationSnippet,
                           456, "123"),
              absl::StrFormat(kGAJsSnippet, kGaId, "test.com",
                           kGASpeedTracking)).c_str());
@@ -430,7 +430,7 @@ TEST_F(InsertGAFilterTest, ExperimentGaJsCxString) {
              kContentExperimentsJsClientUrl,
              "\"></script>").c_str(),
       "",
-      StrCat (absl::StrFormat(kContentExperimentsNonNumericVariantComment,
+      StrCat(absl::StrFormat(kContentExperimentsNonNumericVariantComment,
                           kVariantText.c_str()),
              absl::StrFormat(kGAJsSnippet, kGaId, "test.com",
                           kGASpeedTracking)).c_str());
@@ -509,7 +509,7 @@ TEST_F(InsertGAFilterTest, ManyHeadsAndBodies) {
   // Make sure we only add the GA snippet in one place.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
-  constexpr absl::string_view kHeadsFmt = "<head></head><head></head><head></head></head>"
+  constexpr char* kHeadsFmt = "<head></head><head></head><head></head></head>"
       "<body></body><body>%s</body>";
   GoogleString input = absl::StrFormat(kHeadsFmt, "");
   GoogleString experiment_snippet =
@@ -776,10 +776,10 @@ TEST_F(InsertGAFilterTest, AnalyticsJSContentExperimentSpeedTracking) {
 
   // These ones do already have a field object.
   for (int i = 0; i < arraysize(kYesFieldObjectGaCreates); ++i) {
-    input = absl::StrFormat(kAnalyticsJSNoCreate, "",
+     input = absl::StrFormat(kAnalyticsJSNoCreate, "",
                          absl::StrFormat(*absl::ParsedFormat<'s','s'>::New(kYesFieldObjectGaCreates[i]),
                                       kGaId, "").c_str(), "");
-    output = absl::StrFormat(
+   output = absl::StrFormat(
         kAnalyticsJSNoCreate, "<head/>",
         absl::StrFormat(*absl::ParsedFormat<'s','s'>::New(kYesFieldObjectGaCreates[i]), kGaId,
                      kAnalyticsJsIncreaseSiteSpeedTrackingMinimal).c_str(),
@@ -886,7 +886,7 @@ TEST_F(InsertGAFilterTest, AsynchronousGAContentExperimentFlush) {
   rewrite_driver()->ParseText("<html>");
   rewrite_driver()->ParseText(kAsyncGAPart1);
   rewrite_driver()->Flush();
-  rewrite_driver()->ParseText (absl::StrFormat(kAsyncGAPart2, kGaId));
+  rewrite_driver()->ParseText(absl::StrFormat(kAsyncGAPart2, kGaId));
   rewrite_driver()->Flush();
   rewrite_driver()->ParseText(kAsyncGAPart3);
   rewrite_driver()->FinishParse();

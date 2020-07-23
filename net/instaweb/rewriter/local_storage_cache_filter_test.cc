@@ -147,7 +147,7 @@ class LocalStorageCacheTest : public RewriteTestBase,
                         const GoogleString& head_html_out,
                         const GoogleString& body_html_in,
                         const GoogleString& body_html_out) {
-    constexpr absl::string_view kInWrapperFormat =
+    constexpr char kInWrapperFormat[] =
         "<head>\n"
         "  <title>Local Storage Cache Test</title>\n"
         "%s"

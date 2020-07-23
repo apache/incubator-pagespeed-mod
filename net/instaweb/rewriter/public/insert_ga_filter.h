@@ -44,14 +44,14 @@ class Variable;
 //   %s: Optional snippet to increase site speed tracking.
 //   %u: Which ga.js custom variable to support to.
 //   %s: Experiment spec string, shown in the GA UI.
-extern inline constexpr absl::string_view kGAExperimentSnippet =
+extern inline constexpr char kGAExperimentSnippet[] =
     "var _gaq = _gaq || [];"
     "%s"
     "_gaq.push(['_setCustomVar', %u, 'ExperimentState', '%s'"
     "]);";
 
 // Google Analytics async snippet along with the _trackPageView call.
-extern inline constexpr absl::string_view kGAJsSnippet =
+extern inline constexpr char kGAJsSnippet[] =
     "if (window.parent == window) {"
     "var _gaq = _gaq || [];"
     "_gaq.push(['_setAccount', '%s']);"  // %s is the GA account number.
@@ -70,7 +70,7 @@ extern inline constexpr absl::string_view kGAJsSnippet =
 
 // Google Universal analytics snippet.  First argument is the GA account number,
 // second is kContentExperimentsSetExpAndVariantSnippet or nothing.
-extern inline constexpr absl::string_view kAnalyticsJsSnippet =
+extern inline constexpr char kAnalyticsJsSnippet[] =
     "if (window.parent == window) {"
     "(function(i,s,o,g,r,a,m){"
     "i['GoogleAnalyticsObject']=r;"
@@ -89,39 +89,39 @@ extern inline constexpr absl::string_view kAnalyticsJsSnippet =
 // Use the first one if we're inserting the snippet, or if the site we're
 // modifying isn't already using a fields object with ga('create'), the second
 // one if there is an existing snippet with a fields object.
-extern inline constexpr absl::string_view kAnalyticsJsIncreaseSiteSpeedTracking =
+extern inline constexpr char kAnalyticsJsIncreaseSiteSpeedTracking[] =
     ", {'siteSpeedSampleRate': 100}";
-extern inline constexpr absl::string_view kAnalyticsJsIncreaseSiteSpeedTrackingMinimal =
+extern inline constexpr char kAnalyticsJsIncreaseSiteSpeedTrackingMinimal[] =
     "'siteSpeedSampleRate': 100,";
 
 // When using content experiments with ga.js you need to do a sychronous load
 // of /cx/api.js first.
-extern inline constexpr absl::string_view kContentExperimentsJsClientUrl =
+extern inline constexpr char kContentExperimentsJsClientUrl[] =
     "//www.google-analytics.com/cx/api.js";
 
 // When using content experiments with ga.js, after /cx/api.js has loaded and
 // before ga.js loads you need to call this.  The first argument is the
 // variant id, the second is the experiment id.
-extern inline constexpr absl::string_view kContentExperimentsSetChosenVariationSnippet =
+extern inline constexpr char kContentExperimentsSetChosenVariationSnippet[] =
     "cxApi.setChosenVariation(%d, '%s');";
 
 // When using content experiments with ga.js, the variant ID must be numeric.
 // If the user requests a non-numeric variant with ga.js, we inject this
 // comment. The string is bracketed with newlines because otherwise it's
 // invisible in a wall of JavaScript.
-extern inline constexpr absl::string_view kContentExperimentsNonNumericVariantComment =
+extern inline constexpr char kContentExperimentsNonNumericVariantComment[] =
     "\n/* mod_pagespeed cannot inject experiment variant '%s' "
     "because it's not a number */\n";
 
 // When using content experiments with analytics.js, after ga('create', ..._)
 // and before ga('[...].send', 'pageview'), we need to insert:
-extern inline constexpr absl::string_view kContentExperimentsSetExpAndVariantSnippet =
+extern inline constexpr char kContentExperimentsSetExpAndVariantSnippet[] =
     "ga('set', 'expId', '%s');"
     "ga('set', 'expVar', '%s');";
 
 // Set the sample rate to 100%.
 // TODO(nforman): Allow this to be configurable through RewriteOptions.
-extern inline constexpr absl::string_view kGASpeedTracking =
+extern inline constexpr char kGASpeedTracking[] =
     "_gaq.push(['_setSiteSpeedSampleRate', 100]);";
 
 

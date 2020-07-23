@@ -36,12 +36,12 @@ namespace net_instaweb {
 namespace {
 
 // Filenames of resource files.
-constexpr absl::string_view kBikePngFile = "BikeCrashIcn.png";
-constexpr absl::string_view kCuppaPngFile = "Cuppa.png";
-constexpr absl::string_view kPuzzleJpgFile = "Puzzle.jpg";
-constexpr absl::string_view kChefGifFile = "IronChef2.gif";
+constexpr char kBikePngFile[] = "BikeCrashIcn.png";
+constexpr char kCuppaPngFile[] = "Cuppa.png";
+constexpr char kPuzzleJpgFile[] = "Puzzle.jpg";
+constexpr char kChefGifFile[] = "IronChef2.gif";
 
-constexpr absl::string_view kHtmlTemplate3Divs = "<head><style>"
+constexpr char kHtmlTemplate3Divs[] = "<head><style>"
     "#div1{background:url(%s) 0 0;width:10px;height:10px}"
     "#div2{background:url(%s) 0 %s;width:%s;height:10px}"
     "#div3{background:url(%s) 0 %s;width:10px;height:10px}"
@@ -87,7 +87,7 @@ class CssImageCombineTest : public CssRewriteTestBase {
 
     // Try it again, this time using the background shorthand with a couple
     // different orderings
-    constexpr absl::string_view html2 = "<head><style>"
+    constexpr char html2[] = "<head><style>"
         "#div1{background:0 0 url(%s) no-repeat transparent scroll;"
         "width:10px;height:10px}"
         "#div2{background:url(%s) %s repeat fixed;width:10px;height:10px}"
@@ -165,8 +165,8 @@ TEST_F(CssImageCombineTest, UnauthorizedDomain) {
   const GoogleString kDebugMessage = StrCat(
       "<!--Flattening failed: Cannot rewrite ", bike_path,
       " as it is on an unauthorized domain-->");
-  constexpr absl::string_view kDebugStatistics = "";
-  constexpr absl::string_view html = "<head><style>"
+  constexpr char kDebugStatistics[] = "";
+  constexpr char html[] = "<head><style>"
       "#div2{background:transparent url(%s);"
       "background-position:0 0;width:10px;height:10px}"
       "</style>%s</head>%s";
@@ -180,7 +180,7 @@ TEST_F(CssImageCombineTest, UnauthorizedDomain) {
 TEST_F(CssImageCombineTest, DontLeak) {
   // Regression test for a leak: we had trouble when a single position was
   // merely "0%".
-  constexpr absl::string_view kHtml = "<style>"
+  constexpr char kHtml[] = "<style>"
       "#div2{background:transparent url(Cuppa.png) no-repeat scroll 0%;"
       "background-position:0 0;width:10px;height:10px}"
       "</style>";

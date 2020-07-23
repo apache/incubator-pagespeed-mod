@@ -39,10 +39,10 @@ namespace net_instaweb {
 namespace {
 
 // Filenames of resource files.
-constexpr absl::string_view kCuppaPngFilename = "Cuppa.png";
-constexpr absl::string_view kPuzzleJpgFilename = "Puzzle.jpg";
+constexpr char kCuppaPngFilename[] = "Cuppa.png";
+constexpr char kPuzzleJpgFilename[] = "Puzzle.jpg";
 
-constexpr absl::string_view kCuppaPngInlineData =
+constexpr char kCuppaPngInlineData[] =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEEAAABGCAIAAAAckG6qAAAACX"
     "BIWXMAAAsTAAALEwEAmpwYAAAGlUlEQVRoBe1aWUhXTxTOykrJMisNqSihTaQFF1JJkaSFRM"
     "Egg3oo6CHFhyBI6SECwciHFoSKlodQkKJEbYfIFjFNxUSiKEwqKQsCy62y5f/FicNh7k3mzr"
@@ -76,16 +76,16 @@ constexpr absl::string_view kCuppaPngInlineData =
     "Mao2yafwOt6A05wAv+DYCuJsZMMIUOHjwov5cq4DSL5hwoAPZy67/86LDKzMzElV8T5ejV3H"
     "KA9+vXr9MbvQ50qrNnz57RYTmyevPO19bWRo/HmjTwXYs/Q2o2GaWaNxxGCTAGJq070BjgcB"
     "MiwMFN73nXNjAO3vWlG0+BcXDTe961DYyDd33pxtN/Wk9wIrGXNoUAAAAASUVORK5CYII=";
-constexpr absl::string_view kCuppaPngWildcardData = "data:image/png;base64*";
+constexpr char kCuppaPngWildcardData[] = "data:image/png;base64*";
 
-constexpr absl::string_view kInlinedScriptFormat =
+constexpr char kInlinedScriptFormat[] =
     "<script type=\"text/javascript\""
     " id=\"pagespeed_script_%d\" data-pagespeed-no-defer>"
     "pagespeed.dedupInlinedImages.inlineImg("
     "'pagespeed_img_0%d','pagespeed_img_0%d','pagespeed_script_%d'"
     ");</script>";
 
-constexpr absl::string_view kHtmlWrapperFormat =
+constexpr char kHtmlWrapperFormat[] =
     "<head>\n"
     "  <title>Dedup Inlined Images Test</title>\n"
     "%s"

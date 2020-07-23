@@ -232,7 +232,7 @@ TEST_F(HeadersCookieUtilTest, QuotedValues_BrokenCase_2) {
 
   headers.RemoveCookie("PageSpeedExperiment");
 
-  constexpr absl::string_view kExpectedHeadersFormat =
+  constexpr char kExpectedHeadersFormat[] =
       "GET  HTTP/1.0\r\n"
       "Cookie: %s"
       "\r\n\r\n";
