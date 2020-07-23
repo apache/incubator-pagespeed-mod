@@ -28,7 +28,7 @@ LIBWEBP_COMMIT = "v0.6.1"
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
 GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
-DRP_COMMIT = "f353346a9087538cd8e30a04b51e3f961c4a8fd8"
+DRP_COMMIT = "21a7a0f0513b7adad7889ee68edcff49601e4a3a"
 PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
 GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
@@ -395,7 +395,7 @@ cc_binary(
         url = "https://github.com/apache/incubator-pagespeed-drp/archive/%s.tar.gz" % DRP_COMMIT,
         build_file_content = drp_build_rule,
         strip_prefix = "incubator-pagespeed-drp-%s" % DRP_COMMIT,
-        sha256 = "027870bd54b4ee856c560955d5790257bacac8ae7d3f143ed8cd425674cc45fd",
+        sha256 = "9cc8b9a34a73d0e00ff404a4a75a5f386edd9f6d70a9afee5a76a2f41536fab1",
     )
 
     
