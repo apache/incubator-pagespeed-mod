@@ -54,7 +54,7 @@ class Arena {
     DCHECK(sizeof(void*) <= kAlign);
     DCHECK(size < Chunk::kSize);
 
-    if (next_alloc_ + size > chunk_end_) {
+    if (chunk_end_ == NULL || next_alloc_ + size > chunk_end_) {
       AddChunk();
     }
 
