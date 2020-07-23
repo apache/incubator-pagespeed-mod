@@ -70,7 +70,6 @@ envoy_cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":http_filter_proto_cc_proto",
-        "//base",
         "//pagespeed/automatic",
         "//pagespeed/system",
         "@envoy//source/common/common:minimal_logger_lib_with_external_headers",

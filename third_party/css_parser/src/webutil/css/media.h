@@ -28,8 +28,8 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "util/utf8/public/unicodetext.h"
+#include "strings/stringpiece.h"
 
 namespace Css {
 

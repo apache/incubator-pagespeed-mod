@@ -229,7 +229,8 @@ class SimpleSelector {
       : type_(ELEMENT_TYPE),
         element_type_(element_type), element_text_(element_text) { }
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleSelector);
+  // TODO(XXX):
+  //DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleSelector);
 };
 
 // ------------

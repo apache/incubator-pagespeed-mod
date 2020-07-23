@@ -83,7 +83,7 @@ class HtmlParseTest : public HtmlParseTestBase {
   // Sends the input through the HtmlParse filter chain, flushing
   // at flush_index.  Leaves resulting output in output_buffer_.
   void ParseWithFlush(StringPiece input, int flush_index) {
-    GoogleString this_id = StringPrintf("http://test.com/%d", flush_index);
+    GoogleString this_id = absl::StrFormat("http://test.com/%d", flush_index);
     output_buffer_.clear();
     html_parse_.StartParse(this_id);
     html_parse_.ParseText(input.substr(0, flush_index));
@@ -2168,7 +2168,7 @@ TEST_F(HtmlParseTest, BufferEventsOnEventListener) {
   const StringPiece kInputPiece(kInput, STATIC_STRLEN(kInput));
   for (int i = 0, n = STATIC_STRLEN(kInput); i < n; ++i) {
     counter_to_disable.set_is_enabled(true);
-    html_parse_.StartParse(StringPrintf("http://example.com/doc_%d.html", i));
+    html_parse_.StartParse (absl::StrFormat("http://example.com/doc_%d.html", i));
     HtmlTestingPeer::set_buffer_events(&html_parse_, true);
     html_parse_.ParseText(kInputPiece.substr(0, i));
     html_parse_.Flush();
@@ -2672,7 +2672,7 @@ class HtmlRestoreTest : public HtmlParseTest {
     for (int flush1 = 0; flush1 < before_size; ++flush1) {
       for (int flush2 = flush1; flush2 < before_size; ++flush2) {
         GoogleString this_id =
-            StringPrintf("http://test.com/%d_%d", flush1, flush2);
+            absl::StrFormat("http://test.com/%d_%d", flush1, flush2);
         html_parse_.StartParse(this_id);
         if (flush1 != 0) {
           html_parse_.ParseText(before.substr(0, flush1));

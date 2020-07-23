@@ -7,7 +7,6 @@ load(":libpng.bzl", "libpng_build_rule")
 load(":libwebp.bzl", "libwebp_build_rule")
 load(":google_sparsehash.bzl", "google_sparsehash_build_rule")
 load(":protobuf.bzl", "protobuf_build_rule")
-load(":gurl.bzl", "gurl_build_rule")
 load(":drp.bzl", "drp_build_rule")
 load(":giflib.bzl", "giflib_build_rule")
 load(":optipng.bzl", "optipng_build_rule")
@@ -17,7 +16,7 @@ load(":aprutil.bzl", "aprutil_build_rule")
 load(":serf.bzl", "serf_build_rule")
 load(":closure_compiler.bzl", "closure_library_rules")
 
-ENVOY_COMMIT = "093e2ffe046313242144d0431f1bb5cf18d82544"    # July 4th, 2020
+ENVOY_COMMIT = "939ab3911818d0afe59cb9353ba06f1adfa0303e"    # July 21st, 2020
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 ZLIB_COMMIT = "cacf7f1d4e3d44d871b605da3b647f07d718623f"
 HIREDIS_COMMIT = "010756025e8cefd1bc66c6d4ed3b1648ef6f1f95"
@@ -29,8 +28,7 @@ LIBWEBP_COMMIT = "v0.6.1"
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
 GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
-GURL_COMMIT = "77.0.3855.1"
-DRP_COMMIT = "f353346a9087538cd8e30a04b51e3f961c4a8fd8"
+DRP_COMMIT = "21a7a0f0513b7adad7889ee68edcff49601e4a3a"
 PROTOBUF_COMMIT = "e8ae137c96444ea313485ed1118c5e43b2099cf1"
 GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
@@ -46,7 +44,7 @@ def mod_pagespeed_dependencies():
         name = "envoy",
         strip_prefix = "envoy-%s" % ENVOY_COMMIT,
         url = "https://github.com/envoyproxy/envoy/archive/%s.tar.gz" % ENVOY_COMMIT,
-        sha256 = "14e0ecf616a2bad7a0ae003827977f6af31df6ad7cb505b15577b38cd8a39da6",
+        sha256 = "a2b505150531a2bff02621a63d6b9ea48ff392ec71264126050e80e9e1a0ee6a",
     )
 
     http_archive(
@@ -393,19 +391,11 @@ cc_binary(
     )
 
     http_archive(
-        name = "url",
-        url = "https://chromium.googlesource.com/chromium/src/+archive/refs/tags/%s/url.tar.gz" % GURL_COMMIT,
-        build_file_content = gurl_build_rule,
-        sha256 = "",
-    )
-
-
-    http_archive(
         name = "drp",
         url = "https://github.com/apache/incubator-pagespeed-drp/archive/%s.tar.gz" % DRP_COMMIT,
         build_file_content = drp_build_rule,
         strip_prefix = "incubator-pagespeed-drp-%s" % DRP_COMMIT,
-        sha256 = "027870bd54b4ee856c560955d5790257bacac8ae7d3f143ed8cd425674cc45fd",
+        sha256 = "9cc8b9a34a73d0e00ff404a4a75a5f386edd9f6d70a9afee5a76a2f41536fab1",
     )
 
     

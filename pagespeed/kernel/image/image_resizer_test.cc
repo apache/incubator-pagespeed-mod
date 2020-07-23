@@ -128,7 +128,7 @@ bool ReadGoldImageToString(const char* file_name,
                            size_t width,
                            size_t height,
                            GoogleString* image_data) {
-  GoogleString gold_file_name = StringPrintf("%s_w%d_h%d", file_name,
+  GoogleString gold_file_name = absl::StrFormat("%s_w%d_h%d", file_name,
       static_cast<int>(width), static_cast<int>(height));
   return ReadTestFile(kResizedTestDir, gold_file_name.c_str(), "png",
                       image_data);

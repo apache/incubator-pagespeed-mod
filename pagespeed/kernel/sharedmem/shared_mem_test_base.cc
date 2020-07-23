@@ -63,13 +63,21 @@ void SharedMemTestBase::TestReadWrite(bool reattach) {
     seg.reset(AttachDefault());
   }
 
+  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
+
   // Wait for kid to write out stuff
+  mutex->Lock();
   while (*seg->Base() != '1') {
+    mutex->Unlock();
     test_env_->ShortSleep();
+    mutex->Lock();
   }
+  mutex->Unlock();
 
   // Write out stuff.
+  mutex->Lock();
   *seg->Base() = '2';
+  mutex->Unlock();
 
   // Wait for termination.
   test_env_->WaitForChildren();
@@ -80,14 +88,21 @@ void SharedMemTestBase::TestReadWrite(bool reattach) {
 
 void SharedMemTestBase::TestReadWriteChild() {
   scoped_ptr<AbstractSharedMemSegment> seg(AttachDefault());
+  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
 
   // Write out '1', which the parent will wait for.
+  mutex->Lock();
   *seg->Base() = '1';
+  mutex->Unlock();
 
   // Wait for '2' from parent
+  mutex->Lock();
   while (*seg->Base() != '2') {
+    mutex->Unlock();
     test_env_->ShortSleep();
+    mutex->Lock();
   }
+  mutex->Unlock();
 }
 
 void SharedMemTestBase::TestLarge() {
@@ -198,17 +213,25 @@ void SharedMemTestBase::TestTwoKids() {
 void SharedMemTestBase::TwoKidsChild1() {
   scoped_ptr<AbstractSharedMemSegment> seg(AttachDefault());
   ASSERT_TRUE(seg.get() != NULL);
+  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
   // Write out '1', which the other kid will wait for.
+  mutex->Lock();
   *seg->Base() = '1';
+  mutex->Unlock();
 }
 
 void SharedMemTestBase::TwoKidsChild2() {
   scoped_ptr<AbstractSharedMemSegment> seg(AttachDefault());
   ASSERT_TRUE(seg.get() != NULL);
+  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
   // Wait for '1'
+  mutex->Lock();
   while (*seg->Base() != '1') {
+    mutex->Unlock();
     test_env_->ShortSleep();
+    mutex->Lock();
   }
+  mutex->Unlock();
 
   *seg->Base() = '2';
 }
@@ -302,11 +325,20 @@ void SharedMemTestBase::WriteSeg2Child() {
 }
 
 AbstractSharedMemSegment* SharedMemTestBase::CreateDefault() {
-  return shmem_runtime_->CreateSegment(kTestSegment, 4, &handler_);
+  AbstractSharedMemSegment* result = shmem_runtime_->CreateSegment(
+      kTestSegment, 4 + shmem_runtime_->SharedMutexSize(), &handler_);
+  EXPECT_TRUE(result->InitializeSharedMutex(4, &handler_));
+  return result;
 }
 
 AbstractSharedMemSegment* SharedMemTestBase::AttachDefault() {
-  return shmem_runtime_->AttachToSegment(kTestSegment, 4, &handler_);
+  return shmem_runtime_->AttachToSegment(
+      kTestSegment, 4 + shmem_runtime_->SharedMutexSize(), &handler_);
+}
+
+AbstractMutex* SharedMemTestBase::AttachDefaultMutex(
+    AbstractSharedMemSegment* segment) {
+  return segment->AttachToSharedMutex(4);
 }
 
 void SharedMemTestBase::DestroyDefault() {

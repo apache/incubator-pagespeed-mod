@@ -64,13 +64,12 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     copts = [
-        '-std=c++14',        
+        '-std=c++17',        
     ],    
     deps = [
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/util:util_re2",
-        "//gurl:url",
-        "//base:base",
+        "@com_googlesource_googleurl//url",
         "@drp//:drp",
         "@re2//:re2",
         ":http_proto_cc",

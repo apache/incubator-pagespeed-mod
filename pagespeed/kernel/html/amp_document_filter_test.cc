@@ -59,7 +59,7 @@ class AmpDocumentFilterTest : public HtmlParseTestBase  {
       is_amp_ = false;
       disovered_called_ = false;
       html_parse_.StartParse(
-          StringPrintf("http://example.com/amp_doc_%d.html", i));
+          absl::StrFormat("http://example.com/amp_doc_%d.html", i));
       html_parse_.ParseText(html.substr(0, i));
       html_parse_.Flush();
       html_parse_.ParseText(html.substr(i));

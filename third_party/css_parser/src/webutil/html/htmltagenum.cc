@@ -21,9 +21,7 @@
 
 #include "webutil/html/htmltagenum.h"
 
-#include "base/macros.h"
-#include "base/stringprintf.h"
-
+#include "absl/strings/str_format.h"
 
 #define arraysize(a)                                                           \
   ((sizeof(a) / sizeof(*(a))) /                                                \
@@ -95,6 +93,6 @@ string HtmlTagNameOrUnknown(int i) {
   if (i >= 0 && i < kHtmlTagBuiltinMax) {
     return HtmlTagEnumNames[i];
   } else {
-    return base::StringPrintf("UNKNOWN%d", i);
+    return absl::StrFormat("UNKNOWN%d", i);
   }
 }

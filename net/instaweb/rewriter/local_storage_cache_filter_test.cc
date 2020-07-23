@@ -147,7 +147,7 @@ class LocalStorageCacheTest : public RewriteTestBase,
                         const GoogleString& head_html_out,
                         const GoogleString& body_html_in,
                         const GoogleString& body_html_out) {
-    const char kInWrapperFormat[] =
+    constexpr char kInWrapperFormat[] =
         "<head>\n"
         "  <title>Local Storage Cache Test</title>\n"
         "%s"
@@ -168,10 +168,10 @@ class LocalStorageCacheTest : public RewriteTestBase,
     GoogleString url = StrCat(
         "http://test.com/", case_id, ".html?PageSpeed=noscript");
 
-    GoogleString html_in(StringPrintf(
+    GoogleString html_in (absl::StrFormat(
         kInWrapperFormat, head_html_in.c_str(), body_html_in.c_str()));
-    GoogleString html_out(StringPrintf(
-        out_wrapper_format.c_str(), head_html_out.c_str(), url.c_str(),
+    GoogleString html_out (absl::StrFormat(
+        *absl::ParsedFormat<'s','s','s','s'>::New(out_wrapper_format), head_html_out.c_str(), url.c_str(),
         url.c_str(), body_html_out.c_str()));
 
     // Clear request_headers and set them afresh for every test.

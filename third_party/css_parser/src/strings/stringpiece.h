@@ -17,11 +17,15 @@
  * under the License.
  */
 
-#ifndef STRINGS_STRINGPIECE_H_
-#define STRINGS_STRINGPIECE_H_
+#pragma once
 
-#include "pagespeed/kernel/base/string_util.h"
+#include "absl/strings/string_view.h"
 
-typedef StringPiece CssStringPiece;
+typedef absl::string_view CssStringPiece;
 
-#endif  // STRINGS_STRINGPIECE_H_
+// TODO(oschaaf): move this out of here.
+#ifndef DISALLOW_COPY_AND_ASSIGN
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+TypeName(const TypeName&);                 \
+void operator=(const TypeName&)
+#endif

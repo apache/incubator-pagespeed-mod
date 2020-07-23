@@ -936,7 +936,7 @@ bool ImageRewriteFilter::ResizeImageIfNecessary(
 
   if (image_dim.width() <= 0 || image_dim.height() <= 0) {
     cached->add_debug_message(
-        StringPrintf("Cannot resize %s: Image must be at least 1x1",
+        absl::StrFormat("Cannot resize %s: Image must be at least 1x1",
                      UrlForDebugMessages(rewrite_context).c_str()));
     return false;
   }
@@ -967,7 +967,7 @@ bool ImageRewriteFilter::ResizeImageIfNecessary(
     cached->add_debug_message(image->resize_debug_message());
   } else {
     cached->add_debug_message(
-        StringPrintf("Image %s does not appear to need resizing.",
+        absl::StrFormat("Image %s does not appear to need resizing.",
                      UrlForDebugMessages(rewrite_context).c_str()));
   }
 

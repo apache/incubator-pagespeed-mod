@@ -1409,7 +1409,7 @@ TEST_F(ResourceFreshenTest, TestFreshenImminentlyExpiringResources) {
   int max_age_sec =
       RewriteOptions::kDefaultImplicitCacheTtlMs / Timer::kSecondMs;
   response_headers_.Add(HttpAttributes::kCacheControl,
-                       StringPrintf("max-age=%d", max_age_sec));
+                       absl::StrFormat("max-age=%d", max_age_sec));
   SetFetchResponse(kResourceUrl, response_headers_, "foo");
 
   // The test here is not that the ReadIfCached will succeed, because
@@ -1476,7 +1476,7 @@ TEST_F(ResourceFreshenTest, NoFreshenOfShortLivedResources) {
   int max_age_sec =
       RewriteOptions::kDefaultImplicitCacheTtlMs / Timer::kSecondMs - 1;
   response_headers_.Add(HttpAttributes::kCacheControl,
-                       StringPrintf("max-age=%d", max_age_sec));
+                       absl::StrFormat("max-age=%d", max_age_sec));
   SetFetchResponse(kResourceUrl, response_headers_, "foo");
 
   EXPECT_TRUE(ResourceIsCached());

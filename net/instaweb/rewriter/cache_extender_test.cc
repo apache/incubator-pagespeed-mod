@@ -149,7 +149,7 @@ class CacheExtenderTest : public RewriteTestBase {
       b_debug = DebugMessage(b);
       c_debug = DebugMessage(c);
     }
-    return StringPrintf(kHtmlFormat,
+    return absl::StrFormat(kHtmlFormat,
                         a.c_str(), a_debug.c_str(),
                         b.c_str(), b_debug.c_str(),
                         c.c_str(), c_debug.c_str());
@@ -181,7 +181,7 @@ class CacheExtenderTest : public RewriteTestBase {
   }
 
   static GoogleString CssData(StringPiece url) {
-    return StringPrintf(kCssDataFormat, url.as_string().c_str());
+    return absl::StrFormat(kCssDataFormat, url.as_string().c_str());
   }
 
   void TestExtendFromHtml() {
@@ -406,8 +406,8 @@ TEST_F(CacheExtenderTest,
   const char kJsTemplate[] = "<script src=\"%s\"></script>";
   ValidateExpected(
       "dont_extend_introspective_js",
-      StringPrintf(kJsTemplate, "introspective.js"),
-      StringPrintf(kJsTemplate, "introspective.js"));
+      absl::StrFormat(kJsTemplate, "introspective.js"),
+      absl::StrFormat(kJsTemplate, "introspective.js"));
   EXPECT_EQ(0, num_cache_extended_->Get())
       << "Number of cache extended resources is wrong";
   EXPECT_STREQ("", AppliedRewriterStringFromLog());
@@ -419,10 +419,10 @@ TEST_F(CacheExtenderTest,
   InitTest(kShortTtlSec);
   const char kJsTemplate[] = "<script src=\"%s\"></script>";
   GoogleString kInsertComment(
-      StrCat(StringPrintf(kJsTemplate, "introspective.js"), "<!--",
+      StrCat (absl::StrFormat(kJsTemplate, "introspective.js"), "<!--",
                           JavascriptCodeBlock::kIntrospectionComment, "-->"));
   Parse("dont_extend_introspective_js",
-        StringPrintf(kJsTemplate, "introspective.js"));
+        absl::StrFormat(kJsTemplate, "introspective.js"));
   EXPECT_THAT(output_buffer_, ::testing::HasSubstr(kInsertComment));
   EXPECT_EQ(0, num_cache_extended_->Get())
       << "Number of cache extended resources is wrong";
@@ -436,8 +436,8 @@ TEST_F(CacheExtenderTest, DoExtendIntrospectiveJavascript) {
   const char kJsTemplate[] = "<script src=\"%s\"></script>";
   ValidateExpected(
       "do_extend_introspective_js",
-      StringPrintf(kJsTemplate, "introspective.js"),
-      StringPrintf(kJsTemplate, Encode(
+      absl::StrFormat(kJsTemplate, "introspective.js"),
+      absl::StrFormat(kJsTemplate, Encode(
           "", kFilterId, "0", "introspective.js", "js").c_str()));
 }
 
@@ -446,8 +446,8 @@ TEST_F(CacheExtenderTest, DoExtendLinkRelCaseInsensitive) {
   const char kMixedCaseTemplate[] = "<link rel=StyleSheet href='%s'>";
   ValidateExpected(
       "extend_ci",
-      StringPrintf(kMixedCaseTemplate, kCssFile),
-      StringPrintf(kMixedCaseTemplate, Encode(
+      absl::StrFormat(kMixedCaseTemplate, kCssFile),
+      absl::StrFormat(kMixedCaseTemplate, Encode(
           kCssSubdir, kFilterId, "0", kCssTail, "css").c_str()));
 }
 
@@ -838,8 +838,8 @@ TEST_F(CacheExtenderTest, ConsistentHashWithRewrite) {
   GoogleString extended_css =
       Encode(StrCat(kNewDomain, kCssSubdir), kFilterId, hash, kCssTail, "css");
   ValidateExpected("consistent_hash",
-                   StringPrintf(kCssFormat, kCssFile),
-                   StringPrintf(kCssFormat, extended_css.c_str()));
+                   absl::StrFormat(kCssFormat, kCssFile),
+                   absl::StrFormat(kCssFormat, extended_css.c_str()));
 
   // Note that the only output that gets cached is the MetaData insert, not
   // the rewritten content, because this is an on-the-fly filter and we
@@ -883,8 +883,8 @@ TEST_F(CacheExtenderTest, ConsistentHashWithShard) {
   GoogleString extended_css = Encode("http://shard2.com/sub/", kFilterId, kHash,
                                      kCssTail, "css");
   ValidateExpected("consistent_hash",
-                   StringPrintf(kCssFormat, kCssFile),
-                   StringPrintf(kCssFormat, extended_css.c_str()));
+                   absl::StrFormat(kCssFormat, kCssFile),
+                   absl::StrFormat(kCssFormat, extended_css.c_str()));
 
   // Note that the only output that gets cached is the MetaData insert, not
   // the rewritten content, because this is an on-the-fly filter and we
@@ -956,7 +956,7 @@ TEST_F(CacheExtenderTest, MinimizeCacheHits) {
   options()->set_css_outline_min_bytes(1);
   rewrite_driver()->AddFilters();
   GoogleString html_input = StrCat("<style>", kCssData, "</style>");
-  GoogleString html_output = StringPrintf(
+  GoogleString html_output = absl::StrFormat(
       "<link rel=\"stylesheet\" href=\"%s\">",
       Encode(kTestDomain, CssOutlineFilter::kFilterId, "0", "_",
              "css").c_str());
@@ -1023,8 +1023,8 @@ TEST_F(CacheExtenderTest, TrimUrlInteraction) {
 
   GoogleString a_ext = Encode(kCssSubdir, kFilterId, "0", kCssTail, "css");
   ValidateExpected("ce_then_trim",
-                   StringPrintf(kCssFormat, kCssFile),
-                   StringPrintf(kCssFormat, a_ext.c_str()));
+                   absl::StrFormat(kCssFormat, kCssFile),
+                   absl::StrFormat(kCssFormat, a_ext.c_str()));
 }
 
 TEST_F(CacheExtenderTest, DefangHtml) {
@@ -1062,8 +1062,8 @@ TEST_F(CacheExtenderTest, DoNotExtendRewrittenCss) {
   InitTest(kShortTtlSec);
   ValidateExpected(
       "do_not_extend_rewritten_css",
-      StringPrintf(kCssFormat, kCssFile),
-      StringPrintf(kCssFormat, Encode(
+      absl::StrFormat(kCssFormat, kCssFile),
+      absl::StrFormat(kCssFormat, Encode(
           StrCat(kShard1Domain, kCssSubdir), RewriteOptions::kCssFilterId,
           "0", kCssTail, "css").c_str()));
 
@@ -1084,27 +1084,27 @@ TEST_F(CacheExtenderTest, AlternateStylesheet) {
       kCssSubdir, kFilterId, "0", kCssTail, "css");
 
   ValidateExpected("preferred_stylesheet",
-                   StringPrintf(html_format, "stylesheet", kCssFile),
-                   StringPrintf(html_format, "stylesheet", new_url.c_str()));
+                   absl::StrFormat(html_format, "stylesheet", kCssFile),
+                   absl::StrFormat(html_format, "stylesheet", new_url.c_str()));
 
   ValidateExpected("alternate_stylesheet",
-                   StringPrintf(html_format, "alternate stylesheet", kCssFile),
-                   StringPrintf(html_format, "alternate stylesheet",
+                   absl::StrFormat(html_format, "alternate stylesheet", kCssFile),
+                   absl::StrFormat(html_format, "alternate stylesheet",
                                 new_url.c_str()));
 
   ValidateExpected("alternate_stylesheet2",
-                   StringPrintf(html_format, " StyleSheet alterNATE  ",
+                   absl::StrFormat(html_format, " StyleSheet alterNATE  ",
                                 kCssFile),
-                   StringPrintf(html_format, " StyleSheet alterNATE  ",
+                   absl::StrFormat(html_format, " StyleSheet alterNATE  ",
                                 new_url.c_str()));
 
   ValidateExpected("alternate_stylesheet_and_more",
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
+                   absl::StrFormat(html_format, "  foo stylesheet alternate bar ",
                                 kCssFile),
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
+                   absl::StrFormat(html_format, "  foo stylesheet alternate bar ",
                                 new_url.c_str()));
   ValidateNoChanges("alternate_not_stylesheet",
-                    StringPrintf(html_format, "alternate snowflake", kCssFile));
+                    absl::StrFormat(html_format, "alternate snowflake", kCssFile));
 }
 
 TEST_F(CacheExtenderTest, PreserveUrlRelativity) {
@@ -1155,8 +1155,8 @@ TEST_F(CacheExtenderTest, VaryOrigin) {
 
   GoogleString cache_extended_css = Encode("", kFilterId, "0", "a.css", "css");
   ValidateExpected("vary origin",
-                   StringPrintf(kCssFormat, "a.css"),
-                   StringPrintf(kCssFormat, cache_extended_css.c_str()));
+                   absl::StrFormat(kCssFormat, "a.css"),
+                   absl::StrFormat(kCssFormat, cache_extended_css.c_str()));
 }
 
 TEST_F(CacheExtenderTest, RenderCsp) {

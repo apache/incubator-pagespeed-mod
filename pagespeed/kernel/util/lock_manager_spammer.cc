@@ -120,7 +120,7 @@ void LockManagerSpammer::RunTests(int num_threads,
   StringVector lock_names;
   const char name_pattern[] = "name%d";
   for (int i = 0; i < num_names; ++i) {
-    lock_names.push_back(StringPrintf(name_pattern, i));
+    lock_names.push_back (absl::StrFormat(name_pattern, i));
   }
 
   // First, create all the threads.

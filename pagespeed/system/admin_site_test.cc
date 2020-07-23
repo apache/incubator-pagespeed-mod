@@ -109,9 +109,9 @@ TEST_F(AdminSiteTest, ColorMessagesInHistoryPage) {
   admin_site_->MessageHistoryHandler(*(rewrite_driver()->options()),
                                      AdminSite::kPageSpeedAdmin, &fetch);
   EXPECT_THAT(
-      buffer, ::testing::HasSubstr(StringPrintf(kColorTemplate, "red")));
+      buffer, ::testing::HasSubstr (absl::StrFormat(kColorTemplate, "red")));
   EXPECT_THAT(
-      buffer, ::testing::HasSubstr(StringPrintf(kColorTemplate, "brown")));
+      buffer, ::testing::HasSubstr (absl::StrFormat(kColorTemplate, "brown")));
   EXPECT_THAT(buffer, ::testing::HasSubstr("style=\"margin:0;\""));
 }
 // TODO(xqyin): Add unit tests for other methods in AdminSite.

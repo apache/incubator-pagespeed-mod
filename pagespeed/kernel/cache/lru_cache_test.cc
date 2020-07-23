@@ -109,8 +109,8 @@ TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   const int key_plus_value_size = 10;  // strlen("name7") + strlen("valu7")
   const size_t num_elements        = kMaxSize / key_plus_value_size;
   for (int i = 0; i < 10; ++i) {
-    SStringPrintf(&keys[i], key_pattern, i);
-    SStringPrintf(&values[i], value_pattern, i);
+    absl::StrAppendFormat(&keys[i], key_pattern, i);
+    absl::StrAppendFormat(&values[i], value_pattern, i);
     CheckPut(keys[i], values[i]);
   }
   EXPECT_EQ(kMaxSize, cache_.size_bytes());

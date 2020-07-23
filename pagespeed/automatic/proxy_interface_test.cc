@@ -663,7 +663,7 @@ TEST_F(ProxyInterfaceTest, HeadResourceRequest) {
   // to really be an image.
   SetResponseWithDefaultHeaders(kBackgroundImage, kContentTypePng, "image",
                                 kHtmlCacheTimeSec * 2);
-  GoogleString orig_css = StringPrintf(kCssWithEmbeddedImage, kBackgroundImage);
+  GoogleString orig_css = absl::StrFormat(kCssWithEmbeddedImage, kBackgroundImage);
   SetResponseWithDefaultHeaders("embedded.css", kContentTypeCss,
                                 orig_css, kHtmlCacheTimeSec * 2);
 
@@ -2265,7 +2265,7 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   // to really be an image.
   SetResponseWithDefaultHeaders(kBackgroundImage, kContentTypePng, "image",
                                 kHtmlCacheTimeSec * 2);
-  GoogleString orig_css = StringPrintf(kCssWithEmbeddedImage, kBackgroundImage);
+  GoogleString orig_css = absl::StrFormat(kCssWithEmbeddedImage, kBackgroundImage);
   SetResponseWithDefaultHeaders("embedded.css", kContentTypeCss,
                                 orig_css, kHtmlCacheTimeSec * 2);
 
@@ -2316,7 +2316,7 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
                  &text,
                  &headers,
                  false  /* proxy_fetch_property_callback_collector_created */);
-  EXPECT_EQ(StringPrintf(kCssWithEmbeddedImage,
+  EXPECT_EQ (absl::StrFormat(kCssWithEmbeddedImage,
                          kExtendedBackgroundImage.c_str()),
             text);
 }
@@ -3529,7 +3529,7 @@ TEST_F(ProxyInterfaceTest, WebpImageReconstruction) {
   const char kCssWithEmbeddedImage[] = "*{background-image:url(%s)}";
   SetResponseWithDefaultHeaders(
       "embedded.css", kContentTypeCss,
-      StringPrintf(kCssWithEmbeddedImage, "1.jpg"), kHtmlCacheTimeSec * 2);
+      absl::StrFormat(kCssWithEmbeddedImage, "1.jpg"), kHtmlCacheTimeSec * 2);
 
   FetchFromProxy(Encode("", "cf", "0", "embedded.css", "css"),
                  request_headers,
@@ -3539,7 +3539,7 @@ TEST_F(ProxyInterfaceTest, WebpImageReconstruction) {
                  false  /* proxy_fetch_property_callback_collector_created */);
   response_headers.ComputeCaching();
   EXPECT_EQ(ServerContext::kGeneratedMaxAgeMs, response_headers.cache_ttl_ms());
-  EXPECT_EQ(StringPrintf(kCssWithEmbeddedImage, kWebpUrl.c_str()), text);
+  EXPECT_EQ (absl::StrFormat(kCssWithEmbeddedImage, kWebpUrl.c_str()), text);
 }
 
 class ProxyInterfaceOriginPropertyPageTest : public ProxyInterfaceTest {

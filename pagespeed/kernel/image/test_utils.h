@@ -265,7 +265,7 @@ void SynthesizeImage(int width, int height, int bytes_per_line,
 // Returns a string with a hex representation of the RGBA byteas
 // encoded in 'channels'.
 inline GoogleString PixelRgbaChannelsToString(const uint8_t* const channels) {
-  return StringPrintf("%02hhx%02hhx%02hhx%02hhx",
+  return absl::StrFormat("%02hhx%02hhx%02hhx%02hhx",
                       channels[RGBA_RED],
                       channels[RGBA_GREEN],
                       channels[RGBA_BLUE],

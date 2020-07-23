@@ -56,7 +56,7 @@ GoogleString GTestSrcDir() {
 }
 
 GoogleString GTestTempDir() {
-  GoogleString dir = StringPrintf("/tmp/gtest.%d", getpid());
+  GoogleString dir = absl::StrFormat("/tmp/gtest.%d", getpid());
   struct stat info;
   if(stat(dir.c_str(), &info) != 0) {
     CHECK(!mkdir(dir.c_str(), 0777));

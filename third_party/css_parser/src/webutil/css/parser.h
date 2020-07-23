@@ -750,7 +750,7 @@ class UnparsedRegion {
   }
 
   void set_bytes_in_original_buffer(const CssStringPiece& bytes) {
-    bytes.CopyToString(&bytes_in_original_buffer_);  
+    bytes_in_original_buffer_ = std::string(bytes);
   }
 
   string ToString() const;

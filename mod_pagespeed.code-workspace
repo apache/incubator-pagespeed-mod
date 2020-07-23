@@ -87,7 +87,8 @@
 			"memory_resource": "cpp",
 			"random": "cpp",
 			"regex": "cpp",
-			"set": "cpp"
+			"set": "cpp",
+			"bit": "cpp"
 		}
 	}
 }

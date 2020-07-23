@@ -231,7 +231,7 @@ void Waveform::Render(const StringPiece& title, const StringPiece& label,
     MD5Hasher hasher;
     GoogleString div_id = hasher.Hash(title);
 
-    writer->Write(StringPrintf(kChartWaveformPrefixFormat,
+    writer->Write(absl::StrFormat(kChartWaveformPrefixFormat,
                                title.as_string().c_str(),
                                div_id.c_str(),
                                label.as_string().c_str()),
@@ -240,12 +240,12 @@ void Waveform::Render(const StringPiece& title, const StringPiece& label,
     for (int i = 0; i < size_; ++i) {
       tv = GetSample(i);
       int64 delta_us = tv->first - start_time_us;
-      writer->Write(StringPrintf(kSampleFormat, delta_us / 1000.0,
+      writer->Write(absl::StrFormat(kSampleFormat, delta_us / 1000.0,
                                  static_cast<double>(tv->second)),
                     handler);
     }
 
-    writer->Write(StringPrintf(kWaveformSuffixFormat, div_id.c_str()),
+    writer->Write(absl::StrFormat(kWaveformSuffixFormat, div_id.c_str()),
                   handler);
   }
 }

@@ -178,13 +178,13 @@ class CssFilterTest : public CssRewriteTestBase {
                          const char* output_image_name_template,
                          const char* output_css_name_template) {
     static const char kInputCssName[] = "foo.css";
-    GoogleString image_out = StringPrintf(output_image_name_template,
+    GoogleString image_out = absl::StrFormat(*absl::ParsedFormat<'s'>::New(output_image_name_template),
                                           input_image_name);
-    GoogleString css_input = StringPrintf("body{background:url(%s)}",
+    GoogleString css_input = absl::StrFormat("body{background:url(%s)}",
                                           input_image_name);
-    GoogleString css_output = StringPrintf("body{background:url(%s)}",
+    GoogleString css_output = absl::StrFormat("body{background:url(%s)}",
                                            image_out.c_str());
-    GoogleString expected_url = StringPrintf(output_css_name_template,
+    GoogleString expected_url = absl::StrFormat(*absl::ParsedFormat<'s'>::New(output_css_name_template),
                                              kInputCssName);
     AddFileToMockFetcher(StrCat(kTestDomain, input_image_name),
                          input_image_name, image_content_type, 100);
@@ -812,7 +812,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
   };
 
   for (int i = 0; i < arraysize(good_examples); ++i) {
-    GoogleString id = StringPrintf("distilled_css_good%d", i);
+    GoogleString id = absl::StrFormat("distilled_css_good%d", i);
     ValidateRewrite(id, good_examples[i], good_examples[i], kExpectSuccess);
   }
 
@@ -894,7 +894,7 @@ TEST_F(CssFilterTest, RewriteVariousCss) {
 
   DebugWithMessage("<!--CSS rewrite failed: Parse error in %url%-->");
   for (int i = 0; i < arraysize(fail_examples); ++i) {
-    GoogleString id = StringPrintf("distilled_css_fail%d", i);
+    GoogleString id = absl::StrFormat("distilled_css_fail%d", i);
     ValidateFailParse(id, fail_examples[i]);
   }
 }
@@ -922,7 +922,7 @@ TEST_F(CssFilterTest, ToOptimize) {
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
-    GoogleString id = StringPrintf("to_optimize_%d", i);
+    GoogleString id = absl::StrFormat("to_optimize_%d", i);
     ValidateRewrite(id, examples[i][0], examples[i][1], kExpectSuccess);
   }
 }
@@ -1733,7 +1733,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
   };
 
   for (int i = 0; i < arraysize(examples); ++i) {
-    GoogleString id = StringPrintf("complex_css%d", i);
+    GoogleString id = absl::StrFormat("complex_css%d", i);
     ValidateRewrite(id, examples[i][0], examples[i][1], kExpectSuccess);
   }
 
@@ -1770,7 +1770,7 @@ TEST_F(CssFilterTest, ComplexCssTest) {
 
   DebugWithMessage("<!--CSS rewrite failed: Parse error in %url%-->");
   for (int i = 0; i < arraysize(parse_fail_examples); ++i) {
-    GoogleString id = StringPrintf("complex_css_parse_fail%d", i);
+    GoogleString id = absl::StrFormat("complex_css_parse_fail%d", i);
     ValidateFailParse(id, parse_fail_examples[i]);
   }
 }
@@ -2411,28 +2411,28 @@ TEST_F(CssFilterTest, AlternateStylesheet) {
   const GoogleString new_url = Encode("", "cf", "0", "foo.css", "css");
 
   ValidateExpected("preferred_stylesheet",
-                   StringPrintf(html_format, "stylesheet", "foo.css"),
-                   StringPrintf(html_format, "stylesheet", new_url.c_str()));
+                   absl::StrFormat(html_format, "stylesheet", "foo.css"),
+                   absl::StrFormat(html_format, "stylesheet", new_url.c_str()));
 
   ValidateExpected("alternate_stylesheet",
-                   StringPrintf(html_format, "alternate stylesheet", "foo.css"),
-                   StringPrintf(html_format, "alternate stylesheet",
+                   absl::StrFormat(html_format, "alternate stylesheet", "foo.css"),
+                   absl::StrFormat(html_format, "alternate stylesheet",
                                 new_url.c_str()));
 
   ValidateExpected("alternate_stylesheet2",
-                   StringPrintf(html_format, " StyleSheet alterNATE  ",
+                   absl::StrFormat(html_format, " StyleSheet alterNATE  ",
                                 "foo.css"),
-                   StringPrintf(html_format, " StyleSheet alterNATE  ",
+                   absl::StrFormat(html_format, " StyleSheet alterNATE  ",
                                 new_url.c_str()));
 
   ValidateExpected("alternate_stylesheet_and_more",
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
+                   absl::StrFormat(html_format, "  foo stylesheet alternate bar ",
                                 "foo.css"),
-                   StringPrintf(html_format, "  foo stylesheet alternate bar ",
+                   absl::StrFormat(html_format, "  foo stylesheet alternate bar ",
                                 new_url.c_str()));
 
   ValidateNoChanges("alternate_not_stylesheet",
-                    StringPrintf(html_format, "alternate snowflake",
+                    absl::StrFormat(html_format, "alternate snowflake",
                                  "foo.css"));
 }
 

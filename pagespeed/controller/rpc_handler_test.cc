@@ -172,7 +172,6 @@ TEST_F(RpcHandlerTest, WriteWithoutStatus) {
   EXPECT_CALL(*handler, HandleRequest(EqualsProto("id: 1")))
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse))
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish));
-  // XXX(oschaaf): added
   EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
 
   StartOnServerThread(handler);
@@ -200,7 +199,6 @@ TEST_F(RpcHandlerTest, ReadOneWriteResultAndStatus) {
   EXPECT_CALL(*handler, HandleRequest(EqualsProto("id: 1")))
       .WillOnce(DoAll(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse),
                       InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish)));
-  // XXX(oschaaf): added
   EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
 
   StartOnServerThread(handler);
@@ -232,7 +230,6 @@ TEST_F(RpcHandlerTest, WriteTwoResultsFail) {
                             &MockRpcHandler::SendResponseAndExpectFailure),
           InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify),
           InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish)));
-  // XXX(oschaaf): added
   EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
 
   StartOnServerThread(handler);
@@ -381,7 +378,6 @@ TEST_F(RpcHandlerTest, ClientAbortAfterWrite) {
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse));
   EXPECT_CALL(*handler, HandleError()).Times(1)
       .WillOnce(InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify));
-  // XXX(oschaaf): added
   EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
 
   StartOnServerThread(handler);
@@ -451,7 +447,6 @@ TEST_F(RpcHandlerTest, FinishOutsideHandleRequest) {
   handler->SetResponse("id: 2");
   EXPECT_CALL(*handler, HandleRequest(_))
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse));
-  // XXX(oschaaf): added
   EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
   StartOnServerThread(handler);
 

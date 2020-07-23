@@ -64,7 +64,7 @@ SharedDynamicStringMapTestBase::SharedDynamicStringMapTestBase(
   for (int i = 0; i < kNumberOfStrings; i++) {
     // We pad the beginning with the hex representation of i, a unique string
     // or non-null characters
-    GoogleString string = StringPrintf("%0*x", 2 * kIntSize, i);
+    GoogleString string = absl::StrFormat("%0*x", 2 * kIntSize, i);
     // We fill the rest of the string with random lower-case letters
     // -1 so there's room for the terminating null character
     while (string.length() < kStringSize - 1) {

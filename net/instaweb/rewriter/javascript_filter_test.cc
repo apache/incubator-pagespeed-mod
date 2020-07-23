@@ -151,7 +151,7 @@ class JavascriptFilterTest : public RewriteTestBase,
 
   // Generate HTML loading a single script with the specified URL.
   GoogleString GenerateHtml(const char* a) {
-    return StringPrintf(kHtmlFormat, a);
+    return absl::StrFormat(kHtmlFormat, a);
   }
 
   // Generate HTML loading a single script twice from the specified URL.
@@ -264,8 +264,8 @@ TEST_P(JavascriptFilterTest, DontRewriteDisallowedScripts) {
   SetHtmlMimetype();
   InitFiltersAndTest(100);
   ValidateExpected("inline javascript disallowed",
-                   StringPrintf(kHtmlFormat, "a.js"),
-                   StringPrintf(kHtmlFormat, "a.js"));
+                   absl::StrFormat(kHtmlFormat, "a.js"),
+                   absl::StrFormat(kHtmlFormat, "a.js"));
 }
 
 TEST_P(JavascriptFilterTest, DoInlineAllowedForInliningScripts) {
@@ -276,8 +276,8 @@ TEST_P(JavascriptFilterTest, DoInlineAllowedForInliningScripts) {
   SetHtmlMimetype();
   InitFiltersAndTest(100);
   ValidateExpected("inline javascript allowed for inlining",
-                   StringPrintf(kHtmlFormat, "a.js"),
-                   StringPrintf(kInlineJs, "document.write('a');"));
+                   absl::StrFormat(kHtmlFormat, "a.js"),
+                   absl::StrFormat(kInlineJs, "document.write('a');"));
 }
 
 TEST_P(JavascriptFilterTest, RewriteButExceedLogThreshold) {
@@ -738,8 +738,8 @@ TEST_P(JavascriptFilterTest, InlineJavascript) {
   // Test minification of a simple inline script
   InitFiltersAndTest(100);
   ValidateExpected("inline javascript",
-                   StringPrintf(kInlineJs, kJsData),
-                   StringPrintf(kInlineJs, kJsMinData));
+                   absl::StrFormat(kInlineJs, kJsData),
+                   absl::StrFormat(kInlineJs, kJsMinData));
 
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(0, minification_failures_->Get());
@@ -754,8 +754,8 @@ TEST_P(JavascriptFilterTest, NoMinificationInlineJS) {
   InitFiltersAndTest(100);
   const char kSmallJS[] = "alert('hello');";
   ValidateExpected("inline javascript",
-                   StringPrintf(kInlineJs, kSmallJS),
-                   StringPrintf(kInlineJs, kSmallJS));
+                   absl::StrFormat(kInlineJs, kSmallJS),
+                   absl::StrFormat(kInlineJs, kSmallJS));
 
   // There was no minification error, so 1 here.
   EXPECT_EQ(1, blocks_minified_->Get());
@@ -794,12 +794,12 @@ TEST_P(JavascriptFilterTest, CdataJavascriptNoMimetype) {
   InitFiltersAndTest(100);
   ValidateExpected(
       "cdata javascript no mimetype",
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
   ValidateExpected(
       "cdata javascript no mimetype with \\r",
-      StringPrintf(kInlineJs, StringPrintf(kCdataAltWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataAltWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
 }
 
 // Same as CdataJavascriptNoMimetype, but with explicit HTML mimetype.
@@ -808,12 +808,12 @@ TEST_P(JavascriptFilterTest, CdataJavascriptHtmlMimetype) {
   InitFiltersAndTest(100);
   ValidateExpected(
       "cdata javascript with explicit HTML mimetype",
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, kJsMinData));
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, kJsMinData));
   ValidateExpected(
       "cdata javascript with explicit HTML mimetype and \\r",
-      StringPrintf(kInlineJs, StringPrintf(kCdataAltWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, kJsMinData));
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataAltWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, kJsMinData));
 }
 
 // Same as CdataJavascriptNoMimetype, but with explicit XHTML mimetype.
@@ -822,28 +822,28 @@ TEST_P(JavascriptFilterTest, CdataJavascriptXhtmlMimetype) {
   InitFiltersAndTest(100);
   ValidateExpected(
       "cdata javascript with explicit XHTML mimetype",
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
   ValidateExpected(
       "cdata javascript with explicit XHTML mimetype and \\r",
-      StringPrintf(kInlineJs, StringPrintf(kCdataAltWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataAltWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
 }
 
 TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
   // Test minification of a simple inline script in xhtml
   // where it must be wrapped in CDATA.
   InitFiltersAndTest(100);
-  const GoogleString xhtml_script_format =
-      StrCat(kXhtmlDtd, StringPrintf(kInlineJs, kCdataWrapper));
+   const GoogleString xhtml_script_format =
+      StrCat(kXhtmlDtd, absl::StrFormat(kInlineJs, kCdataWrapper));
   ValidateExpected("xhtml inline javascript",
-                   StringPrintf(xhtml_script_format.c_str(), kJsData),
-                   StringPrintf(xhtml_script_format.c_str(), kJsMinData));
+                   absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_format), kJsData),
+                   absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_format), kJsMinData));
   const GoogleString xhtml_script_alt_format =
-      StrCat(kXhtmlDtd, StringPrintf(kInlineJs, kCdataAltWrapper));
+      StrCat(kXhtmlDtd, absl::StrFormat(kInlineJs, kCdataAltWrapper));
   ValidateExpected("xhtml inline javascript",
-                   StringPrintf(xhtml_script_alt_format.c_str(), kJsData),
-                   StringPrintf(xhtml_script_format.c_str(), kJsMinData));
+                   absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_alt_format), kJsData),
+                   absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_format), kJsMinData));
 }
 
 // http://github.com/apache/incubator-pagespeed-mod/issues/324
@@ -858,7 +858,7 @@ TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
 // previously busting regexps with backslashes in them.
 TEST_P(JavascriptFilterTest, BackslashInRegexp) {
   InitFilters();
-  GoogleString input = StringPrintf(kInlineJs, "/http:\\/\\/[^/]+\\//");
+  GoogleString input = absl::StrFormat(kInlineJs, "/http:\\/\\/[^/]+\\//");
   ValidateNoChanges("backslash_in_regexp", input);
 }
 
@@ -917,16 +917,16 @@ TEST_P(JavascriptFilterTest, NoReuseInline) {
   InitFiltersAndTest(100);
 
   ValidateExpected("reuse_inline1",
-                   StringPrintf(kInlineJs, kJsData),
-                   StringPrintf(kInlineJs, kJsMinData));
+                   absl::StrFormat(kInlineJs, kJsData),
+                   absl::StrFormat(kInlineJs, kJsMinData));
   // First time: We minify JS and use the minified version.
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(1, num_uses_->Get());
 
   ClearStats();
   ValidateExpected("reuse_inline2",
-                   StringPrintf(kInlineJs, kJsData),
-                   StringPrintf(kInlineJs, kJsMinData));
+                   absl::StrFormat(kInlineJs, kJsData),
+                   absl::StrFormat(kInlineJs, kJsMinData));
   // Second time: Apparently we minify it again.
   // NOTE: This test is here to document current behavior. It should be fine
   // to change this behavior so that the rewrite is cached (although it may
@@ -945,10 +945,10 @@ TEST_P(JavascriptFilterTest, ExtraCdataOnMalformedInput) {
   static const char kIssue542LinkInScript[] =
       "<![CDATA[<link href='http://fonts.googleapis.com/css'>]]>";
 
-  const GoogleString kHtmlInput = StringPrintf(
+  const GoogleString kHtmlInput = absl::StrFormat(
       kInlineScriptFormat,
       StrCat("\n", kIssue542LinkInScript, "\n").c_str());
-  const GoogleString kHtmlOutput = StringPrintf(
+  const GoogleString kHtmlOutput = absl::StrFormat(
       kInlineScriptFormat,
       kIssue542LinkInScript);
   ValidateExpected("broken_cdata", kHtmlInput, kHtmlOutput);
@@ -957,12 +957,12 @@ TEST_P(JavascriptFilterTest, ExtraCdataOnMalformedInput) {
 TEST_P(JavascriptFilterTest, ValidCdata) {
   InitFiltersAndTest(100);
 
-  const GoogleString kHtmlInput = StringPrintf(
+  const GoogleString kHtmlInput = absl::StrFormat(
       kInlineScriptFormat,
-      StringPrintf(kCdataWrapper, "alert ( 'foo' ) ; \n").c_str());
-  const GoogleString kHtmlOutput = StringPrintf(
+      absl::StrFormat(kCdataWrapper, "alert ( 'foo' ) ; \n").c_str());
+  const GoogleString kHtmlOutput = absl::StrFormat(
       kInlineScriptFormat,
-      StringPrintf(kCdataWrapper, "alert('foo');").c_str());
+      absl::StrFormat(kCdataWrapper, "alert('foo');").c_str());
   ValidateExpected("valid_cdata", kHtmlInput, kHtmlOutput);
 }
 
@@ -1045,7 +1045,7 @@ TEST_P(JavascriptFilterTest, StripInlineWhitespaceFlush) {
   rewrite_driver()->ParseText("   </script>\n");
   rewrite_driver()->FinishParse();
   const GoogleString expected =
-      StringPrintf(kHtmlFormat, expected_rewritten_path_.c_str());
+      absl::StrFormat(kHtmlFormat, expected_rewritten_path_.c_str());
   EXPECT_EQ(expected, output_buffer_);
 }
 
@@ -1365,10 +1365,10 @@ TEST_P(JavascriptFilterTest, InlineAndNotExternal) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
 TEST_P(JavascriptFilterTest, InlineAndNotExternalPreserve) {
@@ -1380,10 +1380,10 @@ TEST_P(JavascriptFilterTest, InlineAndNotExternalPreserve) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
 TEST_P(JavascriptFilterTest, InlineAndCanonicalNotExternal) {
@@ -1393,10 +1393,10 @@ TEST_P(JavascriptFilterTest, InlineAndCanonicalNotExternal) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_and_canonical_and_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
 TEST_P(JavascriptFilterTest, ExternalAndNotInline) {
@@ -1405,10 +1405,10 @@ TEST_P(JavascriptFilterTest, ExternalAndNotInline) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("external_not_inline",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat,
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)),
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat,
                                        expected_rewritten_path_.c_str())));
 }
 

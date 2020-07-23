@@ -11,9 +11,7 @@ cc_library(
     testonly = True,
     visibility = ["//visibility:public"],
     deps = [
-        "//pagespeed/kernel/base:pagespeed_gtest"
+        "//pagespeed/kernel/base:pagespeed_gtest",
+        "@com_google_absl//absl/debugging:symbolize",
     ]
-#    external_deps = [
-#        "abseil_symbolize",
-#    ]
 )

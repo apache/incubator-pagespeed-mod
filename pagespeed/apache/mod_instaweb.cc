@@ -1278,7 +1278,7 @@ const char* ParseIntBoundedOption(Options* options, cmd_parms* cmd,
       val <= upper) {
     (options->*fn)(val);
   } else {
-    GoogleString message = StringPrintf(
+    GoogleString message = absl::StrFormat(
         " must specify a 32-bit integer between %d and %d",
         lower, upper);
     ret = apr_pstrcat(cmd->pool, cmd->directive->directive, message.c_str(),

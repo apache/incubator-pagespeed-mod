@@ -699,8 +699,8 @@ TEST_F(CssCombineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
   SetFetchResponse(StrCat(kTestDomain, kCssA), default_css_header, ".a {}");
   SetFetchResponse(StrCat(kTestDomain, kCssB), default_css_header, ".b {}");
   ValidateExpected("claims_xhtml_but_has_unclosed_links",
-                   StringPrintf(html_format, kXhtmlDtd, unclosed_links.c_str()),
-                   StringPrintf(html_format, kXhtmlDtd, combination.c_str()));
+                   absl::StrFormat(html_format, kXhtmlDtd, unclosed_links.c_str()),
+                   absl::StrFormat(html_format, kXhtmlDtd, combination.c_str()));
 }
 
 // http://github.com/apache/incubator-pagespeed-mod/issues/306
@@ -728,8 +728,8 @@ TEST_F(CssCombineFilterTest, XhtmlCombineLinkClosed) {
   SetFetchResponse(StrCat(kTestDomain, kCssA), default_css_header, ".a {}");
   SetFetchResponse(StrCat(kTestDomain, kCssB), default_css_header, ".b {}");
   ValidateExpected("xhtml_combination_closed",
-                   StringPrintf(html_format, kXhtmlDtd, links.c_str()),
-                   StringPrintf(html_format, kXhtmlDtd, combination.c_str()));
+                   absl::StrFormat(html_format, kXhtmlDtd, links.c_str()),
+                   absl::StrFormat(html_format, kXhtmlDtd, combination.c_str()));
 }
 
 TEST_F(CssCombineFilterTest, IEDirectiveBarrier) {
@@ -1234,7 +1234,7 @@ TEST_F(CssCombineFilterTest, CombineCssManyFiles) {
   const int kNumCssInCombination = 70;  // based on how we encode "yellow%d.css"
   CssLink::Vector css_in, css_out;
   for (int i = 0; i < kNumCssLinks; ++i) {
-    css_in.Add(StringPrintf("styles/yellow%d.css", i),
+    css_in.Add (absl::StrFormat("styles/yellow%d.css", i),
                kYellow, "", true);
   }
   BarrierTestHelper("combine_css_many_files", css_in, &css_out);
@@ -1268,7 +1268,7 @@ TEST_F(CssCombineFilterTest, CombineCssManyFilesOneOrphan) {
   const int kNumCssLinks = kNumCssInCombination + 1;
   CssLink::Vector css_in, css_out;
   for (int i = 0; i < kNumCssLinks - 1; ++i) {
-    css_in.Add(StringPrintf("styles/yellow%d.css", i),
+    css_in.Add (absl::StrFormat("styles/yellow%d.css", i),
                kYellow, "", true);
   }
   css_in.Add("styles/last_one.css",
@@ -1636,7 +1636,7 @@ TEST_F(CssCombineFilterTest, AlternateStylesheets) {
       "persistent",
       "<link rel='stylesheet' href='a.css'>"
       "<link rel='stylesheet' href='b.css'>",
-      StringPrintf("<link rel='stylesheet' href='%s'/>", Encode(
+      absl::StrFormat("<link rel='stylesheet' href='%s'/>", Encode(
           "", RewriteOptions::kCssCombinerId, "0",
           MultiUrl(kCssA, kCssB), "css").c_str()));
 
@@ -1645,7 +1645,7 @@ TEST_F(CssCombineFilterTest, AlternateStylesheets) {
       "mixed_case",
       "<link rel=' StyleSheet' href='a.css'>"
       "<link rel='styleSHEET  ' href='b.css'>",
-      StringPrintf("<link rel=' StyleSheet' href='%s'/>", Encode(
+      absl::StrFormat("<link rel=' StyleSheet' href='%s'/>", Encode(
           "", RewriteOptions::kCssCombinerId, "0",
           MultiUrl(kCssA, kCssB), "css").c_str()));
 
@@ -1954,7 +1954,7 @@ class CssCombineMaxSizeTest : public CssCombineFilterTest {
 
  private:
   GoogleString InputFileName(int id) {
-    return StringPrintf("%d.css", id);
+    return absl::StrFormat("%d.css", id);
   }
 };
 
@@ -2107,7 +2107,7 @@ TEST_F(CollapseWhitespaceGeneralTest, CollapseAfterCombine) {
       "<link rel=stylesheet type=text/css href=%s />\n"
       "</head>\n"
       "</html>\n";
-  GoogleString after = StringPrintf(kAfterTemplate, Encode(
+  GoogleString after = absl::StrFormat(kAfterTemplate, Encode(
       "", "cc", "0", MultiUrl(kCssA, kCssB, "c.css"), "css").c_str());
 
   ValidateExpected("collapse_after_combine", kBefore, after);

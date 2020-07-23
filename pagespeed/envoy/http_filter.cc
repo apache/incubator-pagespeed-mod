@@ -92,13 +92,11 @@ FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(RequestHeaderMap& 
   rewrite_driver_ = server_context_->NewRewriteDriver(base_fetch_->request_context());
   rewrite_driver_->SetRequestHeaders(*base_fetch_->request_headers());
 
-  auto callback = [](const HeaderEntry& entry, void* base_fetch) -> HeaderMap::Iterate {
-    static_cast<net_instaweb::EnvoyBaseFetch*>(base_fetch)
-        ->request_headers()
+  headers.iterate([this](const HeaderEntry& entry) -> HeaderMap::Iterate {
+    base_fetch_->request_headers()
         ->Add(entry.key().getStringView(), entry.value().getStringView());
     return HeaderMap::Iterate::Continue;
-  };
-  headers.iterate(callback, base_fetch_);
+  });
   rewrite_driver_->FetchInPlaceResource(*pristine_url_, false /* proxy_mode */, base_fetch_);
   return FilterHeadersStatus::StopIteration;
 }

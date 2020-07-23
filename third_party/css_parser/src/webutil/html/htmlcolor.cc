@@ -27,19 +27,17 @@
 #include <string.h>
 #include <cmath>
 
-#include "base/stringprintf.h"
 #include "strings/ascii_ctype.h"
 #include "strings/case.h"
 #include "strings/escaping.h"
+
+#include "absl/strings/str_format.h"
 
 typedef struct RgbValue {
   unsigned char r_;
   unsigned char g_;
   unsigned char b_;
 } RgbValue;
-
-
-using namespace base;
 
 // color table
 // when making change to known_color_values, please
@@ -1015,7 +1013,7 @@ void HtmlColor::BlendWithColor(float factor, const HtmlColor& c) {
 // This isn't the most efficient function.  If you're using it a lot,
 // you might want to rewrite it.
 string HtmlColor::ToString() const {
-  return StringPrintf("#%02x%02x%02x", r_, g_, b_);
+  return absl::StrFormat("#%02x%02x%02x", r_, g_, b_);
 }
 
 bool HtmlColor::Equals(const HtmlColor& color) const {
@@ -1029,13 +1027,13 @@ bool HtmlColor::Equals(const HtmlColor& color) const {
 //
 string HtmlColorUtils::MaybeConvertToCssShorthand(CssStringPiece orig_color) {
   HtmlColor color(orig_color);
-  if (!color.IsDefined()) return orig_color.as_string();
+  if (!color.IsDefined()) return std::string(orig_color);
 
   string shorthand = MaybeConvertToCssShorthand(color);
   if (shorthand.size() < orig_color.size()) {
     return shorthand;
   } else {
-    return orig_color.as_string();
+    return std::string(orig_color);
   }
 }
 
@@ -1070,6 +1068,6 @@ string HtmlColorUtils::MaybeConvertToCssShorthand(const HtmlColor& color) {
       (color.b() >> 4) != (color.b() & 0xF))
     return color.ToString();
 
-  return StringPrintf("#%01x%01x%01x", color.r() & 0xF, color.g() & 0xF,
+  return absl::StrFormat("#%01x%01x%01x", color.r() & 0xF, color.g() & 0xF,
                       color.b() & 0xF);
 }

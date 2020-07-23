@@ -299,25 +299,27 @@ class EndToEndHeadersContainer {
 };
 
 
-static EndToEndHeadersContainer headers_container;
-
-const EndToEndHeadersContainer& get_headers_container() {
-  return headers_container;
+static const EndToEndHeadersContainer& get_headers_container() {
+  // We lazy-init to avoid static initialization / a fiasco.
+  // Construct On First Use idiom.
+  // See https://isocpp.org/wiki/faq/ctors#static-init-order-on-first-use.
+  static const EndToEndHeadersContainer* objectptr = new EndToEndHeadersContainer();
+  return *objectptr;  
 }
 
 }  // namespace
 
 
 const StringPieceVector& HttpAttributes::SortedEndToEndHeaders() {
-  return headers_container.end_to_end();
+  return get_headers_container().end_to_end();
 }
 
 const StringPieceVector& HttpAttributes::SortedHopByHopHeaders() {
-  return headers_container.hop_by_hop();
+  return get_headers_container().hop_by_hop();
 }
 
 const StringPieceVector& HttpAttributes::CachingHeadersToBeRemoved() {
-  return headers_container.caching_headers_to_be_removed();
+  return get_headers_container().caching_headers_to_be_removed();
 }
 
 }  // namespace net_instaweb

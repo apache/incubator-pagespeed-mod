@@ -55,8 +55,8 @@ class FlushFilterTest : public RewriteTestBase  {
 };
 
 TEST_F(FlushFilterTest, NoExtraFlushes) {
-  html_parse()->ParseText(StrCat(StringPrintf(kCssFormat, "a.css"),
-                                 StringPrintf(kImgFormat, "b.png")));
+  html_parse()->ParseText(StrCat (absl::StrFormat(kCssFormat, "a.css"),
+                                 absl::StrFormat(kImgFormat, "b.png")));
   html_parse()->ExecuteFlushIfRequested();
   EXPECT_EQ(0, server_context()->rewrite_stats()->num_flushes()->Get());
 }
@@ -65,10 +65,10 @@ TEST_F(FlushFilterTest, InduceFlushes) {
   GoogleString lots_of_links;
   for (int i = 0; i < 7; ++i) {
     StrAppend(&lots_of_links,
-              StringPrintf(kCssFormat, "a.css"));
+              absl::StrFormat(kCssFormat, "a.css"));
   }
   StrAppend(&lots_of_links,
-            StringPrintf(kScriptFormat, "b.js"));
+            absl::StrFormat(kScriptFormat, "b.js"));
   html_parse()->ParseText(lots_of_links);
   html_parse()->ExecuteFlushIfRequested();
   EXPECT_EQ(1, server_context()->rewrite_stats()->num_flushes()->Get());
@@ -78,10 +78,10 @@ TEST_F(FlushFilterTest, NotEnoughToInduceFlushes) {
   GoogleString lots_of_links;
   for (int i = 0; i < 7; ++i) {
     StrAppend(&lots_of_links,
-              StringPrintf(kCssFormat, "a.css"));
+              absl::StrFormat(kCssFormat, "a.css"));
   }
   StrAppend(&lots_of_links,
-            StringPrintf(kImgFormat, "b.png"));
+            absl::StrFormat(kImgFormat, "b.png"));
   html_parse()->ParseText(lots_of_links);
   html_parse()->ExecuteFlushIfRequested();
   EXPECT_EQ(0, server_context()->rewrite_stats()->num_flushes()->Get());

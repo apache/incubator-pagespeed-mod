@@ -247,7 +247,7 @@ TEST_F(JsDisableFilterTest, DisablesScriptOnlyFromFirstSrc) {
       "http://test.com/http://example.com/.html?PageSpeed=noscript";
   const GoogleString expected = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kUrl, kUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kUrl, kUrl),
       kUnrelatedNoscriptTags,
       "<script random=\"true\" type=\"text/psajs\" "
       "data-pagespeed-orig-index=\"0\">hi1</script>",

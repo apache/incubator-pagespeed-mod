@@ -3044,15 +3044,15 @@ RewriteOptions::OptionSettingResult RewriteOptions::FormatSetOptionMessage(
     StringPiece error_detail, GoogleString* msg) {
   if (!IsValidOptionName(name)) {
     // Not a mapped option.
-    SStringPrintf(msg, "Option %s not mapped.", name.as_string().c_str());
+     absl::StrAppendFormat(msg, "Option %s not mapped.", name.as_string().c_str());
     return kOptionNameUnknown;
   }
   switch (result) {
     case kOptionNameUnknown:
-      SStringPrintf(msg, "Option %s not found.", name.as_string().c_str());
+       absl::StrAppendFormat(msg, "Option %s not found.", name.as_string().c_str());
       break;
     case kOptionValueInvalid:
-      SStringPrintf(msg, "Cannot set option %s to %s. %s",
+       absl::StrAppendFormat(msg, "Cannot set option %s to %s. %s",
                     name.as_string().c_str(), value.as_string().c_str(),
                     error_detail.as_string().c_str());
       break;
@@ -4090,7 +4090,7 @@ GoogleString RewriteOptions::ToString(const MobTheme& theme) {
 }
 
 GoogleString RewriteOptions::ToString(const Color& color) {
-  return StringPrintf("#%02x%02x%02x", static_cast<int>(color.r),
+  return absl::StrFormat("#%02x%02x%02x", static_cast<int>(color.r),
                       static_cast<int>(color.g), static_cast<int>(color.b));
 }
 
@@ -4103,7 +4103,7 @@ GoogleString RewriteOptions::ToString(const ResponsiveDensities& densities) {
     // generally not a good idea. But in this case we are only parsing the
     // doubles from config and never performing any arithmetic, so hashing
     // should be alright.
-    StrAppend(&result, delim, StringPrintf("%.4g", *iter));
+    StrAppend(&result, delim, absl::StrFormat("%.4g", *iter));
     delim = ",";
   }
   return result;
@@ -4366,7 +4366,7 @@ GoogleString RewriteOptions::ExperimentSpec::ToString() const {
 GoogleString RewriteOptions::ToExperimentString() const {
   // Only add the experiment id if we're running this experiment.
   if (GetExperimentSpec(experiment_id_) != NULL) {
-    return StringPrintf("Experiment: %d", experiment_id_);
+    return absl::StrFormat("Experiment: %d", experiment_id_);
   }
   return GoogleString();
 }

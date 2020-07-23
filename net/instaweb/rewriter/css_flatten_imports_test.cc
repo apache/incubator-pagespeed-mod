@@ -339,7 +339,7 @@ class CssFlattenImportsTest : public CssRewriteTestBase {
     ValidationFlags extra_flag = kNoFlags;
     if (limit_exceeded) {
       extra_flag = kFlattenImportsLimitExceeded;
-      DebugWithMessage(StringPrintf("<!--Flattening failed: "
+      DebugWithMessage (absl::StrFormat("<!--Flattening failed: "
                                     "Flattening limit (%d) exceeded (%d)-->",
                                     flattening_limit, actual_amount));
     } else {
@@ -374,7 +374,7 @@ class CssFlattenImportsTest : public CssRewriteTestBase {
     const GoogleString simple_css_path =
         StrCat(kTestDomain, "a/b/", kSimpleCssFile);
     const GoogleString relative_simple_css_in =
-        StringPrintf(kSimpleCssTemplate, StrCat("../", kFooPng).c_str());
+        absl::StrFormat(kSimpleCssTemplate, StrCat("../", kFooPng).c_str());
     SetResponseWithDefaultHeaders(simple_css_path, kContentTypeCss,
                                   relative_simple_css_in, 100);
     const GoogleString import_simple_css =
@@ -385,7 +385,7 @@ class CssFlattenImportsTest : public CssRewriteTestBase {
                   "ce", "0", "foo.png", "png")
          : StrCat(trim_urls ? "" : kTestDomain, "a/", kFooPng));
     const GoogleString simple_css_out =
-        StringPrintf(kSimpleCssTemplate, foo_png_output.c_str());
+        absl::StrFormat(kSimpleCssTemplate, foo_png_output.c_str());
     ValidateRewriteInlineCss("flatten_relative",
                              import_simple_css, simple_css_out,
                              kExpectSuccess);
@@ -1326,7 +1326,7 @@ TEST_F(CssFlattenImportsAndRewriteImagesTest, UnauthorizedImageDomain) {
   // when the CSS is flattened into the base document (with base of '/').
   const GoogleString simple_css_path =
       StrCat(kTestDomain, "a/b/", kSimpleCssFile);
-  const GoogleString simple_css_in = StringPrintf(kSimpleCssTemplate, kFooPng);
+  const GoogleString simple_css_in = absl::StrFormat(kSimpleCssTemplate, kFooPng);
   SetResponseWithDefaultHeaders(
       simple_css_path, kContentTypeCss, simple_css_in, 100);
   const GoogleString import_simple_css =

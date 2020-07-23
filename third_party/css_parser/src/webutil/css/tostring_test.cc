@@ -41,7 +41,7 @@ class ToStringTest : public testing::Test {
  protected:
   // Checks if ParseDeclarations()->ToString() returns identity.
   void TestDeclarations(const string& css, int line) {
-    SCOPED_TRACE(StringPrintf("at line %d", line));
+    SCOPED_TRACE (absl::StrFormat("at line %d", line));
     Css::Parser parser(css);
     scoped_ptr<Css::Declarations> decls(parser.ParseDeclarations());
     EXPECT_EQ(css, decls->ToString());
@@ -49,7 +49,7 @@ class ToStringTest : public testing::Test {
 
   // Checks if ParseStylesheet()->ToString() returns identity.
   void TestStylesheet(const string& css, int line) {
-    SCOPED_TRACE(StringPrintf("at line %d", line));
+    SCOPED_TRACE (absl::StrFormat("at line %d", line));
     Css::Parser parser(css);
     scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseStylesheet());
     EXPECT_EQ(css, stylesheet->ToString());

@@ -29,7 +29,6 @@
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/base/thread_system.h"
 
-// XXX(oschaaf): check this carefully
 #include "pagespeed/kernel/util/grpc.h"
 
 

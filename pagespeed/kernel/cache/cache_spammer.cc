@@ -135,13 +135,13 @@ void CacheSpammer::Run() {
   const char name_pattern[] = "name%d";
   std::vector<SharedString> inserts(num_inserts_);
   for (int j = 0; j < num_inserts_; ++j) {
-    inserts[j].Assign(StringPrintf("%s%d", value_prefix_, j));
+    inserts[j].Assign (absl::StrFormat("%s%d", value_prefix_, j));
   }
 
   int iter_limit = RunningOnValgrind() ? num_iters_ / 100 : num_iters_;
   for (int i = 0; i < iter_limit; ++i) {
     for (int j = 0; j < num_inserts_; ++j) {
-      cache_->Put(StringPrintf(name_pattern, j), inserts[j]);
+      cache_->Put (absl::StrFormat(name_pattern, j), inserts[j]);
     }
     {
       ScopedMutex lock(mutex_.get());
@@ -150,7 +150,7 @@ void CacheSpammer::Run() {
     for (int j = 0; j < num_inserts_; ++j) {
       // Ignore the result.  Thread interactions will make it hard to
       // predict if the Get will succeed or not.
-      GoogleString key = StringPrintf(name_pattern, j);
+      GoogleString key = absl::StrFormat(name_pattern, j);
       cache_->Get(key, new SpammerCallback(this, key, inserts[j].Value()));
     }
     {
@@ -161,7 +161,7 @@ void CacheSpammer::Run() {
     }
     if (do_deletes_) {
       for (int j = 0; j < num_inserts_; ++j) {
-        cache_->Delete(StringPrintf(name_pattern, j));
+        cache_->Delete (absl::StrFormat(name_pattern, j));
       }
     }
   }

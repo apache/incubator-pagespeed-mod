@@ -126,11 +126,11 @@ class JsInlineFilterTest : public RewriteTestBase {
         "<body>Hello, world!</body>\n";
 
     const GoogleString html_input =
-        StringPrintf(kHtmlTemplate, js_url.c_str(),
+        absl::StrFormat(kHtmlTemplate, js_url.c_str(),
                      js_original_inline_body.c_str(), "");
 
     const GoogleString outline_html_output =
-        StringPrintf(kHtmlTemplate, js_out_url.c_str(),
+        absl::StrFormat(kHtmlTemplate, js_out_url.c_str(),
                      js_original_inline_body.c_str(), "");
 
     const GoogleString expected_output =
@@ -142,7 +142,7 @@ class JsInlineFilterTest : public RewriteTestBase {
 
     const GoogleString outline_debug_html_output = debug_string.empty()
         ? outline_html_output
-        : StringPrintf(kHtmlTemplate, js_out_url.c_str(),
+        : absl::StrFormat(kHtmlTemplate, js_out_url.c_str(),
                        js_original_inline_body.c_str(),
                        StrCat("<!--", debug_string, "-->").c_str());
 
@@ -454,7 +454,7 @@ TEST_F(JsInlineFilterTest, ScriptWithScriptTags) {
       StrCat(kTestDomain, "inline_with_close_script.html"),
 
       // Input, with js referenced externally.
-      StringPrintf(
+      absl::StrFormat(
           "<head>\n"
           "  <script src='%s'></script>\n"
           "</head>\n"

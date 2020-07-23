@@ -24,9 +24,6 @@
 #include <algorithm>
 #include <vector>
 
-// XXX(oschaaf): do we need this?
-// #include "base/stl_util.h"
-
 template <class ForwardIterator>
 void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
   while (begin != end) {

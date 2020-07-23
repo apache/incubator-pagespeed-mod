@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/macros.h"
 #include "strings/stringpiece.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/identifier.h"
@@ -147,7 +146,7 @@ class Value {
     return bytes_in_original_buffer_;
   }
   void set_bytes_in_original_buffer(const CssStringPiece& bytes) {
-    bytes.CopyToString(&bytes_in_original_buffer_);
+    bytes_in_original_buffer_ = std::string(bytes);
   }
 
  private:

@@ -232,11 +232,11 @@ TEST_F(HeadersCookieUtilTest, QuotedValues_BrokenCase_2) {
 
   headers.RemoveCookie("PageSpeedExperiment");
 
-  const char kExpectedHeadersFormat[] =
+  constexpr char kExpectedHeadersFormat[] =
       "GET  HTTP/1.0\r\n"
       "Cookie: %s"
       "\r\n\r\n";
-  GoogleString expected_headers = StringPrintf(kExpectedHeadersFormat,
+  GoogleString expected_headers = absl::StrFormat(kExpectedHeadersFormat,
                                                header_string.c_str());
   EXPECT_EQ(expected_headers, headers.ToString());
 }

@@ -51,7 +51,7 @@ class WaveformTest : public testing::Test {
   }
 
   GoogleString Format(int time_ms, int value) {
-    return StringPrintf(kCoordinateFormat, 1.0 * time_ms, 1.0 * value);
+    return absl::StrFormat(kCoordinateFormat, 1.0 * time_ms, 1.0 * value);
   }
 
   bool Contains(const StringPiece& html, int time_ms, int value) {

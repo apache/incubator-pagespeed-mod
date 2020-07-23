@@ -87,7 +87,7 @@ class CssImageRewriterTest : public CssRewriteTestBase {
     const char kCssTemplate[] = "div{background-image:url(%s)}";
     AddFileToMockFetcher(StrCat(kTestDomain, kPuzzleJpgFile), kPuzzleJpgFile,
                          kContentTypeJpeg, 100);
-    GoogleString in_css = StringPrintf(kCssTemplate, kPuzzleJpgFile);
+    GoogleString in_css = absl::StrFormat(kCssTemplate, kPuzzleJpgFile);
     SetResponseWithDefaultHeaders(kCssFile, kContentTypeCss, in_css, 100);
     SetCurrentUserAgent(user_agent);
 
@@ -251,8 +251,8 @@ TEST_F(CssImageRewriterTest, CacheExtendsRepeatedTopLevel) {
       "<img src='%s'>";
 
   ValidateExpected("repeated_top_level",
-                   StringPrintf(kHtmlTemplate, kCss, kImg),
-                   StringPrintf(kHtmlTemplate,
+                   absl::StrFormat(kHtmlTemplate, kCss, kImg),
+                   absl::StrFormat(kHtmlTemplate,
                                 kRewrittenCss.c_str(),
                                 kExtendedImg.c_str()));
 
@@ -564,9 +564,9 @@ TEST_F(InlineCssImageRewriterTest, InlineImagesInFallbackMode) {
       "body {\n"
       "  background-image: url(%s);\n"
       "}}}}}\n";
-  GoogleString input_css = StringPrintf(
+  GoogleString input_css = absl::StrFormat(
       kCssTemplate, TestImageFileName().c_str());
-  GoogleString expected_css = StringPrintf(
+  GoogleString expected_css = absl::StrFormat(
       kCssTemplate, TestImageDataUrl().c_str());
 
   // Skip the stat check because inlining *increases* the CSS size and
@@ -719,8 +719,8 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesSimpleFallback) {
       "body {\n"
       "  background-image: url(%s);\n"
       "}}}}}\n";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(
+  const GoogleString css_before = absl::StrFormat(css_template, "foo.png");
+  const GoogleString css_after = absl::StrFormat(
       css_template, Encode("", "ce", "0", "foo.png", "png").c_str());
 
   ValidateRewrite("unparseable", css_before, css_after,
@@ -741,21 +741,21 @@ TEST_F(CssImageRewriterTest, CacheExtendsRepeatedTopLevelFallback) {
 
   SetResponseWithDefaultHeaders(kImg, kContentTypePng, kDummyContent, 100);
   SetResponseWithDefaultHeaders(
-      kCss, kContentTypeCss, StringPrintf(kCssTemplate, kImg), 100);
+      kCss, kContentTypeCss, absl::StrFormat(kCssTemplate, kImg), 100);
 
   const char kHtmlTemplate[] =
       "<link rel='stylesheet' href='%s'>"
       "<img src='%s'>";
 
   ValidateExpected("repeated_top_level",
-                   StringPrintf(kHtmlTemplate, kCss, kImg),
-                   StringPrintf(kHtmlTemplate,
+                   absl::StrFormat(kHtmlTemplate, kCss, kImg),
+                   absl::StrFormat(kHtmlTemplate,
                                 kRewrittenCss.c_str(),
                                 kExtendedImg.c_str()));
 
   GoogleString css_out;
   EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, kRewrittenCss), &css_out));
-  EXPECT_EQ(StringPrintf(kCssTemplate, kExtendedImg.c_str()), css_out);
+  EXPECT_EQ (absl::StrFormat(kCssTemplate, kExtendedImg.c_str()), css_out);
 }
 
 TEST_F(CssImageRewriterTest, CacheExtendsImagesFallback) {
@@ -779,9 +779,9 @@ TEST_F(CssImageRewriterTest, CacheExtendsImagesFallback) {
       "  -proprietary-background-property: url(%s);\n"
       // Note: Extra }s cause parse failure.
       "}}}}}}";
-  const GoogleString css_before = StringPrintf(
+  const GoogleString css_before = absl::StrFormat(
       css_template, "foo.png", "bar.png", "baz.png", "foo.png", "foo.png");
-  const GoogleString css_after = StringPrintf(
+  const GoogleString css_after = absl::StrFormat(
       css_template,
       Encode("", "ce", "0", "foo.png", "png").c_str(),
       Encode("", "ce", "0", "bar.png", "png").c_str(),
@@ -805,8 +805,8 @@ TEST_F(CssImageRewriterTest, RecompressImagesFallback) {
       "body {\n"
       "  background-image: url(%s);\n"
       "}}}}}\n";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(
+  const GoogleString css_before = absl::StrFormat(css_template, "foo.png");
+  const GoogleString css_after = absl::StrFormat(
       css_template, Encode("", "ic", "0", "foo.png", "png").c_str());
 
   ValidateRewriteExternalCss("recompress_css_images", css_before, css_after,
@@ -850,9 +850,9 @@ TEST_F(CssImageRewriterTest, FallbackImportsAndUnknownContentType) {
       "  -moz-content-file: url(doc.html);\n"
       // Note: Extra }s cause parse failure.
       "}}}}}\n";
-  const GoogleString css_before = StringPrintf(
+  const GoogleString css_before = absl::StrFormat(
       css_template, "style.css", "image.png");
-  const GoogleString css_after = StringPrintf(
+  const GoogleString css_after = absl::StrFormat(
       css_template,
       Encode("", "ce", "0", "style.css", "css").c_str(),
       Encode("", "ic", "0", "image.png", "png").c_str());
@@ -882,8 +882,8 @@ TEST_F(CssImageRewriterTest, FallbackAbsolutify) {
 
   // Note: Extra }s cause parse failure.
   const char css_template[] = ".foo { background: url(%s); }}}}";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(css_template,
+  const GoogleString css_before = absl::StrFormat(css_template, "foo.png");
+  const GoogleString css_after = absl::StrFormat(css_template,
                                               "http://new_domain.com/foo.png");
 
   // We only test inline CSS because ValidateRewriteExternalCss doesn't work
@@ -937,8 +937,8 @@ TEST_F(CssImageRewriterTest, FetchRewriteFailure) {
 
   // Note: Extra }s cause parse failure.
   const char css_template[] = ".foo { background: url(%s); }}}}";
-  const GoogleString css_before = StringPrintf(css_template, "foo.png");
-  const GoogleString css_after = StringPrintf(css_template,
+  const GoogleString css_before = absl::StrFormat(css_template, "foo.png");
+  const GoogleString css_after = absl::StrFormat(css_template,
                                               "http://new_domain.com/foo.png");
 
   // Test loading from other domains.
