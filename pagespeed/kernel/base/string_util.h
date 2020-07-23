@@ -60,10 +60,12 @@ public:
 
   using absl::string_view::string_view;
 
+  // We accept nullptr for historical reasons.
   constexpr bool operator==(const char* rhs) noexcept {
     return absl::NullSafeStringView(rhs) == *this;
   }
   
+  // We accept nullptr for historical reasons.
   constexpr bool operator!=(const char* rhs) noexcept {
     return absl::NullSafeStringView(rhs) != *this;
   }

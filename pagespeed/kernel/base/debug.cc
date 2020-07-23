@@ -30,7 +30,7 @@ GoogleString StackTraceString() {
   //trace.OutputToStream(&ostream);
   //return ostream.str();
   // XXX(oschaaf)
-  return "TODO";
+  return "StackTraceString() TODO";
 }
 
 }  // namespace net_instaweb
