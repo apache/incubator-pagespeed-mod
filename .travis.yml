@@ -11,7 +11,7 @@ before_install:
   - sudo add-apt-repository -y ppa:git-core/ppa
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
-  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached apache2-dev
+  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached apache2-dev python2
   - wget https://github.com/bazelbuild/bazel/releases/download/3.3.1/bazel-3.3.1-installer-linux-x86_64.sh
   - chmod +x bazel-3.3.1-installer-linux-x86_64.sh
   - ./bazel-3.3.1-installer-linux-x86_64.sh --user
