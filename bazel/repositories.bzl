@@ -434,6 +434,8 @@ cc_binary(
         strip_prefix = "apr-%s" % APR_COMMIT,
         url = "https://github.com/apache/apr/archive/%s.tar.gz" % APR_COMMIT,
         build_file_content = apr_build_rule,
+        patches = [ "apr.patch" ],
+        patch_args = ["-p1"],
         sha256 = "81f100b46670014b9ad62acaa2df653a225408a9d8d90c4727d592941952b0ec",
     )
 
