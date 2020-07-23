@@ -8,7 +8,7 @@ genrule(
     outs = [
         "registry_tables_genfiles/registry_tables.h"
     ],
-    cmd = ("python3 ./$(location src/registry_tables_generator/registry_tables_generator.py) ./$(location src/third_party/effective_tld_names/effective_tld_names.dat) $@ $@_test")
+    cmd = ("python2 ./$(location src/registry_tables_generator/registry_tables_generator.py) ./$(location src/third_party/effective_tld_names/effective_tld_names.dat) $@ $@_test")
 )
 
 cc_library(

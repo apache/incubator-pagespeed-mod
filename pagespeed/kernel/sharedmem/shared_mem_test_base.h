@@ -103,6 +103,8 @@ class SharedMemTestBase : public testing::Test {
 
   AbstractSharedMemSegment* CreateDefault();
   AbstractSharedMemSegment* AttachDefault();
+  AbstractMutex* AttachDefaultMutex(AbstractSharedMemSegment* segment);
+
   void DestroyDefault();
 
   // writes '1' to the default segment's base location.
