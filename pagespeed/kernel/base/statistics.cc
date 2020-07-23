@@ -175,7 +175,7 @@ void Histogram::WriteRawHistogramData(Writer* writer, MessageHandler* handler) {
 }
 
 void Histogram::Render(int index, Writer* writer, MessageHandler* handler) {
-  writer->Write (absl::StrFormat("<div id='hist_%d' style='display:none'>", index),
+  writer->Write(absl::StrFormat("<div id='hist_%d' style='display:none'>", index),
                 handler);
 
   // Don't hold a lock while calling the writer, as this can deadlock if
