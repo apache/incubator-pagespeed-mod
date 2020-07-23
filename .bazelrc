@@ -334,6 +334,7 @@ clang-7's output unless we pass in -fno-addrsig
 # not passing this in will make the scripts that rename symbols fail
 build --copt=-fno-addrsig 
 
+build:clang-asan --copt=-fno-sanitize=alignment	
 build:clang-asan --copt=-fno-omit-frame-pointer
 
 test --test_env=REDIS_PORT=6379
