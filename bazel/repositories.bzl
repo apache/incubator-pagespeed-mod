@@ -27,7 +27,7 @@ DRP_COMMIT = "21a7a0f0513b7adad7889ee68edcff49601e4a3a"
 GIFLIB_COMMIT = "5.2.1" # July 24th, 2020
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
 LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
-APR_COMMIT = "a194e7afd16d2bd88c5394dfb6d066614161b1ed"
+APR_COMMIT = "901ece0cd7cec29c050c58451a801bb125d09b6e" # July 24th, 2020
 APRUTIL_COMMIT = "13ed779e56669007dffe9a27ffab3790b59cbfaa"
 SERF_COMMIT = "95cf7547361549e192ac34d94d44c01c7a57b642"
 CLOSURE_LIBRARY_COMMIT = "cd0e79408e4ec90e0da2eaee846a3400fae30445"
@@ -437,7 +437,7 @@ cc_binary(
         build_file_content = apr_build_rule,
         patches = [ "apr.patch" ],
         patch_args = ["-p1"],
-        sha256 = "81f100b46670014b9ad62acaa2df653a225408a9d8d90c4727d592941952b0ec",
+        sha256 = "372b6a3424d8a3abbbf216bf6058e949f7b9da95e9caa57a9f5e82fe7528ca40",
     )
 
     http_archive(
