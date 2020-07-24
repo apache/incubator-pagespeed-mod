@@ -21,8 +21,8 @@ RE2_COMMIT = "2020-07-06" # July 24th, 2020
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
 LIBWEBP_COMMIT = "v0.6.1"
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
-GLOG_COMMIT = "96a2f23dca4cc7180821ca5f32e526314395d26a"
-GFLAGS_COMMIT = "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
+GLOG_COMMIT = "0a2e5931bd5ff22fd3bf8999eb8ce776f159cda6" # July 24th, 2020
+GFLAGS_COMMIT = "f7388c6655e699f777a5a74a3c9880b9cfaabe59" # July 24th, 2020
 DRP_COMMIT = "21a7a0f0513b7adad7889ee68edcff49601e4a3a"
 GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
@@ -389,14 +389,14 @@ cc_binary(
         name = "glog",
         strip_prefix = "glog-%s" % GLOG_COMMIT,
         url = "https://github.com/google/glog/archive/%s.tar.gz" % GLOG_COMMIT,
-        sha256 = "a72da1c10f4f1f678ec3e77aeaf9b3026ec0d2f66d20ded33753ab5940ed218e",
+        sha256 = "bae42ec37b50e156071f5b92d2ff09aa5ece56fd8c58d2175fc1ffea85137664",
     )
 
     http_archive(
         name = "com_github_gflags_gflags",
         strip_prefix = "gflags-%s" % GFLAGS_COMMIT,
         url = "https://github.com/gflags/gflags/archive/%s.tar.gz" % GFLAGS_COMMIT,
-        sha256 = "b20f58e7f210ceb0e768eb1476073d0748af9b19dfbbf53f4fd16e3fb49c5ac8",
+        sha256 = "ed82ef64389409e378fc6ae55b8b60f11a0b4bbb7e004d5ef9e791f40af19a6e",
     )
 
     http_archive(
