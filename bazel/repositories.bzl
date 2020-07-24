@@ -358,7 +358,7 @@ cc_binary(
 )
 
 """,        
-        sha256 = "",
+        sha256 = "2e9489a31ae007c81e90e8ec8a15d62d58a9c18d4fd1603f6441ef248556b41f",
     )
 
     http_archive(
