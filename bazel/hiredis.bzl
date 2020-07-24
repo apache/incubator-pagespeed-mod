@@ -7,6 +7,7 @@ cc_library(
         "net.c",
         "read.c",
         "sds.c",
+        "alloc.c",
     ],
     hdrs = [
         # adding dict.c here since async.c includes it
@@ -17,6 +18,8 @@ cc_library(
         "net.h",
         "read.h",
         "sds.h",
+        "alloc.h",
+        "sdsalloc.h",
         "fmacros.h",
     ],
     visibility = ["//visibility:public"],
