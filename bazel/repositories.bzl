@@ -19,7 +19,7 @@ HIREDIS_COMMIT = "0.14.1" # July 24th, 2020
 JSONCPP_COMMIT = "1.9.3" # July 24th, 2020
 RE2_COMMIT = "2020-07-06" # July 24th, 2020
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
-LIBWEBP_COMMIT = "v0.6.1"
+LIBWEBP_COMMIT = "1.1.0" # July 24th, 2020
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "0a2e5931bd5ff22fd3bf8999eb8ce776f159cda6" # July 24th, 2020
 GFLAGS_COMMIT = "f7388c6655e699f777a5a74a3c9880b9cfaabe59" # July 24th, 2020
@@ -371,10 +371,12 @@ cc_binary(
 
     http_archive(
         name = "libwebp",
-        url = "https://chromium.googlesource.com/webm/libwebp/+archive/refs/tags/%s.tar.gz" % LIBWEBP_COMMIT,
+        urls = [
+            "https://github.com/webmproject/libwebp/archive/v%s.tar.gz" % LIBWEBP_COMMIT,
+        ],
+        sha256 = "424faab60a14cb92c2a062733b6977b4cc1e875a6398887c5911b3a1a6c56c51",
+        strip_prefix = "libwebp-%s" % LIBWEBP_COMMIT,
         build_file_content = libwebp_build_rule,
-        # TODO(oschaaf): fix sha256, fails in CI
-        # sha256 = "b350385fe4d07bb95ce72259ce4cef791fb2d1ce1d77af1acea164c6c53f2907",
     )
 
     http_archive(
