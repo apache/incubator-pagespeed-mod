@@ -24,73 +24,37 @@
 #include <limits>
 #include <string>
 
-//#include "base/debug/debugger.h"
-//#include "base/debug/stack_trace.h"
+#include "absl/strings/strip.h"
 #include "base/logging.h"
+#include "external/envoy/source/common/common/logger.h"
 #include "net/instaweb/public/version.h"
 #include "pagespeed/kernel/base/string_util.h"
 
-// Make sure we don't attempt to use LOG macros here, since doing so
-// would cause us to go into an infinite log loop.
-#undef LOG
-#define LOG USING_LOG_HERE_WOULD_CAUSE_INFINITE_RECURSION
-
 namespace {
-
-/*
-ngx_uint_t GetNgxLogLevel(int severity) {
-  switch (severity) {
+class Logger : public Envoy::Logger::Loggable<Envoy::Logger::Id::main> {
+  bool LogMessageHandler(int severity, const char* file, int line, size_t message_start,
+                         const GoogleString& str) {
+    // TODO(oschaaf): if log level is fatal we need to do more:
+    // - if debugging, break
+    // - else log stack trace.
+    StringPiece message = str;
+    absl::ConsumeSuffix(&message, "\n");
+    constexpr char preamble[] = "[pagespeed %s] %s";
+    switch (severity) {
     case logging::LOG_INFO:
-      return NGX_LOG_INFO;
+      ENVOY_LOG(info, preamble, net_instaweb::kModPagespeedVersion, message);
     case logging::LOG_WARNING:
-      return NGX_LOG_WARN;
+      ENVOY_LOG(warn, preamble, net_instaweb::kModPagespeedVersion, message);
     case logging::LOG_ERROR:
-      return NGX_LOG_ERR;
-    case logging::LOG_ERROR_REPORT:
+      ENVOY_LOG(error, preamble, net_instaweb::kModPagespeedVersion, message);
     case logging::LOG_FATAL:
-      return NGX_LOG_ALERT;
-    default:  // For VLOG(s)
-      return NGX_LOG_DEBUG;
+      ENVOY_LOG(critical, preamble, net_instaweb::kModPagespeedVersion, message);
+    default: // For VLOG(s)
+      ENVOY_LOG(debug, preamble, net_instaweb::kModPagespeedVersion, message);
+    }
+    return true;
   }
-}
-*/
-
-bool LogMessageHandler(int severity, const char* file, int line, size_t message_start,
-                       const GoogleString& str) {
-  /*
-    ngx_uint_t this_log_level = GetNgxLogLevel(severity);
-
-    GoogleString message = str;
-    if (severity == logging::LOG_FATAL) {
-      if (base::debug::BeingDebugged()) {
-        base::debug::BreakDebugger();
-      } else {
-        base::debug::StackTrace trace;
-        std::ostringstream stream;
-        trace.OutputToStream(&stream);
-        message.append(stream.str());
-      }
-    }
-
-    // Trim the newline off the end of the message string.
-    size_t last_msg_character_index = message.length() - 1;
-    if (message[last_msg_character_index] == '\n') {
-      message.resize(last_msg_character_index);
-    }
-
-    ngx_log_error(this_log_level, ngx_log, 0, "[ngx_pagespeed %s] %s",
-                  net_instaweb::kModPagespeedVersion,
-                  message.c_str());
-
-    if (severity == logging::LOG_FATAL) {
-      // Crash the process to generate a dump.
-      base::debug::BreakDebugger();
-    }
-  */
-  GoogleString message = str;
-  std::cerr << "pagespeed fix logging: " << message << std::endl;
-  return true;
-}
+};
 
 } // namespace
 
@@ -105,5 +69,4 @@ void Install() {
 }
 
 } // namespace log_message_handler
-
 } // namespace net_instaweb

@@ -29,6 +29,8 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/system/system_message_handler.h"
 
+#include "external/envoy/source/common/common/logger.h"
+
 namespace net_instaweb {
 
 class AbstractMutex;
