@@ -29,7 +29,7 @@ OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
 LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
 APR_COMMIT = "901ece0cd7cec29c050c58451a801bb125d09b6e" # July 24th, 2020
 APRUTIL_COMMIT = "13ed779e56669007dffe9a27ffab3790b59cbfaa"
-SERF_COMMIT = "95cf7547361549e192ac34d94d44c01c7a57b642"
+SERF_COMMIT = "3a37fc11c49d4fa91c559ee0b387f7a23705d999"  # July 24th, 2020
 CLOSURE_LIBRARY_COMMIT = "cd0e79408e4ec90e0da2eaee846a3400fae30445"
 
 def mod_pagespeed_dependencies():
@@ -453,7 +453,7 @@ cc_binary(
         strip_prefix = "serf-%s" % SERF_COMMIT,
         url = "https://github.com/apache/serf/archive/%s.tar.gz" % SERF_COMMIT,
         build_file_content = serf_build_rule,
-        sha256 = "bcc7ddc4b82bf76ba862261cdb580db044ff62dcd523f8eb6acde87518b10257",
+        sha256 = "0599b9a8ec8ea3ae260337fa84d8d335bd95ce54a236f7be24a8bddfd04a4840",
     )
 
     http_archive(
