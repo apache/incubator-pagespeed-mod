@@ -18,7 +18,7 @@ BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 HIREDIS_COMMIT = "0.14.1" # July 24th, 2020
 JSONCPP_COMMIT = "1.9.3" # July 24th, 2020
 RE2_COMMIT = "2020-07-06" # July 24th, 2020
-LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
+LIBPNG_COMMIT = "1.6.37" # July 24th, 2020
 LIBWEBP_COMMIT = "1.1.0" # July 24th, 2020
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "0a2e5931bd5ff22fd3bf8999eb8ce776f159cda6" # July 24th, 2020
@@ -364,9 +364,9 @@ cc_binary(
     http_archive(
         name = "libpng",
         strip_prefix = "libpng-%s" % LIBPNG_COMMIT,
-        url = "https://github.com/glennrp/libpng/archive/%s.tar.gz" % LIBPNG_COMMIT,
+        url = "https://github.com/glennrp/libpng/archive/v%s.tar.gz" % LIBPNG_COMMIT,
         build_file_content = libpng_build_rule,
-        sha256 = "b82a964705b5f32fa7c0b2c5a78d264c710f8c293fe7e60763b3381f8ff38d42",
+        sha256 = "ca74a0dace179a8422187671aee97dd3892b53e168627145271cad5b5ac81307",
     )
 
     http_archive(
