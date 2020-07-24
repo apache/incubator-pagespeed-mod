@@ -35,8 +35,8 @@
 
 using net_instaweb::UrlEscaper::EncodeToUrlSegment;
 
-static void BM_EncodeToUrlSegment(int iters) {
-  for (int i = 0; i < iters; ++i) {
+static void BM_EncodeToUrlSegment(benchmark::State& state) {
+  for (int i = 0; i < state.iterations(); ++i) {
     GoogleString out;
 
     // These were randomly selected from inputs to EncodeToUrlSegment when

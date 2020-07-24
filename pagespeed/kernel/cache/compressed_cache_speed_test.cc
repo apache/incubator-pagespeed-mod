@@ -37,7 +37,6 @@
 // interleaved runs with the old & new algorithm.
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -49,6 +48,7 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/kernel/util/simple_stats.h"
+#include "pagespeed/kernel/base/benchmark.h"
 
 namespace {
 
@@ -84,20 +84,20 @@ void TestCachePayload(int payload_size, int chunk_size, int iters) {
   }
 }
 
-static void BM_Compress1MHighEntropy(int iters) {
-  TestCachePayload(1000*1000, 1000*1000, iters);
+static void BM_Compress1MHighEntropy(benchmark::State& state) {
+  TestCachePayload(1000*1000, 1000*1000, state.iterations());
 }
 
-static void BM_Compress1KHighEntropy(int iters) {
-  TestCachePayload(1000, 1000, iters);
+static void BM_Compress1KHighEntropy(benchmark::State& state) {
+  TestCachePayload(1000, 1000, state.iterations());
 }
 
-static void BM_Compress1MLowEntropy(int iters) {
-  TestCachePayload(1000*1000, 1000, iters);
+static void BM_Compress1MLowEntropy(benchmark::State& state) {
+  TestCachePayload(1000*1000, 1000, state.iterations());
 }
 
-static void BM_Compress1KLowEntropy(int iters) {
-  TestCachePayload(1000, 50, iters);
+static void BM_Compress1KLowEntropy(benchmark::State& state) {
+  TestCachePayload(1000, 50, state.iterations());
 }
 
 }  // namespace

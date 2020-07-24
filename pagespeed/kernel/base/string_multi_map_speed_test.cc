@@ -66,8 +66,8 @@ void AddHeaders(net_instaweb::StringMultiMapInsensitive* multi_map) {
   multi_map->Add("Connection", "close");
 }
 
-void BM_SanitizeByArray(int iters) {
-  for (int i = 0; i < iters; ++i) {
+void BM_SanitizeByArray(benchmark::State& state) {
+  for (int i = 0; i < state.iterations(); ++i) {
     net_instaweb::StringMultiMapInsensitive multi_map;
     AddHeaders(&multi_map);
 
@@ -83,8 +83,8 @@ void BM_SanitizeByArray(int iters) {
   }
 }
 
-void BM_SanitizeBySet(int iters) {
-  for (int i = 0; i < iters; ++i) {
+void BM_SanitizeBySet(benchmark::State& state) {
+  for (int i = 0; i < state.iterations(); ++i) {
     net_instaweb::StringMultiMapInsensitive multi_map;
     AddHeaders(&multi_map);
     net_instaweb::StringSetInsensitive remove_set;

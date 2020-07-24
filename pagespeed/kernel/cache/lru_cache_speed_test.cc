@@ -136,53 +136,53 @@ class TestPayload {
   DISALLOW_COPY_AND_ASSIGN(TestPayload);
 };
 
-static void LRUPuts(int iters) {
+static void LRUPuts(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, false);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.lru_cache()->Clear();
     payload.DoPuts(0);
   }
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_evictions()));
 }
 
-static void LRUReplaceSameValue(int iters) {
+static void LRUReplaceSameValue(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoPuts(0);
   }
   CHECK_LT(0, static_cast<int>(payload.lru_cache()->num_identical_reinserts()));
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_evictions()));
 }
 
-static void LRUReplaceNewValue(int iters) {
+static void LRUReplaceNewValue(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoPuts(i + 1);
   }
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_identical_reinserts()));
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_evictions()));
 }
 
-static void LRUGets(int iters) {
+static void LRUGets(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoGets();
   }
-  CHECK_EQ(kNumKeys * iters, static_cast<int>(payload.lru_cache()->num_hits()));
+  CHECK_EQ(kNumKeys * state.iterations(), static_cast<int>(payload.lru_cache()->num_hits()));
 }
 
-static void LRUFailedGets(int iters) {
+static void LRUFailedGets(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
   payload.RegenerateKeys();
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoGets();
   }
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_hits()));
 }
 
-static void LRUEvictions(int iters) {
+static void LRUEvictions(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.RegenerateKeys();
     payload.DoPuts(0);
   }
