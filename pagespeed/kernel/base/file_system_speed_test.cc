@@ -19,13 +19,13 @@
 
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/stdio_file_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
+#include "pagespeed/kernel/base/benchmark.h"
 
 // Running the speed test:
 //   src/out/Release/mod_pagespeed_speed_test .File
@@ -58,18 +58,18 @@ class FSTester {
     StartBenchmarkTiming();
   }
 
-  void ReadWholeFile(int iters) {
+  void ReadWholeFile(benchmark::State& state) {
     StartBenchmarkTiming();
-    for (int i = 0; i < iters; ++i) {
+    for (int i = 0; i < state.iterations(); ++i) {
       GoogleString buf;
       CHECK(file_system_.ReadFile(filename_.c_str(), &buf, &handler_));
     }
     StopBenchmarkTiming();
   }
 
-  void StreamingReadFile(int iters) {
+  void StreamingReadFile(benchmark::State& state) {
     StartBenchmarkTiming();
-    for (int i = 0; i < iters; ++i) {
+    for (int i = 0; i < state.iterations(); ++i) {
       GoogleString buf;
       StringWriter writer(&buf);
       CHECK(file_system_.ReadFile(filename_.c_str(), &writer, &handler_));
@@ -83,27 +83,27 @@ class FSTester {
   GoogleMessageHandler handler_;
 };
 
-static void BM_100kWholeFile(int iters) {
+static void BM_100kWholeFile(benchmark::State& state) {
   FSTester fs_tester(100000);
-  fs_tester.ReadWholeFile(iters);
+  fs_tester.ReadWholeFile(state);
 }
 BENCHMARK(BM_100kWholeFile);
 
-static void BM_100kStreamingFile(int iters) {
+static void BM_100kStreamingFile(benchmark::State& state) {
   FSTester fs_tester(100000);
-  fs_tester.StreamingReadFile(iters);
+  fs_tester.StreamingReadFile(state);
 }
 BENCHMARK(BM_100kStreamingFile);
 
-static void BM_1MWholeFile(int iters) {
+static void BM_1MWholeFile(benchmark::State& state) {
   FSTester fs_tester(1000000);
-  fs_tester.ReadWholeFile(iters);
+  fs_tester.ReadWholeFile(state);
 }
 BENCHMARK(BM_1MWholeFile);
 
-static void BM_1MStreamingFile(int iters) {
+static void BM_1MStreamingFile(benchmark::State& state) {
   FSTester fs_tester(1000000);
-  fs_tester.StreamingReadFile(iters);
+  fs_tester.StreamingReadFile(state);
 }
 BENCHMARK(BM_1MStreamingFile);
 

@@ -56,9 +56,9 @@ class DequeUsingStdVector : public std::vector<T> {
   void pop_front() { this->erase(this->begin()); }
 };
 
-template<class Deque> static void FourElementWorkout(int iters,
+template<class Deque> static void FourElementWorkout(benchmark::State& state,
                                                      int num_elements) {
-  for (int iter = 0; iter < iters; ++iter) {
+  for (int iter = 0; iter < state.iterations(); ++iter) {
     Deque deque;
 
     // Simple usage as pure stack or queue, but not at the same time.
@@ -141,36 +141,36 @@ template<class Deque> static void FourElementWorkout(int iters,
   }
 }
 
-static void BM_List4(int iters) {
-  FourElementWorkout<std::list<int> >(iters, 4);
+static void BM_List4(benchmark::State& state) {
+  FourElementWorkout<std::list<int> >(state, 4);
 }
 
-static void BM_Deque4(int iters) {
-  FourElementWorkout<std::deque<int> >(iters, 4);
+static void BM_Deque4(benchmark::State& state) {
+  FourElementWorkout<std::deque<int> >(state, 4);
 }
 
-static void BM_VectorDeque4(int iters) {
-  FourElementWorkout<net_instaweb::VectorDeque<int> >(iters, 4);
+static void BM_VectorDeque4(benchmark::State& state) {
+  FourElementWorkout<net_instaweb::VectorDeque<int> >(state, 4);
 }
 
-static void BM_DequeUsingStdVector4(int iters) {
-  FourElementWorkout<DequeUsingStdVector<int> >(iters, 4);
+static void BM_DequeUsingStdVector4(benchmark::State& state) {
+  FourElementWorkout<DequeUsingStdVector<int> >(state, 4);
 }
 
-static void BM_List100(int iters) {
-  FourElementWorkout<std::list<int> >(iters, 100);
+static void BM_List100(benchmark::State& state) {
+  FourElementWorkout<std::list<int> >(state, 100);
 }
 
-static void BM_Deque100(int iters) {
-  FourElementWorkout<std::deque<int> >(iters, 100);
+static void BM_Deque100(benchmark::State& state) {
+  FourElementWorkout<std::deque<int> >(state, 100);
 }
 
-static void BM_VectorDeque100(int iters) {
-  FourElementWorkout<net_instaweb::VectorDeque<int> >(iters, 100);
+static void BM_VectorDeque100(benchmark::State& state) {
+  FourElementWorkout<net_instaweb::VectorDeque<int> >(state, 100);
 }
 
-static void BM_DequeUsingStdVector100(int iters) {
-  FourElementWorkout<DequeUsingStdVector<int> >(iters, 100);
+static void BM_DequeUsingStdVector100(benchmark::State& state) {
+  FourElementWorkout<DequeUsingStdVector<int> >(state, 100);
 }
 
 BENCHMARK(BM_List4);

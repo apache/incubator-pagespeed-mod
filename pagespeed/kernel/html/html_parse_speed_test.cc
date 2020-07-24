@@ -94,7 +94,7 @@ const StringPiece GetHtmlText() {
   return *sHtmlText;
 }
 
-static void BM_ParseAndSerializeNewParserEachIter(int iters) {
+static void BM_ParseAndSerializeNewParserEachIter(benchmark::State& state) {
   StopBenchmarkTiming();
   StringPiece text = GetHtmlText();
   if (text.empty()) {
@@ -104,7 +104,7 @@ static void BM_ParseAndSerializeNewParserEachIter(int iters) {
   NullMessageHandler handler;
 
   StartBenchmarkTiming();
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     HtmlParse parser(&handler);
     HtmlWriterFilter writer_filter(&parser);
     parser.AddFilter(&writer_filter);
@@ -116,7 +116,7 @@ static void BM_ParseAndSerializeNewParserEachIter(int iters) {
 }
 BENCHMARK(BM_ParseAndSerializeNewParserEachIter);
 
-static void BM_ParseAndSerializeReuseParser(int iters) {
+static void BM_ParseAndSerializeReuseParser(benchmark::State& state) {
   StopBenchmarkTiming();
   StringPiece text = GetHtmlText();
   if (text.empty()) {
@@ -131,7 +131,7 @@ static void BM_ParseAndSerializeReuseParser(int iters) {
   writer_filter.set_writer(&writer);
 
   StartBenchmarkTiming();
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     parser.StartParse("http://example.com/benchmark");
     parser.ParseText(text);
     parser.FinishParse();
@@ -139,7 +139,7 @@ static void BM_ParseAndSerializeReuseParser(int iters) {
 }
 BENCHMARK(BM_ParseAndSerializeReuseParser);
 
-static void BM_ParseAndSerializeReuseParserX50(int iters) {
+static void BM_ParseAndSerializeReuseParserX50(benchmark::State& state) {
   StopBenchmarkTiming();
   StringPiece orig = GetHtmlText();
   if (orig.empty()) {
@@ -160,7 +160,7 @@ static void BM_ParseAndSerializeReuseParserX50(int iters) {
   writer_filter.set_writer(&writer);
 
   StartBenchmarkTiming();
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     parser.StartParse("http://example.com/benchmark");
     parser.ParseText(text);
     parser.FinishParse();
