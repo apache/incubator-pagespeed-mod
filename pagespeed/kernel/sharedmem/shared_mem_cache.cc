@@ -181,21 +181,6 @@ GoogleString FormatSize(size_t size) {
   return Integer64ToString(static_cast<int64>(size));
 }
 
-// A couple of debug helpers.
-#ifndef NDEBUG
-
-GoogleString DebugTextHash(const GoogleString& raw_hash) {
-  GoogleString out;
-  Web64Encode(raw_hash, &out);
-  return out;
-}
-
-GoogleString DebugTextHash(CacheEntry* entry, size_t size) {
-  return DebugTextHash(StringPiece(entry->hash_bytes, size).as_string());
-}
-
-#endif  // NDEBUG
-
 }  // namespace
 
 // If you add any new parameters also include them in SnapshotCacheKey() or else

@@ -69,11 +69,6 @@ pagespeed_cc_test(
         "testdata/*",
         "testdata/www.google.com/*",
     ]),
-    copts = [
-        "-Wno-error=unused-parameter",
-        "-Wno-error=old-style-cast",
-#        "-Wno-error=inconsistent-missing-override",
-    ],
     deps = [
         ":http_test_base",
     ],

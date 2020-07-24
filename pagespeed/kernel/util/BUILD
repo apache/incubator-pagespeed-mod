@@ -11,11 +11,6 @@ cc_library(
     hdrs = [
         "re2.h",
     ],
-    copts = [
-        "-Wno-error=old-style-cast",
-        "-Wno-error=unused-parameter",
-        "-Wno-unused-parameter",
-    ],
     visibility = ["//visibility:public"],
 )
 
@@ -69,7 +64,11 @@ cc_library(
         "url_to_filename_encoder.h",
     ],    
     copts = [
-        '-std=c++17',        
+        '-std=c++17',
+        "-Werror",
+        "-Wno-macro-redefined",
+        "-Wno-thread-safety-attributes",
+        "-Wno-thread-safety-precise",
     ],    
     visibility = ["//visibility:public"],
     deps = [
