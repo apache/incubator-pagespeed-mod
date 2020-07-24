@@ -39,8 +39,6 @@ const int64 kDefaultCacheFlushIntervalSec = 5;
 const int64 kDefaultRedisDatabaseIndex = 0;
 const int64 kDefaultRedisTTLSec = -1;
 
-const char kFetchHttps[] = "FetchHttps";
-
 }  // namespace
 
 const char SystemRewriteOptions::kCentralControllerPort[] =

@@ -274,8 +274,6 @@ cc_library(
     hdrs = [
         "controller_process.h",
     ],
-    copts = [
-    ],
     visibility = ["//visibility:public"],
 )
 

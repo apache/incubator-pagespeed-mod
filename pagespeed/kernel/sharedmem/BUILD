@@ -27,6 +27,13 @@ cc_library(
         "shared_mem_lock_manager.h",
     ],
     visibility = ["//visibility:public"],
+    copts = [
+        "-Werror",
+        "-Wno-macro-redefined",
+        "-Wno-thread-safety-attributes",
+        "-Wno-thread-safety-precise",
+        "-Wno-unused-local-typedef",
+    ],
     deps = [
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/cache:cache",
