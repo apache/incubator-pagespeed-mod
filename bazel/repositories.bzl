@@ -24,7 +24,7 @@ GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "0a2e5931bd5ff22fd3bf8999eb8ce776f159cda6" # July 24th, 2020
 GFLAGS_COMMIT = "f7388c6655e699f777a5a74a3c9880b9cfaabe59" # July 24th, 2020
 DRP_COMMIT = "21a7a0f0513b7adad7889ee68edcff49601e4a3a"
-GIFLIB_COMMIT = "c9a54afc6feb1e2cd0626a49b2c9e50015e96dbe"
+GIFLIB_COMMIT = "5.2.1" # July 24th, 2020
 OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
 LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
 APR_COMMIT = "a194e7afd16d2bd88c5394dfb6d066614161b1ed"
@@ -409,10 +409,10 @@ cc_binary(
 
     http_archive(
         name = "giflib",
-        strip_prefix = "giflib-mirror-%s" % GIFLIB_COMMIT,
-        url = "https://github.com/We-Amp/giflib-mirror/archive/%s.tar.gz" % GIFLIB_COMMIT,
+        strip_prefix = "giflib-%s" % GIFLIB_COMMIT,
+        url = "https://downloads.sourceforge.net/project/giflib/giflib-%s.tar.gz" % GIFLIB_COMMIT,
         build_file_content = giflib_build_rule,
-        sha256 = "90452882419956d8005b0b6cc51e02488e3016e809431d794f42ab1173a5df02",
+        sha256 = "31da5562f44c5f15d63340a09a4fd62b48c45620cd302f77a6d9acf0077879bd",
     )
 
     http_archive(
