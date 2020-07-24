@@ -18,15 +18,15 @@ BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 HIREDIS_COMMIT = "0.14.1" # July 24th, 2020
 JSONCPP_COMMIT = "1.9.3" # July 24th, 2020
 RE2_COMMIT = "2020-07-06" # July 24th, 2020
-LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
+LIBPNG_COMMIT = "1.6.37" # July 24th, 2020
 LIBWEBP_COMMIT = "1.1.0" # July 24th, 2020
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
 GLOG_COMMIT = "0a2e5931bd5ff22fd3bf8999eb8ce776f159cda6" # July 24th, 2020
 GFLAGS_COMMIT = "f7388c6655e699f777a5a74a3c9880b9cfaabe59" # July 24th, 2020
 DRP_COMMIT = "21a7a0f0513b7adad7889ee68edcff49601e4a3a"
 GIFLIB_COMMIT = "5.2.1" # July 24th, 2020
-OPTIPNG_COMMIT = "e9a5bd640c45e99000f633a0997df89fddd20026"
-LIBJPEG_TURBO_COMMIT = "14eba7addfdcf0699970fcbac225499858a167f2"
+OPTIPNG_COMMIT = "0.7.7" # July 24th, 2020
+LIBJPEG_TURBO_COMMIT = "ab7cd970a83609f98e8542cea8b81e8d92ddab83" # July 24th, 2020
 APR_COMMIT = "901ece0cd7cec29c050c58451a801bb125d09b6e" # July 24th, 2020
 APRUTIL_COMMIT = "13ed779e56669007dffe9a27ffab3790b59cbfaa"
 SERF_COMMIT = "3a37fc11c49d4fa91c559ee0b387f7a23705d999"  # July 24th, 2020
@@ -364,9 +364,9 @@ cc_binary(
     http_archive(
         name = "libpng",
         strip_prefix = "libpng-%s" % LIBPNG_COMMIT,
-        url = "https://github.com/glennrp/libpng/archive/%s.tar.gz" % LIBPNG_COMMIT,
+        url = "https://github.com/glennrp/libpng/archive/v%s.tar.gz" % LIBPNG_COMMIT,
         build_file_content = libpng_build_rule,
-        sha256 = "b82a964705b5f32fa7c0b2c5a78d264c710f8c293fe7e60763b3381f8ff38d42",
+        sha256 = "ca74a0dace179a8422187671aee97dd3892b53e168627145271cad5b5ac81307",
     )
 
     http_archive(
@@ -419,17 +419,17 @@ cc_binary(
 
     http_archive(
         name = "optipng",
-        strip_prefix = "incubator-pagespeed-optipng-%s" % OPTIPNG_COMMIT,
-        url = "https://github.com/apache/incubator-pagespeed-optipng/archive/%s.tar.gz" % OPTIPNG_COMMIT,
+        strip_prefix = "optipng-%s" % OPTIPNG_COMMIT,
+        url = "https://prdownloads.sourceforge.net/optipng/optipng-%s.tar.gz?download" % OPTIPNG_COMMIT,
         build_file_content = optipng_build_rule,
-        sha256 = "e7e937b8c3085ca82389018fcb6a8bf3cb4ba2556921826e634614e1c7e0edd2",
+        sha256 = "4f32f233cef870b3f95d3ad6428bfe4224ef34908f1b42b0badf858216654452",
     )
 
     http_archive(
         name = "libjpeg_turbo",
         url = "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo/+archive/%s.tar.gz" % LIBJPEG_TURBO_COMMIT,
         build_file_content = libjpeg_turbo_build_rule,
-        #sha256 = "ae529ea414c45045153e97a579163bcba677175029ee0245df7b0d5190fc9b28",
+        sha256 = "6cb6e2688dc80d552b294489863e593e1c606ce9e12f71d9a51616cd2d84949b",
     )
 
     http_archive(
