@@ -16,7 +16,7 @@ load(":closure_compiler.bzl", "closure_library_rules")
 ENVOY_COMMIT = "08464ecdc0c93846f3d039d0f0c6fed935f5bdc8"    # July 24th, 2020
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 HIREDIS_COMMIT = "0.14.1"
-JSONCPP_COMMIT = "7165f6ac4c482e68475c9e1dac086f9e12fff0d0"
+JSONCPP_COMMIT = "1.9.3"
 RE2_COMMIT = "848dfb7e1d7ba641d598cb66f81590f3999a555a"
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
 LIBWEBP_COMMIT = "v0.6.1"
@@ -60,7 +60,7 @@ def mod_pagespeed_dependencies():
         strip_prefix = "jsoncpp-%s" % JSONCPP_COMMIT,
         url = "https://github.com/open-source-parsers/jsoncpp/archive/%s.tar.gz" % JSONCPP_COMMIT,
         build_file_content = jsoncpp_build_rule,
-        sha256 = "9757f515b42b86ebd08b13bdfde7c27ca7436186d9b01ef1fa5cbc194e1f2764",
+        sha256 = "8593c1d69e703563d94d8c12244e2e18893eeb9a8a9f8aa3d09a327aa45c8f7d",
     )
 
     http_archive(

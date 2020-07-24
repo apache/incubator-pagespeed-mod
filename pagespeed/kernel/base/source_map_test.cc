@@ -155,7 +155,7 @@ TEST_F(SourceMapTest, Encode_JsonEscaping) {
             // Except for a few special cases: \b \f \n \r \t
             // U+7F is not considered a control char, not escaped.
             "\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\b\\t\\n"
-            "\\u000B\\f\\r\\u0010\\u0013\\u001F ~\x7F\"],"
+            "\\u000b\\f\\r\\u0010\\u0013\\u001f ~\x7F\"],"
             "\"version\":3}\n", result);
 }
 
