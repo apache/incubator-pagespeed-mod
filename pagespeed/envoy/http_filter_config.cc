@@ -42,6 +42,7 @@ public:
                             proto_config, context.messageValidationVisitor()),
                         context);
   }
+  std::string name() const override { return "pagespeed"; };
 
   /**
    *  Return the Protobuf Message that represents your config incase you have config proto
@@ -50,8 +51,6 @@ public:
     return ProtobufTypes::MessagePtr{new pagespeed::Decoder()};
   }
 
-  std::string name() const override { return "pagespeed"; }
-
 private:
   Http::FilterFactoryCb createFilter(const pagespeed::Decoder& proto_config, FactoryContext&) {
     Http::HttpPageSpeedDecoderFilterConfigSharedPtr config =
@@ -59,12 +58,12 @@ private:
             Http::HttpPageSpeedDecoderFilterConfig(proto_config));
 
     return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
-      auto filter = new Http::HttpPageSpeedDecoderFilter(config, getProcessContext()->server_context());
+      auto filter =
+          new Http::HttpPageSpeedDecoderFilter(config, getProcessContext()->server_context());
       callbacks.addStreamFilter(Http::StreamFilterSharedPtr{filter});
     };
   }
 };
-
 /**
  * Static registration for this PageSpeed filter. @see RegisterFactory.
  */

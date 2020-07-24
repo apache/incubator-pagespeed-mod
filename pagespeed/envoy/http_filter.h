@@ -90,7 +90,6 @@ private:
   net_instaweb::InPlaceResourceRecorder* recorder_{nullptr};
   net_instaweb::GoogleMessageHandler message_handler_;
   std::unique_ptr<net_instaweb::ResponseHeaders> response_headers_;
-  std::unique_ptr<net_instaweb::GoogleUrl> pristine_url_;
 };
 
 } // namespace Http

@@ -44,8 +44,7 @@ class EnvoyBaseFetch : public AsyncFetch {
 public:
   EnvoyBaseFetch(StringPiece url, EnvoyServerContext* server_context,
                  const RequestContextPtr& request_ctx,
-                 PreserveCachingHeaders preserve_caching_headers,
-                 const RewriteOptions* options,
+                 PreserveCachingHeaders preserve_caching_headers, const RewriteOptions* options,
                  Envoy::Http::HttpPageSpeedDecoderFilter* decoder);
 
   // Called by Envoy to decrement the refcount.
