@@ -15,7 +15,7 @@ load(":closure_compiler.bzl", "closure_library_rules")
 
 ENVOY_COMMIT = "08464ecdc0c93846f3d039d0f0c6fed935f5bdc8"    # July 24th, 2020
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
-HIREDIS_COMMIT = "010756025e8cefd1bc66c6d4ed3b1648ef6f1f95"
+HIREDIS_COMMIT = "0.14.1"
 JSONCPP_COMMIT = "7165f6ac4c482e68475c9e1dac086f9e12fff0d0"
 RE2_COMMIT = "848dfb7e1d7ba641d598cb66f81590f3999a555a"
 LIBPNG_COMMIT = "b78804f9a2568b270ebd30eca954ef7447ba92f7"
@@ -47,16 +47,12 @@ def mod_pagespeed_dependencies():
         sha256 = "",
     )
 
-    # When updating Hiredis please, ensure that freeReplyObject() is still
-    # thread-safe; RedisCache relies on that.
-    # Updates on that matter will probably be tracked here:
-    # https://github.com/redis/hiredis/issues/465.
     http_archive(
         name = "hiredis",
         strip_prefix = "hiredis-%s" % HIREDIS_COMMIT,
-        url = "https://github.com/redis/hiredis/archive/%s.tar.gz" % HIREDIS_COMMIT,
+        url = "https://github.com/redis/hiredis/archive/v%s.tar.gz" % HIREDIS_COMMIT,
         build_file_content = hiredis_build_rule,
-        sha256 = "b239f8de6073e4eaea4be6ba4bf20516f33d7bedef1fc89287de60a0512f13bd",
+        sha256 = "2663b2aed9fd430507e30fc5e63274ee40cdd1a296026e22eafd7d99b01c8913",
     )
 
     http_archive(
