@@ -81,7 +81,6 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
   driver_factory()->ChildInit();
 
   proxy_fetch_factory_.reset(new ProxyFetchFactory(server_context_));
-  std::cerr << "Process context constructed" << std::endl;
 }
 
 } // namespace net_instaweb

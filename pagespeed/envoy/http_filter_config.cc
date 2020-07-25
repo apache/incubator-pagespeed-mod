@@ -23,14 +23,9 @@ namespace Envoy {
 namespace Server {
 namespace Configuration {
 
-// XXX(oschaaf): fix process context construction
-static std::shared_ptr<EnvoyProcessContext> process_context = nullptr;
-
-EnvoyProcessContext* getProcessContext() {
-  if (process_context == nullptr) {
-    process_context = std::make_shared<EnvoyProcessContext>();
-  }
-  return process_context.get();
+EnvoyProcessContext& getProcessContext() {
+  static EnvoyProcessContext* process_context = new EnvoyProcessContext();
+  return *process_context;
 }
 
 class HttpPageSpeedDecoderFilterConfig : public NamedHttpFilterConfigFactory {
@@ -50,7 +45,7 @@ public:
     return ProtobufTypes::MessagePtr{new pagespeed::Decoder()};
   }
 
-  std::string name() const override { return "pagespeed"; }
+  std::string name() const override { return "pagespeed"; };
 
 private:
   Http::FilterFactoryCb createFilter(const pagespeed::Decoder& proto_config, FactoryContext&) {
@@ -59,12 +54,12 @@ private:
             Http::HttpPageSpeedDecoderFilterConfig(proto_config));
 
     return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
-      auto filter = new Http::HttpPageSpeedDecoderFilter(config, getProcessContext()->server_context());
+      auto filter =
+          new Http::HttpPageSpeedDecoderFilter(config, getProcessContext().server_context());
       callbacks.addStreamFilter(Http::StreamFilterSharedPtr{filter});
     };
   }
 };
-
 /**
  * Static registration for this PageSpeed filter. @see RegisterFactory.
  */

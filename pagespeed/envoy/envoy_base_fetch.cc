@@ -84,9 +84,7 @@ void EnvoyBaseFetch::HandleDone(bool success) {
           [this]() { decoder_->decoderCallbacks()->continueDecoding(); });
     } else {
       decoder_->decoderCallbacks()->dispatcher().post(
-          [this]() { 
-            decoder_->sendReply(response_headers(), buffer_); 
-          });
+          [this]() { decoder_->sendReply(response_headers(), buffer_); });
     }
   }
 

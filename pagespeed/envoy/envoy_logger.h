@@ -19,35 +19,27 @@
 
 #pragma once
 
-#include <cstdarg>
-
 #include "external/envoy/source/common/common/logger.h"
-
-#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/system/system_message_handler.h"
 
 namespace net_instaweb {
 
-class AbstractMutex;
-class Timer;
+static constexpr char logger_str[] = "main";
 
-// Implementation of a message handler that uses envoy_log_error()
-// logging to emit messages, with a fallback to GoogleMessageHandler
-class EnvoyMessageHandler : public SystemMessageHandler {
+/**
+ * SinkDelegate that redirects logs to pagespeed message handler.
+ */
+class PagespeedLogSink : public Envoy::Logger::SinkDelegate {
 public:
-  explicit EnvoyMessageHandler(Timer* timer, AbstractMutex* mutex);
-
-protected:
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
-
-  virtual void FileMessageSImpl(MessageType type, const char* file, int line,
-                                const GoogleString& message);
+  PagespeedLogSink(Envoy::Logger::DelegatingLogSinkSharedPtr log_sink, MessageHandler* handler);
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(EnvoyMessageHandler);
+  int getPagespeedLogLevel(spdlog::level::level_enum log_level);
+  void log(absl::string_view msg) override;
+  void flush() override;
+
+  MessageHandler* pagespeed_message_handler_;
+  spdlog::level::level_enum log_level_;
 };
 
 } // namespace net_instaweb
