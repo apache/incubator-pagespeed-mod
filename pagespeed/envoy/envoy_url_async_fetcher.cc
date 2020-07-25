@@ -70,12 +70,12 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
 }
 
 EnvoyUrlAsyncFetcher::~EnvoyUrlAsyncFetcher() {
+  CHECK(shutdown_);
 }
 
 bool EnvoyUrlAsyncFetcher::Init() {
   cluster_manager_ptr_ = std::make_unique<EnvoyClusterManager>();
   envoy_log_sink_ = std::make_unique<PagespeedLogSink>(Envoy::Logger::Registry::getSink(), message_handler_);
-
   return true;
 }
 
@@ -96,7 +96,13 @@ void EnvoyUrlAsyncFetcher::InitStats(Statistics* statistics) {
   statistics->AddUpDownCounter(EnvoyStats::kEnvoyFetchLastCheckTimestampMs);
 }
 
-void EnvoyUrlAsyncFetcher::ShutDown() {}
+void EnvoyUrlAsyncFetcher::ShutDown() {
+  if (cluster_manager_ptr_ != nullptr) {
+    cluster_manager_ptr_->ShutDown();
+    cluster_manager_ptr_ = nullptr;
+  }
+  shutdown_ = true;
+}
 
 void EnvoyUrlAsyncFetcher::Fetch(const GoogleString& url, MessageHandler* message_handler,
                                  AsyncFetch* async_fetch) {

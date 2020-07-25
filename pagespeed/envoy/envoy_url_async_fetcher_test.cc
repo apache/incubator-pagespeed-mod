@@ -17,7 +17,6 @@
  * under the License.
  */
 
-#include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "pagespeed/envoy/envoy_url_async_fetcher.h"
@@ -27,7 +26,6 @@
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/statistics_template.h"
@@ -74,15 +72,14 @@ class EnvoyTestFetch : public AsyncFetch {
 public:
   explicit EnvoyTestFetch(const RequestContextPtr& ctx, AbstractMutex* mutex)
       : AsyncFetch(ctx), mutex_(mutex), success_(false), done_(false) {}
-  virtual ~EnvoyTestFetch() {}
 
-  virtual bool HandleWrite(const StringPiece& content, MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override {
     content.AppendToString(&buffer_);
     return true;
   }
-  virtual bool HandleFlush(MessageHandler* handler) { return true; }
-  virtual void HandleHeadersComplete() {}
-  virtual void HandleDone(bool success) {
+  bool HandleFlush(MessageHandler* handler) override { return true; }
+  void HandleHeadersComplete() override {}
+  void HandleDone(bool success) override {
     ScopedMutex lock(mutex_);
     EXPECT_FALSE(done_);
     success_ = success;
@@ -96,7 +93,7 @@ public:
     return done_;
   }
 
-  virtual void Reset() {
+  void Reset() override {
     ScopedMutex lock(mutex_);
     AsyncFetch::Reset();
     done_ = false;
@@ -106,7 +103,6 @@ public:
 
 private:
   AbstractMutex* mutex_;
-
   GoogleString buffer_;
   bool success_;
   bool done_;
@@ -117,16 +113,13 @@ private:
 } // namespace
 
 class EnvoyUrlAsyncFetcherTest : public ::testing::Test {
-public:
-  static void SetUpTestCase() {}
-
 protected:
   EnvoyUrlAsyncFetcherTest()
       : thread_system_(Platform::CreateThreadSystem()),
         message_handler_(thread_system_->NewMutex()), flaky_retries_(0),
         fetcher_timeout_ms_(FetcherTimeoutMs()) {}
 
-  virtual void SetUp() { SetUpWithProxy(""); }
+  void SetUp() override { SetUpWithProxy(""); }
 
   static int64 FetcherTimeoutMs() {
     return RunningOnValgrind() ? kFetcherTimeoutValgrindMs : kFetcherTimeoutMs;
@@ -144,9 +137,9 @@ protected:
     timer_.reset(Platform::CreateTimer());
     statistics_.reset(new SimpleStats(thread_system_.get()));
     EnvoyUrlAsyncFetcher::InitStats(statistics_.get());
-    envoy_url_async_fetcher_.reset(
-        new EnvoyUrlAsyncFetcher(proxy, thread_system_.get(), statistics_.get(), timer_.get(),
-                                 fetcher_timeout_ms_, &message_handler_));
+    envoy_url_async_fetcher_ = std::make_unique<EnvoyUrlAsyncFetcher>(
+        proxy, thread_system_.get(), statistics_.get(), timer_.get(), fetcher_timeout_ms_,
+        &message_handler_);
     mutex_.reset(thread_system_->NewMutex());
 
     // Set initial timestamp so we don't roll-over monitoring stats right after
@@ -155,11 +148,9 @@ protected:
         ->Set(timer_->NowMs());
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Need to free the fetcher before destroy the pool.
-    delete envoy_fetch_;
-    envoy_url_async_fetcher_.reset(NULL);
-    timer_.reset(NULL);
+    envoy_url_async_fetcher_->ShutDown();
     STLDeleteElements(&fetches_);
   }
 
@@ -185,10 +176,10 @@ protected:
     }
   }
 
-  scoped_ptr<EnvoyUrlAsyncFetcher> envoy_url_async_fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<AbstractMutex> mutex_;
-  EnvoyTestFetch* envoy_fetch_;
+  std::unique_ptr<EnvoyUrlAsyncFetcher> envoy_url_async_fetcher_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<EnvoyTestFetch> envoy_fetch_;
   MockMessageHandler message_handler_;
   int64 flaky_retries_;
 
@@ -196,8 +187,8 @@ private:
   std::vector<EnvoyTestFetch*> fetches_;
   std::vector<GoogleString> content_starts_;
   std::vector<GoogleString> urls_;
-  scoped_ptr<Timer> timer_;
-  scoped_ptr<SimpleStats> statistics_;
+  std::unique_ptr<Timer> timer_;
+  std::unique_ptr<SimpleStats> statistics_;
 
   int64 fetcher_timeout_ms_;
   GoogleString test_host_;
@@ -205,12 +196,11 @@ private:
 
 TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
   GoogleString starts_with = "<!DOCTYPE HTML";
-  envoy_fetch_ =
-      new EnvoyTestFetch(RequestContext::NewTestRequestContext(thread_system_.get()), mutex_.get());
+  envoy_fetch_ = std::make_unique<EnvoyTestFetch>(
+      RequestContext::NewTestRequestContext(thread_system_.get()), mutex_.get());
   envoy_url_async_fetcher_->Fetch(
       "http://selfsigned.modpagespeed.com/mod_pagespeed_example/index.html", &message_handler_,
-      envoy_fetch_);
-
+      envoy_fetch_.get());
   EXPECT_STREQ(starts_with, envoy_fetch_->buffer().substr(0, starts_with.size()));
 }
 

@@ -13,7 +13,14 @@ public:
   void SetUp() override { initialize(); }
 
   void initialize() override {
-    config_helper_.addFilter("{ name: pagespeed, config: { key: via, val: pagespeed-filter } }");
+    config_helper_.addFilter(R"EOF(
+name: pagespeed
+typed_config:
+  "@type": type.googleapis.com/pagespeed.Decoder
+  key: "via"
+  val: "pagespeed-filter"
+)EOF");
+    //config_helper_.addFilter("{ name: pagespeed, config: { key: via, val: pagespeed-filter } }");
     HttpIntegrationTest::initialize();
   }
 };

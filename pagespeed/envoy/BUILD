@@ -11,9 +11,6 @@ package(default_visibility = ["//visibility:public"])
 envoy_cc_binary(
     name = "envoy",
     repository = "@envoy",
-    linkopts = [
-        "-lrt",
-    ],
     deps = [
         ":http_filter_config",
         ":envoy_fetcher",

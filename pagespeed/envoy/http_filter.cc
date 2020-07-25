@@ -81,24 +81,23 @@ const std::string HttpPageSpeedDecoderFilter::headerValue() const { return confi
 FilterHeadersStatus HttpPageSpeedDecoderFilter::decodeHeaders(RequestHeaderMap& headers,
                                                               bool end_response) {
   RELEASE_ASSERT(base_fetch_ == nullptr, "Base fetch not null");
-  net_instaweb::GoogleUrl gurl("http://127.0.0.1/");
+  const std::string url = absl::StrCat("http://127.0.0.1", headers.Path()->value().getStringView());
+  pristine_url_ = std::make_unique<net_instaweb::GoogleUrl>(url);
   net_instaweb::RequestContextPtr request_context(server_context_->NewRequestContext());
   auto* options = options_ = server_context_->global_options();
   request_context->set_options(options->ComputeHttpOptions());
   RELEASE_ASSERT(options != nullptr, "server context global options not set!");
-  base_fetch_ = new net_instaweb::EnvoyBaseFetch(gurl.Spec(), server_context_, request_context,
+  base_fetch_ = new net_instaweb::EnvoyBaseFetch(pristine_url_->Spec(), server_context_, request_context,
                                                  net_instaweb::kDontPreserveHeaders, options, this);
   rewrite_driver_ = server_context_->NewRewriteDriver(base_fetch_->request_context());
   rewrite_driver_->SetRequestHeaders(*base_fetch_->request_headers());
 
-  auto callback = [this](const HeaderEntry& entry) -> HeaderMap::Iterate {
-    static_cast<net_instaweb::EnvoyBaseFetch*>(base_fetch_)
-        ->request_headers()
+  headers.iterate([this](const HeaderEntry& entry) -> HeaderMap::Iterate {
+    base_fetch_->request_headers()
         ->Add(entry.key().getStringView(), entry.value().getStringView());
     return HeaderMap::Iterate::Continue;
-  };
-  headers.iterate(callback);
-  rewrite_driver_->FetchInPlaceResource(gurl, false /* proxy_mode */, base_fetch_);
+  });
+  rewrite_driver_->FetchInPlaceResource(*pristine_url_, false /* proxy_mode */, base_fetch_);
   return FilterHeadersStatus::StopIteration;
 }
 
@@ -116,12 +115,11 @@ void HttpPageSpeedDecoderFilter::setDecoderFilterCallbacks(
 }
 
 void HttpPageSpeedDecoderFilter::prepareForIproRecording() {
-  const std::string cache_url = "http://127.0.0.1/";
   server_context_->rewrite_stats()->ipro_not_in_cache()->Add(1);
   server_context_->message_handler()->Message(net_instaweb::kInfo,
                                               "Could not rewrite resource in-place "
                                               "because URL is not in cache: %s",
-                                              cache_url.c_str());
+                                              pristine_url_->spec_c_str());
   const net_instaweb::SystemRewriteOptions* options =
       net_instaweb::SystemRewriteOptions::DynamicCast(rewrite_driver_->options());
   net_instaweb::RequestContextPtr request_context(server_context_->NewRequestContext());
@@ -132,7 +130,7 @@ void HttpPageSpeedDecoderFilter::prepareForIproRecording() {
   // (or at least a note that it cannot be cached stored there).
   // We do that using an Apache output filter.
   recorder_ = new net_instaweb::InPlaceResourceRecorder(
-      request_context, cache_url, rewrite_driver_->CacheFragment(),
+      request_context, pristine_url_->spec_c_str(), rewrite_driver_->CacheFragment(),
       base_fetch_->request_headers()->GetProperties(), options->ipro_max_response_bytes(),
       options->ipro_max_concurrent_recordings(), server_context_->http_cache(),
       server_context_->statistics(), &message_handler_);

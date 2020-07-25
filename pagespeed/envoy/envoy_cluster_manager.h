@@ -67,6 +67,8 @@ public:
    */
   const std::string getClusterName() const { return "cluster1"; }
 
+  void ShutDown();
+
 private:
   Envoy::ThreadLocal::InstanceImpl tls_;
   Envoy::Upstream::ClusterManagerPtr cluster_manager_{};
@@ -77,7 +79,7 @@ private:
   Envoy::Server::ConfigTrackerImpl config_tracker_;
   Envoy::Secret::SecretManagerImpl secret_manager_;
   Envoy::ProtobufMessage::ProdValidationContextImpl validation_context_;
-  Envoy::AccessLog::AccessLogManagerImpl* access_log_manager_;
+  std::unique_ptr<Envoy::AccessLog::AccessLogManager> access_log_manager_;
   Envoy::Event::DispatcherPtr dispatcher_;
   Envoy::LocalInfo::LocalInfoPtr local_info_;
   Envoy::Server::ValidationAdmin admin_;
@@ -99,6 +101,7 @@ private:
   std::unique_ptr<Envoy::Runtime::ScopedLoaderSingleton> runtime_singleton_;
   std::unique_ptr<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>
       ssl_context_manager_;
+  bool shutdown_{false};
 
 
   void initClusterManager();

@@ -79,12 +79,12 @@ public:
   bool Init();
 
   // shutdown all the fetches.
-  virtual void ShutDown();
+  void ShutDown() override;
 
-  virtual bool SupportsHttps() const { return false; }
+  bool SupportsHttps() const override { return false; }
 
-  virtual void Fetch(const GoogleString& url, MessageHandler* message_handler,
-                     AsyncFetch* callback);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+                     AsyncFetch* callback) override;
 
   // Remove the completed fetch from the active fetch set, and put it into a
   // completed fetch list to be cleaned up.

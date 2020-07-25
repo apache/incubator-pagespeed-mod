@@ -51,19 +51,22 @@ namespace net_instaweb {
 
 EnvoyClusterManager::EnvoyClusterManager()
     : init_watcher_("envoyfetcher", []() {}), secret_manager_(config_tracker_),
-      validation_context_(false, false, false), init_manager_("init_manager"),
-      stats_allocator_(symbol_table_), store_root_(stats_allocator_),
+      validation_context_(false, false, false),
+      init_manager_("init_manager"), stats_allocator_(symbol_table_), store_root_(stats_allocator_),
       http_context_(store_root_.symbolTable()), grpc_context_(store_root_.symbolTable()) {
   initClusterManager();
 }
 
-EnvoyClusterManager::~EnvoyClusterManager() {
+EnvoyClusterManager::~EnvoyClusterManager() { CHECK(shutdown_); }
+
+void EnvoyClusterManager::ShutDown() {
   tls_.shutdownGlobalThreading();
   store_root_.shutdownThreading();
   if (cluster_manager_ != nullptr) {
     cluster_manager_->shutdown();
   }
   tls_.shutdownThread();
+  shutdown_ = true;
 }
 
 void configureComponentLogLevels(spdlog::level::level_enum level) {
@@ -83,19 +86,15 @@ void EnvoyClusterManager::initClusterManager() {
   api_ = std::make_unique<Envoy::Api::Impl>(platform_impl_.threadFactory(), store_root_,
                                             time_system_, platform_impl_.fileSystem());
   dispatcher_ = api_->allocateDispatcher("pagespeed-fetcher");
-
   tls_.registerThread(*dispatcher_, true);
   store_root_.initializeThreading(*dispatcher_, tls_);
-
-  access_log_manager_ = new Envoy::AccessLog::AccessLogManagerImpl(
-      std::chrono::milliseconds(1000), *api_, *dispatcher_, access_log_lock_, store_root_);
+  access_log_manager_ = std::make_unique<Envoy::AccessLog::AccessLogManagerImpl>(std::chrono::milliseconds(1000), *api_, *dispatcher_, access_log_lock_,
+                      store_root_);
   runtime_singleton_ = std::make_unique<Envoy::Runtime::ScopedLoaderSingleton>(
       Envoy::Runtime::LoaderPtr{new Envoy::Runtime::LoaderImpl(
           *dispatcher_, tls_, {}, *local_info_, store_root_, generator_,
           Envoy::ProtobufMessage::getStrictValidationVisitor(), *api_)});
   singleton_manager_ = std::make_unique<Envoy::Singleton::ManagerImpl>(api_->threadFactory());
-  Envoy::Runtime::LoaderSingleton::get();
-
   ssl_context_manager_ =
       std::make_unique<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>(time_system_);
 
@@ -129,8 +128,9 @@ const envoy::config::bootstrap::v3::Bootstrap EnvoyClusterManager::createBootstr
 
   auto* load_assignment = cluster->mutable_load_assignment();
   load_assignment->set_cluster_name(cluster->name());
-  auto* endpoints = cluster->mutable_load_assignment()->add_endpoints();
-  auto* socket = endpoints->add_lb_endpoints()
+  auto* socket = cluster->mutable_load_assignment()
+                     ->add_endpoints()
+                     ->add_lb_endpoints()
                      ->mutable_endpoint()
                      ->mutable_address()
                      ->mutable_socket_address();
