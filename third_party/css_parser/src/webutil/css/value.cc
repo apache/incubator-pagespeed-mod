@@ -250,6 +250,10 @@ Value::Unit Value::UnitFromText(const char* str, int len) {
   }
 }
 
+#define arraysize(a)                                                           \
+  ((sizeof(a) / sizeof(*(a))) /                                                \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
+
 const char* Value::TextFromUnit(Unit u) {
   DCHECK_LT(u, NUM_UNITS);
   COMPILE_ASSERT(arraysize(kDimensionUnitText) == NUM_UNITS, dimensionunitsize);
