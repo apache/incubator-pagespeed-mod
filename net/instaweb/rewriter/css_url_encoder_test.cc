@@ -27,7 +27,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 
 
 namespace net_instaweb {

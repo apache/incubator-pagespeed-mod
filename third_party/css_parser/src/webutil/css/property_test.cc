@@ -22,7 +22,7 @@
 #include "webutil/css/property.h"
 
 #include "pagespeed/kernel/base/gtest.h"
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 
 namespace {
 

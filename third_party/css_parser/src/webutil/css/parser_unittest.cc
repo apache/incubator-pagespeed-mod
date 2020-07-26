@@ -25,7 +25,7 @@
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 
 
 namespace Css {

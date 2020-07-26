@@ -30,7 +30,7 @@
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 #include "pagespeed/opt/logging/log_record.h"
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

@@ -26,7 +26,7 @@
 #include <memory>
 
 #include "pagespeed/kernel/base/gtest.h"
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "webutil/css/parser.h"
 #include "webutil/css/string.h"
 
