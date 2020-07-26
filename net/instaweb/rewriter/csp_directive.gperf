@@ -39,7 +39,6 @@
 		 
 // csp_directive.gp.cc is automatically generated from csp_directive.gperf
 
-#include "base/basictypes.h"
 #include "net/instaweb/rewriter/public/csp_directive.h"
 #include "pagespeed/kernel/base/string_util.h"
 
