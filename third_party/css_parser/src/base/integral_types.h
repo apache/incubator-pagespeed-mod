@@ -17,12 +17,6 @@
  * under the License.
  */
 
-#ifndef BASE_INTEGRAL_TYPES_H_
-#define BASE_INTEGRAL_TYPES_H_
-
-#include "base/basictypes.h"
-// For various int32, int64, etc., and their sizes
+#pragma once
 
 typedef signed int char32;
-
-#endif  // BASE_INTEGRAL_TYPES_H_

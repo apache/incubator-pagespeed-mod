@@ -23,8 +23,7 @@
 
 #include <string>
 
-#include "testing/base/public/googletest.h"
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "webutil/css/string.h"
 
 namespace {

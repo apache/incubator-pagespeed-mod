@@ -34,7 +34,6 @@
 #include <string>
 #include "string_using.h"
 
-#include "base/basictypes.h"
 #include "util/gtl/dense_hash_map.h"
 #include "webutil/html/htmltagenum.h"
 #include "strings/stringpiece.h"
@@ -75,14 +74,14 @@ class HtmlTagIndex {
   // Case sensitive stuff.
   bool case_sensitive_fixed_;
   bool case_sensitive_;
-  uint32 case_mask_1_;
-  uint32 case_mask_2_;
-  uint32 case_mask_3_;
-  uint32 case_mask_4_;
-  uint64 case_mask_5_;
-  uint64 case_mask_6_;
-  uint64 case_mask_7_;
-  uint64 case_mask_8_;
+  uint32_t case_mask_1_;
+  uint32_t case_mask_2_;
+  uint32_t case_mask_3_;
+  uint32_t case_mask_4_;
+  uint64_t case_mask_5_;
+  uint64_t case_mask_6_;
+  uint64_t case_mask_7_;
+  uint64_t case_mask_8_;
 
   int index_max_;
   typedef dense_hash_map<string, int> CustomTagMap;

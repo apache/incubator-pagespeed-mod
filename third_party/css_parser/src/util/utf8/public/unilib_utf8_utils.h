@@ -32,7 +32,7 @@ namespace UniLib {
 // (i.e., is not a surrogate codepoint). See also
 // IsValidCodepoint(const char* src) in util/utf8/public/unilib.h.
 inline bool IsValidCodepoint(char32 c) {
-  return (static_cast<uint32>(c) < 0xD800)
+  return (static_cast<uint32_t>(c) < 0xD800)
     || (c >= 0xE000 && c <= 0x10FFFF);
 }
 

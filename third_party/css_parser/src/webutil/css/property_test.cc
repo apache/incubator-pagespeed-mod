@@ -21,7 +21,7 @@
 
 #include "webutil/css/property.h"
 
-#include "testing/base/public/googletest.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "gtest/gtest.h"
 
 namespace {

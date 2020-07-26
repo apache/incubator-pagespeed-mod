@@ -43,23 +43,23 @@
 
 namespace Css {
 
-const uint64 Parser::kNoError;
-const uint64 Parser::kUtf8Error;
-const uint64 Parser::kDeclarationError;
-const uint64 Parser::kSelectorError;
-const uint64 Parser::kFunctionError;
-const uint64 Parser::kMediaError;
-const uint64 Parser::kCounterError;
-const uint64 Parser::kHtmlCommentError;
-const uint64 Parser::kValueError;
-const uint64 Parser::kRulesetError;
-const uint64 Parser::kSkippedTokenError;
-const uint64 Parser::kCharsetError;
-const uint64 Parser::kBlockError;
-const uint64 Parser::kNumberError;
-const uint64 Parser::kImportError;
-const uint64 Parser::kAtRuleError;
-const uint64 Parser::kCssCommentError;
+const uint64_t Parser::kNoError;
+const uint64_t Parser::kUtf8Error;
+const uint64_t Parser::kDeclarationError;
+const uint64_t Parser::kSelectorError;
+const uint64_t Parser::kFunctionError;
+const uint64_t Parser::kMediaError;
+const uint64_t Parser::kCounterError;
+const uint64_t Parser::kHtmlCommentError;
+const uint64_t Parser::kValueError;
+const uint64_t Parser::kRulesetError;
+const uint64_t Parser::kSkippedTokenError;
+const uint64_t Parser::kCharsetError;
+const uint64_t Parser::kBlockError;
+const uint64_t Parser::kNumberError;
+const uint64_t Parser::kImportError;
+const uint64_t Parser::kAtRuleError;
+const uint64_t Parser::kCssCommentError;
 
 const int Parser::kMaxErrorsRemembered;
 const int Parser::kDefaultMaxFunctionDepth;
@@ -108,7 +108,7 @@ Parser::Parser(CssStringPiece s)
       unparseable_sections_seen_mask_(kNoError) {
 }
 
-int Parser::ErrorNumber(uint64 error_flag) {
+int Parser::ErrorNumber(uint64_t error_flag) {
   for (int i = 0; i < 64; ++i) {
     if (error_flag & (1ULL << i)) {
       return i;
@@ -119,14 +119,14 @@ int Parser::ErrorNumber(uint64 error_flag) {
 }
 
 const int Parser::kErrorContext = 20;
-void Parser::ReportParsingError(uint64 error_flag,
+void Parser::ReportParsingError(uint64_t error_flag,
                                 const CssStringPiece& message) {
   errors_seen_mask_ |= error_flag;
   // Make sure we don't print outside of the range in_ begin_ to end_.
-  const char* context_begin = in_ - std::min(static_cast<int64>(kErrorContext),
-                                             static_cast<int64>(in_ - begin_));
-  const char* context_end = in_ + std::min(static_cast<int64>(kErrorContext),
-                                           static_cast<int64>(end_ - in_));
+  const char* context_begin = in_ - std::min(static_cast<int64_t>(kErrorContext),
+                                             static_cast<int64_t>(in_ - begin_));
+  const char* context_end = in_ + std::min(static_cast<int64_t>(kErrorContext),
+                                           static_cast<int64_t>(end_ - in_));
   CHECK_LE(begin_, context_begin);
   CHECK_LE(context_begin, context_end);
   CHECK_LE(context_end, end_);
@@ -1649,7 +1649,7 @@ Declarations* Parser::ParseRawDeclarations() {
     // decl_start is saved so that we may pass through verbatim text
     // in case declaration could not be parsed correctly.
     const char* decl_start = in_;
-    const uint64 start_errors_seen_mask = errors_seen_mask_;
+    const uint64_t start_errors_seen_mask = errors_seen_mask_;
     bool ignore_this_decl = false;
     switch (*in_) {
       case ';':
@@ -2164,7 +2164,7 @@ Ruleset* Parser::ParseRuleset() {
   // parser to make progress anyway.
   bool success = true;
   const char* start_pos = in_;
-  const uint64 start_errors_seen_mask = errors_seen_mask_;
+  const uint64_t start_errors_seen_mask = errors_seen_mask_;
 
   std::unique_ptr<Ruleset> ruleset(new Ruleset());
   std::unique_ptr<Selectors> selectors(ParseSelectors());
@@ -2450,7 +2450,7 @@ Import* Parser::ParseImport() {
     // Set empty media queries.
     import->set_media_queries(new MediaQueries);
   } else {
-    const uint64 start_errors_seen_mask = errors_seen_mask_;
+    const uint64_t start_errors_seen_mask = errors_seen_mask_;
     std::unique_ptr<MediaQueries> media(ParseMediaQueries());
     if (preservation_mode_ && (errors_seen_mask_ != start_errors_seen_mask)) {
       ReportParsingError(kImportError, "Error parsing media for @import.");
@@ -2499,7 +2499,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
   // The starting point is saved so that we may pass through verbatim text
   // in case the @-rule cannot be parsed correctly.
   const char* oldin = in_;
-  const uint64 start_errors_seen_mask = errors_seen_mask_;
+  const uint64_t start_errors_seen_mask = errors_seen_mask_;
 
   if (*in_ == '@') {
     bool correctly_terminated = true;

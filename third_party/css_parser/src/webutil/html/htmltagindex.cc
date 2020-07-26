@@ -147,29 +147,29 @@ int HtmlTagIndex::AddHtmlTag(const char* tag, int length) {
 // This is hard-wired to go fast.
 
 int HtmlTagIndex::FindHtmlTag(const char* tag, int length) const {
-// These macros convert a string to a uint32 or uint64
+// These macros convert a string to a uint32_tor uint64_t
 #define S1(s) ((s)[0])
 #define S2(s) (S1(s) | ((s)[1] << 8))
 #define S3(s) (S2(s) | ((s)[2] << 16))
 #define S4(s) (S3(s) | ((s)[3] << 24))
-#define S5(s) (S4(s) | (static_cast<uint64>((s)[4]) << 32))
-#define S6(s) (S5(s) | (static_cast<uint64>((s)[5]) << 40))
-#define S7(s) (S6(s) | (static_cast<uint64>((s)[6]) << 48))
-#define S8(s) (S7(s) | (static_cast<uint64>((s)[7]) << 56))
+#define S5(s) (S4(s) | (static_cast<uint64_t>((s)[4]) << 32))
+#define S6(s) (S5(s) | (static_cast<uint64_t>((s)[5]) << 40))
+#define S7(s) (S6(s) | (static_cast<uint64_t>((s)[6]) << 48))
+#define S8(s) (S7(s) | (static_cast<uint64_t>((s)[7]) << 56))
 
-// These macros convert a sequence of characters to a uint32 or uint64
+// These macros convert a sequence of characters to a uint32_tor uint64_t
 #define C1(c0)             (c0)
 #define C2(c0, c1)         (C1(c0) | ((c1) << 8))
 #define C3(c0, c1, c2)     (C2(c0, c1) | ((c2) << 16))
 #define C4(c0, c1, c2, c3) (C3(c0, c1, c2) | ((c3) << 24))
 #define C5(c0, c1, c2, c3, c4) \
-  (C4(c0, c1, c2, c3) | (static_cast<uint64>(c4) << 32))
+  (C4(c0, c1, c2, c3) | (static_cast<uint64_t>(c4) << 32))
 #define C6(c0, c1, c2, c3, c4, c5) \
-  (C5(c0, c1, c2, c3, c4) | (static_cast<uint64>(c5) << 40))
+  (C5(c0, c1, c2, c3, c4) | (static_cast<uint64_t>(c5) << 40))
 #define C7(c0, c1, c2, c3, c4, c5, c6) \
-  (C6(c0, c1, c2, c3, c4, c5) | (static_cast<uint64>(c6) << 48))
+  (C6(c0, c1, c2, c3, c4, c5) | (static_cast<uint64_t>(c6) << 48))
 #define C8(c0, c1, c2, c3, c4, c5, c6, c7) \
-  (C7(c0, c1, c2, c3, c4, c5, c6) | (static_cast<uint64>(c7) << 56))
+  (C7(c0, c1, c2, c3, c4, c5, c6) | (static_cast<uint64_t>(c7) << 56))
 
   switch (length) {
   case 0:
