@@ -54,7 +54,7 @@ class ProcessContext {
   }
 
  private:
-  scoped_ptr<pagespeed::js::JsTokenizerPatterns> js_tokenizer_patterns_;
+  std::unique_ptr<pagespeed::js::JsTokenizerPatterns> js_tokenizer_patterns_;
 
   DISALLOW_COPY_AND_ASSIGN(ProcessContext);
 };

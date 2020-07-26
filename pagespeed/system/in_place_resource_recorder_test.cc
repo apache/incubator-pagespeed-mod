@@ -94,7 +94,7 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     final_headers.ComputeCaching();
 
 
-    scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+    std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
     recorder->ConsiderResponseHeaders(
         InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
 
@@ -124,7 +124,7 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
   void CheckCacheableContentType(const ContentType* content_type) {
     ResponseHeaders headers;
     SetDefaultLongCacheHeaders(content_type, &headers);
-    scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+    std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
     recorder->ConsiderResponseHeaders(
         InPlaceResourceRecorder::kFullHeaders, &headers);
     EXPECT_FALSE(recorder->failed());
@@ -143,7 +143,7 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
       bool expect_failure) {
     ResponseHeaders headers;
     SetDefaultLongCacheHeaders(content_type, &headers);
-    scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+    std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
     recorder->ConsiderResponseHeaders(headers_kind, &headers);
     EXPECT_EQ(expect_failure, recorder->failed());
     HTTPValue value_out;
@@ -162,7 +162,7 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     }
     headers.ComputeCaching();
 
-    scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+    std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
     recorder->ConsiderResponseHeaders(
         InPlaceResourceRecorder::kPreliminaryHeaders, &headers);
     if (recorder->failed()) {
@@ -184,7 +184,7 @@ TEST_F(InPlaceResourceRecorderTest, BasicOperation) {
   ResponseHeaders ok_headers;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &ok_headers);
 
-  scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+  std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
   recorder->Write(kHello, message_handler());
@@ -208,7 +208,7 @@ TEST_F(InPlaceResourceRecorderTest, IncompleteResponse) {
   ResponseHeaders ok_headers;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &ok_headers);
 
-  scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+  std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
   recorder->Write(kHello, message_handler());
@@ -265,7 +265,7 @@ TEST_F(InPlaceResourceRecorderTest, BasicOperationFullHeaders) {
   ResponseHeaders ok_headers;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &ok_headers);
 
-  scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+  std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kFullHeaders, &ok_headers);
   recorder->Write(kHello, message_handler());
@@ -292,7 +292,7 @@ TEST_F(InPlaceResourceRecorderTest, DontRemember304) {
   not_modified_headers.SetStatusAndReason(HttpStatus::kNotModified);
   not_modified_headers.ComputeCaching();
 
-  scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+  std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
   recorder.release()->DoneAndSetHeaders(
@@ -314,7 +314,7 @@ TEST_F(InPlaceResourceRecorderTest, Remember500AsFetchFailed) {
   error_headers.SetStatusAndReason(HttpStatus::kInternalServerError);
   error_headers.ComputeCaching();
 
-  scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+  std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
   recorder.release()->DoneAndSetHeaders(
@@ -332,7 +332,7 @@ TEST_F(InPlaceResourceRecorderTest, RememberEmpty) {
   ResponseHeaders ok_headers;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &ok_headers);
 
-  scoped_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
+  std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   // No contents written.
   recorder.release()->DoneAndSetHeaders(
       &ok_headers, true /* complete response */);

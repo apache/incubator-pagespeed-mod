@@ -103,8 +103,8 @@ class AssociationTransformerTest : public ::testing::Test {
         << "map[\"" << key << "\"] not as expected";
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<RewriteOptions> options_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<RewriteOptions> options_;
 };
 
 TEST_F(AssociationTransformerTest, TransformsCorrectly) {

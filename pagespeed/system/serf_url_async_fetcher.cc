@@ -882,7 +882,7 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
     // Use a temp to minimize the amount of time we hold the
     // initiate_mutex_ lock, so that the parent thread doesn't get
     // blocked trying to initiate fetches.
-    scoped_ptr<SerfFetchPool> xfer_fetches;
+    std::unique_ptr<SerfFetchPool> xfer_fetches;
     {
       ScopedMutex lock(initiate_mutex_.get());
       // We must do this checking under the initiate_mutex_ lock.
@@ -975,16 +975,16 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
 
   // protects initiate_fetches_, initiate_fetches_nonempty_, thread_finish_
   // and thread_started_.
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> initiate_mutex_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> initiate_mutex_;
   // pushed in the main thread; popped by TransferFetches().
-  scoped_ptr<SerfFetchPool> initiate_fetches_;
+  std::unique_ptr<SerfFetchPool> initiate_fetches_;
   // condvar that indicates that initiate_fetches_ has become nonempty.  During
   // normal operation, only the serf worker thread consumes initiated fetches
   // (this can change during thread shutdown), but the usual condition variable
   // caveats apply: Just because the condition variable indicates
   // initiate_fetches_nonempty_ doesn't mean it's true, and a waiting thread
   // must check initiate_fetches_ explicitly while holding initiate_mutex_.
-  scoped_ptr<ThreadSystem::Condvar> initiate_fetches_nonempty_;
+  std::unique_ptr<ThreadSystem::Condvar> initiate_fetches_nonempty_;
 
   // Flag to signal worker to finish working and terminate.
   bool thread_finish_;

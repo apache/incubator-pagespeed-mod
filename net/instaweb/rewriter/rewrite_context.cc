@@ -180,10 +180,10 @@ class FreshenMetadataUpdateManager {
   }
 
   // This is copied lazily.
-  scoped_ptr<OutputPartitions> partitions_;
+  std::unique_ptr<OutputPartitions> partitions_;
   GoogleString partition_key_;
   CacheInterface* metadata_cache_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int num_pending_freshens_;
   bool all_freshens_triggered_;
   bool should_delete_cache_key_;
@@ -409,7 +409,7 @@ class RewriteContext::OutputCacheCallback : public CacheInterface::Callback {
 
   RewriteContext* rewrite_context_;
   CacheResultHandlerFunction function_;
-  scoped_ptr<CacheLookupResult> cache_result_;
+  std::unique_ptr<CacheLookupResult> cache_result_;
 };
 
 // When serving on-the-fly resources, our system rewrites the metadata
@@ -474,7 +474,7 @@ class RewriteContext::LookupMetadataForOutputResourceCallback
 
  private:
   GoogleString key_;
-  scoped_ptr<RewriteContext> rewrite_context_;
+  std::unique_ptr<RewriteContext> rewrite_context_;
   CacheLookupResultCallback* callback_;
 };
 
@@ -989,7 +989,7 @@ class RewriteContext::TryLockFunction : public ScheduleRewriteCallback {
   ~TryLockFunction() override { }
 
  private:
-  void RunImpl(scoped_ptr<ScheduleRewriteContext>* context) override {
+  void RunImpl(std::unique_ptr<ScheduleRewriteContext>* context) override {
     context_->schedule_rewrite_context_ = std::move(*context);
     callback_->CallRun();
   }
@@ -1328,7 +1328,7 @@ void RewriteContext::AddRecheckDependency() {
 void RewriteContext::OutputCacheDone(CacheLookupResult* cache_result) {
   DCHECK_LE(0, outstanding_fetches_);
 
-  scoped_ptr<CacheLookupResult> owned_cache_result(cache_result);
+  std::unique_ptr<CacheLookupResult> owned_cache_result(cache_result);
 
   partitions_.reset(owned_cache_result->partitions.release());
   LogMetadataCacheInfo(owned_cache_result->cache_ok,
@@ -2488,7 +2488,7 @@ bool RewriteContext::DecodeFetchUrls(
       GoogleUrl* url = NULL;
 
       if (check_for_multiple_rewrites) {
-        scoped_ptr<GoogleUrl> orig_based_url(
+        std::unique_ptr<GoogleUrl> orig_based_url(
             new GoogleUrl(original_base, urls[i]));
         if (FindServerContext()->IsPagespeedResource(*orig_based_url)) {
           url = orig_based_url.release();
@@ -2591,7 +2591,7 @@ bool RewriteContext::LookupMetadataForOutputResourceImpl(
     RewriteDriver* driver,
     GoogleString* error_out,
     CacheLookupResultCallback* callback) {
-  scoped_ptr<RewriteContext> context(rewrite_context);
+  std::unique_ptr<RewriteContext> context(rewrite_context);
 
   StringAsyncFetch dummy_fetch(driver->request_context());
   if (!context->PrepareFetch(output_resource, &dummy_fetch,
@@ -2626,7 +2626,7 @@ void RewriteContext::FetchCacheDone(CacheLookupResult* cache_result) {
   // we call StartFetchReconstruction which will invoke the normal process of
   // locking things, fetching inputs, rewriting, and so on.
 
-  scoped_ptr<CacheLookupResult> owned_cache_result(cache_result);
+  std::unique_ptr<CacheLookupResult> owned_cache_result(cache_result);
   CheckNotFrozen();
   partitions_.reset(owned_cache_result->partitions.release());
   LogMetadataCacheInfo(owned_cache_result->cache_ok,
@@ -2677,7 +2677,7 @@ void RewriteContext::FetchTryFallback(const GoogleString& url,
 
 void RewriteContext::FetchFallbackCacheDone(HTTPCache::FindResult result,
                                             HTTPCache::Callback* data) {
-  scoped_ptr<HTTPCache::Callback> cleanup_callback(data);
+  std::unique_ptr<HTTPCache::Callback> cleanup_callback(data);
 
   StringPiece contents;
   ResponseHeaders* response_headers = data->response_headers();

@@ -51,7 +51,7 @@ class SystemMessageHandlerTest : public testing::Test {
     system_message_handler_.AddMessageToBuffer(type, file, line, msg);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   SystemMessageHandler system_message_handler_;
   GoogleString buffer_;

@@ -119,7 +119,7 @@ TEST(CallbackTest, MemberCallback_1_1ConstRefArg) {
 
 TEST(CallbackTest, PermanentMemberCallback_0_1) {
   TestClass test_class;
-  scoped_ptr<Callback1<int> > cb(
+  std::unique_ptr<Callback1<int> > cb(
       NewPermanentCallback(&test_class, &TestClass::Method1));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
@@ -131,7 +131,7 @@ TEST(CallbackTest, PermanentMemberCallback_0_1) {
 
 TEST(CallbackTest, PermanentMemberCallback_0_1_ConstRefArg) {
   TestClass test_class;
-  scoped_ptr<Callback1<const int&> > cb(NewPermanentCallback(
+  std::unique_ptr<Callback1<const int&> > cb(NewPermanentCallback(
       &test_class, &TestClass::Method1ConstRefArg));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
@@ -143,7 +143,7 @@ TEST(CallbackTest, PermanentMemberCallback_0_1_ConstRefArg) {
 
 TEST(CallbackTest, PermanentMemberCallback_1_1) {
   TestClass test_class;
-  scoped_ptr<Callback1<int> > cb(NewPermanentCallback(
+  std::unique_ptr<Callback1<int> > cb(NewPermanentCallback(
       &test_class, &TestClass::Method2, 1));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
@@ -156,7 +156,7 @@ TEST(CallbackTest, PermanentMemberCallback_1_1) {
 TEST(CallbackTest, PermanentMemberCallback_1_1ConstRefArg) {
   TestClass test_class;
   int arg = 1;
-  scoped_ptr<Callback1<int> > cb(NewPermanentCallback(
+  std::unique_ptr<Callback1<int> > cb(NewPermanentCallback(
       &test_class, &TestClass::Method2ConstRefArg, arg));
   // Increment x showing the reference in the callback tracks the increment.
   ++arg;
@@ -214,7 +214,7 @@ TEST(CallbackTest, MemberCallback_1_2ConstRefArg) {
 
 TEST(CallbackTest, PermanentMemberCallback_0_2) {
   TestClass test_class;
-  scoped_ptr<Callback2<int, int> > cb(
+  std::unique_ptr<Callback2<int, int> > cb(
       NewPermanentCallback(&test_class, &TestClass::Method2));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
@@ -226,7 +226,7 @@ TEST(CallbackTest, PermanentMemberCallback_0_2) {
 
 TEST(CallbackTest, PermanentMemberCallback_0_2_ConstRefArg) {
   TestClass test_class;
-  scoped_ptr<Callback2<const int&, int> > cb(NewPermanentCallback(
+  std::unique_ptr<Callback2<const int&, int> > cb(NewPermanentCallback(
       &test_class, &TestClass::Method2ConstRefArg));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
@@ -238,7 +238,7 @@ TEST(CallbackTest, PermanentMemberCallback_0_2_ConstRefArg) {
 
 TEST(CallbackTest, PermanentMemberCallback_1_2) {
   TestClass test_class;
-  scoped_ptr<Callback2<int, int> > cb(NewPermanentCallback(
+  std::unique_ptr<Callback2<int, int> > cb(NewPermanentCallback(
       &test_class, &TestClass::Method3, 1));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
@@ -251,7 +251,7 @@ TEST(CallbackTest, PermanentMemberCallback_1_2) {
 TEST(CallbackTest, PermanentMemberCallback_1_2ConstRefArg) {
   TestClass test_class;
   int arg = 1;
-  scoped_ptr<Callback2<int, int> > cb(NewPermanentCallback(
+  std::unique_ptr<Callback2<int, int> > cb(NewPermanentCallback(
       &test_class, &TestClass::Method3ConstRefArg, arg));
   ++arg;
   EXPECT_EQ(0, test_class.x());

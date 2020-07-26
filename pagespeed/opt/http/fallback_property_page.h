@@ -91,8 +91,8 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   static bool IsFallbackUrl(const GoogleString& url);
 
  private:
-  scoped_ptr<PropertyPage> actual_property_page_;
-  scoped_ptr<PropertyPage> property_page_with_fallback_values_;
+  std::unique_ptr<PropertyPage> actual_property_page_;
+  std::unique_ptr<PropertyPage> property_page_with_fallback_values_;
   DISALLOW_COPY_AND_ASSIGN(FallbackPropertyPage);
 };
 

@@ -75,7 +75,7 @@ class SystemMessageHandler : public GoogleMessageHandler {
   // This timer is used to prepend time when writing a message
   // to SharedCircularBuffer.
   Timer* timer_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   Writer* buffer_;
   // This handler is for internal use.
   // Some functions of SharedCircularBuffer need MessageHandler as argument,

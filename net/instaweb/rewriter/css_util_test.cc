@@ -60,7 +60,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "height:50px;width:80px;border-width:0px;");
 
-  scoped_ptr<StyleExtractor> extractor(new StyleExtractor(img));
+  std::unique_ptr<StyleExtractor> extractor(new StyleExtractor(img));
   EXPECT_EQ(kHasBothDimensions, extractor->state());
   EXPECT_EQ(80, extractor->width());
   EXPECT_EQ(50, extractor->height());
@@ -100,7 +100,7 @@ TEST_F(CssUtilTest, TestAnyDimensions) {
   HtmlElement* img = html_parse.NewElement(NULL, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "width:80px;border-width:0px;");
-  scoped_ptr<StyleExtractor> extractor(new StyleExtractor(img));
+  std::unique_ptr<StyleExtractor> extractor(new StyleExtractor(img));
   EXPECT_TRUE(extractor->HasAnyDimensions());
   EXPECT_EQ(kHasWidthOnly, extractor->state());
 
@@ -296,7 +296,7 @@ TEST_F(CssUtilTest, JsDetectableSelector) {
   Css::Parser parser(kSelectors);
   parser.set_preservation_mode(true);
   parser.set_quirks_mode(false);
-  scoped_ptr<const Css::Selectors> selectors(parser.ParseSelectors());
+  std::unique_ptr<const Css::Selectors> selectors(parser.ParseSelectors());
   EXPECT_EQ(Css::Parser::kNoError, parser.errors_seen_mask());
   CHECK(selectors.get() != NULL);
   EXPECT_EQ(arraysize(kExpected), selectors->size());

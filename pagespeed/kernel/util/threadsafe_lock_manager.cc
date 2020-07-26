@@ -143,7 +143,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
 
  private:
   Scheduler* scheduler_;
-  scoped_ptr<MemLockManager> manager_ GUARDED_BY(mutex_);
+  std::unique_ptr<MemLockManager> manager_ GUARDED_BY(mutex_);
   Scheduler::Alarm* alarm_ GUARDED_BY(scheduler_->mutex());
   int64 alarm_time_us_ GUARDED_BY(scheduler_->mutex());
 
@@ -152,7 +152,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   // is destroyed before the locks are.
   LockSet locks_ GUARDED_BY(mutex_);
   DelayedCalls delayed_calls_ GUARDED_BY(mutex_);
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 };
 
 // We must call the NamedLock callbacks without holding the mutex.
@@ -269,7 +269,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
 
  private:
   LockHolderPtr lock_holder_;
-  scoped_ptr<NamedLock> lock_ GUARDED_BY(lock_holder_->mutex_);
+  std::unique_ptr<NamedLock> lock_ GUARDED_BY(lock_holder_->mutex_);
   bool manager_destroyed_ GUARDED_BY(lock_holder_->mutex_);
 };
 

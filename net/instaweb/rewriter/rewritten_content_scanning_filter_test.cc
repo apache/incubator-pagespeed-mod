@@ -72,7 +72,7 @@ class RewrittenContentScanningFilterTest : public RewriteTestBase {
   }
 
  private:
-  scoped_ptr<TestUrlNamer> url_namer_;
+  std::unique_ptr<TestUrlNamer> url_namer_;
   DISALLOW_COPY_AND_ASSIGN(RewrittenContentScanningFilterTest);
 };
 

@@ -245,9 +245,9 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
     header_latency_ms_ = header_latency_ms;
   }
 
-  scoped_ptr<ProxyInterface> proxy_interface_;
+  std::unique_ptr<ProxyInterface> proxy_interface_;
   RequestContextPtr request_context_;
-  scoped_ptr<WorkerTestBase::SyncPoint> sync_;
+  std::unique_ptr<WorkerTestBase::SyncPoint> sync_;
   ResponseHeaders callback_response_headers_;
   GoogleString callback_buffer_;
   bool callback_done_value_;

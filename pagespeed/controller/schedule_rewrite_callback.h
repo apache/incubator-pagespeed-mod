@@ -60,7 +60,7 @@ class ScheduleRewriteCallback
 
  private:
   // CentralControllerCallback interface.
-  virtual void RunImpl(scoped_ptr<ScheduleRewriteContext>* context) = 0;
+  virtual void RunImpl(std::unique_ptr<ScheduleRewriteContext>* context) = 0;
   virtual void CancelImpl() = 0;
 
   GoogleString key_;

@@ -270,7 +270,7 @@ void WriteCriticalKeysToPropertyCache(
   if (page == NULL) {
     return;
   }
-  scoped_ptr<CriticalKeys> critical_keys;
+  std::unique_ptr<CriticalKeys> critical_keys;
   // TODO(jud): Consider refactoring this into the subclasses as part of the
   // WriteCriticalSelectors refactoring that's ongoing.  Note that this may
   // break slamm's tests at the bottom of critical_selector_finder_test.cc

@@ -388,7 +388,7 @@ void RewriteTestBase::ServeResourceFromNewContext(
     const StringPiece& expected_content) {
   // New objects for the new server.
   SimpleStats stats(factory_->thread_system());
-  scoped_ptr<TestRewriteDriverFactory> new_factory(MakeTestFactory());
+  std::unique_ptr<TestRewriteDriverFactory> new_factory(MakeTestFactory());
   TestRewriteDriverFactory::InitStats(&stats);
   new_factory->SetUseTestUrlNamer(factory_->use_test_url_namer());
   new_factory->SetStatistics(&stats);

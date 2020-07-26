@@ -75,7 +75,7 @@ class CssCombineFilter : public RewriteFilter {
   void NextCombination(StringPiece debug_help);
   Context* MakeContext();
 
-  scoped_ptr<Context> context_;
+  std::unique_ptr<Context> context_;
   UrlMultipartEncoder multipart_encoder_;
   bool end_document_found_;
   int css_links_;  // # of CSS <link>s found on this page.

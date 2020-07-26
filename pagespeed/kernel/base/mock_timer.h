@@ -79,7 +79,7 @@ class MockTimer : public Timer {
     Function* callback;
   } TimeAndCallback;
   mutable int64 time_us_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   std::vector<TimeAndCallback> deltas_us_;
   mutable unsigned int next_delta_;
 

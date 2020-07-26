@@ -1580,7 +1580,7 @@ class RewriteDriver : public HtmlParse {
 
   // request_headers_ is a copy of the Fetch's request headers, and it
   // stays alive until the rewrite driver is recycled or deleted.
-  scoped_ptr<const RequestHeaders> request_headers_;
+  std::unique_ptr<const RequestHeaders> request_headers_;
 
   int status_code_;  // Status code of response for this request.
 
@@ -1646,11 +1646,11 @@ class RewriteDriver : public HtmlParse {
   std::vector<UrlAsyncFetcher*> owned_url_async_fetchers_;
 
   DomStatsFilter* dom_stats_filter_;
-  scoped_ptr<HtmlWriterFilter> html_writer_filter_;
+  std::unique_ptr<HtmlWriterFilter> html_writer_filter_;
 
   ScanFilter scan_filter_;
-  scoped_ptr<DomainRewriteFilter> domain_rewriter_;
-  scoped_ptr<UrlLeftTrimFilter> url_trim_filter_;
+  std::unique_ptr<DomainRewriteFilter> domain_rewriter_;
+  std::unique_ptr<UrlLeftTrimFilter> url_trim_filter_;
 
   // Maps rewrite context partition keys to the context responsible for
   // rewriting them, in case a URL occurs more than once.
@@ -1662,12 +1662,12 @@ class RewriteDriver : public HtmlParse {
   InlineAttributeSlotSet inline_attribute_slots_;
   SrcSetSlotCollectionSet srcset_collections_;
 
-  scoped_ptr<RewriteOptions> options_;
+  std::unique_ptr<RewriteOptions> options_;
 
   RewriteDriverPool* controlling_pool_;  // or NULL if this has custom options.
 
   // Object which manages CacheUrlAsyncFetcher async operations.
-  scoped_ptr<CacheUrlAsyncFetcher::AsyncOpHooks>
+  std::unique_ptr<CacheUrlAsyncFetcher::AsyncOpHooks>
       cache_url_async_fetcher_async_op_hooks_;
 
   // The default resource encoder
@@ -1689,7 +1689,7 @@ class RewriteDriver : public HtmlParse {
   QueuedWorkerPool::Sequence* html_worker_;
   QueuedWorkerPool::Sequence* rewrite_worker_;
   QueuedWorkerPool::Sequence* low_priority_rewrite_worker_;
-  scoped_ptr<Scheduler::Sequence> scheduler_sequence_;
+  std::unique_ptr<Scheduler::Sequence> scheduler_sequence_;
 
   Writer* writer_;
 
@@ -1701,15 +1701,15 @@ class RewriteDriver : public HtmlParse {
   bool owns_property_page_;
 
   // Per-origin property page, for things which are site-wide.
-  scoped_ptr<PropertyPage> origin_property_page_;
+  std::unique_ptr<PropertyPage> origin_property_page_;
 
   // Device type for the current property page.
   UserAgentMatcher::DeviceType device_type_;
 
   // The critical image finder and critical selector finder will lazy-init these
   // fields.
-  scoped_ptr<CriticalImagesInfo> critical_images_info_;
-  scoped_ptr<CriticalSelectorInfo> critical_selector_info_;
+  std::unique_ptr<CriticalImagesInfo> critical_images_info_;
+  std::unique_ptr<CriticalSelectorInfo> critical_selector_info_;
 
   // Memoized computation of whether the current doc has an XHTML mimetype.
   bool xhtml_mimetype_computed_;
@@ -1724,8 +1724,8 @@ class RewriteDriver : public HtmlParse {
 
   DebugFilter* debug_filter_;
 
-  scoped_ptr<FlushEarlyInfo> flush_early_info_;
-  scoped_ptr<DependencyTracker> dependency_tracker_;
+  std::unique_ptr<FlushEarlyInfo> flush_early_info_;
+  std::unique_ptr<DependencyTracker> dependency_tracker_;
 
   bool can_rewrite_resources_;
   bool is_nested_;
@@ -1737,7 +1737,7 @@ class RewriteDriver : public HtmlParse {
   // Start time for HTML requests. Used for statistics reporting.
   int64 start_time_ms_;
 
-  scoped_ptr<RequestProperties> request_properties_;
+  std::unique_ptr<RequestProperties> request_properties_;
 
   // Helps make sure RewriteDriver and its children are initialized exactly
   // once, allowing for multiple calls to RewriteDriver::Initialize as long

@@ -81,7 +81,7 @@ class CachingHeadersTest : public testing::Test {
     return headers_->GenerateDisabledCacheControl();
   }
 
-  scoped_ptr<TestCachingHeaders> headers_;
+  std::unique_ptr<TestCachingHeaders> headers_;
 };
 
 TEST_F(CachingHeadersTest, DisableEmpty) {

@@ -89,7 +89,7 @@ class Worker {
   // This is called whenever a task is added or removed from the queue.
   void UpdateQueueSizeStat(int size);
 
-  scoped_ptr<WorkThread> thread_;
+  std::unique_ptr<WorkThread> thread_;
   Waveform* queue_size_;
 
   DISALLOW_COPY_AND_ASSIGN(Worker);

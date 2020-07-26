@@ -526,7 +526,7 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
   // Apply header changes.
   // Takes ownership of the returned HTTPValue, which is guaranteed to have been
   // allocated by ApplyHeaderChangesForPut.
-  scoped_ptr<HTTPValue> value(
+  std::unique_ptr<HTTPValue> value(
       ApplyHeaderChangesForPut(start_us, &content, headers, NULL, handler));
   // Put into underlying cache.
   if (value.get() != NULL) {

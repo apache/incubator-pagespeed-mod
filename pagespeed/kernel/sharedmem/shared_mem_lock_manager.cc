@@ -127,7 +127,7 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
     }
 
     // Protect the bucket.
-    scoped_ptr<AbstractMutex> lock(AttachMutex());
+    std::unique_ptr<AbstractMutex> lock(AttachMutex());
     ScopedMutex hold_lock(lock.get());
 
     // Search for this lock.
@@ -202,7 +202,7 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
 
   bool TryLockImpl(bool steal, int64 steal_timeout_ms) {
     // Protect the bucket.
-    scoped_ptr<AbstractMutex> lock(AttachMutex());
+    std::unique_ptr<AbstractMutex> lock(AttachMutex());
     ScopedMutex hold_lock(lock.get());
 
     int64 now_ms = manager_->scheduler_->timer()->NowMs();

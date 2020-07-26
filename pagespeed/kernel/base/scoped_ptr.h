@@ -25,23 +25,6 @@
 
 namespace net_instaweb {
 
-template<typename T> class scoped_ptr : public std::unique_ptr<T> {
- public:
-  scoped_ptr() {}
-  explicit scoped_ptr(T* ptr) : std::unique_ptr<T>(ptr) {}
-};
-
-template<class C> class scoped_ptr<C[]> : public std::unique_ptr<C[]> {
- public:
-  scoped_ptr() {}
-  explicit scoped_ptr(C* array) : std::unique_ptr<C[]>(array) {}
-};
-
-}  // namespace net_instaweb
-
-
-namespace net_instaweb {
-
 template<typename T> class scoped_array : public std::unique_ptr<T[]> {
  public:
   scoped_array() : std::unique_ptr<T[]>() {}

@@ -176,7 +176,7 @@ class RewriteContext {
     bool useable_cache_content;
     bool is_stale_rewrite;
     InputInfoStarVector revalidate;
-    scoped_ptr<OutputPartitions> partitions;
+    std::unique_ptr<OutputPartitions> partitions;
   };
 
   // Used for LookupMetadataForOutputResource.
@@ -921,24 +921,24 @@ class RewriteContext {
   // PSOL modules for debug.
   AtomicBool frozen_;
 
-  scoped_ptr<OutputPartitions> partitions_;
+  std::unique_ptr<OutputPartitions> partitions_;
   OutputResourceVector outputs_;
   int outstanding_fetches_;
   int outstanding_rewrites_;
-  scoped_ptr<ResourceContext> resource_context_;
+  std::unique_ptr<ResourceContext> resource_context_;
   GoogleString partition_key_;
 
   UrlSegmentEncoder default_encoder_;
 
   // Lock guarding output partitioning and rewriting.  Lazily initialized by
   // Lock(), unlocked on destruction or the end of Finish().
-  scoped_ptr<NamedLock> lock_;
+  std::unique_ptr<NamedLock> lock_;
 
   // When this rewrite object is created on behalf of a fetch, we must
   // keep the response_writer, request_headers, and callback in the
   // FetchContext so they can be used once the inputs are available.
   class FetchContext;
-  scoped_ptr<FetchContext> fetch_;
+  std::unique_ptr<FetchContext> fetch_;
 
   // Track the RewriteContexts that must be run after this one because they
   // share a slot.
@@ -1052,7 +1052,7 @@ class RewriteContext {
   // Transaction context from CentralController, if
   // ScheduleViaCentralController() returned true. Communicates back to
   // CentralController on destruction, or when explicitly invoked.
-  scoped_ptr<ScheduleRewriteContext> schedule_rewrite_context_;
+  std::unique_ptr<ScheduleRewriteContext> schedule_rewrite_context_;
 
   Variable* const num_rewrites_abandoned_for_lock_contention_;
   DISALLOW_COPY_AND_ASSIGN(RewriteContext);

@@ -75,7 +75,7 @@ class CriticalImagesFinderTest : public CriticalImagesFinderTestBase {
  private:
   friend class CriticalImagesHistoryFinderTest;
 
-  scoped_ptr<TestCriticalImagesFinder> finder_;
+  std::unique_ptr<TestCriticalImagesFinder> finder_;
 };
 
 class CriticalImagesHistoryFinderTest : public CriticalImagesFinderTest {
@@ -365,7 +365,7 @@ TEST_F(CriticalImagesFinderTest, TestRenderedImageExtractionFromPropertyCache) {
                         finder()->kRenderedImageDimensionsProperty,
                         false /* don't write cohort */, page);
   // Check if Finder extracts properly.
-  scoped_ptr<RenderedImages> extracted_rendered_images(
+  std::unique_ptr<RenderedImages> extracted_rendered_images(
           finder()->ExtractRenderedImageDimensionsFromCache(rewrite_driver()));
 
   EXPECT_EQ(1, extracted_rendered_images->image_size());

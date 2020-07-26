@@ -46,7 +46,7 @@ class HashedNonceGeneratorTest : public NonceGeneratorTestBase {
   }
 
   MD5Hasher hasher_;
-  scoped_ptr<NonceGenerator> duplicate_generator_;
+  std::unique_ptr<NonceGenerator> duplicate_generator_;
 };
 
 TEST_F(HashedNonceGeneratorTest, DuplicateFreedom) {

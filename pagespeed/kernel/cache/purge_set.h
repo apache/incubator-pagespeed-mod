@@ -185,7 +185,7 @@ class PurgeSet {
   int64 last_invalidation_timestamp_ms_;
 
   InvalidationTimestampHelper helper_;
-  scoped_ptr<Lru> lru_;
+  std::unique_ptr<Lru> lru_;
 
   // Explicit copy-constructor and assign-operator are provided so
   // this class can be used for CopyOnWrite.

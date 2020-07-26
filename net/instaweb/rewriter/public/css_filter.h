@@ -362,7 +362,7 @@ class CssFilter::Context : public SingleRewriteContext {
   virtual bool ScheduleViaCentralController() { return true; }
 
   CssFilter* filter_;
-  scoped_ptr<CssImageRewriter> css_image_rewriter_;
+  std::unique_ptr<CssImageRewriter> css_image_rewriter_;
   ImageRewriteFilter* image_rewrite_filter_;
   CssResourceSlotFactory slot_factory_;
   CssHierarchy hierarchy_;
@@ -373,10 +373,10 @@ class CssFilter::Context : public SingleRewriteContext {
   bool fallback_mode_;
   // Transformer used by CssTagScanner to rewrite URLs if we failed to
   // parse CSS. This will only be defined if CSS parsing failed.
-  scoped_ptr<AssociationTransformer> fallback_transformer_;
+  std::unique_ptr<AssociationTransformer> fallback_transformer_;
   // Backup transformer for AssociationTransformer. Absolutifies URLs and
   // rewrites their domains as necessary if they can't be cache extended.
-  scoped_ptr<RewriteDomainTransformer> absolutifier_;
+  std::unique_ptr<RewriteDomainTransformer> absolutifier_;
 
   // The element containing the CSS being rewritten, either a script element
   // (inline), a link element (external), or anything with a style attribute.
@@ -404,8 +404,8 @@ class CssFilter::Context : public SingleRewriteContext {
   int64 in_text_size_;
   GoogleUrl initial_css_base_gurl_;
   GoogleUrl initial_css_trim_gurl_;
-  scoped_ptr<GoogleUrl> base_gurl_for_fallback_;
-  scoped_ptr<GoogleUrl> trim_gurl_for_fallback_;
+  std::unique_ptr<GoogleUrl> base_gurl_for_fallback_;
+  std::unique_ptr<GoogleUrl> trim_gurl_for_fallback_;
   ResourcePtr input_resource_;
   OutputResourcePtr output_resource_;
 

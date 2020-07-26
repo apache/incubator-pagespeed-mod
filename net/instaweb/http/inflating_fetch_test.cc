@@ -99,12 +99,12 @@ class InflatingFetchTest : public testing::Test {
     inflating_fetch_ = new InflatingFetch(mock_fetch_.get());
   }
 
-  scoped_ptr<MockFetch> mock_fetch_;
+  std::unique_ptr<MockFetch> mock_fetch_;
   // Self-deletes in Done(), so no need to deallocate.
   InflatingFetch* inflating_fetch_;
   GoogleMessageHandler message_handler_;
   StringPiece gzipped_data_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
 };
 
 // Tests that if we ask for clear text & get it, we pass through the data

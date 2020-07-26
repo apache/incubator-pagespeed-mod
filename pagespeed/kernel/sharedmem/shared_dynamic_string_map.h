@@ -227,11 +227,11 @@ class SharedDynamicStringMap {
 
   // The mutex for inserting strings, i.e. the one shared by the
   // string_offset_ and number_inserted_ values.
-  scoped_ptr<AbstractMutex> insert_string_mutex_;
+  std::unique_ptr<AbstractMutex> insert_string_mutex_;
 
   const GoogleString segment_name_;
   AbstractSharedMem* shm_runtime_;
-  scoped_ptr<AbstractSharedMemSegment> segment_;
+  std::unique_ptr<AbstractSharedMemSegment> segment_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedDynamicStringMap);
 };

@@ -163,11 +163,11 @@ class AprMemCacheTest : public CacheTestBase {
   MD5Hasher md5_hasher_;
   MockHasher mock_hasher_;
   MockTimer timer_;
-  scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<AprMemCache> servers_;
-  scoped_ptr<CacheKeyPrepender> prefixed_memcache_;
-  scoped_ptr<FallbackCache> cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<AprMemCache> servers_;
+  std::unique_ptr<CacheKeyPrepender> prefixed_memcache_;
+  std::unique_ptr<FallbackCache> cache_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats statistics_;
   ExternalClusterSpec cluster_spec_;
   static apr_port_t fake_memcache_listen_port_;
@@ -569,13 +569,13 @@ TEST_F(AprMemCacheTest, HangingMultigetTest) {
   // Test that we do not hang in the case of corrupted responses from memcached,
   // as seen in bug report 1048
   // https://github.com/apache/incubator-pagespeed-mod/issues/1048
-  scoped_ptr<FakeMemcacheServerThread> thread(new FakeMemcacheServerThread(
+  std::unique_ptr<FakeMemcacheServerThread> thread(new FakeMemcacheServerThread(
       fake_memcache_listen_port_, thread_system_.get()));
   ASSERT_TRUE(thread->Start());
   apr_port_t port = thread->GetListeningPort();
   ExternalClusterSpec spec;
   spec.servers = {ExternalServerSpec("localhost", port)};
-  scoped_ptr<AprMemCache> cache(
+  std::unique_ptr<AprMemCache> cache(
       new AprMemCache(spec, 3 /* maximal number of client connections */,
                       &mock_hasher_, &statistics_, &timer_, &handler_));
   static const char k1[] = "hello";

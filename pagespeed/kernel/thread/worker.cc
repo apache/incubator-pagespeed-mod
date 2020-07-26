@@ -169,8 +169,8 @@ class Worker::WorkThread : public ThreadSystem::Thread {
  private:
   Worker* owner_;
 
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> state_change_ GUARDED_BY(mutex_);
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> state_change_ GUARDED_BY(mutex_);
 
   // non-NULL if we are actually running something.
   Function* current_task_ GUARDED_BY(mutex_);

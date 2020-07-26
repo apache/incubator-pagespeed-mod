@@ -149,7 +149,7 @@ class PropertyCacheTest : public testing::Test {
   }
 
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   SimpleStats stats_;
   CachePropertyStore cache_property_store_;
@@ -595,7 +595,7 @@ TEST_F(PropertyCacheTest, DeleteProperty) {
       EXPECT_FALSE(property->has_value());
 
       // Unknown Cohort. No crashes.
-      scoped_ptr<PropertyCache::Cohort> unknown_cohort(
+      std::unique_ptr<PropertyCache::Cohort> unknown_cohort(
           new PropertyCache::Cohort("unknown_cohort"));
       page.DeleteProperty(cohort_, kPropertyName2);
       EXPECT_TRUE(page.valid());

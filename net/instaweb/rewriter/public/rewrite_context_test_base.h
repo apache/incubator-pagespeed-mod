@@ -407,7 +407,7 @@ class CombiningFilter : public RewriteFilter {
  private:
   friend class Context;
 
-  scoped_ptr<Context> context_;
+  std::unique_ptr<Context> context_;
   UrlMultipartEncoder encoder_;
   MockScheduler* scheduler_;
   int num_rewrites_;

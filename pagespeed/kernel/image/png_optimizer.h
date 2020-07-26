@@ -350,11 +350,11 @@ class PngScanlineReaderRaw : public ScanlineReaderInterface {
   bool was_initialized_;
   net_instaweb::scoped_array<png_byte> image_buffer_;
   net_instaweb::scoped_array<png_bytep> row_pointers_;
-  net_instaweb::scoped_ptr<ScopedPngStruct> png_struct_;
+  std::unique_ptr<ScopedPngStruct> png_struct_;
   // png_input_ stores a pointer to the input image stream. It also keeps
   // tracking the length of data that libpng has read. It is initialized
   // in Initialize() and is updated in ReadNextScanline().
-  net_instaweb::scoped_ptr<ScanlineStreamInput> png_input_;
+  std::unique_ptr<ScanlineStreamInput> png_input_;
   MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(PngScanlineReaderRaw);
@@ -403,7 +403,7 @@ class PngScanlineWriter : public ScanlineWriterInterface {
   size_t bytes_per_row_;
   size_t row_;
   PixelFormat pixel_format_;
-  net_instaweb::scoped_ptr<ScopedPngStruct> png_struct_;
+  std::unique_ptr<ScopedPngStruct> png_struct_;
   bool was_initialized_;
   bool try_best_compression_;
   net_instaweb::scoped_array<unsigned char> pixel_buffer_;

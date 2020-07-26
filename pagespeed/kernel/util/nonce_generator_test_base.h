@@ -42,8 +42,8 @@ class NonceGeneratorTestBase : public testing::Test {
   void DifferentNonOverlap();
   void AllBitsUsed();
 
-  scoped_ptr<NonceGenerator> main_generator_;
-  scoped_ptr<NonceGenerator> other_generator_;
+  std::unique_ptr<NonceGenerator> main_generator_;
+  std::unique_ptr<NonceGenerator> other_generator_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NonceGeneratorTestBase);

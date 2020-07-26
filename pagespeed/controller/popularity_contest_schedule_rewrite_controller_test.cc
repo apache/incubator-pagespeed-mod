@@ -208,10 +208,10 @@ class PopularityContestScheduleRewriteControllerTest : public testing::Test {
     controller_->SetMaxQueueSizeForTesting(size);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   MockTimer timer_;
-  scoped_ptr<PopularityContestScheduleRewriteController> controller_;
+  std::unique_ptr<PopularityContestScheduleRewriteController> controller_;
 };
 
 namespace {

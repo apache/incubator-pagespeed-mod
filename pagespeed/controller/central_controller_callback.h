@@ -83,7 +83,7 @@ class CentralControllerCallback : public Function {
  private:
   // Subclasses should implement whatever functionality they need in these.
   // They are equivalent to the Run() and Cancel() methods on Function.
-  virtual void RunImpl(scoped_ptr<TransactionContext>* context) = 0;
+  virtual void RunImpl(std::unique_ptr<TransactionContext>* context) = 0;
   virtual void CancelImpl() = 0;
 
   // Invoked via sequence_ to do the typical Function operations.
@@ -91,7 +91,7 @@ class CentralControllerCallback : public Function {
   void CancelAfterRequeue();
 
   Sequence* sequence_;
-  scoped_ptr<TransactionContext> context_;
+  std::unique_ptr<TransactionContext> context_;
 
   DISALLOW_COPY_AND_ASSIGN(CentralControllerCallback);
 };

@@ -105,7 +105,7 @@ class BackupUpDownCounter : public UpDownCounter {
 
  private:
   UpDownCounter* counter_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int64 local_counter_ GUARDED_BY(mutex_);
   AtomicBool was_set_;
 };

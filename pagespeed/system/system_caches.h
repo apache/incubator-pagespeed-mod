@@ -210,7 +210,7 @@ class SystemCaches {
   void SetupPcacheCohorts(ServerContext* server_context,
                           bool enable_property_cache);
 
-  scoped_ptr<SlowWorker> slow_worker_;
+  std::unique_ptr<SlowWorker> slow_worker_;
 
   RewriteDriverFactory* factory_;
   AbstractSharedMem* shared_mem_runtime_;
@@ -236,8 +236,8 @@ class SystemCaches {
   // both memcached and Redis are enabled and one of them goes down, it blocks
   // requests to both servers. Actually, we have that problem already if there
   // different vhosts use different external cache servers.
-  scoped_ptr<QueuedWorkerPool> memcached_pool_;
-  scoped_ptr<QueuedWorkerPool> redis_pool_;
+  std::unique_ptr<QueuedWorkerPool> memcached_pool_;
+  std::unique_ptr<QueuedWorkerPool> redis_pool_;
 
   // Explicit lists of AprMemCache/RedisCache instances are stored individually,
   // as they require extra treatment during startup and shutdown.

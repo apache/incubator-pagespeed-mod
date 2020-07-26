@@ -56,7 +56,7 @@ class RewriteOptionsManagerTest :
 
   void RunGetRewriteOptionsTest() {
     // Initialize the pointer to some garbage;
-    scoped_ptr<RewriteOptions> non_null(NewOptions());
+    std::unique_ptr<RewriteOptions> non_null(NewOptions());
     ASSERT_TRUE(non_null.get());
     GoogleUrl url("http://www.foo.com");
     RequestHeaders request_headers;
@@ -91,7 +91,7 @@ class RewriteOptionsManagerTest :
     prepare_done_ = true;
   }
 
-  scoped_ptr<Timer> timer_;
+  std::unique_ptr<Timer> timer_;
   bool prepare_done_;
   bool prepare_success_;
 };
@@ -107,7 +107,7 @@ TEST_F(RewriteOptionsManagerTest, Prepare_NULLOptions) {
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_InvalidUrl) {
-  scoped_ptr<RewriteOptions> default_options(NewOptions());
+  std::unique_ptr<RewriteOptions> default_options(NewOptions());
   GoogleString url("invalid_url");
   RequestHeaders request_headers;
   ASSERT_FALSE(PrepareRequest(
@@ -115,7 +115,7 @@ TEST_F(RewriteOptionsManagerTest, Prepare_InvalidUrl) {
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_NotProxy) {
-  scoped_ptr<RewriteOptions> default_options(NewOptions());
+  std::unique_ptr<RewriteOptions> default_options(NewOptions());
   GoogleString url("http://www.foo.com");
   RequestHeaders request_headers;
   ASSERT_TRUE(PrepareRequest(
@@ -128,7 +128,7 @@ TEST_F(RewriteOptionsManagerTest, Prepare_NotProxy) {
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_Proxy) {
-  scoped_ptr<RewriteOptions> default_options(NewOptions());
+  std::unique_ptr<RewriteOptions> default_options(NewOptions());
   ASSERT_TRUE(default_options->WriteableDomainLawyer()->AddProxyDomainMapping(
       "www.foo.com",
       "www.origin.com",
@@ -143,7 +143,7 @@ TEST_F(RewriteOptionsManagerTest, Prepare_Proxy) {
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_ProxySuffix) {
-  scoped_ptr<RewriteOptions> default_options(NewOptions());
+  std::unique_ptr<RewriteOptions> default_options(NewOptions());
   DomainLawyer* lawyer = default_options->WriteableDomainLawyer();
   lawyer->set_proxy_suffix(".suffix");
 

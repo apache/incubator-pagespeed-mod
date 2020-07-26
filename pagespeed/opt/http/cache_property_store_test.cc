@@ -113,14 +113,14 @@ class CachePropertyStoreTest : public testing::Test {
 
  protected:
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   MockTimer timer_;
   CachePropertyStore cache_property_store_;
   PropertyCache property_cache_;
   const PropertyCache::Cohort* cohort_;
   PropertyCache::CohortVector cohort_list_;
-  scoped_ptr<MockPropertyPage> page_;
+  std::unique_ptr<MockPropertyPage> page_;
   int num_callback_with_false_called_;
   int num_callback_with_true_called_;
   bool cache_lookup_status_;

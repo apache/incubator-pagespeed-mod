@@ -1031,7 +1031,7 @@ class RewriteOptions {
     // bitset to indicate which device types this ExperimentSpec should apply
     // to. If NULL, no device type was specified and the experiment applies
     // to all device types.
-    scoped_ptr<DeviceTypeBitSet> matches_device_types_;
+    std::unique_ptr<DeviceTypeBitSet> matches_device_types_;
     // Use whatever RewriteOptions' settings are without experiments
     // for this experiment.
     bool use_default_;
@@ -3676,7 +3676,7 @@ class RewriteOptions {
   // it's running.
   CopyOnWrite<PurgeSet> purge_set_ GUARDED_BY(cache_purge_mutex_);
 
-  scoped_ptr<ThreadSystem::RWLock> cache_purge_mutex_;
+  std::unique_ptr<ThreadSystem::RWLock> cache_purge_mutex_;
   Option<int64> css_flatten_max_bytes_;
   Option<bool> cache_small_images_unrewritten_;
   Option<bool> no_transform_optimized_images_;
@@ -4170,7 +4170,7 @@ class RewriteOptions {
 
   // If this is non-NULL it tells us additional attributes that should be
   // interpreted as containing urls.
-  scoped_ptr<std::vector<ElementAttributeCategory> > url_valued_attributes_;
+  std::unique_ptr<std::vector<ElementAttributeCategory> > url_valued_attributes_;
 
   Option<ResourceCategorySet> inline_unauthorized_resource_types_;
 
@@ -4218,7 +4218,7 @@ class RewriteOptions {
   // structure-size dependent on debug-ifdef seems dangerous when used
   // as a library against externally compiled code.  We do ifdef its
   // usage within the class implementation, however.
-  scoped_ptr<ThreadSystem::ThreadId> last_thread_id_;
+  std::unique_ptr<ThreadSystem::ThreadId> last_thread_id_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteOptions);
 };

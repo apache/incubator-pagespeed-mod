@@ -99,7 +99,7 @@ class ApacheFetch : public AsyncFetch {
   void SendOutHeaders();
 
   GoogleString mapped_url_;
-  scoped_ptr<ApacheWriter> apache_writer_;
+  std::unique_ptr<ApacheWriter> apache_writer_;
   const RewriteOptions* options_ GUARDED_BY(scheduler_->mutex());
 
   MessageHandler* message_handler_;

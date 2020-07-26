@@ -103,8 +103,8 @@ class ChunkingWriterTest : public testing::Test {
 
  protected:
   MockMessageHandler message_handler_;
-  scoped_ptr<TracingWriter> tracer_;
-  scoped_ptr<ChunkingWriter> chunker_;
+  std::unique_ptr<TracingWriter> tracer_;
+  std::unique_ptr<ChunkingWriter> chunker_;
 };
 
 TEST_F(ChunkingWriterTest, UnchunkedBasic) {

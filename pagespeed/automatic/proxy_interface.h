@@ -123,7 +123,7 @@ class ProxyInterface : public UrlAsyncFetcher {
   // Number of resource requests without domain-specific config.
   TimedVariable* resource_requests_without_domain_config_;
 
-  scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
+  std::unique_ptr<ProxyFetchFactory> proxy_fetch_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyInterface);
 };

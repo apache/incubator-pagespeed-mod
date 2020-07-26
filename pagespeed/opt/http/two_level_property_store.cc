@@ -301,7 +301,7 @@ class TwoLevelPropertyStoreGetCallback
   PropertyCache::CohortVector cohort_list_;
   PropertyPage* page_;  // page_ becomes NULL as soon as Done() is called.
   BoolCallback* done_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   PropertyStore* primary_property_store_;
   PropertyStore* secondary_property_store_;
   AbstractPropertyStoreGetCallback* secondary_property_store_get_callback_;

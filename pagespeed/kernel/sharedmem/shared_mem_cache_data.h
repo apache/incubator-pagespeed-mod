@@ -277,7 +277,7 @@ class Sector {
 
   // Pointers to where various things are, and our sizes
   AbstractSharedMemSegment* segment_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   SectorHeader* sector_header_;
   BlockNum* block_successors_ PT_GUARDED_BY(mutex());
   char* directory_base_;

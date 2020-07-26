@@ -258,7 +258,7 @@ RewriteQuery::Status RewriteQuery::Scan(
     options_.reset(factory->NewRewriteOptionsForQuery());
   }
 
-  scoped_ptr<RequestProperties> request_properties;
+  std::unique_ptr<RequestProperties> request_properties;
   if (request_headers != NULL) {
     request_properties.reset(server_context->NewRequestProperties());
     request_properties->SetUserAgent(

@@ -177,8 +177,8 @@ class MemFileSystem : public FileSystem {
   inline void UpdateMtime(const StringPiece& path)
       SHARED_LOCKS_REQUIRED(all_else_mutex_);
 
-  scoped_ptr<AbstractMutex> lock_map_mutex_;  // controls access to lock_map_
-  scoped_ptr<AbstractMutex> all_else_mutex_;  // controls access to all else.
+  std::unique_ptr<AbstractMutex> lock_map_mutex_;  // controls access to lock_map_
+  std::unique_ptr<AbstractMutex> all_else_mutex_;  // controls access to all else.
 
   // When disabled, OpenInputFile returns NULL.
   bool enabled_ GUARDED_BY(all_else_mutex_);
@@ -213,7 +213,7 @@ class MemFileSystem : public FileSystem {
   int num_temp_file_opens_ GUARDED_BY(all_else_mutex_);
 
   // Hook to run after a file-write.
-  scoped_ptr<FileCallback> write_callback_;
+  std::unique_ptr<FileCallback> write_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(MemFileSystem);
 };

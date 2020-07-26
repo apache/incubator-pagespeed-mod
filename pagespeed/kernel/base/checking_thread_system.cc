@@ -60,7 +60,7 @@ class CheckingThreadSystem::CheckingCondvar : public ThreadSystem::Condvar {
 
  private:
   CheckingThreadSystem::Mutex* mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   DISALLOW_COPY_AND_ASSIGN(CheckingCondvar);
 };
 

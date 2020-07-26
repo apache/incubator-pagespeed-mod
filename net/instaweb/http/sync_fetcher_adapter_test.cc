@@ -242,8 +242,8 @@ class SyncFetcherAdapterTest : public testing::Test {
     sync.Wait();
   }
 
-  scoped_ptr<Timer> timer_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<Timer> timer_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
 };
 

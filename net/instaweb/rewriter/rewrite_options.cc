@@ -3137,7 +3137,7 @@ RewriteOptions::ParseAndSetOptionFromNameWithScope(
       // them to a RewriteOptions.  Try to apply them now, so if there are
       // configuration errors we can report them early instead of on each
       // request.
-      scoped_ptr<RewriteOptions> clone(Clone());
+      std::unique_ptr<RewriteOptions> clone(Clone());
       if (!clone->SetOptionsFromName(spec->filter_options(), handler)) {
         *msg = "experiment spec has invalid options= component";
         result = RewriteOptions::kOptionValueInvalid;

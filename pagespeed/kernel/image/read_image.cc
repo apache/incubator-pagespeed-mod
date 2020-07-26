@@ -77,7 +77,7 @@ ScanlineReaderInterface* InstantiateScanlineReader(
 
     case IMAGE_GIF: {
       which = "FrameToScanlineReaderAdapter(GifFrameReader)";
-      net_instaweb::scoped_ptr<MultipleFrameReader> mf_reader(
+      std::unique_ptr<MultipleFrameReader> mf_reader(
           InstantiateImageFrameReader(image_type, handler, status));
       if (!mf_reader->set_quirks_mode(QUIRKS_CHROME, status)) {
         return NULL;
@@ -117,7 +117,7 @@ ScanlineReaderInterface* CreateScanlineReader(
     size_t buffer_length,
     MessageHandler* handler,
     ScanlineStatus* status) {
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> reader(
+  std::unique_ptr<ScanlineReaderInterface> reader(
       InstantiateScanlineReader(image_type, handler, status));
   if (status->Success()) {
     *status = reader->InitializeWithStatus(image_buffer, buffer_length);
@@ -143,7 +143,7 @@ ScanlineWriterInterface* InstantiateScanlineWriter(
   switch (image_type) {
     case pagespeed::image_compression::IMAGE_JPEG:
       {
-        net_instaweb::scoped_ptr<JpegScanlineWriter> jpeg_writer(
+        std::unique_ptr<JpegScanlineWriter> jpeg_writer(
             new JpegScanlineWriter(handler));
         if (jpeg_writer != NULL) {
           // TODO(huibao): Set up error handling inside JpegScanlineWriter.
@@ -212,7 +212,7 @@ ScanlineWriterInterface* CreateScanlineWriter(
     GoogleString* image_data,
     MessageHandler* handler,
     ScanlineStatus* status) {
-  net_instaweb::scoped_ptr<ScanlineWriterInterface> writer(
+  std::unique_ptr<ScanlineWriterInterface> writer(
       InstantiateScanlineWriter(image_type, handler, status));
   if (status->Success()) {
     *status = writer->InitWithStatus(width, height, pixel_format);
@@ -248,7 +248,7 @@ MultipleFrameReader* InstantiateImageFrameReader(
     // Image formats for which we do not have an ImageFrame
     // implementation result in a wrapper around the corresponding
     // Scanline object.
-    net_instaweb::scoped_ptr<ScanlineReaderInterface> scanline_reader(
+    std::unique_ptr<ScanlineReaderInterface> scanline_reader(
         InstantiateScanlineReader(image_type, handler, status));
     if (status->Success()) {
       reader = new ScanlineToFrameReaderAdapter(
@@ -274,7 +274,7 @@ MultipleFrameReader* CreateImageFrameReader(
     QuirksMode quirks_mode,
     MessageHandler* handler,
     ScanlineStatus* status) {
-  net_instaweb::scoped_ptr<MultipleFrameReader> reader(
+  std::unique_ptr<MultipleFrameReader> reader(
       InstantiateImageFrameReader(image_type, handler, status));
   return (status->Success() &&
           reader->set_quirks_mode(quirks_mode, status) &&
@@ -304,7 +304,7 @@ MultipleFrameWriter* InstantiateImageFrameWriter(
     // Image formats for which we do not have an ImageFrame
     // implementation result in a wrapper around the corresponding
     // Scanline object.
-    net_instaweb::scoped_ptr<ScanlineWriterInterface> scanline_writer(
+    std::unique_ptr<ScanlineWriterInterface> scanline_writer(
         InstantiateScanlineWriter(image_type, handler, status));
     if (status->Success()) {
       allocated_writer = new ScanlineToFrameWriterAdapter(
@@ -328,7 +328,7 @@ MultipleFrameWriter* CreateImageFrameWriter(
     GoogleString* image_data,
     MessageHandler* handler,
     ScanlineStatus* status) {
-  net_instaweb::scoped_ptr<MultipleFrameWriter> writer(
+  std::unique_ptr<MultipleFrameWriter> writer(
       InstantiateImageFrameWriter(image_type, handler, status));
   return (status->Success() &&
           writer->Initialize(config, image_data, status)) ?
@@ -347,7 +347,7 @@ bool ReadImage(ImageFormat image_type,
                size_t* stride,
                MessageHandler* handler) {
   // Instantiate and initialize the reader based on image type.
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> reader;
+  std::unique_ptr<ScanlineReaderInterface> reader;
   reader.reset(CreateScanlineReader(image_type, image_buffer, buffer_length,
                                     handler));
   if (reader.get() == NULL) {

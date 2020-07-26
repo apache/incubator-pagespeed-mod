@@ -134,7 +134,7 @@ int SharedDynamicStringMap::IncrementElement(const StringPiece& string)
     value = 0;
   } else {
     // The mutex for the entry is locked by FindEntry for continued use
-    scoped_ptr<AbstractMutex> mutex(GetMutex(entry));
+    std::unique_ptr<AbstractMutex> mutex(GetMutex(entry));
     if (entry_pointer->value == 0) {
       // The string is not yet in the table.
       value = InsertString(string, entry_pointer);
@@ -174,7 +174,7 @@ int SharedDynamicStringMap::FindEntry(const StringPiece& string, bool lock,
   // hash1 dictates starting entry
   size_t entry = hash1 % table_size_;
   size_t starting_entry = entry;
-  scoped_ptr<AbstractMutex> mutex;
+  std::unique_ptr<AbstractMutex> mutex;
   do {
     // Lock this entry
     mutex.reset(GetMutex(entry));

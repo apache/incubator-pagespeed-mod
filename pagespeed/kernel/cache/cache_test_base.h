@@ -272,7 +272,7 @@ class CacheTestBase : public testing::Test {
   const char* invalid_value_;  // may be NULL.
   const char* invalid_key_;  // may be NULL.
   std::vector<Callback*> callbacks_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int outstanding_fetches_;  // protected by mutex_
 };
 

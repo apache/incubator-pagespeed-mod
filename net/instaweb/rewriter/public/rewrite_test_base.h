@@ -822,20 +822,20 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // The mock fetchers & stats are global across all Factories used in the
   // tests.
   MockUrlFetcher mock_url_fetcher_;
-  scoped_ptr<Statistics> statistics_;
+  std::unique_ptr<Statistics> statistics_;
 
   // We have two independent RewriteDrivers representing two completely
   // separate servers for the same domain (say behind a load-balancer).
   //
   // Server A runs rewrite_driver_ and will be used to rewrite pages and
   // serves the rewritten resources.
-  scoped_ptr<TestRewriteDriverFactory> factory_;
-  scoped_ptr<TestRewriteDriverFactory> other_factory_;
+  std::unique_ptr<TestRewriteDriverFactory> factory_;
+  std::unique_ptr<TestRewriteDriverFactory> other_factory_;
   ServerContext* server_context_;
   RewriteDriver* rewrite_driver_;
   ServerContext* other_server_context_;
   RewriteDriver* other_rewrite_driver_;
-  scoped_ptr<HtmlWriterFilter> other_html_writer_filter_;
+  std::unique_ptr<HtmlWriterFilter> other_html_writer_filter_;
   ActiveServerFlag active_server_;
   bool use_managed_rewrite_drivers_;
   StringPiece current_user_agent_;

@@ -49,7 +49,7 @@ class SimpleStatsVariable : public MutexedScalar {
 
  private:
   int64 value_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   DISALLOW_COPY_AND_ASSIGN(SimpleStatsVariable);
 };
 

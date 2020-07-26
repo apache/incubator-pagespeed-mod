@@ -288,7 +288,7 @@ class CountHistogram : public Histogram {
   virtual double BucketCount(int index) { return 0.0; }
 
  private:
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int count_ GUARDED_BY(mutex_);
 
   DISALLOW_COPY_AND_ASSIGN(CountHistogram);

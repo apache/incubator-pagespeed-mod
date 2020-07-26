@@ -229,12 +229,12 @@ class PurgeContext {
                                  int64* timestamp_ms);
 
   GoogleString filename_;
-  scoped_ptr<NamedLock> interprocess_lock_;
+  std::unique_ptr<NamedLock> interprocess_lock_;
   FileSystem* file_system_;
   Timer* timer_;
 
   Statistics* statistics_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   CopyOnWrite<PurgeSet> purge_set_;        // protected by mutex_
   PurgeSet pending_purges_;                // protected by mutex_
   PurgeCallbackVector pending_callbacks_;  // protected by mutex_
@@ -255,12 +255,12 @@ class PurgeContext {
   Variable* file_write_failures_;
   Variable* file_writes_;
   Variable* purge_index_;
-  scoped_ptr<UpDownCounter> purge_poll_timestamp_ms_;
+  std::unique_ptr<UpDownCounter> purge_poll_timestamp_ms_;
 
   Scheduler* scheduler_;
   MessageHandler* message_handler_;
 
-  scoped_ptr<PurgeSetCallback> update_callback_;
+  std::unique_ptr<PurgeSetCallback> update_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(PurgeContext);
 };

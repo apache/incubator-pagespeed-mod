@@ -58,7 +58,7 @@ class WaveformTest : public testing::Test {
     return (html.find(Format(time_ms, value)) != GoogleString::npos);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   SimpleStats stats_;
   MockMessageHandler handler_;

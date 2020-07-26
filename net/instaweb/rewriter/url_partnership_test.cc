@@ -86,7 +86,7 @@ class UrlPartnershipTest : public RewriteTestBase {
   }
 
   DomainLawyer* domain_lawyer() { return options()->WriteableDomainLawyer(); }
-  scoped_ptr<UrlPartnership> partnership_;
+  std::unique_ptr<UrlPartnership> partnership_;
   GoogleString styles_path_;
   GoogleString r_path_;
   GoogleString style_url_;

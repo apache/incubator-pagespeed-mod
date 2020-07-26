@@ -140,7 +140,7 @@ class CacheBatcher : public CacheInterface {
   Variable* queued_gets_;
   CallbackMap in_flight_ GUARDED_BY(mutex_);
   int last_batch_size_ GUARDED_BY(mutex_);
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int num_in_flight_groups_ GUARDED_BY(mutex_);
   int num_in_flight_keys_ GUARDED_BY(mutex_);
   int num_pending_gets_ GUARDED_BY(mutex_);

@@ -76,7 +76,7 @@ class ApacheWriter : public Writer {
   bool strip_cookies_;
   int64 content_length_;
   ThreadSystem* thread_system_;
-  scoped_ptr<ThreadSystem::ThreadId> apache_request_thread_;
+  std::unique_ptr<ThreadSystem::ThreadId> apache_request_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheWriter);
 };

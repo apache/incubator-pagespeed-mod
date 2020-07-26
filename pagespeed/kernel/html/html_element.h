@@ -410,7 +410,7 @@ class HtmlElement : public HtmlNode {
   // is deleted.
   void FreeData() { data_.reset(NULL); }
 
-  scoped_ptr<Data> data_;
+  std::unique_ptr<Data> data_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlElement);
 };

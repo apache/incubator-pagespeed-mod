@@ -334,13 +334,13 @@ class ImageImpl : public Image {
   bool ConvertAnimatedGifToWebp(bool has_transparency);
 
   const GoogleString file_prefix_;
-  scoped_ptr<MessageHandler> handler_;
+  std::unique_ptr<MessageHandler> handler_;
   bool changed_;
   const GoogleString url_;
   ImageDim dims_;
   ImageDim resized_dimensions_;
   GoogleString resized_image_;
-  scoped_ptr<Image::CompressionOptions> options_;
+  std::unique_ptr<Image::CompressionOptions> options_;
   bool low_quality_enabled_;
   Timer* timer_;
   GoogleString debug_message_;
@@ -434,7 +434,7 @@ Image* BlankImageWithOptions(int width, int height, ImageType type,
                              const StringPiece& tmp_dir,
                              Timer* timer, MessageHandler* handler,
                              Image::CompressionOptions* options) {
-  scoped_ptr<ImageImpl> image(new ImageImpl(width, height, type, tmp_dir,
+  std::unique_ptr<ImageImpl> image(new ImageImpl(width, height, type, tmp_dir,
                                             timer, handler, options));
   if (image != NULL && image->GenerateBlankImage()) {
     return image.release();
@@ -684,7 +684,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
     return false;
   }
 
-  scoped_ptr<ScanlineReaderInterface> image_reader(
+  std::unique_ptr<ScanlineReaderInterface> image_reader(
       CreateScanlineReader(original_format,
                            original_contents_.data(),
                            original_contents_.length(),
@@ -707,7 +707,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   }
 
   // Create a writer.
-  scoped_ptr<ScanlineWriterInterface> writer;
+  std::unique_ptr<ScanlineWriterInterface> writer;
   const ImageFormat resized_format = GetOutputImageFormat(original_format);
   switch (resized_format) {
     case pagespeed::image_compression::IMAGE_JPEG:
@@ -851,7 +851,7 @@ bool ImageImpl::ComputeOutputContents() {
     // args rather than const string&.  We would save lots of string-copying
     // if we made that change.
     GoogleString string_for_image(contents.data(), contents.size());
-    scoped_ptr<PngReaderInterface> png_reader;
+    std::unique_ptr<PngReaderInterface> png_reader;
     switch (image_type()) {
       case IMAGE_UNKNOWN:
         break;
@@ -973,7 +973,7 @@ bool ImageImpl::ConvertAnimatedGifToWebp(bool has_transparency) {
   webp_config.alpha_compression = 1;  // alpha plane compressed losslessly
 
   pagespeed::image_compression::ScanlineStatus status;
-  scoped_ptr<pagespeed::image_compression::MultipleFrameReader> reader(
+  std::unique_ptr<pagespeed::image_compression::MultipleFrameReader> reader(
       CreateImageFrameReader(
           pagespeed::image_compression::IMAGE_GIF,
           original_contents_.data(),
@@ -984,7 +984,7 @@ bool ImageImpl::ConvertAnimatedGifToWebp(bool has_transparency) {
     return false;
   }
 
-  scoped_ptr<pagespeed::image_compression::MultipleFrameWriter> writer(
+  std::unique_ptr<pagespeed::image_compression::MultipleFrameWriter> writer(
       CreateImageFrameWriter(
           pagespeed::image_compression::IMAGE_WEBP,
           &webp_config,
@@ -1323,7 +1323,7 @@ StringPiece Image::Contents() {
 
 bool ImageImpl::DrawImage(Image* image, int x, int y) {
   // Create a reader for reading the original canvas image.
-  scoped_ptr<ScanlineReaderInterface> canvas_reader(CreateScanlineReader(
+  std::unique_ptr<ScanlineReaderInterface> canvas_reader(CreateScanlineReader(
       pagespeed::image_compression::IMAGE_PNG,
       output_contents_.data(),
       output_contents_.length(),
@@ -1340,7 +1340,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
 
   // Initialize a reader for reading the image which will be sprited.
   ImageImpl* impl = static_cast<ImageImpl*>(image);
-  scoped_ptr<ScanlineReaderInterface> image_reader(CreateScanlineReader(
+  std::unique_ptr<ScanlineReaderInterface> image_reader(CreateScanlineReader(
       ImageTypeToImageFormat(impl->image_type()),
                              impl->original_contents().data(),
                              impl->original_contents().length(),
@@ -1375,7 +1375,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
 
   // Create a writer for writing the new canvas image.
   GoogleString canvas_image;
-  scoped_ptr<ScanlineWriterInterface> canvas_writer(
+  std::unique_ptr<ScanlineWriterInterface> canvas_writer(
       CreateUncompressedPngWriter(canvas_width, canvas_height,
                                   &canvas_image, handler_.get(),
                                   has_transparency));

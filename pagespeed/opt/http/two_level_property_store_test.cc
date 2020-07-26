@@ -169,7 +169,7 @@ class TwoLevelPropertyStoreTest : public testing::Test {
  protected:
   LRUCache lru_cache_1_;
   LRUCache lru_cache_2_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   DelayCache delay_cache_1_;
   DelayCache delay_cache_2_;
   MockTimer timer_;
@@ -183,7 +183,7 @@ class TwoLevelPropertyStoreTest : public testing::Test {
   PropertyCache property_cache_;
   const PropertyCache::Cohort* cohort_;
   PropertyCache::CohortVector cohort_list_;
-  scoped_ptr<MockPropertyPage> page_;
+  std::unique_ptr<MockPropertyPage> page_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TwoLevelPropertyStoreTest);

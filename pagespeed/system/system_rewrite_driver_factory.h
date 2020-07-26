@@ -355,12 +355,12 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
 
   virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
 
-  scoped_ptr<SharedMemStatistics> shared_mem_statistics_;
+  std::unique_ptr<SharedMemStatistics> shared_mem_statistics_;
   // While split statistics in the ServerContext cleans up the actual objects,
   // we do the segment cleanup for local stats here.
   StringVector local_shm_stats_segment_names_;
-  scoped_ptr<AbstractSharedMem> shared_mem_runtime_;
-  scoped_ptr<SharedCircularBuffer> shared_circular_buffer_;
+  std::unique_ptr<AbstractSharedMem> shared_mem_runtime_;
+  std::unique_ptr<SharedCircularBuffer> shared_circular_buffer_;
 
   bool statistics_frozen_;
   bool is_root_process_;
@@ -375,7 +375,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   int message_buffer_size_;
 
   // Manages all our caches & lock managers.
-  scoped_ptr<SystemCaches> caches_;
+  std::unique_ptr<SystemCaches> caches_;
 
   bool track_original_content_length_;
   bool list_outstanding_urls_on_error_;

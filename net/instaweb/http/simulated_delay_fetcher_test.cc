@@ -64,12 +64,12 @@ class SimulatedDelayFetcherTest : public ::testing::Test {
 
   virtual ~SimulatedDelayFetcherTest() {}
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   GoogleMessageHandler handler_;
   MockTimer timer_;
   MockScheduler scheduler_;
   MemFileSystem file_system_;
-  scoped_ptr<SimulatedDelayFetcher> fetcher_;
+  std::unique_ptr<SimulatedDelayFetcher> fetcher_;
 };
 
 TEST_F(SimulatedDelayFetcherTest, BasicOperation) {

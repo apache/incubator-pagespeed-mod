@@ -44,7 +44,7 @@ class WildcardTest : public testing::Test {
  private:
   bool CheckMatch(const StringPiece& spec, const Wildcard& wildcard,
                   const StringPiece& str) {
-    scoped_ptr<Wildcard> duplicate(wildcard.Duplicate());
+    std::unique_ptr<Wildcard> duplicate(wildcard.Duplicate());
     bool is_simple = spec.find_first_of("*?") == StringPiece::npos;
     EXPECT_EQ(is_simple, wildcard.IsSimple());
     bool result = wildcard.Match(str);

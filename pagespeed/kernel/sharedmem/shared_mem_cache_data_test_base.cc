@@ -120,8 +120,8 @@ void SharedMemCacheDataTestBase::TestFreeList() NO_THREAD_SAFETY_ANALYSIS {
   AbstractSharedMemSegment* seg_raw_ptr = NULL;
   Sector<kBlockSize>* sector_raw_ptr = NULL;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
-  scoped_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
-  scoped_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
+  std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
+  std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
 
   // Ask for more than the sector has; get exactly as many as it has.
   EXPECT_EQ(0, sector->sector_stats()->used_blocks);
@@ -178,8 +178,8 @@ void SharedMemCacheDataTestBase::TestFreeListChild() NO_THREAD_SAFETY_ANALYSIS {
     test_env_->ChildFailed();
   }
 
-  scoped_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
-  scoped_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
+  std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
+  std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
 
   // Free blocks [3, kBlocks)
   BlockVector to_free;
@@ -194,8 +194,8 @@ void SharedMemCacheDataTestBase::TestLRU() {
   AbstractSharedMemSegment* seg_raw_ptr = NULL;
   Sector<kBlockSize>* sector_raw_ptr = NULL;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
-  scoped_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
-  scoped_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
+  std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
+  std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
 
   // Initially, nothing should be in the LRU.
   std::vector<EntryNum> lru;
@@ -242,8 +242,8 @@ void SharedMemCacheDataTestBase::TestBlockLists() NO_THREAD_SAFETY_ANALYSIS {
   AbstractSharedMemSegment* seg_raw_ptr = NULL;
   Sector<kBlockSize>* sector_raw_ptr = NULL;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
-  scoped_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
-  scoped_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
+  std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
+  std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
 
   // First, let's sanity-check the computation routines
   EXPECT_EQ(static_cast<size_t>(0),

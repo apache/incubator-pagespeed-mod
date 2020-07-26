@@ -113,8 +113,8 @@ class RedisCacheClusterTest : public CacheTestBase {
 
   CacheInterface* Cache() override { return cache_.get(); }
 
-  scoped_ptr<RedisCache> cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<RedisCache> cache_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats statistics_;
   MockTimer timer_;
   GoogleMessageHandler handler_;

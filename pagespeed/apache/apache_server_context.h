@@ -166,13 +166,13 @@ class ApacheServerContext : public SystemServerContext {
 
   // May be NULL. Constructed once we see things in config files that should
   // be stored in these.
-  scoped_ptr<ApacheConfig> spdy_config_overlay_;
-  scoped_ptr<ApacheConfig> non_spdy_config_overlay_;
+  std::unique_ptr<ApacheConfig> spdy_config_overlay_;
+  std::unique_ptr<ApacheConfig> non_spdy_config_overlay_;
 
   // May be NULL. Only constructed in measurement proxy mode.
   std::unique_ptr<MeasurementProxyUrlNamer> measurement_url_namer_;
 
-  scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
+  std::unique_ptr<ProxyFetchFactory> proxy_fetch_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheServerContext);
 };

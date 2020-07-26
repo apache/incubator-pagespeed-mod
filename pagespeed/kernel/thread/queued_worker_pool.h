@@ -151,11 +151,11 @@ class QueuedWorkerPool {
 
     friend class QueuedWorkerPool;
     std::deque<Function*> work_queue_ GUARDED_BY(sequence_mutex_);
-    scoped_ptr<ThreadSystem::CondvarCapableMutex> sequence_mutex_;
+    std::unique_ptr<ThreadSystem::CondvarCapableMutex> sequence_mutex_;
     QueuedWorkerPool* pool_;
     bool shutdown_ GUARDED_BY(sequence_mutex_);
     bool active_ GUARDED_BY(sequence_mutex_);
-    scoped_ptr<ThreadSystem::Condvar> termination_condvar_
+    std::unique_ptr<ThreadSystem::Condvar> termination_condvar_
         GUARDED_BY(sequence_mutex_);
     Waveform* queue_size_;
     size_t max_queue_size_;
@@ -231,7 +231,7 @@ class QueuedWorkerPool {
   void SequenceNoLongerActive(Sequence* sequence);
 
   ThreadSystem* thread_system_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   // active_workers_ and available_workers_ are mutually exclusive.
   std::set<QueuedWorker*> active_workers_;

@@ -54,11 +54,11 @@ class WaitUrlAsyncFetcherTest : public ::testing::Test {
 
   WaitUrlAsyncFetcher* wait_fetcher() { return wait_fetcher_.get(); }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
 
  private:
   MockUrlFetcher base_fetcher_;
-  scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher_;
+  std::unique_ptr<WaitUrlAsyncFetcher> wait_fetcher_;
 };
 
 TEST_F(WaitUrlAsyncFetcherTest, FetcherWaits) {

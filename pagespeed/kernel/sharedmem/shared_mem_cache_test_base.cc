@@ -223,7 +223,7 @@ void SharedMemCacheTestBase::TestReaderWriter() {
 }
 
 void SharedMemCacheTestBase::TestReaderWriterChild() {
-  scoped_ptr<SharedMemCache<kBlockSize> > child_cache(MakeCache());
+  std::unique_ptr<SharedMemCache<kBlockSize> > child_cache(MakeCache());
   if (!child_cache->Attach()) {
     test_env_->ChildFailed();
   }
@@ -252,7 +252,7 @@ void SharedMemCacheTestBase::TestConflict() {
 
   // We create a cache with 1 sector, and kAssociativity entries, since it
   // makes it easy to get a conflict and replacement.
-  scoped_ptr<SharedMemCache<kBlockSize> > small_cache(
+  std::unique_ptr<SharedMemCache<kBlockSize> > small_cache(
       new SharedMemCache<kBlockSize>(shmem_runtime_.get(), kAltSegment, &timer_,
                                      &hasher_, 1 /* sectors*/,
                                      kAssociativity /* entries / sector */,
@@ -277,7 +277,7 @@ void SharedMemCacheTestBase::TestConflict() {
 void SharedMemCacheTestBase::TestEvict() {
   // We create a cache with 1 sector as it makes it easier to reason
   // about how much room is left.
-  scoped_ptr<SharedMemCache<kBlockSize> > small_cache(
+  std::unique_ptr<SharedMemCache<kBlockSize> > small_cache(
       new SharedMemCache<kBlockSize>(shmem_runtime_.get(), kAltSegment, &timer_,
                                      &hasher_, 1 /* sectors*/,
                                      kSectorBlocks * 4 /* entries / sector */,
@@ -409,7 +409,7 @@ void SharedMemCacheTestBase::CheckDelete(const char* key) {
 void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
   // Test that we handle setting the file cache to multiple paths by picking the
   // one that's first alphabetically.
-  scoped_ptr<FileCacheTestWrapper> file_cache_wrapper_abc(
+  std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_abc(
       new FileCacheTestWrapper(
           "/abc", thread_system_.get(), &timer_, &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_abc->file_cache(),
@@ -418,7 +418,7 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
   CHECK_EQ(cache_->file_cache(), file_cache_wrapper_abc->file_cache());
 
   // Alphabetically before /abc, so replaces it.
-  scoped_ptr<FileCacheTestWrapper> file_cache_wrapper_abb(
+  std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_abb(
       new FileCacheTestWrapper(
           "/abb", thread_system_.get(), &timer_, &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_abb->file_cache(),
@@ -427,7 +427,7 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
   CHECK_EQ(cache_->file_cache(), file_cache_wrapper_abb->file_cache());
 
   // Not before /abb, so doesn't replace it.
-  scoped_ptr<FileCacheTestWrapper> file_cache_wrapper_acb(
+  std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_acb(
       new FileCacheTestWrapper(
           "/acb", thread_system_.get(), &timer_, &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_acb->file_cache(),
@@ -436,7 +436,7 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
   CHECK_EQ(cache_->file_cache(), file_cache_wrapper_abb->file_cache());
 
   // Before /abb, so does replace it.
-  scoped_ptr<FileCacheTestWrapper> file_cache_wrapper_aab(
+  std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_aab(
       new FileCacheTestWrapper(
           "/aab", thread_system_.get(), &timer_, &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_aab->file_cache(),
@@ -446,7 +446,7 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
 
   // The cache was constructed with a filename of kSegment, and a match on
   // filename should always win here.
-  scoped_ptr<FileCacheTestWrapper> file_cache_wrapper_ksegment(
+  std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_ksegment(
       new FileCacheTestWrapper(
           kSegment, thread_system_.get(), &timer_, &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_ksegment->file_cache(),
@@ -456,7 +456,7 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
 
   // Before kSegment, but doesn't replace it because kSegment was a filename
   // match.
-  scoped_ptr<FileCacheTestWrapper> file_cache_wrapper_aaa(
+  std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_aaa(
       new FileCacheTestWrapper(
           "/aaa", thread_system_.get(), &timer_, &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_aaa->file_cache(),
@@ -472,7 +472,7 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
   cache_.reset(new SharedMemCache<kBlockSize>(
       shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
       kSectorEntries, kSectorBlocks, &handler_));
-  scoped_ptr<FileCacheTestWrapper> file_cache_wrapper(
+  std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper(
       new FileCacheTestWrapper(
           kPath, thread_system_.get(), &timer_, &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),

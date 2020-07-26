@@ -67,10 +67,10 @@ class SharedMemStatisticsTestBase : public testing::Test {
     return stats_->console_logger_.get();
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
-  scoped_ptr<MemFileSystem> file_system_;
-  scoped_ptr<SharedMemStatistics> stats_;  // (the parent process version)
+  std::unique_ptr<MemFileSystem> file_system_;
+  std::unique_ptr<SharedMemStatistics> stats_;  // (the parent process version)
 
  private:
   void TestCreateChild();
@@ -89,9 +89,9 @@ class SharedMemStatisticsTestBase : public testing::Test {
   SharedMemStatistics* ChildInit();
   void ParentInit();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<MockTimer> timer_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<MockTimer> timer_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatisticsTestBase);
 };

@@ -86,7 +86,7 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
     // Among other issues, quirks-mode allows unbalanced {}s in some cases.
     parser.set_quirks_mode(false);
     // TODO(sligocki): Do parsing on low-priority worker thread.
-    scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
+    std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
     return (parser.errors_seen_mask() == Css::Parser::kNoError);
   }
 

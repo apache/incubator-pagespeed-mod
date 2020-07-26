@@ -52,7 +52,7 @@ class SchedulerBasedAbstractLockTest : public testing::Test {
         scheduler_(thread_system_.get(), &timer_) {
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   MockScheduler scheduler_;
 
@@ -293,7 +293,7 @@ class LockedTimer : public Timer {
  private:
   Timer* timer_;
   ThreadSystem::CondvarCapableMutex* mutex_;
-  scoped_ptr<ThreadSystem::Condvar> sleep_wakeup_condvar_;
+  std::unique_ptr<ThreadSystem::Condvar> sleep_wakeup_condvar_;
 };
 
 class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
@@ -407,8 +407,8 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
 
   AtomicBool ready_to_start_;
   AtomicBool done_;
-  scoped_ptr<ThreadSystem::Condvar> startup_condvar_;
-  scoped_ptr<HelperThread> helper_thread_;
+  std::unique_ptr<ThreadSystem::Condvar> startup_condvar_;
+  std::unique_ptr<HelperThread> helper_thread_;
   HelperThreadMethod helper_thread_method_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadedSchedulerBasedLockTest);

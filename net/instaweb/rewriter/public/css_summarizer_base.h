@@ -248,7 +248,7 @@ class CssSummarizerBase : public RewriteFilter {
   // Stores all the computed summaries.
   std::vector<SummaryInfo> summaries_;
 
-  scoped_ptr<AbstractMutex> progress_lock_;
+  std::unique_ptr<AbstractMutex> progress_lock_;
   int outstanding_rewrites_;  // guarded by progress_lock_
   bool saw_end_of_document_;  // guarded by progress_lock_
   // Lists indexes into summaries_ vector that got canceled due to

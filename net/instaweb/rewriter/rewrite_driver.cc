@@ -3510,7 +3510,7 @@ bool RewriteDriver::LookupMetadataForOutputResource(
     return false;
   }
 
-  scoped_ptr<RewriteContext> context;
+  std::unique_ptr<RewriteContext> context;
   if (is_pagespeed_resource) {
     context.reset(filter->MakeRewriteContext());
   } else {

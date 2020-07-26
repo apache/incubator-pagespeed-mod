@@ -297,7 +297,7 @@ void InstawebHandler::ComputeCustomOptions() {
   // Get the remote configuration options before GetQueryOptions, as the query
   // options should override the remote config.
   if (!directory_aware_options->remote_configuration_url().empty()) {
-    scoped_ptr<RewriteOptions> remote_options(directory_aware_options->Clone());
+    std::unique_ptr<RewriteOptions> remote_options(directory_aware_options->Clone());
 
     server_context_->GetRemoteOptions(remote_options.get(), false);
     if (custom_options_.get() == NULL) {
@@ -361,9 +361,9 @@ void InstawebHandler::RemoveStrippedResponseHeadersFromApacheRequest() {
       ResponseHeaders tmp_err_resp_headers(options_->ComputeHttpOptions());
       ResponseHeaders tmp_resp_headers(options_->ComputeHttpOptions());
       ThreadSystem* thread_system = server_context_->thread_system();
-      scoped_ptr<ApacheConfig> unused_opts1(
+      std::unique_ptr<ApacheConfig> unused_opts1(
           new ApacheConfig("unused_options1", thread_system));
-      scoped_ptr<ApacheConfig> unused_opts2(
+      std::unique_ptr<ApacheConfig> unused_opts2(
           new ApacheConfig("unused_options2", thread_system));
 
       ApacheRequestToResponseHeaders(*request_, &tmp_resp_headers,
@@ -579,7 +579,7 @@ bool InstawebHandler::handle_as_resource(ApacheServerContext* server_context,
   }
 
   InstawebHandler instaweb_handler(request);
-  scoped_ptr<RequestHeaders> request_headers(new RequestHeaders);
+  std::unique_ptr<RequestHeaders> request_headers(new RequestHeaders);
   const RewriteOptions* options = instaweb_handler.options();
 
   // Finally, do the actual handling.

@@ -37,7 +37,7 @@ class QueuedWorkerTest: public WorkerTestBase {
   }
 
  protected:
-  scoped_ptr<QueuedWorker> worker_;
+  std::unique_ptr<QueuedWorker> worker_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QueuedWorkerTest);

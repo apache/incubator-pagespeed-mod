@@ -182,7 +182,7 @@ class HttpResponseWriter : public Writer {
   bool first_write_;
   Writer* writer_;
   ResponseHeaders* response_;
-  scoped_ptr<GzipInflater> inflater_;
+  std::unique_ptr<GzipInflater> inflater_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpResponseWriter);
 };

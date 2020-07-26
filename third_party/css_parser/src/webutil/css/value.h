@@ -23,7 +23,6 @@
 #define WEBUTIL_CSS_VALUE_H__
 
 #include <memory>
-#include "base/scoped_ptr.h"
 #include <string>
 #include <vector>
 
@@ -155,7 +154,7 @@ class Value {
   Unit unit_;             // for NUMBER
   Identifier identifier_;   // for IDENT
   UnicodeText str_;    // for NUMBER (OTHER unit_), URI, STRING, FUNCTION
-  scoped_ptr<FunctionParameters> params_;  // FUNCTION and RECT params
+  std::unique_ptr<FunctionParameters> params_;  // FUNCTION and RECT params
   HtmlColor color_;           // COLOR
 
   string bytes_in_original_buffer_;
@@ -224,7 +223,7 @@ class FunctionParameters {
 
  private:
   std::vector<Separator> separators_;
-  scoped_ptr<Values> values_;
+  std::unique_ptr<Values> values_;
 
   DISALLOW_COPY_AND_ASSIGN(FunctionParameters);
 };

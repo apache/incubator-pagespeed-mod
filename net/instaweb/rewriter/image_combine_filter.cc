@@ -531,7 +531,7 @@ class Library : public spriter::ImageLibraryInterface {
     }
 
    private:
-    scoped_ptr<net_instaweb::Image> image_;
+    std::unique_ptr<net_instaweb::Image> image_;
     Library* lib_;
 
     DISALLOW_COPY_AND_ASSIGN(Canvas);
@@ -582,7 +582,7 @@ class Library : public spriter::ImageLibraryInterface {
     // TODO(nikhilmadan): Use appropriate progressive setting for spriting.
     image_options->progressive_jpeg = false;
 
-    scoped_ptr<net_instaweb::Image> image(
+    std::unique_ptr<net_instaweb::Image> image(
         NewImage(resource->ExtractUncompressedContents(), resource->url(),
                  tmp_dir_, image_options, timer_, handler_));
 
@@ -668,13 +668,13 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
       input.add_input_image_set()->set_path(resource->url());
     }
 
-    scoped_ptr<spriter::SpriterResult> result(spriter.Sprite(input));
+    std::unique_ptr<spriter::SpriterResult> result(spriter.Sprite(input));
     if (result.get() == NULL) {
       handler->Error(UrlSafeId().c_str(), 0,
                      "Could not sprite.");
       return false;
     }
-    scoped_ptr<Library::SpriterImage> result_image(
+    std::unique_ptr<Library::SpriterImage> result_image(
         library_->ReadFromFile(result->output_image_path()));
     if (result_image.get() == NULL) {
       handler->Error(UrlSafeId().c_str(), 0,
@@ -749,7 +749,7 @@ class SpriteFutureSlot : public CssResourceSlot {
   }
 
  private:
-  scoped_ptr<SpriteFuture> future_;
+  std::unique_ptr<SpriteFuture> future_;
   bool may_sprite_;
   DISALLOW_COPY_AND_ASSIGN(SpriteFutureSlot);
 };
@@ -969,7 +969,7 @@ class ImageCombineFilter::Context : public RewriteContext {
   }
 
   bool EnsureLoaded(const GoogleString& url) {
-    scoped_ptr<Library::SpriterImage> spriter_image(library_.ReadFromFile(url));
+    std::unique_ptr<Library::SpriterImage> spriter_image(library_.ReadFromFile(url));
     if (spriter_image.get() == NULL) {
       return false;
     }
@@ -980,7 +980,7 @@ class ImageCombineFilter::Context : public RewriteContext {
   // Returns true if the image at url has already been added to the collection
   // and is at least as large as the given dimensions.
   bool GetImageDimensions(const GoogleString& url, int* width, int* height) {
-    scoped_ptr<Library::SpriterImage> image(library_.ReadFromFile(url));
+    std::unique_ptr<Library::SpriterImage> image(library_.ReadFromFile(url));
     if (image.get() == NULL) {
       return false;
     }
@@ -1084,7 +1084,7 @@ class ImageCombineFilter::Context : public RewriteContext {
         // try making a new one and adding it there.  We may still not be able
         // to do that if the resource isn't spritable at all.
         if (!added) {
-          scoped_ptr<ImageCombination> combo(new ImageCombination(
+          std::unique_ptr<ImageCombination> combo(new ImageCombination(
               filter_, &library_));
           if (combo->AddResourceNoFetch(resource, handler).value) {
             combo->set_partition(partitions->add_partition());
@@ -1181,7 +1181,7 @@ bool ImageCombineFilter::AddCssBackgroundContext(
     return false;
   }
   StringPiece url_piece(original_url.Spec());
-  scoped_ptr<SpriteFuture> future(new SpriteFuture(url_piece, width, height,
+  std::unique_ptr<SpriteFuture> future(new SpriteFuture(url_piece, width, height,
                                                    decls));
   future->Initialize(values->at(value_index));
 

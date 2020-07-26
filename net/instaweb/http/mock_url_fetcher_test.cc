@@ -92,7 +92,7 @@ class MockUrlFetcherTest : public ::testing::Test {
   }
 
   MockUrlFetcher fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
 };
 
 TEST_F(MockUrlFetcherTest, GetsCorrectMappedResponse) {

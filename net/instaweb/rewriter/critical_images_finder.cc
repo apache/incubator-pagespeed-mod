@@ -59,7 +59,7 @@ CriticalImagesInfo* CriticalImagesInfoFromPropertyValue(
     int percent_seen_for_critical,
     const PropertyValue* property_value) {
   DCHECK(property_value != NULL);
-  scoped_ptr<CriticalImagesInfo> info(new CriticalImagesInfo());
+  std::unique_ptr<CriticalImagesInfo> info(new CriticalImagesInfo());
   if (!CriticalImagesFinder::PopulateCriticalImagesFromPropertyValue(
           property_value, &info->proto)) {
     return NULL;
@@ -241,7 +241,7 @@ void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
 
   if (driver->options()->Enabled(
       RewriteOptions::kResizeToRenderedImageDimensions)) {
-    scoped_ptr<RenderedImages> rendered_images(
+    std::unique_ptr<RenderedImages> rendered_images(
         ExtractRenderedImageDimensionsFromCache(driver));
     if (rendered_images != NULL) {
       SetupRenderedImageDimensionsMap(*rendered_images,
@@ -381,7 +381,7 @@ bool CriticalImagesFinder::UpdateCriticalImages(
 RenderedImages* CriticalImagesFinder::ExtractRenderedImageDimensionsFromCache(
     RewriteDriver* driver) {
   PropertyCacheDecodeResult pcache_status;
-  scoped_ptr<RenderedImages> dimensions(
+  std::unique_ptr<RenderedImages> dimensions(
       DecodeFromPropertyCache<RenderedImages>(
           driver,
           cohort(),

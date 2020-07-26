@@ -69,7 +69,7 @@ class QueuedExpensiveOperationController
   const int max_in_progress_;
   std::queue<Function*> queue_ GUARDED_BY(mutex_);
   int num_in_progress_ GUARDED_BY(mutex_);
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   UpDownCounter* active_operations_counter_;
   UpDownCounter* queued_operations_counter_;
   TimedVariable* permitted_operations_counter_;

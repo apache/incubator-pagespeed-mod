@@ -121,7 +121,7 @@ class AsyncFetchWithLock : public AsyncFetch {
   void LockAcquired(UrlAsyncFetcher* fetcher);
 
   NamedLockManager* lock_manager_;  // Owned by server_context.
-  scoped_ptr<NamedLock> lock_;
+  std::unique_ptr<NamedLock> lock_;
   const Hasher* lock_hasher_;  // Used to compute named lock names.
   GoogleString url_;
   GoogleString cache_key_;
