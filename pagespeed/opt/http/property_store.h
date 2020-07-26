@@ -116,15 +116,15 @@ class PropertyStoreGetCallback : public AbstractPropertyStoreGetCallback {
       bool is_cancellable,
       BoolCallback* done,
       Timer* timer);
-  virtual ~PropertyStoreGetCallback();
+  ~PropertyStoreGetCallback() override;
 
   static void InitStats(Statistics* statistics);
 
   // Try to finish all the pending lookups if possible and call Done as soon as
   // possible.
-  virtual void FastFinishLookup();
+  void FastFinishLookup() override;
   // Deletes the callback after done finishes.
-  virtual void DeleteWhenDone();
+  void DeleteWhenDone() override;
   // Add the given property cache value to the PropertyPage if PropertyPage is
   // not NULL.
   // Returns true if PropertyValueProtobuf is successfully added to

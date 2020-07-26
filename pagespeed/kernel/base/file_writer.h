@@ -34,7 +34,7 @@ class MessageHandler;
 class FileWriter : public Writer {
  public:
   explicit FileWriter(FileSystem::OutputFile* f) : file_(f) { }
-  virtual ~FileWriter();
+  ~FileWriter() override;
   bool Write(const StringPiece& str, MessageHandler* message_handler) override;
   bool Flush(MessageHandler* message_handler) override;
  private:

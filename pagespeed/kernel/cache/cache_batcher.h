@@ -88,7 +88,7 @@ class CacheBatcher : public CacheInterface {
   // Does not take ownership of the cache. Takes ownership of the mutex.
   CacheBatcher(const Options& options, CacheInterface* cache,
                AbstractMutex* mutex, Statistics* statistics);
-  virtual ~CacheBatcher();
+  ~CacheBatcher() override;
 
   // Startup-time (pre-construction) initialization of statistics
   // variables so the correct-sized shared memory can be constructed

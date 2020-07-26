@@ -73,7 +73,7 @@ class LocalStorageCacheFilter : public RewriteFilter {
   };
 
   explicit LocalStorageCacheFilter(RewriteDriver* rewrite_driver);
-  virtual ~LocalStorageCacheFilter();
+  ~LocalStorageCacheFilter() override;
 
   // May be called multiple times, if there are multiple statistics objects.
   static void InitStats(Statistics* statistics);

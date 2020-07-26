@@ -38,7 +38,7 @@ class ExpectStringAsyncFetch : public StringAsyncFetch {
   ExpectStringAsyncFetch(bool expect_success,
                          const RequestContextPtr& request_context)
       : StringAsyncFetch(request_context), expect_success_(expect_success) {}
-  virtual ~ExpectStringAsyncFetch() {
+  ~ExpectStringAsyncFetch() override {
     EXPECT_TRUE(done());
   }
 

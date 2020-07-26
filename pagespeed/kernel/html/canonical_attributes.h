@@ -34,7 +34,7 @@ class HtmlParse;
 class CanonicalAttributes : public EmptyHtmlFilter {
  public:
   explicit CanonicalAttributes(HtmlParse* html_parse);
-  virtual ~CanonicalAttributes();
+  ~CanonicalAttributes() override;
 
   void StartDocument() override;
   void StartElement(HtmlElement* element) override;

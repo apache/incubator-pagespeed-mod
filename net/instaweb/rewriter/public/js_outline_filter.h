@@ -41,7 +41,7 @@ class MessageHandler;
 class JsOutlineFilter : public CommonFilter {
  public:
   explicit JsOutlineFilter(RewriteDriver* driver);
-  virtual ~JsOutlineFilter();
+  ~JsOutlineFilter() override;
   static const char kFilterId[];
 
   void StartDocumentImpl() override;

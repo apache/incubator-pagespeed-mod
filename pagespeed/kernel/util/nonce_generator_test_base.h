@@ -36,7 +36,7 @@ extern const int kSmallNumIterations;
 class NonceGeneratorTestBase : public testing::Test {
  protected:
   NonceGeneratorTestBase() { }
-  ~NonceGeneratorTestBase();
+  ~NonceGeneratorTestBase() override;
 
   void DuplicateFreedom();
   void DifferentNonOverlap();

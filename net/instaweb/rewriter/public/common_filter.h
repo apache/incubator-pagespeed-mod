@@ -52,7 +52,7 @@ class CommonFilter : public EmptyHtmlFilter {
   static const char kCreateResourceFailedDebugMsg[];
 
   explicit CommonFilter(RewriteDriver* driver);
-  virtual ~CommonFilter();
+  ~CommonFilter() override;
 
   // Getters
 

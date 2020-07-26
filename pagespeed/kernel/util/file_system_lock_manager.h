@@ -48,7 +48,7 @@ class FileSystemLockManager : public NamedLockManager {
                         const StringPiece& base_path,
                         Scheduler* scheduler,
                         MessageHandler* handler);
-  virtual ~FileSystemLockManager();
+  ~FileSystemLockManager() override;
 
   // Multiple lock objects with the same name will manage the same underlying
   // lock.  Lock names must be legal file names according to file_system.

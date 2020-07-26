@@ -38,13 +38,13 @@ class SHA1Signature : public Signature {
 
   SHA1Signature();
   explicit SHA1Signature(int signature_size);
-  virtual ~SHA1Signature();
-  int SignatureSizeInChars() const;
+  ~SHA1Signature() override;
+  int SignatureSizeInChars() const override;
   static int ComputeSizeFromNumberOfBytes(int num_bytes);
 
  protected:
-  virtual GoogleString RawSign(StringPiece key, StringPiece data) const;
-  virtual int RawSignatureSizeInBytes() const;
+  GoogleString RawSign(StringPiece key, StringPiece data) const override;
+  int RawSignatureSizeInBytes() const override;
 
  private:
   int max_chars_;

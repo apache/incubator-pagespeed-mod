@@ -79,25 +79,25 @@ class JpegReader {
 class JpegScanlineReader : public ScanlineReaderInterface {
  public:
   explicit JpegScanlineReader(MessageHandler* handler);
-  virtual ~JpegScanlineReader();
-  virtual bool Reset();
+  ~JpegScanlineReader() override;
+  bool Reset() override;
 
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the last call to ReadNextScanline().
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                              size_t buffer_length) override;
 
   // Return the next row of pixels.
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
 
   // Return the number of bytes in a row (without padding).
-  virtual size_t GetBytesPerScanline() { return bytes_per_row_; }
+  size_t GetBytesPerScanline() override { return bytes_per_row_; }
 
-  virtual bool HasMoreScanLines() { return (row_ < height_); }
-  virtual PixelFormat GetPixelFormat() { return pixel_format_; }
-  virtual size_t GetImageHeight() { return height_; }
-  virtual size_t GetImageWidth() {  return width_; }
-  virtual bool IsProgressive() { return is_progressive_; }
+  bool HasMoreScanLines() override { return (row_ < height_); }
+  PixelFormat GetPixelFormat() override { return pixel_format_; }
+  size_t GetImageHeight() override { return height_; }
+  size_t GetImageWidth() override {  return width_; }
+  bool IsProgressive() override { return is_progressive_; }
 
  private:
   JpegEnv* jpeg_env_;  // State of libjpeg

@@ -96,7 +96,7 @@ class MockFilter : public EmptyHtmlFilter {
 
   void EndDocument() override;
 
-  virtual const char* Name() const override { return "MockFilter"; }
+  const char* Name() const override { return "MockFilter"; }
 
  private:
   RewriteDriver* driver_;
@@ -111,7 +111,7 @@ class CreateFilterCallback
     : public TestRewriteDriverFactory::CreateFilterCallback {
  public:
   CreateFilterCallback() {}
-  virtual ~CreateFilterCallback() {}
+  ~CreateFilterCallback() override {}
 
   HtmlFilter* Done(RewriteDriver* driver) override {
     return new MockFilter(driver);

@@ -107,7 +107,7 @@ class TrimWhitespaceSyncFilter : public SimpleTextFilter {
                                     RewriteDriver* driver)
       : SimpleTextFilter(new TrimWhitespaceRewriter(kind), driver) {
   }
-  virtual ~TrimWhitespaceSyncFilter();
+  ~TrimWhitespaceSyncFilter() override;
 
   void StartElementImpl(HtmlElement* element) override;
   const char* id() const override { return kFilterId; }
@@ -283,7 +283,7 @@ class CombiningFilter : public RewriteFilter {
   CombiningFilter(RewriteDriver* driver,
                   MockScheduler* scheduler,
                   int64 rewrite_delay_ms);
-  virtual ~CombiningFilter();
+  ~CombiningFilter() override;
 
   class Combiner : public ResourceCombiner {
    public:
@@ -298,9 +298,9 @@ class CombiningFilter : public RewriteFilter {
       return WriteCombination(in, out, rewrite_driver_->message_handler());
     }
 
-    virtual bool WritePiece(int index, int num_pieces, const Resource* input,
+    bool WritePiece(int index, int num_pieces, const Resource* input,
                             OutputResource* combination,
-                            Writer* writer, MessageHandler* handler) {
+                            Writer* writer, MessageHandler* handler) override {
       writer->Write(prefix_, handler);
       return ResourceCombiner::WritePiece(
           index, num_pieces, input, combination, writer, handler);
@@ -309,7 +309,7 @@ class CombiningFilter : public RewriteFilter {
     void set_prefix(const GoogleString& prefix) { prefix_ = prefix; }
 
    private:
-    virtual const ContentType* CombinationContentType() {
+    const ContentType* CombinationContentType() override {
       return &kContentTypeCss;
     }
 
@@ -456,7 +456,7 @@ class RewriteContextTestBase : public RewriteTestBase {
       std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*> factories)
       : RewriteTestBase(factories) {}
   RewriteContextTestBase() {}
-  virtual ~RewriteContextTestBase();
+  ~RewriteContextTestBase() override;
 
   void SetUp() override;
   void TearDown() override;

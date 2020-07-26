@@ -31,7 +31,7 @@ namespace net_instaweb {
 class LOCKABLE NullRWLock : public ThreadSystem::RWLock {
  public:
   NullRWLock() {}
-  virtual ~NullRWLock();
+  ~NullRWLock() override;
   bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
   void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
   void Unlock() UNLOCK_FUNCTION() override;

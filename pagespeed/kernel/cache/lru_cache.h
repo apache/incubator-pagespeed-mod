@@ -46,7 +46,7 @@ namespace net_instaweb {
 class LRUCache : public CacheInterface {
  public:
   explicit LRUCache(size_t max_size);
-  virtual ~LRUCache();
+  ~LRUCache() override;
 
   void Get(const GoogleString& key, Callback* callback) override;
 

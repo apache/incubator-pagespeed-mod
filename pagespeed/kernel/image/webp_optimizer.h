@@ -95,7 +95,7 @@ struct WebpConfiguration : public ScanlineWriterConfig {
 class WebpFrameWriter : public MultipleFrameWriter {
  public:
   explicit WebpFrameWriter(MessageHandler* handler);
-  virtual ~WebpFrameWriter();
+  ~WebpFrameWriter() override;
 
   // Sets the WebP configuration to be 'config', which should be a
   // WebpConfiguration* and should not be NULL.

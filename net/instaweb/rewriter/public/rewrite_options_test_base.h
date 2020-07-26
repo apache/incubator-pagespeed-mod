@@ -38,7 +38,7 @@ class RewriteOptionsTestBase : public testing::Test {
     OptionsClass::Initialize();
   }
 
-  ~RewriteOptionsTestBase() {
+  ~RewriteOptionsTestBase() override {
     OptionsClass::Terminate();
   }
 

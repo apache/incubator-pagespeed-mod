@@ -40,7 +40,7 @@ class HtmlWriterFilter : public HtmlFilter {
   explicit HtmlWriterFilter(HtmlParse* html_parse);
 
   void set_writer(Writer* writer) { writer_ = writer; }
-  virtual ~HtmlWriterFilter();
+  ~HtmlWriterFilter() override;
 
   void StartDocument() override;
   void EndDocument() override;

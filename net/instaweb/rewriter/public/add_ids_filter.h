@@ -45,7 +45,7 @@ class AddIdsFilter : public EmptyHtmlFilter {
   static const char kIdPrefix[];
 
   explicit AddIdsFilter(RewriteDriver* driver);
-  virtual ~AddIdsFilter();
+  ~AddIdsFilter() override;
 
   void StartDocument() override;
   void StartElement(HtmlElement* element) override;

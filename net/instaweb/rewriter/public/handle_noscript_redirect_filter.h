@@ -37,7 +37,7 @@ class RewriteDriver;
 class HandleNoscriptRedirectFilter : public EmptyHtmlFilter {
  public:
   explicit HandleNoscriptRedirectFilter(RewriteDriver* rewrite_driver);
-  virtual ~HandleNoscriptRedirectFilter();
+  ~HandleNoscriptRedirectFilter() override;
 
   void StartDocument() override;
   void StartElement(HtmlElement* element) override;

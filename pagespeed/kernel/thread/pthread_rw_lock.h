@@ -31,7 +31,7 @@ namespace net_instaweb {
 class PthreadRWLock : public ThreadSystem::RWLock {
  public:
   PthreadRWLock();
-  virtual ~PthreadRWLock();
+  ~PthreadRWLock() override;
   bool TryLock() override;
   void Lock() override;
   void Unlock() override;

@@ -48,11 +48,11 @@ class MockPropertyPage : public PropertyPage {
         called_(false),
         valid_(false),
         time_ms_(-1) {}
-  virtual ~MockPropertyPage();
-  virtual bool IsCacheValid(int64 write_timestamp_ms) const {
+  ~MockPropertyPage() override;
+  bool IsCacheValid(int64 write_timestamp_ms) const override {
     return time_ms_ == -1 || write_timestamp_ms > time_ms_;
   }
-  virtual void Done(bool valid) {
+  void Done(bool valid) override {
     called_ = true;
     valid_ = valid;
   }

@@ -38,7 +38,7 @@ class Timer;
 class DebugFilter : public EmptyHtmlFilter {
  public:
   explicit DebugFilter(RewriteDriver* driver);
-  virtual ~DebugFilter();
+  ~DebugFilter() override;
 
   void EndDocument() override;
   void Flush() override;

@@ -88,7 +88,7 @@ class SplitHistogram : public Histogram {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitHistogram(ThreadSystem* thread_system, Histogram* rw, Histogram* w);
-  virtual ~SplitHistogram();
+  ~SplitHistogram() override;
 
   // Reimplementation of the histogram API. See the base class for method
   // descriptions.
@@ -130,7 +130,7 @@ class SplitTimedVariable : public TimedVariable {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitTimedVariable(TimedVariable* rw, TimedVariable* w);
-  virtual ~SplitTimedVariable();
+  ~SplitTimedVariable() override;
 
   void IncBy(int64 delta) override;
   int64 Get(int level) override;

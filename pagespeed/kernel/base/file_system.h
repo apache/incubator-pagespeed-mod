@@ -109,7 +109,7 @@ class FileSystem {
 
    protected:
     friend class FileSystem;
-    virtual ~InputFile();
+    ~InputFile() override;
   };
 
   class OutputFile : public File {
@@ -122,7 +122,7 @@ class FileSystem {
 
    protected:
     friend class FileSystem;
-    virtual ~OutputFile();
+    ~OutputFile() override;
   };
 
   class ProgressNotifier {

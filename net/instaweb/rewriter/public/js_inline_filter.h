@@ -45,7 +45,7 @@ class JsInlineFilter : public CommonFilter {
  public:
   static const char kNumJsInlined[];
   explicit JsInlineFilter(RewriteDriver* driver);
-  virtual ~JsInlineFilter();
+  ~JsInlineFilter() override;
 
   void StartDocumentImpl() override;
   void EndDocument() override;

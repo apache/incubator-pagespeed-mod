@@ -59,7 +59,7 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
   static const char kCriticalCssSkippedDueToCharset[];
 
   explicit CriticalCssBeaconFilter(RewriteDriver* driver);
-  virtual ~CriticalCssBeaconFilter();
+  ~CriticalCssBeaconFilter() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -70,8 +70,8 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
   // unauthorized domains) in order to let the clients use them while
   // detecting critical selectors that can be subsequently beaconed back
   // to the server and eventually inlined into the HTML.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const {
+  RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
+      const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
                semantic_type::kStylesheet) ?
            RewriteDriver::kInlineUnauthorizedResources :
@@ -83,10 +83,10 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  protected:
-  virtual bool MustSummarize(HtmlElement* element) const;
-  virtual void Summarize(Css::Stylesheet* stylesheet,
-                         GoogleString* out) const;
-  virtual void SummariesDone();
+  bool MustSummarize(HtmlElement* element) const override;
+  void Summarize(Css::Stylesheet* stylesheet,
+                         GoogleString* out) const override;
+  void SummariesDone() override;
 
   void DetermineEnabled(GoogleString* disabled_reason) override;
 

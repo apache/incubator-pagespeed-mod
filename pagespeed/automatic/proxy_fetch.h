@@ -143,9 +143,9 @@ class ProxyFetchPropertyCallback : public PropertyPage {
   PageType page_type() const { return page_type_; }
 
   // Delegates to collector_'s IsCacheValid.
-  virtual bool IsCacheValid(int64 write_timestamp_ms) const;
+  bool IsCacheValid(int64 write_timestamp_ms) const override;
 
-  virtual void Done(bool success);
+  void Done(bool success) override;
 
  private:
   PageType page_type_;
@@ -377,7 +377,7 @@ class ProxyFetch : public SharedAsyncFetch {
              ServerContext* server_context,
              Timer* timer,
              ProxyFetchFactory* factory);
-  virtual ~ProxyFetch();
+  ~ProxyFetch() override;
 
   const RewriteOptions* Options();
 

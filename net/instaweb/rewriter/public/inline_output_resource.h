@@ -36,10 +36,10 @@ class InlineOutputResource : public OutputResource {
       const RewriteDriver* driver);
 
   // Inline resources have no URL.
-  virtual bool has_url() const { return false; }
-  virtual GoogleString url() const;
-  virtual GoogleString UrlForDebug() const;
-  virtual GoogleString cache_key() const;
+  bool has_url() const override { return false; }
+  GoogleString url() const override;
+  GoogleString UrlForDebug() const override;
+  GoogleString cache_key() const override;
  private:
   InlineOutputResource(const RewriteDriver* driver, const ResourceNamer& namer);
 };

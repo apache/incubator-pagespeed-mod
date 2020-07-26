@@ -46,7 +46,7 @@ class RewriteOptions;
 class CssResourceSlot : public ResourceSlot {
  public:
   void Render() override;
-  virtual void Finished();
+  void Finished() override;
   GoogleString LocationString() const override;
 
   HtmlElement* element() const override { return NULL; }
@@ -54,8 +54,8 @@ class CssResourceSlot : public ResourceSlot {
   size_t value_index() const { return value_index_; }
   UrlRelativity url_relativity() const { return url_relativity_; }
 
-  virtual bool DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
+  bool DirectSetUrl(const StringPiece& url) override;
+  bool CanDirectSetUrl() override { return true; }
 
  protected:
   CssResourceSlot(const ResourcePtr& resource,
@@ -63,7 +63,7 @@ class CssResourceSlot : public ResourceSlot {
                   Css::Values* values, size_t value_index);
 
   REFCOUNT_FRIEND_DECLARATION(CssResourceSlot);
-  virtual ~CssResourceSlot();
+  ~CssResourceSlot() override;
 
  private:
   friend class CssResourceSlotFactory;

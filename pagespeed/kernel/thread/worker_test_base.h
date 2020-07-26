@@ -42,7 +42,7 @@ class WorkerTestBase : public ::testing::Test {
   class FailureFunction;
 
   WorkerTestBase();
-  ~WorkerTestBase();
+  ~WorkerTestBase() override;
 
  protected:
   std::unique_ptr<ThreadSystem> thread_runtime_;
@@ -56,11 +56,11 @@ class WorkerTestBase::CountFunction : public Function {
  public:
   explicit CountFunction(int* variable) : variable_(variable) {}
 
-  virtual void Run() {
+  void Run() override {
     ++*variable_;
   }
 
-  virtual void Cancel() {
+  void Cancel() override {
     *variable_ -= 100;
   }
 
@@ -111,11 +111,11 @@ class DeleteNotifyFunction : public Function {
  public:
   explicit DeleteNotifyFunction(WorkerTestBase::SyncPoint* sync)
       : sync_(sync) {}
-  virtual ~DeleteNotifyFunction() {
+  ~DeleteNotifyFunction() override {
     sync_->Notify();
   }
 
-  virtual void Run() {
+  void Run() override {
     LOG(FATAL) << "DeleteNotifyFunction ran.";
   }
 

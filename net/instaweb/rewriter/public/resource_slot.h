@@ -231,7 +231,7 @@ class NullResourceSlot : public ResourceSlot {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(NullResourceSlot);
-  virtual ~NullResourceSlot();
+  ~NullResourceSlot() override;
 
  private:
   GoogleString location_;
@@ -252,7 +252,7 @@ class FetchResourceSlot : public ResourceSlot {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(FetchResourceSlot);
-  virtual ~FetchResourceSlot();
+  ~FetchResourceSlot() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FetchResourceSlot);

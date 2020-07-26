@@ -48,7 +48,7 @@ class CssInlineImportToLinkFilter : public EmptyHtmlFilter {
  public:
   explicit CssInlineImportToLinkFilter(RewriteDriver* driver,
                                        Statistics* statistics);
-  virtual ~CssInlineImportToLinkFilter();
+  ~CssInlineImportToLinkFilter() override;
 
   static void InitStats(Statistics* statistics);
 

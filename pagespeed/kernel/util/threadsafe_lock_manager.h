@@ -32,7 +32,7 @@ namespace net_instaweb {
 class ThreadSafeLockManager : public NamedLockManager {
  public:
   explicit ThreadSafeLockManager(Scheduler* scheduler);
-  virtual ~ThreadSafeLockManager();
+  ~ThreadSafeLockManager() override;
   NamedLock* CreateNamedLock(const StringPiece& name) override;
 
  private:

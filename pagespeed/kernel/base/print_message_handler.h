@@ -31,7 +31,7 @@ namespace net_instaweb {
 class PrintMessageHandler : public MessageHandler {
  public:
   PrintMessageHandler();
-  virtual ~PrintMessageHandler();
+  ~PrintMessageHandler() override;
 
  protected:
   void MessageSImpl(MessageType type, const GoogleString& message) override;

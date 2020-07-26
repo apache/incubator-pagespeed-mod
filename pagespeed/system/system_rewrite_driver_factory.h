@@ -74,7 +74,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
                              SystemThreadSystem* thread_system,
                              AbstractSharedMem* shared_mem_runtime,
                              StringPiece hostname, int port);
-  virtual ~SystemRewriteDriverFactory();
+  ~SystemRewriteDriverFactory() override;
   void Init();
 
   // If the server using this isn't using APR natively, call this to initialize

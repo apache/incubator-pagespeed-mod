@@ -43,7 +43,7 @@ class WriteThroughCache : public CacheInterface {
         cache1_size_limit_(kUnlimited) {
   }
 
-  virtual ~WriteThroughCache();
+  ~WriteThroughCache() override;
 
   void Get(const GoogleString& key, Callback* callback) override;
   void Put(const GoogleString& key, const SharedString& value) override;

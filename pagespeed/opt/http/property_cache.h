@@ -331,7 +331,7 @@ class PropertyPage : public AbstractPropertyPage {
     kPropertyCachePerOriginPage,
   };
 
-  virtual ~PropertyPage();
+  ~PropertyPage() override;
 
   // Gets a property given the property name.  The property can then be
   // mutated, prior to the PropertyPage being written back to the cache.
@@ -349,14 +349,14 @@ class PropertyPage : public AbstractPropertyPage {
   // via PropertyCache::Read.  This allows cache implementations that support
   // batching to do so on the read.  However, properties are written back to
   // cache one Cohort at a time, via PropertyCache::WriteCohort.
-  virtual PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
-                                     const StringPiece& property_name);
+  PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
+                                     const StringPiece& property_name) override;
 
   // Updates the value of a property, tracking stability & discarding
   // writes when the existing data is more up-to-date.
-  virtual void UpdateValue(
+  void UpdateValue(
       const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-      const StringPiece& value);
+      const StringPiece& value) override;
 
   // Updates a Cohort of properties into the cache.  It is a
   // programming error (dcheck-fail) to Write a PropertyPage that
@@ -364,13 +364,13 @@ class PropertyPage : public AbstractPropertyPage {
   //
   // Even if a PropertyValue was not changed since it was read, Write
   // should be called periodically to update stability metrics.
-  virtual void WriteCohort(const PropertyCache::Cohort* cohort);
+  void WriteCohort(const PropertyCache::Cohort* cohort) override;
 
   // This function returns the cache state for a given cohort.
   //
   // It is a programming error to call GetCacheState on a PropertyPage
   // that has not yet been read.
-  CacheInterface::KeyState GetCacheState(const PropertyCache::Cohort* cohort);
+  CacheInterface::KeyState GetCacheState(const PropertyCache::Cohort* cohort) override;
 
   // This function set the cache state for a given cohort. This is used by test
   // code and CacheCallback to populate the state.
@@ -387,7 +387,7 @@ class PropertyPage : public AbstractPropertyPage {
   //
   // This function actually does not commit it to cache.
   void DeleteProperty(const PropertyCache::Cohort* cohort,
-                      const StringPiece& property_name);
+                      const StringPiece& property_name) override;
 
   AbstractLogRecord* log_record() {
     return request_context_->log_record();

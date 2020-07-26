@@ -131,7 +131,7 @@ extern inline constexpr char kGASpeedTracking[] =
 class InsertGAFilter : public CommonFilter {
  public:
   explicit InsertGAFilter(RewriteDriver* rewrite_driver);
-  virtual ~InsertGAFilter();
+  ~InsertGAFilter() override;
 
   // Set up statistics for this filter.
   static void InitStats(Statistics* stats);

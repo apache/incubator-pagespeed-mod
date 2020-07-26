@@ -39,14 +39,14 @@ class TestCriticalImagesFinder : public CriticalImagesFinder {
                            Statistics* stats)
       : CriticalImagesFinder(cohort, stats),
         available_(kAvailable) {}
-  virtual ~TestCriticalImagesFinder();
-  virtual Availability Available(RewriteDriver* driver) {
+  ~TestCriticalImagesFinder() override;
+  Availability Available(RewriteDriver* driver) override {
     return available_;
   }
   void set_available(Availability available) {
     available_ = available;
   }
-  virtual void ComputeCriticalImages(RewriteDriver* driver) {}
+  void ComputeCriticalImages(RewriteDriver* driver) override {}
  private:
   Availability available_;
 };

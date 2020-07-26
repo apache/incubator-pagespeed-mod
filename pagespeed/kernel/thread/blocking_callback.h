@@ -43,7 +43,7 @@ class BlockingCallback : public CacheInterface::Callback {
   }
 
  protected:
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     result_ = state;
     CacheInterface::Callback::value().Value().CopyToString(&value_);
     sync_.Notify();

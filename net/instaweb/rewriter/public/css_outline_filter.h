@@ -42,7 +42,7 @@ class CssOutlineFilter : public CommonFilter {
   static const char kFilterId[];
 
   explicit CssOutlineFilter(RewriteDriver* driver);
-  virtual ~CssOutlineFilter();
+  ~CssOutlineFilter() override;
 
   void StartDocumentImpl() override;
 

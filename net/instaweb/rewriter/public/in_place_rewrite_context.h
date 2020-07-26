@@ -69,7 +69,7 @@ class InPlaceRewriteResourceSlot : public ResourceSlot {
   GoogleString LocationString() const override;
 
  protected:
-  virtual ~InPlaceRewriteResourceSlot();
+  ~InPlaceRewriteResourceSlot() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(InPlaceRewriteResourceSlot);
@@ -196,7 +196,7 @@ class RecordingFetch : public SharedAsyncFetch {
                  int desired_s_maxage_sec,
                  MessageHandler* handler);
 
-  virtual ~RecordingFetch();
+  ~RecordingFetch() override;
 
   // Implements SharedAsyncFetch::HandleHeadersComplete().
   void HandleHeadersComplete() override;

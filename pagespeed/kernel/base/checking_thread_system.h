@@ -57,7 +57,7 @@ class CheckingThreadSystem : public ThreadSystem {
   class LOCKABLE Mutex : public ThreadSystem::CondvarCapableMutex {
    public:
     explicit Mutex(ThreadSystem::CondvarCapableMutex* mutex) : mutex_(mutex) { }
-    virtual ~Mutex();
+    ~Mutex() override;
 
     bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
     void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
@@ -88,7 +88,7 @@ class CheckingThreadSystem : public ThreadSystem {
   class LOCKABLE RWLock : public ThreadSystem::RWLock {
    public:
     explicit RWLock(ThreadSystem::RWLock* lock) : lock_(lock) { }
-    virtual ~RWLock();
+    ~RWLock() override;
 
     bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
     void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
@@ -114,7 +114,7 @@ class CheckingThreadSystem : public ThreadSystem {
 
   explicit CheckingThreadSystem(ThreadSystem* thread_system)
       : thread_system_(thread_system) { }
-  virtual ~CheckingThreadSystem();
+  ~CheckingThreadSystem() override;
 
   Mutex* NewMutex() override;
   RWLock* NewRWLock() override;

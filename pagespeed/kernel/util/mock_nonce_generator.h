@@ -34,7 +34,7 @@ class MockNonceGenerator : public NonceGenerator {
  public:
   explicit MockNonceGenerator(AbstractMutex* mutex)
       : NonceGenerator(mutex), counter_(0) { }
-  virtual ~MockNonceGenerator();
+  ~MockNonceGenerator() override;
 
  protected:
   uint64 NewNonceImpl() override;

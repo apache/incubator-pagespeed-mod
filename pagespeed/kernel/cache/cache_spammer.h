@@ -37,7 +37,7 @@ class CacheInterface;
 // from threadsafe_cache_test.cc.
 class CacheSpammer : public ThreadSystem::Thread {
  public:
-  virtual ~CacheSpammer();
+  ~CacheSpammer() override;
 
   // value_prefix will be suffixed with an integer when stored.
   // num_threads indicates how many threads will run in parallel.

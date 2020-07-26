@@ -33,7 +33,7 @@ namespace net_instaweb {
 // FileLoadPolicy.
 class FileLoadMapping : public ManuallyRefCounted {
  public:
-  virtual ~FileLoadMapping();
+  ~FileLoadMapping() override;
 
   // If this mapping applies to this url, put the mapped path into filename and
   // return true.  Otherwise return false.
@@ -52,7 +52,7 @@ class FileLoadMappingLiteral : public FileLoadMapping {
       : url_prefix_(url_prefix),
         filename_prefix_(filename_prefix) {}
 
-  virtual bool Substitute(StringPiece url, GoogleString* filename) const;
+  bool Substitute(StringPiece url, GoogleString* filename) const override;
 
  private:
   const GoogleString url_prefix_;
@@ -74,7 +74,7 @@ class FileLoadMappingRegexp : public FileLoadMapping {
         url_regexp_str_(url_regexp),
         filename_prefix_(filename_prefix) {}
 
-  virtual bool Substitute(StringPiece url, GoogleString* filename) const;
+  bool Substitute(StringPiece url, GoogleString* filename) const override;
 
  private:
   const RE2 url_regexp_;

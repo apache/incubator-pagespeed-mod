@@ -33,7 +33,7 @@ class RewriteDriver;
 class DecodeRewrittenUrlsFilter : public EmptyHtmlFilter {
  public:
   explicit DecodeRewrittenUrlsFilter(RewriteDriver* driver) : driver_(driver) {}
-  virtual ~DecodeRewrittenUrlsFilter();
+  ~DecodeRewrittenUrlsFilter() override;
 
   void StartElement(HtmlElement* element) override;
   const char* Name() const override { return "DecodeRewrittenUrlsFilter"; }

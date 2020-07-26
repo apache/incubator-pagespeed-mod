@@ -42,7 +42,7 @@ class ThreadSafeLockManager;
 // requests.
 class LockManagerSpammer : public ThreadSystem::Thread {
  public:
-  virtual ~LockManagerSpammer();
+  ~LockManagerSpammer() override;
 
   // num_threads indicates how many threads will run in parallel.
   // num_iters indicates how many times each thread will run a big loop.

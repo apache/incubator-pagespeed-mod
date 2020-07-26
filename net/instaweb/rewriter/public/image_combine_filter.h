@@ -60,7 +60,7 @@ class Variable;
 class ImageCombineFilter : public RewriteFilter {
  public:
   explicit ImageCombineFilter(RewriteDriver* rewrite_driver);
-  virtual ~ImageCombineFilter();
+  ~ImageCombineFilter() override;
 
   static void InitStats(Statistics* statistics);
 

@@ -220,7 +220,7 @@ class HtmlElement : public HtmlNode {
   typedef InlineSList<Attribute>::Iterator AttributeIterator;
   typedef InlineSList<Attribute>::ConstIterator AttributeConstIterator;
 
-  virtual ~HtmlElement();
+  ~HtmlElement() override;
 
   // Determines whether this node is still accessible via API.  Note that
   // when a FLUSH occurs after an open-element, the element will be live()

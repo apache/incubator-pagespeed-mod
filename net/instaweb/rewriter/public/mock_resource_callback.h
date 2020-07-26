@@ -39,9 +39,9 @@ class MockResourceCallback : public Resource::AsyncCallback {
         notify_(thread_system) {
     CHECK(thread_system);
 }
-  virtual ~MockResourceCallback();
+  ~MockResourceCallback() override;
 
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  void Done(bool lock_failure, bool resource_ok) override {
     CHECK(!lock_failure);
     success_ = resource_ok;
     done_ = true;

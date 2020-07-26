@@ -37,9 +37,9 @@ class BaseTagFilter : public EmptyHtmlFilter {
       : added_base_tag_(false),
         driver_(driver) {}
 
-  virtual ~BaseTagFilter();
+  ~BaseTagFilter() override;
 
-  virtual void StartDocument() {
+  void StartDocument() override {
     added_base_tag_ = false;
   }
   void StartElement(HtmlElement* element) override;

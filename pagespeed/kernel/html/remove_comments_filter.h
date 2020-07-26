@@ -67,7 +67,7 @@ class RemoveCommentsFilter : public EmptyHtmlFilter {
         options_(options) {
   }
 
-  virtual ~RemoveCommentsFilter();
+  ~RemoveCommentsFilter() override;
 
   void Comment(HtmlCommentNode* comment) override;
   const char* Name() const override { return "RemoveComments"; }

@@ -63,7 +63,7 @@ class SharedMemCache : public CacheInterface {
                  int entries_per_sector, int blocks_per_sector,
                  MessageHandler* handler);
 
-  virtual ~SharedMemCache();
+  ~SharedMemCache() override;
 
   // Sets up our shared state for use of all child processes/threads. Returns
   // whether successful. This should be called exactly once for every cache

@@ -46,7 +46,7 @@ class InlineResourceSlot : public ResourceSlot {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(InlineResourceSlot);
-  virtual ~InlineResourceSlot();
+  ~InlineResourceSlot() override;
 
  private:
   HtmlCharactersNode* char_node_;

@@ -71,7 +71,7 @@ public:
   EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thread_system, Statistics* statistics,
                        Timer* timer, int64 timeout_ms, MessageHandler* handler);
 
-  ~EnvoyUrlAsyncFetcher();
+  ~EnvoyUrlAsyncFetcher() override;
   static void InitStats(Statistics* statistics);
 
   // It should be called in the module init_process callback function. Do some

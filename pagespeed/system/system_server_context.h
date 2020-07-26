@@ -65,7 +65,7 @@ class SystemServerContext : public ServerContext {
 
   SystemServerContext(RewriteDriverFactory* factory,
                       StringPiece hostname, int port);
-  virtual ~SystemServerContext();
+  ~SystemServerContext() override;
 
   void SetCachePath(SystemCachePath* cache_path);
 
@@ -87,7 +87,7 @@ class SystemServerContext : public ServerContext {
   void UpdateCachePurgeSet(const CopyOnWrite<PurgeSet>& purge_set);
 
   // Initialize this SystemServerContext to set up its admin site.
-  virtual void PostInitHook();
+  void PostInitHook() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -112,8 +112,8 @@ class SystemServerContext : public ServerContext {
   //    request headers.
   // Session fetchers allow us to make these decisions.  Here we may update
   // driver->async_fetcher() to be a special fetcher just for this request.
-  virtual void ApplySessionFetchers(const RequestContextPtr& req,
-                                    RewriteDriver* driver);
+  void ApplySessionFetchers(const RequestContextPtr& req,
+                                    RewriteDriver* driver) override;
 
   // Accumulate in a histogram the amount of time spent rewriting HTML.
   // TODO(sligocki): Remove in favor of RewriteStats::rewrite_latency_histogram.

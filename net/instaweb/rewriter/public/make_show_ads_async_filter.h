@@ -43,7 +43,7 @@ class MakeShowAdsAsyncFilter : public CommonFilter {
   static const char kShowAdsApiReplacedForAsync[];
 
   explicit MakeShowAdsAsyncFilter(RewriteDriver* rewrite_driver);
-  virtual ~MakeShowAdsAsyncFilter();
+  ~MakeShowAdsAsyncFilter() override;
 
   static void InitStats(Statistics* statistics);
 

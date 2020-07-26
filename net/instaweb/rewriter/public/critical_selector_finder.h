@@ -140,7 +140,7 @@ class BeaconCriticalSelectorFinder : public CriticalSelectorFinder {
   static const int kDefaultSupportInterval = 10;
 
   // Gets the SupportInterval for a new beacon result (see comment at top).
-  virtual int SupportInterval() const { return kDefaultSupportInterval; }
+  int SupportInterval() const override { return kDefaultSupportInterval; }
 };
 
 }  // namespace net_instaweb

@@ -107,10 +107,10 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
     ProtectedWriter(SyncFetcherAdapterCallback* callback, Writer* orig_writer)
         : callback_(callback), orig_writer_(orig_writer) {}
 
-    virtual bool Write(const StringPiece& buf, MessageHandler* handler)
-        LOCKS_EXCLUDED(callback_->mutex_);
-    virtual bool Flush(MessageHandler* handler)
-        LOCKS_EXCLUDED(callback_->mutex_);
+    bool Write(const StringPiece& buf, MessageHandler* handler)
+        override LOCKS_EXCLUDED(callback_->mutex_);
+    bool Flush(MessageHandler* handler)
+        override LOCKS_EXCLUDED(callback_->mutex_);
 
    private:
     SyncFetcherAdapterCallback* callback_;
@@ -118,7 +118,7 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
 
     DISALLOW_COPY_AND_ASSIGN(ProtectedWriter);
   };
-  virtual ~SyncFetcherAdapterCallback();
+  ~SyncFetcherAdapterCallback() override;
 
   std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
   std::unique_ptr<ThreadSystem::Condvar> cond_;

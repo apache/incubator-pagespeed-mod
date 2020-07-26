@@ -41,7 +41,7 @@ class SlowWorker : public Worker {
   SlowWorker(StringPiece thread_name, ThreadSystem* runtime);
 
   // This waits for the running task to terminate.
-  virtual ~SlowWorker();
+  ~SlowWorker() override;
 
   // If this SlowWorker's thread is currently idle, it will run the closure.
   // Otherwise, the closure will simply be deleted.

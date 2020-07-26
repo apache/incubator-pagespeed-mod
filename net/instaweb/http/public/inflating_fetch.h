@@ -46,7 +46,7 @@ class MessageHandler;
 class InflatingFetch : public SharedAsyncFetch {
  public:
   explicit InflatingFetch(AsyncFetch* fetch);
-  virtual ~InflatingFetch();
+  ~InflatingFetch() override;
 
   // Adds accept-encoding:gzip to the request headers sent to the
   // origin.  The data is inflated as we Write it.  If deflate

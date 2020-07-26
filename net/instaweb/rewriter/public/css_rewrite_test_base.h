@@ -64,9 +64,9 @@ class CssRewriteTestBase : public RewriteTestBase {
     num_flatten_imports_complex_queries_ =
         statistics()->GetVariable(CssFilter::kComplexQueries);
   }
-  ~CssRewriteTestBase();
+  ~CssRewriteTestBase() override;
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_always_rewrite_css(true);
     AddFilter(RewriteOptions::kRewriteCss);

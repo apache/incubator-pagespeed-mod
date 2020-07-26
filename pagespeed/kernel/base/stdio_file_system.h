@@ -36,7 +36,7 @@ class Timer;
 class StdioFileSystem : public FileSystem {
  public:
   StdioFileSystem();
-  virtual ~StdioFileSystem();
+  ~StdioFileSystem() override;
 
   int MaxPathLength(const StringPiece& base) const override;
 

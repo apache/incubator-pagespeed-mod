@@ -33,7 +33,7 @@ class Timer;
 class PthreadThreadSystem : public ThreadSystem {
  public:
   PthreadThreadSystem();
-  virtual ~PthreadThreadSystem();
+  ~PthreadThreadSystem() override;
 
   CondvarCapableMutex* NewMutex() override;
   RWLock* NewRWLock() override;

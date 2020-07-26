@@ -51,7 +51,7 @@ class SharedCircularBuffer : public Writer {
                        const int buffer_capacity,
                        const GoogleString& filename_prefix,
                        const GoogleString& filename_suffix);
-  virtual ~SharedCircularBuffer();
+  ~SharedCircularBuffer() override;
   // Initialize the shared memory segment.
   // parent = true if this is invoked in root process -- initialize the shared
   // memory; parent = false if this is invoked in child process -- attach to

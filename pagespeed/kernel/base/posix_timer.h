@@ -29,9 +29,9 @@ namespace net_instaweb {
 class PosixTimer : public Timer {
  public:
   PosixTimer() {}
-  virtual ~PosixTimer();
+  ~PosixTimer() override;
 
-  virtual int64 NowUs() const override;
+  int64 NowUs() const override;
   void SleepUs(int64 us) override;
 
  private:

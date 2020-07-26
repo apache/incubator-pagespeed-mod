@@ -54,7 +54,7 @@ class DomainRewriteFilter : public CommonFilter {
   static const char kStickyRedirectHeader[];
 
   DomainRewriteFilter(RewriteDriver* rewrite_driver, Statistics* stats);
-  ~DomainRewriteFilter();
+  ~DomainRewriteFilter() override;
   static void InitStats(Statistics* statistics);
   void StartDocumentImpl() override;
   void EndDocument() override;

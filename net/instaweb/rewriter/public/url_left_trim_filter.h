@@ -49,7 +49,7 @@ class Variable;
 class UrlLeftTrimFilter : public CommonFilter {
  public:
   UrlLeftTrimFilter(RewriteDriver* rewrite_driver, Statistics* stats);
-  virtual ~UrlLeftTrimFilter();
+  ~UrlLeftTrimFilter() override;
 
   static void InitStats(Statistics* statistics);
   void StartDocumentImpl() override {}

@@ -54,19 +54,19 @@ class CacheableResourceBase : public Resource {
   // All the public methods here implement the Resource API.
 
   // All subclasses of this use the HTTP cache.
-  virtual bool UseHttpCache() const { return true; }
+  bool UseHttpCache() const override { return true; }
 
-  virtual bool IsValidAndCacheable() const;
+  bool IsValidAndCacheable() const override;
 
   // This checks the cache, and fetches the resource if appropriate.
-  virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
+  void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                const RequestContextPtr& request_context,
-                               AsyncCallback* callback);
+                               AsyncCallback* callback) override;
 
-  virtual void Freshen(FreshenCallback* callback, MessageHandler* handler);
-  virtual void RefreshIfImminentlyExpiring();
-  virtual GoogleString url() const { return url_; }
-  virtual GoogleString cache_key() const { return cache_key_; }
+  void Freshen(FreshenCallback* callback, MessageHandler* handler) override;
+  void RefreshIfImminentlyExpiring() override;
+  GoogleString url() const override { return url_; }
+  GoogleString cache_key() const override { return cache_key_; }
 
  protected:
   // Note: InitStats(stat_prefix) must have been called before.
@@ -75,7 +75,7 @@ class CacheableResourceBase : public Resource {
                         StringPiece cache_key,
                         const ContentType* type,
                         RewriteDriver* rewrite_driver);
-  virtual ~CacheableResourceBase();
+  ~CacheableResourceBase() override;
 
   static void InitStats(StringPiece stat_prefix, Statistics* statistics);
 

@@ -36,7 +36,7 @@ class RewrittenContentScanningFilter : public EmptyHtmlFilter {
   static const char kNumProxiedRewrittenResourcesProperty[];
 
   explicit RewrittenContentScanningFilter(RewriteDriver* driver);
-  virtual ~RewrittenContentScanningFilter();
+  ~RewrittenContentScanningFilter() override;
 
   void StartDocument() override;
   void EndDocument() override;

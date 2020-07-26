@@ -46,7 +46,7 @@ class ApacheRequestContext : public SystemRequestContext {
   static ApacheRequestContext* DynamicCast(RequestContext* rc);
 
  protected:
-  virtual ~ApacheRequestContext();
+  ~ApacheRequestContext() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ApacheRequestContext);

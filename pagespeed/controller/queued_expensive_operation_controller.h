@@ -51,11 +51,11 @@ class QueuedExpensiveOperationController
   QueuedExpensiveOperationController(int max_expensive_operations,
                                      ThreadSystem* thread_system,
                                      Statistics* stats);
-  virtual ~QueuedExpensiveOperationController();
+  ~QueuedExpensiveOperationController() override;
 
   // ExpensiveOperationController interface.
-  virtual void ScheduleExpensiveOperation(Function* callback);
-  virtual void NotifyExpensiveOperationComplete();
+  void ScheduleExpensiveOperation(Function* callback) override;
+  void NotifyExpensiveOperationComplete() override;
 
   static void InitStats(Statistics* stats);
 

@@ -83,7 +83,7 @@ class CssFilter : public RewriteFilter {
             CacheExtender* cache_extender,
             ImageRewriteFilter* image_rewriter,
             ImageCombineFilter* image_combiner);
-  virtual ~CssFilter();
+  ~CssFilter() override;
 
   // May be called multiple times, in case there are multiple statistics
   // objects.
@@ -103,8 +103,8 @@ class CssFilter : public RewriteFilter {
 
   const char* Name() const override { return "CssFilter"; }
   const char* id() const override { return RewriteOptions::kCssFilterId; }
-  virtual void EncodeUserAgentIntoResourceContext(
-      ResourceContext* context) const;
+  void EncodeUserAgentIntoResourceContext(
+      ResourceContext* context) const override;
 
   static const char kBlocksRewritten[];
   static const char kParseFailures[];
@@ -258,7 +258,7 @@ class CssFilter::Context : public SingleRewriteContext {
           ImageRewriteFilter* image_rewriter,
           ImageCombineFilter* image_combiner,
           ResourceContext* context);
-  virtual ~Context();
+  ~Context() override;
 
   // Setup rewriting for inline, attribute, or external CSS.
   void SetupInlineRewrite(HtmlElement* style_element, HtmlCharactersNode* text);
@@ -275,10 +275,10 @@ class CssFilter::Context : public SingleRewriteContext {
 
   // Specialization to absolutify URLs in input resource in case of rewrite
   // fail or deadline exceeded.
-  virtual bool SendFallbackResponse(StringPiece output_url_base,
+  bool SendFallbackResponse(StringPiece output_url_base,
                                     StringPiece input_contents,
                                     AsyncFetch* async_fetch,
-                                    MessageHandler* handler);
+                                    MessageHandler* handler) override;
 
   CssResourceSlotFactory* slot_factory() { return &slot_factory_; }
 
@@ -294,7 +294,7 @@ class CssFilter::Context : public SingleRewriteContext {
                              const OutputResourcePtr& output) override;
   const char* id() const override { return filter_->id(); }
   OutputResourceKind kind() const override { return kRewrittenResource; }
-  virtual GoogleString CacheKeySuffix() const;
+  GoogleString CacheKeySuffix() const override;
   const UrlSegmentEncoder* encoder() const override;
 
   // Implements UserAgentCacheKey method of RewriteContext.

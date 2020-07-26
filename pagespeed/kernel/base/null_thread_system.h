@@ -43,12 +43,12 @@ class NullCondvar : public ThreadSystem::Condvar {
  public:
   explicit NullCondvar(ThreadSystem::CondvarCapableMutex* m)
       : mutex_(m), timed_wait_callback_(NULL) {}
-  virtual ~NullCondvar();
-  virtual ThreadSystem::CondvarCapableMutex* mutex() const { return mutex_; }
-  virtual void Signal() { actions_.push_back("Signal()"); }
-  virtual void Broadcast() { actions_.push_back("Broadcast()"); }
-  virtual void Wait() { actions_.push_back("Wait()"); }
-  virtual void TimedWait(int64 timeout_ms);
+  ~NullCondvar() override;
+  ThreadSystem::CondvarCapableMutex* mutex() const override { return mutex_; }
+  void Signal() override { actions_.push_back("Signal()"); }
+  void Broadcast() override { actions_.push_back("Broadcast()"); }
+  void Wait() override { actions_.push_back("Wait()"); }
+  void TimedWait(int64 timeout_ms) override;
   GoogleString ActionsSinceLastCall();
 
   class TimedWaitCallback {
@@ -77,11 +77,11 @@ class NullCondvar : public ThreadSystem::Condvar {
 class NullCondvarCapableMutex : public ThreadSystem::CondvarCapableMutex {
  public:
   NullCondvarCapableMutex() {}
-  virtual ~NullCondvarCapableMutex();
-  virtual bool TryLock() { return true; }
-  virtual void Lock() {}
-  virtual void Unlock() {}
-  virtual NullCondvar* NewCondvar();
+  ~NullCondvarCapableMutex() override;
+  bool TryLock() override { return true; }
+  void Lock() override {}
+  void Unlock() override {}
+  NullCondvar* NewCondvar() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullCondvarCapableMutex);
@@ -93,18 +93,18 @@ class NullCondvarCapableMutex : public ThreadSystem::CondvarCapableMutex {
 class NullThreadSystem : public ThreadSystem {
  public:
   NullThreadSystem() : thread_id_(1) {}
-  virtual ~NullThreadSystem();
-  virtual NullCondvarCapableMutex* NewMutex();
-  virtual RWLock* NewRWLock();
-  virtual Timer* NewTimer();
-  virtual ThreadId* GetThreadId() const;
+  ~NullThreadSystem() override;
+  NullCondvarCapableMutex* NewMutex() override;
+  RWLock* NewRWLock() override;
+  Timer* NewTimer() override;
+  ThreadId* GetThreadId() const override;
 
   // Provide injection/observation of current thread IDs.
   void set_current_thread(int id) { thread_id_ = id; }
   int current_thread() const { return thread_id_; }
 
  private:
-  virtual ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags);
+  ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags) override;
 
  private:
   int thread_id_;

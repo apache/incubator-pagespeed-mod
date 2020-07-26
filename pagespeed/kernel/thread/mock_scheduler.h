@@ -42,12 +42,12 @@ class MockScheduler : public Scheduler {
  public:
   MockScheduler(ThreadSystem* thread_system,
                 MockTimer* timer);
-  virtual ~MockScheduler();
+  ~MockScheduler() override;
 
-  virtual void RegisterWorker(QueuedWorkerPool::Sequence* w)
-      LOCKS_EXCLUDED(mutex());
-  virtual void UnregisterWorker(QueuedWorkerPool::Sequence* w)
-      LOCKS_EXCLUDED(mutex());
+  void RegisterWorker(QueuedWorkerPool::Sequence* w)
+      override LOCKS_EXCLUDED(mutex());
+  void UnregisterWorker(QueuedWorkerPool::Sequence* w)
+      override LOCKS_EXCLUDED(mutex());
 
   // Blocks until all work in registered workers is done.
   void AwaitQuiescence() LOCKS_EXCLUDED(mutex());
@@ -62,8 +62,8 @@ class MockScheduler : public Scheduler {
   void SetTimeUs(int64 time_us) LOCKS_EXCLUDED(mutex());
 
  protected:
-  virtual void AwaitWakeupUntilUs(int64 wakeup_time_us)
-      EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void AwaitWakeupUntilUs(int64 wakeup_time_us)
+      override EXCLUSIVE_LOCKS_REQUIRED(mutex());
 
  private:
   inline void SetTimeUsMutexHeld(int64 time_us)

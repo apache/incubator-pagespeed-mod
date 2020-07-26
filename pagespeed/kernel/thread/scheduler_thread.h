@@ -53,7 +53,7 @@ class SchedulerThread : public ThreadSystem::Thread {
   class CleanupFunction;
   friend class CleanupFunction;
 
-  virtual ~SchedulerThread();
+  ~SchedulerThread() override;
 
   bool quit_;
   Scheduler* scheduler_;

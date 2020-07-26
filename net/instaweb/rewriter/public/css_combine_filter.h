@@ -48,7 +48,7 @@ class CssCombineFilter : public RewriteFilter {
   static const char kCssFileCountReduction[];
 
   explicit CssCombineFilter(RewriteDriver* rewrite_driver);
-  virtual ~CssCombineFilter();
+  ~CssCombineFilter() override;
 
   static void InitStats(Statistics* statistics);
 

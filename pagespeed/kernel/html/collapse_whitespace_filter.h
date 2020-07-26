@@ -44,7 +44,7 @@ class HtmlCharactersNode;
 class CollapseWhitespaceFilter : public EmptyHtmlFilter {
  public:
   explicit CollapseWhitespaceFilter(HtmlParse* html_parse);
-  virtual ~CollapseWhitespaceFilter();
+  ~CollapseWhitespaceFilter() override;
 
   void StartDocument() override;
   void StartElement(HtmlElement* element) override;

@@ -38,7 +38,7 @@ class HtmlElement;
 class ExplicitCloseTag : public EmptyHtmlFilter {
  public:
   ExplicitCloseTag() {}
-  virtual ~ExplicitCloseTag();
+  ~ExplicitCloseTag() override;
 
   void EndElement(HtmlElement* element) override;
   const char* Name() const override { return "ExplicitCloseTag"; }

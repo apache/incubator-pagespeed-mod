@@ -40,7 +40,7 @@ class InputFileNonceGenerator : public NonceGenerator {
                           AbstractMutex* mutex, MessageHandler* handler)
       : NonceGenerator(mutex), file_(file),
         file_system_(file_system), handler_(handler) { }
-  virtual ~InputFileNonceGenerator();
+  ~InputFileNonceGenerator() override;
 
  protected:
   uint64 NewNonceImpl() override;

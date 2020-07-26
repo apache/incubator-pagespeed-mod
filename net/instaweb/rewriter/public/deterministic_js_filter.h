@@ -36,7 +36,7 @@ namespace net_instaweb {
 class DeterministicJsFilter : public CommonFilter {
  public:
   explicit DeterministicJsFilter(RewriteDriver* driver);
-  virtual ~DeterministicJsFilter();
+  ~DeterministicJsFilter() override;
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;

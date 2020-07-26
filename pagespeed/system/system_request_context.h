@@ -57,7 +57,7 @@ class SystemRequestContext : public RequestContext {
   StringPiece url() const { return url_; }
 
  protected:
-  virtual ~SystemRequestContext() {}
+  ~SystemRequestContext() override {}
 
  private:
   int local_port_;

@@ -43,7 +43,7 @@ class CustomRewriteTestBase : public RewriteTestBase {
       InitializeDefaultOptions();
     }
 
-    virtual OptionsClass* NewRewriteOptions() {
+    OptionsClass* NewRewriteOptions() override {
       return new OptionsClass(thread_system());
     }
   };
@@ -52,11 +52,11 @@ class CustomRewriteTestBase : public RewriteTestBase {
       : RewriteTestBase(MakeFactories(&mock_url_fetcher_)) {
   }
 
-  virtual ~CustomRewriteTestBase() {
+  ~CustomRewriteTestBase() override {
     OptionsClass::Terminate();
   }
 
-  virtual TestRewriteDriverFactory* MakeTestFactory() {
+  TestRewriteDriverFactory* MakeTestFactory() override {
     return new CustomTestRewriteDriverFactory(&mock_url_fetcher_);
   }
 

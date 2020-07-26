@@ -67,7 +67,7 @@ class _MemberCallback_0_1 : public Callback1<A1> {
         member_(member) {
   }
 
-  void Run(A1 t) {
+  void Run(A1 t) override {
     (object_->*member_)(t);
     if (DeleteAfterRun) {
       delete this;
@@ -122,7 +122,7 @@ class _MemberCallback_1_1 : public Callback1<A1> {
         member_(member),
         p1_(p1) { }
 
-  virtual void Run(A1 a1) {
+  void Run(A1 a1) override {
     (object_->*member_)(p1_, a1);
     if (DeleteAfterRun) {
       delete this;
@@ -190,7 +190,7 @@ class _MemberCallback_0_2 : public Callback2<A1, A2> {
         member_(member) {
   }
 
-  void Run(A1 t1, A2 t2) {
+  void Run(A1 t1, A2 t2) override {
     (object_->*member_)(t1, t2);
     if (DeleteAfterRun) {
       delete this;
@@ -235,7 +235,7 @@ class _MemberCallback_2_1 : public Callback2<A1, A2> {
         member_(member),
         p1_(p1) { }
 
-  virtual void Run(A1 a1, A2 a2) {
+  void Run(A1 a1, A2 a2) override {
     (object_->*member_)(p1_, a1, a2);
     if (DeleteAfterRun) {
       delete this;

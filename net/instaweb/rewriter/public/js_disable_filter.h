@@ -42,7 +42,7 @@ namespace net_instaweb {
 class JsDisableFilter : public CommonFilter {
  public:
   explicit JsDisableFilter(RewriteDriver* driver);
-  ~JsDisableFilter();
+  ~JsDisableFilter() override;
 
   static const char kEnableJsExperimental[];
   static const char kElementOnloadCode[];

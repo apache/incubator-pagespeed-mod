@@ -46,7 +46,7 @@ class CssInlineFilter : public CommonFilter {
   static const char kNumCssInlined[];
 
   explicit CssInlineFilter(RewriteDriver* driver);
-  virtual ~CssInlineFilter();
+  ~CssInlineFilter() override;
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;

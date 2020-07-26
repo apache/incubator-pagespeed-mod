@@ -97,7 +97,7 @@ class SharedMemHistogram : public Histogram {
  public:
   SharedMemHistogram(StringPiece name, Statistics* stats);
 
-  virtual ~SharedMemHistogram();
+  ~SharedMemHistogram() override;
   void Add(double value) override;
   void Clear() override;
   int NumBuckets() override;
@@ -193,7 +193,7 @@ class SharedMemStatistics : public ScalarStatisticsTemplate<
                       AbstractSharedMem* shm_runtime,
                       MessageHandler* message_handler, FileSystem* file_system,
                       Timer* timer);
-  virtual ~SharedMemStatistics();
+  ~SharedMemStatistics() override;
 
   // This method initializes or attaches to shared memory. You should call this
   // exactly once in each process/thread, after all calls to AddVariables,

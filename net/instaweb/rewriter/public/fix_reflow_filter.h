@@ -38,7 +38,7 @@ class FixReflowFilter : public EmptyHtmlFilter {
   static const char kElementRenderedHeightPropertyName[];
 
   explicit FixReflowFilter(RewriteDriver* driver);
-  virtual ~FixReflowFilter();
+  ~FixReflowFilter() override;
 
   void DetermineEnabled(GoogleString* disabled_reason) override;
   void StartDocument() override;

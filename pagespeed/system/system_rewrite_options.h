@@ -64,15 +64,15 @@ class SystemRewriteOptions : public RewriteOptions {
   SystemRewriteOptions(const StringPiece& description,
                        ThreadSystem* thread_system);
   explicit SystemRewriteOptions(ThreadSystem* thread_system);
-  virtual ~SystemRewriteOptions();
+  ~SystemRewriteOptions() override;
 
-  virtual void Merge(const RewriteOptions& src);
+  void Merge(const RewriteOptions& src) override;
 
-  virtual OptionSettingResult ParseAndSetOptionFromName2(
+  OptionSettingResult ParseAndSetOptionFromName2(
       StringPiece name, StringPiece arg1, StringPiece arg2,
-      GoogleString* msg, MessageHandler* handler);
+      GoogleString* msg, MessageHandler* handler) override;
 
-  virtual GoogleString SubclassSignatureLockHeld();
+  GoogleString SubclassSignatureLockHeld() override;
 
   int64 file_cache_clean_interval_ms() const {
     return file_cache_clean_interval_ms_.value();
@@ -375,8 +375,8 @@ class SystemRewriteOptions : public RewriteOptions {
     return slurping_enabled() && slurp_read_only();
   }
 
-  virtual SystemRewriteOptions* Clone() const;
-  virtual SystemRewriteOptions* NewOptions() const;
+  SystemRewriteOptions* Clone() const override;
+  SystemRewriteOptions* NewOptions() const override;
 
   // Returns a suitably down cast version of 'instance' if it is an instance
   // of this class, NULL if not.
@@ -395,18 +395,18 @@ class SystemRewriteOptions : public RewriteOptions {
   // FetchHttps
   class HttpsOptions : public Option<GoogleString> {
    public:
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail);
+    bool SetFromString(StringPiece value_string,
+                               GoogleString* error_detail) override;
   };
 
   class StaticAssetCDNOptions : public OptionTemplateBase<GoogleString> {
    public:
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail);
+    bool SetFromString(StringPiece value_string,
+                               GoogleString* error_detail) override;
 
-    virtual GoogleString Signature(const Hasher* hasher) const;
-    virtual GoogleString ToString() const;
-    virtual void Merge(const OptionBase* src);
+    GoogleString Signature(const Hasher* hasher) const override;
+    GoogleString ToString() const override;
+    void Merge(const OptionBase* src) override;
 
     // value() here is just the base path.
     const StaticAssetSet& asset_set() const {

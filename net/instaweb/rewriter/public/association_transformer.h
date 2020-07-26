@@ -58,7 +58,7 @@ class AssociationTransformer : public CssTagScanner::Transformer {
                          MessageHandler* handler)
       : base_url_(base_url), options_(options),
         backup_transformer_(backup_transformer), handler_(handler) {}
-  virtual ~AssociationTransformer();
+  ~AssociationTransformer() override;
 
   // Map is exposed so that you can set associations.
   // Each key -> value specifies that every instance of the absolute URL
@@ -69,7 +69,7 @@ class AssociationTransformer : public CssTagScanner::Transformer {
   // with this AssociationTransformer which will call Transform() on all URLs.
   // Transform will lookup all (absolutified) URLs in map_ and rewrite them
   // if present (otherwise it will pass them to the backup_transformer_).
-  virtual TransformStatus Transform(GoogleString* str);
+  TransformStatus Transform(GoogleString* str) override;
 
  private:
   // Mapping of input URLs to output URLs.
@@ -103,7 +103,7 @@ class AssociationSlot : public ResourceSlot {
       : ResourceSlot(resource), map_(map) {
     key.CopyToString(&key_);
   }
-  virtual ~AssociationSlot();
+  ~AssociationSlot() override;
 
   HtmlElement* element() const override { return NULL; }
 
@@ -119,7 +119,7 @@ class AssociationSlot : public ResourceSlot {
     }
   }
 
-  virtual bool DirectSetUrl(const StringPiece& url) {
+  bool DirectSetUrl(const StringPiece& url) override {
     // We should never try to render unauthorized resource URLs as is.
     if (!resource()->is_authorized_domain()) {
       return false;

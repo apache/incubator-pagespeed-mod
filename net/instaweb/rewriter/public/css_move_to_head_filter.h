@@ -36,7 +36,7 @@ class Variable;
 class CssMoveToHeadFilter : public CommonFilter {
  public:
   explicit CssMoveToHeadFilter(RewriteDriver* driver);
-  virtual ~CssMoveToHeadFilter();
+  ~CssMoveToHeadFilter() override;
 
   static void InitStats(Statistics* statistics);
 

@@ -35,7 +35,7 @@ class MessageHandler;
 class NullWriter : public Writer {
  public:
   explicit NullWriter() { }
-  virtual ~NullWriter();
+  ~NullWriter() override;
   bool Write(const StringPiece& str, MessageHandler* handler) override;
   bool Flush(MessageHandler* handler) override;
 };

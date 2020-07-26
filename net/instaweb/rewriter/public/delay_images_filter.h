@@ -93,7 +93,7 @@ class DelayImagesFilter : public CommonFilter {
   static const char kImageOnloadJsSnippet[];
 
   explicit DelayImagesFilter(RewriteDriver* driver);
-  virtual ~DelayImagesFilter();
+  ~DelayImagesFilter() override;
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override { }

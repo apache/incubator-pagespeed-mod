@@ -107,7 +107,7 @@ class ResourceFetch : public SharedAsyncFetch {
   ResourceFetch(const GoogleUrl& url, CleanupMode cleanup_mode,
                 RewriteDriver* driver, Timer* timer,
                 MessageHandler* handler, AsyncFetch* async_fetch);
-  virtual ~ResourceFetch();
+  ~ResourceFetch() override;
 
   // If we're running an experiment and the url specifies an experiment spec,
   // set custom_options to use that experiment spec.  If custom_options is NULL

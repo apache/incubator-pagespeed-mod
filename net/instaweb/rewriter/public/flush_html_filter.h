@@ -35,7 +35,7 @@ class RewriteDriver;
 class FlushHtmlFilter : public CommonFilter {
  public:
   explicit FlushHtmlFilter(RewriteDriver* driver);
-  virtual ~FlushHtmlFilter();
+  ~FlushHtmlFilter() override;
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;

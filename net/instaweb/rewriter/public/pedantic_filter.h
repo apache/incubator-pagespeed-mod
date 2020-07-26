@@ -34,7 +34,7 @@ class HtmlParse;
 class PedanticFilter : public EmptyHtmlFilter {
  public:
   explicit PedanticFilter(HtmlParse* html_parse);
-  virtual ~PedanticFilter();
+  ~PedanticFilter() override;
 
   void StartElement(HtmlElement* element) override;
   const char* Name() const override { return "Pedantic"; }

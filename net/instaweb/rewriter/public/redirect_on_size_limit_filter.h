@@ -34,7 +34,7 @@ namespace net_instaweb {
 class RedirectOnSizeLimitFilter : public CommonFilter {
  public:
   explicit RedirectOnSizeLimitFilter(RewriteDriver* rewrite_driver);
-  virtual ~RedirectOnSizeLimitFilter();
+  ~RedirectOnSizeLimitFilter() override;
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;

@@ -45,7 +45,7 @@ class MemLockManager : public NamedLockManager {
   static const int64 kNoWakeupsPending = -1;
 
   explicit MemLockManager(Timer* timer);
-  virtual ~MemLockManager();
+  ~MemLockManager() override;
   NamedLock* CreateNamedLock(const StringPiece& name) override;
 
   // Returns the absolute time (ms since 1970) of the next interesting

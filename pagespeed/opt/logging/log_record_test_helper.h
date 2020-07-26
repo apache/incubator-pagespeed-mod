@@ -90,8 +90,8 @@ Matcher<ImageRewriteInfo> LogImageRewriteActivityMatcher(
 class MockLogRecord : public LogRecord {
  public:
   explicit MockLogRecord(AbstractMutex* mutex) : LogRecord(mutex) {}
-  ~MockLogRecord() {}
-  virtual void LogImageRewriteActivity(
+  ~MockLogRecord() override {}
+  void LogImageRewriteActivity(
       const char* id,
       const GoogleString& url,
       RewriterApplication::Status status,
@@ -102,7 +102,7 @@ class MockLogRecord : public LogRecord {
       bool try_low_res_src_insertion,
       bool low_res_src_inserted,
       ImageType low_res_image_type,
-      int low_res_data_size) {
+      int low_res_data_size) override {
     ImageRewriteInfo info(id, url, status, is_image_inlined, is_critical_image,
                           is_url_rewritten, size, try_low_res_src_insertion,
                           low_res_src_inserted, low_res_image_type,

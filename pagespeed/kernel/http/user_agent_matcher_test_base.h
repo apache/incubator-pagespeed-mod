@@ -173,7 +173,7 @@ class UserAgentMatcherTestBase : public testing::Test {
   static const int kImageInliningSupportedUserAgentsArraySize;
 
   UserAgentMatcherTestBase();
-  virtual ~UserAgentMatcherTestBase() { }
+  ~UserAgentMatcherTestBase() override { }
   bool IsMobileUserAgent(const StringPiece& user_agent);
   bool IsDesktopUserAgent(const StringPiece& user_agent);
   bool IsTabletUserAgent(const StringPiece& user_agent);

@@ -46,7 +46,7 @@ class NullStatisticsVariable {
 class NullStatistics : public ScalarStatisticsTemplate<NullStatisticsVariable> {
  public:
   NullStatistics();
-  virtual ~NullStatistics();
+  ~NullStatistics() override;
 
   CountHistogram* NewHistogram(StringPiece name) override;
 

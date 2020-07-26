@@ -38,7 +38,7 @@ class FileLoadRule : public ManuallyRefCounted {
     kUnmatched,
   };
 
-  virtual ~FileLoadRule();
+  ~FileLoadRule() override;
   explicit FileLoadRule(bool allowed) : allowed_(allowed) {}
 
   // What does this rule say about this filename?
@@ -52,7 +52,7 @@ class FileLoadRule : public ManuallyRefCounted {
 
 class FileLoadRuleRegexp : public FileLoadRule {
  public:
-  virtual ~FileLoadRuleRegexp();
+  ~FileLoadRuleRegexp() override;
 
   // If allowed is true, whitelist filenames matching filename_regexp.
   // Otherwise blacklist them.
@@ -62,7 +62,7 @@ class FileLoadRuleRegexp : public FileLoadRule {
         filename_regexp_str_(filename_regexp)
   {}
 
-  virtual bool Match(const GoogleString& filename) const;
+  bool Match(const GoogleString& filename) const override;
 
  private:
   const RE2 filename_regexp_;
@@ -74,7 +74,7 @@ class FileLoadRuleRegexp : public FileLoadRule {
 
 class FileLoadRuleLiteral : public FileLoadRule {
  public:
-  virtual ~FileLoadRuleLiteral();
+  ~FileLoadRuleLiteral() override;
 
   // If allowed is true, whitelist filenames starting with filename_prefix.
   // Otherwise blacklist them.
@@ -82,7 +82,7 @@ class FileLoadRuleLiteral : public FileLoadRule {
       : FileLoadRule(allowed), filename_prefix_(filename_prefix)
   {}
 
-  virtual bool Match(const GoogleString& filename) const;
+  bool Match(const GoogleString& filename) const override;
 
  private:
   const GoogleString filename_prefix_;

@@ -47,15 +47,15 @@ class MessageHandler;
 class UrlMultipartEncoder : public UrlSegmentEncoder {
  public:
   UrlMultipartEncoder() {}
-  virtual ~UrlMultipartEncoder();
+  ~UrlMultipartEncoder() override;
 
-  virtual void Encode(const StringVector& urls, const ResourceContext* data,
-                      GoogleString* encoding) const;
+  void Encode(const StringVector& urls, const ResourceContext* data,
+                      GoogleString* encoding) const override;
 
-  virtual bool Decode(const StringPiece& url_segment,
+  bool Decode(const StringPiece& url_segment,
                       StringVector* urls,
                       ResourceContext* data,
-                      MessageHandler* handler) const;
+                      MessageHandler* handler) const override;
 
  private:
   StringVector urls_;

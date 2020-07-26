@@ -72,7 +72,7 @@ class JsCombineFilter : public RewriteFilter {
   // rewrite_driver is the context owning us, and filter_id is the ID we
   // are registered under.
   explicit JsCombineFilter(RewriteDriver* rewrite_driver);
-  virtual ~JsCombineFilter();
+  ~JsCombineFilter() override;
 
   // Registers the provided statistics variable names with 'statistics'.
   static void InitStats(Statistics* statistics);

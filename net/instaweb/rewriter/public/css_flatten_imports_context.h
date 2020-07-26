@@ -60,7 +60,7 @@ class CssFlattenImportsContext : public SingleRewriteContext {
   }
   ~CssFlattenImportsContext() override {}
 
-  virtual GoogleString CacheKeySuffix() const override {
+  GoogleString CacheKeySuffix() const override {
     // We have to include the media that applies to this context in its key
     // so that, if someone @import's the same file but with a different set
     // of media on the @import rule, we don't fetch the cached file, since

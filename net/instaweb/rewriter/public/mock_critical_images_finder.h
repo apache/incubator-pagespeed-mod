@@ -44,19 +44,19 @@ class MockCriticalImagesFinder : public TestCriticalImagesFinder {
                            Statistics* stats)
       : TestCriticalImagesFinder(cohort, stats), compute_calls_(0) {}
 
-  ~MockCriticalImagesFinder();
+  ~MockCriticalImagesFinder() override;
 
-  virtual Availability Available(RewriteDriver* driver) {
+  Availability Available(RewriteDriver* driver) override {
     return kAvailable;
   }
 
-  virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
+  void UpdateCriticalImagesSetInDriver(RewriteDriver* driver) override;
 
   // Extracts rendered image dimensions from property cache.
-  virtual RenderedImages* ExtractRenderedImageDimensionsFromCache(
-      RewriteDriver* driver);
+  RenderedImages* ExtractRenderedImageDimensionsFromCache(
+      RewriteDriver* driver) override;
 
-  virtual void ComputeCriticalImages(RewriteDriver* driver) {
+  void ComputeCriticalImages(RewriteDriver* driver) override {
     ++compute_calls_;
   }
 
@@ -74,7 +74,7 @@ class MockCriticalImagesFinder : public TestCriticalImagesFinder {
     rendered_images_.reset(rendered_images);
   }
 
-  virtual bool IsCriticalImageInfoPresent(RewriteDriver* driver) {
+  bool IsCriticalImageInfoPresent(RewriteDriver* driver) override {
     return true;
   }
 

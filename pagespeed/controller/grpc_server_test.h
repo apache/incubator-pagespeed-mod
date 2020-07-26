@@ -40,7 +40,7 @@ namespace net_instaweb {
 class GrpcServerTest : public testing::Test {
  public:
   GrpcServerTest();
-  virtual ~GrpcServerTest();
+  ~GrpcServerTest() override;
 
   // Binds server_ to the address returned by ListenAddress().
   void SetUp() override;
@@ -75,7 +75,7 @@ class GrpcServerTest : public testing::Test {
    public:
     GrpcServerThread(::grpc::CompletionQueue* queue,
                      ThreadSystem* thread_system);
-    virtual ~GrpcServerThread();
+    ~GrpcServerThread() override;
     void Stop();
 
    private:

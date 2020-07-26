@@ -40,7 +40,7 @@ class Timer;
 class FileSystemTest : public testing::Test {
  protected:
   FileSystemTest();
-  virtual ~FileSystemTest();
+  ~FileSystemTest() override;
 
   void CheckDoesNotExist(const GoogleString& filename);
 

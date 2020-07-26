@@ -43,7 +43,7 @@ class NotifyingFetch : public AsyncFetch {
                  const GoogleString& url,
                  WorkerTestBase::SyncPoint* sync,
                  ResponseHeaders* response_headers);
-  virtual ~NotifyingFetch();
+  ~NotifyingFetch() override;
 
   StringPiece content() { return content_; }
   bool done() { return done_; }

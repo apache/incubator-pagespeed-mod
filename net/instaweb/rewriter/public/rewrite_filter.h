@@ -39,7 +39,7 @@ class RewriteFilter : public CommonFilter {
   explicit RewriteFilter(RewriteDriver* driver)
       : CommonFilter(driver) {
   }
-  virtual ~RewriteFilter();
+  ~RewriteFilter() override;
 
   virtual const char* id() const = 0;
 

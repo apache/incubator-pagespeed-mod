@@ -31,7 +31,7 @@ namespace net_instaweb {
 class PthreadMutex : public ThreadSystem::CondvarCapableMutex {
  public:
   PthreadMutex();
-  virtual ~PthreadMutex();
+  ~PthreadMutex() override;
   bool TryLock() override;
   void Lock() override;
   void Unlock() override;

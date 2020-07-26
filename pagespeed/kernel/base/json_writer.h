@@ -50,7 +50,7 @@ class JsonWriter : public Writer {
   // of the writer
   JsonWriter(Writer* writer,
              const std::vector<ElementJsonPair>* element_json_stack);
-  virtual ~JsonWriter();
+  ~JsonWriter() override;
 
   bool Write(const StringPiece& str, MessageHandler* message_handler) override;
   bool Flush(MessageHandler* message_handler) override;

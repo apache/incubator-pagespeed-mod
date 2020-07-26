@@ -55,7 +55,7 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   static const char kNoscriptStylesClass[];
 
   explicit CriticalSelectorFilter(RewriteDriver* rewrite_driver);
-  virtual ~CriticalSelectorFilter();
+  ~CriticalSelectorFilter() override;
 
   const char* Name() const override { return "CriticalSelectorFilter"; }
   const char* id() const override { return "cl"; }
@@ -65,8 +65,8 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   // Inlining css from unauthorized domains into HTML is considered
   // safe because it does not cause any new content to be executed compared
   // to the unoptimized page.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const {
+  RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
+      const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
                semantic_type::kStylesheet) ?
            RewriteDriver::kInlineUnauthorizedResources :
@@ -95,7 +95,7 @@ class CriticalSelectorFilter : public CssSummarizerBase {
 
   // Since our computation depends on the selectors that are relevant to the
   // webpage, we incorporate them into the cache key as well.
-  virtual GoogleString CacheKeySuffix() const;
+  GoogleString CacheKeySuffix() const override;
 
   // Parser callbacks.
   void StartDocumentImpl() override;

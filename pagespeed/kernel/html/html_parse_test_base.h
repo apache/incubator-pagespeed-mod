@@ -48,7 +48,7 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
         write_to_string_(&output_buffer_),
         added_filter_(false) {
   }
-  virtual ~HtmlParseTestBaseNoAlloc();
+  ~HtmlParseTestBaseNoAlloc() override;
 
   // To make the tests more concise, we generally omit the <html>...</html>
   // tags bracketing the input.  The libxml parser will add those in
@@ -160,7 +160,7 @@ class HtmlParseTestBase : public HtmlParseTestBaseNoAlloc {
  public:
   HtmlParseTestBase() : html_parse_(&message_handler_) { }
  protected:
-  virtual HtmlParse* html_parse() { return &html_parse_; }
+  HtmlParse* html_parse() override { return &html_parse_; }
 
   HtmlParse html_parse_;
 

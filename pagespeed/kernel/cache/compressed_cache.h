@@ -38,7 +38,7 @@ class CompressedCache : public CacheInterface {
  public:
   // Does not takes ownership of cache or stats.
   CompressedCache(CacheInterface* cache, Statistics* stats);
-  virtual ~CompressedCache();
+  ~CompressedCache() override;
 
   static void InitStats(Statistics* stats);
 

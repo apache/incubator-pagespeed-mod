@@ -36,7 +36,7 @@ class DisableTestFilter : public EmptyHtmlFilter {
         is_enabled_(is_enabled),
         disabled_reason_(disabled_reason) {}
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  void DetermineEnabled(GoogleString* disabled_reason) override {
     set_is_enabled(is_enabled_);
     // Note that disabled_reason is always set, even if is_enabled is false.
     // This allows us to verify that it will be ignored when is_enabled is

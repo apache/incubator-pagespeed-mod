@@ -57,19 +57,19 @@ FrameSpec::DisposalMethod GifDisposalToFrameSpecDisposal(int gif_disposal);
 class GifReader : public PngReaderInterface {
  public:
   explicit GifReader(MessageHandler* handler);
-  virtual ~GifReader();
+  ~GifReader() override;
 
-  virtual bool ReadPng(const GoogleString& body,
+  bool ReadPng(const GoogleString& body,
                        png_structp png_ptr,
                        png_infop info_ptr,
                        int transforms,
-                       bool require_opaque) const;
+                       bool require_opaque) const override;
 
-  virtual bool GetAttributes(const GoogleString& body,
+  bool GetAttributes(const GoogleString& body,
                              int* out_width,
                              int* out_height,
                              int* out_bit_depth,
-                             int* out_color_type) const;
+                             int* out_color_type) const override;
 
  private:
   MessageHandler* message_handler_;
@@ -97,7 +97,7 @@ class GifReader : public PngReaderInterface {
 //   instantiate this class.
 class GifFrameReader : public MultipleFrameReader {
  public:
-  virtual ~GifFrameReader();
+  ~GifFrameReader() override;
 
   ScanlineStatus Reset() override;
 

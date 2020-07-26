@@ -62,7 +62,7 @@ class AsyncCache : public CacheInterface {
   // to the underlying cache (e.g. AprMemCache supports this), so we
   // take the pool as the constructor arg.
   AsyncCache(CacheInterface* cache, QueuedWorkerPool* pool);
-  virtual ~AsyncCache();
+  ~AsyncCache() override;
 
   void Get(const GoogleString& key, Callback* callback) override;
   void Put(const GoogleString& key, const SharedString& value) override;

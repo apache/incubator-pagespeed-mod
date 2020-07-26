@@ -54,7 +54,7 @@ class ImageTestBase : public testing::Test {
     message_handler_(new NullMutex) {
   }
 
-  virtual ~ImageTestBase();
+  ~ImageTestBase() override;
 
   // We use the output_type (ultimate expected output type after image
   // processing) to set up rewrite permissions for the resulting Image object.

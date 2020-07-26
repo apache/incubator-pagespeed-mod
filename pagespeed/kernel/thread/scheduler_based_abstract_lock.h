@@ -41,14 +41,14 @@ class Scheduler;
 // and their tests.
 class SchedulerBasedAbstractLock : public NamedLock {
  public:
-  virtual ~SchedulerBasedAbstractLock();
+  ~SchedulerBasedAbstractLock() override;
 
   virtual bool LockTimedWait(int64 wait_ms);
-  virtual void LockTimedWait(int64 wait_ms, Function* callback);
+  void LockTimedWait(int64 wait_ms, Function* callback) override;
 
   virtual bool LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms);
-  virtual void LockTimedWaitStealOld(
-      int64 wait_ms, int64 steal_ms, Function* callback);
+  void LockTimedWaitStealOld(
+      int64 wait_ms, int64 steal_ms, Function* callback) override;
 
  protected:
   friend class SharedMemLockManagerTestBase;

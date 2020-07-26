@@ -142,8 +142,8 @@ class MemberFunction0 : public MemberFunctionBase<C> {
       : MemberFunctionBase<C>(c), run_(f), cancel_(cancel) {}
 
  protected:
-  virtual void Run() { CALL_MEMBER_FN(object_, run_)(); }
-  virtual void Cancel() {
+  void Run() override { CALL_MEMBER_FN(object_, run_)(); }
+  void Cancel() override {
     if (cancel_ != NULL) {
       CALL_MEMBER_FN(object_, cancel_)();
     }
@@ -170,8 +170,8 @@ class MemberFunction1 : public MemberFunctionBase<C> {
       : MemberFunctionBase<C>(c), run_(f), cancel_(cancel), v1_(v1)  {}
 
  protected:
-  virtual void Run() { CALL_MEMBER_FN(object_, run_)(v1_); }
-  virtual void Cancel() {
+  void Run() override { CALL_MEMBER_FN(object_, run_)(v1_); }
+  void Cancel() override {
     if (cancel_ != NULL) {
       CALL_MEMBER_FN(object_, cancel_)(v1_);
     }
@@ -201,8 +201,8 @@ class MemberFunction2 : public MemberFunctionBase<C> {
         v1_(v1), v2_(v2)  {}
 
  protected:
-  virtual void Run() { CALL_MEMBER_FN(object_, run_)(v1_, v2_); }
-  virtual void Cancel() {
+  void Run() override { CALL_MEMBER_FN(object_, run_)(v1_, v2_); }
+  void Cancel() override {
     if (cancel_ != NULL) {
       CALL_MEMBER_FN(object_, cancel_)(v1_, v2_);
     }
@@ -235,8 +235,8 @@ class MemberFunction3 : public MemberFunctionBase<C> {
         v1_(v1), v2_(v2), v3_(v3)  {}
 
  protected:
-  virtual void Run() { CALL_MEMBER_FN(object_, run_)(v1_, v2_, v3_); }
-  virtual void Cancel() {
+  void Run() override { CALL_MEMBER_FN(object_, run_)(v1_, v2_, v3_); }
+  void Cancel() override {
     if (cancel_ != NULL) {
       CALL_MEMBER_FN(object_, cancel_)(v1_, v2_, v3_);
     }
@@ -270,8 +270,8 @@ class MemberFunction4 : public MemberFunctionBase<C> {
         v1_(v1), v2_(v2), v3_(v3), v4_(v4)  {}
 
  protected:
-  virtual void Run() { CALL_MEMBER_FN(object_, run_)(v1_, v2_, v3_, v4_); }
-  virtual void Cancel() {
+  void Run() override { CALL_MEMBER_FN(object_, run_)(v1_, v2_, v3_, v4_); }
+  void Cancel() override {
     if (cancel_ != NULL) {
       CALL_MEMBER_FN(object_, cancel_)(v1_, v2_, v3_, v4_);
     }

@@ -44,13 +44,13 @@ class CriticalImagesBeaconFilter : public CommonFilter {
   static const char kCriticalImagesBeaconAddedCount[];
 
   explicit CriticalImagesBeaconFilter(RewriteDriver* driver);
-  virtual ~CriticalImagesBeaconFilter();
+  ~CriticalImagesBeaconFilter() override;
 
   void DetermineEnabled(GoogleString* disabled_reason) override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl() { }
+  void StartDocumentImpl() override { }
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override { }
   void EndElementImpl(HtmlElement* element) override;

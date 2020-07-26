@@ -55,7 +55,7 @@ class AmpDocumentFilter : public EmptyHtmlFilter {
   // be allocated with NewPermanentCallback.  Ownership is tranferred to
   // the filter.
   AmpDocumentFilter(HtmlParse* html_parse, BoolCallback* discovered);
-  virtual ~AmpDocumentFilter();
+  ~AmpDocumentFilter() override;
 
   void StartDocument() override;
   void EndDocument() override;

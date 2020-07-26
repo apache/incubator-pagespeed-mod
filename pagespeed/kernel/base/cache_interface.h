@@ -106,7 +106,7 @@ class CacheInterface {
       set_value(empty);
     }
 
-    virtual void Done(CacheInterface::KeyState state) {
+    void Done(CacheInterface::KeyState state) override {
       called_ = true;
       state_ = state;
     }

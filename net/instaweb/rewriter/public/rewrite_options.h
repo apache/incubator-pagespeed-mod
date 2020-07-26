@@ -3051,7 +3051,7 @@ class RewriteOptions {
 
     OptionTemplateBase() : was_set_(false), property_(NULL) {}
 
-    virtual bool was_set() const { return was_set_; }
+    bool was_set() const override { return was_set_; }
 
     void set(const T& val) {
       was_set_ = true;
@@ -3072,7 +3072,7 @@ class RewriteOptions {
     // compared.  In RewriteOptions::Merge this is guaranteed because the
     // vector<OptionBase*> all_options_ is sorted on option_name().  We DCHECK
     // that the option_name of this and src are the same.
-    virtual void Merge(const OptionBase* src) {
+    void Merge(const OptionBase* src) override {
       DCHECK(option_name() == src->option_name());
       MergeHelper(static_cast<const OptionTemplateBase*>(src));
     }
@@ -3096,7 +3096,7 @@ class RewriteOptions {
       // default value out of properties_ when !was_set_;
       value_ = property->default_value();
     }
-    virtual const PropertyBase* property() const { return property_; }
+    const PropertyBase* property() const override { return property_; }
 
     // Sets a the option default value globally.  This is thread-unsafe,
     // and reaches into the option property_ field via a const-cast to
@@ -3141,8 +3141,8 @@ class RewriteOptions {
     Option() {}
 
     // Sets value_ from value_string.
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail) {
+    bool SetFromString(StringPiece value_string,
+                               GoogleString* error_detail) override {
       T value;
       bool success = RewriteOptions::ParseFromString(value_string, &value);
       if (success) {
@@ -3151,11 +3151,11 @@ class RewriteOptions {
       return success;
     }
 
-    virtual GoogleString Signature(const Hasher* hasher) const {
+    GoogleString Signature(const Hasher* hasher) const override {
       return RewriteOptions::OptionSignature(this->value(), hasher);
     }
 
-    virtual GoogleString ToString() const {
+    GoogleString ToString() const override {
       return RewriteOptions::ToString(this->value());
     }
 
@@ -3331,7 +3331,7 @@ class RewriteOptions {
           offset_(offset) {
     }
 
-    virtual void InitializeOption(RewriteOptions* options) const {
+    void InitializeOption(RewriteOptions* options) const override {
       RewriteOptionsSubclass* options_subclass =
           static_cast<RewriteOptionsSubclass*>(options);
       OptionClass& option = options_subclass->*offset_;
@@ -3350,8 +3350,8 @@ class RewriteOptions {
   // We need to check for valid settings with CacheFragment.
   class CacheFragmentOption : public Option<GoogleString> {
    public:
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail);
+    bool SetFromString(StringPiece value_string,
+                               GoogleString* error_detail) override;
   };
 
   struct OptionIdCompare;

@@ -64,7 +64,7 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
 
   RequestHeaders();
 
-  virtual void Clear();
+  void Clear() override;
   void CopyFromProto(const HttpRequestHeaders& p);
   void CopyFrom(const RequestHeaders& other);
 

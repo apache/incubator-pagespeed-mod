@@ -186,26 +186,26 @@ class PngReaderInterface {
 class PngScanlineReader : public ScanlineReaderInterface {
  public:
   explicit PngScanlineReader(MessageHandler* handler);
-  virtual ~PngScanlineReader();
+  ~PngScanlineReader() override;
 
   jmp_buf* GetJmpBuf();
 
   // This will only return false as a result of a longjmp due to an
   // unhandled libpng error.
-  virtual bool Reset();
+  bool Reset() override;
 
   // Initializes the read structures with the given input.
   bool InitializeRead(const PngReaderInterface& reader, const GoogleString& in);
   bool InitializeRead(const PngReaderInterface& reader, const GoogleString& in,
                       bool* is_opaque);
 
-  virtual size_t GetBytesPerScanline();
-  virtual bool HasMoreScanLines();
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
-  virtual size_t GetImageHeight();
-  virtual size_t GetImageWidth();
-  virtual PixelFormat GetPixelFormat();
-  virtual bool IsProgressive();
+  size_t GetBytesPerScanline() override;
+  bool HasMoreScanLines() override;
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
+  size_t GetImageHeight() override;
+  size_t GetImageWidth() override;
+  PixelFormat GetPixelFormat() override;
+  bool IsProgressive() override;
 
   void set_transform(int transform);
   void set_require_opaque(bool require_opaque);
@@ -214,8 +214,8 @@ class PngScanlineReader : public ScanlineReaderInterface {
       unsigned char* red, unsigned char* green, unsigned char* blue);
 
   // This is a no-op and should not be called.
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                              size_t buffer_length) override;
 
  private:
   ScopedPngStruct read_;
@@ -277,18 +277,18 @@ class PngOptimizer {
 class PngReader : public PngReaderInterface {
  public:
   explicit PngReader(MessageHandler* handler);
-  virtual ~PngReader();
-  virtual bool ReadPng(const GoogleString& body,
+  ~PngReader() override;
+  bool ReadPng(const GoogleString& body,
                        png_structp png_ptr,
                        png_infop info_ptr,
                        int transforms,
-                       bool require_opaque) const;
+                       bool require_opaque) const override;
 
-  virtual bool GetAttributes(const GoogleString& body,
+  bool GetAttributes(const GoogleString& body,
                              int* out_width,
                              int* out_height,
                              int* out_bit_depth,
-                             int* out_color_type) const;
+                             int* out_color_type) const override;
 
  private:
   MessageHandler* message_handler_;
@@ -313,32 +313,32 @@ class PngReader : public PngReaderInterface {
 class PngScanlineReaderRaw : public ScanlineReaderInterface {
  public:
   explicit PngScanlineReaderRaw(MessageHandler* handler);
-  virtual ~PngScanlineReaderRaw();
+  ~PngScanlineReaderRaw() override;
 
   // This will only return false as a result of a longjmp due to an
   // unhandled libpng error.
-  virtual bool Reset();
+  bool Reset() override;
 
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the last call to ReadNextScanline().
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                              size_t buffer_length) override;
 
   // Return the next row of pixels. For non-progressive PNG,
   // ReadNextScanlineWithStatus will decode one row of pixels each
   // time when it is called, but for progressive PNG,
   // ReadNextScanlineWithStatus will decode the entire image at the
   // first time when it is called.
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
 
   // Return the number of bytes in a row (without padding).
-  virtual size_t GetBytesPerScanline() { return bytes_per_row_; }
+  size_t GetBytesPerScanline() override { return bytes_per_row_; }
 
-  virtual bool HasMoreScanLines() { return (row_ < height_); }
-  virtual PixelFormat GetPixelFormat() { return pixel_format_; }
-  virtual size_t GetImageHeight() { return height_; }
-  virtual size_t GetImageWidth() {  return width_; }
-  virtual bool IsProgressive() { return is_progressive_; }
+  bool HasMoreScanLines() override { return (row_ < height_); }
+  PixelFormat GetPixelFormat() override { return pixel_format_; }
+  size_t GetImageHeight() override { return height_; }
+  size_t GetImageWidth() override {  return width_; }
+  bool IsProgressive() override { return is_progressive_; }
 
  private:
   PixelFormat pixel_format_;
@@ -365,27 +365,27 @@ class PngScanlineReaderRaw : public ScanlineReaderInterface {
 class PngScanlineWriter : public ScanlineWriterInterface {
  public:
   explicit PngScanlineWriter(MessageHandler* handler);
-  virtual ~PngScanlineWriter();
+  ~PngScanlineWriter() override;
 
   // Initialize the basic parameters for writing the image. Size of the image
   // must be 1-by-1 or larger.
-  virtual ScanlineStatus InitWithStatus(const size_t width, const size_t height,
-                                        PixelFormat pixel_format);
+  ScanlineStatus InitWithStatus(const size_t width, const size_t height,
+                                        PixelFormat pixel_format) override;
 
   // Initialize additional parameters for writing the image using
   // 'params', which should be a PngCompressParams*. You can set
   // 'params' to NULL to use the default compression configuration.
-  virtual ScanlineStatus InitializeWriteWithStatus(const void* params,
-                                                   GoogleString* png_image);
+  ScanlineStatus InitializeWriteWithStatus(const void* params,
+                                                   GoogleString* png_image) override;
 
   // Write a scanline with the data provided. Return false in case of error.
-  virtual ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes);
+  ScanlineStatus WriteNextScanlineWithStatus(
+      const void *scanline_bytes) override;
 
   // Finalize write structure once all scanlines are written.
   // If FinalizeWriter() is called before all of the scanlines have been
   // written, the object will be reset to the initial state.
-  virtual ScanlineStatus FinalizeWriteWithStatus();
+  ScanlineStatus FinalizeWriteWithStatus() override;
 
  private:
   // Reset the object to the usable state.

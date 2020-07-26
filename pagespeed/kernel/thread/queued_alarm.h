@@ -61,7 +61,7 @@ class QueuedAlarm : public Function {
   void CancelAlarm();
 
  private:
-  virtual ~QueuedAlarm();
+  ~QueuedAlarm() override;
 
   // Runs in an arbitrary thread.
   void Run() override;

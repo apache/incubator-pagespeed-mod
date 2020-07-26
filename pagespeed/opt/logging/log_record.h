@@ -359,7 +359,7 @@ class CopyOnWriteLogRecord : public LogRecord {
       : LogRecord(logging_mutex), logging_info_copy_(logging_info) {}
 
  protected:
-  virtual bool WriteLogImpl() {
+  bool WriteLogImpl() override {
     logging_info_copy_->CopyFrom(*logging_info());
     return true;
   }

@@ -71,7 +71,7 @@ class DeferIframeFilter : public CommonFilter {
   static const char kDeferIframeInit[];
   static const char kDeferIframeIframeJs[];
   explicit DeferIframeFilter(RewriteDriver* driver);
-  ~DeferIframeFilter();
+  ~DeferIframeFilter() override;
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;

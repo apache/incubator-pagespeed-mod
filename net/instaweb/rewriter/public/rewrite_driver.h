@@ -174,7 +174,7 @@ class RewriteDriver : public HtmlParse {
 
   // Need explicit destructors to allow destruction of scoped_ptr-controlled
   // instances without propagating the include files.
-  virtual ~RewriteDriver();
+  ~RewriteDriver() override;
 
   // Returns a fresh instance using the same options we do, using the same log
   // record. Drivers should only be cloned within the same request.
@@ -1773,11 +1773,11 @@ class RewriteDriver : public HtmlParse {
 // invalidation policy.
 class OptionsAwareHTTPCacheCallback : public HTTPCache::Callback {
  public:
-  virtual ~OptionsAwareHTTPCacheCallback();
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers);
-  virtual int64 OverrideCacheTtlMs(const GoogleString& key);
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const;
+  ~OptionsAwareHTTPCacheCallback() override;
+  bool IsCacheValid(const GoogleString& key,
+                            const ResponseHeaders& headers) override;
+  int64 OverrideCacheTtlMs(const GoogleString& key) override;
+  ResponseHeaders::VaryOption RespectVaryOnResources() const override;
 
   // Validates the specified response for the URL, request, given the specified
   // options.  This is for checking if cache response can still be used, not for

@@ -239,14 +239,14 @@ class Resource : public RefCounted<Resource> {
     explicit FreshenCallback(const ResourcePtr& resource)
         : AsyncCallback(resource) {}
 
-    virtual ~FreshenCallback();
+    ~FreshenCallback() override;
     // Returns NULL by default. Sublasses should override this if they want this
     // to be updated based on the response fetched while freshening.
     virtual InputInfo* input_info() { return NULL; }
 
     // This is called with resource_ok = true only if the hash of the fetched
     // response is the same as the hash in input_info()->input_content_hash().
-    virtual void Done(bool lock_failure, bool resource_ok) {
+    void Done(bool lock_failure, bool resource_ok) override {
       delete this;
     }
 

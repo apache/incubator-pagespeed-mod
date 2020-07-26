@@ -84,7 +84,7 @@ class LazyloadImagesFilter : public CommonFilter {
   static const char* kIsLazyloadScriptInsertedPropertyName;
 
   explicit LazyloadImagesFilter(RewriteDriver* driver);
-  virtual ~LazyloadImagesFilter();
+  ~LazyloadImagesFilter() override;
 
   const char* Name() const override { return "Lazyload Images"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }

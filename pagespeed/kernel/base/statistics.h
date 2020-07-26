@@ -258,34 +258,34 @@ class CountHistogram : public Histogram {
  public:
   // Takes ownership of mutex.
   explicit CountHistogram(AbstractMutex* mutex);
-  virtual ~CountHistogram();
-  virtual void Add(double value) {
+  ~CountHistogram() override;
+  void Add(double value) override {
     ScopedMutex hold(lock());
     ++count_;
   }
-  virtual void Clear() {
+  void Clear() override {
     ScopedMutex hold(lock());
     count_ = 0;
   }
-  virtual int NumBuckets() { return 0; }
-  virtual void EnableNegativeBuckets() { }
-  virtual void SetMinValue(double value) { }
-  virtual void SetMaxValue(double value) { }
-  virtual void SetSuggestedNumBuckets(int i) { }
+  int NumBuckets() override { return 0; }
+  void EnableNegativeBuckets() override { }
+  void SetMinValue(double value) override { }
+  void SetMaxValue(double value) override { }
+  void SetSuggestedNumBuckets(int i) override { }
   virtual GoogleString GetName() const { return ""; }
 
  protected:
-  virtual AbstractMutex* lock() LOCK_RETURNED(mutex_) { return mutex_.get(); }
-  virtual double AverageInternal() { return 0.0; }
-  virtual double PercentileInternal(const double perc) { return 0.0; }
-  virtual double StandardDeviationInternal() { return 0.0; }
-  virtual double CountInternal() EXCLUSIVE_LOCKS_REQUIRED(lock()) {
+  AbstractMutex* lock() override LOCK_RETURNED(mutex_) { return mutex_.get(); }
+  double AverageInternal() override { return 0.0; }
+  double PercentileInternal(const double perc) override { return 0.0; }
+  double StandardDeviationInternal() override { return 0.0; }
+  double CountInternal() override EXCLUSIVE_LOCKS_REQUIRED(lock()) {
     return count_;
   }
-  virtual double MaximumInternal() { return 0.0; }
-  virtual double MinimumInternal() { return 0.0; }
-  virtual double BucketStart(int index) { return 0.0; }
-  virtual double BucketCount(int index) { return 0.0; }
+  double MaximumInternal() override { return 0.0; }
+  double MinimumInternal() override { return 0.0; }
+  double BucketStart(int index) override { return 0.0; }
+  double BucketCount(int index) override { return 0.0; }
 
  private:
   std::unique_ptr<AbstractMutex> mutex_;
@@ -315,14 +315,14 @@ class TimedVariable {
 class FakeTimedVariable : public TimedVariable {
  public:
   FakeTimedVariable(StringPiece name, Statistics* stats);
-  virtual ~FakeTimedVariable();
+  ~FakeTimedVariable() override;
   // Update the stat value. delta is in milliseconds.
-  virtual void IncBy(int64 delta) {
+  void IncBy(int64 delta) override {
     var_->Add(delta);
   }
   // Get the amount added over the last time interval
   // specified by "level".
-  virtual int64 Get(int level) {
+  int64 Get(int level) override {
     // This is a default implementation. Variable can only return the
     // total value. This should be override in subclass if we want the
     // values for different levels.
@@ -332,7 +332,7 @@ class FakeTimedVariable : public TimedVariable {
     return 0;
   }
   // Throw away all data.
-  virtual void Clear() {
+  void Clear() override {
     return var_->Clear();
   }
 

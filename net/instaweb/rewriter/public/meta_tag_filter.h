@@ -41,7 +41,7 @@ class Variable;
 class MetaTagFilter : public CommonFilter {
  public:
   explicit MetaTagFilter(RewriteDriver* rewrite_driver);
-  virtual ~MetaTagFilter();
+  ~MetaTagFilter() override;
 
   static void InitStats(Statistics* stats);
 

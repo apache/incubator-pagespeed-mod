@@ -84,7 +84,7 @@ class RewriteOptionsTestBase : public HtmlParseTestBaseNoAlloc {
   RewriteOptionsTestBase() {
     RewriteOptions::Initialize();
   }
-  ~RewriteOptionsTestBase() {
+  ~RewriteOptionsTestBase() override {
     RewriteOptions::Terminate();
   }
 };
@@ -117,7 +117,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // MakeTestFactory.
   explicit RewriteTestBase(std::pair<TestRewriteDriverFactory*,
                                      TestRewriteDriverFactory*> factories);
-  virtual ~RewriteTestBase();
+  ~RewriteTestBase() override;
 
   void SetUp() override;
   void TearDown() override;

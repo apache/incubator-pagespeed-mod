@@ -30,9 +30,9 @@ namespace net_instaweb {
 
 class AprTimer : public Timer {
  public:
-  virtual ~AprTimer();
-  virtual int64 NowUs() const;
-  virtual void SleepUs(int64 us);
+  ~AprTimer() override;
+  int64 NowUs() const override;
+  void SleepUs(int64 us) override;
 };
 
 }  // namespace net_instaweb

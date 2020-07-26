@@ -101,7 +101,7 @@ class PopularityContestScheduleRewriteController
                                              Timer* timer,
                                              int max_running_rewrites,
                                              int max_queued_rewrites);
-  virtual ~PopularityContestScheduleRewriteController();
+  ~PopularityContestScheduleRewriteController() override;
 
   // ScheduleRewriteController interface.
   void ScheduleRewrite(const GoogleString& key, Function* callback) override;

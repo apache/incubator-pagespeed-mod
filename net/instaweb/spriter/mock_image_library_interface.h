@@ -37,7 +37,7 @@ class MockImageLibraryInterface : public ImageLibraryInterface {
    public:
     MockImage() : Image(NULL) {}
     MOCK_CONST_METHOD2(GetDimensions, bool(int* out_width, int* out_height));
-    virtual ~MockImage() {}
+    ~MockImage() override {}
    private:
     explicit MockImage(MockImageLibraryInterface* lib) : Image(lib) {}
   };
@@ -58,7 +58,7 @@ class MockImageLibraryInterface : public ImageLibraryInterface {
   class MockCanvas : public ImageLibraryInterface::Canvas {
    public:
     MockCanvas() : Canvas(NULL) {}
-    virtual ~MockCanvas() {}
+    ~MockCanvas() override {}
     MOCK_METHOD3(DrawImage, bool(const Image* image, int x, int y));
     MOCK_METHOD2(WriteToFile, bool(const FilePath& write_path,
                                    ImageFormat format));
@@ -66,7 +66,7 @@ class MockImageLibraryInterface : public ImageLibraryInterface {
 
   MOCK_METHOD2(CreateCanvas, Canvas* (int width, int height));
 
-  virtual ~MockImageLibraryInterface() {}
+  ~MockImageLibraryInterface() override {}
 };
 
 }  // namespace spriter

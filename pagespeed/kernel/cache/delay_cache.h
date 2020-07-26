@@ -50,7 +50,7 @@ class DelayCache : public CacheInterface {
  public:
   // Note: takes ownership of nothing.
   DelayCache(CacheInterface* cache, ThreadSystem* thread_system);
-  virtual ~DelayCache();
+  ~DelayCache() override;
 
   // Reimplementations of CacheInterface methods.
   void Get(const GoogleString& key, Callback* callback) override;

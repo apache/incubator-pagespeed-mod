@@ -148,12 +148,12 @@ class HtmlLeafNode : public HtmlNode {
 // Leaf node representing a CDATA section
 class HtmlCdataNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlCdataNode();
+  ~HtmlCdataNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                                HtmlEventList* queue) override;
 
  private:
   HtmlCdataNode(HtmlElement* parent,
@@ -168,7 +168,7 @@ class HtmlCdataNode : public HtmlLeafNode {
 // Leaf node representing raw characters in HTML
 class HtmlCharactersNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlCharactersNode();
+  ~HtmlCharactersNode() override;
   void Append(const StringPiece& str) {
     mutable_contents()->append(str.data(), str.size());
   }
@@ -178,8 +178,8 @@ class HtmlCharactersNode : public HtmlLeafNode {
   using HtmlLeafNode::mutable_contents;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                                HtmlEventList* queue) override;
 
  private:
   HtmlCharactersNode(HtmlElement* parent,
@@ -194,12 +194,12 @@ class HtmlCharactersNode : public HtmlLeafNode {
 // Leaf node representing an HTML comment
 class HtmlCommentNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlCommentNode();
+  ~HtmlCommentNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                                HtmlEventList* queue) override;
 
  private:
   HtmlCommentNode(HtmlElement* parent,
@@ -214,12 +214,12 @@ class HtmlCommentNode : public HtmlLeafNode {
 // Leaf node representing an HTML IE directive
 class HtmlIEDirectiveNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlIEDirectiveNode();
+  ~HtmlIEDirectiveNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                                HtmlEventList* queue) override;
 
  private:
   HtmlIEDirectiveNode(HtmlElement* parent,
@@ -234,12 +234,12 @@ class HtmlIEDirectiveNode : public HtmlLeafNode {
 // Leaf node representing an HTML directive
 class HtmlDirectiveNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlDirectiveNode();
+  ~HtmlDirectiveNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                                HtmlEventList* queue) override;
 
  private:
   HtmlDirectiveNode(HtmlElement* parent,

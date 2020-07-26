@@ -508,7 +508,7 @@ class RewriteDriverFactory {
 template<class T> class RewriteDriverFactory::Deleter : public Function {
  public:
   explicit Deleter(T* obj) : obj_(obj) {}
-  virtual void Run() { delete obj_; }
+  void Run() override { delete obj_; }
  private:
   T* obj_;
   DISALLOW_COPY_AND_ASSIGN(Deleter);

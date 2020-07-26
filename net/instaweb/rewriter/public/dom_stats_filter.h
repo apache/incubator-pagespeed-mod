@@ -36,7 +36,7 @@ class RewriteDriver;
 class DomStatsFilter : public CommonFilter {
  public:
   explicit DomStatsFilter(RewriteDriver* driver);
-  virtual ~DomStatsFilter();
+  ~DomStatsFilter() override;
 
   // Clears all state associated with the filter.
   void Clear();

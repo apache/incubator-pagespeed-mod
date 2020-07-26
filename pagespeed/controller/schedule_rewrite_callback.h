@@ -54,14 +54,14 @@ class ScheduleRewriteCallback
  public:
   explicit ScheduleRewriteCallback(const GoogleString& key,
                                    Sequence* sequence);
-  virtual ~ScheduleRewriteCallback();
+  ~ScheduleRewriteCallback() override;
 
   const GoogleString& key() { return key_; }
 
  private:
   // CentralControllerCallback interface.
-  virtual void RunImpl(std::unique_ptr<ScheduleRewriteContext>* context) = 0;
-  virtual void CancelImpl() = 0;
+  void RunImpl(std::unique_ptr<ScheduleRewriteContext>* context) override = 0;
+  void CancelImpl() override = 0;
 
   GoogleString key_;
 

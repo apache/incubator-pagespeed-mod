@@ -42,7 +42,7 @@ class RewriteDriver;
 class ScanFilter : public EmptyHtmlFilter {
  public:
   explicit ScanFilter(RewriteDriver* driver);
-  virtual ~ScanFilter();
+  ~ScanFilter() override;
 
   void StartDocument() override;
   void StartElement(HtmlElement* element) override;

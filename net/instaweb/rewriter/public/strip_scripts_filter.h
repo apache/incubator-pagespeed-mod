@@ -32,7 +32,7 @@ class HtmlParse;
 class StripScriptsFilter : public EmptyHtmlFilter {
  public:
   explicit StripScriptsFilter(HtmlParse* html_parse);
-  virtual ~StripScriptsFilter();
+  ~StripScriptsFilter() override;
 
   void EndElement(HtmlElement* element) override;
   const char* Name() const override { return "StripScripts"; }

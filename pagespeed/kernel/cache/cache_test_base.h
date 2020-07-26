@@ -47,7 +47,7 @@ class CacheTestBase : public testing::Test {
    public:
     explicit Callback(CacheTestBase* test) : test_(test) { Reset(); }
     Callback() : test_(NULL) { Reset(); }
-    virtual ~Callback() {}
+    ~Callback() override {}
     Callback* Reset() {
       SynchronousCallback::Reset();
       validate_called_ = false;
@@ -58,8 +58,8 @@ class CacheTestBase : public testing::Test {
       return this;
     }
 
-    virtual bool ValidateCandidate(const GoogleString& key,
-                                   CacheInterface::KeyState state) {
+    bool ValidateCandidate(const GoogleString& key,
+                                   CacheInterface::KeyState state) override {
       validate_called_ = true;
       if ((invalid_value_ != NULL) && (value_str() == invalid_value_)) {
         return false;
@@ -70,7 +70,7 @@ class CacheTestBase : public testing::Test {
       return true;
     }
 
-    virtual void Done(CacheInterface::KeyState state) {
+    void Done(CacheInterface::KeyState state) override {
       SynchronousCallback::Done(state);
       EXPECT_TRUE(validate_called_);
       if (test_ != NULL) {
@@ -109,7 +109,7 @@ class CacheTestBase : public testing::Test {
         mutex_(new NullMutex),
         outstanding_fetches_(0) {
   }
-  ~CacheTestBase() {
+  ~CacheTestBase() override {
     STLDeleteElements(&callbacks_);
   }
 

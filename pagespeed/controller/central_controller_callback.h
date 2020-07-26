@@ -63,7 +63,7 @@ namespace net_instaweb {
 template <typename TransactionContext>
 class CentralControllerCallback : public Function {
  public:
-  virtual ~CentralControllerCallback();
+  ~CentralControllerCallback() override;
 
   // Called by the CentralController at some point before Run or Cancel.
   // Takes ownership of the transaction context.
@@ -77,8 +77,8 @@ class CentralControllerCallback : public Function {
   // Function interface. These will be invoked on the RPC thread, so must be
   // quick. They just enqueue calls on sequence_ to the actual implementations
   // (RunAfterRequeue & CancelAfterRequeue).
-  virtual void Run() /* override */;
-  virtual void Cancel() /* override */;
+  void Run() override /* override */;
+  void Cancel() override /* override */;
 
  private:
   // Subclasses should implement whatever functionality they need in these.

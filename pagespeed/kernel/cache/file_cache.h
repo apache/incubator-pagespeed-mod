@@ -62,7 +62,7 @@ class FileCache : public CacheInterface {
   FileCache(const GoogleString& path, FileSystem* file_system,
             ThreadSystem* thread_system, SlowWorker* worker,
             CachePolicy* policy, Statistics* stats, MessageHandler* handler);
-  virtual ~FileCache();
+  ~FileCache() override;
 
   static void InitStats(Statistics* statistics);
 

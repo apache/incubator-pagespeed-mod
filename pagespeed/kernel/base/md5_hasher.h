@@ -34,10 +34,10 @@ class MD5Hasher : public Hasher {
 
   MD5Hasher() : Hasher(kDefaultHashSize) {}
   explicit MD5Hasher(int hash_size) : Hasher(hash_size) { }
-  virtual ~MD5Hasher();
+  ~MD5Hasher() override;
 
-  virtual GoogleString RawHash(const StringPiece& content) const;
-  virtual int RawHashSizeInBytes() const;
+  GoogleString RawHash(const StringPiece& content) const override;
+  int RawHashSizeInBytes() const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MD5Hasher);

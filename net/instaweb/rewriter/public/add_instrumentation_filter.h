@@ -46,7 +46,7 @@ class AddInstrumentationFilter : public CommonFilter {
   static const char kInstrumentationScriptAddedCount[];
 
   explicit AddInstrumentationFilter(RewriteDriver* driver);
-  virtual ~AddInstrumentationFilter();
+  ~AddInstrumentationFilter() override;
 
   static void InitStats(Statistics* statistics);
 

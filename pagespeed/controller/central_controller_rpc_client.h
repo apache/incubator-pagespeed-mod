@@ -60,7 +60,7 @@ class CentralControllerRpcClient : public CentralController {
                              int panic_threshold, ThreadSystem* thread_system,
                              Timer* timer, Statistics* statistics,
                              MessageHandler* handler);
-  virtual ~CentralControllerRpcClient();
+  ~CentralControllerRpcClient() override;
 
   // CentralController implementation.
   void ScheduleExpensiveOperation(

@@ -57,7 +57,7 @@ class SharedMemLockManager : public NamedLockManager {
   SharedMemLockManager(
       AbstractSharedMem* shm, const GoogleString& path, Scheduler* scheduler,
       Hasher* hasher, MessageHandler* handler);
-  virtual ~SharedMemLockManager();
+  ~SharedMemLockManager() override;
 
   // Sets up our shared state for use of all child processes. Returns
   // whether successful.

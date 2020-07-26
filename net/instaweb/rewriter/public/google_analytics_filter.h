@@ -113,7 +113,7 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
 
   explicit GoogleAnalyticsFilter(HtmlParse* html_parse,
                                  Statistics* statistics);
-  virtual ~GoogleAnalyticsFilter();
+  ~GoogleAnalyticsFilter() override;
 
   // The filter will take ownership of the method vectors.
   explicit GoogleAnalyticsFilter(HtmlParse* html_parse,

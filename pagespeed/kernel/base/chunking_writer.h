@@ -37,7 +37,7 @@ class ChunkingWriter : public Writer {
   // If the flush_limit is <= 0 no extra flushing will be performed.
   // This does NOT take ownership of passed-in writer.
   ChunkingWriter(Writer* writer, int flush_limit);
-  virtual ~ChunkingWriter();
+  ~ChunkingWriter() override;
 
   bool Write(const StringPiece& str, MessageHandler* handler) override;
   bool Flush(MessageHandler* handler) override;

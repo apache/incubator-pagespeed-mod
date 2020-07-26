@@ -57,7 +57,7 @@ class CssSummarizerBase : public RewriteFilter {
   static const char kNumCssNotUsedForCriticalCssComputation[];
 
   explicit CssSummarizerBase(RewriteDriver* driver);
-  virtual ~CssSummarizerBase();
+  ~CssSummarizerBase() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -208,7 +208,7 @@ class CssSummarizerBase : public RewriteFilter {
   void StartElementImpl(HtmlElement* element) override;
   void Characters(HtmlCharactersNode* characters) override;
   void EndElementImpl(HtmlElement* element) override;
-  virtual void RenderDone();
+  void RenderDone() override;
 
   RewriteContext* MakeRewriteContext() override;
 

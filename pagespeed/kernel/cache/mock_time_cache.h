@@ -44,7 +44,7 @@ class MockTimeCache : public CacheInterface {
  public:
   // Note: takes ownership of nothing.
   MockTimeCache(Scheduler* scheduler, CacheInterface* cache);
-  virtual ~MockTimeCache();
+  ~MockTimeCache() override;
 
   // Reimplementations of CacheInterface methods.
   void Get(const GoogleString& key, Callback* callback) override;

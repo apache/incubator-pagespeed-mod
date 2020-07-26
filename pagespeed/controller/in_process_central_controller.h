@@ -43,7 +43,7 @@ class InProcessCentralController : public CentralController {
       ExpensiveOperationController* expensive_operation_controller,
       ScheduleRewriteController* schedule_rewrite_controller);
 
-  virtual ~InProcessCentralController();
+  ~InProcessCentralController() override;
 
   void ScheduleExpensiveOperation(
       ExpensiveOperationCallback* callback) override;

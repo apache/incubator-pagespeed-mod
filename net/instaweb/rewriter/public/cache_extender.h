@@ -54,7 +54,7 @@ class CacheExtender : public RewriteFilter {
   static const char kNotCacheable[];
 
   explicit CacheExtender(RewriteDriver* driver);
-  virtual ~CacheExtender();
+  ~CacheExtender() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -71,7 +71,7 @@ class CacheExtender : public RewriteFilter {
                                     const ResourceSlotPtr& slot);
 
  protected:
-  virtual bool ComputeOnTheFly() const;
+  bool ComputeOnTheFly() const override;
   RewriteContext* MakeRewriteContext() override;
 
  private:

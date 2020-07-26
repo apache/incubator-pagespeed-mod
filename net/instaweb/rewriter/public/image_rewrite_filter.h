@@ -112,7 +112,7 @@ class ImageRewriteFilter : public RewriteFilter {
   static const int kRelatedFiltersSize;
 
   explicit ImageRewriteFilter(RewriteDriver* driver);
-  virtual ~ImageRewriteFilter();
+  ~ImageRewriteFilter() override;
   static void InitStats(Statistics* statistics);
   static void Initialize();
   static void Terminate();

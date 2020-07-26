@@ -37,7 +37,7 @@ class GoogleFontCssInlineFilter : public CssInlineFilter {
  public:
   // Note: this also registers our resource url claimant with the driver.
   explicit GoogleFontCssInlineFilter(RewriteDriver* driver);
-  virtual ~GoogleFontCssInlineFilter();
+  ~GoogleFontCssInlineFilter() override;
 
   static void InitStats(Statistics* statistics);
 

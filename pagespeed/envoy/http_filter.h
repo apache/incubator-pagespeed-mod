@@ -35,7 +35,7 @@ class HttpPageSpeedDecoderFilter : public StreamFilter {
 public:
   HttpPageSpeedDecoderFilter(HttpPageSpeedDecoderFilterConfigSharedPtr,
                              net_instaweb::EnvoyServerContext*);
-  ~HttpPageSpeedDecoderFilter();
+  ~HttpPageSpeedDecoderFilter() override;
 
   // Http::StreamFilterBase
   void onDestroy() override;

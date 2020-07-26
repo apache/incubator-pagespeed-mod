@@ -51,7 +51,7 @@ class DedupInlinedImagesFilter : public CommonFilter {
   static const char kCandidatesReplaced[];  // No. of those replaced with JS.
 
   explicit DedupInlinedImagesFilter(RewriteDriver* driver);
-  virtual ~DedupInlinedImagesFilter();
+  ~DedupInlinedImagesFilter() override;
 
   // May be called multiple times, if there are multiple statistics objects.
   static void InitStats(Statistics* statistics);

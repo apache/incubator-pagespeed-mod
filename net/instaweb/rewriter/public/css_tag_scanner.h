@@ -153,9 +153,9 @@ class RewriteDomainTransformer : public CssTagScanner::Transformer {
                            const ServerContext* server_context,
                            const RewriteOptions* options,
                            MessageHandler* handler);
-  virtual ~RewriteDomainTransformer();
+  ~RewriteDomainTransformer() override;
 
-  virtual TransformStatus Transform(GoogleString* str);
+  TransformStatus Transform(GoogleString* str) override;
 
   void set_trim_urls(bool x) { trim_urls_ = x; }
 

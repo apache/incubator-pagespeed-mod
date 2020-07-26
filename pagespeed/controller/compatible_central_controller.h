@@ -39,7 +39,7 @@ class CompatibleCentralController : public InProcessCentralController {
                               ThreadSystem* thread_system,
                               NamedLockManager* lock_manager);
 
-  virtual ~CompatibleCentralController();
+  ~CompatibleCentralController() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CompatibleCentralController);

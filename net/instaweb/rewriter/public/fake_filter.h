@@ -81,7 +81,7 @@ class FakeFilter : public RewriteFilter {
         num_calls_to_encode_user_agent_(0),
         category_(category) {}
 
-  virtual ~FakeFilter();
+  ~FakeFilter() override;
 
   void StartDocumentImpl() override {}
   void EndElementImpl(HtmlElement* element) override {}

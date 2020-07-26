@@ -111,7 +111,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   TestRewriteDriverFactory(const ProcessContext& process_context,
                            const StringPiece& temp_dir,
                            MockUrlFetcher* mock_fetcher);
-  virtual ~TestRewriteDriverFactory();
+  ~TestRewriteDriverFactory() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -157,7 +157,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   }
 
   // By default this is false, but can be reset.
-  virtual bool UseBeaconResultsInFilters() const {
+  bool UseBeaconResultsInFilters() const override {
     return use_beacon_results_in_filters_;
   }
 
@@ -176,14 +176,14 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   }
 
   // Note that this disables ajax rewriting by default.
-  virtual RewriteOptions* NewRewriteOptions();
+  RewriteOptions* NewRewriteOptions() override;
 
   // Note that this enables html proxying.
-  virtual ServerContext* NewServerContext();
+  ServerContext* NewServerContext() override;
 
-  virtual ServerContext* NewDecodingServerContext();
+  ServerContext* NewDecodingServerContext() override;
 
-  virtual bool IsDebugClient(const GoogleString& ip) const {
+  bool IsDebugClient(const GoogleString& ip) const override {
     return ip == "127.0.0.1";
   }
 
@@ -213,20 +213,20 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   }
 
  protected:
-  virtual Hasher* NewHasher();
-  virtual MessageHandler* DefaultHtmlParseMessageHandler();
-  virtual MessageHandler* DefaultMessageHandler();
-  virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
-  virtual FileSystem* DefaultFileSystem();
-  virtual NonceGenerator* DefaultNonceGenerator();
-  virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* server_context);
-  virtual UrlNamer* DefaultUrlNamer();
-  virtual Scheduler* CreateScheduler();
-  virtual void AddPlatformSpecificDecodingPasses(RewriteDriver* driver);
-  virtual void AddPlatformSpecificRewritePasses(RewriteDriver* driver);
-  virtual void ApplyPlatformSpecificConfiguration(RewriteDriver* driver);
-  virtual NamedLockManager* DefaultLockManager();
+  Hasher* NewHasher() override;
+  MessageHandler* DefaultHtmlParseMessageHandler() override;
+  MessageHandler* DefaultMessageHandler() override;
+  UrlAsyncFetcher* DefaultAsyncUrlFetcher() override;
+  FileSystem* DefaultFileSystem() override;
+  NonceGenerator* DefaultNonceGenerator() override;
+  Timer* DefaultTimer() override;
+  void SetupCaches(ServerContext* server_context) override;
+  UrlNamer* DefaultUrlNamer() override;
+  Scheduler* CreateScheduler() override;
+  void AddPlatformSpecificDecodingPasses(RewriteDriver* driver) override;
+  void AddPlatformSpecificRewritePasses(RewriteDriver* driver) override;
+  void ApplyPlatformSpecificConfiguration(RewriteDriver* driver) override;
+  NamedLockManager* DefaultLockManager() override;
 
  private:
   MockTimer* mock_timer_;  // owned by base class timer_.

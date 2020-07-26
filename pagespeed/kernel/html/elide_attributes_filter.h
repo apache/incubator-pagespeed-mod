@@ -36,7 +36,7 @@ class HtmlParse;
 class ElideAttributesFilter : public EmptyHtmlFilter {
  public:
   explicit ElideAttributesFilter(HtmlParse* html_parse);
-  virtual ~ElideAttributesFilter();
+  ~ElideAttributesFilter() override;
 
   void StartElement(HtmlElement* element) override;
   const char* Name() const override { return "ElideAttributes"; }

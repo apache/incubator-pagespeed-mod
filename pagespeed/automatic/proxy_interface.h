@@ -52,7 +52,7 @@ class ProxyInterface : public UrlAsyncFetcher {
  public:
   ProxyInterface(StringPiece stats_prefix, StringPiece hostname, int port,
                  ServerContext* server_context, Statistics* stats);
-  virtual ~ProxyInterface();
+  ~ProxyInterface() override;
 
   // Initializes statistics variables associated with this class.
   static void InitStats(StringPiece stats_prefix, Statistics* statistics);

@@ -79,7 +79,7 @@ class ResponsiveImageFirstFilter : public CommonFilter {
   static const char kFullsizedVirtualImage[];
 
   explicit ResponsiveImageFirstFilter(RewriteDriver* driver);
-  virtual ~ResponsiveImageFirstFilter();
+  ~ResponsiveImageFirstFilter() override;
 
   void StartElementImpl(HtmlElement* element) override {}
   void StartDocumentImpl() override;
@@ -106,7 +106,7 @@ class ResponsiveImageSecondFilter : public CommonFilter {
  public:
   ResponsiveImageSecondFilter(
       RewriteDriver* driver, const ResponsiveImageFirstFilter* first_filter);
-  virtual ~ResponsiveImageSecondFilter();
+  ~ResponsiveImageSecondFilter() override;
 
   void StartElementImpl(HtmlElement* element) override {}
   void StartDocumentImpl() override;

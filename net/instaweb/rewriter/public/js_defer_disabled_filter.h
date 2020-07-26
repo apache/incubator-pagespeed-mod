@@ -39,7 +39,7 @@ class Statistics;
 class JsDeferDisabledFilter : public CommonFilter {
  public:
   explicit JsDeferDisabledFilter(RewriteDriver* driver);
-  virtual ~JsDeferDisabledFilter();
+  ~JsDeferDisabledFilter() override;
 
   void DetermineEnabled(GoogleString* disabled_reason) override;
   const char* Name() const override { return "JsDeferDisabledFilter"; }

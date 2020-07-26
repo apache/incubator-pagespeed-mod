@@ -41,10 +41,10 @@ public:
   explicit EnvoyMessageHandler(Timer* timer, AbstractMutex* mutex);
 
 protected:
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageSImpl(MessageType type, const char* file, int line,
-                                const GoogleString& message);
+  void FileMessageSImpl(MessageType type, const char* file, int line,
+                                const GoogleString& message) override;
 
 private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyMessageHandler);

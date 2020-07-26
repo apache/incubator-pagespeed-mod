@@ -38,7 +38,7 @@ class Statistics;
 class UrlInputResource : public CacheableResourceBase {
  public:
   // Created only from RewriteDriver::CreateInputResource*
-  virtual ~UrlInputResource();
+  ~UrlInputResource() override;
 
   static void InitStats(Statistics* stats);
 
@@ -50,8 +50,8 @@ class UrlInputResource : public CacheableResourceBase {
                    const StringPiece& url,
                    bool is_authorized_domain);
 
-  virtual void PrepareRequest(const RequestContextPtr& request_context,
-                              RequestHeaders* headers);
+  void PrepareRequest(const RequestContextPtr& request_context,
+                              RequestHeaders* headers) override;
 
   // If the resource is from a domain that is not explicitly authorized,
   // the domain for the resource is stored in origin_ by the constructor

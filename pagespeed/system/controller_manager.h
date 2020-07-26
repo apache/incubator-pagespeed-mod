@@ -79,7 +79,7 @@ class ControllerManager {
                               ControllerProcess* process,
                               MessageHandler* handler);
 
-    ~ProcessDeathWatcherThread();
+    ~ProcessDeathWatcherThread() override;
 
     void Run() override;
 

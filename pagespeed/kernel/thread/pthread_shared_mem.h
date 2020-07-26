@@ -42,18 +42,18 @@ class MessageHandler;
 class PthreadSharedMem : public AbstractSharedMem {
  public:
   PthreadSharedMem();
-  virtual ~PthreadSharedMem();
+  ~PthreadSharedMem() override;
 
-  virtual size_t SharedMutexSize() const;
+  size_t SharedMutexSize() const override;
 
-  virtual AbstractSharedMemSegment* CreateSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler);
+  AbstractSharedMemSegment* CreateSegment(
+      const GoogleString& name, size_t size, MessageHandler* handler) override;
 
-  virtual AbstractSharedMemSegment* AttachToSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler);
+  AbstractSharedMemSegment* AttachToSegment(
+      const GoogleString& name, size_t size, MessageHandler* handler) override;
 
-  virtual void DestroySegment(const GoogleString& name,
-                              MessageHandler* handler);
+  void DestroySegment(const GoogleString& name,
+                              MessageHandler* handler) override;
 
   // Frees all lazy-initialized memory used to track shared-memory segments.
   static void Terminate();

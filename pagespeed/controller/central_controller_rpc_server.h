@@ -47,7 +47,7 @@ class CentralControllerRpcServer : public ControllerProcess {
       ExpensiveOperationController* expensive_operation_controller,
       ScheduleRewriteController* rewrite_controller,
       MessageHandler* handler);
-  virtual ~CentralControllerRpcServer() { }
+  ~CentralControllerRpcServer() override { }
 
   // ControllerProcess implementation.
   int Setup() override;

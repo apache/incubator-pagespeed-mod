@@ -48,7 +48,7 @@ class HashedNonceGenerator : public NonceGenerator {
   // Takes ownership of mutex, but not of hasher.
   HashedNonceGenerator(
       const Hasher* hasher, StringPiece key, AbstractMutex* mutex);
-  virtual ~HashedNonceGenerator();
+  ~HashedNonceGenerator() override;
 
  protected:
   uint64 NewNonceImpl() override;

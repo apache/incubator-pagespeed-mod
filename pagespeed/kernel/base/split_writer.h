@@ -36,15 +36,15 @@ class SplitWriter : public Writer {
       : writer1_(sub_writer1), writer2_(sub_writer2) {
   }
 
-  virtual ~SplitWriter();
+  ~SplitWriter() override;
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     bool ret = writer1_->Write(str, handler);
     ret &= writer2_->Write(str, handler);
     return ret;
   }
 
-  virtual bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     bool ret = writer1_->Flush(handler);
     ret &= writer2_->Flush(handler);
     return ret;
