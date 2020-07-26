@@ -99,10 +99,10 @@ class QueuedAlarmTest : public WorkerTestBase {
     MakeSequence();
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<Timer> timer_;
-  scoped_ptr<Scheduler> scheduler_;
-  scoped_ptr<QueuedWorkerPool> worker_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<Timer> timer_;
+  std::unique_ptr<Scheduler> scheduler_;
+  std::unique_ptr<QueuedWorkerPool> worker_;
   QueuedWorkerPool::Sequence* sequence_;
   bool done_, cancel_;
 

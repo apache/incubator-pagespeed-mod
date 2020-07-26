@@ -186,7 +186,7 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
 
   int GetStatusCodeInPropertyCache(const GoogleString& url) {
     PropertyCache* pcache = page_property_cache();
-    scoped_ptr<MockPropertyPage> page(NewMockPage(
+    std::unique_ptr<MockPropertyPage> page(NewMockPage(
         url,
         server_context()->GetRewriteOptionsSignatureHash(
             server_context()->global_options()),
@@ -241,7 +241,7 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
             server_context()->thread_system()));
     RequestHeaders request_headers;
     callback.set_request_headers(&request_headers);
-    scoped_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
+    std::unique_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
         proxy_interface_->InitiatePropertyCacheLookup(
             false, gurl, options(), &callback));
 
@@ -309,7 +309,7 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
                  get_headers.ToString());
   }
 
-  scoped_ptr<BackgroundFetchCheckingUrlAsyncFetcher> background_fetch_fetcher_;
+  std::unique_ptr<BackgroundFetchCheckingUrlAsyncFetcher> background_fetch_fetcher_;
   int64 start_time_ms_;
   GoogleString start_time_string_;
   GoogleString start_time_plus_300s_string_;
@@ -466,7 +466,7 @@ TEST_F(ProxyInterfaceTest, SkipPropertyCacheLookupIfUrlBlacklisted) {
   headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
   headers.SetStatusAndReason(HttpStatus::kOK);
 
-  scoped_ptr<RewriteOptions> custom_options(
+  std::unique_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
 
   custom_options->AddRejectedUrlWildcard(AbsolutifyUrl("blacklist*"));
@@ -547,7 +547,7 @@ TEST_F(ProxyInterfaceTest, RedirectRequestWhenDomainRewriterEnabled) {
   set_headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
   set_headers.Add(HttpAttributes::kLocation, "http://m.example.com");
   set_headers.SetStatusAndReason(HttpStatus::kFound);
-  scoped_ptr<RewriteOptions> custom_options(
+  std::unique_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
   custom_options->EnableFilter(RewriteOptions::kRewriteDomains);
   custom_options->WriteableDomainLawyer()->AddTwoProtocolRewriteDomainMapping(
@@ -582,7 +582,7 @@ TEST_F(ProxyInterfaceTest, RewriteDomainForRedirectsAndCookiesWithEmptyBody) {
   set_headers.Add(HttpAttributes::kSetCookie,
                   "a=b; domain=m.example.com; HttpOnly");
   set_headers.SetStatusAndReason(HttpStatus::kFound);
-  scoped_ptr<RewriteOptions> custom_options(
+  std::unique_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
   custom_options->EnableFilter(RewriteOptions::kRewriteDomains);
   custom_options->WriteableDomainLawyer()->AddTwoProtocolRewriteDomainMapping(
@@ -732,7 +732,7 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedUrls) {
   text.clear();
   response_headers.Clear();
 
-  scoped_ptr<RewriteOptions> custom_options(
+  std::unique_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
 
   custom_options->AddRejectedUrlWildcard(AbsolutifyUrl("block*"));
@@ -754,7 +754,7 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedHeaders) {
   ResponseHeaders response_headers;
   response_headers.SetStatusAndReason(HttpStatus::kOK);
   mock_url_fetcher_.SetResponse(kTestDomain, response_headers, "<html></html>");
-  scoped_ptr<RewriteOptions> custom_options(
+  std::unique_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
 
   custom_options->AddRejectedHeaderWildcard(HttpAttributes::kUserAgent,
@@ -1269,7 +1269,7 @@ TEST_F(ProxyInterfaceTest, InvalidationForCacheableHtml) {
   EXPECT_EQ(2, lru_cache()->num_misses());
 
   // Invalidate the cache.
-  scoped_ptr<RewriteOptions> custom_options(
+  std::unique_ptr<RewriteOptions> custom_options(
       server_context()->global_options()->Clone());
   custom_options->UpdateCacheInvalidationTimestampMs(timer()->NowMs());
   SetRewriteOptions(custom_options.get());
@@ -1367,7 +1367,7 @@ TEST_F(ProxyInterfaceTest, UrlInvalidationForCacheableHtml) {
 
 
   // Invalidate the cache for some URL other than 'text.html'.
-  scoped_ptr<RewriteOptions> custom_options_1(
+  std::unique_ptr<RewriteOptions> custom_options_1(
       server_context()->global_options()->Clone());
   custom_options_1->AddUrlCacheInvalidationEntry(
       AbsolutifyUrl("foo.bar"), timer()->NowMs(), true);
@@ -1394,7 +1394,7 @@ TEST_F(ProxyInterfaceTest, UrlInvalidationForCacheableHtml) {
 
 
   // Invalidate the cache.
-  scoped_ptr<RewriteOptions> custom_options_2(
+  std::unique_ptr<RewriteOptions> custom_options_2(
       server_context()->global_options()->Clone());
   // Strictness of URL cache invalidation entry (last argument below) does not
   // matter in this test since there is nothing cached in metadata or property
@@ -2292,7 +2292,7 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   // Now turn on cache-extension for custom options.  Invalidate cache entries
   // up to and including the current timestamp and advance by 1ms, otherwise
   // the previously stored embedded.css.pagespeed.cf.0.css will get re-used.
-  scoped_ptr<RewriteOptions> custom_options(factory()->NewRewriteOptions());
+  std::unique_ptr<RewriteOptions> custom_options(factory()->NewRewriteOptions());
   custom_options->EnableFilter(RewriteOptions::kExtendCacheCss);
   custom_options->EnableFilter(RewriteOptions::kExtendCacheImages);
   custom_options->EnableFilter(RewriteOptions::kExtendCacheScripts);
@@ -3388,7 +3388,7 @@ TEST_F(ProxyInterfaceTest, TestNoFallbackCallWithNoLeaf) {
           server_context()->thread_system()));
   RequestHeaders request_headers;
   callback.set_request_headers(&request_headers);
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
+  std::unique_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
       proxy_interface_->InitiatePropertyCacheLookup(
           false, gurl, options(), &callback));
 
@@ -3404,7 +3404,7 @@ TEST_F(ProxyInterfaceTest, TestSkipBlinkCohortLookUp) {
       RequestContext::NewTestRequestContext(server_context()->thread_system()));
   RequestHeaders request_headers;
   callback.set_request_headers(&request_headers);
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
+  std::unique_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
       proxy_interface_->InitiatePropertyCacheLookup(
           false, gurl, options(), &callback));
 

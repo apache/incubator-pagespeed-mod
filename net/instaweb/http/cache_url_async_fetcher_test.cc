@@ -592,14 +592,14 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
   }
 
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats statistics_;
   MockTimer timer_;
   MockHasher mock_hasher_;
-  scoped_ptr<HTTPCache> http_cache_;
+  std::unique_ptr<HTTPCache> http_cache_;
   HttpOptions http_options_;
 
-  scoped_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
+  std::unique_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
 
   NullMessageHandler handler_;
   RequestHeaders empty_request_headers_;
@@ -634,7 +634,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
 
   bool cache_result_valid_;
 
-  scoped_ptr<ThreadSynchronizer> thread_synchronizer_;
+  std::unique_ptr<ThreadSynchronizer> thread_synchronizer_;
   DelayedMockUrlFetcher mock_fetcher_;
   CountingUrlAsyncFetcher counting_fetcher_;
   MockScheduler scheduler_;

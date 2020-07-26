@@ -80,7 +80,7 @@ class NamedLockTester {
   // The likely failure case is a SEGV, though you must verify a true return
   // code or the test didn't run. Frees both locks.
   bool UnlockWithDelete(NamedLock* old_lock, NamedLock* new_lock) {
-    scoped_ptr<NamedLock> new_lock_deleter(new_lock);
+    std::unique_ptr<NamedLock> new_lock_deleter(new_lock);
     lock_for_deletion_.reset(old_lock);
     CHECK(old_lock->Held()) << "UnlockWithDelete old_lock must be held";
     CHECK(!new_lock->Held()) << "UnlockWithDelete new_lock must not be held";
@@ -100,7 +100,7 @@ class NamedLockTester {
   // As for UnlockWithDelete, but for a steal. Frees both locks.
   bool StealWithDelete(int64 steal_ms, NamedLock* old_lock,
                        NamedLock* new_lock) {
-    scoped_ptr<NamedLock> new_lock_deleter(new_lock);
+    std::unique_ptr<NamedLock> new_lock_deleter(new_lock);
     lock_for_deletion_.reset(old_lock);
     CHECK(old_lock->Held()) << "StealWithDelete old_lock must be held";
     CHECK(!new_lock->Held()) << "StealWithDelete new_lock must not be held";
@@ -163,9 +163,9 @@ class NamedLockTester {
 
   bool acquired_;
   bool failed_;
-  scoped_ptr<AbstractMutex> mutex_;
-  scoped_ptr<Function> quiesce_;
-  scoped_ptr<NamedLock> lock_for_deletion_;
+  std::unique_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<Function> quiesce_;
+  std::unique_ptr<NamedLock> lock_for_deletion_;
 
   DISALLOW_COPY_AND_ASSIGN(NamedLockTester);
 };

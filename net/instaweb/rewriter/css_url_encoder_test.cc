@@ -35,7 +35,7 @@ namespace {
 
 class CssUrlEncoderTest : public ::testing::Test {
  protected:
-  scoped_ptr<RequestProperties> request_properties;
+  std::unique_ptr<RequestProperties> request_properties;
   CssUrlEncoder encoder_;
   GoogleMessageHandler handler_;
 };

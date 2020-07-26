@@ -107,9 +107,9 @@ class RewriteOptionsTest : public RewriteOptionsTestBase<RewriteOptions> {
       StringPiece local_option_val,
       bool expect_script,
       bool expect_stylesheet) {
-    scoped_ptr<RewriteOptions> new_options(new RewriteOptions(&thread_system_));
+    std::unique_ptr<RewriteOptions> new_options(new RewriteOptions(&thread_system_));
     // Initialize global options.
-    scoped_ptr<RewriteOptions> global_options(
+    std::unique_ptr<RewriteOptions> global_options(
         new RewriteOptions(&thread_system_));
     if (!global_option_val.empty()) {
       RewriteOptions::ResourceCategorySet x;
@@ -1433,7 +1433,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName2) {
   EXPECT_EQ("/example/images/a.jpeg", file_out);
 
   // Domain lawyer options.
-  scoped_ptr<RewriteOptions> options2(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> options2(new RewriteOptions(&thread_system_));
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options2->ParseAndSetOptionFromName2(
                 RewriteOptions::kMapOriginDomain,
@@ -1444,7 +1444,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName2) {
                 "OriginDomain:http://localhost/example/\n",
             options2->domain_lawyer()->ToString());
 
-  scoped_ptr<RewriteOptions> options3(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> options3(new RewriteOptions(&thread_system_));
   // This is an option 2 or 3, so test 2 here and 3 below.
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options3->ParseAndSetOptionFromName3(
@@ -1457,7 +1457,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName2) {
                 "ProxyDomain:http://mainsite.com/static/\n",
             options3->domain_lawyer()->ToString());
 
-  scoped_ptr<RewriteOptions> options4(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> options4(new RewriteOptions(&thread_system_));
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options4->ParseAndSetOptionFromName2(
                 RewriteOptions::kMapRewriteDomain,
@@ -1467,7 +1467,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName2) {
             "http://cdn.example.com/ Auth\n",
             options4->domain_lawyer()->ToString());
 
-  scoped_ptr<RewriteOptions> options5(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> options5(new RewriteOptions(&thread_system_));
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options5->ParseAndSetOptionFromName2(
                 RewriteOptions::kShardDomain,
@@ -1520,7 +1520,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName3) {
   EXPECT_EQ("Invalid resource category: nonsense", msg);
 
   // Domain lawyer.
-  scoped_ptr<RewriteOptions> options(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> options(new RewriteOptions(&thread_system_));
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options->ParseAndSetOptionFromName3(
                 RewriteOptions::kMapProxyDomain,
@@ -2394,7 +2394,7 @@ TEST_F(RewriteOptionsTest, SignatureIgnoresDebug) {
   options_.ClearSignatureForTesting();
   options_.EnableFilter(RewriteOptions::kCombineCss);
   options_.ComputeSignature();
-  scoped_ptr<RewriteOptions> options2(options_.Clone());
+  std::unique_ptr<RewriteOptions> options2(options_.Clone());
   options2->ClearSignatureForTesting();
   options2->EnableFilter(RewriteOptions::kDebug);
   options2->ComputeSignature();
@@ -2730,7 +2730,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetDeprecatedOptionFromName1) {
 }
 
 TEST_F(RewriteOptionsTest, BandwidthMode) {
-  scoped_ptr<RewriteOptions> vhost_options(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> vhost_options(new RewriteOptions(&thread_system_));
   vhost_options->SetRewriteLevel(RewriteOptions::kOptimizeForBandwidth);
   EXPECT_FALSE(vhost_options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_TRUE(vhost_options->Enabled(RewriteOptions::kConvertGifToPng));
@@ -2775,8 +2775,8 @@ TEST_F(RewriteOptionsTest, BandwidthMode) {
 
   // Now merge with an options-set with Core enabled many of these answers
   // change.
-  scoped_ptr<RewriteOptions> core(new RewriteOptions(&thread_system_));
-  scoped_ptr<RewriteOptions> vhost_core(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> core(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> vhost_core(new RewriteOptions(&thread_system_));
   core->SetRewriteLevel(RewriteOptions::kCoreFilters);
 
   vhost_core->Merge(*vhost_options);
@@ -2796,7 +2796,7 @@ TEST_F(RewriteOptionsTest, BandwidthMode) {
   // Finally, merge in another option-set that is bandwidth-only.  We'll
   // revert back to the bandwidth-behavior, but we will inherit the override
   // for CSS preservation we made.
-  scoped_ptr<RewriteOptions> bandwidth(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> bandwidth(new RewriteOptions(&thread_system_));
   bandwidth->SetRewriteLevel(RewriteOptions::kOptimizeForBandwidth);
   MergeOptions(*vhost_core, *bandwidth);
   EXPECT_FALSE(options_.Enabled(RewriteOptions::kCombineCss));
@@ -3111,7 +3111,7 @@ TEST_F(RewriteOptionsTest, ColorUtilTest) {
 TEST_F(RewriteOptionsTest, OptionsScopeApplications) {
   NullMessageHandler handler;
   GoogleString msg;
-  scoped_ptr<RewriteOptions> new_options(new RewriteOptions(&thread_system_));
+  std::unique_ptr<RewriteOptions> new_options(new RewriteOptions(&thread_system_));
 
   // MaxHtmlParseBytes has RewriteOptions::kLegacyProcessScope.
   // Setting this value should work.

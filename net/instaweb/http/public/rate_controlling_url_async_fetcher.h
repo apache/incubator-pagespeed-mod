@@ -63,7 +63,7 @@ class RateControllingUrlAsyncFetcher : public UrlAsyncFetcher {
 
  private:
   UrlAsyncFetcher* base_fetcher_;
-  scoped_ptr<RateController> rate_controller_;
+  std::unique_ptr<RateController> rate_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(RateControllingUrlAsyncFetcher);
 };

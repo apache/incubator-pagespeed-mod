@@ -82,7 +82,7 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
     // Read this GIF.
     ReadGifFile(test.input_gif);
     status = ScanlineStatus();
-    net_instaweb::scoped_ptr<MultipleFrameReader> reader(
+    std::unique_ptr<MultipleFrameReader> reader(
         CreateImageFrameReader(pagespeed::image_compression::IMAGE_GIF,
                                original_image_.data(),
                                original_image_.length(),
@@ -97,7 +97,7 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
     EXPECT_TRUE(status.Success()) << test_info;
 
     // Setup a writer and check the return status of PrepareImage.
-    net_instaweb::scoped_ptr<MultipleFrameWriter> writer(
+    std::unique_ptr<MultipleFrameWriter> writer(
         CreateImageFrameWriter(test.output_format,
                                NULL,
                                &converted_image_,

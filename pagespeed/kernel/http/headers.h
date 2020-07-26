@@ -236,14 +236,14 @@ template<class Proto> class Headers {
   // simple string-pair vector, but lacks a fast associative lookup.  So we
   // will build structures for associative lookup lazily, and keep them
   // up-to-date if they are present.
-  mutable scoped_ptr<StringMultiMapInsensitive> map_;
-  scoped_ptr<Proto> proto_;
+  mutable std::unique_ptr<StringMultiMapInsensitive> map_;
+  std::unique_ptr<Proto> proto_;
 
   // Furthermore, we also have a map of cookie names to <value, attributes>.
   // It is lazilyloaded by PopulateCookieMap as/when required. The keys and
   // values all point into the map_ data element. We cater for the same cookie
   // being set multiple times though we don't necessarily handle that correctly.
-  mutable scoped_ptr<CookieMultimap> cookies_;
+  mutable std::unique_ptr<CookieMultimap> cookies_;
 
   DISALLOW_COPY_AND_ASSIGN(Headers);
 };

@@ -86,8 +86,8 @@ class TcpServerThreadForTesting : public ThreadSystem::Thread {
   // Thread implementation.
   void Run() override;
 
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> ready_notify_ GUARDED_BY(mutex_);
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> ready_notify_ GUARDED_BY(mutex_);
   apr_pool_t* pool_;
   const apr_port_t requested_listen_port_;
   apr_port_t actual_listening_port_ GUARDED_BY(mutex_);

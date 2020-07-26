@@ -124,7 +124,7 @@ void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
   // alone will drive you nuts and take hours out of your life, thus DCHECKs.
   DCHECK(driver != NULL);
   DCHECK(cohort_ != NULL);
-  scoped_ptr<CriticalKeys> critical_keys(DecodeFromPropertyCache<CriticalKeys>(
+  std::unique_ptr<CriticalKeys> critical_keys(DecodeFromPropertyCache<CriticalKeys>(
       driver, cohort_, kCriticalSelectorsPropertyName,
       driver->options()->finder_properties_cache_expiration_time_ms(),
       &result));

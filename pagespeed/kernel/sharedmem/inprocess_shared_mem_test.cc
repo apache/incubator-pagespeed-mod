@@ -105,7 +105,7 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
     DISALLOW_COPY_AND_ASSIGN(RunFunctionThread);
   };
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   std::vector<ThreadSystem::Thread*> child_threads_;
 };
 

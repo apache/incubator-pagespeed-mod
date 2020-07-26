@@ -71,7 +71,7 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
   std::set<GoogleString> do_not_delay_urls_;
   std::vector<DelayedFetch*> delayed_fetches_;
   bool pass_through_mode_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(WaitUrlAsyncFetcher);
 };

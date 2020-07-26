@@ -377,7 +377,7 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   // have not specified any URL params or request-headers, so there will be
   // no custom options, and no errors.
   RequestHeaders request_headers;
-  scoped_ptr<RewriteOptions> options(
+  std::unique_ptr<RewriteOptions> options(
       GetCustomOptions("http://example.com/", &request_headers, NULL));
   ASSERT_TRUE(options.get() == NULL);
 
@@ -470,7 +470,7 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
   namer_options.EnableFilter(RewriteOptions::kDelayImages);
 
   RequestHeaders request_headers;
-  scoped_ptr<RewriteOptions> options(
+  std::unique_ptr<RewriteOptions> options(
       GetCustomOptions("http://example.com/", &request_headers,
                        &namer_options));
   // Even with no query-params or request-headers, we get the custom
@@ -1235,7 +1235,7 @@ class BeaconTest : public ServerContextTest {
     // Read the property cache value for critical images, and verify that it has
     // the expected value.
     ResetDriver();
-    scoped_ptr<MockPropertyPage> page(MockPageForUA(user_agent));
+    std::unique_ptr<MockPropertyPage> page(MockPageForUA(user_agent));
     rewrite_driver()->set_property_page(page.release());
     if (critical_image_hashes != NULL) {
       critical_html_images_ = server_context()->critical_images_finder()->
@@ -1258,7 +1258,7 @@ class BeaconTest : public ServerContextTest {
   StringSet critical_html_images_;
   StringSet critical_css_selectors_;
   // This field holds the data deserialized from pcache after a BeaconTest call.
-  scoped_ptr<RenderedImages> rendered_images_;
+  std::unique_ptr<RenderedImages> rendered_images_;
   // This field holds candidate critical css selectors.
   StringSet candidates_;
   BeaconMetadata last_beacon_metadata_;
@@ -1270,7 +1270,7 @@ TEST_F(BeaconTest, BasicPcacheSetup) {
   UserAgentMatcher::DeviceType device_type =
       server_context()->user_agent_matcher()->GetDeviceTypeForUA(
           UserAgentMatcherTestBase::kChromeUserAgent);
-  scoped_ptr<MockPropertyPage> page(
+  std::unique_ptr<MockPropertyPage> page(
       NewMockPage(kUrlPrefix, kOptionsHash, device_type));
   property_cache_->Read(page.get());
   PropertyValue* property = page->GetProperty(cohort, "critical_images");

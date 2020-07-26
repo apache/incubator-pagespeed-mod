@@ -130,7 +130,6 @@ cc_library(
         "src/webutil/css/parser.h",
         "src/base/googleinit.h",
         "src/base/integral_types.h",
-        "src/base/scoped_ptr.h",
         "src/base/basictypes.h",
         "src/testing/production_stub/public/gunit_prod.h",
         "src/util/utf8/public/unilib_utf8_utils.h",

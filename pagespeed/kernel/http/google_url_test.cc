@@ -54,7 +54,7 @@ class GoogleUrlTest : public testing::Test {
                                 const char* after) {
     GoogleUrl before_url(before);
     StringPiece before_url_original(before_url.UncheckedSpec());
-    scoped_ptr<GoogleUrl> after_url(
+    std::unique_ptr<GoogleUrl> after_url(
         before_url.CopyAndAddQueryParam(key, value));
     EXPECT_STREQ(after, after_url->UncheckedSpec());
     EXPECT_TRUE(after_url->IsWebValid());

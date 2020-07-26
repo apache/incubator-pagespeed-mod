@@ -178,13 +178,13 @@ class StaticAssetManager {
   Hasher* hasher_;
   MessageHandler* message_handler_;
 
-  scoped_ptr<ThreadSystem::RWLock> lock_;
+  std::unique_ptr<ThreadSystem::RWLock> lock_;
   std::vector<Asset*> assets_ GUARDED_BY(lock_);
   FileNameToModuleMap file_name_to_module_map_ GUARDED_BY(lock_);
 
   bool serve_assets_from_gstatic_ GUARDED_BY(lock_);
   GoogleString gstatic_base_ GUARDED_BY(lock_);
-  scoped_ptr<StaticAssetConfig> initial_gstatic_config_ GUARDED_BY(lock_);
+  std::unique_ptr<StaticAssetConfig> initial_gstatic_config_ GUARDED_BY(lock_);
   GoogleString library_url_prefix_ GUARDED_BY(lock_);
   GoogleString cache_header_with_long_ttl_ GUARDED_BY(lock_);
   GoogleString cache_header_with_private_ttl_ GUARDED_BY(lock_);

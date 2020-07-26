@@ -133,11 +133,11 @@ class InstawebContext {
   ApacheServerContext* server_context_;
   RewriteDriver* rewrite_driver_;
   StringWriter string_writer_;
-  scoped_ptr<GzipInflater> inflater_;
+  std::unique_ptr<GzipInflater> inflater_;
   HtmlDetector html_detector_;
   GoogleString absolute_url_;
-  scoped_ptr<RequestHeaders> request_headers_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  std::unique_ptr<RequestHeaders> request_headers_;
+  std::unique_ptr<ResponseHeaders> response_headers_;
   bool started_parse_;
   bool sent_headers_;
   bool populated_headers_;

@@ -23,7 +23,6 @@
 #define WEBUTIL_CSS_PARSER_H__
 
 #include <memory>
-#include "base/scoped_ptr.h"
 #include <string>
 #include <vector>
 #include "strings/stringpiece.h"
@@ -82,7 +81,7 @@ class Ruleset;
 //    Parser a("background: white; color: #333; line-height: 1.3;
 //                 text-align: justify; font-family: \"Gill Sans MT\",
 //                 \"Gill Sans\", GillSans, Arial, Helvetica, sans-serif");
-//    scoped_ptr<Declarations> t(a.ParseDeclarations());
+//    std::unique_ptr<Declarations> t(a.ParseDeclarations());
 // See the 'declarations' unit test case for more details.
 //
 // We've made most of the recursive-descent ParseXXX functions private
@@ -704,7 +703,7 @@ class Declaration {
 
  private:
   Property property_;
-  scoped_ptr<Values> values_;
+  std::unique_ptr<Values> values_;
   bool important_;  // Whether !important is declared on this declaration.
 
   // Verbatim bytes parsed for the declaration. Currently this is only stored
@@ -853,14 +852,14 @@ class Ruleset {
   Type type_;
 
   // All types have media_queries_.
-  scoped_ptr<MediaQueries> media_queries_;
+  std::unique_ptr<MediaQueries> media_queries_;
 
   // Only defined for type_ == RULESET.
-  scoped_ptr<Selectors> selectors_;
-  scoped_ptr<Declarations> declarations_;
+  std::unique_ptr<Selectors> selectors_;
+  std::unique_ptr<Declarations> declarations_;
 
   // Only defined for type_ == UNPARSED_REGION.
-  scoped_ptr<UnparsedRegion> unparsed_region_;
+  std::unique_ptr<UnparsedRegion> unparsed_region_;
 
   DISALLOW_COPY_AND_ASSIGN(Ruleset);
 };
@@ -895,7 +894,7 @@ class Import {
   string ToString() const;
 
  private:
-  scoped_ptr<MediaQueries> media_queries_;
+  std::unique_ptr<MediaQueries> media_queries_;
   UnicodeText link_;
 
   DISALLOW_COPY_AND_ASSIGN(Import);
@@ -929,8 +928,8 @@ class FontFace {
 
   string ToString() const;
  private:
-  scoped_ptr<MediaQueries> media_queries_;
-  scoped_ptr<Declarations> declarations_;
+  std::unique_ptr<MediaQueries> media_queries_;
+  std::unique_ptr<Declarations> declarations_;
 
   DISALLOW_COPY_AND_ASSIGN(FontFace);
 };

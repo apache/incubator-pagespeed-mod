@@ -67,10 +67,10 @@ class CompressedCacheTest : public CacheTestBase {
   virtual CacheInterface* Cache() { return compressed_cache_.get(); }
 
   GoogleMessageHandler handler_;
-  scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
-  scoped_ptr<CompressedCache> compressed_cache_;
+  std::unique_ptr<CompressedCache> compressed_cache_;
   SimpleRandom random_;
 };
 

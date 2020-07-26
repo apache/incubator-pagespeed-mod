@@ -181,7 +181,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
                output_source_map_) {
       // We produce a source map if they are enabled or requested.
       GoogleUrl original_gurl(input->url());
-      scoped_ptr<GoogleUrl> source_gurl;
+      std::unique_ptr<GoogleUrl> source_gurl;
       if (server_context->IsPagespeedResource(original_gurl)) {
         // Do not append Pagespeed=off if input is already a pagespeed resource.
         source_gurl.reset(new GoogleUrl);

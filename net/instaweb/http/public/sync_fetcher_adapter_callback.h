@@ -120,13 +120,13 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
   };
   virtual ~SyncFetcherAdapterCallback();
 
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> cond_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> cond_;
 
   bool done_ GUARDED_BY(mutex_);
   bool success_ GUARDED_BY(mutex_);
   bool released_ GUARDED_BY(mutex_);
-  scoped_ptr<Writer> writer_;
+  std::unique_ptr<Writer> writer_;
 
   DISALLOW_COPY_AND_ASSIGN(SyncFetcherAdapterCallback);
 };

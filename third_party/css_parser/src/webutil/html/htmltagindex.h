@@ -31,7 +31,6 @@
 
 #include <string.h>
 #include <memory>
-#include "base/scoped_ptr.h"
 #include <string>
 #include "string_using.h"
 
@@ -87,7 +86,7 @@ class HtmlTagIndex {
 
   int index_max_;
   typedef dense_hash_map<string, int> CustomTagMap;
-  scoped_ptr<CustomTagMap> custom_tag_map_;
+  std::unique_ptr<CustomTagMap> custom_tag_map_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlTagIndex);
 };

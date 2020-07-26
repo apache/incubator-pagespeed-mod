@@ -906,7 +906,7 @@ class ImageRewriteTest : public RewriteTestBase {
               expect_callback.response_headers()->status_code()) <<
         "Looking for " << fetch_url;
     // Look up dimensions of resulting image
-    scoped_ptr<Image> image(
+    std::unique_ptr<Image> image(
         NewImage(expect_callback.buffer(),
                  fetch_url, server_context_->filename_prefix(),
                  new Image::CompressionOptions(),
@@ -1142,7 +1142,7 @@ class ImageRewriteTest : public RewriteTestBase {
     GoogleString output_png;
     EXPECT_TRUE(FetchResourceUrl(rewritten_url, &output_png));
     // Check if we resized to rendered dimensions.
-    scoped_ptr<Image> image(
+    std::unique_ptr<Image> image(
         NewImage(output_png, rewritten_url, server_context_->filename_prefix(),
                  new Image::CompressionOptions(),
                  timer(), &message_handler_));
@@ -1701,7 +1701,7 @@ TEST_F(ImageRewriteTest, ImageRewritePreserveURLsOnSoftEnable) {
   EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
 
   // Make sure that we didn't resize (original image is 100x100).
-  scoped_ptr<Image> image(
+  std::unique_ptr<Image> image(
       NewImage(out_png, out_png_url, server_context_->filename_prefix(),
                new Image::CompressionOptions(),
                timer(), &message_handler_));
@@ -1737,7 +1737,7 @@ TEST_F(ImageRewriteTest, ImageRewritePreserveURLsExplicitResizeOn) {
   EXPECT_EQ(0, static_cast<int>(lru_cache()->num_inserts()));
 
   // Make sure that we did the resize to 10x10 from 100x100.
-  scoped_ptr<Image> image(
+  std::unique_ptr<Image> image(
       NewImage(out_png, out_png_url, server_context_->filename_prefix(),
                new Image::CompressionOptions(),
                timer(), &message_handler_));
@@ -1775,7 +1775,7 @@ TEST_F(ImageRewriteTest, ImageRewritePreserveURLsDisablePreemptiveRewrite) {
   GoogleString out_png;
   EXPECT_TRUE(FetchResourceUrl(out_png_url, &out_png));
   // Make sure that we didn't resize (original image is 100x100).
-  scoped_ptr<Image> image(
+  std::unique_ptr<Image> image(
       NewImage(out_png, out_png_url, server_context_->filename_prefix(),
                new Image::CompressionOptions(),
                timer(), &message_handler_));
@@ -3184,7 +3184,7 @@ TEST_F(ImageRewriteTest, JpegQualityForSmallScreens) {
   const ResourcePtr res_ptr(
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           "data:image/png;base64,test"));
-  scoped_ptr<Image::CompressionOptions> img_options(
+  std::unique_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr));
 
   // Neither option is set explicitly, default is 70.
@@ -3274,7 +3274,7 @@ TEST_F(ImageRewriteTest, WebPQualityForSmallScreens) {
   const ResourcePtr res_ptr(
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           "data:image/png;base64,test"));
-  scoped_ptr<Image::CompressionOptions> img_options(
+  std::unique_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr));
 
   // Neither option is set, default is 70.
@@ -3355,7 +3355,7 @@ void SetNumberOfScans(int num_scans, int num_scans_small_screen,
                       RewriteDriver* rewrite_driver,
                       ImageRewriteFilter* image_rewrite_filter,
                       ResourceContext* ctx,
-                      scoped_ptr<Image::CompressionOptions>* img_options) {
+                      std::unique_ptr<Image::CompressionOptions>* img_options) {
   static const int DO_NOT_SET = -10;
   ctx->Clear();
   if ((num_scans != DO_NOT_SET)  ||
@@ -3386,7 +3386,7 @@ TEST_F(ImageRewriteTest, JpegProgressiveScansForSmallScreens) {
   const ResourcePtr res_ptr(
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           "data:image/png;base64,test"));
-  scoped_ptr<Image::CompressionOptions> img_options(
+  std::unique_ptr<Image::CompressionOptions> img_options(
       image_rewrite_filter.ImageOptionsForLoadedResource(ctx, res_ptr));
 
   // Neither option is set, default is -1.
@@ -3442,7 +3442,7 @@ TEST_F(ImageRewriteTest, ProgressiveJpegThresholds) {
   ASSERT_TRUE(LoadFile(kPuzzleJpgFile, &image_data));
   Image::CompressionOptions* options = new Image::CompressionOptions;
   options->recompress_jpeg = true;
-  scoped_ptr<Image> image(NewImage(image_data, kPuzzleJpgFile, "",
+  std::unique_ptr<Image> image(NewImage(image_data, kPuzzleJpgFile, "",
                                    options, timer(), message_handler()));
 
   // Since we haven't established a size, resizing won't happen.

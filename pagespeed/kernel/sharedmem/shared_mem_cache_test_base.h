@@ -76,11 +76,11 @@ class SharedMemCacheTestBase : public CacheTestBase {
   void CheckDelete(const char* key);
   void TestReaderWriterChild();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<SharedMemCache<kBlockSize> > cache_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<SharedMemCache<kBlockSize> > cache_;
   MD5Hasher hasher_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
   MockTimer timer_;
 
@@ -121,11 +121,11 @@ class FileCacheTestWrapper {
   }
 
  private:
-  scoped_ptr<MemFileSystem> filesystem_;
-  scoped_ptr<SlowWorker> worker_;
-  scoped_ptr<SimpleStats> stats_;
-  scoped_ptr<MD5Hasher> hasher_;
-  scoped_ptr<FileCache> file_cache_;
+  std::unique_ptr<MemFileSystem> filesystem_;
+  std::unique_ptr<SlowWorker> worker_;
+  std::unique_ptr<SimpleStats> stats_;
+  std::unique_ptr<MD5Hasher> hasher_;
+  std::unique_ptr<FileCache> file_cache_;
 };
 
 template<typename ConcreteTestEnv>

@@ -50,7 +50,7 @@ class DelayCacheTest : public CacheTestBase {
 
  protected:
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   DelayCache cache_;
 
  private:
@@ -113,7 +113,7 @@ TEST_F(DelayCacheTest, DelayOpsNotFound) {
 }
 
 TEST_F(DelayCacheTest, DelayOpsFoundInSequence) {
-  scoped_ptr<ThreadSystem> thread_system(Platform::CreateThreadSystem());
+  std::unique_ptr<ThreadSystem> thread_system(Platform::CreateThreadSystem());
   QueuedWorkerPool pool(1, "test", thread_system.get());
   QueuedWorkerPool::Sequence* sequence = pool.NewSequence();
   WorkerTestBase::SyncPoint sync_point(thread_system.get());

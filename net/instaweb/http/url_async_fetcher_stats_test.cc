@@ -69,12 +69,12 @@ class StatsMaker {
   Statistics* stats() { return stats_.get(); }
 
  protected:
-  scoped_ptr<ThreadSystem> threads_;
+  std::unique_ptr<ThreadSystem> threads_;
   MockTimer timer_;
   MemFileSystem fs_;
   GoogleMessageHandler message_handler_;
-  scoped_ptr<InProcessSharedMem> mem_runtime_;
-  scoped_ptr<SharedMemStatistics> stats_;
+  std::unique_ptr<InProcessSharedMem> mem_runtime_;
+  std::unique_ptr<SharedMemStatistics> stats_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StatsMaker);
@@ -111,7 +111,7 @@ class UrlAsyncFetcherStatsTest : public testing::Test {
   static Statistics* stats_;
 
   GoogleMessageHandler message_handler_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   MockUrlFetcher mock_fetcher_;
   WaitUrlAsyncFetcher wait_fetcher_;

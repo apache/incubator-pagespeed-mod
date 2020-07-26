@@ -178,7 +178,7 @@ void NamedLockScheduleRewriteController::NotifyRewriteComplete(
   // else's lock. Given that this is expected to be unlikely and the worst case
   // is redundant work, it shouldn't matter too much.
   LockInfo* info;
-  scoped_ptr<NamedLock> named_lock;
+  std::unique_ptr<NamedLock> named_lock;
   {
     ScopedMutex mutex_lock(mutex_.get());
     info = GetLockInfo(key);

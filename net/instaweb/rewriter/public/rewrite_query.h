@@ -228,7 +228,7 @@ class RewriteQuery {
   QueryParams query_params_;
   QueryParams pagespeed_query_params_;
   QueryParams pagespeed_option_cookies_;
-  scoped_ptr<RewriteOptions> options_;
+  std::unique_ptr<RewriteOptions> options_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteQuery);
 };

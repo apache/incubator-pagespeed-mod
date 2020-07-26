@@ -261,7 +261,7 @@ class AbstractLogRecord  {
 
   // Thus must be set. Implementation constructors must minimally default this
   // to a NullMutex.
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   // The maximum number of rewrite info logs stored for a single request.
   int rewriter_info_max_size_;
@@ -344,7 +344,7 @@ class LogRecord : public AbstractLogRecord {
   bool WriteLogImpl() override { return true; }
 
  private:
-  scoped_ptr<LoggingInfo> logging_info_;
+  std::unique_ptr<LoggingInfo> logging_info_;
 };
 
 // TODO(gee): I'm pretty sure the functionality can be provided by the previous

@@ -109,18 +109,18 @@ class SplitStatisticsTest : public testing::Test {
   }
 
   GoogleMessageHandler message_handler_;
-  scoped_ptr<ThreadSystem> threads_;
+  std::unique_ptr<ThreadSystem> threads_;
   MockTimer timer_;
   MemFileSystem fs_;
 
-  scoped_ptr<SharedMemStatistics> global_;
+  std::unique_ptr<SharedMemStatistics> global_;
   InProcessSharedMem* global_store_;
   SharedMemStatistics* local_a_;  // owned by split_a_
   InProcessSharedMem* local_a_store_;
-  scoped_ptr<SplitStatistics> split_a_;
+  std::unique_ptr<SplitStatistics> split_a_;
   SharedMemStatistics* local_b_;  // owned by split_b_
   InProcessSharedMem* local_b_store_;
-  scoped_ptr<SplitStatistics> split_b_;
+  std::unique_ptr<SplitStatistics> split_b_;
 };
 
 TEST_F(SplitStatisticsTest, BasicOperation) {

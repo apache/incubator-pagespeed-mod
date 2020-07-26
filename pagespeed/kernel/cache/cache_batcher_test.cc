@@ -131,15 +131,15 @@ class CacheBatcherTest : public CacheTestBase {
     return peer_.last_batch_size(batcher_.get());
   }
 
-  scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<ThreadsafeCache> threadsafe_cache_;
-  scoped_ptr<Timer> timer_;
-  scoped_ptr<QueuedWorkerPool> pool_;
-  scoped_ptr<AsyncCache> async_cache_;
-  scoped_ptr<DelayCache> delay_cache_;
-  scoped_ptr<SimpleStats> statistics_;
-  scoped_ptr<CacheBatcher> batcher_;
+  std::unique_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadsafeCache> threadsafe_cache_;
+  std::unique_ptr<Timer> timer_;
+  std::unique_ptr<QueuedWorkerPool> pool_;
+  std::unique_ptr<AsyncCache> async_cache_;
+  std::unique_ptr<DelayCache> delay_cache_;
+  std::unique_ptr<SimpleStats> statistics_;
+  std::unique_ptr<CacheBatcher> batcher_;
   CacheBatcherTestingPeer peer_;
   int expected_pending_;
 };

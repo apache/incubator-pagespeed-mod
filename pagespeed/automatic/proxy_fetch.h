@@ -116,7 +116,7 @@ class ProxyFetchFactory {
   Timer* timer_;
   MessageHandler* handler_;
 
-  scoped_ptr<AbstractMutex> outstanding_proxy_fetches_mutex_;
+  std::unique_ptr<AbstractMutex> outstanding_proxy_fetches_mutex_;
   std::set<ProxyFetch*> outstanding_proxy_fetches_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetchFactory);
@@ -275,7 +275,7 @@ class ProxyFetchPropertyCallbackCollector {
   std::set<ProxyFetchPropertyCallback*> pending_callbacks_;
   std::map<ProxyFetchPropertyCallback::PageType, PropertyPage*>
   property_pages_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   ServerContext* const server_context_;
   QueuedWorkerPool::Sequence* const sequence_;
   const GoogleString url_;
@@ -291,8 +291,8 @@ class ProxyFetchPropertyCallbackCollector {
   std::vector<Function*> post_lookup_task_vector_;
   const RewriteOptions* options_;  // protected by mutex_;
   HttpStatus::Code status_code_;  // status_code_ of the response.
-  scoped_ptr<FallbackPropertyPage> fallback_property_page_;
-  scoped_ptr<PropertyPage> origin_property_page_;
+  std::unique_ptr<FallbackPropertyPage> fallback_property_page_;
+  std::unique_ptr<PropertyPage> origin_property_page_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyFetchPropertyCallbackCollector);
 };
@@ -436,7 +436,7 @@ class ProxyFetch : public SharedAsyncFetch {
   ServerContext* server_context_;
   Timer* timer_;
 
-  scoped_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
+  std::unique_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
 
   // True if we're handling a cross-domain request in proxy mode, which
   // should do some additional checking.
@@ -487,7 +487,7 @@ class ProxyFetch : public SharedAsyncFetch {
   // is preserved by QueuedWorkerPool::Sequence.
   //
   // The Done callback is also indirected through this Sequence.
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   StringStarVector text_queue_;
   bool network_flush_outstanding_;
   QueuedWorkerPool::Sequence* sequence_;

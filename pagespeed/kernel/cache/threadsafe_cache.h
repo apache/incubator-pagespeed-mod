@@ -63,7 +63,7 @@ class ThreadsafeCache : public CacheInterface {
 
  private:
   CacheInterface* cache_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadsafeCache);
 };

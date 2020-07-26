@@ -61,11 +61,11 @@ class CacheStatsTest : public testing::Test {
   }
 
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<DelayCache> delay_cache_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<DelayCache> delay_cache_;
   MockTimer timer_;
   SimpleStats stats_;
-  scoped_ptr<CacheStats> cache_stats_;
+  std::unique_ptr<CacheStats> cache_stats_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CacheStatsTest);

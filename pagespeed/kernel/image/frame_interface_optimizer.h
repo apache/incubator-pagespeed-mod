@@ -57,7 +57,7 @@ class MultipleFramePaddingReader : public MultipleFrameReader {
   virtual QuirksMode quirks_mode() const;
 
  private:
-  net_instaweb::scoped_ptr<MultipleFrameReader> impl_;
+  std::unique_ptr<MultipleFrameReader> impl_;
 
   // The ImageSpec as fetched from impl_.
   ImageSpec image_spec_;

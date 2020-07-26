@@ -88,7 +88,7 @@ class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
   apr_pool_t* pool_;
   GoogleMessageHandler handler_;
   ReflectingTestFetcher reflecting_fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   RewriteOptions options_;
   LoopbackRouteFetcher loopback_route_fetcher_;
 };

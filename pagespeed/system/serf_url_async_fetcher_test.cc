@@ -429,13 +429,13 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   std::vector<GoogleString> content_starts_;
   std::vector<SerfTestFetch*> fetches_;
   // The fetcher to be tested.
-  scoped_ptr<SerfUrlAsyncFetcher> serf_url_async_fetcher_;
-  scoped_ptr<Timer> timer_;
+  std::unique_ptr<SerfUrlAsyncFetcher> serf_url_async_fetcher_;
+  std::unique_ptr<Timer> timer_;
   size_t prev_done_count;
-  scoped_ptr<AbstractMutex> mutex_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler message_handler_;
-  scoped_ptr<SimpleStats> statistics_;
+  std::unique_ptr<SimpleStats> statistics_;
   GoogleString https_favicon_url_;
   GoogleString favicon_head_;
   int64 flaky_retries_;
@@ -913,8 +913,8 @@ class SerfFetchTest : public SerfUrlAsyncFetcherTest {
     return status;
   }
 
-  scoped_ptr<StringAsyncFetch> async_fetch_;
-  scoped_ptr<SerfFetch> serf_fetch_;
+  std::unique_ptr<StringAsyncFetch> async_fetch_;
+  std::unique_ptr<SerfFetch> serf_fetch_;
   apr_uri_t* parsed_url_;
   const char* host_header_;
   const char* sni_host_;
@@ -1097,7 +1097,7 @@ This text is less than 500 bytes.
     SetUpWithProxy(proxy_address.c_str());
   }
 
-  scoped_ptr<FakeWebServerThread> thread_;
+  std::unique_ptr<FakeWebServerThread> thread_;
 
  private:
   static apr_port_t desired_listen_port_;

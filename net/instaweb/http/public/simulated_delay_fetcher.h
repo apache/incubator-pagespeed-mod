@@ -81,7 +81,7 @@ class SimulatedDelayFetcher : public UrlAsyncFetcher {
   DelayMap delays_ms_;
   int request_log_flush_frequency_;
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int request_log_outstanding_ GUARDED_BY(mutex_.get());
   FileSystem::OutputFile* request_log_ PT_GUARDED_BY(mutex_.get());
 

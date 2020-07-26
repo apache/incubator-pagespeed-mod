@@ -128,11 +128,11 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
   }
 
   MockUrlFetcher mock_fetcher_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
-  scoped_ptr<RateControllingUrlAsyncFetcher> rate_controlling_fetcher_;
-  scoped_ptr<WaitUrlAsyncFetcher> wait_fetcher_;
-  scoped_ptr<CountingUrlAsyncFetcher> counting_fetcher_;
+  std::unique_ptr<RateControllingUrlAsyncFetcher> rate_controlling_fetcher_;
+  std::unique_ptr<WaitUrlAsyncFetcher> wait_fetcher_;
+  std::unique_ptr<CountingUrlAsyncFetcher> counting_fetcher_;
 
   MockTimer timer_;
 

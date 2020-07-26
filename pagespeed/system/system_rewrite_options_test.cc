@@ -185,7 +185,7 @@ TEST_F(SystemRewriteOptionsTest, StaticAssetCdn) {
   // Test merging.
 
   // Merge of something w/o these options.
-  scoped_ptr<SystemRewriteOptions> options2(
+  std::unique_ptr<SystemRewriteOptions> options2(
       new SystemRewriteOptions(&thread_system_));
   options_.Merge(*options2);
 
@@ -201,7 +201,7 @@ TEST_F(SystemRewriteOptionsTest, StaticAssetCdn) {
               assets2.end());
 
   // Merge of something with the same path --- overwrites both.
-  scoped_ptr<SystemRewriteOptions> options3(
+  std::unique_ptr<SystemRewriteOptions> options3(
       new SystemRewriteOptions(&thread_system_));
   result = options3->ParseAndSetOptionFromName1(
       SystemRewriteOptions::kStaticAssetCDN,
@@ -218,7 +218,7 @@ TEST_F(SystemRewriteOptionsTest, StaticAssetCdn) {
   EXPECT_TRUE(assets3.find(StaticAssetEnum::MOBILIZE_JS) != assets3.end());
 
   // Merge of something with different path --- overwrites as well.
-  scoped_ptr<SystemRewriteOptions> options4(
+  std::unique_ptr<SystemRewriteOptions> options4(
       new SystemRewriteOptions(&thread_system_));
   result = options4->ParseAndSetOptionFromName1(
       SystemRewriteOptions::kStaticAssetCDN,

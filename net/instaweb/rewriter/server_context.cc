@@ -183,10 +183,10 @@ class BeaconPropertyCallback : public PropertyPage {
 
  private:
   ServerContext* server_context_;
-  scoped_ptr<StringSet> html_critical_images_set_;
-  scoped_ptr<StringSet> css_critical_images_set_;
-  scoped_ptr<StringSet> critical_css_selector_set_;
-  scoped_ptr<RenderedImages> rendered_images_set_;
+  std::unique_ptr<StringSet> html_critical_images_set_;
+  std::unique_ptr<StringSet> css_critical_images_set_;
+  std::unique_ptr<StringSet> critical_css_selector_set_;
+  std::unique_ptr<RenderedImages> rendered_images_set_;
   GoogleString nonce_;
   DISALLOW_COPY_AND_ASSIGN(BeaconPropertyCallback);
 };
@@ -632,22 +632,22 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // Extract critical image URLs
   // TODO(jud): Add css critical image detection to the beacon.
   // Beacon property callback takes ownership of both critical images sets.
-  scoped_ptr<StringSet> html_critical_images_set;
-  scoped_ptr<StringSet> css_critical_images_set;
+  std::unique_ptr<StringSet> html_critical_images_set;
+  std::unique_ptr<StringSet> css_critical_images_set;
   if (query_params.Lookup1Unescaped(kBeaconCriticalImagesQueryParam,
                                     &query_param_str)) {
     html_critical_images_set.reset(
         CommaSeparatedStringToSet(query_param_str));
   }
 
-  scoped_ptr<StringSet> critical_css_selector_set;
+  std::unique_ptr<StringSet> critical_css_selector_set;
   if (query_params.Lookup1Unescaped(kBeaconCriticalCssQueryParam,
                                     &query_param_str)) {
     critical_css_selector_set.reset(
         CommaSeparatedStringToSet(query_param_str));
   }
 
-  scoped_ptr<RenderedImages> rendered_images;
+  std::unique_ptr<RenderedImages> rendered_images;
   if (query_params.Lookup1Unescaped(kBeaconRenderedDimensionsQueryParam,
                                     &query_param_str)) {
     rendered_images.reset(
@@ -940,8 +940,8 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
                                                 RewriteOptions* domain_options,
                                                 RewriteOptions* query_options) {
   RewriteOptions* options = global_options();
-  scoped_ptr<RewriteOptions> custom_options;
-  scoped_ptr<RewriteOptions> scoped_domain_options(domain_options);
+  std::unique_ptr<RewriteOptions> custom_options;
+  std::unique_ptr<RewriteOptions> scoped_domain_options(domain_options);
   if (scoped_domain_options.get() != NULL) {
     custom_options.reset(NewOptions());
     custom_options->Merge(*options);
@@ -950,13 +950,13 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
     options = custom_options.get();
   }
 
-  scoped_ptr<RewriteOptions> query_options_ptr(query_options);
+  std::unique_ptr<RewriteOptions> query_options_ptr(query_options);
   // Check query params & request-headers
   if (query_options_ptr.get() != NULL) {
     // Subtle memory management to handle deleting any domain_options
     // after the merge, and transferring ownership to the caller for
     // the new merged options.
-    scoped_ptr<RewriteOptions> options_buffer(custom_options.release());
+    std::unique_ptr<RewriteOptions> options_buffer(custom_options.release());
     custom_options.reset(NewOptions());
     custom_options->Merge(*options);
     query_options->Freeze();
@@ -1141,7 +1141,7 @@ class MetadataCacheResultCallback
 
   virtual void Done(const GoogleString& cache_key,
                     RewriteContext::CacheLookupResult* in_result) {
-    scoped_ptr<RewriteContext::CacheLookupResult> result(in_result);
+    std::unique_ptr<RewriteContext::CacheLookupResult> result(in_result);
     driver_->Cleanup();
 
     if (should_delete_) {
@@ -1213,7 +1213,7 @@ class MetadataCacheResultCallback
 void ServerContext::ShowCacheHandler(
     Format format,  StringPiece url, StringPiece ua, bool should_delete,
     AsyncFetch* fetch, RewriteOptions* options_arg) {
-  scoped_ptr<RewriteOptions> options(options_arg);
+  std::unique_ptr<RewriteOptions> options(options_arg);
   if (url.empty()) {
     FormatResponse(format, "", "Empty URL", fetch, message_handler_);
   } else if (!GoogleUrl(url).IsWebValid()) {

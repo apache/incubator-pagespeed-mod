@@ -79,8 +79,8 @@ class RequestProperties {
   friend class ImageRewriteTest;
   FRIEND_TEST(RequestPropertiesTest, GetScreenGroupIndex);
 
-  scoped_ptr<DeviceProperties> device_properties_;
-  scoped_ptr<DownstreamCachingDirectives> downstream_caching_directives_;
+  std::unique_ptr<DeviceProperties> device_properties_;
+  std::unique_ptr<DownstreamCachingDirectives> downstream_caching_directives_;
 
   mutable LazyBool supports_image_inlining_;
   mutable LazyBool supports_js_defer_;

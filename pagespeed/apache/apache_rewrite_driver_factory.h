@@ -122,7 +122,7 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
 
   apr_pool_t* pool_;
   server_rec* server_rec_;
-  scoped_ptr<SlowWorker> slow_worker_;
+  std::unique_ptr<SlowWorker> slow_worker_;
   SchedulerThread* scheduler_thread_;  // cleaned up with defer_cleanup
 
   // TODO(jmarantz): These options could be consolidated in a protobuf or

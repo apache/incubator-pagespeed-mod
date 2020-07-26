@@ -119,7 +119,7 @@ class WebpScanlineOptimizerTest : public testing::Test {
     const PixelFormat pixel_format = png_reader.GetPixelFormat();
 
     // Create a WebP writer.
-    net_instaweb::scoped_ptr<ScanlineWriterInterface> webp_writer(
+    std::unique_ptr<ScanlineWriterInterface> webp_writer(
         CreateScanlineWriter(pagespeed::image_compression::IMAGE_WEBP,
                              pixel_format, width, height, &webp_config,
                              webp_image, &message_handler_));
@@ -335,11 +335,11 @@ class AnimatedWebpTest : public testing::Test {
 
  protected:
   MockMessageHandler message_handler_;
-  net_instaweb::scoped_ptr<
+  std::unique_ptr<
     pagespeed::image_compression::MultipleFrameWriter> writer_;
 
  private:
-  net_instaweb::scoped_ptr<
+  std::unique_ptr<
     pagespeed::image_compression::MultipleFrameReader> reader_;
 
   WebpConfiguration webp_config_;

@@ -267,7 +267,7 @@ GoogleString JsDetectableSelector(const Css::Selector& selector) {
   Css::Selector trimmed;
   for (int i = 0, n = selector.size(); i < n; ++i) {
     Css::SimpleSelectors* simple_selectors = selector[i];
-    scoped_ptr<Css::SimpleSelectors> trimmed_selectors(
+    std::unique_ptr<Css::SimpleSelectors> trimmed_selectors(
         new Css::SimpleSelectors(simple_selectors->combinator()));
     for (int j = 0, m = simple_selectors->size(); j < m; ++j) {
       Css::SimpleSelector* simple_selector = (*simple_selectors)[j];

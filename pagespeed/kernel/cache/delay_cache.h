@@ -89,7 +89,7 @@ class DelayCache : public CacheInterface {
   typedef std::map<GoogleString, DelayCallback*> DelayMap;
 
   CacheInterface* cache_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   StringSet delay_requests_;
   DelayMap delay_map_;
 

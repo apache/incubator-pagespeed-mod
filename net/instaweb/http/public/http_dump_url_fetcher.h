@@ -98,7 +98,7 @@ class HttpDumpUrlFetcher : public UrlAsyncFetcher {
   // Response to use if something goes wrong.
   GoogleString error_body_;
 
-  scoped_ptr<StringSet> urls_;
+  std::unique_ptr<StringSet> urls_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpDumpUrlFetcher);
 };

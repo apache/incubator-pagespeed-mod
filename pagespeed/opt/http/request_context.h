@@ -243,15 +243,15 @@ class RequestContext : public RefCounted<RequestContext> {
   void Init();
 
   // Always non-NULL.
-  scoped_ptr<AbstractLogRecord> log_record_;
+  std::unique_ptr<AbstractLogRecord> log_record_;
 
   RequestTimingInfo timing_info_;
 
   // Logs tracing events associated with the root request.
-  scoped_ptr<RequestTrace> root_trace_context_;
+  std::unique_ptr<RequestTrace> root_trace_context_;
 
   // Log for recording background rewritings.
-  scoped_ptr<AbstractLogRecord> background_rewrite_log_record_;
+  std::unique_ptr<AbstractLogRecord> background_rewrite_log_record_;
 
   StringSet session_authorized_fetch_origins_;
 

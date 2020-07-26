@@ -68,7 +68,7 @@ class NamedLockScheduleRewriteController : public ScheduleRewriteController {
   struct LockInfo {
     LockInfo() : pin_count(0) { }
     // lock is only non-NULL when we have successfully obtained it.
-    scoped_ptr<NamedLock> lock;
+    std::unique_ptr<NamedLock> lock;
 
     std::unordered_set<Function*> pending_callbacks;
 
@@ -94,7 +94,7 @@ class NamedLockScheduleRewriteController : public ScheduleRewriteController {
   void DeleteInfoIfUnused(LockInfo* info, const GoogleString& key)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   NamedLockManager* lock_manager_;
   LockMap locks_ GUARDED_BY(mutex_);
   bool shut_down_ GUARDED_BY(mutex_);

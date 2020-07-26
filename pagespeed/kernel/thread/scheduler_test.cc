@@ -61,8 +61,8 @@ class SchedulerTest : public WorkerTestBase {
     }
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<Timer> timer_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<Timer> timer_;
   Scheduler scheduler_;
 
  private:

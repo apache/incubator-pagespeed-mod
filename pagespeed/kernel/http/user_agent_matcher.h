@@ -152,7 +152,7 @@ class UserAgentMatcher {
   FastWildcardGroup mobilization_user_agents_;
 
   const RE2 chrome_version_pattern_;
-  scoped_ptr<RE2> known_devices_pattern_;
+  std::unique_ptr<RE2> known_devices_pattern_;
   mutable map <GoogleString, pair<int, int> > screen_dimensions_map_;
 
   DISALLOW_COPY_AND_ASSIGN(UserAgentMatcher);

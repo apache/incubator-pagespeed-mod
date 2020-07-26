@@ -76,7 +76,7 @@ class CheckingThreadSystem : public ThreadSystem {
     void TakeLockControl();
     void DropLockControl();
 
-    scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+    std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
     AtomicBool locked_;
     DISALLOW_COPY_AND_ASSIGN(Mutex);
   };
@@ -107,7 +107,7 @@ class CheckingThreadSystem : public ThreadSystem {
     void TakeReaderLockControl();
     void DropReaderLockControl();
 
-    scoped_ptr<ThreadSystem::RWLock> lock_;
+    std::unique_ptr<ThreadSystem::RWLock> lock_;
     AtomicInt32 locked_;
     DISALLOW_COPY_AND_ASSIGN(RWLock);
   };
@@ -128,7 +128,7 @@ class CheckingThreadSystem : public ThreadSystem {
 
   virtual ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags);
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   DISALLOW_COPY_AND_ASSIGN(CheckingThreadSystem);
 };
 

@@ -164,8 +164,8 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
   bool is_init_found_;
   std::vector<ScriptEditor*> script_editors_;
 
-  scoped_ptr<MethodVector> glue_methods_;  // methods to forward to async api
-  scoped_ptr<MethodVector> unhandled_methods_;  // if found, skip rewrite
+  std::unique_ptr<MethodVector> glue_methods_;  // methods to forward to async api
+  std::unique_ptr<MethodVector> unhandled_methods_;  // if found, skip rewrite
 
   HtmlParse* html_parse_;
   HtmlElement* script_element_;  // NULL if not in script element

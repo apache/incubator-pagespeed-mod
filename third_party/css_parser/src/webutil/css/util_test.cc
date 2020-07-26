@@ -22,7 +22,6 @@
 #include "webutil/css/util.h"
 
 #include <memory>
-#include "base/scoped_ptr.h"
 #include <string>
 
 #include "base/logging.h"
@@ -55,7 +54,7 @@ class CssSystemColorTest : public testing::Test {
   }
 
  private:
-  scoped_ptr<HtmlColor> color_;
+  std::unique_ptr<HtmlColor> color_;
 };
 
 TEST_F(CssSystemColorTest, common_colors) {
@@ -87,7 +86,7 @@ class MediaAppliesToScreenTest : public testing::Test {
  protected:
   bool ParseMediaAppliesToScreen(const CssStringPiece& media_string) {
     Css::Parser p(media_string);
-    scoped_ptr<Css::MediaQueries> queries(p.ParseMediaQueries());
+    std::unique_ptr<Css::MediaQueries> queries(p.ParseMediaQueries());
     return Css::Util::MediaAppliesToScreen(*queries);
   }
 

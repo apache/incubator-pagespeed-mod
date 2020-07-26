@@ -87,7 +87,7 @@ class StyleExtractor {
 
  private:
   static Css::Declarations* GetDeclsFromElement(HtmlElement* element);
-  scoped_ptr<Css::Declarations> decls_;
+  std::unique_ptr<Css::Declarations> decls_;
   int width_px_;
   int height_px_;
   DimensionState state_;

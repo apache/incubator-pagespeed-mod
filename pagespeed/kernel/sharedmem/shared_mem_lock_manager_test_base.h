@@ -56,9 +56,9 @@ class SharedMemLockManagerTestBase : public testing::Test {
   void TestBasicChild();
   void TestStealChild();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;   // Note: if we are running in a process-based environment
                       // this object is not shared at all; therefore all time
                       // advancement must be done in either parent or kid but
@@ -66,7 +66,7 @@ class SharedMemLockManagerTestBase : public testing::Test {
   MockMessageHandler handler_;
   MockScheduler scheduler_;
   MD5Hasher hasher_;
-  scoped_ptr<SharedMemLockManager> root_lock_manager_;  // used for init only.
+  std::unique_ptr<SharedMemLockManager> root_lock_manager_;  // used for init only.
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemLockManagerTestBase);
 };

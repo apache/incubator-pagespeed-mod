@@ -198,8 +198,8 @@ class RedisCache : public CacheInterface {
     const RedisCache* redis_cache_;
     const GoogleString host_;
     const int port_;
-    const scoped_ptr<AbstractMutex> redis_mutex_;
-    const scoped_ptr<AbstractMutex> state_mutex_;
+    const std::unique_ptr<AbstractMutex> redis_mutex_;
+    const std::unique_ptr<AbstractMutex> state_mutex_;
 
     RedisContext redis_ GUARDED_BY(redis_mutex_);
     State state_ GUARDED_BY(state_mutex_);
@@ -267,9 +267,9 @@ class RedisCache : public CacheInterface {
   Timer* timer_;
   const int64 reconnection_delay_ms_;
   const int64 timeout_us_;
-  const scoped_ptr<ThreadSynchronizer> thread_synchronizer_;
-  const scoped_ptr<ThreadSystem::RWLock> connections_lock_;
-  const scoped_ptr<ThreadSystem::RWLock> cluster_map_lock_;
+  const std::unique_ptr<ThreadSynchronizer> thread_synchronizer_;
+  const std::unique_ptr<ThreadSystem::RWLock> connections_lock_;
+  const std::unique_ptr<ThreadSystem::RWLock> cluster_map_lock_;
   Variable* redirections_;
   Variable* cluster_slots_fetches_;
 

@@ -204,7 +204,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   // The charset of the combination so far.
   StringPiece combined_charset_;
 
-  scoped_ptr<JavascriptRewriteConfig> config_;
+  std::unique_ptr<JavascriptRewriteConfig> config_;
   CodeBlockMap code_blocks_;
 
   DISALLOW_COPY_AND_ASSIGN(JsCombiner);
@@ -499,7 +499,7 @@ JavascriptCodeBlock* JsCombineFilter::JsCombiner::BlockForResource(
       config_.reset(JavascriptFilter::InitializeConfig(rewrite_driver_));
     }
 
-    scoped_ptr<JavascriptCodeBlock> new_block(new JavascriptCodeBlock(
+    std::unique_ptr<JavascriptCodeBlock> new_block(new JavascriptCodeBlock(
         input->ExtractUncompressedContents(), config_.get(), input->url(),
         rewrite_driver_->message_handler()));
     new_block->Rewrite();

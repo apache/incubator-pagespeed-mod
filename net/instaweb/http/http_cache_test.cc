@@ -162,7 +162,7 @@ class HTTPCacheTest : public testing::Test {
   HTTPCache::FindResult Find(
       const GoogleString& key, const GoogleString& fragment, HTTPValue* value,
       ResponseHeaders* headers) {
-    scoped_ptr<Callback> callback(NewCallback());
+    std::unique_ptr<Callback> callback(NewCallback());
     return FindWithCallback(
         key, fragment, value, headers, callback.get());
   }
@@ -170,7 +170,7 @@ class HTTPCacheTest : public testing::Test {
   HTTPCache::FindResult FindAcceptGzip(
       const GoogleString& key, const GoogleString& fragment, HTTPValue* value,
       ResponseHeaders* headers) {
-    scoped_ptr<Callback> callback(NewCallback());
+    std::unique_ptr<Callback> callback(NewCallback());
     callback->request_context()->SetAcceptsGzip(true);
     return FindWithCallback(
         key, fragment, value, headers, callback.get());
@@ -179,7 +179,7 @@ class HTTPCacheTest : public testing::Test {
   HTTPCache::FindResult Find(
       const GoogleString& key, const GoogleString& fragment, HTTPValue* value,
       ResponseHeaders* headers, bool cache_valid) {
-    scoped_ptr<Callback> callback(NewCallback());
+    std::unique_ptr<Callback> callback(NewCallback());
     callback->cache_valid_ = cache_valid;
     return FindWithCallback(
         key, fragment, value, headers, callback.get());
@@ -238,12 +238,12 @@ class HTTPCacheTest : public testing::Test {
     return lru_cache_.size_bytes();
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats simple_stats_;
   MockTimer mock_timer_;
   MockHasher mock_hasher_;
   LRUCache lru_cache_;
-  scoped_ptr<HTTPCache> http_cache_;
+  std::unique_ptr<HTTPCache> http_cache_;
   GoogleMessageHandler message_handler_;
 
  private:
@@ -274,7 +274,7 @@ TEST_F(HTTPCacheTest, PutGet) {
   EXPECT_EQ(0, GetStat(HTTPCache::kCacheFallbacks));
 
   simple_stats_.Clear();
-  scoped_ptr<Callback> callback(NewCallback());
+  std::unique_ptr<Callback> callback(NewCallback());
   // Now advance time 301 seconds and the we should no longer
   // be able to fetch this resource out of the cache.
   mock_timer_.AdvanceMs(301 * 1000);
@@ -302,7 +302,7 @@ TEST_F(HTTPCacheTest, PutGet) {
 
   // Try again but with the cache invalidated.
   simple_stats_.Clear();
-  scoped_ptr<Callback> callback2(NewCallback());
+  std::unique_ptr<Callback> callback2(NewCallback());
   callback2->cache_valid_ = false;
   found = FindWithCallback(kUrl, kFragment, &value, &meta_data_out,
                            callback2.get());
@@ -684,7 +684,7 @@ TEST_F(HTTPCacheTest, IsFresh) {
   InitHeaders(&meta_data_in, "max-age=300");
   Put(kUrl, kFragment, &meta_data_in, kDataIn);
   HTTPValue value;
-  scoped_ptr<Callback> callback(NewCallback());
+  std::unique_ptr<Callback> callback(NewCallback());
   callback->fresh_ = true;
   // Check with IsFresh set to true.
   EXPECT_EQ(kFoundResult,
@@ -719,7 +719,7 @@ TEST_F(HTTPCacheTest, OverrideCacheTtlMs) {
   InitHeaders(&meta_data_in, "max-age=300");
   Put(kUrl, kFragment, &meta_data_in, kDataIn);
   HTTPValue value;
-  scoped_ptr<Callback> callback(NewCallback());
+  std::unique_ptr<Callback> callback(NewCallback());
   callback->override_cache_ttl_ms_ = 400 * 1000;
   EXPECT_EQ(kFoundResult,
             FindWithCallback(kUrl, kFragment, &value, &meta_data_out,
@@ -802,7 +802,7 @@ TEST_F(HTTPCacheTest, OverrideCacheTtlMsForOriginallyNotCacheable200) {
   http_cache_->RememberFailure(kUrl, kFragment, kFetchStatusUncacheable200,
                                &message_handler_);
   HTTPValue value;
-  scoped_ptr<Callback> callback(NewCallback());
+  std::unique_ptr<Callback> callback(NewCallback());
   EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kRecentFailure,
                                   kFetchStatusUncacheable200),
             FindWithCallback(kUrl, kFragment, &value, &meta_data_out,
@@ -823,7 +823,7 @@ TEST_F(HTTPCacheTest, OverrideCacheTtlMsForOriginallyNotCacheableNon200) {
   http_cache_->RememberFailure(kUrl, kFragment, kFetchStatusUncacheableError,
                                &message_handler_);
   HTTPValue value;
-  scoped_ptr<Callback> callback(NewCallback());
+  std::unique_ptr<Callback> callback(NewCallback());
   EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kRecentFailure,
                                   kFetchStatusUncacheableError),
             FindWithCallback(kUrl, kFragment, &value, &meta_data_out,
@@ -845,7 +845,7 @@ TEST_F(HTTPCacheTest, OverrideCacheTtlMsForOriginallyFetchFailed) {
   http_cache_->RememberFailure(kUrl, kFragment, kFetchStatusOtherError,
                                &message_handler_);
   HTTPValue value;
-  scoped_ptr<Callback> callback(NewCallback());
+  std::unique_ptr<Callback> callback(NewCallback());
   EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kRecentFailure,
                                   kFetchStatusOtherError),
             FindWithCallback(kUrl, kFragment, &value, &meta_data_out,
@@ -942,7 +942,7 @@ TEST_F(HTTPCacheTest, DecompressFallbackValue) {
 
   // If we don't have gzip in the request, it should not be in the fallback
   // value.
-  scoped_ptr<Callback> callback(NewCallback());
+  std::unique_ptr<Callback> callback(NewCallback());
   HTTPValue value;
   EXPECT_EQ(kNotFoundResult, FindWithCallback(  // Not found because it's stale.
       kUrl, kFragment, &value, &response_headers,

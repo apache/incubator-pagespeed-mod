@@ -110,7 +110,7 @@ class AsyncCacheTest : public CacheTestBase {
 
     typedef std::map<GoogleString, WorkerTestBase::SyncPoint*> Map;
 
-    scoped_ptr<AbstractMutex> mutex_;
+    std::unique_ptr<AbstractMutex> mutex_;
     ThreadSystem* thread_system_;
     Map map_;
   };
@@ -229,13 +229,13 @@ class AsyncCacheTest : public CacheTestBase {
   }
 
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   DelayMap delay_map_;
-  scoped_ptr<Timer> timer_;
-  scoped_ptr<QueuedWorkerPool> pool_;
-  scoped_ptr<AsyncCache> async_cache_;
+  std::unique_ptr<Timer> timer_;
+  std::unique_ptr<QueuedWorkerPool> pool_;
+  std::unique_ptr<AsyncCache> async_cache_;
   bool suppress_post_get_cleanup_;
-  scoped_ptr<SyncedLRUCache> synced_lru_cache_;
+  std::unique_ptr<SyncedLRUCache> synced_lru_cache_;
   int32 expected_outstanding_operations_;
 };
 

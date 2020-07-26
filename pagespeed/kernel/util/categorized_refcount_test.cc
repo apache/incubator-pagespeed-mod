@@ -73,8 +73,8 @@ class CategorizedRefcountTest : public testing::Test {
     count_.set_mutex(mutex_.get());
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<AbstractMutex> mutex_;
   Client client_;
   CategorizedRefcount<
       Client, Client::RefCategory> count_;

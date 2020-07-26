@@ -24,7 +24,6 @@
 #include <string>
 
 #include <memory>
-#include "base/scoped_ptr.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "gtest/gtest.h"
@@ -42,7 +41,7 @@ class ToStringTest : public testing::Test {
   void TestDeclarations(const string& css, int line) {
     SCOPED_TRACE (absl::StrFormat("at line %d", line));
     Css::Parser parser(css);
-    scoped_ptr<Css::Declarations> decls(parser.ParseDeclarations());
+    std::unique_ptr<Css::Declarations> decls(parser.ParseDeclarations());
     EXPECT_EQ(css, decls->ToString());
   }
 
@@ -50,7 +49,7 @@ class ToStringTest : public testing::Test {
   void TestStylesheet(const string& css, int line) {
     SCOPED_TRACE (absl::StrFormat("at line %d", line));
     Css::Parser parser(css);
-    scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseStylesheet());
+    std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseStylesheet());
     EXPECT_EQ(css, stylesheet->ToString());
   }
 };
@@ -66,7 +65,7 @@ TEST_F(ToStringTest, declarations) {
 
   // FONT is special
   Css::Parser parser("font: 3px/1.1 Arial");
-  scoped_ptr<Css::Declarations> decls(parser.ParseDeclarations());
+  std::unique_ptr<Css::Declarations> decls(parser.ParseDeclarations());
   EXPECT_EQ("font: 3px/1.1 Arial; "
             "font-style: normal; font-variant: normal; font-weight: normal; "
             "font-size: 3px; line-height: 1.1; font-family: Arial",
@@ -94,8 +93,8 @@ TEST_F(ToStringTest, misc) {
                  "@media print, screen { a {top: 1} }\n"
                  "b {color: #ff0000}\n");
 
-  scoped_ptr<Css::Parser> parser(new Css::Parser("a {top: 1}"));
-  scoped_ptr<Css::Stylesheet> stylesheet(parser->ParseStylesheet());
+  std::unique_ptr<Css::Parser> parser(new Css::Parser("a {top: 1}"));
+  std::unique_ptr<Css::Stylesheet> stylesheet(parser->ParseStylesheet());
   stylesheet->set_type(Css::Stylesheet::SYSTEM);
   EXPECT_EQ("/* SYSTEM */\n\n\n\n"
             "a {top: 1}\n",
@@ -111,7 +110,7 @@ TEST_F(ToStringTest, misc) {
 
 TEST_F(ToStringTest, SpecialChars) {
   Css::Parser parser("content: \"Special chars: \\n\\r\\t\\A \\D \\9\"");
-  scoped_ptr<Css::Declarations> decls(parser.ParseDeclarations());
+  std::unique_ptr<Css::Declarations> decls(parser.ParseDeclarations());
   EXPECT_EQ("content: \"Special chars: nrt\\A \\D \\9 \"", decls->ToString());
 }
 

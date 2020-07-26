@@ -25,7 +25,6 @@
 
 #include <algorithm>  // std::min
 #include <memory>
-#include "base/scoped_ptr.h"
 #include <string>
 #include <vector>
 
@@ -442,7 +441,7 @@ void Parser::SkipToMediaQueryEnd() {
       // Skip over all other tokens.
       default:
         // Ignore whatever there is to parse.
-        scoped_ptr<Value> v(ParseAny());
+        std::unique_ptr<Value> v(ParseAny());
         break;
     }
     SkipSpace();
@@ -795,7 +794,7 @@ HtmlColor Parser::ParseColor() {
 // Both commas and spaces are allowed as separators and are remembered.
 FunctionParameters* Parser::ParseFunction(int max_function_depth) {
   Tracer trace(__func__, this);
-  scoped_ptr<FunctionParameters> params(new FunctionParameters);
+  std::unique_ptr<FunctionParameters> params(new FunctionParameters);
 
   SkipSpace();
   // Separator before next value. Initial value doesn't matter.
@@ -818,7 +817,7 @@ FunctionParameters* Parser::ParseFunction(int max_function_depth) {
         in_++;
         break;
       default: {
-        scoped_ptr<Value> val(
+        std::unique_ptr<Value> val(
             ParseAnyWithFunctionDepth(max_function_depth));
         if (!val.get()) {
           ReportParsingError(kFunctionError,
@@ -879,7 +878,7 @@ Value* Parser::ParseRgbColor() {
   unsigned char rgb[3];
 
   for (int i = 0; i < 3; i++) {
-    scoped_ptr<Value> val(ParseNumber());
+    std::unique_ptr<Value> val(ParseNumber());
     if (!val.get() || val->GetLexicalUnitType() != Value::NUMBER ||
         (val->GetDimension() != Value::PERCENT &&
          val->GetDimension() != Value::NO_UNIT))
@@ -1042,7 +1041,7 @@ Value* Parser::ParseAnyWithFunctionDepth(int max_function_depth) {
           } else if (StringCaseEquals(id, "rgb")) {
             toret = ParseRgbColor();
           } else if (StringCaseEquals(id, "rect")) {
-            scoped_ptr<FunctionParameters> params(
+            std::unique_ptr<FunctionParameters> params(
                 ParseFunction(max_function_depth - 1));
             if (params.get() != NULL && params->size() == 4) {
               toret = new Value(Value::RECT, params.release());
@@ -1051,7 +1050,7 @@ Value* Parser::ParseAnyWithFunctionDepth(int max_function_depth) {
                                  "for function rect");
             }
           } else {
-            scoped_ptr<FunctionParameters> params(
+            std::unique_ptr<FunctionParameters> params(
                 ParseFunction(max_function_depth - 1));
             if (params.get() != NULL) {
               toret = new Value(id, params.release());
@@ -1120,13 +1119,13 @@ Values* Parser::ParseValues(Property::Prop prop) {
   // If expecting_color is true, color values are expected.
   bool expecting_color = IsPropExpectingColor(prop);
 
-  scoped_ptr<Values> values(new Values);
+  std::unique_ptr<Values> values(new Values);
   // Note: We skip over all blocks and at-keywords and only parse "any"s.
   //   value : [ any | block | ATKEYWORD S* ]+;
   // TODO(sligocki): According to the spec, if we cannot parse one of the
   // values, we must ignore the whole declaration.
   while (SkipToNextAny()) {
-    scoped_ptr<Value> v(expecting_color ? ParseAnyExpectingColor()
+    std::unique_ptr<Value> v(expecting_color ? ParseAnyExpectingColor()
                                              : ParseAny());
 
     if (v.get()) {
@@ -1186,8 +1185,8 @@ bool Parser::ExpandBackground(const Declaration& original_declaration,
   Value background_image(Identifier::NONE);
   Value background_repeat(Identifier::REPEAT);
   Value background_attachment(Identifier::SCROLL);
-  scoped_ptr<Value> background_position_x;
-  scoped_ptr<Value> background_position_y;
+  std::unique_ptr<Value> background_position_x;
+  std::unique_ptr<Value> background_position_y;
 
   bool is_first = true;
 
@@ -1337,7 +1336,7 @@ bool Parser::ParseFontFamily(Values* values) {
 
   while (true) {
     const char* oldin = in_;
-    scoped_ptr<Value> v(ParseAny());
+    std::unique_ptr<Value> v(ParseAny());
     if (v.get() == NULL) {
       ReportParsingError(kValueError, "Unexpected token in font-family.");
       in_ = oldin;  // We did not use token, so unconsume it.
@@ -1402,12 +1401,12 @@ Values* Parser::ParseFont() {
   if (Done()) return NULL;
   DCHECK_LT(in_, end_);
 
-  scoped_ptr<Values> values(new Values);
+  std::unique_ptr<Values> values(new Values);
 
   if (!SkipToNextAny())
     return NULL;
 
-  scoped_ptr<Value> v(ParseAny());
+  std::unique_ptr<Value> v(ParseAny());
   if (!v.get()) return NULL;
 
   // For special one-valued font: notations, just return with that one value.
@@ -1435,12 +1434,12 @@ Values* Parser::ParseFont() {
     }
   }
 
-  scoped_ptr<Value> font_style(new Value(Identifier::NORMAL));
-  scoped_ptr<Value> font_variant(new Value(Identifier::NORMAL));
-  scoped_ptr<Value> font_weight(new Value(Identifier::NORMAL));
-  scoped_ptr<Value> font_size(new Value(Identifier::MEDIUM));
-  scoped_ptr<Value> line_height(new Value(Identifier::NORMAL));
-  scoped_ptr<Value> font_family;
+  std::unique_ptr<Value> font_style(new Value(Identifier::NORMAL));
+  std::unique_ptr<Value> font_variant(new Value(Identifier::NORMAL));
+  std::unique_ptr<Value> font_weight(new Value(Identifier::NORMAL));
+  std::unique_ptr<Value> font_size(new Value(Identifier::MEDIUM));
+  std::unique_ptr<Value> line_height(new Value(Identifier::NORMAL));
+  std::unique_ptr<Value> font_family;
 
   // parse style, variant and weight
   while (true) {
@@ -1559,7 +1558,7 @@ static void ExpandShorthandProperties(Declarations* declarations,
   bool important = declaration.IsImportant();
 
   // Buffer to build up values used instead of vals above.
-  scoped_ptr<Values> edit_vals;
+  std::unique_ptr<Values> edit_vals;
   switch (prop.prop()) {
     case Property::FONT: {
       // Expand the value vector for special font: values.
@@ -1678,7 +1677,7 @@ Declarations* Parser::ParseRawDeclarations() {
         DCHECK_EQ(':', *in_);
         in_++;
 
-        scoped_ptr<Values> vals;
+        std::unique_ptr<Values> vals;
         switch (prop.prop()) {
           // TODO(sligocki): stop special-casing.
           case Property::FONT:
@@ -1793,7 +1792,7 @@ Declarations* Parser::ParseRawDeclarations() {
 }
 
 Declarations* Parser::ExpandDeclarations(Declarations* orig_declarations) {
-  scoped_ptr<Declarations> new_declarations(new Declarations);
+  std::unique_ptr<Declarations> new_declarations(new Declarations);
   for (int j = 0; j < orig_declarations->size(); ++j) {
     // new_declarations takes ownership of declaration.
     Declaration* declaration = orig_declarations->at(j);
@@ -1817,7 +1816,7 @@ Declarations* Parser::ExpandDeclarations(Declarations* orig_declarations) {
 }
 
 Declarations* Parser::ParseDeclarations() {
-  scoped_ptr<Declarations> orig_declarations(ParseRawDeclarations());
+  std::unique_ptr<Declarations> orig_declarations(ParseRawDeclarations());
   return ExpandDeclarations(orig_declarations.get());
 }
 
@@ -1834,7 +1833,7 @@ SimpleSelector* Parser::ParseAttributeSelector() {
 
   UnicodeText attr = ParseIdent();
   SkipSpace();
-  scoped_ptr<SimpleSelector> newcond;
+  std::unique_ptr<SimpleSelector> newcond;
   if (!attr.empty() && in_ < end_) {
     char oper = *in_;
     switch (*in_) {
@@ -1980,7 +1979,7 @@ SimpleSelectors* Parser::ParseSimpleSelectors(bool expecting_combinator) {
         break;
     }
 
-  scoped_ptr<SimpleSelectors> selectors(new SimpleSelectors(combinator));
+  std::unique_ptr<SimpleSelectors> selectors(new SimpleSelectors(combinator));
 
   SkipSpace();
   if (Done()) return NULL;
@@ -2011,7 +2010,7 @@ Selectors* Parser::ParseSelectors() {
   // selectors.
   bool success = true;
 
-  scoped_ptr<Selectors> selectors(new Selectors());
+  std::unique_ptr<Selectors> selectors(new Selectors());
   Selector* selector = new Selector();
   selectors->push_back(selector);
 
@@ -2167,8 +2166,8 @@ Ruleset* Parser::ParseRuleset() {
   const char* start_pos = in_;
   const uint64_t start_errors_seen_mask = errors_seen_mask_;
 
-  scoped_ptr<Ruleset> ruleset(new Ruleset());
-  scoped_ptr<Selectors> selectors(ParseSelectors());
+  std::unique_ptr<Ruleset> ruleset(new Ruleset());
+  std::unique_ptr<Selectors> selectors(ParseSelectors());
 
   if (Done()) {
     ReportParsingError(kSelectorError,
@@ -2224,7 +2223,7 @@ Ruleset* Parser::ParseRuleset() {
 MediaQueries* Parser::ParseMediaQueries() {
   Tracer trace(__func__, this);
 
-  scoped_ptr<MediaQueries> media_queries(new MediaQueries);
+  std::unique_ptr<MediaQueries> media_queries(new MediaQueries);
 
   SkipSpace();
   if (Done() || (*in_ == ';' || *in_ == '{')) {
@@ -2233,7 +2232,7 @@ MediaQueries* Parser::ParseMediaQueries() {
   }
 
   while (in_ < end_) {
-    scoped_ptr<MediaQuery> query(ParseMediaQuery());
+    std::unique_ptr<MediaQuery> query(ParseMediaQuery());
     if (query.get() == NULL) {
       // According to http://www.w3.org/TR/css3-mediaqueries/#error-handling,
       // All malformed media queries should be represented as "not all".
@@ -2276,7 +2275,7 @@ MediaQuery* Parser::ParseMediaQuery() {
   Tracer trace(__func__, this);
   SkipSpace();
 
-  scoped_ptr<MediaQuery> query(new MediaQuery);
+  std::unique_ptr<MediaQuery> query(new MediaQuery);
   UnicodeText id = ParseIdent();
   SkipSpace();
 
@@ -2437,14 +2436,14 @@ Import* Parser::ParseImport() {
   if (Done()) return NULL;
   DCHECK_LT(in_, end_);
 
-  scoped_ptr<Value> v(ParseAny());
+  std::unique_ptr<Value> v(ParseAny());
   if (!v.get() || (v->GetLexicalUnitType() != Value::STRING &&
                    v->GetLexicalUnitType() != Value::URI)) {
     ReportParsingError(kImportError, "Unexpected token while parsing @import");
     return NULL;
   }
 
-  scoped_ptr<Import> import(new Import());
+  std::unique_ptr<Import> import(new Import());
   import->set_link(v->GetStringValue());
   SkipSpace();
   if (Done() || *in_ == ';') {
@@ -2466,7 +2465,7 @@ Import* Parser::ParseImport() {
 FontFace* Parser::ParseFontFace() {
   Tracer trace(__func__, this);
 
-  scoped_ptr<FontFace> font_face(new FontFace());
+  std::unique_ptr<FontFace> font_face(new FontFace());
   SkipSpace();
   if (Done()) {
     ReportParsingError(kAtRuleError, "Unexpected EOF in @font-face.");
@@ -2517,7 +2516,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
         ReportParsingError(kImportError, "@import found after rulesets.");
         correctly_terminated = SkipToAtRuleEnd();
       } else {
-        scoped_ptr<Import> import(ParseImport());
+        std::unique_ptr<Import> import(ParseImport());
         SkipSpace();
         if (import.get()) {
           if (Done()) {
@@ -2584,7 +2583,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
         ReportParsingError(kMediaError, "@media found inside @media");
         correctly_terminated = SkipToAtRuleEnd();
       } else {
-        scoped_ptr<MediaQueries> media_queries(ParseMediaQueries());
+        std::unique_ptr<MediaQueries> media_queries(ParseMediaQueries());
         if (preservation_mode_ && errors_seen_mask_ != start_errors_seen_mask) {
           ReportParsingError(kMediaError,
                              "Error parsing media queries, ignoring block.");
@@ -2628,7 +2627,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
       }
 
     } else if (StringCaseEquals(ident, "font-face")) {
-      scoped_ptr<FontFace> font_face(ParseFontFace());
+      std::unique_ptr<FontFace> font_face(ParseFontFace());
       if ((preservation_mode_ && (errors_seen_mask_ != start_errors_seen_mask))
           || font_face.get() == NULL) {
         ReportParsingError(kAtRuleError, "Could not parse @font-face rule.");
@@ -2676,7 +2675,7 @@ void Parser::ParseStatement(const MediaQueries* media_queries,
       errors_seen_mask_ = start_errors_seen_mask;
     }
   } else {
-    scoped_ptr<Ruleset> ruleset(ParseRuleset());
+    std::unique_ptr<Ruleset> ruleset(ParseRuleset());
     if (ruleset.get() == NULL && oldin == in_) {
       ReportParsingError(kSelectorError, absl::StrFormat(
           "Could not parse ruleset: illegal char %c", *in_));

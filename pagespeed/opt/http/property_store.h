@@ -143,7 +143,7 @@ class PropertyStoreGetCallback : public AbstractPropertyStoreGetCallback {
   PropertyPage* page() { return page_; }
 
  private:
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   PropertyPage* page_;
   const bool is_cancellable_;
   BoolCallback* done_;

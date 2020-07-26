@@ -60,26 +60,26 @@ class LibpngImageLibraryTest : public testing::Test {
   }
 
   // A library that reads in our test source data and writes in our temp dir.
-  scoped_ptr<LibpngImageLibrary> src_library_;
+  std::unique_ptr<LibpngImageLibrary> src_library_;
   // A library that reads and writes in our temp dir.
-  scoped_ptr<LibpngImageLibrary> tmp_library_;
-  scoped_ptr<LogDelegate> delegate_;
+  std::unique_ptr<LibpngImageLibrary> tmp_library_;
+  std::unique_ptr<LogDelegate> delegate_;
 };
 
 
 TEST_F(LibpngImageLibraryTest, TestCompose) {
   //  65x70
-  scoped_ptr<ImageLibraryInterface::Image> image1(ReadFromFile(kCuppa));
+  std::unique_ptr<ImageLibraryInterface::Image> image1(ReadFromFile(kCuppa));
   // 100x100
-  scoped_ptr<ImageLibraryInterface::Image> image2(ReadFromFile(kBikeCrash));
+  std::unique_ptr<ImageLibraryInterface::Image> image2(ReadFromFile(kBikeCrash));
   ASSERT_TRUE(image1.get() != NULL);
   ASSERT_TRUE(image2.get() != NULL);
-  scoped_ptr<ImageLibraryInterface::Canvas> canvas(CreateCanvas(100, 170));
+  std::unique_ptr<ImageLibraryInterface::Canvas> canvas(CreateCanvas(100, 170));
   ASSERT_TRUE(canvas != NULL);
   ASSERT_TRUE(canvas->DrawImage(image1.get(), 0, 0));
   ASSERT_TRUE(canvas->DrawImage(image2.get(), 0, 70));
   ASSERT_TRUE(canvas->WriteToFile("out.png", PNG));
-  scoped_ptr<ImageLibraryInterface::Image> image3(WriteAndRead(canvas.get()));
+  std::unique_ptr<ImageLibraryInterface::Image> image3(WriteAndRead(canvas.get()));
   ASSERT_TRUE(image3.get() != NULL);
   int width, height;
   ASSERT_TRUE(image3->GetDimensions(&width, &height));

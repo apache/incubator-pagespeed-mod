@@ -60,8 +60,8 @@ class ApacheWriterTest : public testing::Test {
 
  protected:
   request_rec request_;
-  scoped_ptr<ApacheWriter> apache_writer_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  std::unique_ptr<ApacheWriter> apache_writer_;
+  std::unique_ptr<ResponseHeaders> response_headers_;
   NullMessageHandler message_handler_;
   NullThreadSystem thread_system_;
 };

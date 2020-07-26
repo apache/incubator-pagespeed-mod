@@ -95,7 +95,7 @@ class PixelFormatOptimizer : public ScanlineReaderInterface {
                                               size_t buffer_length);
 
  private:
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> reader_;
+  std::unique_ptr<ScanlineReaderInterface> reader_;
   size_t bytes_per_row_;
   PixelFormat pixel_format_;
   size_t output_row_;

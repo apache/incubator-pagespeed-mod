@@ -175,7 +175,7 @@ class ApacheFetchTest : public RewriteTestBase {
   ApacheWriter* apache_writer_;
   RequestHeaders* request_headers_;
   RequestContextPtr request_ctx_;
-  scoped_ptr<ApacheFetch> apache_fetch_;
+  std::unique_ptr<ApacheFetch> apache_fetch_;
 };
 
 TEST_F(ApacheFetchTest, WaitIproUnbuffered) {

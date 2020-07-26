@@ -61,7 +61,7 @@ class HttpDumpUrlFetcherTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer mock_timer_;
   StdioFileSystem file_system_;
   GoogleString content_;

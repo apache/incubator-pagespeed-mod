@@ -232,13 +232,13 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   MockTimer* mock_timer_;  // owned by base class timer_.
   MockScheduler* mock_scheduler_;  // owned by RewriteDriverFactory::scheduler_.
   DelayCache* delay_cache_;
-  scoped_ptr<ThreadsafeCache> threadsafe_cache_;
-  scoped_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<ThreadsafeCache> threadsafe_cache_;
+  std::unique_ptr<LRUCache> lru_cache_;
   MockUrlFetcher* mock_url_fetcher_;
-  scoped_ptr<CountingUrlAsyncFetcher> counting_url_async_fetcher_;
+  std::unique_ptr<CountingUrlAsyncFetcher> counting_url_async_fetcher_;
   RateControllingUrlAsyncFetcher* rate_controlling_url_async_fetcher_;
-  scoped_ptr<WaitUrlAsyncFetcher> wait_url_async_fetcher_;
-  scoped_ptr<MockTimeCache> mock_time_cache_;
+  std::unique_ptr<WaitUrlAsyncFetcher> wait_url_async_fetcher_;
+  std::unique_ptr<MockTimeCache> mock_time_cache_;
   MemFileSystem* mem_file_system_;  // owned by base class file_system_.
   MockHasher* mock_hasher_;
   SimpleStats simple_stats_;

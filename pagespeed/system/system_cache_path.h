@@ -136,8 +136,8 @@ class SystemCachePath {
 
   RewriteDriverFactory* factory_;
   AbstractSharedMem* shm_runtime_;
-  scoped_ptr<SharedMemLockManager> shared_mem_lock_manager_;
-  scoped_ptr<FileSystemLockManager> file_system_lock_manager_;
+  std::unique_ptr<SharedMemLockManager> shared_mem_lock_manager_;
+  std::unique_ptr<FileSystemLockManager> file_system_lock_manager_;
   NamedLockManager* lock_manager_;
   FileCache* file_cache_backend_;  // owned by file_cache_
   CacheInterface* lru_cache_;
@@ -149,9 +149,9 @@ class SystemCachePath {
   bool clean_size_explicitly_set_;
   bool clean_inode_limit_explicitly_set_;
 
-  scoped_ptr<PurgeContext> purge_context_;
+  std::unique_ptr<PurgeContext> purge_context_;
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   ServerContextSet server_context_set_ GUARDED_BY(mutex_);
 };
 

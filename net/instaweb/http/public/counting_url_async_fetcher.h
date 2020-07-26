@@ -91,8 +91,8 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
   int byte_count_;
   int failure_count_;
   GoogleString most_recent_fetched_url_;
-  scoped_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
-  scoped_ptr<AbstractMutex> mutex_;         // Mutex Protect.
+  std::unique_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
+  std::unique_ptr<AbstractMutex> mutex_;         // Mutex Protect.
 
   DISALLOW_COPY_AND_ASSIGN(CountingUrlAsyncFetcher);
 };

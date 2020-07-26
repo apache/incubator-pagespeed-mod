@@ -82,7 +82,7 @@ class DataUrlInputResource : public Resource {
                        const StringPiece& encoded_contents,
                        const RewriteDriver* driver);
 
-  scoped_ptr<const GoogleString> url_;
+  std::unique_ptr<const GoogleString> url_;
   const Encoding encoding_;
   const StringPiece encoded_contents_;  // substring of url.
   GoogleString decoded_contents_;

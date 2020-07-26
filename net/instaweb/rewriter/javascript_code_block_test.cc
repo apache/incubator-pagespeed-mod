@@ -239,7 +239,7 @@ class JsCodeBlockTest : public ::testing::Test,
 
   void SingleBlockRewriteTest(const char* before_compilation,
                               const char* after_compilation) {
-    scoped_ptr<JavascriptCodeBlock> block(TestBlock(before_compilation));
+    std::unique_ptr<JavascriptCodeBlock> block(TestBlock(before_compilation));
     EXPECT_TRUE(block->Rewrite());
     EXPECT_TRUE(block->successfully_rewritten());
     EXPECT_EQ(after_compilation, block->rewritten_code());
@@ -249,11 +249,11 @@ class JsCodeBlockTest : public ::testing::Test,
   }
 
   GoogleMessageHandler handler_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   JavascriptLibraryIdentification libraries_;
   const pagespeed::js::JsTokenizerPatterns js_tokenizer_patterns_;
-  scoped_ptr<JavascriptRewriteConfig> config_;
+  std::unique_ptr<JavascriptRewriteConfig> config_;
 
   const bool use_experimental_minifier_;
   const char* after_compilation_;
@@ -287,7 +287,7 @@ TEST_P(JsCodeBlockTest, UnsafeToRename) {
 }
 
 TEST_P(JsCodeBlockTest, NoRewrite) {
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
   EXPECT_FALSE(block->Rewrite());
   // Note: Minifier succeeded, but no minification was applied and thus
   // no bytes saved (nor original bytes marked).
@@ -295,13 +295,13 @@ TEST_P(JsCodeBlockTest, NoRewrite) {
 }
 
 TEST_P(JsCodeBlockTest, TruncatedComment) {
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedComment));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedComment));
   EXPECT_FALSE(block->Rewrite());
   ExpectStats(0, 1, 0, 0, 0);
 }
 
 TEST_P(JsCodeBlockTest, TruncatedString) {
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedString));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedString));
   EXPECT_FALSE(block->Rewrite());
   ExpectStats(0, 1, 0, 0, 0);
 }
@@ -310,7 +310,7 @@ TEST_P(JsCodeBlockTest, NoMinification) {
   DisableMinification();
   DisableLibraryIdentification();
   EXPECT_FALSE(config_->minify());
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   EXPECT_FALSE(block->Rewrite());
   ExpectStats(0, 0, 0, 0, 0);
 }
@@ -320,7 +320,7 @@ TEST_P(JsCodeBlockTest, DealWithSgmlComment) {
   // all (due to xhtml in the source document)!
   static const char kOriginal[] = "  <!--  \nvar x = 1;\n  //-->  ";
   static const char kExpected[] = "var x=1;";
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kOriginal));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kOriginal));
   EXPECT_TRUE(block->Rewrite());
   EXPECT_EQ(kExpected, block->rewritten_code());
   ExpectStats(1, 0,
@@ -330,7 +330,7 @@ TEST_P(JsCodeBlockTest, DealWithSgmlComment) {
 
 TEST_P(JsCodeBlockTest, IdentifyUnminified) {
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
@@ -339,7 +339,7 @@ TEST_P(JsCodeBlockTest, IdentifyMerged) {
   JavascriptLibraryIdentification other_libraries;
   RegisterLibrariesIn(&other_libraries);
   libraries_.Merge(other_libraries);
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
@@ -349,14 +349,14 @@ TEST_P(JsCodeBlockTest, IdentifyMergedDuplicate) {
   JavascriptLibraryIdentification other_libraries;
   RegisterLibrariesIn(&other_libraries);
   libraries_.Merge(other_libraries);
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
 
 TEST_P(JsCodeBlockTest, IdentifyMinified) {
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
@@ -364,7 +364,7 @@ TEST_P(JsCodeBlockTest, IdentifyMinified) {
 TEST_P(JsCodeBlockTest, IdentifyNoMinification) {
   DisableMinification();
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
   EXPECT_FALSE(block->successfully_rewritten());
@@ -373,7 +373,7 @@ TEST_P(JsCodeBlockTest, IdentifyNoMinification) {
 
 TEST_P(JsCodeBlockTest, IdentifyNoMatch) {
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(
+  std::unique_ptr<JavascriptCodeBlock> block(
       TestBlock(kJsWithGetElementsByTagNameScript));
   block->Rewrite();
   EXPECT_EQ("", block->ComputeJavascriptLibrary());

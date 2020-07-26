@@ -60,7 +60,7 @@ class MemFileSystemTest : public FileSystemTest {
     return 0;
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   MemFileSystem mem_file_system_;
 

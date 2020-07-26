@@ -3356,7 +3356,7 @@ TEST_F(RewriteContextTest, TestFreshenForMultipleResourceRewrites) {
 
   // Grab a lock for the resource that we are trying to freshen, preventing
   // that flow from working.
-  scoped_ptr<NamedLock> lock(MakeInputLock(StrCat(kTestDomain, kPath2)));
+  std::unique_ptr<NamedLock> lock(MakeInputLock(StrCat(kTestDomain, kPath2)));
   NamedLockTester lock_tester(server_context()->thread_system());
   ASSERT_TRUE(lock_tester.TryLock(lock.get()));
   ValidateExpected("freshen",

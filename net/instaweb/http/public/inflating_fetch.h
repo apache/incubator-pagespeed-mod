@@ -88,7 +88,7 @@ class InflatingFetch : public SharedAsyncFetch {
   // pass it to the caller as is, since that is what caller requested.
   bool IsCompressionAllowedInRequest();
 
-  scoped_ptr<GzipInflater> inflater_;
+  std::unique_ptr<GzipInflater> inflater_;
 
   // Caching gate inside IsCompressionAllowedInRequest().
   bool request_checked_for_accept_encoding_;

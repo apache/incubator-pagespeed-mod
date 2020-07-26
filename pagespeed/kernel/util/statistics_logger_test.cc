@@ -154,7 +154,7 @@ class StatisticsLoggerTest : public ::testing::Test {
                       message_handler);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   MockMessageHandler handler_;
   MemFileSystem file_system_;

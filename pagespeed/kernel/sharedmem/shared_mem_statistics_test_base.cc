@@ -98,7 +98,7 @@ bool SharedMemStatisticsTestBase::AddHistograms(SharedMemStatistics* stats) {
 }
 
 SharedMemStatistics* SharedMemStatisticsTestBase::ChildInit() {
-  scoped_ptr<SharedMemStatistics> stats(new SharedMemStatistics(
+  std::unique_ptr<SharedMemStatistics> stats(new SharedMemStatistics(
       kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, false /* no logging */,
       kPrefix, shmem_runtime_.get(), &handler_, file_system_.get(),
       timer_.get()));
@@ -135,7 +135,7 @@ void SharedMemStatisticsTestBase::TestCreate() {
 }
 
 void SharedMemStatisticsTestBase::TestCreateChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
 
   UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
   Histogram* hist1 = stats->GetHistogram(kHist1);
@@ -173,7 +173,7 @@ void SharedMemStatisticsTestBase::TestSet() {
 }
 
 void SharedMemStatisticsTestBase::TestSetChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
 
   UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
   stats->Init(false, &handler_);
@@ -219,7 +219,7 @@ void SharedMemStatisticsTestBase::TestClear() {
 }
 
 void SharedMemStatisticsTestBase::TestClearChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
   // Double check the child process gets the data in Histogram before clears it.
   Histogram* hist1 = stats->GetHistogram(kHist1);
   Histogram* hist2 = stats->GetHistogram(kHist2);
@@ -276,7 +276,7 @@ void SharedMemStatisticsTestBase::TestSetReturningPrevious() {
 }
 
 void SharedMemStatisticsTestBase::TestAddChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
   stats->Init(false, &handler_);
   UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
   UpDownCounter* v2 = stats->GetUpDownCounter(kVar2);
@@ -437,7 +437,7 @@ void SharedMemStatisticsTestBase::TestHistogramNoExtraClear() {
 }
 
 void SharedMemStatisticsTestBase::TestHistogramNoExtraClearChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
   Histogram* h1 = stats->GetHistogram(kHist1);
   // This would previously lose the data.
   h1->EnableNegativeBuckets();

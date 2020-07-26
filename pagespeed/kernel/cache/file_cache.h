@@ -134,8 +134,8 @@ class FileCache : public CacheInterface {
   FileSystem* file_system_;
   SlowWorker* worker_;
   MessageHandler* message_handler_;
-  const scoped_ptr<CachePolicy> cache_policy_;
-  scoped_ptr<AbstractMutex> mutex_;
+  const std::unique_ptr<CachePolicy> cache_policy_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int64 next_clean_ms_ GUARDED_BY(mutex_);
   int path_length_limit_;  // Maximum total length of path file_system_ supports
   // The full paths to our cleanup timestamp and lock files.

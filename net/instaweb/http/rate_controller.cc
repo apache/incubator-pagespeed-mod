@@ -169,7 +169,7 @@ class RateController::HostFetchInfo
   int num_outbound_fetches_ GUARDED_BY(mutex_);
   const int per_host_outgoing_request_threshold_;
   const int per_host_queued_request_threshold_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   std::queue<DeferredFetch*> fetch_queue_ GUARDED_BY(mutex_);
 
   DISALLOW_COPY_AND_ASSIGN(HostFetchInfo);

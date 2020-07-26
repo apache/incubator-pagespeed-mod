@@ -120,9 +120,9 @@ class FallbackPropertyPageTest : public testing::Test {
     EXPECT_EQ(value, property->value());
   }
 
-  scoped_ptr<FallbackPropertyPage> fallback_page_;
+  std::unique_ptr<FallbackPropertyPage> fallback_page_;
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   SimpleStats stats_;
   CachePropertyStore cache_property_store_;

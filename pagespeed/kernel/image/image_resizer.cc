@@ -639,8 +639,8 @@ const uint8_t* ResizeColArea<BufferType>::Resize(const void* in_data_ptr) {
 // resizing ratios.
 template<class BufferType>
 bool InstantiateResizers(pagespeed::image_compression::PixelFormat pixel_format,
-                         net_instaweb::scoped_ptr<ResizeRow>* resizer_x,
-                         net_instaweb::scoped_ptr<ResizeCol>* resizer_y,
+                         std::unique_ptr<ResizeRow>* resizer_x,
+                         std::unique_ptr<ResizeCol>* resizer_y,
                          MessageHandler* handler) {
   const int num_channels = GetNumChannelsFromPixelFormat(pixel_format, handler);
   resizer_x->reset(new ResizeRowArea(num_channels));

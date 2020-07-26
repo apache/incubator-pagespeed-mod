@@ -126,10 +126,10 @@ TEST_F(FrameScanlineAdapterWithPaddingTest, ReaderPadsLines) {
   const size_px kForegroundXBegin = 2;
   const size_px kForegroundXEnd = 7;
 
-  net_instaweb::scoped_ptr<MultipleFrameReader> mf_reader(
+  std::unique_ptr<MultipleFrameReader> mf_reader(
       new TestGifFrameReader(&message_handler_));
   ASSERT_TRUE(mf_reader != NULL);
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> reader(
+  std::unique_ptr<ScanlineReaderInterface> reader(
       new FrameToScanlineReaderAdapter(
           new MultipleFramePaddingReader(mf_reader.release())));
   ASSERT_TRUE(reader != NULL);

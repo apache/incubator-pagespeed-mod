@@ -142,7 +142,7 @@ class HtmlLeafNode : public HtmlNode {
     HtmlEventListIterator iter_;
   };
 
-  scoped_ptr<Data> data_;
+  std::unique_ptr<Data> data_;
 };
 
 // Leaf node representing a CDATA section

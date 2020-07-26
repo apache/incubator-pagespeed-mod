@@ -74,7 +74,7 @@ class RemoveCommentsFilter : public EmptyHtmlFilter {
 
  private:
   HtmlParse* html_parse_;
-  scoped_ptr<const OptionsInterface> options_;
+  std::unique_ptr<const OptionsInterface> options_;
 
   DISALLOW_COPY_AND_ASSIGN(RemoveCommentsFilter);
 };

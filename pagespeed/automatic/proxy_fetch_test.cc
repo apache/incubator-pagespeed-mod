@@ -139,9 +139,9 @@ class ManagedMockProxyFetch {
   MockProxyFetch* mock_proxy_fetch() const { return mock_proxy_fetch_; }
 
  private:
-  scoped_ptr<NullMessageHandler> message_handler_;
-  scoped_ptr<StringAsyncFetch> async_fetch_;
-  scoped_ptr<ProxyFetchFactory> fetch_factory_;
+  std::unique_ptr<NullMessageHandler> message_handler_;
+  std::unique_ptr<StringAsyncFetch> async_fetch_;
+  std::unique_ptr<ProxyFetchFactory> fetch_factory_;
   MockProxyFetch* mock_proxy_fetch_;  // Not scoped_ptr as it self-deletes.
 };
 
@@ -175,7 +175,7 @@ class ProxyFetchPropertyCallbackCollectorTest : public RewriteTestBase {
     post_lookup_called_(false) {
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   ServerContext* server_context_;
 
   // Create a collector.
@@ -248,7 +248,7 @@ class ProxyFetchPropertyCallbackCollectorTest : public RewriteTestBase {
   void TestAddPostlookupTask(bool add_before_done,
                              bool add_before_proxy_fetch) {
     EnableCollectorPrefix();
-    scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
+    std::unique_ptr<ProxyFetchPropertyCallbackCollector> collector;
     collector.reset(MakeCollector());
     ProxyFetchPropertyCallback* page_callback = AddCallback(
         collector.get(), ProxyFetchPropertyCallback::kPropertyCachePage);
@@ -402,7 +402,7 @@ TEST_F(ProxyFetchTest, TestFollowFlushes) {
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, EmptyCollectorTest) {
   // Test that creating an empty collector works.
   EnableCollectorPrefix();
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
+  std::unique_ptr<ProxyFetchPropertyCallbackCollector> collector;
   collector.reset(MakeCollector());
   // This should not fail
   collector->Detach(HttpStatus::kUnknownStatusCode);
@@ -423,7 +423,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeDetach) {
   callback->Done(true);
 
   // Collector should now have a page property.
-  scoped_ptr<AbstractPropertyPage> page;
+  std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
@@ -448,7 +448,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, UrlInvalidDoneBeforeDetach) {
   callback->Done(true);
 
   // Collector should now have a page property.
-  scoped_ptr<AbstractPropertyPage> page;
+  std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
@@ -483,7 +483,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DetachBeforeDone) {
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeSetProxyFetch) {
   EnableCollectorPrefix();
   // Test that calling Done() before SetProxyFetch() works.
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
+  std::unique_ptr<ProxyFetchPropertyCallbackCollector> collector;
   collector.reset(MakeCollector());
   ProxyFetchPropertyCallback* callback = AddCallback(
       collector.get(), ProxyFetchPropertyCallback::kPropertyCachePage);
@@ -506,7 +506,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeSetProxyFetch) {
   EXPECT_FALSE(mock_proxy_fetch->complete());
 
   // Collector should now have a page property.
-  scoped_ptr<AbstractPropertyPage> page;
+  std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
@@ -521,7 +521,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeSetProxyFetch) {
 TEST_F(ProxyFetchPropertyCallbackCollectorTest, SetProxyFetchBeforeDone) {
   EnableCollectorPrefix();
   // Test that calling SetProxyFetch() before Done() works.
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
+  std::unique_ptr<ProxyFetchPropertyCallbackCollector> collector;
   collector.reset(MakeCollector());
   ProxyFetchPropertyCallback* callback = AddCallback(
       collector.get(), ProxyFetchPropertyCallback::kPropertyCachePage);
@@ -547,7 +547,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, SetProxyFetchBeforeDone) {
   callback->Done(true);
 
   // Collector should now have a page property.
-  scoped_ptr<AbstractPropertyPage> page;
+  std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
   EXPECT_TRUE(NULL != page.get());
 
@@ -579,7 +579,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, FallbackPagePostLookupRace) {
   EnableCollectorPrefix();
   // This test will check PostLookup tasks should not have Null
   // fallback_property_page.
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> collector;
+  std::unique_ptr<ProxyFetchPropertyCallbackCollector> collector;
   collector.reset(MakeCollector());
   collector->RequestHeadersComplete();
   ProxyFetchPropertyCallback* page_callback = AddCallback(

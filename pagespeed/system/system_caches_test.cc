@@ -214,7 +214,7 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
 
   // Takes ownership of config.
   SystemServerContext* SetupServerContext(SystemRewriteOptions* config) {
-    scoped_ptr<SystemServerContext> server_context(
+    std::unique_ptr<SystemServerContext> server_context(
         new SystemServerContextNoProxyHtml(factory()));
     server_context->reset_global_options(config);
     server_context->set_statistics(factory()->statistics());
@@ -370,11 +370,11 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
     return system_server_context_.get();
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<AbstractSharedMem> shared_mem_;
-  scoped_ptr<SystemCaches> system_caches_;
-  scoped_ptr<SystemRewriteOptions> options_;
-  scoped_ptr<SystemServerContext> system_server_context_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<AbstractSharedMem> shared_mem_;
+  std::unique_ptr<SystemCaches> system_caches_;
+  std::unique_ptr<SystemRewriteOptions> options_;
+  std::unique_ptr<SystemServerContext> system_server_context_;
   bool purge_done_;
   bool purge_success_;
 };
@@ -386,7 +386,7 @@ TEST_F(SystemCachesTest, BasicFileAndLruCache) {
   options_->set_default_shared_memory_cache_kb(0);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(Compressed(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
                                        FileCacheWithStats())),
@@ -407,7 +407,7 @@ TEST_F(SystemCachesTest, BasicFileOnlyCache) {
   options_->set_default_shared_memory_cache_kb(0);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(Compressed(FileCacheWithStats()),
                server_context->metadata_cache()->Name());
@@ -430,7 +430,7 @@ TEST_F(SystemCachesTest, UnusableShmAndLru) {
   options_->set_default_shared_memory_cache_kb(0);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(Compressed(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
                                        FileCacheWithStats())),
@@ -453,7 +453,7 @@ TEST_F(SystemCachesTest, BasicShmAndLru) {
   options_->set_lru_cache_kb_per_process(100);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
   EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
@@ -477,7 +477,7 @@ TEST_F(SystemCachesTest, BasicShmAndNoLru) {
   options_->set_lru_cache_kb_per_process(0);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
   EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
@@ -508,7 +508,7 @@ TEST_F(SystemCachesTest, DoubleShmCreate) {
   options_->set_lru_cache_kb_per_process(100);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
   EXPECT_STREQ(Compressed(Fallback(Stats("shm_cache", "SharedMemCache<64>"),
@@ -561,7 +561,7 @@ class SystemCachesExternalCacheTestBase : public SystemCachesTest {
     options_->set_compress_metadata_cache(false);
     SetUpExternalCache(options_.get());
     PrepareWithConfig(options_.get());
-    scoped_ptr<ServerContext> server_context(
+    std::unique_ptr<ServerContext> server_context(
         SetupServerContext(options_.release()));
     CacheInterface* cache = server_context->metadata_cache();
     SimpleRandom random(new NullMutex);
@@ -662,7 +662,7 @@ void SystemCachesExternalCacheTestBase::TestBasicCacheAndLru() {
   SetUpExternalCache(options_.get());
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(Compressed(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
                                        AssembledAsyncCacheWithStats())),
@@ -694,7 +694,7 @@ void SystemCachesExternalCacheTestBase::TestBasicCacheLruShm() {
   SetUpExternalCache(options_.get());
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // For metadata, we fallback to external cache behind shmcache.
   EXPECT_STREQ(
@@ -724,7 +724,7 @@ void SystemCachesExternalCacheTestBase::TestBasicCacheShmNoLru() {
   SetUpExternalCache(options_.get());
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(
       Compressed(
@@ -756,7 +756,7 @@ void SystemCachesMemCacheTest::TestBasicMemCacheAndNoLru(
   options_->set_default_shared_memory_cache_kb(0);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
 
   GoogleString mem_cache;
@@ -904,11 +904,11 @@ TEST_F(SystemCachesTest, FileShare) {
               kNotFoundResult, "");
 
   // Lock managers have similar sharing semantics
-  scoped_ptr<NamedLock> lock0(
+  std::unique_ptr<NamedLock> lock0(
       system_caches_->GetLockManager(configs[0])->CreateNamedLock("a"));
-  scoped_ptr<NamedLock> lock1(
+  std::unique_ptr<NamedLock> lock1(
       system_caches_->GetLockManager(configs[1])->CreateNamedLock("a"));
-  scoped_ptr<NamedLock> lock2(
+  std::unique_ptr<NamedLock> lock2(
       system_caches_->GetLockManager(configs[2])->CreateNamedLock("a"));
   NamedLockTester tester(thread_system_.get());
   EXPECT_TRUE(tester.TryLock(lock0.get()));
@@ -1079,7 +1079,7 @@ TEST_F(SystemCachesTest, FileCacheSettings) {
   options_->set_default_shared_memory_cache_kb(0);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(Compressed(FileCacheWithStats()),
                server_context->metadata_cache()->Name());
@@ -1106,7 +1106,7 @@ TEST_F(SystemCachesTest, LruCacheSettings) {
   options_->set_lru_cache_byte_limit(500);
   options_->set_default_shared_memory_cache_kb(0);
   PrepareWithConfig(options_.get());
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
 
   WriteThroughCache* write_through = dynamic_cast<WriteThroughCache*>(
@@ -1145,7 +1145,7 @@ void SystemCachesExternalCacheTestBase::TestStatsStringMinimal() {
   SetUpExternalCache(options_.get());
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
 
   system_caches_->PrintCacheStats(
@@ -1380,7 +1380,7 @@ TEST_F(SystemCachesTest, BrokenShmFallbackShmAndLru) {
   options_->set_lru_cache_kb_per_process(100);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
   EXPECT_STREQ(Compressed(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
@@ -1405,7 +1405,7 @@ TEST_F(SystemCachesTest, BrokenShmFallbackShmAndNoLru) {
   options_->set_lru_cache_kb_per_process(0);
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // We don't use the LRU when shm cache is on.
   EXPECT_STREQ(Compressed(FileCacheWithStats()),
@@ -1431,7 +1431,7 @@ void SystemCachesExternalCacheTestBase::TestBrokenShmFallbackCacheLruShm() {
   SetUpExternalCache(options_.get());
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   // For metadata, we fallback to external cache behind shmcache.
   EXPECT_STREQ(
@@ -1465,7 +1465,7 @@ void SystemCachesExternalCacheTestBase::TestBrokenShmFallbackCacheShmNoLru() {
   SetUpExternalCache(options_.get());
   PrepareWithConfig(options_.get());
 
-  scoped_ptr<ServerContext> server_context(
+  std::unique_ptr<ServerContext> server_context(
       SetupServerContext(options_.release()));
   EXPECT_STREQ(
       Compressed(AssembledAsyncCacheWithStats()),
