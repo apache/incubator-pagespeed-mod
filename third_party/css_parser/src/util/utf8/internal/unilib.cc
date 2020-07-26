@@ -21,7 +21,6 @@
 
 #include "util/utf8/public/unilib.h"
 
-#include "base/basictypes.h"
 #include "third_party/utf/utf.h"
 
 namespace UniLib {

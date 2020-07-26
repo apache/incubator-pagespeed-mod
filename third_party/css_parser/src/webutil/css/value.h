@@ -151,11 +151,11 @@ class Value {
  private:
   ValueType type_;  // indicates the type of value.  Always valid.
   double num_;            // for NUMBER (integer values are stored as doubles)
+  std::unique_ptr<FunctionParameters> params_;  // FUNCTION and RECT params
   Unit unit_;             // for NUMBER
+  HtmlColor color_;           // COLOR
   Identifier identifier_;   // for IDENT
   UnicodeText str_;    // for NUMBER (OTHER unit_), URI, STRING, FUNCTION
-  std::unique_ptr<FunctionParameters> params_;  // FUNCTION and RECT params
-  HtmlColor color_;           // COLOR
 
   string bytes_in_original_buffer_;
 

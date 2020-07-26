@@ -71,57 +71,57 @@ Value::Value(double num, Unit unit)
 Value::Value(ValueType ty, const UnicodeText& str)
     : type_(ty),
       unit_(Unit::EM),
-      str_(str),
-      color_(0, 0, 0) {
+      color_(0, 0, 0),
+      str_(str) {
   DCHECK(ty == STRING || ty == URI);
 }
 
 Value::Value(const Identifier& identifier)
     : type_(IDENT),
       unit_(Unit::EM),
-      identifier_(identifier),
-      color_(0, 0, 0) {
+      color_(0, 0, 0),
+      identifier_(identifier) {
 }
 
 Value::Value(const Identifier::Ident ident)
     : type_(IDENT),
-      identifier_(Identifier(ident)),
+      unit_(Unit::EM),
       color_(0, 0, 0),
-      unit_(Unit::EM) {
+      identifier_(Identifier(ident)) {
 }
 
 Value::Value(ValueType ty, FunctionParameters* params)
     : type_(ty),
       params_(params),
-      color_(0, 0, 0),
-      unit_(Unit::EM) {
+      unit_(Unit::EM),
+      color_(0, 0, 0) {
   DCHECK(params != NULL);
   DCHECK(ty == RECT);
 }
 
 Value::Value(const UnicodeText& func, FunctionParameters* params)
     : type_(FUNCTION),
-      str_(func),
       params_(params),
+      unit_(Unit::EM),
       color_(0, 0, 0),
-      unit_(Unit::EM) {
+      str_(func) {
   DCHECK(params != NULL);
 }
 
 Value::Value(HtmlColor c)
     : type_(COLOR),
-      color_(c),
-      unit_(Unit::EM) {
+      unit_(Unit::EM),
+      color_(c) {
 }
 
 Value::Value(const Value& other)
   : type_(other.type_),
     num_(other.num_),
+    params_(new FunctionParameters),
     unit_(other.unit_),
+    color_(other.color_),
     identifier_(other.identifier_),
     str_(other.str_),
-    params_(new FunctionParameters),
-    color_(other.color_),
     bytes_in_original_buffer_(other.bytes_in_original_buffer_) {
   if (other.params_.get() != NULL) {
     params_->Copy(*other.params_);

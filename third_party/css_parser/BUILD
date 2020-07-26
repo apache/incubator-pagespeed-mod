@@ -39,6 +39,7 @@ cc_library(
     copts = [
         "-Ithird_party/css_parser/src/",
         "-Ithird_party/css_parser/src/third_party/utf",
+        "-funsigned-char"
     ],
 )
 
@@ -130,7 +131,6 @@ cc_library(
         "src/webutil/css/parser.h",
         "src/base/googleinit.h",
         "src/base/integral_types.h",
-        "src/base/basictypes.h",
         "src/testing/production_stub/public/gunit_prod.h",
         "src/util/utf8/public/unilib_utf8_utils.h",
     ] + glob(["src/util/gtl/*.h"]),
@@ -138,7 +138,8 @@ cc_library(
         "-Ithird_party/css_parser/src",
         "-Ithird_party/css_parser/src/base",
         "-Ithird_party/css_parser/src/third_party/utf",
-    ],
+         "-funsigned-char"
+   ],
     visibility = ["//visibility:public"],
     deps = [
         ":utf",
