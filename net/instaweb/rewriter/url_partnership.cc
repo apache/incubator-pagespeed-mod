@@ -67,7 +67,7 @@ bool UrlPartnership::AddUrl(const StringPiece& untrimmed_resource_url,
   } else {
     // First resolve the original request to ensure that it is allowed by the
     // options.
-    scoped_ptr<GoogleUrl> resolved_request(
+    std::unique_ptr<GoogleUrl> resolved_request(
         new GoogleUrl(original_origin_and_path_, resource_url));
     if (!resolved_request->IsWebValid()) {
       handler->Message(

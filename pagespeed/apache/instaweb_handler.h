@@ -252,11 +252,11 @@ class InstawebHandler {
   RequestContextPtr request_context_;
   ApacheRequestContext* apache_request_context_;  // owned by request_context_.
   ApacheServerContext* server_context_;
-  scoped_ptr<RequestHeaders> request_headers_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  std::unique_ptr<RequestHeaders> request_headers_;
+  std::unique_ptr<ResponseHeaders> response_headers_;
   GoogleString original_url_;
   GoogleUrl stripped_gurl_;  // Any PageSpeed query params are removed.
-  scoped_ptr<ApacheConfig> custom_options_;
+  std::unique_ptr<ApacheConfig> custom_options_;
 
   // These options_ can be in one of three states:
   //   - they can point to the config's global_options

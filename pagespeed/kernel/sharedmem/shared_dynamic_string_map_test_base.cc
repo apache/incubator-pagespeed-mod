@@ -112,7 +112,7 @@ SharedDynamicStringMap* SharedDynamicStringMapTestBase::ParentInit() {
 }
 
 void SharedDynamicStringMapTestBase::TestSimple() NO_THREAD_SAFETY_ANALYSIS {
-  scoped_ptr<SharedDynamicStringMap> map(ParentInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   GoogleString output;
   StringWriter writer(&output);
   map->Dump(&writer, &handler_);
@@ -129,7 +129,7 @@ void SharedDynamicStringMapTestBase::TestSimple() NO_THREAD_SAFETY_ANALYSIS {
 }
 
 void SharedDynamicStringMapTestBase::TestCreate() {
-  scoped_ptr<SharedDynamicStringMap> map(ParentInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   EXPECT_EQ(0, map->LookupElement(kExampleString1));
   EXPECT_EQ(0, map->LookupElement(kExampleString2));
   EXPECT_EQ(0, map->GetNumberInserted());
@@ -148,7 +148,7 @@ void SharedDynamicStringMapTestBase::TestCreate() {
 }
 
 void SharedDynamicStringMapTestBase::AddChild() {
-  scoped_ptr<SharedDynamicStringMap> map(ChildInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ChildInit());
   if ((map->IncrementElement(kExampleString1) == 0) ||
       (map->IncrementElement(kExampleString2) == 0)) {
     test_env_->ChildFailed();
@@ -156,7 +156,7 @@ void SharedDynamicStringMapTestBase::AddChild() {
 }
 
 void SharedDynamicStringMapTestBase::TestAdd() {
-  scoped_ptr<SharedDynamicStringMap> map(ParentInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   for (int i = 0; i < 2; i++)
     ASSERT_TRUE(CreateChild(&SharedDynamicStringMapTestBase::AddChild));
   test_env_->WaitForChildren();
@@ -168,7 +168,7 @@ void SharedDynamicStringMapTestBase::TestAdd() {
 }
 
 void SharedDynamicStringMapTestBase::TestQuarterFull() {
-  scoped_ptr<SharedDynamicStringMap> map(ParentInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild,
                               0,
                               kTableSize / 4));
@@ -189,7 +189,7 @@ void SharedDynamicStringMapTestBase::TestQuarterFull() {
 }
 
 void SharedDynamicStringMapTestBase::TestFillSingleThread() {
-  scoped_ptr<SharedDynamicStringMap> map(ParentInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   EXPECT_EQ(0, map->GetNumberInserted());
   // One child fills the entire table.
   ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild,
@@ -218,7 +218,7 @@ void SharedDynamicStringMapTestBase::TestFillSingleThread() {
 }
 
 void SharedDynamicStringMapTestBase::TestFillMultipleNonOverlappingThreads() {
-  scoped_ptr<SharedDynamicStringMap> map(ParentInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   CHECK_EQ(kTableSize % 4, 0);
   // Each child will fill up 1/4 of the table.
   for (int i = 0; i < 4; i++)
@@ -238,7 +238,7 @@ void SharedDynamicStringMapTestBase::TestFillMultipleNonOverlappingThreads() {
 }
 
 void SharedDynamicStringMapTestBase::TestFillMultipleOverlappingThreads() {
-  scoped_ptr<SharedDynamicStringMap> map(ParentInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   // Ensure that kTableSize is a multiple of 4.
   CHECK_EQ(kTableSize & 3, 0);
   // Each child will fill up 1/2 of the table - the table will get covered
@@ -265,7 +265,7 @@ void SharedDynamicStringMapTestBase::TestFillMultipleOverlappingThreads() {
 
 void SharedDynamicStringMapTestBase::AddFillChild(int start,
                                                   int number_of_strings) {
-  scoped_ptr<SharedDynamicStringMap> map(ChildInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ChildInit());
   for (int i = 0; i < number_of_strings; i++) {
     if (0 == map->IncrementElement(strings_[(i + start) % kTableSize]))
       test_env_->ChildFailed();
@@ -273,7 +273,7 @@ void SharedDynamicStringMapTestBase::AddFillChild(int start,
 }
 
 void SharedDynamicStringMapTestBase::AddToFullTable() {
-  scoped_ptr<SharedDynamicStringMap> map(ChildInit());
+  std::unique_ptr<SharedDynamicStringMap> map(ChildInit());
   const char* string = strings_[kTableSize].c_str();
   EXPECT_EQ(0, map->IncrementElement(string));
 }

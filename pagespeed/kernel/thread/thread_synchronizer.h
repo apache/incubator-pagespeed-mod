@@ -117,8 +117,8 @@ class ThreadSynchronizer {
   bool enabled_;
   ThreadSystem* thread_system_;
   SyncMap sync_map_;
-  scoped_ptr<AbstractMutex> map_mutex_;
-  scoped_ptr<Timer> timer_;
+  std::unique_ptr<AbstractMutex> map_mutex_;
+  std::unique_ptr<Timer> timer_;
   StringVector prefixes_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadSynchronizer);

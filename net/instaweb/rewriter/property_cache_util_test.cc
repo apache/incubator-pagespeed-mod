@@ -74,7 +74,7 @@ TEST_F(PropertyCacheUtilTest, WriteRead) {
   EXPECT_EQ(kPropertyCacheUpdateOk, write_status);
 
   PropertyCacheDecodeResult read_status;
-  scoped_ptr<NameValue> result(
+  std::unique_ptr<NameValue> result(
       DecodeFromPropertyCache<NameValue>(
           rewrite_driver(), dom_cohort_, kTestProp,
           -1 /*no ttl check*/, &read_status));
@@ -100,7 +100,7 @@ TEST_F(PropertyCacheUtilTest, WritePersistence) {
   // so the read should fail.
 
   PropertyCacheDecodeResult read_status;
-  scoped_ptr<NameValue> result(
+  std::unique_ptr<NameValue> result(
       DecodeFromPropertyCache<NameValue>(
           rewrite_driver(), dom_cohort_, kTestProp,
           -1 /*no ttl check*/, &read_status));
@@ -137,7 +137,7 @@ TEST_F(PropertyCacheUtilTest, DecodeExpired) {
   AdvanceTimeMs(200);
 
   PropertyCacheDecodeResult read_status;
-  scoped_ptr<NameValue> result(
+  std::unique_ptr<NameValue> result(
       DecodeFromPropertyCache<NameValue>(
           rewrite_driver(), dom_cohort_, kTestProp,
           100 /* ttl check */, &read_status));
@@ -147,7 +147,7 @@ TEST_F(PropertyCacheUtilTest, DecodeExpired) {
 
 TEST_F(PropertyCacheUtilTest, DecodeMissing) {
   PropertyCacheDecodeResult status;
-  scoped_ptr<NameValue> result(
+  std::unique_ptr<NameValue> result(
       DecodeFromPropertyCache<NameValue>(
           rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
   EXPECT_TRUE(result.get() == NULL);
@@ -159,7 +159,7 @@ TEST_F(PropertyCacheUtilTest, DecodeError) {
   rewrite_driver()->UpdatePropertyValueInDomCohort(
       rewrite_driver()->property_page(), kTestProp, "@(#(@(#@(");
   PropertyCacheDecodeResult status;
-  scoped_ptr<NameValue> result(
+  std::unique_ptr<NameValue> result(
       DecodeFromPropertyCache<NameValue>(
           rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
   EXPECT_TRUE(result.get() == NULL);

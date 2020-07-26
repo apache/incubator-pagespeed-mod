@@ -81,9 +81,9 @@ class QueuedExpensiveOperationTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
-  scoped_ptr<QueuedExpensiveOperationController> controller_;
+  std::unique_ptr<QueuedExpensiveOperationController> controller_;
 };
 
 TEST_F(QueuedExpensiveOperationTest, EmptyScheduleImmediately) {

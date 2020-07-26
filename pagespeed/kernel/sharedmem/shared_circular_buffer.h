@@ -86,9 +86,9 @@ class SharedCircularBuffer : public Writer {
   // filename_suffix_ is used to distinguish SharedCircularBuffer.
   const GoogleString filename_suffix_;
   // Mutex for segment.
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   // Shared memory segment.
-  scoped_ptr<AbstractSharedMemSegment> segment_;
+  std::unique_ptr<AbstractSharedMemSegment> segment_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedCircularBuffer);
 };

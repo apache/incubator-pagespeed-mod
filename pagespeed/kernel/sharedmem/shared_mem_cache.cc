@@ -237,7 +237,7 @@ bool SharedMemCache<kBlockSize>::InitCache(bool parent) {
   STLDeleteElements(&sectors_);
   sectors_.clear();
   for (int s = 0; s < num_sectors_; ++s) {
-    scoped_ptr<Sector<kBlockSize> > sec(
+    std::unique_ptr<Sector<kBlockSize> > sec(
         new Sector<kBlockSize>(segment_.get(), s * sector_size,
                                entries_per_sector_, blocks_per_sector_));
     bool ok;

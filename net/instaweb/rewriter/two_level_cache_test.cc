@@ -119,8 +119,8 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
     InitializeDefaultOptions();
   }
 
-  scoped_ptr<LRUCache> owned_cache1_;
-  scoped_ptr<LRUCache> owned_cache2_;
+  std::unique_ptr<LRUCache> owned_cache1_;
+  std::unique_ptr<LRUCache> owned_cache2_;
   LRUCache* cache1_;
   LRUCache* cache2_;
   bool use_write_through_cache_;

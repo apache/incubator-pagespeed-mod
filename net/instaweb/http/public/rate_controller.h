@@ -103,7 +103,7 @@ class RateController {
 
   // Map containing per-host information tracking outgoing and queued fetches.
   HostFetchInfoMap fetch_info_map_ GUARDED_BY(mutex_);
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   TimedVariable* queued_fetch_count_;
   TimedVariable* dropped_fetch_count_;

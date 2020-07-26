@@ -42,8 +42,8 @@ class SchedulerThreadTest : public WorkerTestBase {
         scheduler_thread_(
             new SchedulerThread(thread_system_.get(), &scheduler_)) {}
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<Timer> timer_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<Timer> timer_;
   Scheduler scheduler_;
   SchedulerThread* scheduler_thread_;
 

@@ -1099,7 +1099,7 @@ TEST_F(RewriteQueryTest, DisableFiltersWithXHR) {
   EXPECT_EQ(RewriteQuery::kSuccess, Parse(
       kHtmlUrl, in_query, StringPiece(), &request_headers,
       &response_headers, &out_query, &out_req_string, &out_resp_string));
-  scoped_ptr<RewriteOptions> options(rewrite_query_.options()->Clone());
+  std::unique_ptr<RewriteOptions> options(rewrite_query_.options()->Clone());
 
   // Convert disabled -> forbidden for easier testing.
   options->set_forbid_all_disabled_filters(true);

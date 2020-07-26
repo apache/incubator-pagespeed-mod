@@ -224,8 +224,8 @@ class MockUrlFetcher : public UrlAsyncFetcher {
   GoogleString error_message_;  // If non empty, we write out this on error
   Timer* timer_;                // Timer to use for updating header dates.
   GoogleString last_referer_;   // Referer string.
-  scoped_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
-  scoped_ptr<AbstractMutex> mutex_;  // Mutex Protect.
+  std::unique_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
+  std::unique_ptr<AbstractMutex> mutex_;  // Mutex Protect.
 
   DISALLOW_COPY_AND_ASSIGN(MockUrlFetcher);
 };

@@ -45,7 +45,7 @@ class RewriteOptionsTestBase : public testing::Test {
   ThreadSystem* thread_system() { return thread_system_.get(); }
   OptionsClass* NewOptions() { return new OptionsClass(thread_system()); }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
 };
 
 }  // namespace net_instaweb

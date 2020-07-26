@@ -176,7 +176,7 @@ class GifReaderTest : public testing::Test {
 
  protected:
   MockMessageHandler message_handler_;
-  net_instaweb::scoped_ptr<PngReaderInterface> gif_reader_;
+  std::unique_ptr<PngReaderInterface> gif_reader_;
   ScopedPngStruct read_;
 
  private:
@@ -1207,7 +1207,7 @@ class GifAnimationTest : public testing::Test {
   void* scanline_;
   MockMessageHandler message_handler_;
   GifSquare gif_;
-  net_instaweb::scoped_ptr<MultipleFrameReader> reader_;
+  std::unique_ptr<MultipleFrameReader> reader_;
   bool read_all_scanlines_;
   GoogleString filename_;
   GoogleString input_image_;
@@ -1660,7 +1660,7 @@ void CheckImageForOutOfBoundsPixel(const char* filename,
   const PixelRgbaChannels kTransparentPixel = {0, 0, 0, kAlphaTransparent};
 
   MockMessageHandler message_handler(new NullMutex);
-  net_instaweb::scoped_ptr<MultipleFrameReader>
+  std::unique_ptr<MultipleFrameReader>
       reader(new TestGifFrameReader(&message_handler));
   GoogleString input_image;
 

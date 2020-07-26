@@ -383,10 +383,10 @@ TEST_P(JavascriptFilterTest, JsPreserveOverridingExtend) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
 
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> global_options(options()->NewOptions());
   global_options->EnableFilter(RewriteOptions::kExtendCacheCss);
 
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> vhost_options(options()->NewOptions());
   vhost_options->SoftEnableFilterForTesting(
       RewriteOptions::kRewriteJavascriptExternal);
   vhost_options->SoftEnableFilterForTesting(
@@ -426,11 +426,11 @@ TEST_P(JavascriptFilterTest, JsExtendOverridingPreserve) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
 
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> global_options(options()->NewOptions());
   global_options->set_js_preserve_urls(true);
   global_options->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
 
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> vhost_options(options()->NewOptions());
   vhost_options->EnableFilter(RewriteOptions::kExtendCacheScripts);
   options()->Merge(*global_options);
   options()->Merge(*vhost_options);

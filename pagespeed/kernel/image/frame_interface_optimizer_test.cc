@@ -214,7 +214,7 @@ class MultipleFramePaddingReaderTest : public testing::Test {
                            const std::vector<FrameSpec>& all_frames) {
     static const PixelRgbaChannels kTransparent = {0, 0, 0, kAlphaTransparent};
 
-    net_instaweb::scoped_ptr<MultipleFrameReader> padder(
+    std::unique_ptr<MultipleFrameReader> padder(
         new MultipleFramePaddingReader(
             new FakeReader(image_spec, all_frames, &message_handler_)));
 

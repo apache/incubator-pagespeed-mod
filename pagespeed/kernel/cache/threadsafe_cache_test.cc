@@ -59,8 +59,8 @@ class ThreadsafeCacheTest : public testing::Test {
     lru_cache_->SanityCheck();
   }
 
-  scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<ThreadSystem> thread_runtime_;
+  std::unique_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<ThreadSystem> thread_runtime_;
   ThreadsafeCache threadsafe_cache_;
 
  private:

@@ -90,7 +90,7 @@ class CommonFilterTest : public RewriteTestBase {
     return filter;
   }
 
-  scoped_ptr<CountingFilter> filter_;
+  std::unique_ptr<CountingFilter> filter_;
 };
 
 TEST_F(CommonFilterTest, DoesCallImpls) {
@@ -306,7 +306,7 @@ class CommonFilterInsertNodeAtBodyEndTest : public RewriteTestBase {
     return FinishTest(full_pre_comment, post_comment);
   }
 
-  scoped_ptr<EndDocumentInserterFilter> filter_;
+  std::unique_ptr<EndDocumentInserterFilter> filter_;
 };
 
 TEST_F(CommonFilterInsertNodeAtBodyEndTest, OneBody) {

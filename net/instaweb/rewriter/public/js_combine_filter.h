@@ -125,7 +125,7 @@ class JsCombineFilter : public RewriteFilter {
   int script_depth_;  // how many script elements we are inside
   // current outermost <script> not with JavaScript we are inside, or NULL
   HtmlElement* current_js_script_;  // owned by the html parser.
-  scoped_ptr<Context> context_;
+  std::unique_ptr<Context> context_;
   UrlMultipartEncoder encoder_;
 
   DISALLOW_COPY_AND_ASSIGN(JsCombineFilter);

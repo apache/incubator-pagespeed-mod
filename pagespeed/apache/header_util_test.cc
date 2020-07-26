@@ -132,7 +132,7 @@ TEST_F(HeaderUtilTest, SelectiveRequestHeaders) {
   EXPECT_STREQ("d", all.Lookup1("c"));
   EXPECT_EQ(2, all.NumAttributes());
   HeaderUtilTest* test = this;
-  scoped_ptr<HeaderPredicateFn> predicate(NewPermanentCallback(
+  std::unique_ptr<HeaderPredicateFn> predicate(NewPermanentCallback(
       test, &HeaderUtilTest::PredicateMatchingA));
   ApacheRequestToRequestHeaders(request_, &selective, predicate.get());
   EXPECT_STREQ("b", selective.Lookup1("a"));

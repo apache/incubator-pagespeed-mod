@@ -86,8 +86,8 @@ class UrlLeftTrimFilterTest : public RewriteTestBase {
   }
 
  private:
-  scoped_ptr<UrlLeftTrimFilter> left_trim_filter_;
-  scoped_ptr<GoogleUrl> base_url_;
+  std::unique_ptr<UrlLeftTrimFilter> left_trim_filter_;
+  std::unique_ptr<GoogleUrl> base_url_;
 };
 
 static const char kBase[] = "http://foo.bar/baz/";

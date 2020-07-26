@@ -87,7 +87,7 @@ class Waveform {
   double min_;
   double max_;
   double previous_value_;
-  scoped_ptr<AbstractMutex> mutex_;  // protects all the above member variables.
+  std::unique_ptr<AbstractMutex> mutex_;  // protects all the above member variables.
 
   // Un-owned pointer to a variable to export current waveform values.
   // May be NULL.

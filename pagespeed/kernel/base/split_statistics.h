@@ -115,7 +115,7 @@ class SplitHistogram : public Histogram {
   virtual AbstractMutex* lock();
 
  private:
-  scoped_ptr<AbstractMutex> lock_;
+  std::unique_ptr<AbstractMutex> lock_;
   Histogram* rw_;
   Histogram* w_;
 
@@ -177,7 +177,7 @@ class SplitStatistics
 
  private:
   ThreadSystem* thread_system_;
-  scoped_ptr<Statistics> local_;
+  std::unique_ptr<Statistics> local_;
   Statistics* global_;
   DISALLOW_COPY_AND_ASSIGN(SplitStatistics);
 };

@@ -61,7 +61,7 @@ class PropertyStoreTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   int num_callback_with_false_called_;
   int num_callback_with_true_called_;
 

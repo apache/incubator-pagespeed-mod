@@ -88,7 +88,7 @@ class MockMessageHandler : public MessageHandler {
   int MessagesOfTypeImpl(const MessageCountMap& counts,
                          MessageType type) const;
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   MessageCountMap message_counts_;
   MessageCountMap skipped_message_counts_;
   FastWildcardGroup patterns_to_skip_;

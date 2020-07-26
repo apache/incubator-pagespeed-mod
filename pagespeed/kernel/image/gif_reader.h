@@ -245,7 +245,7 @@ class GifFrameReader : public MultipleFrameReader {
   // keeps track of the length of data that giflib has read. It is
   // initialized in Initialize() and is updated in
   // ReadNextScanlineWithStatus().
-  net_instaweb::scoped_ptr<ScopedGifStruct> gif_struct_;
+  std::unique_ptr<ScopedGifStruct> gif_struct_;
 
   // We need to know the palette size as we read each frame because,
   // in rare cases, images contain pixels referring to out-of-range

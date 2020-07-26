@@ -62,7 +62,7 @@ class ToggleThread : public ThreadSystem::Thread {
   virtual void Run() {
     // Check whether our ID is not the same as our parent, and
     // vice versa.
-    scoped_ptr<ThreadSystem::ThreadId> id(
+    std::unique_ptr<ThreadSystem::ThreadId> id(
         owner_->thread_system()->GetThreadId());
     EXPECT_FALSE(parent_id_->IsEqual(*id.get()));
     EXPECT_FALSE(id->IsEqual(*parent_id_.get()));
@@ -71,7 +71,7 @@ class ToggleThread : public ThreadSystem::Thread {
     EXPECT_TRUE(id->IsCurrentThread());
 
     // Check that if we strobe our ID a second time it matches.
-    scoped_ptr<ThreadSystem::ThreadId> id_check(
+    std::unique_ptr<ThreadSystem::ThreadId> id_check(
         owner_->thread_system()->GetThreadId());
     EXPECT_TRUE(id_check->IsEqual(*id.get()));
 
@@ -101,7 +101,7 @@ class ToggleThread : public ThreadSystem::Thread {
   AbstractMutex* lock_;
   ThreadSystem::Condvar* notify_true_;
   ThreadSystem::Condvar* notify_false_;
-  scoped_ptr<ThreadSystem::ThreadId> parent_id_;
+  std::unique_ptr<ThreadSystem::ThreadId> parent_id_;
 };
 
 }  // namespace
@@ -120,10 +120,10 @@ void ThreadSystemTestBase::TestStartJoin() {
 }
 
 void ThreadSystemTestBase::TestSync() {
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> lock(
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> lock(
       thread_system_->NewMutex());
-  scoped_ptr<ThreadSystem::Condvar> notify_true(lock->NewCondvar());
-  scoped_ptr<ThreadSystem::Condvar> notify_false(lock->NewCondvar());
+  std::unique_ptr<ThreadSystem::Condvar> notify_true(lock->NewCondvar());
+  std::unique_ptr<ThreadSystem::Condvar> notify_false(lock->NewCondvar());
 
   ToggleThread* thread =
       new ToggleThread(this, lock.get(), notify_true.get(), notify_false.get());

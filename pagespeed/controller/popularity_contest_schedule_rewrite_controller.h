@@ -177,7 +177,7 @@ class PopularityContestScheduleRewriteController
   // Re-assign max_queued_rewrites. For use only in tests.
   void SetMaxQueueSizeForTesting(int size) LOCKS_EXCLUDED(mutex_);
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   // All known rewrites, indexed by Rewrite->key. Key pointers are all owned
   // by their respective Rewrite.
   RewriteMap all_rewrites_ GUARDED_BY(mutex_);

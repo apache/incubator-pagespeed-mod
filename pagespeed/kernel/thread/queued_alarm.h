@@ -74,7 +74,7 @@ class QueuedAlarm : public Function {
   // is already on the queue.
   void SequencePortionOfRunCancelled();
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   Scheduler* scheduler_;
   Sequence* sequence_;
   Function* callback_;

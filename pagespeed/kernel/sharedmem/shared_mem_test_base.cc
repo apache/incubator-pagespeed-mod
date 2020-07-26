@@ -55,7 +55,7 @@ bool SharedMemTestBase::CreateChild(TestMethod method) {
 }
 
 void SharedMemTestBase::TestReadWrite(bool reattach) {
-  scoped_ptr<AbstractSharedMemSegment> seg(CreateDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(CreateDefault());
   ASSERT_TRUE(seg.get() != NULL);
   ASSERT_TRUE(CreateChild(&SharedMemTestBase::TestReadWriteChild));
 
@@ -63,7 +63,7 @@ void SharedMemTestBase::TestReadWrite(bool reattach) {
     seg.reset(AttachDefault());
   }
 
-  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
+  std::unique_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
 
   // Wait for kid to write out stuff
   mutex->Lock();
@@ -87,8 +87,8 @@ void SharedMemTestBase::TestReadWrite(bool reattach) {
 }
 
 void SharedMemTestBase::TestReadWriteChild() {
-  scoped_ptr<AbstractSharedMemSegment> seg(AttachDefault());
-  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
+  std::unique_ptr<AbstractSharedMemSegment> seg(AttachDefault());
+  std::unique_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
 
   // Write out '1', which the parent will wait for.
   mutex->Lock();
@@ -106,7 +106,7 @@ void SharedMemTestBase::TestReadWriteChild() {
 }
 
 void SharedMemTestBase::TestLarge() {
-  scoped_ptr<AbstractSharedMemSegment> seg(
+  std::unique_ptr<AbstractSharedMemSegment> seg(
     shmem_runtime_->CreateSegment(kTestSegment, kLarge, &handler_));
   ASSERT_TRUE(seg.get() != NULL);
 
@@ -128,7 +128,7 @@ void SharedMemTestBase::TestLarge() {
 }
 
 void SharedMemTestBase::TestLargeChild() {
-  scoped_ptr<AbstractSharedMemSegment> seg(
+  std::unique_ptr<AbstractSharedMemSegment> seg(
     shmem_runtime_->AttachToSegment(kTestSegment, kLarge, &handler_));
   for (int i = 0; i < kLarge; i+=4) {
     *IntPtr(seg.get(), i) = i;
@@ -137,9 +137,9 @@ void SharedMemTestBase::TestLargeChild() {
 
 // Make sure that 2 segments don't interfere.
 void SharedMemTestBase::TestDistinct() {
-  scoped_ptr<AbstractSharedMemSegment> seg(CreateDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(CreateDefault());
   ASSERT_TRUE(seg.get() != NULL);
-  scoped_ptr<AbstractSharedMemSegment> seg2(
+  std::unique_ptr<AbstractSharedMemSegment> seg2(
       shmem_runtime_->CreateSegment(kOtherSegment, 4, &handler_));
   ASSERT_TRUE(seg2.get() != NULL);
 
@@ -159,7 +159,7 @@ void SharedMemTestBase::TestDistinct() {
 
 // Make sure destruction destroys things properly...
 void SharedMemTestBase::TestDestroy() {
-  scoped_ptr<AbstractSharedMemSegment> seg(CreateDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(CreateDefault());
   ASSERT_TRUE(seg.get() != NULL);
 
   ASSERT_TRUE(CreateChild(&SharedMemTestBase::WriteSeg1Child));
@@ -183,7 +183,7 @@ void SharedMemTestBase::TestDestroy() {
 // Make sure that re-creating a segment without a Destroy is safe and
 // produces a distinct segment
 void SharedMemTestBase::TestCreateTwice() {
-  scoped_ptr<AbstractSharedMemSegment> seg(CreateDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(CreateDefault());
   ASSERT_TRUE(seg.get() != NULL);
   ASSERT_TRUE(CreateChild(&SharedMemTestBase::WriteSeg1Child));
   test_env_->WaitForChildren();
@@ -196,7 +196,7 @@ void SharedMemTestBase::TestCreateTwice() {
 
 // Make sure between two kids see the SHM as well.
 void SharedMemTestBase::TestTwoKids() {
-  scoped_ptr<AbstractSharedMemSegment> seg(CreateDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(CreateDefault());
   ASSERT_TRUE(seg.get() != NULL);
   seg.reset(NULL);
 
@@ -211,9 +211,9 @@ void SharedMemTestBase::TestTwoKids() {
 }
 
 void SharedMemTestBase::TwoKidsChild1() {
-  scoped_ptr<AbstractSharedMemSegment> seg(AttachDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(AttachDefault());
   ASSERT_TRUE(seg.get() != NULL);
-  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
+  std::unique_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
   // Write out '1', which the other kid will wait for.
   mutex->Lock();
   *seg->Base() = '1';
@@ -221,9 +221,9 @@ void SharedMemTestBase::TwoKidsChild1() {
 }
 
 void SharedMemTestBase::TwoKidsChild2() {
-  scoped_ptr<AbstractSharedMemSegment> seg(AttachDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(AttachDefault());
   ASSERT_TRUE(seg.get() != NULL);
-  scoped_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
+  std::unique_ptr<AbstractMutex> mutex(AttachDefaultMutex(seg.get()));
   // Wait for '1'
   mutex->Lock();
   while (*seg->Base() != '1') {
@@ -243,7 +243,7 @@ void SharedMemTestBase::TwoKidsChild2() {
 // been found to be effective in practice.
 void SharedMemTestBase::TestMutex() NO_THREAD_SAFETY_ANALYSIS {
   size_t mutex_size = shmem_runtime_->SharedMutexSize();
-  scoped_ptr<AbstractSharedMemSegment> seg(
+  std::unique_ptr<AbstractSharedMemSegment> seg(
       shmem_runtime_->CreateSegment(kTestSegment, mutex_size + 4, &handler_));
   ASSERT_TRUE(seg.get() != NULL);
   ASSERT_EQ(mutex_size, seg->SharedMutexSize());
@@ -252,7 +252,7 @@ void SharedMemTestBase::TestMutex() NO_THREAD_SAFETY_ANALYSIS {
   seg.reset(
       shmem_runtime_->AttachToSegment(kTestSegment, mutex_size + 4, &handler_));
 
-  scoped_ptr<AbstractMutex> mutex(seg->AttachToSharedMutex(0));
+  std::unique_ptr<AbstractMutex> mutex(seg->AttachToSharedMutex(0));
   mutex->Lock();
   ASSERT_TRUE(CreateChild(&SharedMemTestBase::MutexChild));
 
@@ -270,11 +270,11 @@ void SharedMemTestBase::TestMutex() NO_THREAD_SAFETY_ANALYSIS {
 
 void SharedMemTestBase::MutexChild() {
   size_t mutex_size = shmem_runtime_->SharedMutexSize();
-  scoped_ptr<AbstractSharedMemSegment> seg(
+  std::unique_ptr<AbstractSharedMemSegment> seg(
       shmem_runtime_->AttachToSegment(kTestSegment, mutex_size + 4, &handler_));
   ASSERT_TRUE(seg.get() != NULL);
 
-  scoped_ptr<AbstractMutex> mutex(seg->AttachToSharedMutex(0));
+  std::unique_ptr<AbstractMutex> mutex(seg->AttachToSharedMutex(0));
   mutex->Lock();
   if (!IncrementStorm(seg.get(), mutex_size)) {
     mutex->Unlock();
@@ -312,13 +312,13 @@ bool SharedMemTestBase::IncrementStorm(AbstractSharedMemSegment* seg,
 }
 
 void SharedMemTestBase::WriteSeg1Child() {
-  scoped_ptr<AbstractSharedMemSegment> seg(AttachDefault());
+  std::unique_ptr<AbstractSharedMemSegment> seg(AttachDefault());
   ASSERT_TRUE(seg.get() != NULL);
   *seg->Base() = '1';
 }
 
 void SharedMemTestBase::WriteSeg2Child() {
-  scoped_ptr<AbstractSharedMemSegment> seg(
+  std::unique_ptr<AbstractSharedMemSegment> seg(
     shmem_runtime_->AttachToSegment(kOtherSegment, 4, &handler_));
   ASSERT_TRUE(seg.get() != NULL);
   *seg->Base() = '2';

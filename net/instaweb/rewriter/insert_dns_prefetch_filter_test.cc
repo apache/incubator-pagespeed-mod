@@ -160,7 +160,7 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
  private:
   StringWriter writer_;
   ResponseHeaders headers_;
-  scoped_ptr<InsertDnsPrefetchFilter> filter_;
+  std::unique_ptr<InsertDnsPrefetchFilter> filter_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertDnsPrefetchFilterTest);
 };

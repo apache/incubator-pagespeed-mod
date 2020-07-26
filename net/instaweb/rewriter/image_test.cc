@@ -249,7 +249,7 @@ class ConversionVarChecker {
   }
 
  private:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats simple_stats_;
   Image::ConversionVariables webp_conversion_variables_;
 };
@@ -474,7 +474,7 @@ class ImageTest : public ImageTestBase {
   }
 
   ImageUrlEncoder encoder_;
-  scoped_ptr<Image::CompressionOptions> options_;
+  std::unique_ptr<Image::CompressionOptions> options_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ImageTest);

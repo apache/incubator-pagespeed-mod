@@ -79,7 +79,7 @@ class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
   virtual PixelFormat GetPixelFormat();
 
  private:
-  net_instaweb::scoped_ptr<MultipleFrameReader> impl_;
+  std::unique_ptr<MultipleFrameReader> impl_;
 
   ImageSpec image_spec_;
   FrameSpec frame_spec_;
@@ -104,7 +104,7 @@ class FrameToScanlineWriterAdapter : public ScanlineWriterInterface {
   virtual ScanlineStatus FinalizeWriteWithStatus();
 
  private:
-  net_instaweb::scoped_ptr<MultipleFrameWriter> impl_;
+  std::unique_ptr<MultipleFrameWriter> impl_;
 
   bool init_done_;
   ImageSpec image_spec_;
@@ -144,7 +144,7 @@ class ScanlineToFrameReaderAdapter : public MultipleFrameReader {
   ImageSpec image_spec_;
   FrameSpec frame_spec_;
 
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> impl_;
+  std::unique_ptr<ScanlineReaderInterface> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(ScanlineToFrameReaderAdapter);
 };
@@ -176,7 +176,7 @@ class ScanlineToFrameWriterAdapter : public MultipleFrameWriter {
   const ImageSpec* image_spec_;
   const FrameSpec* frame_spec_;
 
-  net_instaweb::scoped_ptr<ScanlineWriterInterface> impl_;
+  std::unique_ptr<ScanlineWriterInterface> impl_;
 
   const void* config_;
   GoogleString* out_;

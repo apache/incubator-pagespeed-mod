@@ -42,7 +42,7 @@ class DeterministicJsFilterTest : public RewriteTestBase {
   }
 
  private:
-  scoped_ptr<DeterministicJsFilter> deterministic_js_filter_;
+  std::unique_ptr<DeterministicJsFilter> deterministic_js_filter_;
 
   DISALLOW_COPY_AND_ASSIGN(DeterministicJsFilterTest);
 };

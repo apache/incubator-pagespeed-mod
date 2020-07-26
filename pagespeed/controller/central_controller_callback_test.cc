@@ -41,7 +41,7 @@ struct CallCounts {
   int cancel_called;
   int cleanup_called;
   WorkerTestBase::SyncPoint sync;
-  scoped_ptr<MockCallbackHandle> handle;
+  std::unique_ptr<MockCallbackHandle> handle;
 };
 
 class MockCentralControllerCallback
@@ -55,7 +55,7 @@ class MockCentralControllerCallback
 
   virtual ~MockCentralControllerCallback() {}
 
-  virtual void RunImpl(scoped_ptr<MockCallbackHandle>* handle) {
+  virtual void RunImpl(std::unique_ptr<MockCallbackHandle>* handle) {
     ++counts_->run_called;
     if (steal_pointer_) {
       counts_->handle.reset(handle->release());
@@ -129,7 +129,7 @@ class CentralControllerCallbackTest : public WorkerTestBase {
     done.Wait();
   }
 
-  scoped_ptr<QueuedWorkerPool> worker_;
+  std::unique_ptr<QueuedWorkerPool> worker_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CentralControllerCallbackTest);
@@ -168,7 +168,7 @@ TEST_F(CentralControllerCallbackTest, CancelAfterRunRequeue) {
 
   // Create another worker pool/sequence that are shutdown. When the callback
   // is enqued onto this sequence, its Cancel should be immediately called.
-  scoped_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
+  std::unique_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
       2, "central_controller_test2", thread_runtime_.get()));
   Sequence* sequence2 = worker2->NewSequence();
   worker2->ShutDown();
@@ -192,7 +192,7 @@ TEST_F(CentralControllerCallbackTest, CancelAfterCancelRequeue) {
 
   // Create another worker pool/sequence that are shutdown. When the callback
   // is enqued onto this sequence, its Cancel should be immediately called.
-  scoped_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
+  std::unique_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
       2, "central_controller_test2", thread_runtime_.get()));
   Sequence* sequence2 = worker2->NewSequence();
   worker2->ShutDown();

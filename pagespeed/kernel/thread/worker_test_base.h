@@ -45,7 +45,7 @@ class WorkerTestBase : public ::testing::Test {
   ~WorkerTestBase();
 
  protected:
-  scoped_ptr<ThreadSystem> thread_runtime_;
+  std::unique_ptr<ThreadSystem> thread_runtime_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(WorkerTestBase);
@@ -79,8 +79,8 @@ class WorkerTestBase::SyncPoint {
 
  private:
   bool done_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> notify_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> notify_;
   DISALLOW_COPY_AND_ASSIGN(SyncPoint);
 };
 

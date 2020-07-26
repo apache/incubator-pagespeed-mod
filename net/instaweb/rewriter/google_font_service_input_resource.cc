@@ -75,7 +75,7 @@ GoogleFontServiceInputResource* GoogleFontServiceInputResource::Make(
                         ua_normalizers, rewrite_driver->user_agent());
 
   StringPiece url_plus_ua_spec;
-  scoped_ptr<GoogleUrl> url_plus_ua(
+  std::unique_ptr<GoogleUrl> url_plus_ua(
       parsed_url.CopyAndAddQueryParam("X-PS-UA", ua));
   url_plus_ua_spec = url_plus_ua->Spec();
 

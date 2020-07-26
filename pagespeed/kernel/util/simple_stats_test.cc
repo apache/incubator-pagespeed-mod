@@ -46,7 +46,7 @@ class SimpleStatsTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
 
  private:

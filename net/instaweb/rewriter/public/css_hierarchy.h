@@ -299,7 +299,7 @@ class CssHierarchy {
   // The parsed form of the CSS, in various states of transformation. Created
   // from the input text form by Parse, mutated by RollUpContents and
   // RollUpStylesheets - see their description for details.
-  scoped_ptr<Css::Stylesheet> stylesheet_;
+  std::unique_ptr<Css::Stylesheet> stylesheet_;
 
   // The charset for this CSS as specified by HTTP headers, or a charset
   // attribute, or an @charset rule, or inherited from the parent.

@@ -167,7 +167,7 @@ class FileCacheTest : public CacheTestBase {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MD5Hasher hasher_;
   SlowWorker worker_;
   MockTimer mock_timer_;
@@ -176,7 +176,7 @@ class FileCacheTest : public CacheTestBase {
   const int64 kTargetSize;
   const int64 kTargetInodeLimit;
   SimpleStats stats_;
-  scoped_ptr<FileCache> cache_;
+  std::unique_ptr<FileCache> cache_;
   GoogleMessageHandler message_handler_;
   const int64 lock_timeout_ms_;
 

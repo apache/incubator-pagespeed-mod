@@ -77,17 +77,17 @@ class AdminSiteTest : public CustomRewriteTestBase<SystemRewriteOptions> {
   // PrintCaches method. If we remove this dependency later,
   // we don't need to set up ServerContext in this unit test.
   ServerContext* SetupServerContext(SystemRewriteOptions* config) {
-    scoped_ptr<SystemServerContext> server_context(
+    std::unique_ptr<SystemServerContext> server_context(
         new SystemServerContextNoProxyHtml(factory()));
     server_context->reset_global_options(config);
     server_context->set_statistics(factory()->statistics());
     return server_context.release();
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<ServerContext> server_context_;
-  scoped_ptr<SystemRewriteOptions> options_;
-  scoped_ptr<AdminSite> admin_site_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ServerContext> server_context_;
+  std::unique_ptr<SystemRewriteOptions> options_;
+  std::unique_ptr<AdminSite> admin_site_;
 };
 
 TEST_F(AdminSiteTest, ColorMessagesInHistoryPage) {

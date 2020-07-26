@@ -332,7 +332,7 @@ class ApacheProcessContext {
   // incorrect context, returning an error message if so.
   const char* CheckProcessScope(const cmd_parms* cmd, bool* is_process_scope);
 
-  scoped_ptr<ApacheRewriteDriverFactory> factory_;
+  std::unique_ptr<ApacheRewriteDriverFactory> factory_;
   // Process-scoped static variable cleanups, mainly for valgrind.
   ProcessContext process_context_;
   command_rec* apache_cmds_;
@@ -1914,7 +1914,7 @@ void* merge_server_config(apr_pool_t* pool, void* base_conf, void* new_conf) {
   ApacheServerContext* vhost_context =
       static_cast<ApacheServerContext*>(new_conf);
 
-  scoped_ptr<ApacheConfig> merged_config(
+  std::unique_ptr<ApacheConfig> merged_config(
       global_context->global_config()->Clone());
   merged_config->Merge(*vhost_context->global_config());
   // Note that we don't need to do any special handling of cache paths here,
@@ -1925,7 +1925,7 @@ void* merge_server_config(apr_pool_t* pool, void* base_conf, void* new_conf) {
   // Merge the overlays, if any exist. (SPDY one no longer supported).
   if (global_context->has_non_spdy_config_overlay() ||
       vhost_context->has_non_spdy_config_overlay()) {
-    scoped_ptr<ApacheConfig> new_non_spdy_overlay(
+    std::unique_ptr<ApacheConfig> new_non_spdy_overlay(
         global_context->NonSpdyConfigOverlay()->Clone());
     new_non_spdy_overlay->Merge(*vhost_context->NonSpdyConfigOverlay());
     vhost_context->set_non_spdy_config_overlay(

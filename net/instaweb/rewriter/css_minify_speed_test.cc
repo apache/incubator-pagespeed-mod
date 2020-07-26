@@ -74,7 +74,7 @@ static void BM_MinifyCss(int iters, int size) {
     Css::Parser parser(in_text);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
-    scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
+    std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
     GoogleString result;
     StringWriter writer(&result);

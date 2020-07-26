@@ -96,8 +96,8 @@ class LockManagerSpammer : public ThreadSystem::Thread {
   int index_;
   int num_iters_;
   int num_names_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   int grants_ GUARDED_BY(mutex_);
   int denials_ GUARDED_BY(mutex_);
   LockVector queued_unlocks_ GUARDED_BY(mutex_);

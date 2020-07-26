@@ -465,7 +465,7 @@ class ImageRewriteFilter::Context::InvokeRewriteFunction
   virtual ~InvokeRewriteFunction() { }
 
  protected:
-  virtual void RunImpl(scoped_ptr<ExpensiveOperationContext>* context) {
+  virtual void RunImpl(std::unique_ptr<ExpensiveOperationContext>* context) {
     RewriteResult result = filter_->RewriteLoadedResourceImpl(
         context_, input_resource_, output_resource_);
     (*context)->Done();
@@ -1081,7 +1081,7 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
 
   Image::CompressionOptions* image_options =
       ImageOptionsForLoadedResource(resource_context, input_resource);
-  scoped_ptr<Image> image(
+  std::unique_ptr<Image> image(
       NewImage(input_resource->ExtractUncompressedContents(),
                input_resource->url(), server_context()->filename_prefix(),
                image_options, driver()->timer(), message_handler));
@@ -1281,7 +1281,7 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
     image_options->jpeg_num_progressive_scans =
         options->image_jpeg_num_progressive_scans();
 
-    scoped_ptr<Image> low_image;
+    std::unique_ptr<Image> low_image;
     if (driver()->options()->use_blank_image_for_inline_preview()) {
       image_options->use_transparent_for_blank_image = true;
       low_image.reset(BlankImageWithOptions(image_width, image_height,
@@ -1370,7 +1370,7 @@ void ImageRewriteFilter::ResizeLowQualityImage(
         options->Enabled(RewriteOptions::kRecompressPng);
     image_options->recompress_webp =
         options->Enabled(RewriteOptions::kRecompressWebp);
-    scoped_ptr<Image> image(
+    std::unique_ptr<Image> image(
         NewImage(low_image->Contents(), input_resource->url(),
                  server_context()->filename_prefix(), image_options,
                  driver()->timer(), driver()->message_handler()));
@@ -1464,7 +1464,7 @@ void ImageRewriteFilter::ComputePreserveUrls(
 
 void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
                                               HtmlElement::Attribute* src) {
-  scoped_ptr<ResourceContext> resource_context(new ResourceContext);
+  std::unique_ptr<ResourceContext> resource_context(new ResourceContext);
   const RewriteOptions* options = driver()->options();
   bool is_resized_using_rendered_dimensions = false;
 
@@ -1527,7 +1527,7 @@ void ImageRewriteFilter::BeginRewriteSrcSet(HtmlElement* element,
       continue;
     }
 
-    scoped_ptr<ResourceContext> resource_context(new ResourceContext);
+    std::unique_ptr<ResourceContext> resource_context(new ResourceContext);
     EncodeUserAgentIntoResourceContext(resource_context.get());
 
     Context* context = new Context(0 /* No CSS inlining, it's html */,

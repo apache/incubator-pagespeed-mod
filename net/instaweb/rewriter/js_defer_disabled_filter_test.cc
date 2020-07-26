@@ -56,7 +56,7 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
   virtual bool AddHtmlTags() const { return false; }
   virtual bool AddBody() const { return false; }
 
-  scoped_ptr<JsDeferDisabledFilter> js_defer_disabled_filter_;
+  std::unique_ptr<JsDeferDisabledFilter> js_defer_disabled_filter_;
 };
 
 // TODO(atulvasu): Write tests that actually execute script.

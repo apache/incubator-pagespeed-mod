@@ -85,7 +85,7 @@ class StripSubresourceHintsFilterTestBase : public RewriteTestBase {
 
   virtual void CustomSetup() = 0;
 
-  scoped_ptr<CanModifyUrlsFilter> can_modify_urls_filter_;
+  std::unique_ptr<CanModifyUrlsFilter> can_modify_urls_filter_;
 };
 
 class StripSubresourceHintsFilterTest :

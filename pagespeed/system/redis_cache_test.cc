@@ -148,12 +148,12 @@ class RedisCacheTest : public CacheTestBase {
   }
 
   std::vector<std::unique_ptr<RedisCache>> cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats statistics_;
   MockTimer timer_;
   GoogleMessageHandler handler_;
 
-  scoped_ptr<TcpServerThreadForTesting> custom_server_;
+  std::unique_ptr<TcpServerThreadForTesting> custom_server_;
   static apr_port_t custom_server_port_;
   int redis_port_env_;
 };

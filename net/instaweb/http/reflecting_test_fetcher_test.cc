@@ -45,7 +45,7 @@ class ReflectingFetcherTest : public ::testing::Test {
 };
 
 TEST_F(ReflectingFetcherTest, ReflectingFetcherWorks) {
-  scoped_ptr<ThreadSystem> ts(Platform::CreateThreadSystem());
+  std::unique_ptr<ThreadSystem> ts(Platform::CreateThreadSystem());
   ExpectStringAsyncFetch dest(
       true, RequestContext::NewTestRequestContext(ts.get()));
   dest.request_headers()->Add("A", "First letter");

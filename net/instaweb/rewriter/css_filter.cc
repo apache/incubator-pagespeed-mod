@@ -414,7 +414,7 @@ bool CssFilter::Context::RewriteCssText(const GoogleUrl& css_base_gurl,
   // Create a stylesheet even if given declarations so that we don't need
   // two versions of everything, though they do need to handle a stylesheet
   // with no selectors in it, which they currently do.
-  scoped_ptr<Css::Stylesheet> stylesheet;
+  std::unique_ptr<Css::Stylesheet> stylesheet;
   if (text_is_declarations) {
     Css::Declarations* declarations = parser.ParseRawDeclarations();
     if (declarations != NULL) {

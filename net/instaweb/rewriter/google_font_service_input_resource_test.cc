@@ -87,7 +87,7 @@ class GoogleFontServiceInputResourceTest : public RewriteTestBase {
 TEST_F(GoogleFontServiceInputResourceTest, Creation) {
   ResetUserAgent("Chromezilla");
 
-  scoped_ptr<GoogleFontServiceInputResource> resource;
+  std::unique_ptr<GoogleFontServiceInputResource> resource;
 
   GoogleUrl url1("efpeRO#@($@#K$!@($");
   resource.reset(GoogleFontServiceInputResource::Make(url1, rewrite_driver()));
@@ -167,7 +167,7 @@ TEST_F(GoogleFontServiceInputResourceTest, UANormalization) {
       ".NET CLR 2.0.50727; .NET CLR 3.0.4506.2152; .NET CLR 3.5.30729)";
 
   GoogleUrl url(kRoboto);
-  scoped_ptr<GoogleUrl> url_plus_ua(url.CopyAndAddQueryParam("UA", kIE7a));
+  std::unique_ptr<GoogleUrl> url_plus_ua(url.CopyAndAddQueryParam("UA", kIE7a));
   ResponseHeaders response_headers;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &response_headers);
   response_headers.SetDateAndCaching(

@@ -60,7 +60,7 @@ TEST_F(JsReplacerTest, BasicMatch) {
   const char kIn[] = "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"42\"; document.domain = 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
   replacer_.AddPattern("document", "domain", rewriter.get());
 
@@ -74,9 +74,9 @@ TEST_F(JsReplacerTest, RedundantPattern) {
   const char kIn[] = "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"42\"; document.domain = 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
-  scoped_ptr<JsReplacer::StringRewriter> rewriter2(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter2(
       NewPermanentCallback(this, &JsReplacerTest::AppendHead));
   replacer_.AddPattern("document", "domain", rewriter.get());
   replacer_.AddPattern("document", "domain", rewriter2.get());
@@ -92,9 +92,9 @@ TEST_F(JsReplacerTest, TwoPatterns) {
       "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"head with 42\"; document.domain = 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
-  scoped_ptr<JsReplacer::StringRewriter> rewriter2(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter2(
       NewPermanentCallback(this, &JsReplacerTest::AppendHead));
   replacer_.AddPattern("document", "domain", rewriter.get());
   replacer_.AddPattern("b", "c", rewriter2.get());
@@ -109,7 +109,7 @@ TEST_F(JsReplacerTest, CommentsOk) {
       "a.b.c = \"42\"; document.domain = /*relax*/ 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"42\"; document.domain = /*relax*/ 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
   replacer_.AddPattern("document", "domain", rewriter.get());
 

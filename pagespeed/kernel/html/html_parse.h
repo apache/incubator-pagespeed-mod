@@ -660,7 +660,7 @@ class HtmlParse {
   bool running_filters_;
   bool buffer_events_;
   int64 parse_start_time_us_;
-  scoped_ptr<HtmlEvent> delayed_start_literal_;
+  std::unique_ptr<HtmlEvent> delayed_start_literal_;
   Timer* timer_;
   HtmlFilter* current_filter_;      // Filter currently running in ApplyFilter
 

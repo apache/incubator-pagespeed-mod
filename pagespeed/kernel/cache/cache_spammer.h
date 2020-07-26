@@ -75,8 +75,8 @@ class CacheSpammer : public ThreadSystem::Thread {
   int index_;
   int num_iters_;
   int num_inserts_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   int pending_gets_  GUARDED_BY(mutex_);
 
   DISALLOW_COPY_AND_ASSIGN(CacheSpammer);

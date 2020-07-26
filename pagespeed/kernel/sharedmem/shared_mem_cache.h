@@ -276,7 +276,7 @@ class SharedMemCache : public CacheInterface {
   GoogleString snapshot_path_;
   FileCache* file_cache_;
 
-  scoped_ptr<AbstractSharedMemSegment> segment_;
+  std::unique_ptr<AbstractSharedMemSegment> segment_;
   std::vector<SharedMemCacheData::Sector<kBlockSize>*> sectors_;
 
   GoogleString name_;

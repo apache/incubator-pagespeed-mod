@@ -39,7 +39,7 @@ class QueuedWorkerPoolTest: public WorkerTestBase {
   }
 
  protected:
-  scoped_ptr<QueuedWorkerPool> worker_;
+  std::unique_ptr<QueuedWorkerPool> worker_;
 
   // Blocks mainline until a sequence completes all outstanding tasks.
   void WaitUntilSequenceCompletes(QueuedWorkerPool::Sequence* sequence) {

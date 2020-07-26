@@ -65,7 +65,7 @@ class MockScheduleRewriteCallback : public ScheduleRewriteCallback {
     EXPECT_CALL(*this, CancelImpl()).Times(0);;
   }
 
-  MOCK_METHOD1(RunImpl, void(scoped_ptr<ScheduleRewriteContext>* context));
+  MOCK_METHOD1(RunImpl, void(std::unique_ptr<ScheduleRewriteContext>* context));
   MOCK_METHOD0(CancelImpl, void());
 };
 
@@ -91,7 +91,7 @@ class ScheduleRewriteRpcContextTest : public testing::Test {
   }
 
   void ScheduleCallSuccessAndDelete(
-      scoped_ptr<ScheduleRewriteContext>* ctx) {
+      std::unique_ptr<ScheduleRewriteContext>* ctx) {
     sequence_->Add(
         MakeFunction(this, &ScheduleRewriteRpcContextTest::CallSuccessAndDelete,
                      ctx->release()));
@@ -103,7 +103,7 @@ class ScheduleRewriteRpcContextTest : public testing::Test {
   }
 
   void ScheduleCallFailedAndDelete(
-      scoped_ptr<ScheduleRewriteContext>* ctx) {
+      std::unique_ptr<ScheduleRewriteContext>* ctx) {
     sequence_->Add(
         MakeFunction(this, &ScheduleRewriteRpcContextTest::CallFailedAndDelete,
                      ctx->release()));

@@ -64,7 +64,7 @@ class MockExpensiveOperationCallback : public ExpensiveOperationCallback {
     EXPECT_CALL(*this, CancelImpl()).Times(0);;
   }
 
-  MOCK_METHOD1(RunImpl, void(scoped_ptr<ExpensiveOperationContext>* context));
+  MOCK_METHOD1(RunImpl, void(std::unique_ptr<ExpensiveOperationContext>* context));
   MOCK_METHOD0(CancelImpl, void());
 };
 
@@ -90,7 +90,7 @@ class ExpensiveOperationRpcContextTest : public testing::Test {
   }
 
   void ScheduleCallDoneAndDelete(
-      scoped_ptr<ExpensiveOperationContext>* ctx) {
+      std::unique_ptr<ExpensiveOperationContext>* ctx) {
     sequence_->Add(
         MakeFunction(this, &ExpensiveOperationRpcContextTest::CallDoneAndDelete,
                      ctx->release()));

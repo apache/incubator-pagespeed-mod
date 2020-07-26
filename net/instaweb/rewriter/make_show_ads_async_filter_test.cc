@@ -219,7 +219,7 @@ class MakeShowAdsAsyncFilterTest : public RewriteTestBase {
   bool AddBody() const override { return add_tags_; }
   bool AddHtmlTags() const override { return add_tags_; }
 
-  scoped_ptr<MakeShowAdsAsyncFilter> filter_;
+  std::unique_ptr<MakeShowAdsAsyncFilter> filter_;
   bool add_tags_;
 };
 

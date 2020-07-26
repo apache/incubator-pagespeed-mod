@@ -69,7 +69,7 @@ void TestCachePayload(int payload_size, int chunk_size, int iters) {
   while (static_cast<int>(value.size()) < payload_size) {
     value += chunk;
   }
-  net_instaweb::scoped_ptr<net_instaweb::ThreadSystem> thread_system(
+  std::unique_ptr<net_instaweb::ThreadSystem> thread_system(
       net_instaweb::Platform::CreateThreadSystem());
   net_instaweb::SimpleStats stats(thread_system.get());
   net_instaweb::CompressedCache::InitStats(&stats);

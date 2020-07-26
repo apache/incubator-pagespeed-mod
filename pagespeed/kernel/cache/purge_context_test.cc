@@ -184,18 +184,18 @@ class PurgeContextTest : public ::testing::Test,
     purge_set2_ = purge_set;
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   MockMessageHandler message_handler_;
   MemFileSystem file_system_;
   MockScheduler scheduler_;
   FileSystemLockManager lock_manager_;
-  scoped_ptr<Statistics> statistics_;
-  scoped_ptr<PurgeContext> purge_context1_;
-  scoped_ptr<PurgeContext> purge_context2_;
+  std::unique_ptr<Statistics> statistics_;
+  std::unique_ptr<PurgeContext> purge_context1_;
+  std::unique_ptr<PurgeContext> purge_context2_;
   CopyOnWrite<PurgeSet> purge_set1_;
   CopyOnWrite<PurgeSet> purge_set2_;
-  scoped_ptr<NamedLock> lock_;
+  std::unique_ptr<NamedLock> lock_;
   NamedLockTester lock_tester_;
 };
 

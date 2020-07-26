@@ -72,7 +72,7 @@ SharedCircularBuffer* SharedCircularBufferTestBase::ParentInit() {
 // Basic initialization/writing/cleanup test
 void SharedCircularBufferTestBase::TestCreate() {
   // Create buffer from root Process.
-  scoped_ptr<SharedCircularBuffer> buff(ParentInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ParentInit());
   buff->Write("parent", &null_handler_);
   EXPECT_EQ("parent", buff->ToString(&handler_));
   ASSERT_TRUE(CreateChild(&SharedCircularBufferTestBase::TestCreateChild));
@@ -85,7 +85,7 @@ void SharedCircularBufferTestBase::TestCreate() {
 }
 
 void SharedCircularBufferTestBase::TestCreateChild() {
-  scoped_ptr<SharedCircularBuffer> buff(ChildInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ChildInit());
   // Child writes to buffer.
   if (!buff->Write("kid", &null_handler_)) {
     test_env_->ChildFailed();
@@ -94,7 +94,7 @@ void SharedCircularBufferTestBase::TestCreateChild() {
 
 void SharedCircularBufferTestBase::TestAdd() {
   // Every child process writes "012" to buffer.
-  scoped_ptr<SharedCircularBuffer> buff(ParentInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ParentInit());
   for (int i = 0; i < 2; ++i) {
     ASSERT_TRUE(CreateChild(&SharedCircularBufferTestBase::TestAddChild));
   }
@@ -106,13 +106,13 @@ void SharedCircularBufferTestBase::TestAdd() {
 }
 
 void SharedCircularBufferTestBase::TestAddChild() {
-  scoped_ptr<SharedCircularBuffer> buff(ChildInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ChildInit());
   buff->Write("012", &null_handler_);
 }
 
 void SharedCircularBufferTestBase::TestClear() {
   // We can clear things from the child
-  scoped_ptr<SharedCircularBuffer> buff(ParentInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ParentInit());
   // Write a string to buffer.
   buff->Write("012", &null_handler_);
   EXPECT_EQ("012", buff->ToString(&handler_));
@@ -125,19 +125,19 @@ void SharedCircularBufferTestBase::TestClear() {
 }
 
 void SharedCircularBufferTestBase::TestClearChild() {
-  scoped_ptr<SharedCircularBuffer> buff(ChildInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ChildInit());
   buff->InitSegment(false, &handler_);
   buff->Clear();
 }
 
 void SharedCircularBufferTestBase::TestChildWrite() {
-  scoped_ptr<SharedCircularBuffer> buff(ChildInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ChildInit());
   buff->InitSegment(false, &handler_);
   buff->Write(message_, &null_handler_);
 }
 
 void SharedCircularBufferTestBase::TestChildBuff() {
-  scoped_ptr<SharedCircularBuffer> buff(ChildInit());
+  std::unique_ptr<SharedCircularBuffer> buff(ChildInit());
   buff->InitSegment(false, &handler_);
   // Check if buffer content is correct.
   if (expected_result_ != buff->ToString(&handler_)) {
@@ -147,7 +147,7 @@ void SharedCircularBufferTestBase::TestChildBuff() {
 
 // Check various operations, and wraparound, with multiple processes.
 void SharedCircularBufferTestBase::TestCircular() {
-  scoped_ptr<SharedCircularBuffer> parent(ParentInit());
+  std::unique_ptr<SharedCircularBuffer> parent(ParentInit());
   parent->Clear();
   // Write in parent process.
   parent->Write("012345", &null_handler_);

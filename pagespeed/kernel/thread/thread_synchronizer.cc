@@ -88,8 +88,8 @@ class ThreadSynchronizer::SyncPoint {
   void AllowSloppyTermination() { allow_sloppy_ = true; }
 
  private:
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   int signal_count_;
   GoogleString key_;  // for debugging;
   bool allow_sloppy_;

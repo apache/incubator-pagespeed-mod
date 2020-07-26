@@ -212,7 +212,7 @@ class SystemServerContext : public ServerContext {
   // present.
   void CheckLegacyGlobalCacheFlushFile();
 
-  scoped_ptr<AdminSite> admin_site_;
+  std::unique_ptr<AdminSite> admin_site_;
 
   bool initialized_;
   bool use_per_vhost_statistics_;
@@ -220,7 +220,7 @@ class SystemServerContext : public ServerContext {
   // State used to implement periodic polling of $FILE_PREFIX/cache.flush.
   // last_cache_flush_check_sec_ is ctor-initialized to 0 so the first
   // time we Poll we will read the file.
-  scoped_ptr<AbstractMutex> cache_flush_mutex_;
+  std::unique_ptr<AbstractMutex> cache_flush_mutex_;
   int64 last_cache_flush_check_sec_;  // seconds since 1970
 
   Variable* cache_flush_count_;
@@ -229,14 +229,14 @@ class SystemServerContext : public ServerContext {
   Histogram* html_rewrite_time_us_histogram_;
 
   // Non-NULL if we have per-vhost stats.
-  scoped_ptr<Statistics> split_statistics_;
+  std::unique_ptr<Statistics> split_statistics_;
 
   // May be NULL. Owned by *split_statistics_.
   SharedMemStatistics* local_statistics_;
 
   // These are non-NULL if we have per-vhost stats.
-  scoped_ptr<RewriteStats> local_rewrite_stats_;
-  scoped_ptr<UrlAsyncFetcherStats> stats_fetcher_;
+  std::unique_ptr<RewriteStats> local_rewrite_stats_;
+  std::unique_ptr<UrlAsyncFetcherStats> stats_fetcher_;
 
   // hostname_identifier_ equals to "server_hostname:port" of the server.  It's
   // used to distinguish the name of shared memory so that each vhost has its

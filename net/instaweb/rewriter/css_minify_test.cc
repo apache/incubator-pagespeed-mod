@@ -46,7 +46,7 @@ class CssMinifyTest : public ::testing::Test {
     Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
-    scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
+    std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
     if (parser.errors_seen_mask() != Css::Parser::kNoError) {
       in_text.CopyToString(out_text);

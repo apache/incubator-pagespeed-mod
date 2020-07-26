@@ -56,7 +56,7 @@ bool CssMinify::ParseStylesheet(StringPiece stylesheet_text) {
   Css::Parser parser(tmp);
   parser.set_preservation_mode(true);  // Leave in unparseable regions.
   parser.set_quirks_mode(false);  // Don't fix badly formatted colors.
-  scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
+  std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
   // Report error summary.
   if (error_writer_ != NULL) {

@@ -169,7 +169,7 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   ResourcePtr input_resource_;
   OutputResourcePtr output_resource_;
 
-  scoped_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
+  std::unique_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
 
   // Are we in proxy mode?
   //
@@ -236,7 +236,7 @@ class RecordingFetch : public SharedAsyncFetch {
   bool streaming_;
   HTTPValue cache_value_;
   HTTPValueWriter cache_value_writer_;
-  scoped_ptr<ResponseHeaders> saved_headers_;
+  std::unique_ptr<ResponseHeaders> saved_headers_;
   Variable* in_place_oversized_opt_stream_;
   Variable* in_place_uncacheable_rewrites_;
   DISALLOW_COPY_AND_ASSIGN(RecordingFetch);

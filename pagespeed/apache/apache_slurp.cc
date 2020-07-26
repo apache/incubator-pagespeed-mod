@@ -154,8 +154,8 @@ class StrippingFetch : public StringAsyncFetch {
 
   bool stripped_;
 
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
 
   DISALLOW_COPY_AND_ASSIGN(StrippingFetch);
 };
@@ -184,7 +184,7 @@ bool InstawebHandler::ProxyUrl() {
   // Figure out if we should be using a slurp fetcher rather than the default
   // system fetcher.
   UrlAsyncFetcher* fetcher = server_context_->DefaultSystemFetcher();
-  scoped_ptr<UrlAsyncFetcher> fetcher_storage;
+  std::unique_ptr<UrlAsyncFetcher> fetcher_storage;
 
   if (options()->test_proxy() && !options()->test_proxy_slurp().empty()) {
     fetcher_storage.reset(new HttpDumpUrlFetcher(

@@ -80,9 +80,9 @@ class MockCriticalImagesFinder : public TestCriticalImagesFinder {
 
  private:
   int compute_calls_;
-  scoped_ptr<StringSet> critical_images_;
-  scoped_ptr<StringSet> css_critical_images_;
-  scoped_ptr<RenderedImages> rendered_images_;
+  std::unique_ptr<StringSet> critical_images_;
+  std::unique_ptr<StringSet> css_critical_images_;
+  std::unique_ptr<RenderedImages> rendered_images_;
   DISALLOW_COPY_AND_ASSIGN(MockCriticalImagesFinder);
 };
 

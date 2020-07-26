@@ -34,7 +34,7 @@ ImageSpriter::ImageSpriter(ImageLibraryInterface* image_lib)
 
 SpriterResult* ImageSpriter::Sprite(
     const SpriterInput& spriter_input) {
-  scoped_ptr<SpriterResult> spriter_result(new SpriterResult);
+  std::unique_ptr<SpriterResult> spriter_result(new SpriterResult);
 
   spriter_result->set_id(spriter_input.id());
   spriter_result->set_output_base_path(
@@ -81,7 +81,7 @@ bool ImageSpriter::DrawImagesInVerticalStrip(
     ImageLibraryInterface::FilePath image_path(
         spriter_input.input_image_set(i).path());
 
-    scoped_ptr<ImageLibraryInterface::Image> image(
+    std::unique_ptr<ImageLibraryInterface::Image> image(
         image_lib_->ReadFromFile(image_path));
 
     int width, height;
@@ -104,7 +104,7 @@ bool ImageSpriter::DrawImagesInVerticalStrip(
   }
 
   // Write all images into a canvas, and write the canvas to a file.
-  scoped_ptr<ImageLibraryInterface::Canvas> canvas(
+  std::unique_ptr<ImageLibraryInterface::Canvas> canvas(
       image_lib_->CreateCanvas(max_image_width, total_y_offset));
   if (!canvas.get())
     return false;

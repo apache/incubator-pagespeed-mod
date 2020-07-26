@@ -96,12 +96,12 @@ class SharedMemCacheSpammerTest : public testing::Test {
     cache_->SanityCheck();
   }
 
-  scoped_ptr<Timer> timer_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<Timer> timer_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   GoogleMessageHandler message_handler_;
   MD5Hasher hasher_;
   InProcessSharedMem in_process_shared_mem_;
-  scoped_ptr<ShmCache> cache_;
+  std::unique_ptr<ShmCache> cache_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SharedMemCacheSpammerTest);

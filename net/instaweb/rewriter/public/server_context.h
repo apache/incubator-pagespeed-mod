@@ -686,14 +686,14 @@ class ServerContext {
   GoogleString file_prefix_;
   FileSystem* file_system_;
   UrlNamer* url_namer_;
-  scoped_ptr<RewriteOptionsManager> rewrite_options_manager_;
+  std::unique_ptr<RewriteOptionsManager> rewrite_options_manager_;
   UserAgentMatcher* user_agent_matcher_;
   Scheduler* scheduler_;
   UrlAsyncFetcher* default_system_fetcher_;
   Hasher* hasher_;
   SHA1Signature* signature_;
-  scoped_ptr<CriticalImagesFinder> critical_images_finder_;
-  scoped_ptr<CriticalSelectorFinder> critical_selector_finder_;
+  std::unique_ptr<CriticalImagesFinder> critical_images_finder_;
+  std::unique_ptr<CriticalSelectorFinder> critical_selector_finder_;
 
   // hasher_ is often set to a mock within unit tests, but some parts of the
   // system will not work sensibly if the "hash algorithm" used always returns
@@ -707,8 +707,8 @@ class ServerContext {
   Statistics* statistics_;
 
   Timer* timer_;
-  scoped_ptr<HTTPCache> http_cache_;
-  scoped_ptr<PropertyCache> page_property_cache_;
+  std::unique_ptr<HTTPCache> http_cache_;
+  std::unique_ptr<PropertyCache> page_property_cache_;
   CacheInterface* filesystem_metadata_cache_;
   CacheInterface* metadata_cache_;
 
@@ -729,7 +729,7 @@ class ServerContext {
   // for re-use with NewRewriteDriver.
   // Protected by rewrite_drivers_mutex_.
   // TODO(morlovich): Give this a better name in an immediate follow up.
-  scoped_ptr<RewriteDriverPool> available_rewrite_drivers_;
+  std::unique_ptr<RewriteDriverPool> available_rewrite_drivers_;
 
   // Other RewriteDriverPool's whose lifetime we help manage for our subclasses.
   std::vector<RewriteDriverPool*> additional_driver_pools_;
@@ -756,11 +756,11 @@ class ServerContext {
   // platform-specific filters to a RewriteDriver.
   RewriteDriverFactory* factory_;
 
-  scoped_ptr<AbstractMutex> rewrite_drivers_mutex_;
+  std::unique_ptr<AbstractMutex> rewrite_drivers_mutex_;
 
   // All access, even internal to the class, should be via options() so
   // subclasses can override.
-  scoped_ptr<RewriteOptions> base_class_options_;
+  std::unique_ptr<RewriteOptions> base_class_options_;
 
   // This is owned by the RewriteDriverFactory. We use it for just for decoding
   // resource URLs, using the default options.  This is possible because the
@@ -778,10 +778,10 @@ class ServerContext {
 
   // Used to help inject sync-points into thread-intensive code for the purposes
   // of controlling thread interleaving to test code for possible races.
-  scoped_ptr<ThreadSynchronizer> thread_synchronizer_;
+  std::unique_ptr<ThreadSynchronizer> thread_synchronizer_;
 
   // Used to match clients or sessions to a specific experiment.
-  scoped_ptr<ExperimentMatcher> experiment_matcher_;
+  std::unique_ptr<ExperimentMatcher> experiment_matcher_;
 
   UsageDataReporter* usage_data_reporter_;
 
@@ -794,7 +794,7 @@ class ServerContext {
   // Owned by RewriteDriverFactory.
   const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns_;
 
-  scoped_ptr<CachePropertyStore> cache_property_store_;
+  std::unique_ptr<CachePropertyStore> cache_property_store_;
 
   std::shared_ptr<CentralController> central_controller_;
 

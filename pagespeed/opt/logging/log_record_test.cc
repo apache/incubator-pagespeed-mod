@@ -42,7 +42,7 @@ class LogRecordTest : public testing::Test {
     EXPECT_EQ(last_status, l->rewriter_info(size-1).status());
   }
 
-  scoped_ptr<AbstractLogRecord> log_record_;
+  std::unique_ptr<AbstractLogRecord> log_record_;
 };
 
 typedef LogRecordTest LogRecordDeathTest;

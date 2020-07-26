@@ -44,7 +44,7 @@ class NonceGenerator {
   virtual uint64 NewNonceImpl() = 0;
 
  private:
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(NonceGenerator);
 };

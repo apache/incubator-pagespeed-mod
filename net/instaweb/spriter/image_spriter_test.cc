@@ -78,7 +78,7 @@ TEST(SpriterTest, ZeroImages) {
   // Build mock ojects:
   FailOnImageLibError no_failures_allowed;
 
-  scoped_ptr<StrictMock<MockImageLibraryInterface::MockCanvas> >
+  std::unique_ptr<StrictMock<MockImageLibraryInterface::MockCanvas> >
       mock_canvas(new StrictMock<MockImageLibraryInterface::MockCanvas>);
 
   testing::StrictMock<MockImageLibraryInterface>
@@ -96,7 +96,7 @@ TEST(SpriterTest, ZeroImages) {
   EXPECT_FALSE(NULL == mock_canvas.release());
 
   ImageSpriter spriter(&mock_image_lib);
-  scoped_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
+  std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
 
   ASSERT_TRUE(sprite_result.get());
   EXPECT_EQ(kSpriteId, sprite_result->id());
@@ -114,10 +114,10 @@ TEST(SpriterTest, OneImage) {
 
   FailOnImageLibError no_failures_allowed;
 
-  scoped_ptr<StrictMock<MockImageLibraryInterface::MockCanvas> >
+  std::unique_ptr<StrictMock<MockImageLibraryInterface::MockCanvas> >
       mock_canvas(new StrictMock<MockImageLibraryInterface::MockCanvas>);
 
-  scoped_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
+  std::unique_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
       mock_image_a(new StrictMock<MockImageLibraryInterface::MockImage>);
 
   testing::StrictMock<MockImageLibraryInterface>
@@ -147,7 +147,7 @@ TEST(SpriterTest, OneImage) {
   EXPECT_FALSE(NULL == mock_image_a.release());
 
   ImageSpriter spriter(&mock_image_lib);
-  scoped_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
+  std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
 
   ASSERT_TRUE(sprite_result.get());
   EXPECT_EQ(kSpriteId, sprite_result->id());
@@ -168,13 +168,13 @@ TEST(SpriterTest, TwoImages) {
 
   FailOnImageLibError no_failures_allowed;
 
-  scoped_ptr<StrictMock<MockImageLibraryInterface::MockCanvas> >
+  std::unique_ptr<StrictMock<MockImageLibraryInterface::MockCanvas> >
       mock_canvas(new StrictMock<MockImageLibraryInterface::MockCanvas>);
 
-  scoped_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
+  std::unique_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
       mock_image_a(new StrictMock<MockImageLibraryInterface::MockImage>);
 
-  scoped_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
+  std::unique_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
       mock_image_b(new StrictMock<MockImageLibraryInterface::MockImage>);
 
   testing::StrictMock<MockImageLibraryInterface>
@@ -218,7 +218,7 @@ TEST(SpriterTest, TwoImages) {
   EXPECT_FALSE(NULL == mock_image_b.release());
 
   ImageSpriter spriter(&mock_image_lib);
-  scoped_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
+  std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
 
   ASSERT_TRUE(sprite_result.get());
   EXPECT_EQ(kSpriteId, sprite_result->id());

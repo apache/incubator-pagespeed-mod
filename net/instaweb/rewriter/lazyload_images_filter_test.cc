@@ -84,7 +84,7 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
   }
 
   GoogleString blank_image_src_;
-  scoped_ptr<LazyloadImagesFilter> lazyload_images_filter_;
+  std::unique_ptr<LazyloadImagesFilter> lazyload_images_filter_;
 };
 
 TEST_F(LazyloadImagesFilterTest, SingleHead) {

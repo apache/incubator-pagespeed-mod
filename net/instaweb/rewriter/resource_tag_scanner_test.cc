@@ -89,7 +89,7 @@ class ResourceTagScannerTest : public RewriteTestBase {
 
   StringVector resources_;
   CategoryVector resource_category_;
-  scoped_ptr<ResourceCollector> collector_;
+  std::unique_ptr<ResourceCollector> collector_;
 };
 
 TEST_F(ResourceTagScannerTest, SimpleScript) {

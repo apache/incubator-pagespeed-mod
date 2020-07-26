@@ -1298,7 +1298,7 @@ ProxyFetchPropertyCallbackCollector*
   UserAgentMatcher::DeviceType device_type =
       server_context->user_agent_matcher()->GetDeviceTypeForUA(user_agent);
 
-  scoped_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
+  std::unique_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
       new ProxyFetchPropertyCallbackCollector(
           server_context, request_url.Spec(), request_ctx, options,
           device_type));

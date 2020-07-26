@@ -136,7 +136,7 @@ class CssFilterTest : public CssRewriteTestBase {
     Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
-    scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
+    std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
     EXPECT_TRUE(parser.errors_seen_mask() == Css::Parser::kNoError);
     EXPECT_EQ(expect_unparseable_section,
               parser.unparseable_sections_seen_mask() != Css::Parser::kNoError);
@@ -312,10 +312,10 @@ TEST_F(CssFilterTestCustomOptions, CssPreserveUrls) {
 }
 
 TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsOverridingExtend) {
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> global_options(options()->NewOptions());
   global_options->EnableFilter(RewriteOptions::kExtendCacheCss);
 
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> vhost_options(options()->NewOptions());
   vhost_options->EnableFilter(RewriteOptions::kRewriteCss);
   vhost_options->SoftEnableFilterForTesting(RewriteOptions::kInlineCss);
   vhost_options->SoftEnableFilterForTesting(RewriteOptions::kRewriteCss);
@@ -348,13 +348,13 @@ TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsOverridingExtend) {
 }
 
 TEST_F(CssFilterTestCustomOptions, CssPreserveUrlsWithMergedCacheExtend) {
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> global_options(options()->NewOptions());
   global_options->EnableFilter(RewriteOptions::kRewriteCss);
   global_options->set_css_preserve_urls(true);
 
   // Because we set extend_cache at a "lower level", it takes priority
   // over preserve_css_urls and enables URL-rewriting for CSS.
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> vhost_options(options()->NewOptions());
   vhost_options->EnableFilter(RewriteOptions::kExtendCacheCss);
   options()->Merge(*global_options);
   options()->Merge(*vhost_options);

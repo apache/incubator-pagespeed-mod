@@ -285,7 +285,7 @@ class ImageConverterTest : public testing::Test {
 
  protected:
   MockMessageHandler message_handler_;
-  net_instaweb::scoped_ptr<PngReaderInterface> png_struct_reader_;
+  std::unique_ptr<PngReaderInterface> png_struct_reader_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ImageConverterTest);
@@ -456,11 +456,11 @@ TEST_F(ImageConverterTest, ConvertPaddedGifToWebp) {
   EXPECT_EQ(static_cast<size_t>(45), in.size())
       << "input size mismatch";
 
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> reader(
+  std::unique_ptr<ScanlineReaderInterface> reader(
       CreateScanlineReader(IMAGE_GIF, in.c_str(), in.size(),
                            &message_handler_, &status));
   EXPECT_TRUE(status.Success()) << status.ToString();
-  net_instaweb::scoped_ptr<ScanlineWriterInterface> writer(
+  std::unique_ptr<ScanlineWriterInterface> writer(
       CreateScanlineWriter(IMAGE_WEBP, reader->GetPixelFormat(),
                            reader->GetImageWidth(), reader->GetImageHeight(),
                            &options, &out, &message_handler_, &status));

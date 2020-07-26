@@ -238,7 +238,7 @@ TEST_F(ScanlineResizerTest, ResizeAndWrite) {
 
       GoogleString output_image;
       GoogleString file_ext;
-      net_instaweb::scoped_ptr<ScanlineWriterInterface> writer(
+      std::unique_ptr<ScanlineWriterInterface> writer(
          CreateWriter(resizer_.GetPixelFormat(),
                       resizer_.GetImageWidth(),
                       resizer_.GetImageHeight(),

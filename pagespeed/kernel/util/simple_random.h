@@ -49,7 +49,7 @@ class SimpleRandom {
  private:
   uint32 z_;
   uint32 w_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   // Copy & assign are OK.
 };
 

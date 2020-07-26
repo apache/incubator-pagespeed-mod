@@ -104,7 +104,7 @@ class SchedulerSequenceTest: public WorkerTestBase {
   MockTimer timer_;
   MockScheduler scheduler_;
   SyncPoint sync1_;
-  scoped_ptr<Scheduler::Sequence> sequence_;
+  std::unique_ptr<Scheduler::Sequence> sequence_;
 };
 
 TEST_F(SchedulerSequenceTest, RunOnRequestThread) {
@@ -155,7 +155,7 @@ TEST_F(SchedulerSequenceTest, RunOnRequestThreadThenSwitch) {
 
   // Now forward the sequence, including the outstanding increment to 11, and
   // any new tasks, to a pool-based sequence that runs in a separate thread.
-  scoped_ptr<QueuedWorkerPool> pool(new QueuedWorkerPool(
+  std::unique_ptr<QueuedWorkerPool> pool(new QueuedWorkerPool(
       2, "queued_worker_pool_test", thread_runtime_.get()));
   Sequence* pool_sequence = pool->NewSequence();
   {

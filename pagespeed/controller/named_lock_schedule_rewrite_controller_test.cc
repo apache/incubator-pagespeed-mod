@@ -92,14 +92,14 @@ class NamedLockScheduleRewriteControllerTest : public testing::Test {
   }
 
   void CheckLocked(const GoogleString& key) {
-    scoped_ptr<NamedLock> lock(lock_manager_.CreateNamedLock(key));
+    std::unique_ptr<NamedLock> lock(lock_manager_.CreateNamedLock(key));
     EXPECT_FALSE(lock_tester_.TryLock(lock.get()));
   }
 
   // Verifies the key isn't locked by attempting to take a lock for it. The
   // lock is automatically released at exit via the NamedLock destructor.
   void CheckUnlocked(const GoogleString& key) {
-    scoped_ptr<NamedLock> lock(lock_manager_.CreateNamedLock(key));
+    std::unique_ptr<NamedLock> lock(lock_manager_.CreateNamedLock(key));
     EXPECT_TRUE(lock_tester_.TryLock(lock.get()));
   }
 
@@ -110,12 +110,12 @@ class NamedLockScheduleRewriteControllerTest : public testing::Test {
     return lock;
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   MockTimer timer_;
   NamedLockTester lock_tester_;
   MemLockManager lock_manager_;
-  scoped_ptr<NamedLockScheduleRewriteController> controller_;
+  std::unique_ptr<NamedLockScheduleRewriteController> controller_;
 };
 
 TEST_F(NamedLockScheduleRewriteControllerTest, EmptyScheduleImmediately) {
@@ -165,7 +165,7 @@ TEST_F(NamedLockScheduleRewriteControllerTest, DuplicateKeysBlocked) {
 
 // Mostly the same as DuplicateKeysBlocked, but the lock is obtained externally.
 TEST_F(NamedLockScheduleRewriteControllerTest, ExternalLock) {
-  scoped_ptr<NamedLock> lock(TakeLock(kKey1));
+  std::unique_ptr<NamedLock> lock(TakeLock(kKey1));
 
   TrackCallsFunction f;
   controller_->ScheduleRewrite(kKey1, &f);
@@ -236,7 +236,7 @@ TEST_F(NamedLockScheduleRewriteControllerTest, Steal) {
 }
 
 TEST_F(NamedLockScheduleRewriteControllerTest, StealExternalLock) {
-  scoped_ptr<NamedLock> lock(TakeLock(kKey1));
+  std::unique_ptr<NamedLock> lock(TakeLock(kKey1));
 
   timer_.AdvanceMs(NamedLockScheduleRewriteController::kStealMs + 1);
 
@@ -273,7 +273,7 @@ TEST_F(NamedLockScheduleRewriteControllerTest, StolenOutFromUnder) {
   EXPECT_FALSE(f.cancel_called_);
 
   timer_.AdvanceMs(NamedLockScheduleRewriteController::kStealMs + 1);
-  scoped_ptr<NamedLock> lock(TakeLock(kKey1));
+  std::unique_ptr<NamedLock> lock(TakeLock(kKey1));
 
   controller_->NotifyRewriteComplete(kKey1);
   CheckLocked(kKey1);

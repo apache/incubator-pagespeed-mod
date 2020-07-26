@@ -170,7 +170,7 @@ class PropertyValue {
 
   PropertyValueProtobuf* protobuf() { return proto_.get(); }
 
-  scoped_ptr<PropertyValueProtobuf> proto_;
+  std::unique_ptr<PropertyValueProtobuf> proto_;
   bool changed_;
   bool valid_;
   bool was_read_;
@@ -469,7 +469,7 @@ class PropertyPage : public AbstractPropertyPage {
   typedef std::map<const PropertyCache::Cohort*, PropertyMapStruct*>
       CohortDataMap;
   CohortDataMap cohort_data_map_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   GoogleString url_;
   GoogleString options_signature_hash_;
   GoogleString cache_key_suffix_;

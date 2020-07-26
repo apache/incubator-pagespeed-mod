@@ -66,9 +66,9 @@ class WorkBoundExpensiveOperationTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
-  scoped_ptr<WorkBoundExpensiveOperationController> controller_;
+  std::unique_ptr<WorkBoundExpensiveOperationController> controller_;
 };
 
 TEST_F(WorkBoundExpensiveOperationTest, EmptyScheduleImmediately) {

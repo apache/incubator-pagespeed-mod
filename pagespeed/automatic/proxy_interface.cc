@@ -72,7 +72,7 @@ const char kNoDomainConfigResourceRequestCount[] =
 
 struct ProxyInterface::RequestData {
   bool is_resource_fetch;
-  scoped_ptr<GoogleUrl> request_url;
+  std::unique_ptr<GoogleUrl> request_url;
   AsyncFetch* async_fetch;
   MessageHandler* handler;
 };
@@ -217,8 +217,8 @@ ProxyFetchPropertyCallbackCollector*
 
 void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
                                            RewriteOptions* domain_options) {
-  scoped_ptr<RequestData> request_data_deleter(request_data);
-  scoped_ptr<RewriteOptions> scoped_domain_options(domain_options);
+  std::unique_ptr<RequestData> request_data_deleter(request_data);
+  std::unique_ptr<RewriteOptions> scoped_domain_options(domain_options);
   bool is_resource_fetch = request_data->is_resource_fetch;
   GoogleUrl* request_url = request_data->request_url.get();
   AsyncFetch* async_fetch = request_data->async_fetch;

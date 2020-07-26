@@ -1586,7 +1586,7 @@ TEST_F(RewriteDriverTest, SetSessionFetcherTest) {
 
   // Load up a different file into a second fetcher.
   // We misappropriate the response_headers from previous fetch for simplicity.
-  scoped_ptr<MockUrlFetcher> mock2(new MockUrlFetcher);
+  std::unique_ptr<MockUrlFetcher> mock2(new MockUrlFetcher);
   mock2->SetResponse(AbsolutifyUrl("a.css"), response_headers, kFetcher2Css);
 
   // Switch over to new fetcher, making sure to set two of them to exercise

@@ -55,7 +55,7 @@ class ExpensiveOperationCallback
 
  private:
   // CentralControllerCallback interface.
-  virtual void RunImpl(scoped_ptr<ExpensiveOperationContext>* context) = 0;
+  virtual void RunImpl(std::unique_ptr<ExpensiveOperationContext>* context) = 0;
   virtual void CancelImpl() = 0;
 
   DISALLOW_COPY_AND_ASSIGN(ExpensiveOperationCallback);

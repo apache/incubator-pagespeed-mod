@@ -182,7 +182,7 @@ class UserAgentMatcherTestBase : public testing::Test {
   void VerifyMobilizationSupport();
 
  protected:
-  scoped_ptr<UserAgentMatcher> user_agent_matcher_;
+  std::unique_ptr<UserAgentMatcher> user_agent_matcher_;
 };
 
 }  // namespace net_instaweb

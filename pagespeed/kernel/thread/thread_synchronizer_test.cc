@@ -73,11 +73,11 @@ class ThreadSynchronizerTest : public testing::Test {
     EXPECT_EQ("135", buffer_);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   ThreadSynchronizer synchronizer_;
   QueuedWorkerPool pool_;
   QueuedWorkerPool::Sequence* sequence_;
-  scoped_ptr<WorkerTestBase::SyncPoint> sync_point_;
+  std::unique_ptr<WorkerTestBase::SyncPoint> sync_point_;
   GoogleString buffer_;
 };
 

@@ -51,7 +51,7 @@ class ThreadSystemTestBase : public testing::Test {
 
  private:
   bool ok_flag_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadSystemTestBase);

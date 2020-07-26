@@ -511,7 +511,7 @@ void RewriteDriverFactory::InitServerContext(ServerContext* server_context) {
   RequestContextPtr request_ctx(new RequestContext(
       fetch_options, server_context->thread_system()->NewMutex(),
       server_context->timer()));
-  scoped_ptr<RewriteOptions> remote_options(
+  std::unique_ptr<RewriteOptions> remote_options(
       server_context->global_options()->Clone());
   server_context->GetRemoteOptions(remote_options.get(),
                                    true /* startup fetch */);

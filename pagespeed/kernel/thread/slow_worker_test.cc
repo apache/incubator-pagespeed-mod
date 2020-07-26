@@ -40,7 +40,7 @@ class SlowWorkerTest: public WorkerTestBase {
   }
 
  protected:
-  scoped_ptr<SlowWorker> worker_;
+  std::unique_ptr<SlowWorker> worker_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SlowWorkerTest);

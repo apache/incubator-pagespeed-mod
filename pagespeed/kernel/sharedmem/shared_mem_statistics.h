@@ -85,7 +85,7 @@ class SharedMemVariable : public MutexedScalar {
   const GoogleString name_;
 
   // Lock protecting us. NULL if for some reason initialization failed.
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   // The data...
   volatile int64* value_ptr_;
@@ -157,7 +157,7 @@ class SharedMemHistogram : public Histogram {
   void Reset();
   void ClearInternal();  // expects mutex_ held, buffer_ != NULL
   const GoogleString name_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   // TODO(fangfei): implement a non-shared-mem histogram.
   struct HistogramBody {
     // Enable negative values in histogram, false by default.
@@ -238,10 +238,10 @@ class SharedMemStatistics : public ScalarStatisticsTemplate<
 
   AbstractSharedMem* shm_runtime_;
   GoogleString filename_prefix_;
-  scoped_ptr<AbstractSharedMemSegment> segment_;
+  std::unique_ptr<AbstractSharedMemSegment> segment_;
   bool frozen_;
   // TODO(sligocki): Rename.
-  scoped_ptr<StatisticsLogger> console_logger_;
+  std::unique_ptr<StatisticsLogger> console_logger_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatistics);
 };

@@ -88,7 +88,7 @@ class SharedMemLockManager : public NamedLockManager {
   AbstractSharedMem* shm_runtime_;
   GoogleString path_;
 
-  scoped_ptr<AbstractSharedMemSegment> seg_;
+  std::unique_ptr<AbstractSharedMemSegment> seg_;
   Scheduler* scheduler_;
   Hasher* hasher_;
   MessageHandler* handler_;

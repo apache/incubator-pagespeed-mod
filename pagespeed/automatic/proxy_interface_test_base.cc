@@ -359,7 +359,7 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
     bool expect_success, bool check_stats, bool add_create_filter_callback,
     bool expect_detach_before_pcache, const RequestHeaders& request_headers,
     ResponseHeaders* response_headers, GoogleString* output) {
-  scoped_ptr<QueuedWorkerPool> pool;
+  std::unique_ptr<QueuedWorkerPool> pool;
   QueuedWorkerPool::Sequence* sequence = NULL;
 
   GoogleString delay_pcache_key, delay_http_cache_key;

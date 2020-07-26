@@ -105,7 +105,7 @@ class StaticAssetManagerTest : public RewriteTestBase {
     }
   }
 
-  scoped_ptr<StaticAssetManager> manager_;
+  std::unique_ptr<StaticAssetManager> manager_;
 };
 
 TEST_F(StaticAssetManagerTest, TestDeferJsGstatic) {
@@ -227,7 +227,7 @@ TEST_F(StaticAssetManagerTest, TestEncodedUrls) {
 }
 
 TEST_F(StaticAssetManagerTest, FullGStaticConf) {
-  scoped_ptr<RewriteOptions> debug_options(options_->Clone());
+  std::unique_ptr<RewriteOptions> debug_options(options_->Clone());
   debug_options->EnableFilter(RewriteOptions::kDebug);
 
   manager_->ServeAssetsFromGStatic("http://actually_any_cdn.com/");

@@ -213,7 +213,7 @@ void CssSummarizerBase::Context::RewriteSingle(
   // We avoid quirks-mode so that we do not "fix" something we shouldn't have.
   parser.set_quirks_mode(false);
 
-  scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
+  std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
   CachedResult* result = mutable_output_partition(0);
   if (stylesheet.get() == NULL ||
       parser.errors_seen_mask() != Css::Parser::kNoError) {

@@ -207,10 +207,10 @@ class Scheduler {
 
   ThreadSystem* thread_system_;
   Timer* timer_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
   // condvar_ tracks whether interesting (next-wakeup decreasing or
   // signal_count_ increasing) events occur.
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   uint32 index_;  // Used to disambiguate alarms with equal deadlines
   AlarmSet outstanding_alarms_;  // Priority queue of future alarms
   // An alarm may be deleted iff it is successfully removed from

@@ -83,7 +83,7 @@ class UserAgentSensitiveTestFetcherTest : public ::testing::Test {
 };
 
 TEST_F(UserAgentSensitiveTestFetcherTest, BasicOperation) {
-  scoped_ptr<ThreadSystem> ts(Platform::CreateThreadSystem());
+  std::unique_ptr<ThreadSystem> ts(Platform::CreateThreadSystem());
 
   RequestContextPtr request_context(
       RequestContext::NewTestRequestContext(ts.get()));
