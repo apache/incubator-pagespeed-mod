@@ -24,9 +24,7 @@
 #include <memory>
 #include "base/scoped_ptr.h"
 
-//#include "base/callback.h"
 #include "base/logging.h"
-///#include "base/macros.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "gtest/gtest.h"
 
@@ -257,7 +255,7 @@ TEST_F(ParserTest, ErrorNumber) {
   EXPECT_EQ(14, Parser::ErrorNumber(Parser::kAtRuleError));
 }
 
-TEST_F(ParserTest, DISABLED_unescape) {
+TEST_F(ParserTest, unescape) {
   // Invalid Unicode char.
   TestUnescape("\\abcdef aabc", 8, ' ');
   TestUnescape("\\A", 2, 0xA);
@@ -1181,7 +1179,7 @@ TEST_F(ParserTest, illegal_constructs) {
             UnicodeTextToUTF8(t->get(0)->values()->get(0)->GetStringValue()));
 }
 
-TEST_F(ParserTest, DISABLED_value_validation) {
+TEST_F(ParserTest, value_validation) {
   scoped_ptr<Parser> a(new Parser("width: {$width}"));
   scoped_ptr<Declarations> t(a->ParseDeclarations());
 
@@ -1202,14 +1200,14 @@ TEST_F(ParserTest, DISABLED_value_validation) {
   t.reset(a->ParseDeclarations());
 
   ASSERT_EQ(10, t->size());
-  EXPECT_EQ(Value::COLOR, t->get(0)->values()->get(0)->GetLexicalUnitType());
-  EXPECT_EQ(Value::COLOR, t->get(1)->values()->get(0)->GetLexicalUnitType());
-  EXPECT_EQ(Value::IDENT, t->get(2)->values()->get(0)->GetLexicalUnitType());
+  EXPECT_EQ(Value::COLOR, t->get(5)->values()->get(0)->GetLexicalUnitType());
+  EXPECT_EQ(Value::COLOR, t->get(6)->values()->get(0)->GetLexicalUnitType());
+  EXPECT_EQ(Value::IDENT, t->get(7)->values()->get(0)->GetLexicalUnitType());
   EXPECT_EQ(Identifier::TRANSPARENT,
-            t->get(2)->values()->get(0)->GetIdentifier().ident());
-  EXPECT_EQ(Value::IDENT, t->get(3)->values()->get(0)->GetLexicalUnitType());
+            t->get(7)->values()->get(0)->GetIdentifier().ident());
+  EXPECT_EQ(Value::IDENT, t->get(8)->values()->get(0)->GetLexicalUnitType());
   EXPECT_EQ(Identifier::INHERIT,
-            t->get(3)->values()->get(0)->GetIdentifier().ident());
+            t->get(8)->values()->get(0)->GetIdentifier().ident());
 }
 
 TEST_F(ParserTest, universalselector) {
@@ -1910,7 +1908,7 @@ TEST_F(ParserTest, AcceptCorrectValues) {
   EXPECT_EQ("list-style-type: none", declarations->ToString());
 }
 
-TEST_F(ParserTest, DISABLED_AcceptAllValues) {
+TEST_F(ParserTest, AcceptAllValues) {
   Parser p("display: -moz-inline-box");
   p.set_preservation_mode(true);
   scoped_ptr<Declarations> declarations(p.ParseDeclarations());
@@ -2322,7 +2320,7 @@ TEST_F(ParserTest, ExtractCharset) {
   EXPECT_EQ("", UnicodeTextToUTF8(charset));
 }
 
-TEST_F(ParserTest, DISABLED_AtFontFace) {
+TEST_F(ParserTest, AtFontFace) {
   scoped_ptr<Parser> parser;
   scoped_ptr<Stylesheet> stylesheet;
 
