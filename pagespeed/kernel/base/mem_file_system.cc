@@ -90,14 +90,14 @@ class MemOutputFile : public FileSystem::OutputFile {
     }
   }
 
-  virtual bool Close(MessageHandler* message_handler) {
+  bool Close(MessageHandler* message_handler) override {
     Flush(message_handler);
     return true;
   }
 
   const char* filename() override { return filename_.c_str(); }
 
-  virtual bool Flush(MessageHandler* message_handler) {
+  bool Flush(MessageHandler* message_handler) override {
     contents_->append(written_);
     written_.clear();
     return true;

@@ -52,9 +52,9 @@ class CssCombineFilter : public RewriteFilter {
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element) {}
   virtual void Flush();
   virtual void DetermineEnabled(GoogleString* disabled_reason);

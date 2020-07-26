@@ -54,7 +54,7 @@ class JsDeferDisabledFilter : public CommonFilter {
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
-  virtual void EndDocument();
+  void EndDocument() override;
 
   virtual void StartDocumentImpl() {}
   virtual void StartElementImpl(HtmlElement* element) {}

@@ -48,8 +48,8 @@ class CssInlineFilter : public CommonFilter {
   explicit CssInlineFilter(RewriteDriver* driver);
   virtual ~CssInlineFilter();
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "InlineCss"; }
   // Inlining css from unauthorized domains into HTML is considered

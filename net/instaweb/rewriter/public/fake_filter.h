@@ -85,7 +85,7 @@ class FakeFilter : public RewriteFilter {
 
   virtual void StartDocumentImpl() {}
   virtual void EndElementImpl(HtmlElement* element) {}
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   virtual RewriteContext* MakeRewriteContext() {
     return MakeFakeContext(driver(), NULL /* not nested */, NULL);
   }

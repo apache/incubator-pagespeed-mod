@@ -43,7 +43,7 @@ class MockMessageHandler : public MessageHandler {
   // Takes ownership of the mutex.
   explicit MockMessageHandler(AbstractMutex* mutex);
 
-  virtual ~MockMessageHandler();
+  ~MockMessageHandler() override;
 
   // Returns number of messages of given type issued
   int MessagesOfType(MessageType type) const;
@@ -73,8 +73,8 @@ class MockMessageHandler : public MessageHandler {
  protected:
   void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageSImpl(MessageType type, const char* filename,
+                                int line, const GoogleString& message) override;
 
  private:
   // Returns whether the message should be printed.

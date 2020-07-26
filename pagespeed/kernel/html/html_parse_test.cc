@@ -3094,7 +3094,7 @@ class InsertScriptsFilter : public EmptyHtmlFilter {
  protected:
   void StartElement(HtmlElement* element) override { Insert(true, element); }
   void EndElement(HtmlElement* element) override { Insert(false, element); }
-  virtual const char* Name() const { return "InsertScriptsFilter"; }
+  const char* Name() const override { return "InsertScriptsFilter"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

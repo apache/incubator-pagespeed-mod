@@ -213,7 +213,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // This definition is required by HtmlParseTestBase which defines this as
   // pure abstract, so that the test subclass can define how it instantiates
   // HtmlParse.
-  virtual RewriteDriver* html_parse() { return rewrite_driver_; }
+  RewriteDriver* html_parse() override { return rewrite_driver_; }
 
   // Set default headers for a resource with content_type and Cache ttl_sec.
   void DefaultResponseHeaders(const ContentType& content_type, int64 ttl_sec,
@@ -806,7 +806,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Override HtmlParseTestBaseNoAlloc::ParseUrl to populate the
   // request-headers into rewrite_driver_ before running filters.
-  virtual void ParseUrl(StringPiece url, StringPiece html_input);
+  void ParseUrl(StringPiece url, StringPiece html_input) override;
 
   GoogleString ExpectedNonce();
 

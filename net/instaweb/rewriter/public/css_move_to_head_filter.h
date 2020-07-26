@@ -40,7 +40,7 @@ class CssMoveToHeadFilter : public CommonFilter {
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
 

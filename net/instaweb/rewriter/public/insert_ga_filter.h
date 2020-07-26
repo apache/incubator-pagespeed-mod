@@ -136,8 +136,8 @@ class InsertGAFilter : public CommonFilter {
   // Set up statistics for this filter.
   static void InitStats(Statistics* stats);
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
   // HTML Events we expect to be in <script> elements.
   virtual void Characters(HtmlCharactersNode* characters);
@@ -172,7 +172,7 @@ class InsertGAFilter : public CommonFilter {
   GoogleString ConstructExperimentSnippet() const;
 
   // If appropriate, insert the GA snippet at the end of the document.
-  virtual void EndDocument();
+  void EndDocument() override;
 
   // If RewriteInlineScript left work to do, finish it now.
   void HandleEndScript(HtmlElement* script);

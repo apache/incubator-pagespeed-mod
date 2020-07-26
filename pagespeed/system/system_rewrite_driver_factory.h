@@ -94,7 +94,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   virtual void NonStaticInitStats(Statistics* statistics) = 0;
 
   // Creates a HashedNonceGenerator initialized with data from /dev/random.
-  NonceGenerator* DefaultNonceGenerator();
+  NonceGenerator* DefaultNonceGenerator() override;
 
   // For shared memory resources the general setup we follow is to have the
   // first running process (aka the root) create the necessary segments and
@@ -168,9 +168,9 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
       GoogleString* msg,
       MessageHandler* handler);
 
-  virtual Hasher* NewHasher();
-  virtual Timer* DefaultTimer();
-  virtual ServerContext* NewServerContext();
+  Hasher* NewHasher() override;
+  Timer* DefaultTimer() override;
+  ServerContext* NewServerContext() override;
 
   // Hook so implementations may disable the property cache.
   virtual bool enable_property_cache() const {
@@ -181,9 +181,9 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
 
   // Release all the resources. It also calls the base class ShutDown to release
   // the base class resources.
-  virtual void ShutDown();
+  void ShutDown() override;
 
-  virtual void StopCacheActivity();
+  void StopCacheActivity() override;
 
   SystemCaches* caches() { return caches_.get(); }
 
@@ -248,7 +248,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
 
   // mod_pagespeed uses a beacon handler to collect data for critical images,
   // css, etc., so filters should be configured accordingly.
-  virtual bool UseBeaconResultsInFilters() const {
+  bool UseBeaconResultsInFilters() const override {
     return true;
   }
 
@@ -292,11 +292,11 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   static void InitStats(Statistics* statistics);
 
   // Initializes the StaticAssetManager.
-  virtual void InitStaticAssetManager(StaticAssetManager* static_asset_manager);
+  void InitStaticAssetManager(StaticAssetManager* static_asset_manager) override;
 
-  virtual void SetupCaches(ServerContext* server_context);
-  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
-                                             StringPiece name);
+  void SetupCaches(ServerContext* server_context) override;
+  QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
+                                     StringPiece name) override;
 
   // TODO(jefftk): create SystemMessageHandler and get rid of these hooks.
   virtual void SetupMessageHandlers() {}
@@ -322,8 +322,8 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // either a serf fetcher or an nginx-native fetcher depending on options.
   virtual UrlAsyncFetcher* AllocateFetcher(SystemRewriteOptions* config);
 
-  virtual FileSystem* DefaultFileSystem();
-  virtual NamedLockManager* DefaultLockManager();
+  FileSystem* DefaultFileSystem() override;
+  NamedLockManager* DefaultLockManager() override;
 
   // Updates num_rewrite_threads_ and num_expensive_rewrite_threads_
   // with sensible values if they are not explicitly set.
@@ -353,7 +353,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // method for GetFetcher that reuses fetchers as much as possible.
   UrlAsyncFetcher* GetBaseFetcher(SystemRewriteOptions* config);
 
-  virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
+  UrlAsyncFetcher* DefaultAsyncUrlFetcher() override;
 
   std::unique_ptr<SharedMemStatistics> shared_mem_statistics_;
   // While split statistics in the ServerContext cleans up the actual objects,

@@ -58,21 +58,21 @@ class WriteThroughCache : public CacheInterface {
 
   CacheInterface* cache1() { return cache1_; }
   CacheInterface* cache2() { return cache2_; }
-  virtual bool IsBlocking() const {
+  bool IsBlocking() const override {
     // We can fulfill our guarantee only if both caches block.
     return cache1_->IsBlocking() && cache2_->IsBlocking();
   }
 
-  virtual bool IsHealthy() const {
+  bool IsHealthy() const override {
     return cache1_->IsHealthy() && cache2_->IsHealthy();
   }
 
-  virtual void ShutDown() {
+  void ShutDown() override {
     cache1_->ShutDown();
     cache2_->ShutDown();
   }
 
-  virtual GoogleString Name() const {
+  GoogleString Name() const  override {
     return FormatName(cache1_->Name(), cache2_->Name());
   }
   static GoogleString FormatName(StringPiece l1, StringPiece l2);

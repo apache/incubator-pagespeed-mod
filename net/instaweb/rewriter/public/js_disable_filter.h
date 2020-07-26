@@ -56,13 +56,13 @@ class JsDisableFilter : public CommonFilter {
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
 
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
 
   virtual void EndElementImpl(HtmlElement* element);
 
-  virtual void EndDocument();
+  void EndDocument() override;
 
   // Inserts the experimental js enable/disable code.
   void InsertJsDeferExperimentalScript();

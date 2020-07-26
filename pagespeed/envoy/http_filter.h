@@ -65,9 +65,7 @@ public:
   void setEncoderFilterCallbacks(StreamEncoderFilterCallbacks& callbacks) override {
     encoder_callbacks_ = &callbacks;
   };
-  virtual void encodeComplete() {
-    // std::cerr << "encodeComplete()" << std::endl;
-  }
+  void encodeComplete() override {}
 
   // HttpPageSpeedDecoderFilter
   void prepareForIproRecording();

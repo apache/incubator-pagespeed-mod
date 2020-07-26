@@ -90,8 +90,8 @@ class JsCombineFilter : public RewriteFilter {
 
  protected:
   // RewriteFilter overrides --- HTML parsing event handlers.
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void Flush();

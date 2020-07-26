@@ -297,27 +297,27 @@ class LogRecord : public AbstractLogRecord {
  public:
   explicit LogRecord(AbstractMutex* mutex);
 
-  virtual ~LogRecord();
+  ~LogRecord() override;
 
   LoggingInfo* logging_info() { return logging_info_.get(); }
 
-  virtual void SetImageStats(int num_img_tags, int num_inlined_img_tags,
-                             int num_critical_images_used) {}
+  void SetImageStats(int num_img_tags, int num_inlined_img_tags,
+                    int num_critical_images_used) override {}
 
-  virtual void SetResourceCounts(int num_external_css, int num_scripts) {}
+  void SetResourceCounts(int num_external_css, int num_scripts) override {}
 
-  virtual void AddFoundPropertyToCohortInfo(
+  void AddFoundPropertyToCohortInfo(
       int page_type, const GoogleString& cohort,
-      const GoogleString& property) {}
+      const GoogleString& property) override {}
 
-  virtual void AddRetrievedPropertyToCohortInfo(
+  void AddRetrievedPropertyToCohortInfo(
       int page_type, const GoogleString& cohort,
-      const GoogleString& property) {}
+      const GoogleString& property) override {}
 
   void SetCacheStatusForCohortInfo(
       int page_type, const GoogleString& cohort, bool found, int key_state) {}
 
-  virtual void LogImageRewriteActivity(
+  void LogImageRewriteActivity(
       const char* id,
       const GoogleString& url,
       RewriterApplication::Status status,
@@ -328,7 +328,7 @@ class LogRecord : public AbstractLogRecord {
       bool try_low_res_src_insertion,
       bool low_res_src_inserted,
       ImageType low_res_image_type,
-      int low_res_data_size) {}
+      int low_res_data_size) override {}
 
   void LogDeviceInfo(
       int device_type,

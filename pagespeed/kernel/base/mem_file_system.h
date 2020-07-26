@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_MEM_FILE_SYSTEM_H_
 #define PAGESPEED_KERNEL_BASE_MEM_FILE_SYSTEM_H_
@@ -48,49 +47,38 @@ class Timer;
 //
 // TODO(jmarantz): make threadsafe.
 class MemFileSystem : public FileSystem {
- public:
+public:
   typedef Callback1<const GoogleString&> FileCallback;
 
   explicit MemFileSystem(ThreadSystem* threads, Timer* timer);
-  virtual ~MemFileSystem();
+  ~MemFileSystem() override;
 
-  virtual InputFile* OpenInputFile(const char* filename,
-                                   MessageHandler* message_handler);
-  virtual OutputFile* OpenOutputFileHelper(const char* filename,
-                                           bool append,
-                                           MessageHandler* message_handler);
-  virtual OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
-                                        MessageHandler* message_handle);
+  InputFile* OpenInputFile(const char* filename, MessageHandler* message_handler) override;
+  OutputFile* OpenOutputFileHelper(const char* filename, bool append,
+                                   MessageHandler* message_handler) override;
+  OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
+                                 MessageHandler* message_handle) override;
 
-  virtual bool ListContents(const StringPiece& dir, StringVector* files,
-                            MessageHandler* handler);
+  bool ListContents(const StringPiece& dir, StringVector* files, MessageHandler* handler) override;
   bool MakeDir(const char* directory_path, MessageHandler* handler) override;
-  virtual bool RecursivelyMakeDir(const StringPiece& directory_path,
-                                  MessageHandler* handler);
+  bool RecursivelyMakeDir(const StringPiece& directory_path, MessageHandler* handler) override;
   bool RemoveDir(const char* path, MessageHandler* handler) override;
   bool RemoveFile(const char* filename, MessageHandler* handler) override;
-  virtual bool RenameFileHelper(const char* old_file, const char* new_file,
-                               MessageHandler* handler);
+  bool RenameFileHelper(const char* old_file, const char* new_file,
+                                MessageHandler* handler) override;
 
   // We offer a "simulated atime" in which the clock ticks forward one
   // second every time you read or write a file.
-  virtual bool Atime(const StringPiece& path, int64* timestamp_sec,
-                     MessageHandler* handler);
-  virtual bool Mtime(const StringPiece& path, int64* timestamp_sec,
-                     MessageHandler* handler);
-  virtual bool Size(const StringPiece& path, int64* size,
-                    MessageHandler* handler) const;
+  bool Atime(const StringPiece& path, int64* timestamp_sec, MessageHandler* handler) override;
+  bool Mtime(const StringPiece& path, int64* timestamp_sec, MessageHandler* handler) override;
+  bool Size(const StringPiece& path, int64* size, MessageHandler* handler) const override;
   BoolOrError Exists(const char* path, MessageHandler* handler) override;
   BoolOrError IsDir(const char* path, MessageHandler* handler) override;
 
-  virtual BoolOrError TryLock(const StringPiece& lock_name,
-                              MessageHandler* handler);
-  virtual BoolOrError TryLockWithTimeout(const StringPiece& lock_name,
-                                         int64 timeout_ms,
-                                         const Timer* timer,
-                                         MessageHandler* handler);
-  virtual bool BumpLockTimeout(const StringPiece& lock_name,
-                               MessageHandler* handler);
+  BoolOrError TryLock(const StringPiece& lock_name, MessageHandler* handler) override;
+  BoolOrError TryLockWithTimeout(const StringPiece& lock_name, int64 timeout_ms,
+                                         const Timer* timer, MessageHandler* handler) override;
+  bool BumpLockTimeout(const StringPiece& lock_name, MessageHandler* handler) override;
   bool Unlock(const StringPiece& lock_name, MessageHandler* handler) override;
 
   // When atime is disabled, reading a file will not update its atime.
@@ -162,23 +150,16 @@ class MemFileSystem : public FileSystem {
   // class.
   void set_write_callback(FileCallback* x) { write_callback_.reset(x); }
 
-  virtual bool WriteFile(const char* filename,
-                         const StringPiece& buffer,
-                         MessageHandler* handler);
-  virtual bool WriteTempFile(const StringPiece& prefix_name,
-                             const StringPiece& buffer,
-                             GoogleString* filename,
-                             MessageHandler* handler);
+  virtual bool WriteFile(const char* filename, const StringPiece& buffer, MessageHandler* handler);
+  virtual bool WriteTempFile(const StringPiece& prefix_name, const StringPiece& buffer,
+                             GoogleString* filename, MessageHandler* handler);
 
+private:
+  inline void UpdateAtime(const StringPiece& path) SHARED_LOCKS_REQUIRED(all_else_mutex_);
+  inline void UpdateMtime(const StringPiece& path) SHARED_LOCKS_REQUIRED(all_else_mutex_);
 
- private:
-  inline void UpdateAtime(const StringPiece& path)
-      SHARED_LOCKS_REQUIRED(all_else_mutex_);
-  inline void UpdateMtime(const StringPiece& path)
-      SHARED_LOCKS_REQUIRED(all_else_mutex_);
-
-  std::unique_ptr<AbstractMutex> lock_map_mutex_;  // controls access to lock_map_
-  std::unique_ptr<AbstractMutex> all_else_mutex_;  // controls access to all else.
+  std::unique_ptr<AbstractMutex> lock_map_mutex_; // controls access to lock_map_
+  std::unique_ptr<AbstractMutex> all_else_mutex_; // controls access to all else.
 
   // When disabled, OpenInputFile returns NULL.
   bool enabled_ GUARDED_BY(all_else_mutex_);
@@ -218,6 +199,6 @@ class MemFileSystem : public FileSystem {
   DISALLOW_COPY_AND_ASSIGN(MemFileSystem);
 };
 
-}  // namespace net_instaweb
+} // namespace net_instaweb
 
-#endif  // PAGESPEED_KERNEL_BASE_MEM_FILE_SYSTEM_H_
+#endif // PAGESPEED_KERNEL_BASE_MEM_FILE_SYSTEM_H_

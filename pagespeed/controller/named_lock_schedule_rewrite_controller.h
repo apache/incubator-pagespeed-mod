@@ -53,12 +53,12 @@ class NamedLockScheduleRewriteController : public ScheduleRewriteController {
   NamedLockScheduleRewriteController(NamedLockManager* lock_manager,
                                      ThreadSystem* thread_system,
                                      Statistics* statistics);
-  virtual ~NamedLockScheduleRewriteController();
+  ~NamedLockScheduleRewriteController() override;
 
   // ScheduleRewriteController interface.
-  virtual void ScheduleRewrite(const GoogleString& key, Function* callback);
-  virtual void NotifyRewriteComplete(const GoogleString& key);
-  virtual void NotifyRewriteFailed(const GoogleString& key);
+  void ScheduleRewrite(const GoogleString& key, Function* callback) override;
+  void NotifyRewriteComplete(const GoogleString& key) override;
+  void NotifyRewriteFailed(const GoogleString& key) override;
 
   void ShutDown() override;
 

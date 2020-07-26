@@ -44,9 +44,9 @@ class JsOutlineFilter : public CommonFilter {
   virtual ~JsOutlineFilter();
   static const char kFilterId[];
 
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
 
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
 
   virtual void Flush();

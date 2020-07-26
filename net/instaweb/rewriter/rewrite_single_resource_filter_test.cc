@@ -163,17 +163,17 @@ class TestRewriter : public RewriteFilter {
         : SingleRewriteContext(driver, NULL, NULL),
           filter_(rewriter) {
     }
-    virtual ~Context() {
-    }
-    virtual void RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output) {
+    ~Context() override {}
+
+    void RewriteSingle(
+        const ResourcePtr& input, const OutputResourcePtr& output) override {
       RewriteDone(filter_->RewriteLoadedResource(input, output), 0);
     }
 
     bool PolicyPermitsRendering() const override { return true; }
-    virtual OutputResourceKind kind() const { return kRewrittenResource; }
-    virtual const char* id() const { return filter_->id(); }
-    virtual const UrlSegmentEncoder* encoder() const {
+    OutputResourceKind kind() const override { return kRewrittenResource; }
+    const char* id() const override { return filter_->id(); }
+    const UrlSegmentEncoder* encoder() const override {
       return filter_->encoder();
     }
 

@@ -160,9 +160,9 @@ class SplitStatistics
                   Statistics* local,
                   Statistics* global);
 
-  virtual ~SplitStatistics();
+  ~SplitStatistics() override;
 
-  virtual StatisticsLogger* console_logger() {
+  StatisticsLogger* console_logger() override {
     // console_logger() is only used for read access, so just provide the
     // local version.
     return local_->console_logger();

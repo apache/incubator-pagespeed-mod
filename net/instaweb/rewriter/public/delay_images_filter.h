@@ -95,11 +95,11 @@ class DelayImagesFilter : public CommonFilter {
   explicit DelayImagesFilter(RewriteDriver* driver);
   virtual ~DelayImagesFilter();
 
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
   virtual void StartElementImpl(HtmlElement* element) { }
   virtual void EndElementImpl(HtmlElement* element);
 
-  virtual void EndDocument();
+  void EndDocument() override;
 
   virtual const char* Name() const { return "DelayImages"; }
 

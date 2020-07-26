@@ -124,7 +124,7 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
   static void InitStats(Statistics* statistics);
 
   virtual void StartDocument();
-  virtual void EndDocument();
+  void EndDocument() override;
   virtual void StartElement(HtmlElement* element);
   virtual void EndElement(HtmlElement* element);
 

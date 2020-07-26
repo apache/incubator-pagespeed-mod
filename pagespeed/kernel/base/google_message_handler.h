@@ -42,10 +42,10 @@ class GoogleMessageHandler : public MessageHandler {
   void MessageVImpl(MessageType type, const char* msg, va_list args) override;
   void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageVImpl(MessageType type, const char* filename,
-                                int line, const char* msg, va_list args);
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageVImpl(MessageType type, const char* filename,
+                                int line, const char* msg, va_list args) override;
+  void FileMessageSImpl(MessageType type, const char* filename,
+                                int line, const GoogleString& message) override;
   GoogleString Format(const char* msg, va_list args);
 
  private:

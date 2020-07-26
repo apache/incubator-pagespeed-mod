@@ -103,7 +103,7 @@ class SimpleTextFilter : public RewriteFilter {
 
   virtual void StartDocumentImpl() {}
   virtual void EndElementImpl(HtmlElement* element) {}
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
 
   virtual RewriteContext* MakeRewriteContext();
   virtual RewriteContext* MakeNestedRewriteContext(

@@ -248,8 +248,8 @@ class ImageImpl : public Image {
   static const int kMaxConversionAttempts = 2;
 
   // Concrete helper methods called by parent class
-  virtual void ComputeImageType();
-  virtual bool ComputeOutputContents();
+  void ComputeImageType() override;
+  bool ComputeOutputContents() override;
 
   bool ComputeOutputContentsFromGifOrPng(
       const GoogleString& string_for_image,

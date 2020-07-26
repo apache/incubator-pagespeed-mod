@@ -49,29 +49,29 @@ class FallbackCache : public CacheInterface {
                 CacheInterface* large_object_cache,
                 int threshold_bytes,
                 MessageHandler* handler);
-  virtual ~FallbackCache();
+  ~FallbackCache() override;
 
   void Get(const GoogleString& key, Callback* callback) override;
   void Put(const GoogleString& key, const SharedString& value) override;
   void Delete(const GoogleString& key) override;
   void MultiGet(MultiGetRequest* request) override;
-  virtual bool IsBlocking() const {
+  bool IsBlocking() const override {
     // We can fulfill our guarantee only if both caches block.
     return (small_object_cache_->IsBlocking() &&
             large_object_cache_->IsBlocking());
   }
 
-  virtual bool IsHealthy() const {
+  bool IsHealthy() const override {
     return (small_object_cache_->IsHealthy() &&
             large_object_cache_->IsHealthy());
   }
 
-  virtual void ShutDown() {
+  void ShutDown() override {
     small_object_cache_->ShutDown();
     large_object_cache_->ShutDown();
   }
 
-  virtual GoogleString Name() const {
+  GoogleString Name() const override {
     return FormatName(small_object_cache_->Name(), large_object_cache_->Name());
   }
   static GoogleString FormatName(StringPiece small, StringPiece large);

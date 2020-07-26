@@ -44,9 +44,9 @@ class CssOutlineFilter : public CommonFilter {
   explicit CssOutlineFilter(RewriteDriver* driver);
   virtual ~CssOutlineFilter();
 
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
 
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
 
   virtual void Flush();

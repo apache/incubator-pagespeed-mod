@@ -99,21 +99,21 @@ class WebpFrameWriter : public MultipleFrameWriter {
 
   // Sets the WebP configuration to be 'config', which should be a
   // WebpConfiguration* and should not be NULL.
-  virtual ScanlineStatus Initialize(const void* config, GoogleString* out);
+  ScanlineStatus Initialize(const void* config, GoogleString* out) override;
 
   // image_spec must remain valid for the lifetime of
   // WebpFrameWriter.
-  virtual ScanlineStatus PrepareImage(const ImageSpec* image_spec);
+  ScanlineStatus PrepareImage(const ImageSpec* image_spec) override;
 
   // frame_spec must remain valid while the frame is being written.
-  virtual ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec);
+  ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec) override;
 
-  virtual ScanlineStatus WriteNextScanline(const void *scanline_bytes);
+  ScanlineStatus WriteNextScanline(const void *scanline_bytes) override;
 
   // Note that even after WriteNextScanline() has been called,
   // Initialize() and FinalizeWrite() may be called repeatedly to
   // write the image with, say, different configs.
-  virtual ScanlineStatus FinalizeWrite();
+  ScanlineStatus FinalizeWrite() override;
 
  private:
   // The function to be called by libwebp's progress hook (with 'this'
@@ -213,30 +213,30 @@ class WebpFrameWriter : public MultipleFrameWriter {
 class WebpScanlineReader : public ScanlineReaderInterface {
  public:
   explicit WebpScanlineReader(MessageHandler* handler);
-  virtual ~WebpScanlineReader();
+  ~WebpScanlineReader() override;
 
   // Reset the scanline reader to its initial state.
-  virtual bool Reset();
+  bool Reset() override;
 
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the *first* call to ReadNextScanline().
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                      size_t buffer_length) override;
 
   // Return the next row of pixels. The entire image is decoded the first
   // time ReadNextScanline() is called, but only one scanline is returned
   // for each call.
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
 
   // Return the number of bytes in a row (without padding).
-  virtual size_t GetBytesPerScanline() { return bytes_per_row_; }
+  size_t GetBytesPerScanline() override { return bytes_per_row_; }
 
-  virtual bool HasMoreScanLines() { return (row_ < height_); }
-  virtual PixelFormat GetPixelFormat() { return pixel_format_; }
-  virtual size_t GetImageHeight() { return height_; }
-  virtual size_t GetImageWidth() {  return width_; }
+  bool HasMoreScanLines() override { return (row_ < height_); }
+  PixelFormat GetPixelFormat() override { return pixel_format_; }
+  size_t GetImageHeight() override { return height_; }
+  size_t GetImageWidth() override {  return width_; }
   // WebP does not have progressive mode.
-  virtual bool IsProgressive() { return false; }
+  bool IsProgressive() override { return false; }
 
  private:
   // Buffer and length of the input (compressed) image.

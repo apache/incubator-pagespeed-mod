@@ -38,8 +38,8 @@ class DeterministicJsFilter : public CommonFilter {
   explicit DeterministicJsFilter(RewriteDriver* driver);
   virtual ~DeterministicJsFilter();
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element) { }
   virtual const char* Name() const { return "DeterministicJs"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }

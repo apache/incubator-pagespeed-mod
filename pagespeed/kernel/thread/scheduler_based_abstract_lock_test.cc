@@ -137,6 +137,8 @@ class StealOnlyLock : public NeverLock {
 
   DISALLOW_COPY_AND_ASSIGN(StealOnlyLock);
 };
+  
+
 
 // Simple tests that involve either failed try or successfully obtaining lock.
 // Note that we always capture start times before lock construction, to account

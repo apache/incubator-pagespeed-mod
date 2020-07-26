@@ -64,8 +64,8 @@ class ProxyUrlNamer : public UrlNamer {
               const RewriteOptions* rewrite_options,
               GoogleString* decoded) const override;
 
-  virtual bool IsAuthorized(const GoogleUrl& gurl,
-                            const RewriteOptions& options) const {
+  bool IsAuthorized(const GoogleUrl& gurl,
+                            const RewriteOptions& options) const override {
     return authorized_;
   }
 
@@ -94,7 +94,7 @@ class MockFilter : public EmptyHtmlFilter {
 
   virtual void StartElement(HtmlElement* element);
 
-  virtual void EndDocument();
+  void EndDocument() override;
 
   virtual const char* Name() const { return "MockFilter"; }
 

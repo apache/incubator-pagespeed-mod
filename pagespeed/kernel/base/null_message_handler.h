@@ -33,16 +33,16 @@ namespace net_instaweb {
 class NullMessageHandler : public MessageHandler {
  public:
   NullMessageHandler() {}
-  virtual ~NullMessageHandler();
+  ~NullMessageHandler() override;
 
  protected:
   void MessageVImpl(MessageType type, const char* msg, va_list args) override;
   void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageVImpl(MessageType type, const char* filename,
-                                int line, const char* msg, va_list args);
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageVImpl(MessageType type, const char* filename,
+                                int line, const char* msg, va_list args) override;
+  void FileMessageSImpl(MessageType type, const char* filename,
+                                int line, const GoogleString& message) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullMessageHandler);

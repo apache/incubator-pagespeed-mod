@@ -59,7 +59,7 @@ class CacheExtender : public RewriteFilter {
   static void InitStats(Statistics* statistics);
 
   virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element) {}
 
   virtual const char* Name() const { return "CacheExtender"; }

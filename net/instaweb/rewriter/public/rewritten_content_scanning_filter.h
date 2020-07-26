@@ -39,7 +39,7 @@ class RewrittenContentScanningFilter : public EmptyHtmlFilter {
   virtual ~RewrittenContentScanningFilter();
 
   virtual void StartDocument();
-  virtual void EndDocument();
+  void EndDocument() override;
   virtual void StartElement(HtmlElement* element);
 
   virtual const char* Name() const { return "RewrittenContentScanningFilter"; }

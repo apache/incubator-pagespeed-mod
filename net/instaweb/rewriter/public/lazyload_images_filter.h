@@ -99,9 +99,9 @@ class LazyloadImagesFilter : public CommonFilter {
       StaticAssetManager* static_asset_manager);
 
  private:
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
   virtual void DetermineEnabled(GoogleString* disabled_reason);
 

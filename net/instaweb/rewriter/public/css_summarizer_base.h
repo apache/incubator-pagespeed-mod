@@ -203,9 +203,9 @@ class CssSummarizerBase : public RewriteFilter {
 
   // Overrides of the filter APIs. You MUST call through to this class's
   // implementations if you override them.
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void EndElementImpl(HtmlElement* element);
   virtual void RenderDone();

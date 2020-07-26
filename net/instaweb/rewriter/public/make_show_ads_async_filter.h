@@ -48,8 +48,8 @@ class MakeShowAdsAsyncFilter : public CommonFilter {
   static void InitStats(Statistics* statistics);
 
   // Overrides CommonFilter
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
 
   // Overrides HtmlFilter

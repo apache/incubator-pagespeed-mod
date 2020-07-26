@@ -104,16 +104,16 @@ class HtmlNode {
 
 class HtmlLeafNode : public HtmlNode {
  public:
-  virtual ~HtmlLeafNode();
-  virtual bool live() const { return (data_.get() != NULL) && data_->is_live_; }
+  ~HtmlLeafNode() override;
+  bool live() const override { return (data_.get() != NULL) && data_->is_live_; }
   void MarkAsDead(const HtmlEventListIterator& end) override;
-  virtual GoogleString ToString() const;
+  GoogleString ToString() const override;
 
   const GoogleString& contents() const { return data_->contents_; }
-  virtual HtmlEventListIterator begin() const {
+  HtmlEventListIterator begin() const  override {
     return data_->iter_;
   }
-  virtual HtmlEventListIterator end() const {
+  HtmlEventListIterator end() const  override {
     return data_->iter_;
   }
   void set_iter(const HtmlEventListIterator& iter) {

@@ -51,7 +51,7 @@ class CriticalImagesBeaconFilter : public CommonFilter {
   static void InitStats(Statistics* statistics);
 
   virtual void StartDocumentImpl() { }
-  virtual void EndDocument();
+  void EndDocument() override;
   virtual void StartElementImpl(HtmlElement* element) { }
   virtual void EndElementImpl(HtmlElement* element);
   virtual const char* Name() const { return "CriticalImagesBeacon"; }

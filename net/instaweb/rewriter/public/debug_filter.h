@@ -40,7 +40,7 @@ class DebugFilter : public EmptyHtmlFilter {
   explicit DebugFilter(RewriteDriver* driver);
   virtual ~DebugFilter();
 
-  virtual void EndDocument();
+  void EndDocument() override;
   virtual void Flush();
 
   virtual const char* Name() const { return "Debug"; }

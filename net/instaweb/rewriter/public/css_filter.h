@@ -96,8 +96,8 @@ class CssFilter : public RewriteFilter {
   // Add this filters related options to the given vector.
   static void AddRelatedOptions(StringPieceVector* target);
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void Characters(HtmlCharactersNode* characters);
   virtual void EndElementImpl(HtmlElement* element);
 

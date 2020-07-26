@@ -54,13 +54,13 @@ class HtmlWriterFilter : public HtmlFilter {
   void Flush() override;
   void DetermineEnabled(GoogleString* disabled_reason) override;
   // This filter will not change urls.
-  virtual bool CanModifyUrls() { return false; }
+  bool CanModifyUrls() override { return false; }
   ScriptUsage GetScriptUsage() const override { return kNeverInjectsScripts; }
 
   void set_max_column(int max_column) { max_column_ = max_column; }
   void set_case_fold(bool case_fold) { case_fold_ = case_fold; }
 
-  virtual const char* Name() const { return "HtmlWriter"; }
+  const char* Name() const override { return "HtmlWriter"; }
 
  protected:
   // Clear various variables for rewriting a new html file.

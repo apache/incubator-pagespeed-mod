@@ -117,10 +117,10 @@ class ImageRewriteFilter : public RewriteFilter {
   static void Initialize();
   static void Terminate();
   static void AddRelatedOptions(StringPieceVector* target);
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
+  void StartDocumentImpl() override;
+  void EndDocument() override;
   virtual void RenderDone();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element) {}
   virtual const char* Name() const { return "ImageRewrite"; }
   virtual const char* id() const { return RewriteOptions::kImageCompressionId; }

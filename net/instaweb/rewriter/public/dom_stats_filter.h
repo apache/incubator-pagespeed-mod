@@ -50,7 +50,7 @@ class DomStatsFilter : public CommonFilter {
   int num_critical_images_used() const { return num_critical_images_used_; }
 
  private:
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
   virtual void StartElementImpl(HtmlElement* element) {}
   virtual void EndElementImpl(HtmlElement* element);
 

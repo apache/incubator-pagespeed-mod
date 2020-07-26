@@ -54,10 +54,10 @@ public:
   bool IsCachedResultValid(const ResponseHeaders& headers) override;
 
 private:
-  virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
-  virtual void HandleHeadersComplete();
-  virtual void HandleDone(bool success);
+  bool HandleWrite(const StringPiece& sp, MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
+  void HandleHeadersComplete() override;
+  void HandleDone(bool success) override;
 
   int DecrefAndDeleteIfUnreferenced();
 

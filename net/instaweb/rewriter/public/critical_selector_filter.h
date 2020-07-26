@@ -98,8 +98,8 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   virtual GoogleString CacheKeySuffix() const;
 
   // Parser callbacks.
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
+  void StartDocumentImpl() override;
+  void EndDocument() override;
   virtual void RenderDone();
 
   // Filter control API.

@@ -37,7 +37,7 @@ class AddHeadFilter : public EmptyHtmlFilter {
 
   virtual void StartDocument();
   virtual void StartElement(HtmlElement* element);
-  virtual void EndDocument();
+  void EndDocument() override;
   virtual void EndElement(HtmlElement* element);
   virtual void Flush();
   virtual const char* Name() const { return "AddHead"; }

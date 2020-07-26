@@ -109,7 +109,7 @@ class TrimWhitespaceSyncFilter : public SimpleTextFilter {
   }
   virtual ~TrimWhitespaceSyncFilter();
 
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   virtual const char* id() const { return kFilterId; }
   virtual const char* name() const { return "TrimWhitespaceSync"; }
 
@@ -247,7 +247,7 @@ class NestedFilter : public RewriteFilter {
     return new Context(driver(), this, chain_);
   }
 
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   SimpleTextFilter* upper_filter() { return upper_filter_; }
 
   virtual const char* id() const { return kFilterId; }
@@ -363,7 +363,7 @@ class CombiningFilter : public RewriteFilter {
   };
 
   virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
   virtual void Flush() {
     if (context_.get() != NULL) {
       driver()->InitiateRewrite(context_.release());

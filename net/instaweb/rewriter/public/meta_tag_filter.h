@@ -45,7 +45,7 @@ class MetaTagFilter : public CommonFilter {
 
   static void InitStats(Statistics* stats);
 
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
   virtual void StartElementImpl(HtmlElement* element) {}
 
   // Rewrite tags in the following form:

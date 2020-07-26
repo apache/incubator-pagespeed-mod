@@ -82,7 +82,7 @@ class ResponsiveImageFirstFilter : public CommonFilter {
   virtual ~ResponsiveImageFirstFilter();
 
   virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
   virtual void EndElementImpl(HtmlElement* element);
 
   virtual const char* Name() const { return "ResponsiveImageFirst"; }
@@ -109,9 +109,9 @@ class ResponsiveImageSecondFilter : public CommonFilter {
   virtual ~ResponsiveImageSecondFilter();
 
   virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
   virtual void EndElementImpl(HtmlElement* element);
-  virtual void EndDocument();
+  void EndDocument() override;
 
   virtual const char* Name() const { return "ResponsiveImageSecond"; }
 

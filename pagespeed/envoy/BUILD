@@ -61,7 +61,6 @@ envoy_cc_library(
         "-Wno-unused-parameter",
         "-Wno-old-style-cast",
         "-Wno-macro-redefined",
-        "-Wno-inconsistent-missing-override",
     ],
     repository = "@envoy",
     visibility = ["//visibility:public"],
@@ -91,7 +90,6 @@ envoy_cc_library(
         "-Wno-unused-parameter",
         "-Wno-old-style-cast",
         "-Wno-macro-redefined",
-        "-Wno-inconsistent-missing-override",
     ],
     repository = "@envoy",
     deps = [
@@ -142,7 +140,6 @@ envoy_cc_library(
         "-Wno-unused-parameter",
         "-Wno-old-style-cast",
         "-Wno-macro-redefined",
-        "-Wno-inconsistent-missing-override",
     ],
     deps = [
         "@envoy//source/common/common:random_generator_lib_with_external_headers",
@@ -197,7 +194,6 @@ envoy_cc_test(
         "-Wno-unused-parameter",
         "-Wno-old-style-cast",
         "-Wno-macro-redefined",
-        "-Wno-inconsistent-missing-override",
     ],
     deps = [
         ":envoy_fetcher",

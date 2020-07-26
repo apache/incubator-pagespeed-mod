@@ -56,12 +56,12 @@ class DomainRewriteFilter : public CommonFilter {
   DomainRewriteFilter(RewriteDriver* rewrite_driver, Statistics* stats);
   ~DomainRewriteFilter();
   static void InitStats(Statistics* statistics);
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const { return "DomainRewrite"; }
+  const char* Name() const override { return "DomainRewrite"; }
 
   // Injects scripts only when option ClientDomainRewrite is true, and
   // the current document is not AMP.

@@ -73,8 +73,8 @@ class DeferIframeFilter : public CommonFilter {
   explicit DeferIframeFilter(RewriteDriver* driver);
   ~DeferIframeFilter();
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
   virtual void EndElementImpl(HtmlElement* element);
   virtual void DetermineEnabled(GoogleString* disabled_reason);
 

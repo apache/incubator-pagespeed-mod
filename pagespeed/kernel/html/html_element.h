@@ -228,7 +228,7 @@ class HtmlElement : public HtmlNode {
   // html_parse->IsRewritable(node) is false.  Once a node is closed, a FLUSH
   // will cause the node's data to be freed, which triggers this method
   // returning false.
-  virtual bool live() const { return (data_.get() != NULL) && data_->live_; }
+  bool live() const override { return (data_.get() != NULL) && data_->live_; }
 
   void MarkAsDead(const HtmlEventListIterator& end) override;
 
@@ -341,18 +341,18 @@ class HtmlElement : public HtmlNode {
 
   // Render an element as a string for debugging.  This is not
   // intended as a fully legal serialization.
-  virtual GoogleString ToString() const;
+  GoogleString ToString() const override;
   void DebugPrint() const;
 
   int begin_line_number() const { return data_->begin_line_number_; }
   int end_line_number() const { return data_->end_line_number_; }
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                                HtmlEventList* queue) override;
 
-  virtual HtmlEventListIterator begin() const { return data_->begin_; }
-  virtual HtmlEventListIterator end() const { return data_->end_; }
+  HtmlEventListIterator begin() const override { return data_->begin_; }
+  HtmlEventListIterator end() const override { return data_->end_; }
 
  private:
   // All of the data associated with an HtmlElement is indirected through this
