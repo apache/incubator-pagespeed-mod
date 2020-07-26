@@ -104,8 +104,8 @@ class SerfTestFetch : public AsyncFetch {
     return true;
   }
   virtual bool HandleFlush(MessageHandler* handler) { return true; }
-  virtual void HandleHeadersComplete() {}
-  virtual void HandleDone(bool success) {
+  void HandleHeadersComplete() override {}
+  void HandleDone(bool success) override {
     ScopedMutex lock(mutex_);
     EXPECT_FALSE(done_);
     success_ = success;

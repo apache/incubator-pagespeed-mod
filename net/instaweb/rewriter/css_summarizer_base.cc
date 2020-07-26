@@ -75,17 +75,17 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
     return true;
   }
 
-  virtual void Render();
-  virtual void WillNotRender();
-  virtual void Cancel();
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs);
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output);
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
-  virtual GoogleString CacheKeySuffix() const;
-  virtual const UrlSegmentEncoder* encoder() const {
+  void Render() override;
+  void WillNotRender() override;
+  void Cancel() override;
+  bool Partition(OutputPartitions* partitions,
+                         OutputResourceVector* outputs) override;
+  void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output) override;
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
+  GoogleString CacheKeySuffix() const override;
+  const UrlSegmentEncoder* encoder() const override {
     return filter_->encoder();
   }
 

@@ -69,7 +69,7 @@ class MockFetch : public StringAsyncFetch {
     encoding.CopyToString(&accept_encoding_);
   }
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     if (!accept_encoding_.empty()) {
       EXPECT_TRUE(request_headers()->HasValue(
           HttpAttributes::kAcceptEncoding, accept_encoding_));

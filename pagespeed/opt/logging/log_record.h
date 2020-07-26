@@ -299,7 +299,7 @@ class LogRecord : public AbstractLogRecord {
 
   ~LogRecord() override;
 
-  LoggingInfo* logging_info() { return logging_info_.get(); }
+  LoggingInfo* logging_info() override { return logging_info_.get(); }
 
   void SetImageStats(int num_img_tags, int num_inlined_img_tags,
                     int num_critical_images_used) override {}
@@ -315,7 +315,7 @@ class LogRecord : public AbstractLogRecord {
       const GoogleString& property) override {}
 
   void SetCacheStatusForCohortInfo(
-      int page_type, const GoogleString& cohort, bool found, int key_state) {}
+      int page_type, const GoogleString& cohort, bool found, int key_state) override {}
 
   void LogImageRewriteActivity(
       const char* id,

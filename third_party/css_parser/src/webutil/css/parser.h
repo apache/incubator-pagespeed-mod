@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 #include "strings/stringpiece.h"
-#include "testing/production_stub/public/gunit_prod.h"
+#include "pagespeed/kernel/base/gtest_prod.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/media.h"
 #include "webutil/css/property.h"  // while these CSS includes can be

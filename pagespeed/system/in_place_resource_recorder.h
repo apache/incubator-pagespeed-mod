@@ -150,8 +150,8 @@ class InPlaceResourceRecorder : public Writer {
    public:
     HTTPValueFetch(const RequestContextPtr& request_context, HTTPValue* value)
         : AsyncFetchUsingWriter(request_context, value) {}
-    virtual void HandleDone(bool /*ok*/) {}
-    virtual void HandleHeadersComplete() {}
+    void HandleDone(bool /*ok*/) override {}
+    void HandleHeadersComplete() override {}
   };
 
   bool IsIproContentType(ResponseHeaders* response_headers);

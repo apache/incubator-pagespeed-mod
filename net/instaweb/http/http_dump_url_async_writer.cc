@@ -66,7 +66,7 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
   }
 
   // Finishes the Fetch when called back.
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     response_headers()->SetContentLength(buffer().size());
     // TODO(jmarantz): http://tools.ietf.org/html/rfc2616#section-13.5.1
     // tells us we can also remove Keep-Alive, Proxy-Authenticate,

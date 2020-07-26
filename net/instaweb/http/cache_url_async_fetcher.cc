@@ -78,7 +78,7 @@ class CachePutFetch : public SharedAsyncFetch {
 
   virtual ~CachePutFetch() {}
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     // We compute the latency here as it's the spot where we're doing an
     // actual backend fetch and not potentially using the cache.
     int64 now_ms = cache_->timer()->NowMs();
@@ -125,7 +125,7 @@ class CachePutFetch : public SharedAsyncFetch {
     return SharedAsyncFetch::HandleFlush(handler);
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     DCHECK_EQ(request_headers()->method(), RequestHeaders::kGet);
     // We do not cache empty 200 responses. (Empty 404, 500 are fine.)
     // https://github.com/apache/incubator-pagespeed-mod/issues/1050

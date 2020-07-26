@@ -94,7 +94,7 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
   virtual bool HandleFlush(MessageHandler* handler) {
     return writer_->Flush(handler);
   }
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
   }
 
  private:

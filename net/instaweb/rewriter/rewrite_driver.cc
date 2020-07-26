@@ -1702,7 +1702,7 @@ class FilterFetch : public SharedAsyncFetch {
   }
 
  protected:
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     RewriteStats* stats = driver_->server_context()->rewrite_stats();
     if (success) {
       stats->succeeded_filter_resource_fetches()->Add(1);

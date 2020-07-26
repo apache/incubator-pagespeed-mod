@@ -124,7 +124,7 @@ class CheckDateHeaderFetch : public StringAsyncFetch {
         headers_complete_called_(false), timer_(timer) {}
   virtual ~CheckDateHeaderFetch() {}
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     headers_complete_called_ = true;
     response_headers()->ComputeCaching();
     EXPECT_EQ(timer_->NowMs(), response_headers()->date_ms());

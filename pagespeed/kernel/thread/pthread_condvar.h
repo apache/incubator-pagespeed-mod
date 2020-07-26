@@ -37,9 +37,9 @@ class PthreadCondvar : public ThreadSystem::Condvar {
       : mutex_(mutex) {
     Init();
   }
-  virtual ~PthreadCondvar();
+  ~PthreadCondvar() override;
 
-  virtual PthreadMutex* mutex() const { return mutex_; }
+  PthreadMutex* mutex() const override { return mutex_; }
 
   void Signal() override;
   void Broadcast() override;

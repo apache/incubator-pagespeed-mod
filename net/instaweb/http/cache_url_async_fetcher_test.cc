@@ -83,7 +83,7 @@ class MockFetch : public AsyncFetch {
 
   virtual ~MockFetch() {}
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     // Make sure that we've called
     // response_headers()->ComputeCaching() before this and that this
     // call succeeds.  We don't care about the return value in this
@@ -102,7 +102,7 @@ class MockFetch : public AsyncFetch {
   }
 
   // Fetch complete.
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     {
       ScopedMutex lock(log_record()->mutex());
       *is_origin_cacheable_ = log_record()->logging_info()->

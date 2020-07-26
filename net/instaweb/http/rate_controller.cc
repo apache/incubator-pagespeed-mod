@@ -187,7 +187,7 @@ class RateController::CustomFetch : public SharedAsyncFetch {
         fetch_info_(fetch_info),
         controller_(controller) {}
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     SharedAsyncFetch::HandleDone(success);
     fetch_info_->decrement_num_outbound_fetches();
     // Check if there is any fetch queued up for this host and the number of

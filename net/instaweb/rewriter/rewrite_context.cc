@@ -572,7 +572,7 @@ class RewriteContext::ResourceReconstructCallback
   virtual ~ResourceReconstructCallback() {
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     // Compute the final post-write state of the object, including the hash.
     // Also takes care of dropping creation lock.
     resource_->EndWrite(driver_->message_handler());
@@ -586,7 +586,7 @@ class RewriteContext::ResourceReconstructCallback
     delete this;
   }
 
-  virtual void HandleHeadersComplete() {}
+  void HandleHeadersComplete() override {}
 
  private:
   RewriteDriver* driver_;

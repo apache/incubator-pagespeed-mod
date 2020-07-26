@@ -1239,14 +1239,8 @@ void* mod_pagespeed_create_server_config(apr_pool_t* pool, server_rec* server) {
   return server_context;
 }
 
-const char kBoolHint[] = " on|off";
 const char kEnabledEnumHint[] = " on|off|unplugged";
-const char kInt64Hint[] = " must specify a 64-bit integer";
-const char kIntHint[] = " must specify a 32-bit integer";
 
-const char* ParseHint(bool x) { return kBoolHint; }
-const char* ParseHint(int x) { return kIntHint; }
-const char* ParseHint(int64 x) { return kInt64Hint; }
 const char* ParseHint(RewriteOptions::EnabledEnum x) {
   return kEnabledEnumHint;
 }

@@ -80,7 +80,7 @@ class FetcherTest : public testing::Test {
           callback_called_(callback_called) {
     }
 
-    virtual void HandleDone(bool success) {
+    void HandleDone(bool success) override {
       *callback_called_ = true;
       CHECK_EQ(expect_success_, success);
       ValidateMockFetcherResponse(

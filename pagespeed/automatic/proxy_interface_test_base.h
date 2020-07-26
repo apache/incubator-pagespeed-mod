@@ -90,13 +90,13 @@ class MockFilter : public EmptyHtmlFilter {
         num_elements_property_(NULL) {
   }
 
-  virtual void StartDocument();
+  void StartDocument() override;
 
-  virtual void StartElement(HtmlElement* element);
+  void StartElement(HtmlElement* element) override;
 
   void EndDocument() override;
 
-  virtual const char* Name() const { return "MockFilter"; }
+  virtual const char* Name() const override { return "MockFilter"; }
 
  private:
   RewriteDriver* driver_;
@@ -113,7 +113,7 @@ class CreateFilterCallback
   CreateFilterCallback() {}
   virtual ~CreateFilterCallback() {}
 
-  virtual HtmlFilter* Done(RewriteDriver* driver) {
+  HtmlFilter* Done(RewriteDriver* driver) override {
     return new MockFilter(driver);
   }
 
@@ -128,9 +128,9 @@ class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
   explicit BackgroundFetchCheckingAsyncFetch(AsyncFetch* base_fetch)
       : SharedAsyncFetch(base_fetch),
         async_fetch_(base_fetch) {}
-  virtual ~BackgroundFetchCheckingAsyncFetch() {}
+  ~BackgroundFetchCheckingAsyncFetch() override {}
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     SharedAsyncFetch::HandleHeadersComplete();
     response_headers()->Add(kBackgroundFetchHeader,
                             async_fetch_->IsBackgroundFetch() ? "1" : "0");
@@ -138,7 +138,7 @@ class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
     response_headers()->ComputeCaching();
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     SharedAsyncFetch::HandleDone(success);
     delete this;
   }

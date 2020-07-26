@@ -42,7 +42,7 @@ class ExpectStringAsyncFetch : public StringAsyncFetch {
     EXPECT_TRUE(done());
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     EXPECT_FALSE(done()) << "Already Done; perhaps you reused without Reset()";
     StringAsyncFetch::HandleDone(success);
     EXPECT_EQ(expect_success_, success);

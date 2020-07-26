@@ -106,7 +106,7 @@ class StrippingFetch : public StringAsyncFetch {
     return success();
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     bool done = true;
     if (!success) {
       set_success(false);

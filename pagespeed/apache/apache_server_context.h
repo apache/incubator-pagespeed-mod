@@ -103,7 +103,7 @@ class ApacheServerContext : public SystemServerContext {
   // This should be called after all configuration parsing is done to collapse
   // configuration inside the config overlays into actual ApacheConfig objects.
   // It will also compute signatures when done.
-  virtual void CollapseConfigOverlaysAndComputeSignatures();
+  void CollapseConfigOverlaysAndComputeSignatures() override;
 
   // Called on notification from Apache on child exit. Returns true
   // if this is the last ServerContext that exists.
@@ -121,7 +121,7 @@ class ApacheServerContext : public SystemServerContext {
   // ProxyFetch flow if proxy_all_requests_mode() is on in config.  In the usual
   // case, we handle HTML as an Apache filter, letting something like mod_proxy
   // (or one of our own test modes like slurp) do the fetching.
-  virtual bool ProxiesHtml() const {
+  bool ProxiesHtml() const override {
     return global_config()->proxy_all_requests_mode();
   }
 
@@ -150,7 +150,7 @@ class ApacheServerContext : public SystemServerContext {
                          rewrite_stats()->slurp_404_count());
   }
 
-  virtual GoogleString FormatOption(StringPiece option_name, StringPiece args);
+  GoogleString FormatOption(StringPiece option_name, StringPiece args) override;
 
  private:
   void ChildInit(SystemRewriteDriverFactory* factory) override;

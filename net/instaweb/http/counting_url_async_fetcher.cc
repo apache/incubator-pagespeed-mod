@@ -46,7 +46,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
     return SharedAsyncFetch::HandleWrite(content, handler);
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     {
       ScopedMutex lock(counter_->mutex_.get());
       ++counter_->fetch_count_;

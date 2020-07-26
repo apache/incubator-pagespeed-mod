@@ -39,13 +39,13 @@ class ApacheConfig : public SystemRewriteOptions {
 
   ApacheConfig(const StringPiece& description, ThreadSystem* thread_system);
   explicit ApacheConfig(ThreadSystem* thread_system);
-  virtual ~ApacheConfig();
+  ~ApacheConfig() override;
 
   // Make an identical copy of these options and return it.
-  virtual ApacheConfig* Clone() const;
+  ApacheConfig* Clone() const override;
 
   // Make a new empty set of options.
-  virtual ApacheConfig* NewOptions() const;
+  ApacheConfig* NewOptions() const override;
 
   // Gets proxy authentication settings from the config file.  Returns true
   // if any settings were found, populating *name. *value and *redirect will

@@ -52,7 +52,7 @@ class StringAsyncFetchWithAsyncCountUpdates : public StringAsyncFetch {
 
   virtual ~StringAsyncFetchWithAsyncCountUpdates() { }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     if (response_headers()->status_code() == HttpStatus::kOK) {
       driver_->server_context()->rewrite_stats()->
           successful_downstream_cache_purges()->Add(1);

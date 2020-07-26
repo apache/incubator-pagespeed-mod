@@ -107,7 +107,7 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
   // to get all the cases.
 
   // Overridden from AsyncFetch.
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     bool cached = false;
     // Do not store the response in cache if we are using the fallback.
     if (fallback_fetch_ != NULL && fallback_fetch_->serving_fallback()) {
@@ -143,7 +143,7 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
   }
 
   // Overridden from AsyncFetch.
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     if (fallback_fetch_ != NULL && fallback_fetch_->serving_fallback()) {
       response_headers()->ComputeCaching();
     }

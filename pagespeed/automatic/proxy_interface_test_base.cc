@@ -85,7 +85,7 @@ class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
 
   virtual ~AsyncExpectStringAsyncFetch() {}
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     // Make sure we have cleaned the headers in ProxyInterface.
     EXPECT_FALSE(
         request_headers()->Has(HttpAttributes::kAcceptEncoding));
@@ -95,7 +95,7 @@ class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
     sync_->Signal(ProxyFetch::kHeadersSetupRaceFlush);
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     *buffer_ = buffer();
     *done_value_ = success;
     ExpectStringAsyncFetch::HandleDone(success);

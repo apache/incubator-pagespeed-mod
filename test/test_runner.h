@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 
 namespace PageSpeed {
 

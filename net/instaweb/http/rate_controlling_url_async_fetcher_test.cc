@@ -54,7 +54,7 @@ class MockFetch : public AsyncFetch {
         done_(false),
         success_(false) {}
   virtual ~MockFetch() {}
-  virtual void HandleHeadersComplete() {}
+  void HandleHeadersComplete() override {}
   virtual bool HandleWrite(const StringPiece& content,
                            MessageHandler* handler) {
     content.AppendToString(&content_);
@@ -63,7 +63,7 @@ class MockFetch : public AsyncFetch {
   virtual bool HandleFlush(MessageHandler* handler) {
     return true;
   }
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     success_ = success;
     done_ = true;
   }

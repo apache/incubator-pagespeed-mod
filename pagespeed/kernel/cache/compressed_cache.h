@@ -47,9 +47,9 @@ class CompressedCache : public CacheInterface {
   void Delete(const GoogleString& key) override;
   GoogleString Name() const override { return FormatName(cache_->Name()); }
   static GoogleString FormatName(StringPiece cache);
-  virtual CacheInterface* Backend() { return cache_; }
+  CacheInterface* Backend() override { return cache_; }
   bool IsBlocking() const override { return cache_->IsBlocking(); }
-  virtual bool IsHealthy() const;
+  bool IsHealthy() const override;
   void ShutDown() override;
 
   // Total number of times we did a fetch from the underlying cache and

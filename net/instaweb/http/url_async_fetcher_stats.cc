@@ -55,13 +55,13 @@ class UrlAsyncFetcherStats::StatsAsyncFetch : public SharedAsyncFetch {
   virtual ~StatsAsyncFetch() {
   }
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     stats_fetcher_->approx_header_bytes_fetched_->Add(
         response_headers()->SizeEstimate());
     SharedAsyncFetch::HandleHeadersComplete();
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     int64 end_time_us = stats_fetcher_->timer_->NowUs();
     stats_fetcher_->fetch_latency_us_histogram_->Add(
         end_time_us - start_time_us_);
