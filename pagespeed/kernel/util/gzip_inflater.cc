@@ -69,7 +69,7 @@ bool IsValidZlibStreamHeaderByte(uint8 first_byte) {
 namespace net_instaweb {
 
 GzipInflater::GzipInflater(InflateType type)
-    : zlib_(NULL),
+    : zlib_(nullptr),
       format_(type == kGzip ? FORMAT_GZIP : FORMAT_ZLIB_STREAM),
       finished_(false),
       error_(false) {
@@ -84,7 +84,7 @@ GzipInflater::~GzipInflater() {
 }
 
 void GzipInflater::Free() {
-  if (zlib_ == NULL) {
+  if (zlib_ == nullptr) {
     // Already freed.
     return;
   }
@@ -96,7 +96,7 @@ void GzipInflater::Free() {
 
   free(zlib_);
 
-  zlib_ = NULL;
+  zlib_ = nullptr;
 }
 
 /* static */
@@ -123,12 +123,12 @@ bool GzipInflater::GetWindowBitsForFormat(
 }
 
 bool GzipInflater::Init() {
-  if (zlib_ != NULL) {
+  if (zlib_ != nullptr) {
     return false;
   }
 
   zlib_ = static_cast<z_stream *>(malloc(sizeof(z_stream)));
-  if (zlib_ == NULL) {
+  if (zlib_ == nullptr) {
     return false;
   }
   memset(zlib_, 0, sizeof(z_stream));
@@ -150,7 +150,7 @@ bool GzipInflater::Init() {
 }
 
 bool GzipInflater::HasUnconsumedInput() const {
-  if (zlib_ == NULL) {
+  if (zlib_ == nullptr) {
     return false;
   }
 
@@ -162,7 +162,7 @@ bool GzipInflater::HasUnconsumedInput() const {
 }
 
 bool GzipInflater::SetInput(const void *in, size_t in_size) {
-  if (zlib_ == NULL) {
+  if (zlib_ == nullptr) {
     return false;
   }
 
@@ -178,7 +178,7 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
     return false;
   }
 
-  if (in == NULL || in_size == 0) {
+  if (in == nullptr || in_size == 0) {
     return false;
   }
 
@@ -234,7 +234,7 @@ void GzipInflater::SwitchToRawDeflateFormat() {
 }
 
 int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
-  if (zlib_ == NULL) {
+  if (zlib_ == nullptr) {
     return -1;
   }
 
@@ -250,7 +250,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
     return -1;
   }
 
-  if (buf == NULL || buf_size == 0) {
+  if (buf == nullptr || buf_size == 0) {
     return -1;
   }
 
@@ -353,7 +353,7 @@ bool GzipInflater::Deflate(StringPiece in, InflateType format,
       return false;
     }
     int have = kStackBufferSize - strm.avail_out;
-    if (!writer->Write(StringPiece(out, have), NULL)) {
+    if (!writer->Write(StringPiece(out, have), nullptr)) {
       deflateEnd(&strm);
       return false;
     }
@@ -417,7 +417,7 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
         break;
     }
     int have = kOutSize - strm.avail_out;
-    if (!writer->Write(StringPiece(static_cast<char*>(out), have), NULL)) {
+    if (!writer->Write(StringPiece(static_cast<char*>(out), have), nullptr)) {
       inflateEnd(&strm);
       return false;
     }

@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "pagespeed/controller/work_bound_expensive_operation_controller.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -53,8 +57,8 @@ class WorkBoundExpensiveOperationTest : public testing::Test {
   }
 
   void InitControllerWithLimit(int limit) {
-    controller_.reset(
-        new WorkBoundExpensiveOperationController(limit, &stats_));
+    controller_ = std::make_unique<WorkBoundExpensiveOperationController>(
+        limit, &stats_);
   }
 
   bool TryToWork() {

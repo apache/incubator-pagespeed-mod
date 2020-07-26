@@ -143,18 +143,18 @@ class WebpOptimizer {
 WebpOptimizer::WebpOptimizer(MessageHandler* handler)
     : message_handler_(handler),
       reader_(handler),
-      pixels_(NULL),
-      rows_(NULL),
+      pixels_(nullptr),
+      rows_(nullptr),
       width_(0),
       height_(0),
       row_stride_(0),
-      progress_hook_(NULL),
-      progress_hook_data_(NULL) {
+      progress_hook_(nullptr),
+      progress_hook_data_(nullptr) {
 }
 
 WebpOptimizer::~WebpOptimizer() {
   delete[] pixels_;
-  DCHECK(rows_ == NULL);
+  DCHECK(rows_ == nullptr);
 }
 
 // Does most of the work of ReadJpegPixels (see below); errors transfer control
@@ -232,12 +232,12 @@ bool WebpOptimizer::ReadJpegPixels(J_COLOR_SPACE color_space,
                                    const GoogleString& original_jpeg) {
   bool read_ok = DoReadJpegPixels(color_space, original_jpeg);
   delete[] rows_;
-  rows_ = NULL;
+  rows_ = nullptr;
   jpeg_decompress_struct* jpeg_decompress = reader_.decompress_struct();
   // NULL out the setjmp information stored by DoReadJpegPixels; there should be
   // no further decompression failures, and the stack would be invalid if there
   // were.
-  jpeg_decompress->client_data = NULL;
+  jpeg_decompress->client_data = nullptr;
   jpeg_destroy_decompress(jpeg_decompress);
   return read_ok;
 }
@@ -402,7 +402,7 @@ bool WebpOptimizer::CreateOptimizedWebp(
   picture.custom_ptr = static_cast<void*>(compressed_webp);
   picture.width = width_;
   picture.height = height_;
-  if (progress_hook != NULL) {
+  if (progress_hook != nullptr) {
     picture.progress_hook = ProgressHook;
     picture.user_data = this;
     progress_hook_ = progress_hook;
@@ -422,7 +422,7 @@ bool WebpOptimizer::CreateOptimizedWebp(
   // We're done with the original pixels, so clean them up.  If an error occurs,
   // this cleanup will happen in the destructor instead.
   delete[] pixels_;
-  pixels_ = NULL;
+  pixels_ = nullptr;
 
   // Now we need to take picture and WebP encode it.
   bool result = WebPEncode(&config, &picture);

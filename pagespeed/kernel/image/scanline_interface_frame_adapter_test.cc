@@ -90,7 +90,7 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
                                &status));
 
     ASSERT_TRUE(status.Success()) << test_info;
-    ASSERT_NE(static_cast<void*>(NULL), reader.get()) << test_info;
+    ASSERT_NE(static_cast<void*>(nullptr), reader.get()) << test_info;
 
     status = ScanlineStatus();
     EXPECT_TRUE(reader->GetImageSpec(&spec, &status)) << test_info;
@@ -99,11 +99,11 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
     // Setup a writer and check the return status of PrepareImage.
     std::unique_ptr<MultipleFrameWriter> writer(
         CreateImageFrameWriter(test.output_format,
-                               NULL,
+                               nullptr,
                                &converted_image_,
                                &message_handler_,
                                &status));
-    ASSERT_NE(static_cast<void*>(NULL), reader.get()) << test_info;
+    ASSERT_NE(static_cast<void*>(nullptr), reader.get()) << test_info;
 
     status = ScanlineStatus();
     EXPECT_EQ(test.success, writer->PrepareImage(&spec, &status)) << test_info;

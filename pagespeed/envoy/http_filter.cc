@@ -60,7 +60,7 @@ HttpPageSpeedDecoderFilter::~HttpPageSpeedDecoderFilter() {
     rewrite_driver_ = nullptr;
   }
   if (recorder_ != nullptr) {
-    recorder_->DoneAndSetHeaders(NULL, false);
+    recorder_->DoneAndSetHeaders(nullptr, false);
     recorder_ = nullptr;
   }
   if (base_fetch_ != nullptr) {

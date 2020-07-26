@@ -136,7 +136,7 @@ void InsertDnsPrefetchFilter::StartElementImpl(HtmlElement* element) {
   }
   // We don't need to add domains in NOSCRIPT elements since most browsers
   // support javascript and won't download resources inside NOSCRIPT elements.
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     return;
   }
   resource_tag_scanner::UrlCategoryVector attributes;
@@ -163,7 +163,7 @@ void InsertDnsPrefetchFilter::StartElementImpl(HtmlElement* element) {
           // specific case.
           HtmlElement::Attribute* rel_attr =
               element->FindAttribute(HtmlName::kRel);
-          if (rel_attr != NULL) {
+          if (rel_attr != nullptr) {
             if (StringCaseEqual(rel_attr->DecodedValueOrNull(), kRelPrefetch) ||
                 (in_head_ && StringCaseEqual(rel_attr->DecodedValueOrNull(),
                                              kRelDnsPrefetch))) {
@@ -221,7 +221,7 @@ void InsertDnsPrefetchFilter::EndElementImpl(HtmlElement* element) {
 
 void InsertDnsPrefetchFilter::MarkAlreadyInHead(
     HtmlElement::Attribute* urlattr) {
-  if (urlattr != NULL && urlattr->DecodedValueOrNull() != NULL) {
+  if (urlattr != nullptr && urlattr->DecodedValueOrNull() != nullptr) {
     GoogleUrl url(driver()->base_url(), urlattr->DecodedValueOrNull());
     GoogleString domain;
     if (url.IsWebValid()) {

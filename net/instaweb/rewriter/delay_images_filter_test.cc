@@ -680,7 +680,7 @@ TEST_F(DelayImagesFilterTest, NoHeadTag) {
 
 TEST_F(DelayImagesFilterTest, PcacheMiss) {
   TestCriticalImagesFinder* finder =
-      new TestCriticalImagesFinder(NULL, statistics());
+      new TestCriticalImagesFinder(nullptr, statistics());
   finder->set_available(CriticalImagesFinder::kNoDataYet);
   server_context()->set_critical_images_finder(finder);
 

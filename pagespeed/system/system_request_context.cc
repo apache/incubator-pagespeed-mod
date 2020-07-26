@@ -55,11 +55,11 @@ SystemRequestContext::SystemRequestContext(
 }
 
 SystemRequestContext* SystemRequestContext::DynamicCast(RequestContext* rc) {
-  if (rc == NULL) {
-    return NULL;
+  if (rc == nullptr) {
+    return nullptr;
   }
   SystemRequestContext* out = dynamic_cast<SystemRequestContext*>(rc);
-  DCHECK(out != NULL) << "Invalid request conversion. Do not rely on RTTI for "
+  DCHECK(out != nullptr) << "Invalid request conversion. Do not rely on RTTI for "
                       << "functional behavior. System handling flows must use "
                       << "SystemRequestContexts or a subclass.";
   return out;

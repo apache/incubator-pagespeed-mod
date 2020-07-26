@@ -19,6 +19,10 @@
 
 //         jmarantz@google.com (Joshua Marantz)
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/resource.h"
 
 #include "net/instaweb/http/public/http_cache.h"
@@ -67,7 +71,7 @@ Resource::Resource(const RewriteDriver* driver, const ContentType* type)
       extracted_state_(kExtractNotComputed) {
 }
 
-Resource::Resource() : server_context_(NULL), type_(NULL),
+Resource::Resource() : server_context_(nullptr), type_(nullptr),
                        response_headers_(kDefaultHttpOptionsForTests),
                        fetch_response_status_(kFetchStatusNotSet),
                        is_background_fetch_(true),
@@ -239,7 +243,7 @@ void Resource::DetermineContentType() {
   const ContentType* content_type;
   response_headers()->DetermineContentTypeAndCharset(&content_type, &charset_);
   // If there is no content type in headers, then guess from extension.
-  if (content_type == NULL && has_url()) {
+  if (content_type == nullptr && has_url()) {
     GoogleString trimmed_url;
     TrimWhitespace(url(), &trimmed_url);
     content_type = NameExtensionToContentType(trimmed_url);
@@ -292,7 +296,7 @@ bool Resource::EnsureExtractedIfNeeded() const {
     if (GzipInflater::Inflate(raw_contents(), GzipInflater::kGzip,
                               &inflate_writer)) {
       extracted_state_ = kExtractUseExtracted;
-      extracted_headers_.reset(new ResponseHeaders());
+      extracted_headers_ = std::make_unique<ResponseHeaders>();
       extracted_headers_->CopyFrom(response_headers_);
       extracted_headers_->Remove(HttpAttributes::kContentEncoding,
                                  HttpAttributes::kGzip);
@@ -308,7 +312,7 @@ bool Resource::EnsureExtractedIfNeeded() const {
 
 void Resource::Freshen(FreshenCallback* callback, MessageHandler* handler) {
   // We don't need Freshining for data urls or output resources.
-  if (callback != NULL) {
+  if (callback != nullptr) {
     callback->Done(false /* lock_failure */, false /* resource_ok */);
   }
 }

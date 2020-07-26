@@ -220,7 +220,7 @@ void CacheBatcher::Get(const GoogleString& key, Callback* callback) {
 }
 
 void CacheBatcher::GroupComplete() {
-  MultiGetRequest* request = NULL;
+  MultiGetRequest* request = nullptr;
   {
     ScopedMutex mutex(mutex_.get());
     if (queued_.empty()) {

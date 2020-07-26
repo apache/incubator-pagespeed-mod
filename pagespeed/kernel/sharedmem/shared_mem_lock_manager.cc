@@ -294,7 +294,7 @@ SharedMemLockManager::~SharedMemLockManager() {
 bool SharedMemLockManager::Initialize() {
   seg_.reset(shm_runtime_->CreateSegment(path_, Data::SegmentSize(lock_size_),
                                          handler_));
-  if (seg_.get() == NULL) {
+  if (seg_.get() == nullptr) {
     handler_->MessageS(kError, "Unable to create memory segment for locks.");
     return false;
   }
@@ -314,7 +314,7 @@ bool SharedMemLockManager::Initialize() {
 bool SharedMemLockManager::Attach() {
   size_t size = Data::SegmentSize(shm_runtime_->SharedMutexSize());
   seg_.reset(shm_runtime_->AttachToSegment(path_, size, handler_));
-  if (seg_.get() == NULL) {
+  if (seg_.get() == nullptr) {
     handler_->MessageS(kWarning,
                        "Unable to attach to lock service SHM segment");
     return false;

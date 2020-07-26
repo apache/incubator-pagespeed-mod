@@ -35,7 +35,7 @@ namespace net_instaweb {
 
 GoogleString GTestSrcDir() {
   char cwd[kStackBufferSize];
-  CHECK(getcwd(cwd, sizeof(cwd)) != NULL);
+  CHECK(getcwd(cwd, sizeof(cwd)) != nullptr);
 
   // This needs to return the root of the git checkout. In practice all the
   // tests are run automatically from there, so we just stat a few directories

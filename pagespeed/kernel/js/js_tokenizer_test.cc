@@ -20,6 +20,8 @@
 
 #include "pagespeed/kernel/js/js_tokenizer.h"
 
+#include <memory>
+
 #include <utility>
 
 #include "pagespeed/kernel/base/google_message_handler.h"
@@ -40,7 +42,7 @@ const char kTestRootDir[] = "/pagespeed/kernel/js/testdata/third_party/";
 class JsTokenizerTest : public testing::Test {
  protected:
   void BeginTokenizing(StringPiece input) {
-    tokenizer_.reset(new JsTokenizer(&patterns_, input));
+    tokenizer_ = std::make_unique<JsTokenizer>(&patterns_, input);
   }
 
   void ExpectParseStack(StringPiece expected_parse_stack) {

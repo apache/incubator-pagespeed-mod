@@ -55,7 +55,7 @@ void HandleNoscriptRedirectFilter::StartElement(HtmlElement* element) {
     // Checks if a <link rel=canonical href=...> is present.
     HtmlElement::Attribute* rel_attr = element->FindAttribute(HtmlName::kRel);
     HtmlElement::Attribute* href_attr = element->FindAttribute(HtmlName::kHref);
-    canonical_present_ = (rel_attr != NULL && href_attr != NULL &&
+    canonical_present_ = (rel_attr != nullptr && href_attr != nullptr &&
                           StringCaseEqual(rel_attr->DecodedValueOrNull(),
                                           kCanonical));
   }

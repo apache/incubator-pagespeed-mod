@@ -46,7 +46,7 @@ class ThreadSynchronizerTest : public testing::Test {
   }
 
   ~ThreadSynchronizerTest() override {
-    sync_point_.reset(NULL);  // make sure this is destructed first.
+    sync_point_.reset(nullptr);  // make sure this is destructed first.
   }
 
  protected:

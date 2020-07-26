@@ -20,9 +20,11 @@
 
 #include "pagespeed/system/serf_url_async_fetcher.h"
 
-#include <unistd.h>
 #include <cstddef>
 #include <cstdlib>
+#include <memory>
+#include <unistd.h>
+
 #include <vector>
 
 #include "apr_network_io.h"
@@ -165,21 +167,21 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
 
   void SetUpWithProxy(const char* proxy) {
     const char* env_host = getenv("PAGESPEED_TEST_HOST");
-    if (env_host != NULL) {
+    if (env_host != nullptr) {
       test_host_ = env_host;
     }
     if (test_host_.empty()) {
       test_host_ = kFetchHost;
     }
     GoogleString fetch_test_domain = StrCat("//", test_host_);
-    apr_pool_create(&pool_, NULL);
+    apr_pool_create(&pool_, nullptr);
     timer_.reset(Platform::CreateTimer());
-    statistics_.reset(new SimpleStats(thread_system_.get()));
+    statistics_ = std::make_unique<SimpleStats>(thread_system_.get());
     SerfUrlAsyncFetcher::InitStats(statistics_.get());
-    serf_url_async_fetcher_.reset(
-        new SerfUrlAsyncFetcher(proxy, pool_, thread_system_.get(),
+    serf_url_async_fetcher_ = std::make_unique<SerfUrlAsyncFetcher>(
+        proxy, pool_, thread_system_.get(),
                                 statistics_.get(), timer_.get(),
-                                fetcher_timeout_ms_, &message_handler_));
+                                fetcher_timeout_ms_, &message_handler_);
     mutex_.reset(thread_system_->NewMutex());
     AddTestUrl(StrCat("http:", fetch_test_domain,
                       "/mod_pagespeed_example/index.html"),
@@ -208,11 +210,11 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
 
 #if SERF_HTTPS_FETCHING
     const char* ssl_cert_dir = getenv("SSL_CERT_DIR");
-    if (ssl_cert_dir != NULL) {
+    if (ssl_cert_dir != nullptr) {
       serf_url_async_fetcher_->SetSslCertificatesDir(ssl_cert_dir);
     }
     const char* ssl_cert_file = getenv("SSL_CERT_FILE");
-    if (ssl_cert_file != NULL) {
+    if (ssl_cert_file != nullptr) {
       serf_url_async_fetcher_->SetSslCertificatesFile(ssl_cert_file);
     }
 #endif
@@ -224,8 +226,8 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
 
   void TearDown() override {
     // Need to free the fetcher before destroy the pool.
-    serf_url_async_fetcher_.reset(NULL);
-    timer_.reset(NULL);
+    serf_url_async_fetcher_.reset(nullptr);
+    timer_.reset(nullptr);
     STLDeleteElements(&fetches_);
     if (pool_ != nullptr) {
       apr_pool_destroy(pool_);
@@ -825,7 +827,7 @@ TEST_F(SerfUrlAsyncFetcherTest, TestTrackOriginalContentLength) {
   FlakyRetry(kModpagespeedSite);
   const char* ocl_header = response_headers(kModpagespeedSite)->Lookup1(
       HttpAttributes::kXOriginalContentLength);
-  ASSERT_TRUE(ocl_header != NULL);
+  ASSERT_TRUE(ocl_header != nullptr);
   int bytes_count =
       statistics_->GetVariable(SerfStats::kSerfFetchByteCount)->Get();
   int64 ocl_value;
@@ -897,13 +899,13 @@ class SerfFetchTest : public SerfUrlAsyncFetcherTest {
     async_fetch_->response_headers()->set_status_code(200);
     serf_fetch_->CallbackDone(SerfCompletionResult::kSuccess);
     // Fetch must be deleted before fetcher because it has a child pool.
-    serf_fetch_.reset(NULL);
+    serf_fetch_.reset(nullptr);
     SerfUrlAsyncFetcherTest::TearDown();
   }
 
   bool ParseUrl(const GoogleString& url) {
-    serf_fetch_.reset(new SerfFetch(
-        url, async_fetch_.get(), &message_handler_, timer_.get()));
+    serf_fetch_ = std::make_unique<SerfFetch>(
+        url, async_fetch_.get(), &message_handler_, timer_.get());
     serf_fetch_->SetFetcherForTesting(serf_url_async_fetcher_.get());
 
     bool status;
@@ -1061,7 +1063,7 @@ This text is less than 500 bytes.
       ASSERT_EQ(APR_SUCCESS, status);
 
       // Populate pollfd and add it to pollset.
-      apr_pollfd_t pollfd = { 0 };
+      apr_pollfd_t pollfd = { nullptr };
       pollfd.desc_type = APR_POLL_SOCKET;
       pollfd.desc.s = socket;
       pollfd.reqevents = APR_POLLHUP | APR_POLLERR | APR_POLLIN;
@@ -1088,8 +1090,8 @@ This text is less than 500 bytes.
   }
 
   void SetUp() override {
-    thread_.reset(
-        new FakeWebServerThread(desired_listen_port_, thread_system_.get()));
+    thread_ = std::make_unique<FakeWebServerThread>(
+        desired_listen_port_, thread_system_.get());
     ASSERT_TRUE(thread_->Start());
     // This blocks until the thread is actually listening.
     int port = thread_->GetListeningPort();

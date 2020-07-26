@@ -43,7 +43,7 @@ SharedCircularBuffer::SharedCircularBuffer(AbstractSharedMem* shm_runtime,
                                            const GoogleString& filename_suffix)
     : shm_runtime_(shm_runtime),
       buffer_capacity_(buffer_capacity),
-      buffer_(NULL),
+      buffer_(nullptr),
       filename_prefix_(filename_prefix),
       filename_suffix_(filename_suffix) {
 }
@@ -70,12 +70,12 @@ bool SharedCircularBuffer::InitSegment(bool parent,
     // In root process -> initialize the shared memory.
     segment_.reset(
         shm_runtime_->CreateSegment(SegmentName(), total, handler));
-    if (segment_.get() == NULL) {
+    if (segment_.get() == nullptr) {
       return false;
     }
     // Initialize mutex.
     if (!InitMutex(handler)) {
-      segment_.reset(NULL);
+      segment_.reset(nullptr);
       shm_runtime_->DestroySegment(SegmentName(), handler);
       return false;
     }
@@ -83,7 +83,7 @@ bool SharedCircularBuffer::InitSegment(bool parent,
     // In child process -> attach to existing segment.
     segment_.reset(
         shm_runtime_->AttachToSegment(SegmentName(), total, handler));
-    if (segment_.get() == NULL) {
+    if (segment_.get() == nullptr) {
       return false;
     }
   }
@@ -120,7 +120,7 @@ GoogleString SharedCircularBuffer::ToString(MessageHandler* handler) {
 }
 
 void SharedCircularBuffer::GlobalCleanup(MessageHandler* handler) {
-  if (segment_.get() != NULL) {
+  if (segment_.get() != nullptr) {
     shm_runtime_->DestroySegment(SegmentName(), handler);
   }
 }

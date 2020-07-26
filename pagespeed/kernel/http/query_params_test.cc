@@ -59,7 +59,7 @@ TEST_F(QueryParamsTest, TestParseFromUrl) {
   EXPECT_STREQ("a", query_params_.name(0));
   EXPECT_STREQ("1", *(query_params_.EscapedValue(0)));
   EXPECT_STREQ("b", query_params_.name(1));
-  EXPECT_EQ(NULL, query_params_.EscapedValue(1));
+  EXPECT_EQ(nullptr, query_params_.EscapedValue(1));
   EXPECT_STREQ("c", query_params_.name(2));
   EXPECT_STREQ("2", *(query_params_.EscapedValue(2)));
   EXPECT_STREQ("d", query_params_.name(3));
@@ -77,7 +77,7 @@ TEST_F(QueryParamsTest, TestParseFromUntrustedString) {
   EXPECT_STREQ("x", query_params1.name(0));
   EXPECT_STREQ("1", *query_params1.EscapedValue(0));
   EXPECT_STREQ("y", query_params1.name(1));
-  EXPECT_EQ(NULL, query_params1.EscapedValue(1));
+  EXPECT_EQ(nullptr, query_params1.EscapedValue(1));
   EXPECT_STREQ("z", query_params1.name(2));
   EXPECT_STREQ("", *query_params1.EscapedValue(2));
   EXPECT_STREQ("x", query_params1.name(3));
@@ -90,7 +90,7 @@ TEST_F(QueryParamsTest, TestParseFromUntrustedString) {
   EXPECT_STREQ("a", query_params2.name(0));
   EXPECT_STREQ("12", *query_params2.EscapedValue(0));
   EXPECT_STREQ("b", query_params2.name(1));
-  EXPECT_EQ(NULL, query_params2.EscapedValue(1));
+  EXPECT_EQ(nullptr, query_params2.EscapedValue(1));
   EXPECT_STREQ("c", query_params2.name(2));
   EXPECT_STREQ("%22%3C!%20^%3E%223", *query_params2.EscapedValue(2));
   EXPECT_STREQ("d", query_params2.name(3));
@@ -108,7 +108,7 @@ TEST_F(QueryParamsTest, TestLookup) {
   EXPECT_STREQ("3", *(v[1]));
   ASSERT_TRUE(query_params_.LookupEscaped("b", &v));
   ASSERT_EQ(1, v.size());
-  EXPECT_EQ(NULL, v[0]);
+  EXPECT_EQ(nullptr, v[0]);
   ASSERT_TRUE(query_params_.LookupEscaped("c", &v));
   ASSERT_EQ(1, v.size());
   EXPECT_STREQ("2", *(v[0]));
@@ -180,7 +180,7 @@ TEST_F(QueryParamsTest, QueryParamWithAndWithoutValues) {
 
   // "d" does not have an equals sign.  NULL is returned for the value.
   EXPECT_STREQ("d", query_params_.name(1));
-  EXPECT_TRUE(NULL == query_params_.EscapedValue(1));
+  EXPECT_TRUE(nullptr == query_params_.EscapedValue(1));
   EXPECT_FALSE(query_params_.UnescapedValue(1, &unescaped));
 
   // "e" has an equals sign, but no value before the next "&", so

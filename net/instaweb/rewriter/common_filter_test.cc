@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/common_filter.h"
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -61,7 +65,7 @@ class CommonFilterTest : public RewriteTestBase {
  protected:
   void SetUp() override {
     RewriteTestBase::SetUp();
-    filter_.reset(new CountingFilter(rewrite_driver()));
+    filter_ = std::make_unique<CountingFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(filter_.get());
   }
 
@@ -74,7 +78,7 @@ class CommonFilterTest : public RewriteTestBase {
     bool unused;
     ResourcePtr resource(filter->CreateInputResource(
         url, RewriteDriver::InputRole::kUnknown, &unused));
-    return (resource.get() != NULL);
+    return (resource.get() != nullptr);
   }
 
   CommonFilter* MakeFilter(const StringPiece& base_url,
@@ -99,7 +103,7 @@ TEST_F(CommonFilterTest, DoesCallImpls) {
   EXPECT_EQ(1, filter_->start_doc_calls_);
 
   RewriteDriver* driver = rewrite_driver();
-  HtmlElement* element = driver->NewElement(NULL, "foo");
+  HtmlElement* element = driver->NewElement(nullptr, "foo");
   EXPECT_EQ(0, filter_->start_element_calls_);
   filter_->StartElement(element);
   EXPECT_EQ(1, filter_->start_element_calls_);
@@ -195,38 +199,38 @@ TEST_F(CommonFilterTest, DetectsNoScriptCorrectly) {
   driver->AddFilters();
   driver->StartParse(doc_url);
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 
   driver->ParseText("<html><head><title>Example Site");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 
   driver->ParseText("</title><noscript>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   // Nested <noscript> elements
   driver->ParseText("Blah blah blah <noscript><noscript> do-de-do-do ");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   driver->ParseText("<link href='style.css'>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   // Close inner <noscript>s
   driver->ParseText("</noscript></noscript>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   // Close outter <noscript>
   driver->ParseText("</noscript>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 
   driver->ParseText("</head></html>");
   driver->FinishParse();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 }
 
 TEST_F(CommonFilterTest, TestTwoDomainLawyers) {
@@ -255,7 +259,7 @@ class EndDocumentInserterFilter : public CommonFilter {
   {}
 
   void EndDocument() override {
-    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, "test comment"));
+    InsertNodeAtBodyEnd(driver()->NewCommentNode(nullptr, "test comment"));
   }
 
   void StartDocumentImpl() override {}
@@ -271,7 +275,7 @@ class CommonFilterInsertNodeAtBodyEndTest : public RewriteTestBase {
  protected:
   void SetUp() override {
     RewriteTestBase::SetUp();
-    filter_.reset(new EndDocumentInserterFilter(rewrite_driver()));
+    filter_ = std::make_unique<EndDocumentInserterFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(filter_.get());
     SetupWriter();
   }

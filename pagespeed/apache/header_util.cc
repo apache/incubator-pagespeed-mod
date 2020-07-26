@@ -107,7 +107,7 @@ void ApacheRequestToResponseHeaders(const request_rec& request,
   }
   apr_table_do(AddResponseAttributeCallback, headers,
                request.headers_out, NULL);
-  if (err_headers != NULL) {
+  if (err_headers != nullptr) {
     apr_table_do(AddResponseAttributeCallback, err_headers,
                  request.err_headers_out, NULL);
   }
@@ -147,7 +147,7 @@ void ErrorHeadersToApacheRequest(const ResponseHeaders& err_response_headers,
 void DisableDownstreamHeaderFilters(request_rec* request) {
   // Prevent downstream filters from corrupting our headers.
   ap_filter_t* filter = request->output_filters;
-  while (filter != NULL) {
+  while (filter != nullptr) {
     ap_filter_t* next = filter->next;
     if ((StringCaseEqual(filter->frec->name, "MOD_EXPIRES")) ||
         (StringCaseEqual(filter->frec->name, "FIXUP_HEADERS_OUT"))) {
@@ -166,11 +166,11 @@ int PrintAttributeCallback(void *rec, const char *key, const char *value) {
 // to get instant feedback.
 void PrintHeaders(request_rec* request) {
   puts("Input headers:");
-  apr_table_do(PrintAttributeCallback, NULL, request->headers_in, NULL);
+  apr_table_do(PrintAttributeCallback, nullptr, request->headers_in, NULL);
   puts("Output headers:");
-  apr_table_do(PrintAttributeCallback, NULL, request->headers_out, NULL);
+  apr_table_do(PrintAttributeCallback, nullptr, request->headers_out, NULL);
   puts("Err_Output headers:");
-  apr_table_do(PrintAttributeCallback, NULL, request->err_headers_out, NULL);
+  apr_table_do(PrintAttributeCallback, nullptr, request->err_headers_out, NULL);
   fflush(stdout);
 }
 
@@ -205,7 +205,7 @@ class ApacheCachingHeaders : public CachingHeaders {
   bool Lookup(const StringPiece& key, StringPieceVector* values) override {
     const char* value = apr_table_get(request_->headers_out,
                                       key.as_string().c_str());
-    if (value == NULL) {
+    if (value == nullptr) {
       return false;
     }
     SplitStringPieceToVector(value, ",", values, true);

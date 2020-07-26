@@ -64,7 +64,7 @@ namespace {
 template<typename VectorType> void Compact(VectorType* cl) {
   typename VectorType::iterator new_end =
       std::remove(cl->begin(), cl->end(),
-                  static_cast<typename VectorType::value_type>(NULL));
+                  static_cast<typename VectorType::value_type>(nullptr));
   cl->erase(new_end, cl->end());
 }
 
@@ -112,7 +112,7 @@ class CriticalSelectorFilter::CssStyleElement
   // Call before InsertBeforeCurrent.
   void AppendCharactersNode(HtmlCharactersNode* characters_node) {
     characters_nodes_.push_back(
-        html_parse_->NewCharactersNode(NULL, characters_node->contents()));
+        html_parse_->NewCharactersNode(nullptr, characters_node->contents()));
   }
 
   void AppendTo(HtmlElement* parent) const override {
@@ -167,7 +167,7 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
         any_media_apply = true;
       } else {
         delete mq;
-        r->mutable_media_queries()[mediaquery_index] = NULL;
+        r->mutable_media_queries()[mediaquery_index] = nullptr;
       }
     }
 
@@ -187,7 +187,7 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
           any_selectors_apply = true;
         } else {
           delete s;
-          r->mutable_selectors()[selector_index] = NULL;
+          r->mutable_selectors()[selector_index] = nullptr;
         }
       }
     }
@@ -199,7 +199,7 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
     } else {
       // Remove the entire production
       delete r;
-      stylesheet->mutable_rulesets()[ruleset_index] = NULL;
+      stylesheet->mutable_rulesets()[ruleset_index] = nullptr;
     }
   }
   Compact(&stylesheet->mutable_rulesets());
@@ -234,7 +234,7 @@ void CriticalSelectorFilter::RenderSummary(
 
   // Update the DOM --- either an existing style element, or replace link
   // with style.
-  if (char_node != NULL) {
+  if (char_node != nullptr) {
     // Note: This depends upon all previous filters also mutating the contents
     // of the original Characters Node. If any previous filters replaces the
     // Characters Node with another one or makes some other change, this node
@@ -243,7 +243,7 @@ void CriticalSelectorFilter::RenderSummary(
     // instead so that it is not so delicate.
     *char_node->mutable_contents() = *css_to_use;
   } else {
-    HtmlElement* style_element = driver()->NewElement(NULL, HtmlName::kStyle);
+    HtmlElement* style_element = driver()->NewElement(nullptr, HtmlName::kStyle);
     driver()->InsertNodeBeforeNode(element, style_element);
 
     HtmlCharactersNode* content =
@@ -341,7 +341,7 @@ void CriticalSelectorFilter::RenderDone() {
   }
 
   if (!css_elements_.empty() && any_rendered_) {
-    HtmlElement* noscript_element = NULL;
+    HtmlElement* noscript_element = nullptr;
     Compact(&css_elements_);
     for (int i = 0, n = css_elements_.size(); i < n; ++i) {
       // Insert the full CSS, but hide all the style, link tags inside noscript
@@ -358,7 +358,7 @@ void CriticalSelectorFilter::RenderDone() {
       // inside noscript).
       if (i == 0 || (css_elements_[i]->inside_noscript() !=
                      css_elements_[i - 1]->inside_noscript())) {
-        noscript_element = driver()->NewElement(NULL, HtmlName::kNoscript);
+        noscript_element = driver()->NewElement(nullptr, HtmlName::kNoscript);
         if (!css_elements_[i]->inside_noscript()) {
           driver()->AddAttribute(noscript_element, HtmlName::kClass,
                                  kNoscriptStylesClass);
@@ -368,7 +368,7 @@ void CriticalSelectorFilter::RenderDone() {
       css_elements_[i]->AppendTo(noscript_element);
     }
 
-    HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+    HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
     driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                            StringPiece());
     InsertNodeAtBodyEnd(script);
@@ -424,8 +424,8 @@ void CriticalSelectorFilter::RememberFullCss(
     css_elements_.resize(pos + 1);
   }
   bool noscript = GetSummaryForStyle(pos).is_inside_noscript;
-  CssElement* save = NULL;
-  if (char_node != NULL) {
+  CssElement* save = nullptr;
+  if (char_node != nullptr) {
     CssStyleElement* save_inline =
         new CssStyleElement(driver(), element, noscript);
     save_inline->AppendCharactersNode(char_node);

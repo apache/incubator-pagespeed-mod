@@ -46,7 +46,7 @@ QueuedAlarm::QueuedAlarm(Scheduler* scheduler,
 }
 
 QueuedAlarm::~QueuedAlarm() {
-  if (callback_ != NULL) {
+  if (callback_ != nullptr) {
     callback_->CallCancel();
   }
 }
@@ -103,7 +103,7 @@ void QueuedAlarm::SequencePortionOfRun() {
 
   if (!canceled) {
     callback_->CallRun();
-    callback_ = NULL;  // so we don't do ->CallCancel in ~QueuedAlarm
+    callback_ = nullptr;  // so we don't do ->CallCancel in ~QueuedAlarm
   }
 
   delete this;

@@ -95,7 +95,7 @@ Value::Value(ValueType ty, FunctionParameters* params)
       params_(params),
       unit_(Unit::EM),
       color_(0, 0, 0) {
-  DCHECK(params != NULL);
+  DCHECK(params != nullptr);
   DCHECK(ty == RECT);
 }
 
@@ -105,7 +105,7 @@ Value::Value(const UnicodeText& func, FunctionParameters* params)
       unit_(Unit::EM),
       color_(0, 0, 0),
       str_(func) {
-  DCHECK(params != NULL);
+  DCHECK(params != nullptr);
 }
 
 Value::Value(HtmlColor c)
@@ -123,7 +123,7 @@ Value::Value(const Value& other)
     identifier_(other.identifier_),
     str_(other.str_),
     bytes_in_original_buffer_(other.bytes_in_original_buffer_) {
-  if (other.params_.get() != NULL) {
+  if (other.params_.get() != nullptr) {
     params_->Copy(*other.params_);
   }
 }
@@ -137,7 +137,7 @@ Value& Value::operator=(const Value& other) {
   str_ = other.str_;
   color_ = other.color_;
   bytes_in_original_buffer_ = other.bytes_in_original_buffer_;
-  if (other.params_.get() != NULL) {
+  if (other.params_.get() != nullptr) {
     params_->Copy(*other.params_);
   } else {
     params_.reset();
@@ -169,8 +169,8 @@ bool Value::Equals(const Value& other) const {
         return false;
       FALLTHROUGH_INTENDED;
     case RECT:
-      if (params_.get() == NULL)
-        return other.params_.get() == NULL;
+      if (params_.get() == nullptr)
+        return other.params_.get() == nullptr;
       return params_->Equals(*other.params_);
     default:
       LOG(FATAL) << "Unknown type:" << type_;

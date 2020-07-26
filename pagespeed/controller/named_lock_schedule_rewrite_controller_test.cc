@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "pagespeed/controller/named_lock_schedule_rewrite_controller.h"
 
 #include "pagespeed/kernel/base/function.h"
@@ -59,8 +63,8 @@ class NamedLockScheduleRewriteControllerTest : public testing::Test {
         lock_tester_(thread_system_.get()),
         lock_manager_(&timer_) {
     NamedLockScheduleRewriteController::InitStats(&stats_);
-    controller_.reset(new NamedLockScheduleRewriteController(
-        &lock_manager_, thread_system_.get(), &stats_));
+    controller_ = std::make_unique<NamedLockScheduleRewriteController>(
+        &lock_manager_, thread_system_.get(), &stats_);
   }
 
  protected:

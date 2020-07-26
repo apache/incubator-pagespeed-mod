@@ -22,6 +22,8 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <memory>
+
 #include <utility>
 #include <tuple>
 
@@ -133,7 +135,7 @@ void SystemCaches::ShutDown(MessageHandler* message_handler) {
     // And all the SHM caches.
     for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
              e = metadata_shm_caches_.end(); p != e; ++p) {
-      if (p->second->cache_backend != NULL && p->second->initialized) {
+      if (p->second->cache_backend != nullptr && p->second->initialized) {
         MetadataShmCache::GlobalCleanup(shared_mem_runtime_, p->second->segment,
                                         message_handler);
       }
@@ -143,7 +145,7 @@ void SystemCaches::ShutDown(MessageHandler* message_handler) {
 
 SystemCachePath* SystemCaches::GetCache(SystemRewriteOptions* config) {
   GoogleString path = SystemCachePath::CachePath(config);
-  SystemCachePath* system_cache_path = NULL;
+  SystemCachePath* system_cache_path = nullptr;
   std::pair<PathCacheMap::iterator, bool> result = path_cache_map_.insert(
       PathCacheMap::value_type(path, system_cache_path));
   PathCacheMap::iterator iter = result.first;
@@ -166,7 +168,7 @@ SystemCaches::ConstructExternalCacheInterfacesFromBlocking(
 
   ExternalCacheInterfaces result;
 
-  if (pool == NULL) {
+  if (pool == nullptr) {
     result.async = backend;
   } else {
     result.async = new AsyncCache(backend, pool);
@@ -222,12 +224,12 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewMemcached(
       num_threads = 1;
     }
 
-    if (memcached_pool_.get() == NULL) {
+    if (memcached_pool_.get() == nullptr) {
       // Note -- we will use the first value of ModPagespeedMemCacheThreads
       // that we see in a VirtualHost, ignoring later ones.
-      memcached_pool_.reset(
-          new QueuedWorkerPool(num_threads, "memcached",
-                               factory_->thread_system()));
+      memcached_pool_ = std::make_unique<QueuedWorkerPool>(
+          num_threads, "memcached",
+                               factory_->thread_system());
     }
     return ConstructExternalCacheInterfacesFromBlocking(
         mem_cache, memcached_pool_.get(), num_threads, kMemcachedAsync,
@@ -235,7 +237,7 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewMemcached(
   } else {
     return ConstructExternalCacheInterfacesFromBlocking(
         mem_cache,
-        NULL,  // No worker pool.
+        nullptr,  // No worker pool.
         -1,    // Do not change batcher's max_parallel_lookups.
         kMemcachedAsync, kMemcachedBlocking);
   }
@@ -256,7 +258,7 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewRedis(
       factory_->statistics(), redis_database_index, redis_ttl_sec);
   factory_->TakeOwnership(redis_server);
   redis_servers_.push_back(redis_server);
-  if (redis_pool_.get() == NULL) {
+  if (redis_pool_.get() == nullptr) {
     // TODO(yeputons): consider using more than one thread and making the amount
     // configurable. For memcached using more than one thread was not boosting
     // performance and that opportunity was eventually disabled, but that could
@@ -266,8 +268,8 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewRedis(
     // because all queries will still be queued as they require exclusive access
     // to RedisCache. Creating a separate single-threaded pool for different
     // RedisCaches could be a good idea, though.
-    redis_pool_.reset(
-        new QueuedWorkerPool(1, "redis", factory_->thread_system()));
+    redis_pool_ = std::make_unique<QueuedWorkerPool>(
+        1, "redis", factory_->thread_system());
   }
   return ConstructExternalCacheInterfacesFromBlocking(
       redis_server, redis_pool_.get(), 1, kRedisAsync, kRedisBlocking);
@@ -345,7 +347,7 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewExternalCache(
 
 bool SystemCaches::CreateShmMetadataCache(
     StringPiece name, int64 size_kb, GoogleString* error_msg) {
-  MetadataShmCacheInfo* cache_info = NULL;
+  MetadataShmCacheInfo* cache_info = nullptr;
   std::pair<MetadataShmCacheMap::iterator, bool> result =
       metadata_shm_caches_.insert(
           MetadataShmCacheMap::value_type(name.as_string(), cache_info));
@@ -403,35 +405,35 @@ NamedLockManager* SystemCaches::GetLockManager(SystemRewriteOptions* config) {
 SystemCaches::MetadataShmCacheInfo* SystemCaches::LookupShmMetadataCache(
     const GoogleString& name) {
   if (name.empty()) {
-    return NULL;
+    return nullptr;
   }
   MetadataShmCacheMap::iterator i = metadata_shm_caches_.find(name);
   if (i != metadata_shm_caches_.end()) {
     return i->second;
   }
-  return NULL;
+  return nullptr;
 }
 
 SystemCaches::MetadataShmCacheInfo* SystemCaches::GetShmMetadataCacheOrDefault(
     SystemRewriteOptions* config) {
   MetadataShmCacheInfo* shm_cache =
       LookupShmMetadataCache(config->file_cache_path());
-  if (shm_cache != NULL) {
+  if (shm_cache != nullptr) {
     return shm_cache;  // Explicitly configured.
   }
   if (shared_mem_runtime_->IsDummy()) {
     // We're on a system that doesn't actually support shared memory.
-    return NULL;
+    return nullptr;
   }
   if (config->default_shared_memory_cache_kb() == 0) {
-    return NULL;  // User has disabled the default shm cache.
+    return nullptr;  // User has disabled the default shm cache.
   }
   shm_cache = LookupShmMetadataCache(kDefaultSharedMemoryPath);
-  if (shm_cache != NULL) {
+  if (shm_cache != nullptr) {
     return shm_cache;  // Using the default shm cache, which already exists.
   }
   if (default_shm_metadata_cache_creation_failed_) {
-    return NULL;  // Already tried to create the default shm cache and failed.
+    return nullptr;  // Already tried to create the default shm cache and failed.
   }
   // This config is for the first server context to need the default cache;
   // create it.
@@ -443,7 +445,7 @@ SystemCaches::MetadataShmCacheInfo* SystemCaches::GetShmMetadataCacheOrDefault(
     factory_->message_handler()->Message(
         kWarning, "Default shared memory cache: %s", error_msg.c_str());
     default_shm_metadata_cache_creation_failed_ = true;
-    return NULL;
+    return nullptr;
   }
   return LookupShmMetadataCache(kDefaultSharedMemoryPath);
 }
@@ -464,15 +466,15 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
                                bool enable_property_cache) {
   SystemRewriteOptions* config = dynamic_cast<SystemRewriteOptions*>(
       server_context->global_options());
-  DCHECK(config != NULL);
+  DCHECK(config != nullptr);
   SystemCachePath* caches_for_path = GetCache(config);
   CacheInterface* lru_cache = caches_for_path->lru_cache();
   CacheInterface* file_cache = caches_for_path->file_cache();
   MetadataShmCacheInfo* shm_metadata_cache_info =
       GetShmMetadataCacheOrDefault(config);
-  CacheInterface* shm_metadata_cache = (shm_metadata_cache_info != NULL) ?
-      shm_metadata_cache_info->cache_to_use : NULL;
-  CacheInterface* property_store_cache = NULL;
+  CacheInterface* shm_metadata_cache = (shm_metadata_cache_info != nullptr) ?
+      shm_metadata_cache_info->cache_to_use : nullptr;
+  CacheInterface* property_store_cache = nullptr;
   CacheInterface* http_l2 = file_cache;
   Statistics* stats = server_context->statistics();
 
@@ -497,8 +499,8 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
   // Note that a user can disable the LRU cache by setting its byte-count
   // to 0, and in fact this is the default setting.
   int64 max_content_length = config->max_cacheable_response_content_length();
-  HTTPCache* http_cache = NULL;
-  if (lru_cache == NULL) {
+  HTTPCache* http_cache = nullptr;
+  if (lru_cache == nullptr) {
     // No L1, and so backend is just the L2.
     http_cache = new HTTPCache(http_l2, factory_->timer(),
                                factory_->hasher(), stats);
@@ -520,10 +522,10 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
 
   // And now the metadata cache. If we only have one level, it will be in
   // metadata_l2, with metadata_l1 set to NULL.
-  CacheInterface* metadata_l1 = NULL;
-  CacheInterface* metadata_l2 = NULL;
+  CacheInterface* metadata_l1 = nullptr;
+  CacheInterface* metadata_l2 = nullptr;
   size_t l1_size_limit = WriteThroughCache::kUnlimited;
-  if (shm_metadata_cache != NULL) {
+  if (shm_metadata_cache != nullptr) {
     if (external_cache.async != nullptr) {
       // If we have both a local SHM cache and a cache on an external server
       // we should go L1/L2 because there are likely to be other machines
@@ -581,7 +583,7 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
 
   CacheInterface* metadata_cache;
 
-  if (metadata_l1 != NULL) {
+  if (metadata_l1 != nullptr) {
     WriteThroughCache* write_through_cache = new WriteThroughCache(
         metadata_l1, metadata_l2);
     server_context->DeleteCacheOnDestruction(write_through_cache);
@@ -595,7 +597,7 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
   // even without this flag, but we should do it differently, storing
   // only the content compressed and putting in content-encoding:gzip
   // so that mod_gzip doesn't have to recompress on every request.
-  if (property_store_cache == NULL) {
+  if (property_store_cache == nullptr) {
     property_store_cache = metadata_l2;
   }
   if (config->compress_metadata_cache()) {
@@ -671,8 +673,8 @@ void SystemCaches::RootInit() {
       factory_->message_handler()->Message(
           kWarning, "Unable to initialize shared memory cache: %s.",
           p->first.c_str());
-      cache_info->cache_backend = NULL;
-      cache_info->cache_to_use = NULL;
+      cache_info->cache_backend = nullptr;
+      cache_info->cache_to_use = nullptr;
     }
   }
 
@@ -686,19 +688,19 @@ void SystemCaches::RootInit() {
 void SystemCaches::ChildInit() {
   is_root_process_ = false;
 
-  slow_worker_.reset(
-      new SlowWorker("slow_work_thread", factory_->thread_system()));
+  slow_worker_ = std::make_unique<SlowWorker>(
+      "slow_work_thread", factory_->thread_system());
   for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
            e = metadata_shm_caches_.end(); p != e; ++p) {
     MetadataShmCacheInfo* cache_info = p->second;
-    if ((cache_info->cache_backend != NULL) &&
+    if ((cache_info->cache_backend != nullptr) &&
         !cache_info->cache_backend->Attach()) {
       factory_->message_handler()->Message(
           kWarning, "Unable to attach to shared memory cache: %s.",
           p->first.c_str());
       delete cache_info->cache_backend;
-      cache_info->cache_backend = NULL;
-      cache_info->cache_to_use = NULL;
+      cache_info->cache_backend = nullptr;
+      cache_info->cache_to_use = nullptr;
     }
   }
 
@@ -768,7 +770,7 @@ void SystemCaches::PrintCacheStats(StatFlags flags, GoogleString* out) {
     for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
              e = metadata_shm_caches_.end(); p != e; ++p) {
       MetadataShmCacheInfo* cache_info = p->second;
-      if (cache_info->cache_backend != NULL) {
+      if (cache_info->cache_backend != nullptr) {
         StrAppend(out, "\nShared memory metadata cache '", p->first,
                   "' statistics:\n");
         StringWriter writer(out);

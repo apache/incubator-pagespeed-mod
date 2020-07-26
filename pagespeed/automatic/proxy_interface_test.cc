@@ -20,6 +20,10 @@
 
 // Unit-tests for ProxyInterface.
 
+#include <memory>
+
+
+
 #include "pagespeed/automatic/proxy_interface.h"
 
 #include "net/instaweb/http/public/async_fetch.h"
@@ -127,8 +131,8 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     server_context()->ComputeSignature(options);
     ProxyInterfaceTestBase::SetUp();
     // The original url_async_fetcher() is still owned by RewriteDriverFactory.
-    background_fetch_fetcher_.reset(new BackgroundFetchCheckingUrlAsyncFetcher(
-        factory()->ComputeUrlAsyncFetcher()));
+    background_fetch_fetcher_ = std::make_unique<BackgroundFetchCheckingUrlAsyncFetcher>(
+        factory()->ComputeUrlAsyncFetcher());
     server_context()->set_default_system_fetcher(
         background_fetch_fetcher_.get());
 
@@ -881,7 +885,7 @@ TEST_F(ProxyInterfaceTest, SetCookieNotCached) {
   GoogleString text2;
   ResponseHeaders response_headers2;
   FetchFromProxy("text.txt", true, &text2, &response_headers2);
-  EXPECT_EQ(NULL, response_headers2.Lookup1(HttpAttributes::kSetCookie));
+  EXPECT_EQ(nullptr, response_headers2.Lookup1(HttpAttributes::kSetCookie));
   EXPECT_EQ(kContent, text2);
   // The HTTP response is found but the ajax metadata is not found.
   EXPECT_EQ(1, lru_cache()->num_hits());
@@ -916,7 +920,7 @@ TEST_F(ProxyInterfaceTest, SetCookie2NotCached) {
   GoogleString text2;
   ResponseHeaders response_headers2;
   FetchFromProxy("text.txt", true, &text2, &response_headers2);
-  EXPECT_EQ(NULL, response_headers2.Lookup1(HttpAttributes::kSetCookie2));
+  EXPECT_EQ(nullptr, response_headers2.Lookup1(HttpAttributes::kSetCookie2));
   EXPECT_EQ(kContent, text2);
   // The HTTP response is found but the ajax metadata is not found.
   EXPECT_EQ(1, lru_cache()->num_misses());
@@ -1440,7 +1444,7 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
   GoogleString text;
   ResponseHeaders response_headers;
   FetchFromProxy("text.html", true, &text, &response_headers);
-  EXPECT_STREQ(NULL, response_headers.Lookup1(HttpAttributes::kCacheControl));
+  EXPECT_STREQ(nullptr, response_headers.Lookup1(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
@@ -1455,7 +1459,7 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
   text.clear();
   response_headers.Clear();
   FetchFromProxy("text.html", true, &text, &response_headers);
-  EXPECT_EQ(NULL, response_headers.Lookup1(HttpAttributes::kCacheControl));
+  EXPECT_EQ(nullptr, response_headers.Lookup1(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
@@ -1536,7 +1540,7 @@ TEST_F(ProxyInterfaceTest, EtagsAddedWhenAbsent) {
   ResponseHeaders response_headers;
   FetchFromProxy("text.txt", true, &text, &response_headers);
   EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
-  EXPECT_EQ(NULL, response_headers.Lookup1(HttpAttributes::kEtag));
+  EXPECT_EQ(nullptr, response_headers.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ(kContent, text);
   // One lookup for ajax metadata and one for the HTTP response. Neither are
   // found.
@@ -1568,7 +1572,7 @@ TEST_F(ProxyInterfaceTest, EtagsAddedWhenAbsent) {
   request_headers.Add(HttpAttributes::kIfNoneMatch, kEtag0);
   FetchFromProxy("text.txt", request_headers, true, &text3, &response_headers3);
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
-  EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kEtag));
+  EXPECT_STREQ(nullptr, response_headers3.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ("", text3);
   // One lookup for ajax metadata and one for the HTTP response. The metadata is
   // not found but the HTTP response is found.
@@ -1623,7 +1627,7 @@ TEST_F(ProxyInterfaceTest, EtagMatching) {
   request_headers.Add(HttpAttributes::kIfNoneMatch, "etag");
   FetchFromProxy("text.txt", request_headers, true, &text3, &response_headers3);
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
-  EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kEtag));
+  EXPECT_STREQ(nullptr, response_headers3.Lookup1(HttpAttributes::kEtag));
   EXPECT_EQ("", text3);
   // One lookup for ajax metadata and one for the HTTP response. The metadata is
   // not found but the HTTP response is found.
@@ -1696,7 +1700,7 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   request_headers.Add(HttpAttributes::kIfModifiedSince, start_time_string_);
   FetchFromProxy("text.txt", request_headers, true, &text3, &response_headers3);
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
-  EXPECT_STREQ(NULL, response_headers3.Lookup1(HttpAttributes::kLastModified));
+  EXPECT_STREQ(nullptr, response_headers3.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ("", text3);
   // One lookup for ajax metadata and one for the HTTP response. The metadata is
   // not found but the HTTP response is found.
@@ -2039,8 +2043,8 @@ TEST_F(ProxyInterfaceTest, EatCookiesOnReconstructFailure) {
                  &text,
                  &out_response_headers,
                  false  /* proxy_fetch_property_callback_collector_created */);
-  EXPECT_EQ(NULL, out_response_headers.Lookup1(HttpAttributes::kSetCookie));
-  EXPECT_EQ(NULL, out_response_headers.Lookup1(HttpAttributes::kSetCookie2));
+  EXPECT_EQ(nullptr, out_response_headers.Lookup1(HttpAttributes::kSetCookie));
+  EXPECT_EQ(nullptr, out_response_headers.Lookup1(HttpAttributes::kSetCookie2));
 }
 
 TEST_F(ProxyInterfaceTest, RewriteHtml) {
@@ -2075,8 +2079,8 @@ TEST_F(ProxyInterfaceTest, RewriteHtml) {
   headers.ComputeCaching();
   EXPECT_LE(start_time_ms_ + kHtmlCacheTimeSec * Timer::kSecondMs,
             headers.CacheExpirationTimeMs());
-  EXPECT_EQ(NULL, headers.Lookup1(HttpAttributes::kEtag));
-  EXPECT_EQ(NULL, headers.Lookup1(HttpAttributes::kLastModified));
+  EXPECT_EQ(nullptr, headers.Lookup1(HttpAttributes::kEtag));
+  EXPECT_EQ(nullptr, headers.Lookup1(HttpAttributes::kLastModified));
   EXPECT_STREQ("cf", AppliedRewriterStringFromLog());
 
   // Fetch the rewritten resource as well.
@@ -2741,7 +2745,7 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeaders) {
              "/test.com/test.com/file.css"),
       true, &out_text, &out_headers);
   EXPECT_STREQ(kText, out_text);
-  EXPECT_STREQ(NULL, out_headers.Lookup1(HttpAttributes::kSetCookie));
+  EXPECT_STREQ(nullptr, out_headers.Lookup1(HttpAttributes::kSetCookie));
 }
 
 TEST_F(ProxyInterfaceTest, CrossDomainRedirectIfBlacklisted) {
@@ -3395,7 +3399,7 @@ TEST_F(ProxyInterfaceTest, TestNoFallbackCallWithNoLeaf) {
   PropertyPage* fallback_page = callback_collector->fallback_property_page()
       ->property_page_with_fallback_values();
   // No PropertyPage with fallback values.
-  EXPECT_EQ(NULL, fallback_page);
+  EXPECT_EQ(nullptr, fallback_page);
 }
 
 TEST_F(ProxyInterfaceTest, TestSkipBlinkCohortLookUp) {

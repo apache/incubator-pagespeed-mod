@@ -92,9 +92,9 @@ ImageUrlEncoder::~ImageUrlEncoder() { }
 void ImageUrlEncoder::Encode(const StringVector& urls,
                              const ResourceContext* data,
                              GoogleString* rewritten_url) const {
-  DCHECK(data != NULL) << "null data passed to ImageUrlEncoder::Encode";
+  DCHECK(data != nullptr) << "null data passed to ImageUrlEncoder::Encode";
   DCHECK_EQ(1U, urls.size());
-  if (data != NULL) {
+  if (data != nullptr) {
     if (HasDimension(*data)) {
       const ImageDim& dims = data->desired_image_dims();
       if (dims.has_width()) {
@@ -279,7 +279,7 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
     const RewriteDriver& driver,
     ResourceContext* context) {
   const RewriteOptions* options = driver.options();
-  if (context == NULL) {
+  if (context == nullptr) {
     return;
   }
 

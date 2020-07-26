@@ -45,7 +45,7 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
                                            ServerContext* server_context,
                                            RewriteOptions** custom_options) {
   const RewriteOptions* active_options;
-  if (*custom_options == NULL) {
+  if (*custom_options == nullptr) {
     RewriteDriverPool* driver_pool =
         server_context->standard_rewrite_driver_pool();
     active_options = driver_pool->TargetOptions();
@@ -59,7 +59,7 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
     ResourceNamer namer;
     namer.DecodeIgnoreHashAndSignature(url.LeafSansQuery());
     if (namer.has_experiment()) {
-      if (*custom_options == NULL) {
+      if (*custom_options == nullptr) {
         *custom_options = active_options->Clone();
       }
       (*custom_options)->SetExperimentStateStr(namer.experiment());
@@ -72,7 +72,7 @@ RewriteDriver* ResourceFetch::GetDriver(
     const GoogleUrl& url, RewriteOptions* custom_options,
     ServerContext* server_context, const RequestContextPtr& request_ctx) {
   ApplyExperimentOptions(url, request_ctx, server_context, &custom_options);
-  RewriteDriver* driver = (custom_options == NULL)
+  RewriteDriver* driver = (custom_options == nullptr)
       ? server_context->NewRewriteDriver(request_ctx)
       : server_context->NewCustomRewriteDriver(custom_options, request_ctx);
   return driver;
@@ -157,7 +157,7 @@ ResourceFetch::ResourceFetch(const GoogleUrl& url,
       redirect_count_(0),
       cleanup_mode_(cleanup_mode) {
   resource_url_.Reset(url);
-  DCHECK(driver_->request_headers() == NULL);
+  DCHECK(driver_->request_headers() == nullptr);
 }
 
 ResourceFetch::~ResourceFetch() {

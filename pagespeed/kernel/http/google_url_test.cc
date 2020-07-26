@@ -235,7 +235,7 @@ TEST_F(GoogleUrlTest, TestCopyAndAddQueryParam) {
                            "http://a.com/?key%2f%3f=val+%25%09%40+ue");
 
   // NULL value
-  TestCopyAndAddQueryParam("http://a.com/", "key", NULL,
+  TestCopyAndAddQueryParam("http://a.com/", "key", nullptr,
                            "http://a.com/?key");
 }
 

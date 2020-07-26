@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -69,7 +73,7 @@ class StripSubresourceHintsFilterTestBase : public RewriteTestBase {
                                     &message_handler_);
     lawyer->AddShard(kTo2Domain, StrCat(kTo2ADomain, ",", kTo2BDomain),
                      &message_handler_);
-    can_modify_urls_filter_.reset(new CanModifyUrlsFilter());
+    can_modify_urls_filter_ = std::make_unique<CanModifyUrlsFilter>();
     rewrite_driver()->AddFilter(can_modify_urls_filter_.get());
     CustomSetup();
     rewrite_driver()->AddFilters();

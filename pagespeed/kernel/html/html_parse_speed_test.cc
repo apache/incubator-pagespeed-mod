@@ -59,9 +59,9 @@ namespace {
 // TODO(jmarantz): this function was duplicated to
 // third_party/pagespeed/automatic/rewriter_speed_test.cc and should possibly
 // be factored out.
-GoogleString* sHtmlText = NULL;
+GoogleString* sHtmlText = nullptr;
 const StringPiece GetHtmlText() {
-  if (sHtmlText == NULL) {
+  if (sHtmlText == nullptr) {
     sHtmlText = new GoogleString;
     StdioFileSystem file_system;
     StringVector files;

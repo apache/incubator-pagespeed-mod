@@ -91,7 +91,7 @@ class CssHierarchyTest : public RewriteTestBase {
     InitializeCss("", "");
     top->InitializeRoot(top_url_, top_url_, flat_top_css_,
                         false /* has_unparseables */,
-                        0 /* flattened_result_limit */, NULL /* stylesheet */,
+                        0 /* flattened_result_limit */, nullptr /* stylesheet */,
                         message_handler());
   }
 
@@ -100,7 +100,7 @@ class CssHierarchyTest : public RewriteTestBase {
     InitializeCss("", "");
     top->InitializeRoot(top_url_, top_url_, nested_top_css_,
                         false /* has_unparseables */,
-                        0 /* flattened_result_limit */, NULL /* stylesheet */,
+                        0 /* flattened_result_limit */, nullptr /* stylesheet */,
                         message_handler());
   }
 
@@ -111,7 +111,7 @@ class CssHierarchyTest : public RewriteTestBase {
     InitializeCss(top_media, child_media);
     top->InitializeRoot(top_url_, top_url_, nested_top_css_,
                         false /* has_unparseables */,
-                        0 /* flattened_result_limit */, NULL /* stylesheet */,
+                        0 /* flattened_result_limit */, nullptr /* stylesheet */,
                         message_handler());
   }
 
@@ -123,7 +123,7 @@ class CssHierarchyTest : public RewriteTestBase {
   void ResizeChildren(CssHierarchy* top, int n) {
     top->children().resize(n);
     for (int i = 0; i < n; ++i) {
-      top->children()[i] = new CssHierarchy(NULL);
+      top->children()[i] = new CssHierarchy(nullptr);
     }
   }
 
@@ -274,11 +274,11 @@ bool CssHierarchyTest::AreEquivalent(const CssHierarchy& one,
   // Sigh. We need to check the stylesheet data manually.
   const Css::Stylesheet* stylesheet_one = one.stylesheet();
   const Css::Stylesheet* stylesheet_two = two.stylesheet();
-  if ((stylesheet_one == NULL && stylesheet_two != NULL) ||
-      (stylesheet_one != NULL && stylesheet_two == NULL)) {
+  if ((stylesheet_one == nullptr && stylesheet_two != nullptr) ||
+      (stylesheet_one != nullptr && stylesheet_two == nullptr)) {
     return false;
   }
-  if (stylesheet_one != NULL && stylesheet_two != NULL) {
+  if (stylesheet_one != nullptr && stylesheet_two != nullptr) {
     // The easiest way to compare two stylesheets is to textify them and
     // compare the texts. Not inefficient but simple and effective. If either
     // textification fails though we give up and treat the as different.
@@ -307,58 +307,58 @@ bool CssHierarchyTest::AreEquivalent(const CssHierarchy& one,
 }
 
 TEST_F(CssHierarchyTest, ParseFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeFlatRoot(&top);
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL == top.stylesheet());
+  EXPECT_TRUE(nullptr == top.stylesheet());
 
   EXPECT_TRUE(top.Parse());
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_TRUE(top.stylesheet()->imports().empty());
 }
 
 TEST_F(CssHierarchyTest, ExpandFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeFlatRoot(&top);
-  EXPECT_TRUE(NULL == top.stylesheet());
+  EXPECT_TRUE(nullptr == top.stylesheet());
 
   EXPECT_TRUE(top.Parse());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_TRUE(top.stylesheet()->imports().empty());
   EXPECT_TRUE(top.children().empty());
 
   // No imports to expand => no change in these checks.
   EXPECT_FALSE(top.ExpandChildren());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_TRUE(top.stylesheet()->imports().empty());
   EXPECT_TRUE(top.children().empty());
 }
 
 TEST_F(CssHierarchyTest, RollUpContentsFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeFlatRoot(&top);
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL == top.stylesheet());
+  EXPECT_TRUE(nullptr == top.stylesheet());
 
   top.RollUpContents();
   EXPECT_EQ(flat_top_css(), top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsFlat) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeFlatRoot(&top);
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL == top.stylesheet());
+  EXPECT_TRUE(nullptr == top.stylesheet());
 
   top.RollUpStylesheets();
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_TRUE(top.stylesheet()->imports().empty());
 
   // Re-serialize stylesheet and check it matches.
@@ -369,42 +369,42 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsFlat) {
 }
 
 TEST_F(CssHierarchyTest, ParseNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_EQ("", top.minified_contents());
   EXPECT_EQ(2, top.stylesheet()->imports().size());
 }
 
 TEST_F(CssHierarchyTest, ExpandNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
 
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_EQ(2, top.stylesheet()->imports().size());
   EXPECT_EQ(2, top.children().size());
 
   for (int i = 0, n = top.children().size(); i < n; ++i) {
     CssHierarchy* child = top.children()[i];
-    EXPECT_TRUE(NULL != child->stylesheet());
+    EXPECT_TRUE(nullptr != child->stylesheet());
     EXPECT_EQ(1, child->stylesheet()->imports().size());
     EXPECT_EQ(1, child->children().size());
 
     CssHierarchy* grandchild = child->children()[0];
-    EXPECT_TRUE(NULL != grandchild->stylesheet());
+    EXPECT_TRUE(nullptr != grandchild->stylesheet());
     EXPECT_TRUE(grandchild->stylesheet()->imports().empty());
     EXPECT_TRUE(grandchild->children().empty());
   }
 }
 
 TEST_F(CssHierarchyTest, ExpandEqualsPopulate) {
-  CssHierarchy top1(NULL);
-  CssHierarchy top2(NULL);
+  CssHierarchy top1(nullptr);
+  CssHierarchy top2(nullptr);
 
   InitializeNestedRoot(&top1);
   ExpandHierarchy(&top1);
@@ -426,11 +426,11 @@ TEST_F(CssHierarchyTest, ExpandEqualsPopulate) {
 TEST_F(CssHierarchyTest, FailOnDirectRecursion) {
   InitializeCss("", "");  // to initialize top_url().
 
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
   GoogleString recursive_import = StrCat("@import '", top_url().Spec(), "' ;");
   top.InitializeRoot(top_url(), top_url(), recursive_import,
                      false /* has_unparseables */,
-                     0 /* flattened_result_limit */, NULL /* stylesheet */,
+                     0 /* flattened_result_limit */, nullptr /* stylesheet */,
                      message_handler());
 
   // The top-level normally doesn't have an URL so we won't catch it recursing
@@ -455,7 +455,7 @@ TEST_F(CssHierarchyTest, FailOnDirectRecursion) {
 }
 
 TEST_F(CssHierarchyTest, FailOnIndirectRecursion) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
 
@@ -498,10 +498,10 @@ TEST_F(CssHierarchyTest, UnparseableSection) {
   GoogleString unparseable_css = StrCat("@foobar { background: "
                                         "url(", top_url().Spec(), "), ",
                                         "url(", top_url().Spec(), ") }");
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
   top.InitializeRoot(top_url(), top_url(), unparseable_css,
                      false /* has_unparseables */,
-                     0 /* flattened_result_limit */, NULL /* stylesheet */,
+                     0 /* flattened_result_limit */, nullptr /* stylesheet */,
                      message_handler());
 
   // The top-level normally doesn't have an URL so we won't catch it recursing
@@ -512,23 +512,23 @@ TEST_F(CssHierarchyTest, UnparseableSection) {
 }
 
 TEST_F(CssHierarchyTest, ExpandElidesImportsWithNoMedia) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRootWithMedia(&top, "screen", "print");
   ExpandHierarchy(&top);
 
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_EQ(2, top.stylesheet()->imports().size());
   EXPECT_EQ(2, top.children().size());
 
   for (int i = 0, n = top.children().size(); i < n; ++i) {
     CssHierarchy* child = top.children()[i];
-    EXPECT_TRUE(NULL != child->stylesheet());
+    EXPECT_TRUE(nullptr != child->stylesheet());
     EXPECT_EQ(1, child->stylesheet()->imports().size());
     EXPECT_EQ(1, child->children().size());
 
     CssHierarchy* grandchild = child->children()[0];
-    EXPECT_TRUE(NULL == grandchild->stylesheet());
+    EXPECT_TRUE(nullptr == grandchild->stylesheet());
     EXPECT_TRUE(grandchild->children().empty());
     EXPECT_FALSE(grandchild->NeedsRewriting());
   }
@@ -555,7 +555,7 @@ TEST_F(CssHierarchyTest, ChildMediaAllHandledOK) {
 }
 
 TEST_F(CssHierarchyTest, CompatibleCharset) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -582,7 +582,7 @@ TEST_F(CssHierarchyTest, CompatibleCharset) {
 }
 
 TEST_F(CssHierarchyTest, IncompatibleCharset) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
@@ -606,12 +606,12 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
 }
 
 TEST_F(CssHierarchyTest, RollUpContentsNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
 
   top.RollUpContents();
   EXPECT_EQ(flattened_css(), top.minified_contents());
@@ -619,7 +619,7 @@ TEST_F(CssHierarchyTest, RollUpContentsNested) {
 
 TEST_F(CssHierarchyTest, RollUpContentsNestedUnderLimit) {
   // The flattening limit is so big flattening succeeds just fine.
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
   InitializeNestedRoot(&top);
   top.set_flattened_result_limit(2048L);
   ExpandHierarchy(&top);
@@ -631,7 +631,7 @@ TEST_F(CssHierarchyTest, RollUpContentsNestedUnderLimit) {
 TEST_F(CssHierarchyTest, RollUpContentsNestedAtLimit) {
   // The flattening limit is exactly the flattened result size, so flattening
   // fails, and the result is the unflattened/original input.
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
   InitializeNestedRoot(&top);
   top.set_flattened_result_limit(flattened_css().size());
   ExpandHierarchy(&top);
@@ -643,7 +643,7 @@ TEST_F(CssHierarchyTest, RollUpContentsNestedAtLimit) {
 TEST_F(CssHierarchyTest, RollUpContentsNestedOverLimit) {
   // The flattening limit is tiny so flattening fails, and the result is the
   // unflattened/original input.
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
   InitializeNestedRoot(&top);
   top.set_flattened_result_limit(10L);
   ExpandHierarchy(&top);
@@ -653,16 +653,16 @@ TEST_F(CssHierarchyTest, RollUpContentsNestedOverLimit) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsNested) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
 
   top.RollUpStylesheets();
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_TRUE(top.stylesheet()->imports().empty());
 
   // Re-serialize stylesheet and check it matches.
@@ -673,12 +673,12 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNested) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithoutRollUpContents) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   PopulateHierarchy(&top);  // ExpandHierarchy does too much.
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL == top.stylesheet());
+  EXPECT_TRUE(nullptr == top.stylesheet());
 
   top.RollUpStylesheets();
   EXPECT_EQ("", top.minified_contents());
@@ -692,12 +692,12 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithoutRollUpContents) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithChildrenRollUpContents) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   PopulateHierarchy(&top);  // ExpandHierarchy does too much.
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL == top.stylesheet());
+  EXPECT_TRUE(nullptr == top.stylesheet());
 
   // Per the contract, make sure our CSS is already parsed.
   EXPECT_TRUE(top.Parse());
@@ -710,7 +710,7 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithChildrenRollUpContents) {
 
   top.RollUpStylesheets();
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_TRUE(top.stylesheet()->imports().empty());
 
   // Re-serialize stylesheet and check it matches.
@@ -721,12 +721,12 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedWithChildrenRollUpContents) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsNestedAfterRollUpContents) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
 
   InitializeNestedRoot(&top);
   PopulateHierarchy(&top);  // ExpandHierarchy does too much.
   EXPECT_EQ("", top.minified_contents());
-  EXPECT_TRUE(NULL == top.stylesheet());
+  EXPECT_TRUE(nullptr == top.stylesheet());
 
   // Roll up our own contents which should manually roll-up all our children's
   // thereby meeting the contract for RollUpStylesheets(). This implicitly
@@ -735,7 +735,7 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedAfterRollUpContents) {
   EXPECT_EQ(flattened_css(), top.minified_contents());
 
   top.RollUpStylesheets();
-  EXPECT_TRUE(NULL != top.stylesheet());
+  EXPECT_TRUE(nullptr != top.stylesheet());
   EXPECT_TRUE(top.stylesheet()->imports().empty());
 
   // Re-serialize stylesheet and check it matches.
@@ -746,7 +746,7 @@ TEST_F(CssHierarchyTest, RollUpStylesheetsNestedAfterRollUpContents) {
 }
 
 TEST_F(CssHierarchyTest, RollUpContentsKeepsDebugMessages) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
 
@@ -769,7 +769,7 @@ TEST_F(CssHierarchyTest, RollUpContentsKeepsDebugMessages) {
 }
 
 TEST_F(CssHierarchyTest, RollUpStylesheetsKeepsDebugMessages) {
-  CssHierarchy top(NULL);
+  CssHierarchy top(nullptr);
   InitializeNestedRoot(&top);
   ExpandHierarchy(&top);
 

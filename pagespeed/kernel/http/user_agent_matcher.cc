@@ -19,6 +19,8 @@
 
 
 #include <map>
+#include <memory>
+
 #include <utility>
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -444,7 +446,7 @@ UserAgentMatcher::UserAgentMatcher()
     StrAppend(&known_devices_pattern_string, dim.device_name);
   }
   StrAppend(&known_devices_pattern_string, ")");
-  known_devices_pattern_.reset(new RE2(known_devices_pattern_string));
+  known_devices_pattern_ = std::make_unique<RE2>(known_devices_pattern_string);
 }
 
 UserAgentMatcher::~UserAgentMatcher() {

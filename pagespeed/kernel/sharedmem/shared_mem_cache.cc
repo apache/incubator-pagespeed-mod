@@ -200,7 +200,7 @@ SharedMemCache<kBlockSize>::SharedMemCache(
       checkpoint_interval_sec_(-1),
       handler_(handler),
       snapshot_path_(""),
-      file_cache_(NULL) {
+      file_cache_(nullptr) {
 }
 
 template<size_t kBlockSize>
@@ -226,7 +226,7 @@ bool SharedMemCache<kBlockSize>::InitCache(bool parent) {
     segment_.reset(shm_runtime_->AttachToSegment(filename_, size, handler_));
   }
 
-  if (segment_.get() == NULL) {
+  if (segment_.get() == nullptr) {
     handler_->Message(
         kError, "SharedMemCache: can't %s segment %s of size %s",
         parent ? "create" : "attach",
@@ -487,7 +487,7 @@ void SharedMemCache<kBlockSize>::PutRawHash(const GoogleString& raw_hash,
   // something  unrelated. In this case, we even give up if there are only
   // readers, as it's unclear that they are any less important than us.
   EntryNum best_key = kInvalidEntry;
-  CacheEntry* best = NULL;
+  CacheEntry* best = nullptr;
   for (int p = 0; p < kAssociativity; ++p) {
     EntryNum cand_key = pos.keys[p];
     CacheEntry* cand = sector->EntryAt(cand_key);
@@ -546,9 +546,9 @@ void SharedMemCache<kBlockSize>::ScheduleSnapshot(int sector_num,
   // We're being called from whatever thread called Put() but snapshotting can
   // take a while so we need to move to the slow worker thread.  We use whatever
   // worker the file cache uses.
-  CHECK(file_cache_ != NULL);
+  CHECK(file_cache_ != nullptr);
   SlowWorker* worker = file_cache_->worker();
-  CHECK(worker != NULL);
+  CHECK(worker != nullptr);
   worker->Start();
   worker->RunIfNotBusy(
       new WriteOutSnapshotFunction(this, sector_num, last_checkpoint_ms));
@@ -582,7 +582,7 @@ void SharedMemCache<kBlockSize>::WriteOutSnapshotFromWorkerThread(
   MarshalSnapshot(snapshot, &snapshot_s);
   SharedString snapshot_s_shared(snapshot_s);
 
-  CHECK(file_cache_ != NULL);
+  CHECK(file_cache_ != nullptr);
   // It's safe for us to use the file cache from an arbitrary thread because
   // the file cache is thread-agnostic, having no writable member variables.
   file_cache_->Put(SnapshotCacheKey(sector_num), snapshot_s_shared);
@@ -590,7 +590,7 @@ void SharedMemCache<kBlockSize>::WriteOutSnapshotFromWorkerThread(
 
 template<size_t kBlockSize>
 void SharedMemCache<kBlockSize>::RestoreFromDisk() {
-  if (file_cache_ == NULL) {
+  if (file_cache_ == nullptr) {
     // RegisterSnapshotFileCache was never called, which should only happen in
     // test code.
     handler_->Message(

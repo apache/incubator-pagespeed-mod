@@ -51,7 +51,7 @@ const char kAttrValImage[] = "image";  // <input type="image" src=...>
 namespace {
 
 bool IsAttributeValid(HtmlElement::Attribute* attr) {
-  return attr != NULL && !attr->decoding_error();
+  return attr != nullptr && !attr->decoding_error();
 }
 
 semantic_type::Category CategorizeAttributeBySpec(
@@ -64,7 +64,7 @@ semantic_type::Category CategorizeAttributeBySpec(
       }
       const HtmlElement::Attribute* rel_attr =
           element->FindAttribute(HtmlName::kRel);
-      if (rel_attr == NULL) {
+      if (rel_attr == nullptr) {
         return semantic_type::kHyperlink;
       }
       if (CssTagScanner::IsStylesheetOrAlternate(
@@ -198,7 +198,7 @@ semantic_type::Category CategorizeAttribute(
     const HtmlElement::Attribute* attribute,
     const RewriteOptions* options) {
 
-  if (attribute == NULL) {
+  if (attribute == nullptr) {
     return semantic_type::kUndefined;
   }
 

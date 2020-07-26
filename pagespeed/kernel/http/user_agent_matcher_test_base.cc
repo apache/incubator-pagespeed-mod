@@ -25,6 +25,10 @@
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
+
+#include <memory>
+
+
 namespace net_instaweb {
 
 const char UserAgentMatcherTestBase::kAcceptHeaderValueMobile[] =
@@ -484,7 +488,7 @@ const int UserAgentMatcherTestBase::kImageInliningSupportedUserAgentsArraySize =
     arraysize(kImageInliningSupportedUserAgents);
 
 UserAgentMatcherTestBase::UserAgentMatcherTestBase() {
-  user_agent_matcher_.reset(new UserAgentMatcher());
+  user_agent_matcher_ = std::make_unique<UserAgentMatcher>();
 }
 
 bool UserAgentMatcherTestBase::IsMobileUserAgent(

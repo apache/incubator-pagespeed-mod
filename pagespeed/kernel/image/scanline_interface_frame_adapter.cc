@@ -31,7 +31,7 @@ namespace image_compression {
 
 FrameToScanlineReaderAdapter::FrameToScanlineReaderAdapter(
     MultipleFrameReader* frame_reader) : impl_(frame_reader) {
-  CHECK(frame_reader != NULL);
+  CHECK(frame_reader != nullptr);
   CHECK(Reset());
 }
 
@@ -103,7 +103,7 @@ PixelFormat FrameToScanlineReaderAdapter::GetPixelFormat() {
 FrameToScanlineWriterAdapter::FrameToScanlineWriterAdapter(
     MultipleFrameWriter* const frame_writer)
     : impl_(frame_writer), init_done_(false) {
-  CHECK(frame_writer != NULL);
+  CHECK(frame_writer != nullptr);
 }
 
 ScanlineStatus FrameToScanlineWriterAdapter::InitWithStatus(
@@ -166,7 +166,7 @@ ScanlineToFrameReaderAdapter::ScanlineToFrameReaderAdapter(
     : MultipleFrameReader(message_handler),
       state_(UNINITIALIZED),
       impl_(scanline_reader) {
-  CHECK(scanline_reader != NULL);
+  CHECK(scanline_reader != nullptr);
 }
 
 ScanlineStatus ScanlineToFrameReaderAdapter::Reset() {
@@ -254,9 +254,9 @@ ScanlineToFrameWriterAdapter::ScanlineToFrameWriterAdapter(
     MessageHandler* const handler) : MultipleFrameWriter(handler),
                                      state_(UNINITIALIZED),
                                      impl_(scanline_writer),
-                                     config_(NULL),
-                                     out_(NULL) {
-  CHECK(scanline_writer != NULL);
+                                     config_(nullptr),
+                                     out_(nullptr) {
+  CHECK(scanline_writer != nullptr);
 }
 
 ScanlineStatus ScanlineToFrameWriterAdapter::Initialize(

@@ -23,7 +23,7 @@
 using net_instaweb::MessageHandler;
 
 
-#include <setjmp.h>
+#include <csetjmp>
 #include <cstddef>
 
 extern "C" {
@@ -83,7 +83,7 @@ void SelectSmallerImage(
         pagespeed::image_compression::ImageConverter::IMAGE_NONE) ||
        ((new_image_type !=
          pagespeed::image_compression::ImageConverter::IMAGE_NONE) &&
-        (*best_image != NULL) &&
+        (*best_image != nullptr) &&
         (new_image_size < (*best_image)->size() * threshold_ratio)))) {
     *best_image_type = new_image_type;
     *best_image = &new_image;
@@ -190,7 +190,7 @@ ScanlineStatus ImageConverter::ConvertMultipleFrameImage(
     MultipleFrameWriter* writer) {
   ImageSpec image_spec;
   FrameSpec frame_spec;
-  const void* scan_row = NULL;
+  const void* scan_row = nullptr;
 
   ScanlineStatus status;
   if (reader->GetImageSpec(&image_spec, &status) &&
@@ -307,7 +307,7 @@ bool ImageConverter::ConvertPngToWebp(
     GoogleString* const out,
     bool* is_opaque,
     MessageHandler* handler) {
-    ScanlineWriterInterface* webp_writer = NULL;
+    ScanlineWriterInterface* webp_writer = nullptr;
     bool success = ConvertPngToWebp(png_struct_reader, in, webp_config,
                                     out, is_opaque, &webp_writer, handler);
     delete webp_writer;
@@ -325,7 +325,7 @@ bool ImageConverter::ConvertPngToWebp(
   DCHECK(out->empty());
   out->clear();
 
-  if (*webp_writer != NULL) {
+  if (*webp_writer != nullptr) {
     PS_LOG_DFATAL(handler, "Expected *webp_writer == NULL");
     return false;
   }
@@ -381,14 +381,14 @@ ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
     GoogleString* out,
     MessageHandler* handler) {
   GoogleString jpeg_out, png_out, webp_lossless_out, webp_lossy_out;
-  const GoogleString* best_lossless_image = NULL;
-  const GoogleString* best_lossy_image = NULL;
-  const GoogleString* best_image = NULL;
+  const GoogleString* best_lossless_image = nullptr;
+  const GoogleString* best_lossy_image = nullptr;
+  const GoogleString* best_image = nullptr;
   ImageType best_lossless_image_type = IMAGE_NONE;
   ImageType best_lossy_image_type = IMAGE_NONE;
   ImageType best_image_type = IMAGE_NONE;
 
-  ScanlineWriterInterface* webp_writer = NULL;
+  ScanlineWriterInterface* webp_writer = nullptr;
   WebpConfiguration webp_config_lossless;
   bool is_opaque = false;
   if (!ConvertPngToWebp(png_struct_reader, in, webp_config_lossless,
@@ -397,7 +397,7 @@ ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
     PS_DLOG_INFO(handler, "Could not convert image to lossless WebP");
     webp_lossless_out.clear();
   }
-  if ((webp_config != NULL) &&
+  if ((webp_config != nullptr) &&
       (!webp_writer->InitializeWrite(webp_config, &webp_lossy_out) ||
        !webp_writer->FinalizeWrite())) {
     PS_DLOG_INFO(handler, "Could not convert image to custom WebP");
@@ -413,7 +413,7 @@ ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
 
   // If jpeg options are passed in and we haven't determined for sure
   // that the image has transparency, try jpeg conversion.
-  if ((jpeg_options != NULL) &&
+  if ((jpeg_options != nullptr) &&
       (webp_lossy_out.empty() || is_opaque) &&
       !ConvertPngToJpeg(png_struct_reader, in, *jpeg_options, &jpeg_out,
       handler)) {
@@ -443,7 +443,7 @@ ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
                      &best_image_type, &best_image, handler);
 
   out->clear();
-  out->assign((best_image != NULL) ? *best_image : in);
+  out->assign((best_image != nullptr) ? *best_image : in);
 
   return best_image_type;
 }
@@ -457,7 +457,7 @@ bool GenerateBlankImage(size_t width, size_t height, bool has_transparency,
   std::unique_ptr<ScanlineWriterInterface> png_writer(
       CreateScanlineWriter(IMAGE_PNG, pixel_format, width, height, &config,
                            output, handler));
-  if (png_writer == NULL) {
+  if (png_writer == nullptr) {
     PS_LOG_ERROR(handler, "Failed to create an image writer.");
     return false;
   }

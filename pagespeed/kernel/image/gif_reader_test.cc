@@ -311,7 +311,7 @@ TEST_F(GifReaderTest, StripAlpha) {
                                    PNG_TRANSFORM_STRIP_ALPHA, false));
   png_get_IHDR(read_.png_ptr(), read_.info_ptr(),
                &width, &height, &bit_depth, &color_type,
-               NULL, NULL, NULL);
+               nullptr, nullptr, nullptr);
   ASSERT_TRUE((color_type & PNG_COLOR_MASK_ALPHA) == 0);  // NOLINT
   ASSERT_EQ(static_cast<unsigned int>(0),
             png_get_tRNS(read_.png_ptr(),
@@ -327,7 +327,7 @@ TEST_F(GifReaderTest, StripAlpha) {
                                    PNG_TRANSFORM_EXPAND, false));
   png_get_IHDR(read_.png_ptr(), read_.info_ptr(),
                &width, &height, &bit_depth, &color_type,
-               NULL, NULL, NULL);
+               nullptr, nullptr, nullptr);
   ASSERT_TRUE((color_type & PNG_COLOR_MASK_ALPHA) == 0);  // NOLINT
 
   ASSERT_EQ(static_cast<unsigned int>(0),
@@ -353,7 +353,7 @@ TEST_F(GifReaderTest, ExpandColormapOnZeroSizeCanvasAndCatchLibPngError) {
 class GifScanlineReaderRawTest : public testing::Test {
  public:
   GifScanlineReaderRawTest()
-    : scanline_(NULL),
+    : scanline_(nullptr),
       message_handler_(new NullMutex),
       reader_(new TestGifFrameReader(&message_handler_)) {
   }
@@ -453,7 +453,7 @@ TEST_F(GifScanlineReaderRawTest, ValidGifs) {
 
     const uint8_t* reference_rgba =
         reinterpret_cast<const uint8*>(rgba_image.data());
-    uint8* decoded_pixels = NULL;
+    uint8* decoded_pixels = nullptr;
 
     ASSERT_TRUE(reader_.Initialize(gif_image.data(), gif_image.length()));
 
@@ -1060,7 +1060,7 @@ class GifAnimationTest : public testing::Test {
   };
 
   GifAnimationTest()
-      : scanline_(NULL),
+      : scanline_(nullptr),
         message_handler_(new NullMutex),
         gif_(true, &message_handler_),
         reader_(new TestGifFrameReader(&message_handler_)),
@@ -1136,7 +1136,7 @@ class GifAnimationTest : public testing::Test {
                  FrameSpec::DISPOSAL_NONE : frame_disposal),
                 frame_spec.disposal);
 
-      const GifColorType* cmap = (set_frame->colormap == NULL ?
+      const GifColorType* cmap = (set_frame->colormap == nullptr ?
                                   kColorMap : set_frame->colormap);
       const int bytes_per_pixel = GetBytesPerPixel(frame_spec.pixel_format);
       static const int kRgbBytes = 3;
@@ -1253,28 +1253,28 @@ const GifColorType GifAnimationTest::kAlternateColorMap[kNumColors] = {
 // Non-animated, non-interlaced, only global colormap, varying disposals.
 
 TEST_F(GifAnimationTest, ReadSingleFrameOpaque) {
-  const Frame frame = {10, 10, false, 0, 0, NULL, 0, -1, 2, 10, 10};
+  const Frame frame = {10, 10, false, 0, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_opaque", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadSingleFrameTransparency) {
-  const Frame frame = {10, 10, false, 0, 1, NULL, 0, 4, 2, 10, 10};
+  const Frame frame = {10, 10, false, 0, 1, nullptr, 0, 4, 2, 10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_transparency", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadSingleFrameOpaqueFallingOffImage) {
-  const Frame frame = {10, 10, false, 0, 2, NULL, 0, -1, 2, 95, 95};
+  const Frame frame = {10, 10, false, 0, 2, nullptr, 0, -1, 2, 95, 95};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_opaque_falling_off_image", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadSingleFrameOpaqueLargeFallingOffImage) {
-  const Frame frame = {250, 250, false, 0, 2, NULL, 0, -1, 2, 95, 95};
+  const Frame frame = {250, 250, false, 0, 2, nullptr, 0, -1, 2, 95, 95};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_opaque_large_falling_off_image",
@@ -1282,7 +1282,7 @@ TEST_F(GifAnimationTest, ReadSingleFrameOpaqueLargeFallingOffImage) {
 }
 
 TEST_F(GifAnimationTest, ReadSingleFrameTransparencyFallingOffImage) {
-  const Frame frame = {10, 10, false, 0, 3, NULL, 0, 4, 2, 95, 95};
+  const Frame frame = {10, 10, false, 0, 3, nullptr, 0, 4, 2, 95, 95};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_transparent_falling_off_image",
@@ -1290,7 +1290,7 @@ TEST_F(GifAnimationTest, ReadSingleFrameTransparencyFallingOffImage) {
 }
 
 TEST_F(GifAnimationTest, ReadSingleFrameTransparencyFallingOffImageAtOrigin) {
-  const Frame frame = {250, 250, false, 0, 3, NULL, 0, 4, 2, 0, 0};
+  const Frame frame = {250, 250, false, 0, 3, nullptr, 0, 4, 2, 0, 0};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_transparent_falling_off_image_at_origin",
@@ -1302,7 +1302,7 @@ TEST_F(GifAnimationTest, ReadSingleFrameOpaqueInZeroSizeImage) {
   image.width = 0;
   image.height = 0;
 
-  const Frame frame = {10, 10, false, 0, 1, NULL, 0, 4, 2, 10, 10};
+  const Frame frame = {10, 10, false, 0, 1, nullptr, 0, 4, 2, 10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_opaque_in_zero_size_image", image);
@@ -1313,7 +1313,7 @@ TEST_F(GifAnimationTest, ReadSingleFrameOpaqueInZeroSizeImageAtOrigin) {
   image.width = 0;
   image.height = 0;
 
-  const Frame frame = {10, 10, false, 0, 1, NULL, 0, 4, 2, 0, 0};
+  const Frame frame = {10, 10, false, 0, 1, nullptr, 0, 4, 2, 0, 0};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_opaque_in_zero_size_image_at_origin", image);
@@ -1322,14 +1322,14 @@ TEST_F(GifAnimationTest, ReadSingleFrameOpaqueInZeroSizeImageAtOrigin) {
 // Non-animated, interlaced, only global colormap, varying disposals.
 
 TEST_F(GifAnimationTest, ReadSingleFrameInterlacedOpaque) {
-  const Frame frame = {10, 10, true, 0, 4, NULL, 0, -1, 2, 10, 10};
+  const Frame frame = {10, 10, true, 0, 4, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_interlaced_opaque", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadSingleFrameInterlacedTransparency) {
-  const Frame frame = {10, 10, true, 0, 0, NULL, 0, 4, 2, 10, 10};
+  const Frame frame = {10, 10, true, 0, 0, nullptr, 0, 4, 2, 10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_interlaced_transparency", DefineImage());
@@ -1337,7 +1337,7 @@ TEST_F(GifAnimationTest, ReadSingleFrameInterlacedTransparency) {
 
 TEST_F(GifAnimationTest,
        ReadSingleFrameInterlacedOpaqueFallingOffImage) {
-  const Frame frame = {10, 10, true, 0, 1, NULL, 0, -1, 2, 95, 95};
+  const Frame frame = {10, 10, true, 0, 1, nullptr, 0, -1, 2, 95, 95};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_interlaced_opaque_falling_off_image",
@@ -1346,7 +1346,7 @@ TEST_F(GifAnimationTest,
 
 TEST_F(GifAnimationTest,
        ReadSingleFrameInterlacedTransparencyFallingOffImage) {
-  const Frame frame = {10, 10, true, 0, 2, NULL, 0, 4, 2, 95, 95};
+  const Frame frame = {10, 10, true, 0, 2, nullptr, 0, 4, 2, 95, 95};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_interlaced_transparent_falling_off_image",
@@ -1395,7 +1395,7 @@ TEST_F(GifAnimationTest,
 // Non-animated, non-interlaced, only global colormap, varying
 // disposals, varying delays.
 TEST_F(GifAnimationTest, ReadSingleFrameDelayOpaque) {
-  const Frame frame = {10, 10, true, 10, 0, NULL, 0, -1, 2, 10, 10};
+  const Frame frame = {10, 10, true, 10, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_opaque", DefineImage());
@@ -1404,20 +1404,20 @@ TEST_F(GifAnimationTest, ReadSingleFrameDelayOpaque) {
 // Animated images.
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaque) {
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, true, 100, 0, NULL, 0, -1, 3, 20, 20};
+  Frame frame2 = {20, 20, true, 100, 0, nullptr, 0, -1, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffImage) {
-  Frame frame1 = {250, 250, true, 100, 0, NULL, 0, -1, 3, 90, 90};
+  Frame frame1 = {250, 250, true, 100, 0, nullptr, 0, -1, 3, 90, 90};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 79, 79};
+  Frame frame2 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 79, 79};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_1st_falling_off_image",
@@ -1425,10 +1425,10 @@ TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffImage) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueSecondFallingOffImage) {
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 79, 79};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 79, 79};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {250, 250, true, 100, 0, NULL, 0, -1, 3, 90, 90};
+  Frame frame2 = {250, 250, true, 100, 0, nullptr, 0, -1, 3, 90, 90};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_2nd_falling_off_image",
@@ -1436,10 +1436,10 @@ TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueSecondFallingOffImage) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffImageAtOrigin) {
-  Frame frame1 = {250, 250, true, 100, 0, NULL, 0, -1, 3, 0, 0};
+  Frame frame1 = {250, 250, true, 100, 0, nullptr, 0, -1, 3, 0, 0};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 79, 79};
+  Frame frame2 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 79, 79};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_1st_falling_off_image_at_origin",
@@ -1447,10 +1447,10 @@ TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffImageAtOrigin) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffXImage) {
-  Frame frame1 = {250, 20, false, 100, 0, NULL, 0, -1, 3, 10, 10};
+  Frame frame1 = {250, 20, false, 100, 0, nullptr, 0, -1, 3, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 79, 79};
+  Frame frame2 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 79, 79};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_1st_falling_off_x_image",
@@ -1458,10 +1458,10 @@ TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffXImage) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffYImage) {
-  Frame frame1 = {20, 250, false, 100, 0, NULL, 0, -1, 3, 10, 10};
+  Frame frame1 = {20, 250, false, 100, 0, nullptr, 0, -1, 3, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 79, 79};
+  Frame frame2 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 79, 79};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_1st_falling_off_y_image",
@@ -1469,10 +1469,10 @@ TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFirstFallingOffYImage) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueSecondFallingOffImageAtOrigin) {
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 79, 79};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 79, 79};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {250, 250, false, 100, 0, NULL, 0, -1, 3, 0, 0};
+  Frame frame2 = {250, 250, false, 100, 0, nullptr, 0, -1, 3, 0, 0};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_2nd_falling_off_image_at_origin",
@@ -1480,23 +1480,23 @@ TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueSecondFallingOffImageAtOrigin) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueNoDelay) {
-  Frame frame1 = {20, 20, false, 0, 1, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 0, 1, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 0, 2, NULL, 0, -1, 3, 20, 20};
+  Frame frame2 = {20, 20, false, 0, 2, nullptr, 0, -1, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_nodelay", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameTransparency) {
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 100, 0, NULL, 0, 3, 3, 20, 20};
+  Frame frame2 = {20, 20, false, 100, 0, nullptr, 0, 3, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 100, 0, NULL, 0, 2, 3, 25, 25};
+  Frame frame3 = {20, 20, false, 100, 0, nullptr, 0, 2, 3, 25, 25};
   synth_frames_.push_back(frame3);
 
   SynthesizeAndRead("multiple_frame_transparency", DefineImage());
@@ -1512,11 +1512,11 @@ TEST_F(GifAnimationTest, ReadMultipleFrameNoDelay2FrameOpaque) {
   const int frame2_color_idx = frame1_transparent_idx;
 
   Frame frame1 =
-      {20, 20, false, 0, 0, NULL, 0, frame1_transparent_idx, 2, 10, 10};
+      {20, 20, false, 0, 0, nullptr, 0, frame1_transparent_idx, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
   Frame frame2 =
-      {20, 20, false, -1, -1, NULL, 0, -1, frame2_color_idx, 20, 20};
+      {20, 20, false, -1, -1, nullptr, 0, -1, frame2_color_idx, 20, 20};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_transparency_no_delay_2frame_opaque",
@@ -1526,13 +1526,13 @@ TEST_F(GifAnimationTest, ReadMultipleFrameNoDelay2FrameOpaque) {
 TEST_F(GifAnimationTest, ReadMultipleFrameTransparencySkipScanlines) {
   read_all_scanlines_ = false;
 
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 100, 0, NULL, 0, 3, 3, 20, 20};
+  Frame frame2 = {20, 20, false, 100, 0, nullptr, 0, 3, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 100, 0, NULL, 0, 2, 3, 25, 25};
+  Frame frame3 = {20, 20, false, 100, 0, nullptr, 0, 2, 3, 25, 25};
   synth_frames_.push_back(frame3);
 
   SynthesizeAndRead("multiple_frame_transparency_skip_scanlines",
@@ -1540,13 +1540,13 @@ TEST_F(GifAnimationTest, ReadMultipleFrameTransparencySkipScanlines) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyMixInterlaced) {
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, true, 100, 0, NULL, 0, 3, 3, 20, 20};
+  Frame frame2 = {20, 20, true, 100, 0, nullptr, 0, 3, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 100, 0, NULL, 0, 2, 3, 25, 25};
+  Frame frame3 = {20, 20, false, 100, 0, nullptr, 0, 2, 3, 25, 25};
   synth_frames_.push_back(frame3);
 
   SynthesizeAndRead("multiple_frame_transparency_mix_interlaced",
@@ -1554,34 +1554,34 @@ TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyMixInterlaced) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyMixColormaps) {
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
   Frame frame2 =
       {20, 20, false, 100, 0, kAlternateColorMap, kNumColors, 3, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 100, 0, NULL, 0, 2, 3, 25, 25};
+  Frame frame3 = {20, 20, false, 100, 0, nullptr, 0, 2, 3, 25, 25};
   synth_frames_.push_back(frame3);
 
   SynthesizeAndRead("multiple_frame_transparency_mix_colormaps", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueFallingOffImage) {
-  Frame frame1 = {10, 10, false, 0, 2, NULL, 0, -1, 2, 93, 93};
+  Frame frame1 = {10, 10, false, 0, 2, nullptr, 0, -1, 2, 93, 93};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {10, 10, false, 0, 2, NULL, 0, -1, 4, 95, 95};
+  Frame frame2 = {10, 10, false, 0, 2, nullptr, 0, -1, 4, 95, 95};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_opaque_falling_off_image", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyFallingOffImage) {
-  Frame frame1 = {10, 10, false, 0, 3, NULL, 0, 4, 2, 93, 93};
+  Frame frame1 = {10, 10, false, 0, 3, nullptr, 0, 4, 2, 93, 93};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {10, 10, false, 0, 3, NULL, 0, 4, 4, 95, 95};
+  Frame frame2 = {10, 10, false, 0, 3, nullptr, 0, 4, 4, 95, 95};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_transparent_falling_off_image",
@@ -1589,19 +1589,19 @@ TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyFallingOffImage) {
 }
 
 TEST_F(GifAnimationTest, ReadMultipleFrameOpaqueDisposal) {
-  Frame frame1 = {20, 20, false, 100, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 100, 0, NULL, 0, -1, 3, 20, 20};
+  Frame frame2 = {20, 20, false, 100, 0, nullptr, 0, -1, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 100, 2, NULL, 0, -1, 4, 15, 15};
+  Frame frame3 = {20, 20, false, 100, 2, nullptr, 0, -1, 4, 15, 15};
   synth_frames_.push_back(frame3);
 
-  Frame frame4 = {20, 20, false, 100, 3, NULL, 0, -1, 1, 0, 0};
+  Frame frame4 = {20, 20, false, 100, 3, nullptr, 0, -1, 1, 0, 0};
   synth_frames_.push_back(frame4);
 
-  Frame frame5 = {20, 20, false, 100, 1, NULL, 0, -1, 5, 30, 30};
+  Frame frame5 = {20, 20, false, 100, 1, nullptr, 0, -1, 5, 30, 30};
   synth_frames_.push_back(frame5);
 
   SynthesizeAndRead("multiple_frame_opaque_disposal", DefineImage());
@@ -1611,13 +1611,13 @@ TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyLoopInfinite) {
   Image image = DefineImage();
   image.loop_count = 0;
 
-  Frame frame1 = {20, 20, false, 50, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 50, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 50, 0, NULL, 0, 3, 3, 20, 20};
+  Frame frame2 = {20, 20, false, 50, 0, nullptr, 0, 3, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 50, 0, NULL, 0, 2, 3, 25, 25};
+  Frame frame3 = {20, 20, false, 50, 0, nullptr, 0, 2, 3, 25, 25};
   synth_frames_.push_back(frame3);
 
   SynthesizeAndRead("multiple_frame_transparency_loop_infinite", image);
@@ -1627,13 +1627,13 @@ TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyNoDelayLoopInfinite) {
   Image image = DefineImage();
   image.loop_count = 0;
 
-  Frame frame1 = {20, 20, false, 0, 1, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 0, 1, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 0, 1, NULL, 0, 3, 3, 20, 20};
+  Frame frame2 = {20, 20, false, 0, 1, nullptr, 0, 3, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 0, 1, NULL, 0, 2, 3, 25, 25};
+  Frame frame3 = {20, 20, false, 0, 1, nullptr, 0, 2, 3, 25, 25};
   synth_frames_.push_back(frame3);
 
   SynthesizeAndRead("multiple_frame_transparency_nodelay_loop_infinite", image);
@@ -1643,13 +1643,13 @@ TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyLoopThrice) {
   Image image = DefineImage();
   image.loop_count = 3;
 
-  Frame frame1 = {20, 20, false, 50, 0, NULL, 0, -1, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 50, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 = {20, 20, false, 50, 0, NULL, 0, 3, 3, 20, 20};
+  Frame frame2 = {20, 20, false, 50, 0, nullptr, 0, 3, 3, 20, 20};
   synth_frames_.push_back(frame2);
 
-  Frame frame3 = {20, 20, false, 50, 0, NULL, 0, 2, 3, 25, 25};
+  Frame frame3 = {20, 20, false, 50, 0, nullptr, 0, 2, 3, 25, 25};
   synth_frames_.push_back(frame3);
 
   SynthesizeAndRead("multiple_frame_transparency_loop_thrice", image);

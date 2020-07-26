@@ -155,7 +155,7 @@ net_instaweb::ImageType ComputeImageType(const StringPiece& buf) {
 bool ConversionTimeoutHandler::Continue(int percent, void* user_data) {
   ConversionTimeoutHandler* timeout_handler =
     static_cast<ConversionTimeoutHandler*>(user_data);
-  if (timeout_handler != NULL &&
+  if (timeout_handler != nullptr &&
       !timeout_handler->countdown_timer_.HaveTimeLeft()) {
     // We include the output_->empty() check after HaveTimeLeft()
     // for testing, in case there's a callback that writes to

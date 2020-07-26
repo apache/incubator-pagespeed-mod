@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/resource_slot.h"
 
 #include "base/logging.h"
@@ -45,14 +49,14 @@ bool ResourceSlot::DirectSetUrl(const StringPiece& url) {
 
 void ResourceSlot::ReportInput(const InputInfo& input) {
   if (inputs_ == nullptr) {
-    inputs_.reset(new std::vector<InputInfo>);
+    inputs_ = std::make_unique<std::vector<InputInfo>>();
   }
   inputs_->push_back(input);
 }
 
 RewriteContext* ResourceSlot::LastContext() const {
   if (contexts_.empty()) {
-    return NULL;
+    return nullptr;
   }
   return contexts_.back();
 }
@@ -132,9 +136,9 @@ void HtmlResourceSlot::Render() {
   if (disable_rendering()) {
     return;  // nothing done here.
   } else if (should_delete_element()) {
-    if (element_ != NULL) {
+    if (element_ != nullptr) {
       driver_->DeleteNode(element_);
-      element_ = NULL;
+      element_ = nullptr;
     }
   } else if (!preserve_urls()) {
     DirectSetUrl(RelativizeOrPassthrough(driver_->options(), resource()->url(),
@@ -159,8 +163,8 @@ bool HtmlResourceSlot::DirectSetUrl(const StringPiece& url) {
   if (!resource()->is_authorized_domain()) {
     return false;
   }
-  DCHECK(attribute_ != NULL);
-  if (attribute_ != NULL) {
+  DCHECK(attribute_ != nullptr);
+  if (attribute_ != nullptr) {
     attribute_->SetValue(url);
     return true;
   }

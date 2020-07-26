@@ -53,7 +53,7 @@ JsReplacer::~JsReplacer() {}
 void JsReplacer::AddPattern(const GoogleString& object,
                             const GoogleString& field,
                             StringRewriter* rewriter) {
-  patterns_.push_back(Pattern(object, field, rewriter));
+  patterns_.emplace_back(object, field, rewriter);
 }
 
 bool JsReplacer::Transform(StringPiece in, GoogleString* out) {

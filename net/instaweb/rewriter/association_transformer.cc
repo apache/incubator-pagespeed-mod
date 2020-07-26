@@ -53,7 +53,7 @@ CssTagScanner::Transformer::TransformStatus AssociationTransformer::Transform(
         *str = ResourceSlot::RelativizeOrPassthrough(
             options_, it->second, url_relativity, *base_url_);
         ret = kSuccess;
-      } else if (backup_transformer_ != NULL) {
+      } else if (backup_transformer_ != nullptr) {
         ret = backup_transformer_->Transform(str);
       }
     }

@@ -102,8 +102,8 @@ class UrlAsyncFetcherStatsTest : public testing::Test {
 
   static void TearDownTestCase() {
     delete stats_maker_;
-    stats_maker_ = NULL;
-    stats_ = NULL;
+    stats_maker_ = nullptr;
+    stats_ = nullptr;
     testing::Test::TearDownTestCase();
   }
 

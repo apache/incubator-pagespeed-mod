@@ -20,6 +20,10 @@
 
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
 
+
+#include <memory>
+
+
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
@@ -65,13 +69,13 @@ SharedMemStatisticsTestBase::SharedMemStatisticsTestBase()
 }
 
 void SharedMemStatisticsTestBase::SetUp() {
-  timer_.reset(
-      new MockTimer(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms));
-  file_system_.reset(new MemFileSystem(thread_system_.get(), timer_.get()));
-  stats_.reset(new SharedMemStatistics(
+  timer_ = std::make_unique<MockTimer>(
+      thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms);
+  file_system_ = std::make_unique<MemFileSystem>(thread_system_.get(), timer_.get());
+  stats_ = std::make_unique<SharedMemStatistics>(
       kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, false /* no logging */,
       kPrefix, shmem_runtime_.get(), &handler_, file_system_.get(),
-      timer_.get()));
+      timer_.get());
 }
 
 void SharedMemStatisticsTestBase::TearDown() {
@@ -88,13 +92,13 @@ bool SharedMemStatisticsTestBase::CreateChild(TestMethod method) {
 bool SharedMemStatisticsTestBase::AddVars(SharedMemStatistics* stats) {
   UpDownCounter* v1 = stats->AddUpDownCounter(kVar1);
   UpDownCounter* v2 = stats->AddUpDownCounter(kVar2);
-  return ((v1 != NULL) && (v2 != NULL));
+  return ((v1 != nullptr) && (v2 != nullptr));
 }
 
 bool SharedMemStatisticsTestBase::AddHistograms(SharedMemStatistics* stats) {
   Histogram* hist1 = stats->AddHistogram(kHist1);
   Histogram* hist2 = stats->AddHistogram(kHist2);
-  return ((hist1 != NULL) && (hist2 != NULL));
+  return ((hist1 != nullptr) && (hist2 != nullptr));
 }
 
 SharedMemStatistics* SharedMemStatisticsTestBase::ChildInit() {
@@ -104,7 +108,7 @@ SharedMemStatistics* SharedMemStatisticsTestBase::ChildInit() {
       timer_.get()));
   if (!AddVars(stats.get()) || !AddHistograms(stats.get())) {
     test_env_->ChildFailed();
-    return NULL;
+    return nullptr;
   }
 
   stats->Init(false, &handler_);

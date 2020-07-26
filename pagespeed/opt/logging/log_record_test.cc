@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "pagespeed/opt/logging/log_record.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -30,7 +34,7 @@ namespace net_instaweb {
 class LogRecordTest : public testing::Test {
  protected:
   void SetUp() override {
-    log_record_.reset(new LogRecord(new NullMutex));
+    log_record_ = std::make_unique<LogRecord>(new NullMutex);
   }
 
   // Test that the rewriter_info array is |size| elements long, and that the

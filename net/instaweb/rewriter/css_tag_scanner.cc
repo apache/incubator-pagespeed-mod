@@ -60,7 +60,7 @@ bool CssTagScanner::ParseCssElement(
     const char** media,
     StringPieceVector* nonstandard_attributes) {
   *media = "";
-  *href = NULL;
+  *href = nullptr;
   if (element->keyword() != HtmlName::kLink) {
     return false;
   }
@@ -92,7 +92,7 @@ bool CssTagScanner::ParseCssElement(
       }
       case HtmlName::kMedia:
         *media = attr.DecodedValueOrNull();
-        if (*media == NULL) {
+        if (*media == nullptr) {
           // No value (media rather than media=), or decoding error
           return false;
         }
@@ -120,7 +120,7 @@ bool CssTagScanner::ParseCssElement(
         // for a particular filter, it should be detected within that filter
         // (examples: extra tags are rejected in css_combine_filter, but they're
         // preserved by css_inline_filter).
-        if (nonstandard_attributes != NULL) {
+        if (nonstandard_attributes != nullptr) {
           nonstandard_attributes->push_back(attr.name_str());
         }
         break;

@@ -20,9 +20,9 @@
 
 #include "pagespeed/kernel/image/test_utils.h"
 
-#include <math.h>
-#include <cstdlib>
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -136,8 +136,8 @@ void DecodeAndCompareImagesByPSNR(
     bool ignore_transparent_rgb,
     bool expand_colors,
     MessageHandler* message_handler) {
-  uint8_t* pixels1 = NULL;
-  uint8_t* pixels2 = NULL;
+  uint8_t* pixels1 = nullptr;
+  uint8_t* pixels2 = nullptr;
   PixelFormat pixel_format1, pixel_format2;
   size_t width1, height1, stride1, width2, height2, stride2;
 
@@ -178,8 +178,8 @@ void CompareImageReaders(ScanlineReaderInterface* reader1,
   ASSERT_EQ(reader1->GetBytesPerScanline(), reader2->GetBytesPerScanline());
 
   while (reader1->HasMoreScanLines() && reader2->HasMoreScanLines()) {
-    uint8_t* scanline1 = NULL;
-    uint8_t* scanline2 = NULL;
+    uint8_t* scanline1 = nullptr;
+    uint8_t* scanline2 = nullptr;
     ASSERT_TRUE(reader1->ReadNextScanline(
         reinterpret_cast<void**>(&scanline1)));
     ASSERT_TRUE(reader2->ReadNextScanline(
@@ -261,7 +261,7 @@ void CompareImageRegionsByPSNR(const uint8_t* image1, PixelFormat format1,
       image_buffer1(new uint8_t[bytes_per_image]);
   net_instaweb::scoped_array<uint8_t>
       image_buffer2(new uint8_t[bytes_per_image]);
-  ASSERT_TRUE(image_buffer1 != NULL && image_buffer2 != NULL);
+  ASSERT_TRUE(image_buffer1 != nullptr && image_buffer2 != nullptr);
 
   memset(image_buffer1.get(), 0, bytes_per_image);
   memset(image_buffer2.get(), 0, bytes_per_image);
@@ -306,7 +306,7 @@ void CompareImageRegions(const uint8_t* image1, PixelFormat format1,
 void SynthesizeImage(int width, int height, int bytes_per_line,
                      int num_channels, const uint8_t* seed_value,
                      const int* delta_x, const int* delta_y, uint8_t* image) {
-  ASSERT_TRUE(image != NULL);
+  ASSERT_TRUE(image != nullptr);
   ASSERT_GT(width, 0);
   ASSERT_GT(height, 0);
   ASSERT_GE(bytes_per_line, width);

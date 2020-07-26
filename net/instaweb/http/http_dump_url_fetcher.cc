@@ -21,6 +21,8 @@
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 
 #include <cstdio>
+#include <memory>
+
 #include <set>
 #include <utility>                     // for pair
 
@@ -134,12 +136,12 @@ class HttpResponseWriter : public Writer {
       CHECK(response_->headers_complete());
       CharStarVector v;
       if (!want_gzip_ && response_->IsGzipped()) {
-        inflater_.reset(new GzipInflater(GzipInflater::kGzip));
+        inflater_ = std::make_unique<GzipInflater>(GzipInflater::kGzip);
         CHECK(inflater_->Init());
         response_->RemoveAll(HttpAttributes::kContentEncoding);
       }
     }
-    if (inflater_.get() != NULL) {
+    if (inflater_.get() != nullptr) {
       CHECK(!inflater_->HasUnconsumedInput());
       CHECK(inflater_->SetInput(str.data(), str.size()));
       gzip_content_length_ += str.size();
@@ -200,7 +202,7 @@ void HttpDumpUrlFetcher::Fetch(
     // Pass in NullMessageHandler so that we don't get errors for file not found
     FileSystem::InputFile* file =
         file_system_->OpenInputFile(filename.c_str(), &null_handler);
-    if (file != NULL) {
+    if (file != nullptr) {
       CharStarVector v;
       // TODO(jmarantz): handle 'deflate'.
       bool want_gzip = request_headers.AcceptsGzip();
@@ -251,7 +253,7 @@ void HttpDumpUrlFetcher::Fetch(
                      url.c_str());
   }
 
-  if ((urls_.get() != NULL) && urls_->insert(url).second) {
+  if ((urls_.get() != nullptr) && urls_->insert(url).second) {
     fprintf(stdout, "url: %s\n", url.c_str());
   }
 
@@ -260,9 +262,9 @@ void HttpDumpUrlFetcher::Fetch(
 
 void HttpDumpUrlFetcher::set_print_urls(bool on) {
   if (on) {
-    urls_.reset(new StringSet);
+    urls_ = std::make_unique<StringSet>();
   } else {
-    urls_.reset(NULL);
+    urls_.reset(nullptr);
   }
 }
 

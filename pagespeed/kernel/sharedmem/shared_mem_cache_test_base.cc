@@ -20,9 +20,11 @@
 
 #include "pagespeed/kernel/sharedmem/shared_mem_cache_test_base.h"
 
-#include <unistd.h>
 #include <cstddef>                     // for size_t
 #include <map>
+#include <memory>
+#include <unistd.h>
+
 #include <utility>
 
 #include "base/logging.h"               // for Check_EQImpl, CHECK_EQ
@@ -469,9 +471,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
   const GoogleString kPath = "/a-path";
 
   // Setup.
-  cache_.reset(new SharedMemCache<kBlockSize>(
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
       shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+      kSectorEntries, kSectorBlocks, &handler_);
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper(
       new FileCacheTestWrapper(
           kPath, thread_system_.get(), &timer_, &handler_));
@@ -500,9 +502,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
 
   // Reset the cache, but don't set a file system.  We expect not to load
   // anything.
-  cache_.reset(new SharedMemCache<kBlockSize>(
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
       shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+      kSectorEntries, kSectorBlocks, &handler_);
   EXPECT_TRUE(cache_->Initialize());
   CheckNotFound("200");
 
@@ -510,9 +512,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
   // is similar to the case where a default shm cache and an explicitly
   // configured one share the same file cache path.  We expect not to load
   // anything, because the path is part of the key.
-  cache_.reset(new SharedMemCache<kBlockSize>(
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
       shmem_runtime_.get(), "default-shm-cache", &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+      kSectorEntries, kSectorBlocks, &handler_);
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),
                                     kSnapshotIntervalMs);
   EXPECT_TRUE(cache_->Initialize());
@@ -520,9 +522,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
 
   // Now reset the cache, but do set the file system.  Everything should be
   // loaded back in.
-  cache_.reset(new SharedMemCache<kBlockSize>(
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
       shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+      kSectorEntries, kSectorBlocks, &handler_);
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),
                                     kSnapshotIntervalMs);
   EXPECT_TRUE(cache_->Initialize());
@@ -533,9 +535,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
   CheckGet("200", "OK");
 
   // But you can't reload from an empty filesystem.
-  cache_.reset(new SharedMemCache<kBlockSize>(
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
       shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+      kSectorEntries, kSectorBlocks, &handler_);
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),
                                     kSnapshotIntervalMs);
   EXPECT_TRUE(cache_->Initialize());

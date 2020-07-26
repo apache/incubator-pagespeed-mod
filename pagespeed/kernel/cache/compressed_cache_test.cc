@@ -21,6 +21,8 @@
 #include "pagespeed/kernel/cache/compressed_cache.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -50,7 +52,7 @@ class CompressedCacheTest : public CacheTestBase {
         stats_(thread_system_.get()),
         random_(thread_system_->NewMutex()) {
     CompressedCache::InitStats(&stats_);
-    compressed_cache_.reset(new CompressedCache(lru_cache_.get(), &stats_));
+    compressed_cache_ = std::make_unique<CompressedCache>(lru_cache_.get(), &stats_);
   }
 
   // Get the raw compressed buffer out directly out of the LRU cache.

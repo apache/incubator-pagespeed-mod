@@ -21,6 +21,8 @@
 #include "net/instaweb/rewriter/public/javascript_filter.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/logging_proto.h"
@@ -184,7 +186,7 @@ class JavascriptFilter::Context : public SingleRewriteContext {
       std::unique_ptr<GoogleUrl> source_gurl;
       if (server_context->IsPagespeedResource(original_gurl)) {
         // Do not append Pagespeed=off if input is already a pagespeed resource.
-        source_gurl.reset(new GoogleUrl);
+        source_gurl = std::make_unique<GoogleUrl>();
         source_gurl->Reset(original_gurl);
       } else {
         // Note: We append PageSpeed=off query parameter to make sure that

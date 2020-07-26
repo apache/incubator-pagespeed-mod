@@ -63,7 +63,7 @@ RewriterInfo* AbstractLogRecord::NewRewriterInfo(const char* rewriter_id) {
       VLOG(1) << "Exceeded size limit for rewriter info.";
       logging_info()->set_rewriter_info_size_limit_exceeded(true);
     }
-    return NULL;
+    return nullptr;
   }
   RewriterInfo* rewriter_info = logging_info()->add_rewriter_info();
   rewriter_info->set_id(rewriter_id);
@@ -81,8 +81,8 @@ RewriterInfo* AbstractLogRecord::SetRewriterLoggingStatusHelper(
   LogRewriterApplicationStatus(id, application_status);
 
   RewriterInfo* rewriter_info = NewRewriterInfo(id);
-  if (rewriter_info == NULL) {
-    return NULL;
+  if (rewriter_info == nullptr) {
+    return nullptr;
   }
 
   ScopedMutex lock(mutex_.get());
@@ -169,7 +169,7 @@ void AbstractLogRecord::LogJsDisableFilter(const char* id,
                                    bool has_pagespeed_no_defer) {
   RewriterInfo* rewriter_info = SetRewriterLoggingStatusHelper(
       id, "", RewriterApplication::APPLIED_OK);
-  if (rewriter_info == NULL) {
+  if (rewriter_info == nullptr) {
     return;
   }
 
@@ -184,7 +184,7 @@ void AbstractLogRecord::LogLazyloadFilter(
     bool is_blacklisted, bool is_critical) {
   RewriterInfo* rewriter_info = SetRewriterLoggingStatusHelper(
       id, "", status);
-  if (rewriter_info == NULL) {
+  if (rewriter_info == nullptr) {
     return;
   }
 
@@ -239,7 +239,7 @@ void AbstractLogRecord::SetCriticalCssInfo(int critical_inlined_bytes,
 
 void AbstractLogRecord::PopulateRewriterStatusCounts() {
   mutex_->DCheckLocked();
-  if (logging_info() == NULL) {
+  if (logging_info() == nullptr) {
     return;
   }
 
@@ -297,7 +297,7 @@ void AbstractLogRecord::LogImageBackgroundRewriteActivity(
     int resized_width,
     int resized_height) {
   RewriterInfo* rewriter_info = NewRewriterInfo(id);
-  if (rewriter_info == NULL) {
+  if (rewriter_info == nullptr) {
     return;
   }
 

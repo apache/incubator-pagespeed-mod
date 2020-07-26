@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "net/instaweb/http/public/simulated_delay_fetcher.h"
 
 #include "base/logging.h"
@@ -56,10 +60,10 @@ class SimulatedDelayFetcherTest : public ::testing::Test {
     StrAppend(&config, kHostB, "= ", IntegerToString(kDelayMsB), ";\n");
     file_system_.WriteFile(kConfigPath, config, &handler_);
 
-    fetcher_.reset(
-        new SimulatedDelayFetcher(thread_system_.get(), &timer_, &scheduler_,
+    fetcher_ = std::make_unique<SimulatedDelayFetcher>(
+        thread_system_.get(), &timer_, &scheduler_,
                                   &handler_, &file_system_, kConfigPath,
-                                  kLogPath, 2 /* flush after 2 requests */));
+                                  kLogPath, 2 /* flush after 2 requests */);
   }
 
   ~SimulatedDelayFetcherTest() override {}

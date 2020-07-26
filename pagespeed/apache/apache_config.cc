@@ -66,7 +66,7 @@ ApacheConfig::~ApacheConfig() {
 }
 
 void ApacheConfig::Init() {
-  DCHECK(apache_properties_ != NULL)
+  DCHECK(apache_properties_ != nullptr)
       << "Call ApacheConfig::Initialize() before construction";
   InitializeOptions(apache_properties_);
 }
@@ -125,7 +125,7 @@ void ApacheConfig::AddProperties() {
   // Instantiation of the options with a null thread system wouldn't usually be
   // safe but it's ok here because we're only updating the static properties on
   // process startup.  We won't have a thread-system yet or multiple threads.
-  ApacheConfig config("dummy_options", NULL);
+  ApacheConfig config("dummy_options", nullptr);
   config.set_default_x_header_value(kModPagespeedVersion);
 }
 
@@ -143,20 +143,20 @@ ApacheConfig* ApacheConfig::NewOptions() const {
 
 const ApacheConfig* ApacheConfig::DynamicCast(const RewriteOptions* instance) {
   const ApacheConfig* config = dynamic_cast<const ApacheConfig*>(instance);
-  DCHECK(config != NULL);
+  DCHECK(config != nullptr);
   return config;
 }
 
 ApacheConfig* ApacheConfig::DynamicCast(RewriteOptions* instance) {
   ApacheConfig* config = dynamic_cast<ApacheConfig*>(instance);
-  DCHECK(config != NULL);
+  DCHECK(config != nullptr);
   return config;
 }
 
 void ApacheConfig::Merge(const RewriteOptions& src) {
   SystemRewriteOptions::Merge(src);
   const ApacheConfig* asrc = DynamicCast(&src);
-  CHECK(asrc != NULL);
+  CHECK(asrc != nullptr);
 
   // Can't use Merge() since we don't have names here.
   measurement_proxy_root_.MergeHelper(&asrc->measurement_proxy_root_);

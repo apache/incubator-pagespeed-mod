@@ -99,7 +99,7 @@ void UrlEscaper::EncodeToUrlSegment(const StringPiece& in,
         }
         break;
       default:
-        if (isalnum(c) || (strchr(kPassThroughChars, c) != NULL)) {
+        if (isalnum(c) || (strchr(kPassThroughChars, c) != nullptr)) {
           url_segment->push_back(c);
         } else {
           absl::StrAppendFormat(url_segment, ",%02X", static_cast<unsigned char>(c));
@@ -133,7 +133,7 @@ bool UrlEscaper::DecodeFromUrlSegment(const StringPiece& url_segment,
   size_t size = url_segment.size();
   for (size_t i = 0; i < size; ++i) {
     char c = url_segment[i];
-    if (isalnum(c) || (strchr(kPassThroughChars, c) != NULL)) {
+    if (isalnum(c) || (strchr(kPassThroughChars, c) != nullptr)) {
       out->push_back(c);
       continue;
     }

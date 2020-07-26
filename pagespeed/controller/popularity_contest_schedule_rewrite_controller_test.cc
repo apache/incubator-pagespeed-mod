@@ -20,6 +20,8 @@
 #include "pagespeed/controller/popularity_contest_schedule_rewrite_controller.h"
 
 #include <algorithm>
+#include <memory>
+
 #include <queue>
 
 #include "base/logging.h"
@@ -91,8 +93,8 @@ class PopularityContestScheduleRewriteControllerTest : public testing::Test {
 
  protected:
   void ResetController(int max_rewrites, int max_queue) {
-    controller_.reset(new PopularityContestScheduleRewriteController(
-        thread_system_.get(), &stats_, &timer_, max_rewrites, max_queue));
+    controller_ = std::make_unique<PopularityContestScheduleRewriteController>(
+        thread_system_.get(), &stats_, &timer_, max_rewrites, max_queue);
   }
 
   // Schedule a rewrite from the Run() method of a Function. Useful for testing

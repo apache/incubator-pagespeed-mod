@@ -108,12 +108,12 @@ void DelayCache::LookupComplete(DelayCallback* callback) {
     if (p != delay_requests_.end()) {
       CHECK(delay_map_.find(callback->key()) == delay_map_.end());
       delay_map_[callback->key()] = callback;
-      callback = NULL;  // Don't run it; we are delaying it.
+      callback = nullptr;  // Don't run it; we are delaying it.
     }
   }
 
   // Release lock first; then run callback.
-  if (callback != NULL) {
+  if (callback != nullptr) {
     callback->Run();
   }
 }
@@ -125,7 +125,7 @@ void DelayCache::DelayKey(const GoogleString& key) {
 
 void DelayCache::ReleaseKeyInSequence(const GoogleString& key,
                                       QueuedWorkerPool::Sequence* sequence) {
-  DelayCallback* callback = NULL;
+  DelayCallback* callback = nullptr;
   {
     ScopedMutex lock(mutex_.get());
     int erased = delay_requests_.erase(key);
@@ -141,8 +141,8 @@ void DelayCache::ReleaseKeyInSequence(const GoogleString& key,
   }
 
   // Release lock first; then run callback or add it to the sequence.
-  if (callback != NULL) {
-    if (sequence != NULL) {
+  if (callback != nullptr) {
+    if (sequence != nullptr) {
       sequence->Add(MakeFunction(callback, &DelayCallback::Run));
     } else {
       callback->Run();

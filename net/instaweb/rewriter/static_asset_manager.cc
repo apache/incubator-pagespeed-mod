@@ -21,6 +21,8 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 
 #include <cstddef>
+#include <memory>
+
 #include <utility>
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -151,13 +153,13 @@ void StaticAssetManager::ApplyGStaticConfiguration(
     return;
   }
   if (mode == kInitialConfiguration) {
-    initial_gstatic_config_.reset(new StaticAssetConfig);
+    initial_gstatic_config_ = std::make_unique<StaticAssetConfig>();
     *initial_gstatic_config_ = config;
     ApplyGStaticConfigurationImpl(*initial_gstatic_config_,
                                   kInitialConfiguration);
   } else {
     // Apply initial + config.
-    CHECK(initial_gstatic_config_.get() != NULL);
+    CHECK(initial_gstatic_config_.get() != nullptr);
     StaticAssetConfig merged_config = *initial_gstatic_config_;
     merged_config.set_release_label(config.release_label());
     for (int i = 0, n = config.asset_size(); i < n; ++i) {
@@ -171,7 +173,7 @@ void StaticAssetManager::ApplyGStaticConfiguration(
 
 void StaticAssetManager::ResetGStaticConfiguration() {
   ScopedMutex write_lock(lock_.get());
-  if (initial_gstatic_config_.get() != NULL) {
+  if (initial_gstatic_config_.get() != nullptr) {
     // If there is no initial there is no update, so it's fine to do nothing
     // in the other case.
     ApplyGStaticConfigurationImpl(*initial_gstatic_config_,

@@ -23,6 +23,10 @@
 
 #include <unistd.h>
 
+
+#include <memory>
+
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/file_system.h"
@@ -74,11 +78,11 @@ class FileCacheTest : public CacheTestBase {
   }
 
   void ResetFileCache(int64 clean_interval_ms, int64 target_size_bytes) {
-    cache_.reset(new FileCache(
+    cache_ = std::make_unique<FileCache>(
         GTestTempDir(), &file_system_, thread_system_.get(), &worker_,
         new FileCache::CachePolicy(&mock_timer_, &hasher_, clean_interval_ms,
                                    target_size_bytes, kTargetInodeLimit),
-        &stats_, &message_handler_));
+        &stats_, &message_handler_);
   }
 
   void CheckCleanTimestamp(int64 min_time_ms) {

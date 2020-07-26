@@ -40,7 +40,7 @@ void QueryParams::ParseFromUntrustedString(StringPiece query_param_string) {
 
 bool QueryParams::UnescapedValue(int index, GoogleString* unescaped_val) const {
   const GoogleString* val = map_.value(index);
-  if (val == NULL) {
+  if (val == nullptr) {
     return false;
   }
   // TODO(jmarantz): make GoogleUrl::UnescapeQueryParam check for invalid
@@ -52,7 +52,7 @@ bool QueryParams::UnescapedValue(int index, GoogleString* unescaped_val) const {
 bool QueryParams::Lookup1Unescaped(const StringPiece& name,
                                    GoogleString* unescaped_val) const {
   const GoogleString* val = map_.Lookup1(name);
-  if (val == NULL) {
+  if (val == nullptr) {
     return false;
   }
   // TODO(jmarantz): make GoogleUrl::UnescapeQueryParam check for invalid
@@ -66,7 +66,7 @@ GoogleString QueryParams::ToEscapedString() const {
   const char* prefix="";
   for (int i = 0; i < size(); ++i) {
     const GoogleString* escaped_value = EscapedValue(i);
-    if (escaped_value == NULL) {
+    if (escaped_value == nullptr) {
       StrAppend(&str, prefix, name(i));
     } else {
       StrAppend(&str, prefix, name(i), "=", *escaped_value);

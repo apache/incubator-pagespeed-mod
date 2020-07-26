@@ -19,6 +19,8 @@
 
 #include "pagespeed/controller/queued_expensive_operation_controller.h"
 
+#include <memory>
+
 #include <vector>
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -55,8 +57,8 @@ class QueuedExpensiveOperationTest : public testing::Test {
   }
 
   void InitQueueWithSize(int size) {
-    controller_.reset(new QueuedExpensiveOperationController(
-        size, thread_system_.get(), &stats_));
+    controller_ = std::make_unique<QueuedExpensiveOperationController>(
+        size, thread_system_.get(), &stats_);
   }
 
   int64 active_operations() {

@@ -76,7 +76,7 @@ class HtmlKeywordsTest : public testing::Test {
 };
 
 TEST_F(HtmlKeywordsTest, Keywords) {
-  EXPECT_TRUE(HtmlKeywords::KeywordToString(HtmlName::kNotAKeyword) == NULL);
+  EXPECT_TRUE(HtmlKeywords::KeywordToString(HtmlName::kNotAKeyword) == nullptr);
   for (int i = 0; i < HtmlName::num_keywords(); ++i) {
     HtmlName::Keyword keyword = static_cast<HtmlName::Keyword>(i);
     const StringPiece* name = HtmlKeywords::KeywordToString(keyword);

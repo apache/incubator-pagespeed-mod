@@ -259,7 +259,7 @@ void FileSystem::GetDirInfoWithProgress(
       if (is_dir.is_false()) {
         int64 file_atime;
         Atime(file_name, &file_atime, handler);
-        dirinfo->files.push_back(FileInfo(file_size, file_atime, file_name));
+        dirinfo->files.emplace_back(file_size, file_atime, file_name);
       } else if (is_dir.is_true()) {
         dirs_to_traverse.push_back(file_name);
       }

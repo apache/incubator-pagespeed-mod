@@ -148,7 +148,7 @@ StringPiece JavascriptCodeBlock::ComputeJavascriptLibrary() const {
   if (rewritten_) {
     const JavascriptLibraryIdentification* library_identification =
         config_->library_identification();
-    if (library_identification != NULL) {
+    if (library_identification != nullptr) {
       result = library_identification->Find(rewritten_code_);
       if (!result.empty()) {
         config_->libraries_identified()->Add(1);
@@ -184,7 +184,7 @@ bool JavascriptCodeBlock::Rewrite() {
   // which case output_code_ should point to the minified code when we're
   // done), or because we're trying to identify a javascript library.
   // Bail if we're not doing one of these things.
-  if (!config_->minify() && (config_->library_identification() == NULL)) {
+  if (!config_->minify() && (config_->library_identification() == nullptr)) {
     return successfully_rewritten_;
   }
 

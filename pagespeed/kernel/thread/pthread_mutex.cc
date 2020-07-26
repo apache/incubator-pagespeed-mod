@@ -28,7 +28,7 @@
 namespace net_instaweb {
 
 PthreadMutex::PthreadMutex() {
-  pthread_mutex_init(&mutex_, NULL);
+  pthread_mutex_init(&mutex_, nullptr);
 }
 
 PthreadMutex::~PthreadMutex() {

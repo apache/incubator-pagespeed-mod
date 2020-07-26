@@ -203,7 +203,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
           result_ = HTTPCache::FindResult(
               HTTPCache::kRecentFailure,
               HttpCacheFailure::DecodeFailureCachingStatus(http_status));
-          if (handler_ != NULL) {
+          if (handler_ != nullptr) {
             handler_->Message(kInfo,
                               "HTTPCache key=%s fragment=%s: remembering "
                               "recent failure for %ld seconds.",
@@ -357,9 +357,9 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
     HTTPValue* value, MessageHandler* handler) {
   if ((headers->status_code() != HttpStatus::kOK) &&
       ignore_failure_puts_.value()) {
-    return NULL;
+    return nullptr;
   }
-  DCHECK(value != NULL || content != NULL);
+  DCHECK(value != nullptr || content != nullptr);
 
   // Clear out Set-Cookie headers before storing the response into cache.
   bool headers_mutated = headers->Sanitize();
@@ -369,9 +369,9 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
   StringPiece new_content;
 
   // Add an Etag if the original response didn't have any.
-  if (headers->Lookup1(HttpAttributes::kEtag) == NULL) {
+  if (headers->Lookup1(HttpAttributes::kEtag) == nullptr) {
     GoogleString hash;
-    if (content == NULL) {
+    if (content == nullptr) {
       bool success = value->ExtractContents(&new_content);
       DCHECK(success);
       content = &new_content;
@@ -381,10 +381,10 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
     headers_mutated = true;
   }
 
-  if (headers_mutated || value == NULL) {
+  if (headers_mutated || value == nullptr) {
     HTTPValue* new_value = new HTTPValue;  // Will be deleted by calling Put.
     new_value->SetHeaders(headers);
-    if (content == NULL) {
+    if (content == nullptr) {
       bool success = value->ExtractContents(&new_content);
       DCHECK(success);
       new_value->Write(new_content, handler);
@@ -411,7 +411,7 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
   // everything.
   if (!value->Empty() && compression_level_ != 0) {
     const ContentType* type = response_headers->DetermineContentType();
-    if ((type != NULL) && type->IsCompressible() &&
+    if ((type != nullptr) && type->IsCompressible() &&
         !response_headers->IsGzipped()) {
       ResponseHeaders* headers_to_gzip = response_headers;
       ResponseHeaders headers_copy;
@@ -424,7 +424,7 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
       // last.  This helps tests act more consistently.
       const char* orig_content_length = headers_to_gzip->Lookup1(
           HttpAttributes::kXOriginalContentLength);
-      if (orig_content_length != NULL) {
+      if (orig_content_length != nullptr) {
         GoogleString save_content_length = orig_content_length;
         headers_to_gzip->RemoveAll(HttpAttributes::kXOriginalContentLength);
         headers_to_gzip->Add(HttpAttributes::kXOriginalContentLength,
@@ -457,7 +457,7 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
   // TODO(jcrowell): prevent the unzip-rezip flow when sending compressed data
   // directly to a client through InflatingFetch.
   cache_->Put(CompositeKey(key, fragment), value->share());
-  if (cache_time_us_ != NULL) {
+  if (cache_time_us_ != nullptr) {
     int64 delta_us = timer_->NowUs() - start_us;
     cache_time_us_->Add(delta_us);
   }
@@ -490,12 +490,12 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
   }
   // Apply header changes.
   HTTPValue* new_value = ApplyHeaderChangesForPut(
-      start_us, NULL, &headers, value, handler);
+      start_us, nullptr, &headers, value, handler);
   // Put into underlying cache.
-  if (new_value != NULL) {
+  if (new_value != nullptr) {
     PutInternal(false /* preserve_response_headers */,
                 key, fragment, start_us, new_value, &headers, handler);
-    if (cache_inserts_ != NULL) {
+    if (cache_inserts_ != nullptr) {
       cache_inserts_->Add(1);
     }
 
@@ -527,12 +527,12 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
   // Takes ownership of the returned HTTPValue, which is guaranteed to have been
   // allocated by ApplyHeaderChangesForPut.
   std::unique_ptr<HTTPValue> value(
-      ApplyHeaderChangesForPut(start_us, &content, headers, NULL, handler));
+      ApplyHeaderChangesForPut(start_us, &content, headers, nullptr, handler));
   // Put into underlying cache.
-  if (value.get() != NULL) {
+  if (value.get() != nullptr) {
     PutInternal(true /* preserve_response_headers */,
                 key, fragment, start_us, value.get(), headers, handler);
-    if (cache_inserts_ != NULL) {
+    if (cache_inserts_ != nullptr) {
       cache_inserts_->Add(1);
     }
   }
@@ -599,7 +599,7 @@ void HTTPCache::Callback::ReportLatencyMs(int64 latency_ms) {
     return;
   }
 
-  if (request_context().get() == NULL) {
+  if (request_context().get() == nullptr) {
     LOG(DFATAL) << "NOTREACHED";
     return;
   }

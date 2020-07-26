@@ -78,7 +78,7 @@ class RewriteDriverTest : public RewriteTestBase {
     RewriteFilter* filter;
     OutputResourcePtr resource(
         rewrite_driver()->DecodeOutputResource(gurl, &filter));
-    return (resource.get() != NULL);
+    return (resource.get() != nullptr);
   }
 
   GoogleString BaseUrlSpec() {
@@ -943,7 +943,7 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLongSeparateBase) {
       "test.jpg",
       kRewrittenResource,
       &failure_reason));
-  EXPECT_TRUE(NULL == resource.get());
+  EXPECT_TRUE(nullptr == resource.get());
   EXPECT_EQ("Rewritten URL too long: http://cdn.com/http/base.example.com/"
             "http/unmapped.example.com/dir/test.jpg.pagespeed.xy.#.",
             failure_reason);
@@ -958,7 +958,7 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLongSeparateBase) {
       "test.jpg",
       kRewrittenResource,
       &failure_reason));
-  EXPECT_TRUE(NULL != resource.get());
+  EXPECT_TRUE(nullptr != resource.get());
   EXPECT_EQ("", failure_reason);
 }
 
@@ -992,7 +992,7 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
     resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
         short_path, dummy_filter_id, short_name, resource_kinds[k],
         &failure_reason));
-    EXPECT_TRUE(NULL != resource.get());
+    EXPECT_TRUE(nullptr != resource.get());
     EXPECT_EQ("", failure_reason);
 
     failure_reason = "";
@@ -1000,7 +1000,7 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
     resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
         short_path, dummy_filter_id, long_name, resource_kinds[k],
         &failure_reason));
-    EXPECT_TRUE(NULL == resource.get());
+    EXPECT_TRUE(nullptr == resource.get());
     EXPECT_EQ("Rewritten URL segment too long.", failure_reason);
 
     failure_reason = "";
@@ -1008,7 +1008,7 @@ TEST_F(RewriteDriverTest, CreateOutputResourceTooLong) {
     resource.reset(rewrite_driver()->CreateOutputResourceWithPath(
         long_path, dummy_filter_id, short_name, resource_kinds[k],
         &failure_reason));
-    EXPECT_TRUE(NULL == resource.get());
+    EXPECT_TRUE(nullptr == resource.get());
     EXPECT_EQ(StrCat("Rewritten URL too long: ", long_path, short_name,
                      ".pagespeed.xy.#."),
               failure_reason);
@@ -1058,14 +1058,14 @@ TEST_F(RewriteDriverTest, ResourceCharset) {
         rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
             kUrl));
     MockResourceCallback mock_callback(resource, factory()->thread_system());
-    ASSERT_TRUE(resource.get() != NULL);
+    ASSERT_TRUE(resource.get() != nullptr);
     resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
                         rewrite_driver()->request_context(),
                         &mock_callback);
     EXPECT_TRUE(mock_callback.done());
     EXPECT_TRUE(mock_callback.success());
     EXPECT_EQ(kContents, resource->ExtractUncompressedContents());
-    ASSERT_TRUE(resource->type() != NULL);
+    ASSERT_TRUE(resource->type() != nullptr);
     EXPECT_EQ(ContentType::kCss, resource->type()->type());
     EXPECT_STREQ("koi8-r", resource->charset());
   }
@@ -1098,7 +1098,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           resource_url));
   MockResourceCallback mock_callback(resource, factory()->thread_system());
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
                       rewrite_driver()->request_context(),
                       &mock_callback);
@@ -1114,7 +1114,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           resource_url));
   MockResourceCallback mock_callback2(resource2, factory()->thread_system());
-  ASSERT_TRUE(resource2.get() != NULL);
+  ASSERT_TRUE(resource2.get() != nullptr);
   resource2->LoadAsync(Resource::kReportFailureIfNotCacheable,
                        rewrite_driver()->request_context(),
                        &mock_callback2);
@@ -1130,7 +1130,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromTheWeb) {
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           resource_url));
   MockResourceCallback mock_callback3(resource3, factory()->thread_system());
-  ASSERT_TRUE(resource3.get() != NULL);
+  ASSERT_TRUE(resource3.get() != nullptr);
   resource3->LoadAsync(Resource::kReportFailureIfNotCacheable,
                        rewrite_driver()->request_context(),
                        &mock_callback3);
@@ -1163,7 +1163,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromFiles) {
   ResourcePtr resource(
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           resource_url));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   EXPECT_EQ(&kContentTypeCss, resource->type());
   MockResourceCallback mock_callback(resource, factory()->thread_system());
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1180,7 +1180,7 @@ TEST_F(RewriteDriverTest, LoadResourcesFromFiles) {
   ResourcePtr resource2(
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           resource_url));
-  ASSERT_TRUE(resource2.get() != NULL);
+  ASSERT_TRUE(resource2.get() != nullptr);
   EXPECT_EQ(&kContentTypeCss, resource2->type());
   MockResourceCallback mock_callback2(resource2, factory()->thread_system());
   resource2->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1207,7 +1207,7 @@ TEST_F(RewriteDriverTest, LoadResourcesContentType) {
   ResourcePtr resource(
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           "http://www.example.com/static/foo.js?version=2.css"));
-  EXPECT_TRUE(resource.get() != NULL);
+  EXPECT_TRUE(resource.get() != nullptr);
   EXPECT_EQ(&kContentTypeJavascript, resource->type());
 
   // Write file with bogus extension.
@@ -1216,8 +1216,8 @@ TEST_F(RewriteDriverTest, LoadResourcesContentType) {
   ResourcePtr resource2(
       rewrite_driver()->CreateInputResourceAbsoluteUncheckedForTestsOnly(
           "http://www.example.com/static/bar.bogus"));
-  EXPECT_TRUE(resource2.get() != NULL);
-  EXPECT_TRUE(NULL == resource2->type());
+  EXPECT_TRUE(resource2.get() != nullptr);
+  EXPECT_TRUE(nullptr == resource2->type());
 }
 
 TEST_F(RewriteDriverTest, ResolveAnchorUrl) {
@@ -1233,7 +1233,7 @@ TEST_F(RewriteDriverTest, ResolveAnchorUrl) {
 class MockRewriteContext : public SingleRewriteContext {
  public:
   explicit MockRewriteContext(RewriteDriver* driver) :
-      SingleRewriteContext(driver, NULL, NULL) {}
+      SingleRewriteContext(driver, nullptr, nullptr) {}
 
   void RewriteSingle(const ResourcePtr& input,
                              const OutputResourcePtr& output) override {}
@@ -1292,7 +1292,7 @@ TEST_F(RewriteDriverTest, RejectDataResourceGracefully) {
   bool is_authorized;
   ResourcePtr resource(rewrite_driver()->CreateInputResource(
       dataUrl, RewriteDriver::InputRole::kImg, &is_authorized));
-  EXPECT_TRUE(resource.get() == NULL);
+  EXPECT_TRUE(resource.get() == nullptr);
   EXPECT_TRUE(is_authorized);
 }
 
@@ -1310,7 +1310,7 @@ TEST_F(RewriteDriverTest, NoCreateInputResourceUnauthorized) {
   bool is_authorized;
   ResourcePtr resource(rewrite_driver()->CreateInputResource(
       unauthorized_url, RewriteDriver::InputRole::kScript, &is_authorized));
-  EXPECT_TRUE(resource.get() == NULL);
+  EXPECT_TRUE(resource.get() == nullptr);
   EXPECT_FALSE(is_authorized);
 
   // Test that an authorized resource is created with the right cache key even
@@ -1322,7 +1322,7 @@ TEST_F(RewriteDriverTest, NoCreateInputResourceUnauthorized) {
       RewriteDriver::kIntendedForGeneral,
       RewriteDriver::InputRole::kScript,
       &is_authorized));
-  EXPECT_TRUE(resource2.get() != NULL);
+  EXPECT_TRUE(resource2.get() != nullptr);
   EXPECT_TRUE(is_authorized);
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->url());
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->cache_key());
@@ -1348,7 +1348,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
       RewriteDriver::kIntendedForGeneral,
       RewriteDriver::InputRole::kScript,
       &is_authorized));
-  EXPECT_TRUE(resource.get() != NULL);
+  EXPECT_TRUE(resource.get() != nullptr);
   EXPECT_FALSE(is_authorized);
   EXPECT_STREQ(unauthorized_url.spec_c_str(), resource->url());
   EXPECT_STREQ("unauth://unauthorized.domain.com/a.js", resource->cache_key());
@@ -1362,7 +1362,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
       RewriteDriver::kIntendedForGeneral,
       RewriteDriver::InputRole::kScript,
       &is_authorized));
-  EXPECT_TRUE(resource2.get() != NULL);
+  EXPECT_TRUE(resource2.get() != nullptr);
   EXPECT_TRUE(is_authorized);
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->url());
   EXPECT_STREQ(authorized_url.spec_c_str(), resource2->cache_key());
@@ -1375,7 +1375,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
       RewriteDriver::kIntendedForGeneral,
       RewriteDriver::InputRole::kScript,
       &is_authorized));
-  EXPECT_TRUE(resource3.get() == NULL);
+  EXPECT_TRUE(resource3.get() == nullptr);
   EXPECT_FALSE(is_authorized);
 
   // Test that an unauthorized resource is not created with the default
@@ -1383,7 +1383,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorized) {
   ResourcePtr resource4(
       rewrite_driver()->CreateInputResource(
           unauthorized_url, RewriteDriver::InputRole::kScript, &is_authorized));
-  EXPECT_TRUE(resource4.get() == NULL);
+  EXPECT_TRUE(resource4.get() == nullptr);
   EXPECT_FALSE(is_authorized);
 }
 
@@ -1407,7 +1407,7 @@ TEST_F(RewriteDriverTest, CreateInputResourceUnauthorizedWithDisallow) {
       RewriteDriver::kIntendedForGeneral,
       RewriteDriver::InputRole::kScript,
       &is_authorized));
-  EXPECT_TRUE(resource.get() == NULL);
+  EXPECT_TRUE(resource.get() == nullptr);
   EXPECT_FALSE(is_authorized);
 }
 
@@ -1430,7 +1430,7 @@ TEST_F(RewriteDriverTest, AllowWhenInliningOverridesDisallow) {
       RewriteDriver::kIntendedForInlining,
       RewriteDriver::InputRole::kScript,
       &is_authorized));
-  EXPECT_FALSE(resource.get() == NULL);
+  EXPECT_FALSE(resource.get() == nullptr);
   EXPECT_TRUE(is_authorized);
 }
 
@@ -1453,7 +1453,7 @@ TEST_F(RewriteDriverTest, AllowWhenInliningDoesntOverrideDisallow) {
       RewriteDriver::kIntendedForGeneral,
       RewriteDriver::InputRole::kScript,
       &is_authorized));
-  EXPECT_TRUE(resource.get() == NULL);
+  EXPECT_TRUE(resource.get() == nullptr);
   EXPECT_FALSE(is_authorized);
 }
 
@@ -1465,9 +1465,9 @@ class ResponseHeadersCheckingFilter : public EmptyHtmlFilter {
   }
 
   void CheckAccess() {
-    EXPECT_TRUE(driver_->response_headers() != NULL);
+    EXPECT_TRUE(driver_->response_headers() != nullptr);
     if (flush_occurred_) {
-      EXPECT_TRUE(driver_->mutable_response_headers() == NULL);
+      EXPECT_TRUE(driver_->mutable_response_headers() == nullptr);
     } else {
       EXPECT_EQ(driver_->mutable_response_headers(),
                 driver_->response_headers());
@@ -1926,7 +1926,7 @@ TEST_F(RewriteDriverTest, DecodeMultiUrlsEncodesCorrectly) {
 // Records URL of the last img element it sees at point of RenderDone().
 class RenderDoneCheckingFilter : public EmptyHtmlFilter {
  public:
-  RenderDoneCheckingFilter() : element_(NULL) {}
+  RenderDoneCheckingFilter() : element_(nullptr) {}
   ~RenderDoneCheckingFilter() override {}
   const GoogleString& src() const { return src_; }
 
@@ -1938,9 +1938,9 @@ class RenderDoneCheckingFilter : public EmptyHtmlFilter {
   }
 
   void RenderDone() override {
-    if (element_ != NULL) {
+    if (element_ != nullptr) {
       const char* val = element_->AttributeValue(HtmlName::kSrc);
-      src_ = (val != NULL ? val : "");
+      src_ = (val != nullptr ? val : "");
     }
   }
 

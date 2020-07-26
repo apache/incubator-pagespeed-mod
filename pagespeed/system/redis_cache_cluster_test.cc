@@ -23,6 +23,8 @@
 #include "pagespeed/system/redis_cache.h"
 
 #include <cstddef>
+#include <memory>
+
 #include <vector>
 
 #include "base/logging.h"
@@ -103,10 +105,10 @@ class RedisCacheClusterTest : public CacheTestBase {
     }
 
     // Setting up cache.
-    cache_.reset(new RedisCache("localhost", ports_[0], thread_system_.get(),
+    cache_ = std::make_unique<RedisCache>("localhost", ports_[0], thread_system_.get(),
                                 &handler_, &timer_, kReconnectionDelayMs,
                                 kTimeoutUs, &statistics_, kDatabaseIndex,
-                                kTTLSec));
+                                kTTLSec);
     cache_->StartUp();
     return true;
   }

@@ -28,7 +28,7 @@
 namespace net_instaweb {
 
 MemLockState::MemLockState(StringPiece name, MemLockManager* manager)
-    : current_owner_(NULL),
+    : current_owner_(nullptr),
       lock_count_(0),
       name_(name.data(), name.size()),
       manager_(manager) {
@@ -48,7 +48,7 @@ void MemLockState::RemoveLock(MemLock* lock) {
   if (--lock_count_ == 0) {
     CHECK(pending_locks_.empty());
     CHECK(pending_steals_.empty());
-    if (manager_ != NULL) {
+    if (manager_ != nullptr) {
       manager_->RemoveLockState(this);
     }
     delete this;
@@ -56,7 +56,7 @@ void MemLockState::RemoveLock(MemLock* lock) {
 }
 
 void MemLockState::Unlock() {
-  CHECK(current_owner_ != NULL);
+  CHECK(current_owner_ != nullptr);
   current_owner_->Clear();
   if (!pending_locks_.empty()) {
     WakeupOrderedLockSet::iterator p = pending_locks_.begin();
@@ -75,7 +75,7 @@ void MemLockState::Unlock() {
     }
     current_owner_->Grant(grant_time_ms);
   } else {
-    current_owner_ = NULL;
+    current_owner_ = nullptr;
   }
 }
 
@@ -94,8 +94,8 @@ void MemLockState::RescheduleLock(
 }
 
 void MemLockState::MemLockManagerDestroyed() {
-  CHECK(manager_ != NULL);
-  manager_ = NULL;
+  CHECK(manager_ != nullptr);
+  manager_ = nullptr;
   while (!pending_locks_.empty()) {
     MemLock* lock = *pending_locks_.begin();
     lock->Deny();
@@ -103,13 +103,13 @@ void MemLockState::MemLockManagerDestroyed() {
 }
 
 void MemLockState::StealLock(MemLock* lock) {
-  CHECK(current_owner_ != NULL);
+  CHECK(current_owner_ != nullptr);
   current_owner_->Unlock();  // We expect lock should be the first stealer.
   CHECK_EQ(current_owner_, lock);
 }
 
 bool MemLockState::GrabLock(MemLock* lock) {
-  if (current_owner_ != NULL) {
+  if (current_owner_ != nullptr) {
     return false;
   }
   current_owner_ = lock;
@@ -117,7 +117,7 @@ bool MemLockState::GrabLock(MemLock* lock) {
 }
 
 void MemLockState::ScheduleLock(MemLock* lock) {
-  CHECK(current_owner_ != NULL);
+  CHECK(current_owner_ != nullptr);
   // Assume optimistically that this lock will displace any current
   // pending steal.  If that turns out to be false we will need to
   // recalculate its steal_time.
@@ -149,7 +149,7 @@ void MemLockState::ScheduleLock(MemLock* lock) {
 void MemLockState::UnscheduleLock(MemLock* lock) {
   pending_locks_.erase(lock);
   pending_steals_.erase(lock);
-  if (manager_ != NULL) {
+  if (manager_ != nullptr) {
     manager_->RemovePendingLock(lock);
   }
 }
@@ -181,7 +181,7 @@ bool MemLockState::StealComparator::operator()(
 }
 
 bool MemLockState::IsHeldInOrderedSet(MemLock* lock) const {
-  return (((manager_ != NULL) && manager_->IsHeldInOrderedSet(lock)) ||
+  return (((manager_ != nullptr) && manager_->IsHeldInOrderedSet(lock)) ||
           (pending_locks_.find(lock) != pending_locks_.end()) ||
           (pending_steals_.find(lock) != pending_steals_.end()));
 }

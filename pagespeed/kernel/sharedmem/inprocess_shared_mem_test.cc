@@ -97,7 +97,7 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
 
     void Run() override {
       fn_->CallRun();
-      fn_ = NULL;
+      fn_ = nullptr;
     }
 
    private:

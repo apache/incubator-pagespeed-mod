@@ -45,7 +45,7 @@ bool GenerateFilename(
     const char* infilename, GoogleString* outfilename) {
   bool ret = false;
   const char* dot = strrchr(infilename, '.');
-  if (dot != NULL) {
+  if (dot != nullptr) {
     outfilename->clear();
     int base_size = dot - infilename;
     outfilename->append(infilename, base_size);
@@ -81,7 +81,7 @@ class Rewriter : public Writer {
 FileDriver::FileDriver(HtmlParse* html_parse, FileSystem* file_system)
     : html_parse_(html_parse),
       logging_filter_(),
-      stats_log_(NULL),
+      stats_log_(nullptr),
       html_write_filter_(html_parse_),
       filters_added_(false),
       file_system_(file_system),
@@ -106,7 +106,7 @@ bool FileDriver::ParseFile(const char* infilename,
       file_system_->OpenOutputFile(outfilename, message_handler);
   bool ret = false;
 
-  if (outf != NULL) {
+  if (outf != nullptr) {
     if (!filters_added_) {
       filters_added_ = true;
       html_parse_->AddFilter(&logging_filter_);
@@ -117,7 +117,7 @@ bool FileDriver::ParseFile(const char* infilename,
     html_write_filter_.set_writer(&file_writer);
     FileSystem::InputFile* f =
         file_system_->OpenInputFile(infilename, message_handler);
-    if (f != NULL) {
+    if (f != nullptr) {
       // HtmlParser needs a valid HTTP URL to evaluate relative paths,
       // so we create a dummy URL.
       GoogleString dummy_url = StrCat("http://file.name/", infilename);
@@ -132,10 +132,10 @@ bool FileDriver::ParseFile(const char* infilename,
       file_system_->Close(f, message_handler);
       html_parse_->FinishParse();
       ret = true;
-      if (statsfilename != NULL) {
+      if (statsfilename != nullptr) {
         FileSystem::OutputFile* statsfile =
             file_system_->OpenOutputFile(statsfilename, message_handler);
-        if (statsfile != NULL) {
+        if (statsfile != nullptr) {
           FileStatisticsLog statslog(statsfile, message_handler);
           logging_filter_.LogStatistics(&statslog);
           file_system_->Close(statsfile, message_handler);

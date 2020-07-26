@@ -49,8 +49,8 @@ class MeasurementProxyRewriteOptionsManagerTest
     ProxyInterfaceTestBase::SetUp();
     options_manager_ = new MeasurementProxyRewriteOptionsManager(
         server_context(), "https://www.example.com", "secret");
-    url_namer_.reset(new MeasurementProxyUrlNamer(
-        "https://www.example.com", "secret"));
+    url_namer_ = std::make_unique<MeasurementProxyUrlNamer>(
+        "https://www.example.com", "secret");
     server_context()->SetRewriteOptionsManager(options_manager_);
     server_context()->set_url_namer(url_namer_.get());
   }

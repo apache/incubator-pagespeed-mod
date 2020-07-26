@@ -72,7 +72,7 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
   // server_context_ == NULL.
   // TODO(sligocki): Construct RewriteDriver with a ServerContext, to avoid
   // worrying about it not getting initialized.
-  CHECK(server_context_ != NULL);
+  CHECK(server_context_ != nullptr);
 }
 
 ResourceCombiner::~ResourceCombiner() {
@@ -126,13 +126,13 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
     AccumulateCombinedSize(resource);
 
     resources_.push_back(resource);
-    const char* failure_reason = NULL;
+    const char* failure_reason = nullptr;
     if (ContentSizeTooBig()) {
       failure_reason = "combined contents too big.";
     } else if (UrlTooBig()) {
       failure_reason = "combined url too long.";
     }
-    if (failure_reason != NULL) {
+    if (failure_reason != nullptr) {
       handler->Message(
           kInfo, "Cannot combine %s: %s",
           resource->url().c_str(), failure_reason);
@@ -158,7 +158,7 @@ void ResourceCombiner::RemoveLastResource() {
 GoogleString ResourceCombiner::UrlSafeId() const {
   GoogleString segment;
   UrlMultipartEncoder encoder;
-  encoder.Encode(multipart_encoder_urls_, NULL, &segment);
+  encoder.Encode(multipart_encoder_urls_, nullptr, &segment);
   return segment;
 }
 
@@ -232,10 +232,10 @@ OutputResourcePtr ResourceCombiner::Combine(MessageHandler* handler) {
   combination.reset(rewrite_driver_->CreateOutputResourceWithMappedPath(
       resolved_base, resolved_base, filter_->id(), url_safe_id,
       kRewrittenResource, &failure_reason));
-  if (combination.get() == NULL) {
+  if (combination.get() == nullptr) {
     // TODO(sligocki): Note failure_reason somewhere.
   } else {
-    if (combination->cached_result() != NULL &&
+    if (combination->cached_result() != nullptr &&
         combination->cached_result()->optimizable()) {
       // If the combination has a Url set on it we have cached information
       // on what the output would be, so we'll just use that.

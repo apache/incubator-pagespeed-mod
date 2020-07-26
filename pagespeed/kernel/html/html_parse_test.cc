@@ -156,7 +156,7 @@ class AttrValuesSaverFilter : public EmptyHtmlFilter {
       const char* value = i->DecodedValueOrNull();
       if (i->decoding_error()) {
         value_ += "<ERROR>";
-      } else if (value == NULL) {
+      } else if (value == nullptr) {
         value_ += "(null)";
       } else {
         value_ += value;
@@ -513,7 +513,7 @@ class AnnotatingHtmlFilter : public EmptyHtmlFilter {
       const char* value = attr.DecodedValueOrNull();
       if (attr.decoding_error()) {
         StrAppend(&buffer_, "=<ERROR>");
-      } else if (value != NULL) {
+      } else if (value != nullptr) {
         StrAppend(&buffer_, "=", attr.quote_str(), value, attr.quote_str());
       }
       first = false;
@@ -1420,11 +1420,11 @@ class EventListManipulationTest : public HtmlParseTest {
     HtmlParseTest::SetUp();
     static const char kUrl[] = "http://html.parse.test/event_list_test.html";
     ASSERT_TRUE(html_parse_.StartParse(kUrl));
-    node1_ = html_parse_.NewCharactersNode(NULL, "1");
+    node1_ = html_parse_.NewCharactersNode(nullptr, "1");
     HtmlTestingPeer::AddEvent(&html_parse_,
                               new HtmlCharactersEvent(node1_, -1));
-    node2_ = html_parse_.NewCharactersNode(NULL, "2");
-    node3_ = html_parse_.NewCharactersNode(NULL, "3");
+    node2_ = html_parse_.NewCharactersNode(nullptr, "2");
+    node3_ = html_parse_.NewCharactersNode(nullptr, "3");
     // Note: the last 2 are not added in SetUp.
   }
 
@@ -1533,7 +1533,7 @@ TEST_F(EventListManipulationTest, TestAddParentToSequence) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node3_, div));
   CheckExpected("<div>123</div>");
 
@@ -1544,14 +1544,14 @@ TEST_F(EventListManipulationTest, TestAddParentToSequence) {
 
   // Next, add an HTML block above the div.  Note that we pass 'div' in as
   // both 'first' and 'last'.
-  HtmlElement* html = html_parse_.NewElement(NULL, HtmlName::kHtml);
+  HtmlElement* html = html_parse_.NewElement(nullptr, HtmlName::kHtml);
   EXPECT_TRUE(html_parse_.AddParentToSequence(div, div, html));
   CheckExpected("<html><div><span>12</span>3</div></html>");
 }
 
 TEST_F(EventListManipulationTest, TestPrependChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.InsertNodeBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
@@ -1565,7 +1565,7 @@ TEST_F(EventListManipulationTest, TestPrependChild) {
 
 TEST_F(EventListManipulationTest, TestAppendChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.InsertNodeBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
@@ -1580,7 +1580,7 @@ TEST_F(EventListManipulationTest, TestAppendChild) {
 TEST_F(EventListManipulationTest, TestAddParentToSequenceDifferentParents) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   CheckExpected("<div>12</div>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
@@ -1590,7 +1590,7 @@ TEST_F(EventListManipulationTest, TestAddParentToSequenceDifferentParents) {
 
 TEST_F(EventListManipulationTest, TestDeleteGroup) {
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   CheckExpected("<div>12</div>");
   html_parse_.DeleteNode(div);
@@ -1598,11 +1598,11 @@ TEST_F(EventListManipulationTest, TestDeleteGroup) {
 }
 
 TEST_F(EventListManipulationTest, TestMoveElementIntoParent1) {
-  HtmlElement* head = html_parse_.NewElement(NULL, HtmlName::kHead);
+  HtmlElement* head = html_parse_.NewElement(nullptr, HtmlName::kHead);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, head));
   CheckExpected("<head>1</head>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node2_, node2_, div));
   CheckExpected("<head>1</head><div>2</div>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
@@ -1614,13 +1614,13 @@ TEST_F(EventListManipulationTest, TestMoveElementIntoParent1) {
 
 TEST_F(EventListManipulationTest, TestMoveElementIntoParent2) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* head = html_parse_.NewElement(NULL, HtmlName::kHead);
+  HtmlElement* head = html_parse_.NewElement(nullptr, HtmlName::kHead);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, head));
   CheckExpected("<head>1</head>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
   CheckExpected("<head>1</head>23");
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node3_, node3_, div));
   CheckExpected("<head>1</head>2<div>3</div>");
   HtmlTestingPeer::SetCurrent(&html_parse_, div);
@@ -1634,7 +1634,7 @@ TEST_F(EventListManipulationTest, TestMoveElementIntoParent2) {
 
 TEST_F(EventListManipulationTest, TestDeleteSavingChildrenEnd) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, div));
   CheckExpected("<div>1</div>");
   EXPECT_TRUE(html_parse_.DeleteSavingChildren(div));
@@ -1645,7 +1645,7 @@ TEST_F(EventListManipulationTest, TestMoveCurrentBefore) {
   // Setup events.
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
   CheckExpected("<div>12</div>3");
@@ -1664,7 +1664,7 @@ TEST_F(EventListManipulationTest, TestMoveCurrentBefore) {
 #endif
 
   // Test that current_ pointing to a containing object will not work.
-  HtmlElement* span = html_parse_.NewElement(NULL, HtmlName::kSpan);
+  HtmlElement* span = html_parse_.NewElement(nullptr, HtmlName::kSpan);
   EXPECT_TRUE(html_parse_.AddParentToSequence(div, div, span));
   CheckExpected("<span><div>132</div></span>");
   HtmlTestingPeer::SetCurrent(&html_parse_, span);
@@ -1687,7 +1687,7 @@ TEST_F(EventListManipulationTest, TestCoalesceOnAdd) {
 
 TEST_F(EventListManipulationTest, TestCoalesceOnDelete) {
   CheckExpected("1");
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer testing_peer;
@@ -1708,7 +1708,7 @@ TEST_F(EventListManipulationTest, TestCoalesceOnDelete) {
 
 TEST_F(EventListManipulationTest, TestHasChildren) {
   CheckExpected("1");
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   EXPECT_FALSE(html_parse_.HasChildrenInFlushWindow(div));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
@@ -1736,7 +1736,7 @@ TEST_F(EventListManipulationTest, AppendCommentWithEscaping) {
 }
 
 TEST_F(EventListManipulationTest, CommentBeforeDiv1) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   html_parse_.InsertComment("hello");
   html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
@@ -1744,7 +1744,7 @@ TEST_F(EventListManipulationTest, CommentBeforeDiv1) {
 }
 
 TEST_F(EventListManipulationTest, CommentBeforeDiv2) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.InsertComment("hello");
   html_parse_.AddElement(div, -1);
   html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
@@ -1752,7 +1752,7 @@ TEST_F(EventListManipulationTest, CommentBeforeDiv2) {
 }
 
 TEST_F(EventListManipulationTest, CommentAfterDiv) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
   html_parse_.InsertComment("hello");
@@ -1760,10 +1760,10 @@ TEST_F(EventListManipulationTest, CommentAfterDiv) {
 }
 
 TEST_F(EventListManipulationTest, CommentAfterFirstDiv) {
-  HtmlElement* div1 = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div1 = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div1, -1);
   html_parse_.CloseElement(div1, HtmlElement::EXPLICIT_CLOSE, -1);
-  HtmlElement* div2 = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div2 = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div2, -1);
   html_parse_.CloseElement(div2, HtmlElement::EXPLICIT_CLOSE, -1);
   HtmlTestingPeer::SetCurrent(&html_parse_, div1);
@@ -1878,7 +1878,7 @@ class AttributeManipulationTest : public HtmlParseTest {
     static const char kUrl[] =
         "http://html.parse.test/attribute_manipulation_test.html";
     ASSERT_TRUE(html_parse_.StartParse(kUrl));
-    node_ = html_parse_.NewElement(NULL, HtmlName::kA);
+    node_ = html_parse_.NewElement(nullptr, HtmlName::kA);
     html_parse_.AddElement(node_, 0);
     html_parse_.AddAttribute(node_, HtmlName::kHref, "http://www.google.com/");
     node_->AddAttribute(html_parse_.MakeName(HtmlName::kId), "37",
@@ -1923,7 +1923,7 @@ class AttributeManipulationTest : public HtmlParseTest {
       }
       ++pos;
     }
-    return NULL;
+    return nullptr;
   }
 
   HtmlElement* node_;
@@ -1941,15 +1941,15 @@ TEST_F(AttributeManipulationTest, PropertiesAndDeserialize) {
   EXPECT_EQ(number37, node_->AttributeValue(HtmlName::kId));
   EXPECT_EQ(search, node_->AttributeValue(HtmlName::kClass));
   // Returns NULL for attributes that do not exist ...
-  EXPECT_TRUE(NULL == node_->AttributeValue(HtmlName::kNotAKeyword));
+  EXPECT_TRUE(nullptr == node_->AttributeValue(HtmlName::kNotAKeyword));
   // ... and for attributes which have no value.
-  EXPECT_TRUE(NULL == node_->AttributeValue(HtmlName::kSelected));
+  EXPECT_TRUE(nullptr == node_->AttributeValue(HtmlName::kSelected));
   // Returns NULL for attributes that do not exist.
-  EXPECT_TRUE(NULL == node_->FindAttribute(HtmlName::kNotAKeyword));
+  EXPECT_TRUE(nullptr == node_->FindAttribute(HtmlName::kNotAKeyword));
   // Returns an attribute reference for attributes without values.
   HtmlElement::Attribute* selected = node_->FindAttribute(HtmlName::kSelected);
-  EXPECT_TRUE(NULL != selected);
-  EXPECT_TRUE(NULL == selected->DecodedValueOrNull());
+  EXPECT_TRUE(nullptr != selected);
+  EXPECT_TRUE(nullptr == selected->DecodedValueOrNull());
   EXPECT_EQ(google, node_->AttributeValue(HtmlName::kHref));
   EXPECT_EQ(number37, node_->AttributeValue(HtmlName::kId));
   EXPECT_EQ(search, node_->AttributeValue(HtmlName::kClass));
@@ -1977,7 +1977,7 @@ TEST_F(AttributeManipulationTest, DeleteAttribute) {
 TEST_F(AttributeManipulationTest, ModifyAttribute) {
   HtmlElement::Attribute* href =
       node_->FindAttribute(HtmlName::kHref);
-  EXPECT_TRUE(href != NULL);
+  EXPECT_TRUE(href != nullptr);
   href->SetValue("google");
   href->set_quote_style(HtmlElement::SINGLE_QUOTE);
   html_parse_.SetAttributeName(href, HtmlName::kSrc);
@@ -1987,7 +1987,7 @@ TEST_F(AttributeManipulationTest, ModifyAttribute) {
 TEST_F(AttributeManipulationTest, ModifyKeepAttribute) {
   HtmlElement::Attribute* href =
       node_->FindAttribute(HtmlName::kHref);
-  EXPECT_TRUE(href != NULL);
+  EXPECT_TRUE(href != nullptr);
   // This apparently do-nothing call to SetValue exposed an allocation bug.
   href->SetValue(href->DecodedValueOrNull());
   href->set_quote_style(href->quote_style());
@@ -2019,10 +2019,10 @@ TEST_F(AttributeManipulationTest, CloneElement) {
   EXPECT_EQ(HtmlName::kClass, AttributeAt(clone, 2)->keyword());
   EXPECT_STREQ("search!", AttributeAt(clone, 2)->DecodedValueOrNull());
   EXPECT_EQ(HtmlName::kSelected, AttributeAt(clone, 3)->keyword());
-  EXPECT_EQ(NULL, AttributeAt(clone, 3)->DecodedValueOrNull());
+  EXPECT_EQ(nullptr, AttributeAt(clone, 3)->DecodedValueOrNull());
 
   HtmlElement::Attribute* id = clone->FindAttribute(HtmlName::kId);
-  ASSERT_TRUE(id != NULL);
+  ASSERT_TRUE(id != nullptr);
   id->SetValue("38");
 
   // Clone is not added initially, and the original is not touched.
@@ -2556,7 +2556,7 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
   void StartElement(HtmlElement* element) override {
     CountingCallbacksFilter::StartElement(element);
     const char* id = FindId(element);
-    if (id != NULL) {
+    if (id != nullptr) {
       if (!MaybeRemoveNode(id, element)) {
         MaybeDeleteNode(id, element);
       }
@@ -2569,7 +2569,7 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
   void EndElement(HtmlElement* element) override {
     CountingCallbacksFilter::EndElement(element);
     const char* id = FindId(element);
-    if (id != NULL && !restore_on_open_) {
+    if (id != nullptr && !restore_on_open_) {
       MaybeRestoreNode(id);
     }
   }
@@ -2580,8 +2580,8 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
 
   const char* FindId(HtmlElement* element) {
     const HtmlElement::Attribute* attr = element->FindAttribute("id");
-    if (attr == NULL) {
-      return NULL;
+    if (attr == nullptr) {
+      return nullptr;
     }
     return attr->DecodedValueOrNull();
   }
@@ -2590,10 +2590,10 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
     StringStringMap::iterator p = remove_map_.find(id);
     if (p != remove_map_.end()) {
       const GoogleString& restore_id = p->second;
-      EXPECT_TRUE(restore_map_[restore_id] == NULL);
+      EXPECT_TRUE(restore_map_[restore_id] == nullptr);
       restore_map_[restore_id] = node;
       html_parse_->DeferCurrentNode();
-      if (dynamic_cast<HtmlElement*>(node) != NULL) {
+      if (dynamic_cast<HtmlElement*>(node) != nullptr) {
         ++outstanding_deferred_elements_;
       }
       return true;
@@ -2616,7 +2616,7 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
       HtmlNode* restore_node = p->second;
       html_parse_->RestoreDeferredNode(restore_node);
       restore_map_.erase(p);
-      if (dynamic_cast<HtmlElement*>(restore_node) != NULL) {
+      if (dynamic_cast<HtmlElement*>(restore_node) != nullptr) {
         --outstanding_deferred_elements_;
       }
     }
@@ -2750,7 +2750,7 @@ class HtmlRestoreTest : public HtmlParseTest {
     html_parse_.AddFilter(&restore_nodes_filter2);
     SetupWriter();
     restore_nodes_filter_.MoveOnStart(src1, dest1);
-    if (node_to_delete != NULL) {
+    if (node_to_delete != nullptr) {
       restore_nodes_filter_.DeleteOnStart(node_to_delete);
     }
     restore_nodes_filter2.MoveOnStart(src2, dest2);
@@ -2875,7 +2875,7 @@ TEST_F(HtmlRestoreTest, TwoDeferringFilters) {
   TestTwoFilters(
       "b", "c",
       "a", "d",
-      NULL,  // Node to delete
+      nullptr,  // Node to delete
       "<img id=a /><img id=b /><img id=c /><img id=d />",
       "<img id=c /><img id=b /><img id=d /><img id=a />");
 }
@@ -2893,7 +2893,7 @@ TEST_F(HtmlRestoreTest, TwoDeferringFiltersNestingOuterFirst) {
   TestTwoFilters(
       "a", "d",
       "b", "c",
-      NULL,  // Node to delete
+      nullptr,  // Node to delete
       "<div id=a><div id=b></div><div id=c></div></div><div id=d></div>",
       "<div id=d></div><div id=a><div id=c></div><div id=b></div></div>");
 }
@@ -2911,7 +2911,7 @@ TEST_F(HtmlRestoreTest, TwoDeferringFiltersNestingInnerFirst) {
   TestTwoFilters(
       "b", "c",
       "a", "d",
-      NULL,  // Node to delete
+      nullptr,  // Node to delete
       "<div id=a><div id=b></div><div id=c></div></div><div id=d></div>",
       "<div id=d></div><div id=a><div id=c></div><div id=b></div></div>");
 }

@@ -71,7 +71,7 @@ bool IsValidAdsByGoogle(
   // 'kDataAdClient' attribute containing 'publisher_id'.
   const HtmlElement::Attribute* ad_client_attribute =
       element.FindAttribute(ads_attribute::kDataAdClient);
-  if (ad_client_attribute == NULL ||
+  if (ad_client_attribute == nullptr ||
       FindIgnoreCase(
           ad_client_attribute->DecodedValueOrNull(),
           publisher_id) == StringPiece::npos) {
@@ -81,8 +81,8 @@ bool IsValidAdsByGoogle(
   // An adsbygoogle element must have 'kDataAdSlot' attribute.
   const HtmlElement::Attribute* ad_slot_attribute =
       element.FindAttribute(ads_attribute::kDataAdSlot);
-  if (ad_slot_attribute == NULL ||
-      ad_slot_attribute->DecodedValueOrNull() == NULL) {
+  if (ad_slot_attribute == nullptr ||
+      ad_slot_attribute->DecodedValueOrNull() == nullptr) {
     return false;
   }
 

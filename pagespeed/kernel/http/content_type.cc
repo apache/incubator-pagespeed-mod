@@ -212,7 +212,7 @@ const ContentType* NameExtensionToContentType(const StringPiece& name) {
       }
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 const ContentType* MimeTypeToContentType(const StringPiece& mime_type) {
@@ -237,7 +237,7 @@ const ContentType* MimeTypeToContentType(const StringPiece& mime_type) {
       return &kTypes[i];
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 // TODO(nforman): Have some further indication of whether
@@ -280,7 +280,7 @@ bool ParseContentType(const StringPiece& content_type_str,
 void MimeTypeListToContentTypeSet(
     const GoogleString& in,
     std::set<const ContentType*>* out) {
-  CHECK(out != NULL) << "'out' is a required parameter.";
+  CHECK(out != nullptr) << "'out' is a required parameter.";
   out->clear();
   if (in.empty()) {
     return;
@@ -290,7 +290,7 @@ void MimeTypeListToContentTypeSet(
   for (StringPieceVector::const_iterator i = strings.begin(), e = strings.end();
            i != e; ++i) {
     const ContentType* ct = MimeTypeToContentType(*i);
-    if (ct == NULL) {
+    if (ct == nullptr) {
       LOG(WARNING) << "'" << *i << "' is not a recognized mime-type.";
     } else {
       VLOG(1) << "Adding '" << *i << "' to the content-type set.";

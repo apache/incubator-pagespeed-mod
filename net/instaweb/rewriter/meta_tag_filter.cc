@@ -43,7 +43,7 @@ namespace net_instaweb {
 
 MetaTagFilter::MetaTagFilter(RewriteDriver* rewrite_driver)
     : CommonFilter(rewrite_driver),
-      response_headers_(NULL) {
+      response_headers_(nullptr) {
   Statistics* stats = driver()->statistics();
   converted_meta_tag_count_ = stats->GetVariable(kConvertedMetaTags);
 }
@@ -66,7 +66,7 @@ void MetaTagFilter::EndElementImpl(HtmlElement* element) {
   // try to convert any tags into response_headers_ (which were already
   // finalized). Also don't add meta tags to response_headers_ if they're
   // inside a noscript tag.
-  if (response_headers_ == NULL || noscript_element() != NULL ||
+  if (response_headers_ == nullptr || noscript_element() != nullptr ||
       element->keyword() != HtmlName::kMeta) {
     return;
   }
@@ -78,7 +78,7 @@ void MetaTagFilter::EndElementImpl(HtmlElement* element) {
 bool MetaTagFilter::ExtractAndUpdateMetaTagDetails(
     HtmlElement* element,
     ResponseHeaders* response_headers) {
-  if (response_headers == NULL) {
+  if (response_headers == nullptr) {
     return false;
   }
   GoogleString content, mime_type, charset;
@@ -94,7 +94,7 @@ bool MetaTagFilter::ExtractAndUpdateMetaTagDetails(
         // XHTML is forced to UTF-8 anyway and we really don't want to propagate
         // an XHTML type in cases where Apache is unsure just to propagate
         // a charset that's not supposed to take any effect.
-        if (type != NULL && type->type() == ContentType::kHtml) {
+        if (type != nullptr && type->type() == ContentType::kHtml) {
           if (response_headers->MergeContentType(content)) {
             return true;
           }
@@ -112,7 +112,7 @@ bool MetaTagFilter::ExtractAndUpdateMetaTagDetails(
 }
 
 void MetaTagFilter::Flush() {
-  response_headers_ = NULL;
+  response_headers_ = nullptr;
 }
 
 }  // namespace net_instaweb

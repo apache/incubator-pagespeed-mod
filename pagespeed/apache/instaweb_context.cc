@@ -20,6 +20,10 @@
 
 #include "pagespeed/apache/instaweb_context.h"
 
+
+#include <memory>
+
+
 #include "base/logging.h"
 #include "pagespeed/apache/apache_server_context.h"
 #include "pagespeed/apache/header_util.h"
@@ -166,9 +170,9 @@ InstawebContext::InstawebContext(request_rec* request,
     // TODO(jmarantz): consider keeping a pool of these if they are expensive
     // to initialize.
     if (content_encoding_ == kGzip) {
-      inflater_.reset(new GzipInflater(GzipInflater::kGzip));
+      inflater_ = std::make_unique<GzipInflater>(GzipInflater::kGzip);
     } else {
-      inflater_.reset(new GzipInflater(GzipInflater::kDeflate));
+      inflater_ = std::make_unique<GzipInflater>(GzipInflater::kDeflate);
     }
     inflater_->Init();
   }
@@ -176,8 +180,8 @@ InstawebContext::InstawebContext(request_rec* request,
   // Make the entire request headers available to filters.
   rewrite_driver_->SetRequestHeaders(*request_headers_.get());
 
-  response_headers_.reset(
-      new ResponseHeaders(rewrite_driver_->options()->ComputeHttpOptions()));
+  response_headers_ = std::make_unique<ResponseHeaders>(
+      rewrite_driver_->options()->ComputeHttpOptions());
   rewrite_driver_->set_response_headers_ptr(response_headers_.get());
   // TODO(lsong): Bypass the string buffer, write data directly to the next
   // apache bucket.
@@ -188,7 +192,7 @@ InstawebContext::~InstawebContext() {
 }
 
 void InstawebContext::Rewrite(const char* input, int size) {
-  if (inflater_.get() != NULL) {
+  if (inflater_.get() != nullptr) {
     char buf[kStackBufferSize];
     inflater_->SetInput(input, size);
     while (inflater_->HasUnconsumedInput()) {
@@ -228,7 +232,7 @@ void InstawebContext::Finish() {
 
 void InstawebContext::PopulateHeaders(request_rec* request) {
   if (!populated_headers_) {
-    ApacheRequestToResponseHeaders(*request, response_headers_.get(), NULL);
+    ApacheRequestToResponseHeaders(*request, response_headers_.get(), nullptr);
     populated_headers_ = true;
   }
 }
@@ -273,10 +277,10 @@ void InstawebContext::ComputeContentEncoding(request_rec* request) {
   // Check if the content is gzipped. Steal from mod_deflate.
   const char* encoding = apr_table_get(request->headers_out,
                                        HttpAttributes::kContentEncoding);
-  if (encoding != NULL) {
+  if (encoding != nullptr) {
     const char* err_enc = apr_table_get(request->err_headers_out,
                                         HttpAttributes::kContentEncoding);
-    if (err_enc != NULL) {
+    if (err_enc != nullptr) {
       // We don't properly handle stacked encodings now.
       content_encoding_ = kOther;
     }
@@ -285,7 +289,7 @@ void InstawebContext::ComputeContentEncoding(request_rec* request) {
                              HttpAttributes::kContentEncoding);
   }
 
-  if (encoding != NULL) {
+  if (encoding != nullptr) {
     if (StringCaseEqual(encoding, HttpAttributes::kGzip)) {
       content_encoding_ = kGzip;
     } else if (StringCaseEqual(encoding, HttpAttributes::kDeflate)) {
@@ -297,7 +301,7 @@ void InstawebContext::ComputeContentEncoding(request_rec* request) {
 }
 
 void InstawebContext::BlockingPropertyCacheLookup() {
-  PropertyCallback* property_callback = NULL;
+  PropertyCallback* property_callback = nullptr;
   PropertyCache* pcache = server_context_->page_property_cache();
   if (pcache->enabled()) {
     const UserAgentMatcher* user_agent_matcher =
@@ -340,7 +344,7 @@ const char* InstawebContext::MakeRequestUrl(
     const RewriteOptions& global_options, request_rec* request) {
   const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
 
-  if (url == NULL) {
+  if (url == nullptr) {
     // Go down the prev chain to see if there this request was a rewrite
     // from another one.  We want to store the uri the user passed in,
     // not what we re-wrote it to.  We should not iterate down this
@@ -348,7 +352,7 @@ const char* InstawebContext::MakeRequestUrl(
     // called for request->prev, before this request is created).
     // However, max out at 5 iterations, just in case.
     request_rec *prev = request->prev;
-    for (int i = 0; (url == NULL) && (prev != NULL) && (i < kRequestChainLimit);
+    for (int i = 0; (url == nullptr) && (prev != nullptr) && (i < kRequestChainLimit);
          ++i, prev = prev->prev) {
       url = apr_table_get(prev->notes, kPagespeedOriginalUrl);
     }
@@ -364,7 +368,7 @@ const char* InstawebContext::MakeRequestUrl(
     // the source r.notes onto the dest r.notes, which in this case would
     // work against us if we don't first propagate the OriginalUrl.
     request_rec *main = request->main;
-    for (int i = 0; (url == NULL) && (main != NULL) && (i < kRequestChainLimit);
+    for (int i = 0; (url == nullptr) && (main != nullptr) && (i < kRequestChainLimit);
          ++i, main = main->main) {
       url = apr_table_get(main->notes, kPagespeedOriginalUrl);
     }
@@ -373,11 +377,11 @@ const char* InstawebContext::MakeRequestUrl(
     // But sometimes (with mod_proxy/slurping) we see request->unparsed_uri
     // as an absolute URL. So we check if request->unparsed_uri is already
     // an absolute URL first. If so, use it as-is, otherwise ap_construct_url().
-    if (url == NULL) {
-      if (request->unparsed_uri == NULL) {
+    if (url == nullptr) {
+      if (request->unparsed_uri == nullptr) {
         LOG(DFATAL) <<
             "build_context_for_request should verify unparsed_uri is non-null.";
-        return NULL;
+        return nullptr;
       }
 
       GoogleUrl gurl(request->unparsed_uri);
@@ -396,7 +400,7 @@ const char* InstawebContext::MakeRequestUrl(
     if (global_options.respect_x_forwarded_proto()) {
       const char* x_forwarded_proto =
           apr_table_get(request->headers_in, HttpAttributes::kXForwardedProto);
-      if (x_forwarded_proto != NULL) {
+      if (x_forwarded_proto != nullptr) {
         if (StringCaseEqual(x_forwarded_proto, "http") ||
             StringCaseEqual(x_forwarded_proto, "https")) {
           StringPiece url_sp(url);

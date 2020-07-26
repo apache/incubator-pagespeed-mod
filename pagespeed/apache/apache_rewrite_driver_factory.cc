@@ -57,7 +57,7 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
     : SystemRewriteDriverFactory(
           process_context,
           new ApacheThreadSystem,
-          NULL, /* default shared memory runtime */
+          nullptr, /* default shared memory runtime */
           server->server_hostname,
           server->port),
       server_rec_(server),
@@ -67,7 +67,7 @@ ApacheRewriteDriverFactory::ApacheRewriteDriverFactory(
           server_rec_, version_, timer(), thread_system()->NewMutex())),
       apache_html_parse_message_handler_(new ApacheMessageHandler(
           server_rec_, version_, timer(), thread_system()->NewMutex())) {
-  apr_pool_create(&pool_, NULL);
+  apr_pool_create(&pool_, nullptr);
 
   // Apache defaults UsePerVhostStatistics to false for historical reasons, but
   // more recent implementations default it to true.
@@ -136,7 +136,7 @@ void ApacheRewriteDriverFactory::SetupCaches(ServerContext* server_context) {
   // separating out rewriting infrastructure from rewriters.
   ApacheServerContext* apache_server_context =
       dynamic_cast<ApacheServerContext*>(server_context);
-  CHECK(apache_server_context != NULL);
+  CHECK(apache_server_context != nullptr);
   apache_server_context->InitProxyFetchFactory();
 }
 
@@ -186,8 +186,8 @@ void ApacheRewriteDriverFactory::ShutDownMessageHandlers() {
   //
   // TODO(jefftk): merge ApacheMessageHandler and NgxMessageHandler into
   // SystemMessageHandler and then move this into System.
-  apache_message_handler_->set_buffer(NULL);
-  apache_html_parse_message_handler_->set_buffer(NULL);
+  apache_message_handler_->set_buffer(nullptr);
+  apache_html_parse_message_handler_->set_buffer(nullptr);
 }
 
 void ApacheRewriteDriverFactory::SetupMessageHandlers() {

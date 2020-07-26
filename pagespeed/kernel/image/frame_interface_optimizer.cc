@@ -140,7 +140,7 @@ ScanlineStatus MultipleFramePaddingReader::ReadNextScanline(
                             "no more scanlines in the current frame");
   }
 
-  const void* impl_scanline = NULL;
+  const void* impl_scanline = nullptr;
   ScanlineStatus status;
 
   if (frame_is_full_height_ ||
@@ -162,7 +162,7 @@ ScanlineStatus MultipleFramePaddingReader::ReadNextScanline(
     }
   }
 
-  if (impl_scanline == NULL) {
+  if (impl_scanline == nullptr) {
     // This scanline contains only background pixels.
     *out_scanline_bytes = scanline_template_.get();
   } else {

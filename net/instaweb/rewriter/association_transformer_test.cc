@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/association_transformer.h"
 
 #include "net/instaweb/http/public/request_context.h"
@@ -85,7 +89,7 @@ class AssociationTransformerTest : public ::testing::Test {
   AssociationTransformerTest()
       : thread_system_(Platform::CreateThreadSystem()) {
     RewriteOptions::Initialize();
-    options_.reset(new RewriteOptions(thread_system_.get()));
+    options_ = std::make_unique<RewriteOptions>(thread_system_.get());
     options_->ComputeSignature();
   }
 

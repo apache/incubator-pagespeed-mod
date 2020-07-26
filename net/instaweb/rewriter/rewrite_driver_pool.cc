@@ -39,7 +39,7 @@ RewriteDriver* RewriteDriverPool::PopDriver() {
     drivers_.pop_back();
     return driver;
   }
-  return NULL;
+  return nullptr;
 }
 
 void RewriteDriverPool::RecycleDriver(RewriteDriver* driver) {

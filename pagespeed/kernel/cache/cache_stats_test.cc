@@ -22,6 +22,10 @@
 // as well though they are not used yet in the test.  The intent is to make sure
 // the latency histogram looks sane.
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/cache/cache_stats.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -56,8 +60,8 @@ class CacheStatsTest : public testing::Test {
         timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
         stats_(thread_system_.get()) {
     CacheStats::InitStats("test", &stats_);
-    cache_stats_.reset(new CacheStats("test", delay_cache_.get(), &timer_,
-                                      &stats_));
+    cache_stats_ = std::make_unique<CacheStats>("test", delay_cache_.get(), &timer_,
+                                      &stats_);
   }
 
   LRUCache lru_cache_;

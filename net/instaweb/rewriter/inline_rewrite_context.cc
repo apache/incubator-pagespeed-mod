@@ -37,7 +37,7 @@ namespace net_instaweb {
 InlineRewriteContext::InlineRewriteContext(CommonFilter* filter,
                                            HtmlElement* element,
                                            HtmlElement::Attribute* src)
-    : RewriteContext(filter->driver(), NULL, NULL),
+    : RewriteContext(filter->driver(), nullptr, nullptr),
       filter_(filter),
       element_(element),
       src_(src) {
@@ -50,10 +50,10 @@ bool InlineRewriteContext::StartInlining() {
   RewriteDriver* driver = filter_->driver();
   ResourcePtr input_resource;
   const char* url = src_->DecodedValueOrNull();
-  if (url != NULL) {
+  if (url != nullptr) {
     bool is_authorized;
     input_resource.reset(CreateResource(url, &is_authorized));
-    if (input_resource.get() != NULL) {
+    if (input_resource.get() != nullptr) {
       ResourceSlotPtr slot(driver->GetSlot(input_resource, element_, src_));
       AddSlot(slot);
       driver->InitiateRewrite(this);
@@ -82,7 +82,7 @@ bool InlineRewriteContext::Partition(OutputPartitions* partitions,
 
   // Always create someplace to store stuff, since we may need debug info.
   CachedResult* partition = partitions->add_partition();
-  outputs->push_back(OutputResourcePtr(NULL));
+  outputs->push_back(OutputResourcePtr(nullptr));
 
   bool ok = false;
   GoogleString reason_for_failure;
@@ -107,7 +107,7 @@ bool InlineRewriteContext::Partition(OutputPartitions* partitions,
 void InlineRewriteContext::Rewrite(int partition_index,
                                    CachedResult* partition,
                                    const OutputResourcePtr& output_resource) {
-  CHECK(output_resource.get() == NULL);
+  CHECK(output_resource.get() == nullptr);
   CHECK_EQ(0, partition_index);
 
   // Mark slot as needing no further processing. Note that needs to be done

@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/http/caching_headers.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -74,7 +78,7 @@ class TestCachingHeaders : public CachingHeaders {
 class CachingHeadersTest : public testing::Test {
  protected:
   void SetCacheControl(const char* cache_control) {
-    headers_.reset(new TestCachingHeaders(cache_control));
+    headers_ = std::make_unique<TestCachingHeaders>(cache_control);
   }
 
   GoogleString DisableCacheControl() {

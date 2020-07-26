@@ -47,7 +47,7 @@ const char MakeShowAdsAsyncFilter::kShowAdsApiReplacedForAsync[] =
 
 MakeShowAdsAsyncFilter::MakeShowAdsAsyncFilter(RewriteDriver* rewrite_driver)
     : CommonFilter(rewrite_driver),
-      current_script_element_(NULL),
+      current_script_element_(nullptr),
       has_ads_by_google_js_(false),
       num_pending_show_ads_api_call_replacements_(0) {
   Statistics* statistics = rewrite_driver->statistics();
@@ -69,7 +69,7 @@ void MakeShowAdsAsyncFilter::InitStats(Statistics* statistics) {
 }
 
 void MakeShowAdsAsyncFilter::StartDocumentImpl() {
-  current_script_element_ = NULL;
+  current_script_element_ = nullptr;
   current_script_element_contents_.clear();
   has_ads_by_google_js_ = false;
   num_pending_show_ads_api_call_replacements_ = 0;
@@ -81,11 +81,11 @@ void MakeShowAdsAsyncFilter::StartElementImpl(HtmlElement* element) {
   // content for processing showads snippet in EndElementImpl().
   if (element->keyword() == HtmlName::kScript) {
     const char* src_attribute = element->EscapedAttributeValue(HtmlName::kSrc);
-    if (src_attribute != NULL && ads_util::IsAdsByGoogleJsSrc(src_attribute)) {
+    if (src_attribute != nullptr && ads_util::IsAdsByGoogleJsSrc(src_attribute)) {
       has_ads_by_google_js_ = true;
     }
-    DCHECK(NULL == current_script_element_);
-    if (current_script_element_ == NULL) {
+    DCHECK(nullptr == current_script_element_);
+    if (current_script_element_ == nullptr) {
       current_script_element_ = element;
     }
   }
@@ -110,7 +110,7 @@ void MakeShowAdsAsyncFilter::EndElementImpl(HtmlElement* element) {
         if (num_pending_show_ads_api_call_replacements_ > 0) {
           const char* src_attribute = element->EscapedAttributeValue(
               HtmlName::kSrc);
-          if (src_attribute != NULL &&
+          if (src_attribute != nullptr &&
               ads_util::IsShowAdsApiCallJsSrc(src_attribute)) {
             ReplaceShowAdsApiCallWithAdsByGoogleApiCall(element);
             --num_pending_show_ads_api_call_replacements_;
@@ -123,13 +123,13 @@ void MakeShowAdsAsyncFilter::EndElementImpl(HtmlElement* element) {
   }
 
   if (current_script_element_ == element) {
-    current_script_element_ = NULL;
+    current_script_element_ = nullptr;
     current_script_element_contents_.clear();
   }
 }
 
 void MakeShowAdsAsyncFilter::Characters(HtmlCharactersNode* characters) {
-  if (current_script_element_ != NULL) {
+  if (current_script_element_ != nullptr) {
     current_script_element_contents_ += characters->contents();
   }
 }

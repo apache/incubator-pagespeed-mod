@@ -263,7 +263,7 @@ class ResourceCombinerTest : public RewriteTestBase {
         url, RewriteDriver::InputRole::kUnknown, &unused));
     bool ret = false;
 
-    if (resource.get() == NULL) {
+    if (resource.get() == nullptr) {
       // Resource is not creatable, and never will be.
       handler->MessageS(kInfo, "Cannot combine: null resource");
       return ret;

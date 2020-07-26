@@ -54,7 +54,7 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
           Driver()->CreateOutputResourceFromResource(
               id(), encoder(), resource_context(),
               resource, kind(), &failure_reason));
-      if (output_resource.get() == NULL) {
+      if (output_resource.get() == nullptr) {
         partitions->add_debug_message(failure_reason);
       } else {
         CachedResult* partition = partitions->add_partition();
@@ -75,10 +75,10 @@ void SingleRewriteContext::Rewrite(int partition_index,
                                    const OutputResourcePtr& output_resource) {
   CHECK_EQ(0, partition_index);
   ResourcePtr resource(slot(0)->resource());
-  CHECK(resource.get() != NULL);
+  CHECK(resource.get() != nullptr);
   CHECK(resource->loaded());
   CHECK(resource->HttpStatusOk());
-  if (output_resource.get() != NULL) {
+  if (output_resource.get() != nullptr) {
     DCHECK_EQ(output_resource->cached_result(), partition);
   }
   RewriteSingle(resource, output_resource);
@@ -120,7 +120,7 @@ void SingleRewriteContext::AddLinkRelCanonicalForFallbackHeaders(
     return;
   }
   ResourcePtr resource(slot(0)->resource());
-  if (resource.get() == NULL || !resource->loaded()) {
+  if (resource.get() == nullptr || !resource->loaded()) {
     return;
   }
 

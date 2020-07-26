@@ -93,7 +93,7 @@ template<size_t kBlockSize>
 bool Sector<kBlockSize>::Attach(MessageHandler* handler) {
   mutex_.reset(
       segment_->AttachToSharedMutex(sector_offset_ + sizeof(SectorHeader)));
-  return (mutex_.get() != NULL);
+  return (mutex_.get() != nullptr);
 }
 
 template<size_t kBlockSize>

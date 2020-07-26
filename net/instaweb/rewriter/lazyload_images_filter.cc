@@ -92,8 +92,8 @@ void LazyloadImagesFilter::EndDocument() {
 }
 
 void LazyloadImagesFilter::Clear() {
-  skip_rewrite_ = NULL;
-  head_element_ = NULL;
+  skip_rewrite_ = nullptr;
+  head_element_ = nullptr;
   main_script_inserted_ = false;
   abort_rewrite_ = false;
   abort_script_inserted_ = false;
@@ -125,10 +125,10 @@ RewriterHtmlApplication::Status LazyloadImagesFilter::ShouldApply(
 }
 
 void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     return;
   }
-  if (!main_script_inserted_ && head_element_ == NULL) {
+  if (!main_script_inserted_ && head_element_ == nullptr) {
     switch (element->keyword()) {
       case HtmlName::kHtml:
       case HtmlName::kLink:
@@ -144,7 +144,7 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
         break;
     }
   }
-  if (skip_rewrite_ == NULL) {
+  if (skip_rewrite_ == nullptr) {
     if (element->keyword() == HtmlName::kNoembed ||
         element->keyword() == HtmlName::kMarquee) {
       skip_rewrite_ = element;
@@ -154,7 +154,7 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
     // skip rewriting all images till we reach the end of this element.
     HtmlElement::Attribute* class_attribute = element->FindAttribute(
         HtmlName::kClass);
-    if (class_attribute != NULL) {
+    if (class_attribute != nullptr) {
       StringPiece class_value(class_attribute->DecodedValueOrNull());
       if (!class_value.empty()) {
         GoogleString class_string;
@@ -172,7 +172,7 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
     // This filter does not currently work with the jquery slider. We just don't
     // rewrite the page in this case.
     HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-    if (src != NULL) {
+    if (src != nullptr) {
       StringPiece url(src->DecodedValueOrNull());
       if (url.find(kJquerySlider) != StringPiece::npos) {
         abort_rewrite_ = true;
@@ -184,15 +184,15 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL || skip_rewrite_ != NULL) {
+  if (noscript_element() != nullptr || skip_rewrite_ != nullptr) {
     if (skip_rewrite_ == element) {
-      skip_rewrite_ = NULL;
+      skip_rewrite_ = nullptr;
     }
     return;
   }
   if (head_element_ == element) {
-    InsertLazyloadJsCode(NULL);
-    head_element_ = NULL;
+    InsertLazyloadJsCode(nullptr);
+    head_element_ = nullptr;
   }
   if (abort_rewrite_) {
     if (!abort_script_inserted_ && main_script_inserted_ &&
@@ -221,21 +221,21 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
   }
 
   HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-  if (src == NULL) {
+  if (src == nullptr) {
     return;
   }
 
   StringPiece url(src->DecodedValueOrNull());
   if (url.empty() || IsDataUrl(url) ||
-      element->FindAttribute(HtmlName::kDataPagespeedNoDefer) != NULL ||
-      element->FindAttribute(HtmlName::kPagespeedNoDefer) != NULL) {
+      element->FindAttribute(HtmlName::kDataPagespeedNoDefer) != nullptr ||
+      element->FindAttribute(HtmlName::kPagespeedNoDefer) != nullptr) {
     // TODO(rahulbansal): Log separately for pagespeed_no_defer.
     return;
   }
   AbstractLogRecord* log_record = driver()->log_record();
   if (!CanAddPagespeedOnloadToImage(*element) ||
-      element->FindAttribute(HtmlName::kDataPagespeedLazySrc) != NULL ||
-      element->FindAttribute(HtmlName::kDataSrc) != NULL) {
+      element->FindAttribute(HtmlName::kDataPagespeedLazySrc) != nullptr ||
+      element->FindAttribute(HtmlName::kDataSrc) != nullptr) {
     log_record->LogLazyloadFilter(
         RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
         RewriterApplication::NOT_APPLIED, false, false);
@@ -294,7 +294,7 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
   // Rename srcset -> data-pagespeed-high-res-srcset
   HtmlElement::Attribute* srcset =
       element->FindAttribute(HtmlName::kSrcset);
-  if (srcset != NULL) {
+  if (srcset != nullptr) {
     driver()->SetAttributeName(srcset, HtmlName::kDataPagespeedLazySrcset);
   }
   driver()->AddAttribute(element, HtmlName::kSrc, blank_image_url_);
@@ -322,7 +322,7 @@ void LazyloadImagesFilter::InsertLazyloadJsCode(HtmlElement* element) {
   if (!driver()->is_lazyload_script_flushed() &&
       (!abort_rewrite_ || num_images_lazily_loaded_ > 0)) {
     HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
-    if (element != NULL) {
+    if (element != nullptr) {
       driver()->InsertNodeBeforeNode(element, script);
     } else if (driver()->CanAppendChild(head_element_)) {
       // insert at end of head.

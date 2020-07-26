@@ -23,6 +23,8 @@
 
 #include "pagespeed/envoy/envoy_process_context.h"
 
+#include <memory>
+
 #include <vector>
 
 #include "pagespeed/envoy/envoy_rewrite_driver_factory.h"
@@ -45,7 +47,7 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
 
   EnvoyThreadSystem *ts = new EnvoyThreadSystem();
   message_handler_ = std::make_unique<GoogleMessageHandler>();
-  driver_factory_.reset(new EnvoyRewriteDriverFactory(*this, ts, "" /*hostname, not used*/, -1 /*port, not used*/));
+  driver_factory_ = std::make_unique<EnvoyRewriteDriverFactory>(*this, ts, "" /*hostname, not used*/, -1 /*port, not used*/);
   driver_factory_->Init();
   server_context_ = driver_factory()->MakeEnvoyServerContext("",-1);
 
@@ -68,7 +70,7 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
   //    driver_factory_->MakeGlobalSharedMemStatistics(*(SystemRewriteOptions*)server_context_->global_options());
   GoogleString error_message;
   int error_index               = -1;
-  Statistics *global_statistics = NULL;
+  Statistics *global_statistics = nullptr;
   driver_factory_.get()->PostConfig(server_contexts, &error_message, &error_index, &global_statistics);
   if (error_index != -1) {
     server_contexts[error_index]->message_handler()->Message(kError, "pagespeed is enabled. %s", error_message.c_str());
@@ -80,7 +82,7 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext()
   driver_factory()->RootInit();
   driver_factory()->ChildInit();
 
-  proxy_fetch_factory_.reset(new ProxyFetchFactory(server_context_));
+  proxy_fetch_factory_ = std::make_unique<ProxyFetchFactory>(server_context_);
 }
 
 } // namespace net_instaweb

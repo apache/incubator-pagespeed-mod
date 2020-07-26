@@ -52,7 +52,7 @@ class AsyncFetchTest : public testing::Test {
  protected:
   AsyncFetchTest()
       : request_context_(new RequestContext(
-            kDefaultHttpOptionsForTests, new NullMutex, NULL)),
+            kDefaultHttpOptionsForTests, new NullMutex, nullptr)),
         string_fetch_(request_context_),
         handler_(new NullMutex) {
   }

@@ -79,9 +79,9 @@ class ResourceTagScannerTest : public RewriteTestBase {
  protected:
   void SetUp() override {
     RewriteTestBase::SetUp();
-    collector_.reset(
-        new ResourceCollector(
-            &resources_, &resource_category_, rewrite_driver()));
+    collector_ = std::make_unique<ResourceCollector>(
+        
+            &resources_, &resource_category_, rewrite_driver());
     rewrite_driver()->AddFilter(collector_.get());
   }
 

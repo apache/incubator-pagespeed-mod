@@ -34,7 +34,7 @@ namespace net_instaweb {
 SystemMessageHandler::SystemMessageHandler(Timer* timer, AbstractMutex* mutex)
     : timer_(timer),
       mutex_(mutex),
-      buffer_(NULL) {
+      buffer_(nullptr) {
   SetPidString(static_cast<int64>(getpid()));
 }
 
@@ -78,7 +78,7 @@ void SystemMessageHandler::AddMessageToBuffer(MessageType type,
   {
     ScopedMutex lock(mutex_.get());
     // Cannot write to SharedCircularBuffer before it's set up.
-    if (buffer_ != NULL) {
+    if (buffer_ != nullptr) {
       NullMessageHandler null_handler;
       buffer_->Write(message, &null_handler);
     }
@@ -101,7 +101,7 @@ void SystemMessageHandler::FileMessageVImpl(MessageType type, const char* file,
 }
 
 bool SystemMessageHandler::Dump(Writer* writer) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return false;
   }
   return buffer_->Dump(writer, &internal_handler_);

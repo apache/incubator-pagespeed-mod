@@ -224,7 +224,7 @@ class MultipleFramePaddingReaderTest : public testing::Test {
     FrameSpec frame_orig;  // FrameSpec specified in all_frames
     FrameSpec frame_spec;  // FrameSpec returned from MultipleFramePaddingReader
     ScanlineStatus status;
-    EXPECT_TRUE(padder->Initialize(NULL, 0, &status)) << status.ToString();
+    EXPECT_TRUE(padder->Initialize(nullptr, 0, &status)) << status.ToString();
     for (size_px frame_idx = 0; frame_idx < all_frames.size(); ++frame_idx) {
       ASSERT_TRUE(padder->HasMoreFrames());
       ASSERT_TRUE(padder->PrepareNextFrame(&status)) << status.ToString();
@@ -241,10 +241,10 @@ class MultipleFramePaddingReaderTest : public testing::Test {
 
       for (size_px line_idx = 0; line_idx < image_spec.height; ++line_idx) {
         ASSERT_TRUE(padder->HasMoreScanlines());
-        const void* scanline = NULL;
+        const void* scanline = nullptr;
         EXPECT_TRUE(padder->ReadNextScanline(&scanline, &status))
             << status.ToString();
-        EXPECT_FALSE(NULL == scanline);
+        EXPECT_FALSE(nullptr == scanline);
 
         size_px foreground_start = 0;
         size_px foreground_end = 0;

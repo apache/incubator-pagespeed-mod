@@ -53,11 +53,11 @@ ApacheRequestContext::~ApacheRequestContext() {
 }
 
 ApacheRequestContext* ApacheRequestContext::DynamicCast(RequestContext* rc) {
-  if (rc == NULL) {
-    return NULL;
+  if (rc == nullptr) {
+    return nullptr;
   }
   ApacheRequestContext* out = dynamic_cast<ApacheRequestContext*>(rc);
-  DCHECK(out != NULL) << "Invalid request conversion. Do not rely on RTTI for "
+  DCHECK(out != nullptr) << "Invalid request conversion. Do not rely on RTTI for "
                       << "functional behavior. Apache handling flows must use "
                       << "ApacheRequestContexts.";
   return out;

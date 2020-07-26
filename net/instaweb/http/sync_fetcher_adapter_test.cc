@@ -84,8 +84,8 @@ class DelayedFetcher : public UrlAsyncFetcher {
                  int64 delay_ms, bool sim_success)
       : thread_system_(thread_system),
         timer_(timer), handler_(handler), delay_ms_(delay_ms),
-        sim_success_(sim_success), fetch_pending_(false), fetch_(NULL),
-        sync_(NULL) {
+        sim_success_(sim_success), fetch_pending_(false), fetch_(nullptr),
+        sync_(nullptr) {
   }
 
   void Fetch(const GoogleString& url, MessageHandler* handler,
@@ -136,7 +136,7 @@ class DelayedFetcher : public UrlAsyncFetcher {
       fetch_->Write(kText, handler_);
     }
     fetch_->Done(sim_success_);
-    if (sync_ != NULL) {
+    if (sync_ != nullptr) {
       sync_->Notify();
     }
     delete this;

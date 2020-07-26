@@ -107,7 +107,7 @@ bool HtmlMinifier::MinifyHtml(const GoogleString& input_name,
   html_parse_.ParseText(input.data(), input.size());
   html_parse_.FinishParse();
 
-  html_writer_filter_.set_writer(NULL);
+  html_writer_filter_.set_writer(nullptr);
 
   return true;
 }

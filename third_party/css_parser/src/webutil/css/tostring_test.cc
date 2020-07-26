@@ -21,6 +21,8 @@
 
 #include "webutil/css/tostring.h"
 
+#include <memory>
+
 #include <string>
 
 #include <memory>
@@ -101,8 +103,8 @@ TEST_F(ToStringTest, misc) {
             stylesheet->ToString());
 
   // Make sure we correctly deal with escaped newline.
-  parser.reset(new Css::Parser("a { content: 'line 1\\\n"
-                               "line 2'; }"));
+  parser = std::make_unique<Css::Parser>("a { content: 'line 1\\\n"
+                               "line 2'; }");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_EQ("/* AUTHOR */\n\n\n\n"
             "a {content: \"line 1line 2\"}\n", stylesheet->ToString());

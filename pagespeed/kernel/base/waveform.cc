@@ -106,7 +106,7 @@ void Waveform::AddDelta(double delta) {
   // TODO(jmarantz): use writer-lock.
   ScopedMutex lock(mutex_.get());
   AddHelper(previous_value_ + delta);
-  if (metric_ != NULL) {
+  if (metric_ != nullptr) {
     metric_->Add(static_cast<int64>(delta));
   }
 }
@@ -115,7 +115,7 @@ void Waveform::Add(double value) {
   // TODO(jmarantz): use writer-lock.
   ScopedMutex lock(mutex_.get());
   AddHelper(value);
-  if (metric_ != NULL) {
+  if (metric_ != nullptr) {
     metric_->Set(static_cast<int64>(value));
   }
 }

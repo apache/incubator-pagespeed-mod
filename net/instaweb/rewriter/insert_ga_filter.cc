@@ -82,7 +82,7 @@ namespace net_instaweb {
 
 InsertGAFilter::InsertGAFilter(RewriteDriver* rewrite_driver)
     : CommonFilter(rewrite_driver),
-      script_element_(NULL),
+      script_element_(nullptr),
       added_analytics_js_(false),
       added_experiment_snippet_(false),
       ga_id_(rewrite_driver->options()->ga_id()),
@@ -115,7 +115,7 @@ bool InsertGAFilter::StringLiteralEndsWith(StringPiece literal,
 
 void InsertGAFilter::StartDocumentImpl() {
   found_snippet_ = false;
-  script_element_ = NULL;
+  script_element_ = nullptr;
   added_analytics_js_ = false;
   added_experiment_snippet_ = false;
   if (driver()->options()->running_experiment()) {
@@ -130,7 +130,7 @@ void InsertGAFilter::StartElementImpl(HtmlElement* element) {
   if (!ga_id_.empty() &&
       !found_snippet_ &&
       element->keyword() == HtmlName::kScript &&
-      script_element_ == NULL) {
+      script_element_ == nullptr) {
     script_element_ = element;
   }
 }
@@ -236,7 +236,7 @@ void InsertGAFilter::EndDocument() {
   } else {
     if (ShouldInsertExperimentTracking(false /* ga.js */)) {
       if (driver()->options()->is_content_experiment()) {
-        HtmlElement* cxapi = driver()->NewElement(NULL, HtmlName::kScript);
+        HtmlElement* cxapi = driver()->NewElement(nullptr, HtmlName::kScript);
         driver()->AddAttribute(
             cxapi, HtmlName::kSrc, kContentExperimentsJsClientUrl);
         InsertNodeAtBodyEnd(cxapi);
@@ -262,7 +262,7 @@ void InsertGAFilter::EndDocument() {
                                   speed_tracking));
   }
 
-  HtmlElement* script_element = driver()->NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script_element = driver()->NewElement(nullptr, HtmlName::kScript);
   InsertNodeAtBodyEnd(script_element);
   HtmlNode* snippet = driver()->NewCharactersNode(script_element, js_text);
   driver()->AppendChild(script_element, snippet);
@@ -465,7 +465,7 @@ void InsertGAFilter::HandleEndScript(HtmlElement* script) {
     added_experiment_snippet_ = true;
     postponed_script_body_.clear();
   }
-  script_element_ = NULL;
+  script_element_ = nullptr;
 }
 
 void InsertGAFilter::EndElementImpl(HtmlElement* element) {
@@ -480,7 +480,7 @@ void InsertGAFilter::EndElementImpl(HtmlElement* element) {
 }
 
 void InsertGAFilter::Characters(HtmlCharactersNode* characters) {
-  if (script_element_ != NULL && !found_snippet_ &&
+  if (script_element_ != nullptr && !found_snippet_ &&
       !added_experiment_snippet_) {
     RewriteInlineScript(characters);
   }

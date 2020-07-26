@@ -97,12 +97,12 @@ class MinifyExcerptFilter : public CssSummarizerBase {
 
     const SummaryInfo& summary = GetSummaryForStyle(pos);
 
-    if (char_node != NULL) {
+    if (char_node != nullptr) {
       *char_node->mutable_contents() = summary.data;
     } else {
       // Replace link with style. Note: real one should also keep media,
       // test code does not have to.
-      HtmlElement* style_element = driver()->NewElement(NULL, HtmlName::kStyle);
+      HtmlElement* style_element = driver()->NewElement(nullptr, HtmlName::kStyle);
       driver()->InsertNodeBeforeNode(element, style_element);
 
       HtmlCharactersNode* content =
@@ -127,7 +127,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     GoogleString annotation = StrCat("WillNotRender:", IntegerToString(pos),
                                      " --- ", EncodeState(sum.state));
     driver()->InsertNodeBeforeNode(
-        element, driver()->NewCommentNode(NULL, annotation));
+        element, driver()->NewCommentNode(nullptr, annotation));
   }
 
   void SummariesDone() override {
@@ -140,7 +140,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
                 (include_base_ ? StrCat("/base=", sum.base) : ""),
                 "|");
     }
-    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, result_));
+    InsertNodeAtBodyEnd(driver()->NewCommentNode(nullptr, result_));
   }
 
   const GoogleString& result() { return result_; }

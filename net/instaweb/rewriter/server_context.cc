@@ -168,7 +168,7 @@ class BeaconPropertyCallback : public PropertyPage {
         html_critical_images_set_.get(), css_critical_images_set_.get(),
         rendered_images_set_.get(), nonce_, server_context_->beacon_cohort(),
         this, server_context_->timer());
-    if (critical_css_selector_set_ != NULL) {
+    if (critical_css_selector_set_ != nullptr) {
       BeaconCriticalSelectorFinder::
           WriteCriticalSelectorsToPropertyCacheFromBeacon(
               *critical_css_selector_set_, nonce_,
@@ -241,39 +241,39 @@ class GlobalOptionsRewriteDriverPool : public RewriteDriverPool {
 
 ServerContext::ServerContext(RewriteDriverFactory* factory)
     : thread_system_(factory->thread_system()),
-      rewrite_stats_(NULL),
+      rewrite_stats_(nullptr),
       file_system_(factory->file_system()),
-      url_namer_(NULL),
-      user_agent_matcher_(NULL),
+      url_namer_(nullptr),
+      user_agent_matcher_(nullptr),
       scheduler_(factory->scheduler()),
-      default_system_fetcher_(NULL),
-      hasher_(NULL),
-      signature_(NULL),
+      default_system_fetcher_(nullptr),
+      hasher_(nullptr),
+      signature_(nullptr),
       lock_hasher_(RewriteOptions::kHashBytes),
       contents_hasher_(21),
-      statistics_(NULL),
-      timer_(NULL),
-      filesystem_metadata_cache_(NULL),
-      metadata_cache_(NULL),
+      statistics_(nullptr),
+      timer_(nullptr),
+      filesystem_metadata_cache_(nullptr),
+      metadata_cache_(nullptr),
       store_outputs_in_file_system_(false),
       response_headers_finalized_(true),
       enable_property_cache_(true),
-      lock_manager_(NULL),
-      message_handler_(NULL),
-      dom_cohort_(NULL),
-      beacon_cohort_(NULL),
-      dependencies_cohort_(NULL),
-      fix_reflow_cohort_(NULL),
+      lock_manager_(nullptr),
+      message_handler_(nullptr),
+      dom_cohort_(nullptr),
+      beacon_cohort_(nullptr),
+      dependencies_cohort_(nullptr),
+      fix_reflow_cohort_(nullptr),
       available_rewrite_drivers_(new GlobalOptionsRewriteDriverPool(this)),
       trying_to_cleanup_rewrite_drivers_(false),
       shutdown_drivers_called_(false),
       factory_(factory),
       rewrite_drivers_mutex_(thread_system_->NewMutex()),
-      decoding_driver_(NULL),
-      html_workers_(NULL),
-      rewrite_workers_(NULL),
-      low_priority_rewrite_workers_(NULL),
-      static_asset_manager_(NULL),
+      decoding_driver_(nullptr),
+      html_workers_(nullptr),
+      rewrite_workers_(nullptr),
+      low_priority_rewrite_workers_(nullptr),
+      static_asset_manager_(nullptr),
       thread_synchronizer_(new ThreadSynchronizer(thread_system_)),
       experiment_matcher_(factory_->NewExperimentMatcher()),
       usage_data_reporter_(factory_->usage_data_reporter()),
@@ -352,7 +352,7 @@ void ServerContext::SetDefaultLongCacheHeaders(
   header->SetStatusAndReason(HttpStatus::kOK);
 
   header->RemoveAll(HttpAttributes::kContentType);
-  if (content_type != NULL) {
+  if (content_type != nullptr) {
     GoogleString header_val = content_type->mime_type();
     if (!charset.empty()) {
       // Note: if charset was quoted, content_type's parsing would not unquote
@@ -432,7 +432,7 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
   int64 max_age = headers->cache_ttl_ms();
   for (int i = 0, n = inputs.size(); i < n; ++i) {
     const ResourcePtr& input_resource(inputs[i]);
-    if (input_resource.get() != NULL && input_resource->HttpStatusOk()) {
+    if (input_resource.get() != nullptr && input_resource->HttpStatusOk()) {
       ResponseHeaders* input_headers = input_resource->response_headers();
       input_headers->ComputeCaching();
       if (input_headers->cache_ttl_ms() < max_age) {
@@ -458,7 +458,7 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
       headers->SetCacheControlPublic();
     }
   } else {
-    const char* directives = NULL;
+    const char* directives = nullptr;
     if (browser_cacheable) {
       directives = ",private";
     } else {
@@ -483,7 +483,7 @@ void ServerContext::AddOriginalContentLengthHeader(
     const char* original_content_length_header = input_headers->Lookup1(
         HttpAttributes::kXOriginalContentLength);
     int64 original_content_length;
-    if (original_content_length_header != NULL &&
+    if (original_content_length_header != nullptr &&
         StringToInt64(original_content_length_header,
                       &original_content_length)) {
       input_size += original_content_length;
@@ -618,7 +618,7 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // Process data from critical image and CSS beacons.
   // Beacon contents are stored in the property cache, so bail out if it isn't
   // enabled.
-  if (page_property_cache() == NULL || !page_property_cache()->enabled()) {
+  if (page_property_cache() == nullptr || !page_property_cache()->enabled()) {
     return status;
   }
   // Make sure the beacon has the options hash, which is included in the
@@ -664,8 +664,8 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // looking up the property page for the URL specified in the beacon, and
   // performing the page update and cohort write in
   // BeaconPropertyCallback::Done(). Done() is called when the read completes.
-  if (html_critical_images_set != NULL || css_critical_images_set != NULL ||
-      critical_css_selector_set != NULL || rendered_images != NULL) {
+  if (html_critical_images_set != nullptr || css_critical_images_set != nullptr ||
+      critical_css_selector_set != nullptr || rendered_images != nullptr) {
     UserAgentMatcher::DeviceType device_type =
         user_agent_matcher()->GetDeviceTypeForUA(user_agent);
 
@@ -704,18 +704,18 @@ bool ServerContext::HandleBeacon(StringPiece params,
 RewriteDriver* ServerContext::NewCustomRewriteDriver(
     RewriteOptions* options, const RequestContextPtr& request_ctx) {
   RewriteDriver* rewrite_driver = NewUnmanagedRewriteDriver(
-      NULL /* no pool as custom*/,
+      nullptr /* no pool as custom*/,
       options,
       request_ctx);
   {
     ScopedMutex lock(rewrite_drivers_mutex_.get());
     active_rewrite_drivers_.insert(rewrite_driver);
   }
-  if (factory_ != NULL) {
+  if (factory_ != nullptr) {
     factory_->ApplyPlatformSpecificConfiguration(rewrite_driver);
   }
   rewrite_driver->AddFilters();
-  if (factory_ != NULL) {
+  if (factory_ != nullptr) {
     factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
   }
   return rewrite_driver;
@@ -745,12 +745,12 @@ RewriteDriver* ServerContext::NewRewriteDriver(
 
 RewriteDriver* ServerContext::NewRewriteDriverFromPool(
     RewriteDriverPool* pool, const RequestContextPtr& request_ctx) {
-  RewriteDriver* rewrite_driver = NULL;
+  RewriteDriver* rewrite_driver = nullptr;
 
   const RewriteOptions* options = pool->TargetOptions();
   {
     ScopedMutex lock(rewrite_drivers_mutex_.get());
-    while ((rewrite_driver = pool->PopDriver()) != NULL) {
+    while ((rewrite_driver = pool->PopDriver()) != nullptr) {
       // Note: there is currently some activity to make the RewriteOptions
       // signature insensitive to changes that need not affect the metadata
       // cache key.  As we are dependent on a comprehensive signature in
@@ -766,19 +766,19 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
         break;
       } else {
         delete rewrite_driver;
-        rewrite_driver = NULL;
+        rewrite_driver = nullptr;
       }
     }
   }
 
-  if (rewrite_driver == NULL) {
+  if (rewrite_driver == nullptr) {
     rewrite_driver = NewUnmanagedRewriteDriver(
         pool, options->Clone(), request_ctx);
-    if (factory_ != NULL) {
+    if (factory_ != nullptr) {
       factory_->ApplyPlatformSpecificConfiguration(rewrite_driver);
     }
     rewrite_driver->AddFilters();
-    if (factory_ != NULL) {
+    if (factory_ != nullptr) {
       factory_->AddPlatformSpecificRewritePasses(rewrite_driver);
     }
   } else {
@@ -810,7 +810,7 @@ void ServerContext::ReleaseRewriteDriverImpl(RewriteDriver* rewrite_driver) {
     LOG(DFATAL) << "ReleaseRewriteDriver called with driver not in active set.";
   } else {
     RewriteDriverPool* pool = rewrite_driver->controlling_pool();
-    if (pool == NULL) {
+    if (pool == nullptr) {
       delete rewrite_driver;
     } else {
       pool->RecycleDriver(rewrite_driver);
@@ -870,14 +870,14 @@ size_t ServerContext::num_active_rewrite_drivers() {
 }
 
 RewriteOptions* ServerContext::global_options() {
-  if (base_class_options_.get() == NULL) {
+  if (base_class_options_.get() == nullptr) {
     base_class_options_.reset(factory_->default_options()->Clone());
   }
   return base_class_options_.get();
 }
 
 const RewriteOptions* ServerContext::global_options() const {
-  if (base_class_options_.get() == NULL) {
+  if (base_class_options_.get() == nullptr) {
     return factory_->default_options();
   }
   return base_class_options_.get();
@@ -893,7 +893,7 @@ RewriteOptions* ServerContext::NewOptions() {
 
 void ServerContext::GetRemoteOptions(RewriteOptions* remote_options,
                                      bool on_startup) {
-  if (remote_options == NULL) {
+  if (remote_options == nullptr) {
     return;
   }
   HttpOptions fetch_options;
@@ -923,7 +923,7 @@ bool ServerContext::GetQueryOptions(
                               request_url->spec_c_str());
     return false;
   }
-  if (domain_options == NULL) {
+  if (domain_options == nullptr) {
     domain_options = global_options();
   }
   // Note: success==false is treated as an error (we return 405 in
@@ -942,7 +942,7 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
   RewriteOptions* options = global_options();
   std::unique_ptr<RewriteOptions> custom_options;
   std::unique_ptr<RewriteOptions> scoped_domain_options(domain_options);
-  if (scoped_domain_options.get() != NULL) {
+  if (scoped_domain_options.get() != nullptr) {
     custom_options.reset(NewOptions());
     custom_options->Merge(*options);
     scoped_domain_options->Freeze();
@@ -952,7 +952,7 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
 
   std::unique_ptr<RewriteOptions> query_options_ptr(query_options);
   // Check query params & request-headers
-  if (query_options_ptr.get() != NULL) {
+  if (query_options_ptr.get() != nullptr) {
     // Subtle memory management to handle deleting any domain_options
     // after the merge, and transferring ownership to the caller for
     // the new merged options.
@@ -975,7 +975,7 @@ RewriteOptions* ServerContext::GetCustomOptions(RequestHeaders* request_headers,
 
 GoogleString ServerContext::GetRewriteOptionsSignatureHash(
     const RewriteOptions* options) {
-  if (options == NULL) {
+  if (options == nullptr) {
     return "";
   }
   return hasher()->Hash(options->signature());
@@ -997,7 +997,7 @@ bool ServerContext::IsExcludedAttribute(const char* attribute) {
 
 void ServerContext::set_enable_property_cache(bool enabled) {
   enable_property_cache_ = enabled;
-  if (page_property_cache_.get() != NULL) {
+  if (page_property_cache_.get() != nullptr) {
     page_property_cache_->set_enabled(enabled);
   }
 }
@@ -1039,17 +1039,17 @@ void ServerContext::DeleteCacheOnDestruction(CacheInterface* cache) {
 const PropertyCache::Cohort* ServerContext::AddCohort(
     const GoogleString& cohort_name,
     PropertyCache* pcache) {
-  return AddCohortWithCache(cohort_name, NULL, pcache);
+  return AddCohortWithCache(cohort_name, nullptr, pcache);
 }
 
 const PropertyCache::Cohort* ServerContext::AddCohortWithCache(
     const GoogleString& cohort_name,
     CacheInterface* cache,
     PropertyCache* pcache) {
-  CHECK(pcache->GetCohort(cohort_name) == NULL) << cohort_name
+  CHECK(pcache->GetCohort(cohort_name) == nullptr) << cohort_name
                                                 << " is added twice.";
-  if (cache_property_store_ != NULL) {
-    if (cache != NULL) {
+  if (cache_property_store_ != nullptr) {
+    if (cache != nullptr) {
       cache_property_store_->AddCohortWithCache(cohort_name, cache);
     } else {
       cache_property_store_->AddCohort(cohort_name);
@@ -1075,8 +1075,8 @@ PropertyStore* ServerContext::CreatePropertyStore(
 }
 
 const CacheInterface* ServerContext::pcache_cache_backend() {
-  if (cache_property_store_ == NULL) {
-    return NULL;
+  if (cache_property_store_ == nullptr) {
+    return nullptr;
   }
   return cache_property_store_->cache_backend();
 }
@@ -1179,7 +1179,7 @@ class MetadataCacheResultCallback
     cache_writer.Write(
         StrCat("can_revalidate:", (result->can_revalidate ? "true" : "false"),
         "\n"), handler_);
-    if (result->partitions.get() != NULL) {
+    if (result->partitions.get() != nullptr) {
       // Display the input info which has the minimum expiration time of all
       // the inputs.
       cache_writer.Write(
@@ -1247,7 +1247,7 @@ GoogleString ServerContext::FetchRemoteConfig(const GoogleString& url,
       new SyncFetcherAdapterCallback(thread_system_, &out_writer, request_ctx);
   CacheUrlAsyncFetcher remote_config_fetcher(
       hasher(), lock_manager(), http_cache(),
-      global_options()->cache_fragment(), NULL, DefaultSystemFetcher());
+      global_options()->cache_fragment(), nullptr, DefaultSystemFetcher());
   remote_config_fetcher.set_proactively_freshen_user_facing_request(true);
   // Fetch to a string.
   remote_config_fetcher.Fetch(url, message_handler_, remote_config_fetch);

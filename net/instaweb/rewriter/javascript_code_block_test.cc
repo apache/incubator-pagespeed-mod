@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
@@ -185,9 +189,9 @@ class JsCodeBlockTest : public ::testing::Test,
                            ? kAfterCompilationNew
                            : kAfterCompilationOld) {
     JavascriptRewriteConfig::InitStats(&stats_);
-    config_.reset(new JavascriptRewriteConfig(
+    config_ = std::make_unique<JavascriptRewriteConfig>(
         &stats_, true, use_experimental_minifier_, &libraries_,
-        &js_tokenizer_patterns_));
+        &js_tokenizer_patterns_);
     // Register a bogus library with a made-up md5 and plausible canonical url
     // that doesn't occur in our tests, but has the same size as our canonical
     // test case.
@@ -208,16 +212,16 @@ class JsCodeBlockTest : public ::testing::Test,
   }
 
   void DisableMinification() {
-    config_.reset(new JavascriptRewriteConfig(
+    config_ = std::make_unique<JavascriptRewriteConfig>(
         &stats_, false, use_experimental_minifier_, &libraries_,
-        &js_tokenizer_patterns_));
+        &js_tokenizer_patterns_);
   }
 
   // Must be called after DisableMinification if we call both.
   void DisableLibraryIdentification() {
-    config_.reset(new JavascriptRewriteConfig(
-        &stats_, config_->minify(), use_experimental_minifier_, NULL,
-        &js_tokenizer_patterns_));
+    config_ = std::make_unique<JavascriptRewriteConfig>(
+        &stats_, config_->minify(), use_experimental_minifier_, nullptr,
+        &js_tokenizer_patterns_);
   }
 
   void RegisterLibrariesIn(JavascriptLibraryIdentification* libs) {

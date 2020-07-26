@@ -42,7 +42,7 @@ void RewriteOptionsManager::PrepareRequest(
     GoogleString* url,
     RequestHeaders* request_headers,
     BoolCallback* callback) {
-  if (rewrite_options == NULL) {
+  if (rewrite_options == nullptr) {
     callback->Run(true);
     return;
   }

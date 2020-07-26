@@ -107,10 +107,10 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
   static const bool kNoTransform = true;
   static const bool kTransform = false;
   InPlaceRewriteContextTest()
-      : img_filter_(NULL),
-        other_img_filter_(NULL),
-        js_filter_(NULL),
-        css_filter_(NULL),
+      : img_filter_(nullptr),
+        other_img_filter_(nullptr),
+        js_filter_(nullptr),
+        css_filter_(nullptr),
         cache_html_url_("http://www.example.com/cacheable.html"),
         cache_jpg_url_("http://www.example.com/cacheable.jpg"),
         cache_jpg_no_extension_url_("http://www.example.com/cacheable_jpg"),
@@ -142,7 +142,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
         ttl_ms_(Timer::kHourMs), etag_("W/\"PSA-aj-0\""),
         original_etag_("original_etag"),
         exceed_deadline_(false), optimize_for_browser_(false),
-        oversized_stream_(NULL), in_place_uncacheable_rewrites_(NULL) {}
+        oversized_stream_(nullptr), in_place_uncacheable_rewrites_(nullptr) {}
 
   virtual void Init() {
     SetTimeMs(start_time_ms());
@@ -331,7 +331,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
                              int64 date_ms) {
     js_filter_->set_exceed_deadline(exceed_deadline_);
     img_filter_->set_exceed_deadline(exceed_deadline_);
-    if (other_img_filter_ != NULL) {
+    if (other_img_filter_ != nullptr) {
       other_img_filter_->set_exceed_deadline(exceed_deadline_);
     }
     css_filter_->set_exceed_deadline(exceed_deadline_);
@@ -343,7 +343,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
         request_context, options(), url, &sync, &response_headers_);
     const RequestHeaders* driver_request_headers =
         rewrite_driver()->request_headers();
-    if (driver_request_headers != NULL) {
+    if (driver_request_headers != nullptr) {
       notifying_fetch.request_headers()->CopyFrom(*driver_request_headers);
     }
     rewrite_driver()->FetchResource(url, &notifying_fetch);
@@ -370,7 +370,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
   void ResetHeadersAndStats() {
     response_headers_.Clear();
     img_filter_->ClearStats();
-    if (other_img_filter_ != NULL) {
+    if (other_img_filter_ != nullptr) {
       other_img_filter_->ClearStats();
     }
     js_filter_->ClearStats();
@@ -443,7 +443,7 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
                                   const GoogleString& cache_body,
                                   const GoogleString& filter_prefix) {
     FetchAndCheckResponse(url, cache_body, true, ttl_ms_,
-                          NULL, start_time_ms());
+                          nullptr, start_time_ms());
     EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
     EXPECT_EQ(0, http_cache()->cache_hits()->Get());
     EXPECT_EQ(1, http_cache()->cache_misses()->Get());
@@ -631,7 +631,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeWithDisabledFilter) {
   // rewrite.
   img_filter_->set_enabled(false);
   FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_,
-                        NULL, start_time_ms());
+                        nullptr, start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
   // result into cache. Failure to rewrite means original should be returned.
@@ -671,7 +671,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeNoTransform) {
 
   // Don't rewrite since it's no-transform.
   FetchAndCheckResponse(cache_jpg_notransform_url_, cache_body_, true,
-                        ttl_ms_, NULL, start_time_ms());
+                        ttl_ms_, nullptr, start_time_ms());
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
   // into cache.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
@@ -702,7 +702,7 @@ TEST_F(InPlaceRewriteContextTest, OptimizeOnNoTransformIfOptionFalse) {
   options()->set_disable_rewrite_on_no_transform(false);
   Init();
   FetchAndCheckResponse(cache_jpg_notransform_url_, cache_body_, true,
-                        ttl_ms_, NULL, start_time_ms());
+                        ttl_ms_, nullptr, start_time_ms());
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
   // into cache. Also the resource gets rewritten and the rewritten resource
   // gets inserted into cache.
@@ -736,7 +736,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeTimeout) {
   exceed_deadline_ = true;
 
   FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_,
-                        NULL, start_time_ms());
+                        nullptr, start_time_ms());
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
   // result into cache. Rewrite succeeds but is slow so original returned.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
@@ -778,7 +778,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeResourceTooBig) {
   http_cache()->set_max_cacheable_response_content_length(2);
 
   FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_,
-                        NULL, start_time_ms());
+                        nullptr, start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch but resource too
   // big for cache.
@@ -796,7 +796,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeResourceTooBig) {
 
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_,
-                        NULL, start_time_ms());
+                        nullptr, start_time_ms());
   // Second fetch should also completely miss because the first fetch was too
   // big to stuff in the cache.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
@@ -814,7 +814,7 @@ TEST_F(InPlaceRewriteContextTest, WaitForOptimizeResourceTooBig) {
 
 TEST_F(InPlaceRewriteContextTest, CacheableJpgUrlRewritingSucceeds) {
   Init();
-  FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_, nullptr,
                         start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
@@ -844,7 +844,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableJpgUrlRewritingSucceeds) {
   // of the rewritten resource.
   AddRequestAttribute(HttpAttributes::kIfNoneMatch, etag_);
   SetDriverRequestHeaders();
-  FetchAndCheckResponse(cache_jpg_url_, "", true, ttl_ms_/2, NULL, 0);
+  FetchAndCheckResponse(cache_jpg_url_, "", true, ttl_ms_/2, nullptr, 0);
   EXPECT_EQ(HttpStatus::kNotModified, response_headers_.status_code());
   // We hit the metadata cache and find that the etag matches the hash of the
   // rewritten resource.
@@ -931,7 +931,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableJpgUrlRewritingSucceeds) {
 
   AdvanceTimeMs(2 * ttl_ms_);
   ResetHeadersAndStats();
-  FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_jpg_url_, cache_body_, true, ttl_ms_, nullptr,
                         timer()->NowMs());
   // The metadata and cache entry is stale now. Fetch the content and serve out
   // the original. We will however notice that the contents did not
@@ -1003,7 +1003,7 @@ TEST_F(InPlaceRewriteContextTest, CacheablePngUrlRewritingFails) {
 
 TEST_F(InPlaceRewriteContextTest, CacheableJsUrlRewritingSucceeds) {
   Init();
-  FetchAndCheckResponse(cache_js_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_js_url_, cache_body_, true, ttl_ms_, nullptr,
                         start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
@@ -1030,7 +1030,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableJsUrlRewritingSucceeds) {
 
   AdvanceTimeMs(2 * ttl_ms_);
   ResetHeadersAndStats();
-  FetchAndCheckResponse(cache_js_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_js_url_, cache_body_, true, ttl_ms_, nullptr,
                         timer()->NowMs());
   // The metadata and cache entry is stale now. Fetch the content and serve it
   // out without rewriting. The background rewrite will then revalidate
@@ -1053,7 +1053,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableJsUrlRewritingWithStaleServing) {
   options()->set_metadata_cache_staleness_threshold_ms(ttl_ms_);
   server_context()->ComputeSignature(options());
 
-  FetchAndCheckResponse(cache_js_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_js_url_, cache_body_, true, ttl_ms_, nullptr,
                         start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
@@ -1101,7 +1101,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableJsUrlModifiedImplicitCacheTtl) {
   FetchAndCheckResponse(cache_js_no_max_age_url_, cache_body_,
                         /* expected_success= */ true,
                         /* expected_ttl= */ 500 * Timer::kSecondMs,
-                        /* etag= */ NULL,
+                        /* etag= */ nullptr,
                         /* date_ms= */ start_time_ms());
 }
 
@@ -1110,7 +1110,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlIfCssRewritingDisabled) {
   options()->ClearSignatureForTesting();
   options()->DisableFilter(RewriteOptions::kRewriteCss);
   server_context()->ComputeSignature(options());
-  FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, nullptr,
                         start_time_ms());
 
   // First fetch succeeds at the fetcher, no rewriting happens since the css
@@ -1142,7 +1142,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlIfCssRewritingDisabled) {
 TEST_F(InPlaceRewriteContextTest, CacheableCssUrlRewritingSucceeds) {
   Init();
   EnableCachePurge();
-  FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, nullptr,
                         start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
@@ -1179,7 +1179,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlRewritingSucceeds) {
   AdvanceTimeMs(2 * ttl_ms_);
   ResetHeadersAndStats();
   int64 date_of_css_ms = timer()->NowMs();
-  FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, NULL,
+  FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_, nullptr,
                         date_of_css_ms);
   // The metadata and cache entry is stale now. Fetch the content and serve it
   // out without rewriting. The background rewrite attempt will end up reusing
@@ -1202,7 +1202,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlRewritingSucceeds) {
 
   // Having flushed cache, we are now back to serving the origin content.
   FetchAndCheckResponse(cache_css_url_, cache_body_, true, ttl_ms_,
-                        NULL, date_of_css_ms);
+                        nullptr, date_of_css_ms);
 
   // Next time we'll serve optimized content.
   AdvanceTimeMs(ttl_ms_/2);
@@ -1214,7 +1214,7 @@ TEST_F(InPlaceRewriteContextTest, CacheableCssUrlRewritingSucceeds) {
 
 TEST_F(InPlaceRewriteContextTest, NonCacheableUrlNoRewriting) {
   Init();
-  FetchAndCheckResponse(nocache_html_url_, nocache_body_, true, 0, NULL,
+  FetchAndCheckResponse(nocache_html_url_, nocache_body_, true, 0, nullptr,
                         timer()->NowMs());
   // First fetch misses initial cache lookup, succeeds at fetch and we don't
   // insert into cache because it's not cacheable. Don't attempt to rewrite
@@ -1315,7 +1315,7 @@ TEST_F(InPlaceRewriteContextTest, PrivateCacheableUrlRewriting) {
 
 TEST_F(InPlaceRewriteContextTest, BadUrlNoRewriting) {
   Init();
-  FetchAndCheckResponse(bad_url_, bad_body_, true, 0, NULL, start_time_ms());
+  FetchAndCheckResponse(bad_url_, bad_body_, true, 0, nullptr, start_time_ms());
   // First fetch misses initial cache lookup, succeeds at fetch and we don't
   // insert into cache because it's not cacheable. Don't attempt to rewrite
   // this since its not cacheable.
@@ -1336,7 +1336,7 @@ TEST_F(InPlaceRewriteContextTest, PermanentRedirectNoRewriting) {
   Init();
   FetchAndCheckResponse(
       redirect_url_, redirect_body_, true /* expected_success */,
-      36000 /* ttl (s) */, NULL /* etag */, start_time_ms());
+      36000 /* ttl (s) */, nullptr /* etag */, start_time_ms());
 
   // Don't attempt to rewrite this since it's not a 200 response.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
@@ -1353,7 +1353,7 @@ TEST_F(InPlaceRewriteContextTest, PermanentRedirectNoRewriting) {
 
 TEST_F(InPlaceRewriteContextTest, FetchFailedNoRewriting) {
   Init();
-  FetchAndCheckResponse("http://www.notincache.com", "", false, 0, NULL,
+  FetchAndCheckResponse("http://www.notincache.com", "", false, 0, nullptr,
                         start_time_ms());
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
@@ -1373,7 +1373,7 @@ TEST_F(InPlaceRewriteContextTest, HandleResourceCreationFailure) {
   // and leak the rewrite driver.
   Init();
   factory()->mock_url_async_fetcher()->set_fetcher_supports_https(false);
-  FetchAndCheckResponse("https://www.example.com", "", false, 0, NULL, 0);
+  FetchAndCheckResponse("https://www.example.com", "", false, 0, nullptr, 0);
 }
 
 TEST_F(InPlaceRewriteContextTest, ResponseHeaderMimeTypeUpdate) {
@@ -1429,7 +1429,7 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserEncodingAndHeader) {
   EXPECT_EQ(0, css_filter_->num_encode_user_agent());
   EXPECT_EQ(0, img_filter_->num_encode_user_agent());
   EXPECT_EQ(0, js_filter_->num_encode_user_agent());
-  EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
+  EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kVary));
 
   // Javascript with correct extension in URL.
   ResetHeadersAndStats();
@@ -1438,7 +1438,7 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserEncodingAndHeader) {
   EXPECT_EQ(0, css_filter_->num_encode_user_agent());
   EXPECT_EQ(0, img_filter_->num_encode_user_agent());
   EXPECT_EQ(0, js_filter_->num_encode_user_agent());
-  EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
+  EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kVary));
 
   // Javascript with jpeg extension in URL.
   ResetHeadersAndStats();
@@ -1447,15 +1447,15 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserEncodingAndHeader) {
   EXPECT_EQ(0, css_filter_->num_encode_user_agent());
   EXPECT_EQ(1, img_filter_->num_encode_user_agent());
   EXPECT_EQ(0, js_filter_->num_encode_user_agent());
-  EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
+  EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kVary));
 
   // Bad content with unknown extension.
   ResetHeadersAndStats();
-  FetchAndCheckResponse(bad_url_, bad_body_, true, 0, NULL, start_time_ms());
+  FetchAndCheckResponse(bad_url_, bad_body_, true, 0, nullptr, start_time_ms());
   EXPECT_EQ(1, css_filter_->num_encode_user_agent());
   EXPECT_EQ(1, img_filter_->num_encode_user_agent());
   EXPECT_EQ(0, js_filter_->num_encode_user_agent());
-  EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
+  EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kVary));
 }
 
 TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserRewriting) {
@@ -1615,7 +1615,7 @@ TEST_F(InPlaceRewriteContextTest, AcceptHeaderMerging) {
   // CachingHeaders::HasExplicitNoCacheDirective().  Inexplicably (?), we also
   // change its ttl to 0 in spite of incoming ttl headers.
   FetchAndCheckResponse(cache_jpg_vary_star_url_, "good", true, 0,
-                        NULL, start_time_ms());
+                        nullptr, start_time_ms());
   EXPECT_STREQ("*", response_headers_.Lookup1(HttpAttributes::kVary));
 
   // TODO(jmaessen): Right now we're not properly passing through Vary: headers
@@ -1673,14 +1673,14 @@ TEST_F(InPlaceRewriteContextTest, OptimizeForBrowserNegative) {
   SetAcceptWebp();
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_, etag_,
                         start_time_ms());
-  EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
+  EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kVary));
 
   ResetHeadersAndStats();
   SetTimeMs((start_time_ms() + ttl_ms_/2));
   ResetUserAgent(UserAgentMatcher::kTestUserAgentNoWebP);
   FetchAndCheckResponse(cache_jpg_url_, "good:ic", true, ttl_ms_/2, etag_,
                         start_time_ms() + ttl_ms_/2);
-  EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kVary));
+  EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kVary));
 }
 
 TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
@@ -1692,7 +1692,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   Init();
 
   FetchAndCheckResponse(cache_js_url_, cache_body_, true,
-                        kIproFileTtlMs, NULL, start_time_ms());
+                        kIproFileTtlMs, nullptr, start_time_ms());
 
   // First fetch misses initial cache lookup, succeeds at fetch and inserts
   // result into cache. Also, the resource gets rewritten and the rewritten
@@ -1748,7 +1748,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   WriteFile("/test/cacheable.js", cache_body_ /*"   alert ( 'foo ')   "*/);
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, cache_body_, true,
-                        kIproFileTtlMs, NULL, timer()->NowMs());
+                        kIproFileTtlMs, nullptr, timer()->NowMs());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
@@ -1771,7 +1771,7 @@ TEST_F(InPlaceRewriteContextTest, LoadFromFile) {
   WriteFile("/test/cacheable.js", "new_content");
   ResetHeadersAndStats();
   FetchAndCheckResponse(cache_js_url_, "new_content", true,
-                        kIproFileTtlMs, NULL, timer()->NowMs());
+                        kIproFileTtlMs, nullptr, timer()->NowMs());
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());

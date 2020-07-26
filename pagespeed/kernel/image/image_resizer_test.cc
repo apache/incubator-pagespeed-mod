@@ -99,7 +99,7 @@ class ScanlineResizerTest : public testing::Test {
       message_handler_(new NullMutex),
       reader_(&message_handler_),
       resizer_(&message_handler_),
-      scanline_(NULL) {
+      scanline_(nullptr) {
   }
 
  protected:
@@ -185,8 +185,8 @@ void ScanlineResizerTest::ResizeAndValidateImage(const char* file_name,
     ASSERT_EQ(gold_reader.GetPixelFormat(), resizer_.GetPixelFormat());
 
     while (resizer_.HasMoreScanLines() && gold_reader.HasMoreScanLines()) {
-      uint8* resized_scanline = NULL;
-      uint8* gold_scanline = NULL;
+      uint8* resized_scanline = nullptr;
+      uint8* gold_scanline = nullptr;
       ASSERT_TRUE(resizer_.ReadNextScanline(
           reinterpret_cast<void**>(&resized_scanline)));
       ASSERT_TRUE(gold_reader.ReadNextScanline(

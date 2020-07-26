@@ -156,8 +156,8 @@ bool DownstreamCachePurger::MaybeIssuePurge(const GoogleUrl& google_url) {
   // d) rewritten response is not optimized enough to warrant a purge
   // e) valid purge URL or method are unavailable
   if (!made_downstream_purge_attempt_ &&
-      driver_->request_headers() != NULL &&
-      driver_->request_headers()->Lookup1(kPsaPurgeRequest) == NULL &&
+      driver_->request_headers() != nullptr &&
+      driver_->request_headers()->Lookup1(kPsaPurgeRequest) == nullptr &&
       driver_->request_headers()->method() == RequestHeaders::kGet &&
       google_url.IsWebValid() &&
       ShouldPurgeRewrittenResponse(google_url) &&

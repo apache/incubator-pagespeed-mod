@@ -231,7 +231,7 @@ bool PurgeSet::IsValid(const GoogleString& key, int64 timestamp_ms) const {
     return false;
   }
   int64* purge_timestamp_ms = lru_->GetNoFreshen(key);
-  return ((purge_timestamp_ms == NULL) || (timestamp_ms > *purge_timestamp_ms));
+  return ((purge_timestamp_ms == nullptr) || (timestamp_ms > *purge_timestamp_ms));
 }
 
 void PurgeSet::Swap(PurgeSet* that) {

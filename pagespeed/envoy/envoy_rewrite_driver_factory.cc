@@ -73,7 +73,7 @@ EnvoyRewriteDriverFactory::EnvoyRewriteDriverFactory(const ProcessContext& proce
       envoy_message_handler_(new EnvoyMessageHandler(timer(), thread_system()->NewMutex())),
       envoy_html_parse_message_handler_(
           new EnvoyMessageHandler(timer(), thread_system()->NewMutex())),
-      envoy_shared_circular_buffer_(NULL), hostname_(hostname.as_string()), port_(port),
+      envoy_shared_circular_buffer_(nullptr), hostname_(hostname.as_string()), port_(port),
       shut_down_(false) {
 
   InitializeDefaultOptions();
@@ -112,10 +112,10 @@ EnvoyRewriteDriverFactory::EnvoyRewriteDriverFactory(const ProcessContext& proce
 
 EnvoyRewriteDriverFactory::~EnvoyRewriteDriverFactory() {
   ShutDown();
-  envoy_shared_circular_buffer_ = NULL;
+  envoy_shared_circular_buffer_ = nullptr;
   // message handlers are owned by RewriteDriverFactory
-  envoy_message_handler_ = NULL;
-  envoy_html_parse_message_handler_ = NULL;
+  envoy_message_handler_ = nullptr;
+  envoy_html_parse_message_handler_ = nullptr;
   STLDeleteElements(&uninitialized_server_contexts_);
 }
 
@@ -139,7 +139,7 @@ Timer* EnvoyRewriteDriverFactory::DefaultTimer() { return new PosixTimer; }
 
 NamedLockManager* EnvoyRewriteDriverFactory::DefaultLockManager() {
   CHECK(false);
-  return NULL;
+  return nullptr;
 }
 
 RewriteOptions* EnvoyRewriteDriverFactory::NewRewriteOptions() {
@@ -172,7 +172,7 @@ ServerContext* EnvoyRewriteDriverFactory::NewDecodingServerContext() {
 
 ServerContext* EnvoyRewriteDriverFactory::NewServerContext() {
   LOG(DFATAL) << "MakeEnvoyServerContext should be used instead";
-  return NULL;
+  return nullptr;
 }
 
 void EnvoyRewriteDriverFactory::ShutDown() {
@@ -183,11 +183,11 @@ void EnvoyRewriteDriverFactory::ShutDown() {
 }
 
 void EnvoyRewriteDriverFactory::ShutDownMessageHandlers() {
-  envoy_message_handler_->set_buffer(NULL);
-  envoy_html_parse_message_handler_->set_buffer(NULL);
+  envoy_message_handler_->set_buffer(nullptr);
+  envoy_html_parse_message_handler_->set_buffer(nullptr);
   for (EnvoyMessageHandlerSet::iterator p = server_context_message_handlers_.begin();
        p != server_context_message_handlers_.end(); ++p) {
-    (*p)->set_buffer(NULL);
+    (*p)->set_buffer(nullptr);
   }
   server_context_message_handlers_.clear();
 }
@@ -207,7 +207,7 @@ void EnvoyRewriteDriverFactory::StartThreads() {
 void EnvoyRewriteDriverFactory::SetMainConf(EnvoyRewriteOptions* main_options) {
   // Propagate process-scope options from the copy we had during Envoy option
   // parsing to our own.
-  if (main_options != NULL) {
+  if (main_options != nullptr) {
     default_options()->MergeOnlyProcessScopeOptions(*main_options);
   }
 }

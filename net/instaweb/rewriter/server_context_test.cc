@@ -125,7 +125,7 @@ class ServerContextTest : public RewriteTestBase {
   bool FetchExtantOutputResourceHelper(const OutputResourcePtr& resource,
                                        StringAsyncFetch* async_fetch) {
     async_fetch->set_response_headers(resource->response_headers());
-    RewriteFilter* null_filter = NULL;  // We want to test the cache only.
+    RewriteFilter* null_filter = nullptr;  // We want to test the cache only.
     EXPECT_TRUE(rewrite_driver()->FetchOutputResource(resource, null_filter,
                                                       async_fetch));
     rewrite_driver()->WaitForCompletion();
@@ -142,7 +142,7 @@ class ServerContextTest : public RewriteTestBase {
                                StringPiece expect_content) {
     ASSERT_TRUE(output_resource.get());
     RewriteFilter* filter = rewrite_driver()->FindFilter(filter_id);
-    ASSERT_TRUE(filter != NULL);
+    ASSERT_TRUE(filter != nullptr);
     StringAsyncFetch fetch_result(CreateRequestContext());
     EXPECT_TRUE(rewrite_driver()->FetchOutputResource(
         output_resource, filter, &fetch_result));
@@ -186,7 +186,7 @@ class ServerContextTest : public RewriteTestBase {
     bool unused;
     ResourcePtr resource(rewrite_driver()->CreateInputResource(
         resource_url, RewriteDriver::InputRole::kUnknown, &unused));
-    if ((resource.get() != NULL) && !ReadIfCached(resource)) {
+    if ((resource.get() != nullptr) && !ReadIfCached(resource)) {
       resource.clear();
     }
     return resource;
@@ -202,7 +202,7 @@ class ServerContextTest : public RewriteTestBase {
         rewrite_driver()->CreateOutputResourceWithPath(
             kUrlPrefix, filter_prefix, name, kRewrittenResource,
             &failure_reason));
-    ASSERT_TRUE(output.get() != NULL);
+    ASSERT_TRUE(output.get() != nullptr);
     EXPECT_EQ("", failure_reason);
     // Check name_key against url_prefix/fp.name
     GoogleString name_key = output->name_key();
@@ -222,7 +222,7 @@ class ServerContextTest : public RewriteTestBase {
           rewrite_driver()->CreateOutputResourceWithPath(
               kUrlPrefix, filter_prefix, name, kRewrittenResource,
               &failure_reason));
-      ASSERT_TRUE(output1.get() != NULL);
+      ASSERT_TRUE(output1.get() != nullptr);
       EXPECT_EQ("", failure_reason);
       EXPECT_FALSE(output1->IsWritten());
     }
@@ -236,7 +236,7 @@ class ServerContextTest : public RewriteTestBase {
       namer.set_ext("txt");
       GoogleString name = StrCat(kUrlPrefix, namer.Encode());
       OutputResourcePtr output1(CreateOutputResourceForFetch(name));
-      ASSERT_TRUE(output1.get() != NULL);
+      ASSERT_TRUE(output1.get() != nullptr);
 
       // blocking but stealing
       EXPECT_FALSE(TryFetchExtantOutputResource(output1));
@@ -352,12 +352,12 @@ class ServerContextTest : public RewriteTestBase {
     // have not specified any URL params or request-headers, so there will be
     // no custom options, and no errors.
     GoogleUrl gurl(url);
-    RewriteOptions* copy_options = domain_options != NULL ?
-        domain_options->Clone() : NULL;
+    RewriteOptions* copy_options = domain_options != nullptr ?
+        domain_options->Clone() : nullptr;
     RewriteQuery rewrite_query;
     RequestContextPtr null_request_context;
     EXPECT_TRUE(server_context()->GetQueryOptions(
-        null_request_context, NULL, &gurl, request_headers, NULL,
+        null_request_context, nullptr, &gurl, request_headers, nullptr,
         &rewrite_query));
     RewriteOptions* options =
         server_context()->GetCustomOptions(request_headers, copy_options,
@@ -378,15 +378,15 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   // no custom options, and no errors.
   RequestHeaders request_headers;
   std::unique_ptr<RewriteOptions> options(
-      GetCustomOptions("http://example.com/", &request_headers, NULL));
-  ASSERT_TRUE(options.get() == NULL);
+      GetCustomOptions("http://example.com/", &request_headers, nullptr));
+  ASSERT_TRUE(options.get() == nullptr);
 
   // Now put a query-param in, just turning on PageSpeed.  The core filters
   // should be enabled.
   options.reset(GetCustomOptions(
       "http://example.com/?PageSpeed=on",
-      &request_headers, NULL));
-  ASSERT_TRUE(options.get() != NULL);
+      &request_headers, nullptr));
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options.get(), true);
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
@@ -395,8 +395,8 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   // Now explicitly enable a filter, which should disable others.
   options.reset(GetCustomOptions(
       "http://example.com/?PageSpeedFilters=extend_cache",
-      &request_headers, NULL));
-  ASSERT_TRUE(options.get() != NULL);
+      &request_headers, nullptr));
+  ASSERT_TRUE(options.get() != nullptr);
   CheckExtendCache(options.get(), true);
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
   EXPECT_FALSE(options->Enabled(RewriteOptions::kDeferJavascript));
@@ -406,8 +406,8 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   request_headers.Add("PageSpeed", "off");
   options.reset(GetCustomOptions(
       "http://example.com/?PageSpeed=on",
-      &request_headers, NULL));
-  ASSERT_TRUE(options.get() != NULL);
+      &request_headers, nullptr));
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_FALSE(options->enabled());
 
   // Now explicitly enable a bogus filter, which should will cause the
@@ -416,7 +416,7 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   RewriteQuery rewrite_query;
   RequestContextPtr null_request_context;
   EXPECT_FALSE(server_context()->GetQueryOptions(
-      null_request_context, options.get(), &gurl, &request_headers, NULL,
+      null_request_context, options.get(), &gurl, &request_headers, nullptr,
       &rewrite_query));
 
   // The default url_namer does not yield any name-derived options, and we
@@ -426,8 +426,8 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   request_headers.Add(
       HttpAttributes::kXRequestedWith, "bogus");
   options.reset(
-      GetCustomOptions("http://example.com/", &request_headers, NULL));
-  ASSERT_TRUE(options.get() == NULL);
+      GetCustomOptions("http://example.com/", &request_headers, nullptr));
+  ASSERT_TRUE(options.get() == nullptr);
 
   // The default url_namer does not yield any name-derived options, and we
   // have not specified any URL params or request-headers, but kXRequestedWith
@@ -437,9 +437,9 @@ TEST_F(ServerContextTest, CustomOptionsWithNoUrlNamerOptions) {
   request_headers.Add(
       HttpAttributes::kXRequestedWith, HttpAttributes::kXmlHttpRequest);
   options.reset(
-      GetCustomOptions("http://example.com/", &request_headers, NULL));
+      GetCustomOptions("http://example.com/", &request_headers, nullptr));
   // Disable DelayImages for XmlHttpRequests.
-  ASSERT_TRUE(options.get() != NULL);
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_TRUE(options->enabled());
   EXPECT_FALSE(options->Enabled(RewriteOptions::kDelayImages));
   // As kDelayImages filter is present in the disabled list, so it will not get
@@ -475,7 +475,7 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
                        &namer_options));
   // Even with no query-params or request-headers, we get the custom
   // options as domain options provided as argument.
-  ASSERT_TRUE(options.get() != NULL);
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options.get(), false);
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
@@ -486,7 +486,7 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
   options.reset(GetCustomOptions(
       "http://example.com/?PageSpeed=on",
       &request_headers, &namer_options));
-  ASSERT_TRUE(options.get() != NULL);
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options.get(), true);
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
@@ -499,7 +499,7 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
   options.reset(GetCustomOptions(
       "http://example.com/?PageSpeedFilters=combine_css",
       &request_headers, &namer_options));
-  ASSERT_TRUE(options.get() != NULL);
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options.get(), false);
   EXPECT_TRUE(options->Enabled(RewriteOptions::kCombineCss));
@@ -511,7 +511,7 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
   RewriteQuery rewrite_query;
   RequestContextPtr null_request_context;
   EXPECT_FALSE(server_context()->GetQueryOptions(
-      null_request_context, options.get(), &gurl, &request_headers, NULL,
+      null_request_context, options.get(), &gurl, &request_headers, nullptr,
       &rewrite_query));
 
   request_headers.Add(
@@ -520,7 +520,7 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
       GetCustomOptions("http://example.com/", &request_headers,
                        &namer_options));
   // Don't disable DelayImages for Non-XmlHttpRequests.
-  ASSERT_TRUE(options.get() != NULL);
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options.get(), false);
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
@@ -534,7 +534,7 @@ TEST_F(ServerContextTest, CustomOptionsWithUrlNamerOptions) {
       GetCustomOptions("http://example.com/", &request_headers,
                        &namer_options));
   // Disable DelayImages for XmlHttpRequests.
-  ASSERT_TRUE(options.get() != NULL);
+  ASSERT_TRUE(options.get() != nullptr);
   EXPECT_TRUE(options->enabled());
   CheckExtendCache(options.get(), false);
   EXPECT_FALSE(options->Enabled(RewriteOptions::kCombineCss));
@@ -549,7 +549,7 @@ TEST_F(ServerContextTest, QueryOptionsWithInvalidUrl) {
   RewriteQuery rewrite_query;
   RequestContextPtr null_request_context;
   EXPECT_FALSE(server_context()->GetQueryOptions(
-      null_request_context, options(), &gurl, &request_headers, NULL,
+      null_request_context, options(), &gurl, &request_headers, nullptr,
       &rewrite_query));
 }
 
@@ -619,7 +619,7 @@ TEST_F(ServerContextTest, TestMapRewriteAndOrigin) {
 
   ResourcePtr input(CreateResource(StrCat(kTestDomain, "index.html"),
                                    "style.css"));
-  ASSERT_TRUE(input.get() != NULL);
+  ASSERT_TRUE(input.get() != nullptr);
   EXPECT_EQ(StrCat(kTestDomain, "style.css"), input->url());
 
   // The absolute input URL is in test.com, but we will only be
@@ -636,9 +636,9 @@ TEST_F(ServerContextTest, TestMapRewriteAndOrigin) {
   OutputResourcePtr output(
       rewrite_driver()->CreateOutputResourceFromResource(
           RewriteOptions::kCacheExtenderId, rewrite_driver()->default_encoder(),
-          NULL, input, kRewrittenResource,
+          nullptr, input, kRewrittenResource,
           &failure_reason));
-  ASSERT_TRUE(output.get() != NULL);
+  ASSERT_TRUE(output.get() != nullptr);
   EXPECT_EQ("", failure_reason);
 
   // We need to 'Write' an output resource before we can determine its
@@ -696,8 +696,8 @@ class MockPlatformConfigCallback
 // Tests that platform-specific configuration hook runs for various
 // factory methods.
 TEST_F(ServerContextTest, TestPlatformSpecificConfiguration) {
-  RewriteDriver* rec_normal_driver = NULL;
-  RewriteDriver* rec_custom_driver = NULL;
+  RewriteDriver* rec_normal_driver = nullptr;
+  RewriteDriver* rec_custom_driver = nullptr;
 
   MockPlatformConfigCallback normal_callback(&rec_normal_driver);
   MockPlatformConfigCallback custom_callback(&rec_custom_driver);
@@ -729,7 +729,7 @@ TEST_F(ServerContextTest, TestPlatformSpecificRewritersDecoding) {
   // Without the mock rewriter enabled, this URL should not be decoded.
   OutputResourcePtr bad_output(
       decoding_driver()->DecodeOutputResource(gurl, &dummy));
-  ASSERT_TRUE(bad_output.get() == NULL);
+  ASSERT_TRUE(bad_output.get() == nullptr);
 
   // With the mock rewriter enabled, this URL should be decoded.
   CreateMockRewriterCallback callback;
@@ -741,7 +741,7 @@ TEST_F(ServerContextTest, TestPlatformSpecificRewritersDecoding) {
   // in these tests?
   OutputResourcePtr good_output(
       decoding_driver()->DecodeOutputResource(gurl, &dummy));
-  ASSERT_TRUE(good_output.get() != NULL);
+  ASSERT_TRUE(good_output.get() != nullptr);
   EXPECT_EQ(url, good_output->url());
 }
 
@@ -762,7 +762,7 @@ TEST_F(ServerContextTest, TestPlatformSpecificRewritersImplicitDecoding) {
   factory()->RebuildDecodingDriverForTests(server_context());
   OutputResourcePtr good_output(
       decoding_driver()->DecodeOutputResource(gurl, &dummy));
-  ASSERT_TRUE(good_output.get() != NULL);
+  ASSERT_TRUE(good_output.get() != nullptr);
   EXPECT_EQ(url, good_output->url());
 }
 
@@ -774,7 +774,7 @@ TEST_F(ServerContextTest, TestOutputResourceFetchQuery) {
   GoogleUrl gurl(StrCat(url, "?query"));
   OutputResourcePtr output_resource(
       rewrite_driver()->DecodeOutputResource(gurl, &dummy));
-  ASSERT_TRUE(output_resource.get() != NULL);
+  ASSERT_TRUE(output_resource.get() != nullptr);
   EXPECT_EQ(url, output_resource->url());
 }
 
@@ -782,13 +782,13 @@ TEST_F(ServerContextTest, TestOutputResourceFetchQuery) {
 TEST_F(ServerContextTest, TestInputResourceQuery) {
   const char kUrl[] = "test?param";
   ResourcePtr resource(CreateResource(kResourceUrlBase, kUrl));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   EXPECT_EQ(StrCat(GoogleString(kResourceUrlBase), "/", kUrl), resource->url());
   GoogleString failure_reason;
   OutputResourcePtr output(rewrite_driver()->CreateOutputResourceFromResource(
-      "sf", rewrite_driver()->default_encoder(), NULL, resource,
+      "sf", rewrite_driver()->default_encoder(), nullptr, resource,
       kRewrittenResource, &failure_reason));
-  ASSERT_TRUE(output.get() != NULL);
+  ASSERT_TRUE(output.get() != nullptr);
   EXPECT_EQ("", failure_reason);
 
   GoogleString included_name;
@@ -809,7 +809,7 @@ TEST_F(ServerContextTest, TestRemember404) {
 
   ResourcePtr resource(
       CreateInputResourceAndReadIfCached("http://example.com/404"));
-  EXPECT_EQ(NULL, resource.get());
+  EXPECT_EQ(nullptr, resource.get());
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -834,7 +834,7 @@ TEST_F(ServerContextTest, TestRememberDropped) {
 
   ResourcePtr resource(
       CreateInputResourceAndReadIfCached("http://example.com/404"));
-  EXPECT_EQ(NULL, resource.get());
+  EXPECT_EQ(nullptr, resource.get());
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -860,7 +860,7 @@ TEST_F(ServerContextTest, TestNonCacheable) {
   SetFetchResponse("http://example.com/", no_cache, kContents);
 
   ResourcePtr resource(CreateResource("http://example.com/", "/"));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
 
   VerifyContentsCallback callback(resource, kContents);
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -888,7 +888,7 @@ TEST_F(ServerContextTest, TestNonCacheableReadResultPolicy) {
   SetFetchResponse("http://example.com/", no_cache, "stuff");
 
   ResourcePtr resource1(CreateResource("http://example.com/", "/"));
-  ASSERT_TRUE(resource1.get() != NULL);
+  ASSERT_TRUE(resource1.get() != nullptr);
   MockResourceCallback callback1(resource1, factory()->thread_system());
   resource1->LoadAsync(Resource::kReportFailureIfNotCacheable,
                        rewrite_driver()->request_context(),
@@ -897,7 +897,7 @@ TEST_F(ServerContextTest, TestNonCacheableReadResultPolicy) {
   EXPECT_FALSE(callback1.success());
 
   ResourcePtr resource2(CreateResource("http://example.com/", "/"));
-  ASSERT_TRUE(resource2.get() != NULL);
+  ASSERT_TRUE(resource2.get() != nullptr);
   MockResourceCallback callback2(resource2, factory()->thread_system());
   resource2->LoadAsync(Resource::kLoadEvenIfNotCacheable,
                        rewrite_driver()->request_context(),
@@ -917,7 +917,7 @@ TEST_F(ServerContextTest, TestRememberEmpty) {
   SetFetchResponse(kUrl, headers, "");
 
   ResourcePtr resource(CreateInputResourceAndReadIfCached(kUrl));
-  EXPECT_EQ(NULL, resource.get());
+  EXPECT_EQ(nullptr, resource.get());
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -942,7 +942,7 @@ TEST_F(ServerContextTest, TestNotRememberEmptyRedirect) {
   SetFetchResponse(kUrl, headers, "");
 
   ResourcePtr resource(CreateInputResourceAndReadIfCached(kUrl));
-  EXPECT_EQ(NULL, resource.get());
+  EXPECT_EQ(nullptr, resource.get());
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -972,7 +972,7 @@ TEST_F(ServerContextTest, TestVaryOption) {
   SetFetchResponse("http://example.com/", no_cache, kContents);
 
   ResourcePtr resource(CreateResource("http://example.com/", "/"));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
 
   VerifyContentsCallback callback(resource, kContents);
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1002,9 +1002,9 @@ TEST_F(ServerContextTest, TestOutlined) {
       rewrite_driver()->CreateOutputResourceWithPath(
           kUrlPrefix, CssOutlineFilter::kFilterId, "_", kOutlinedResource,
           &failure_reason));
-  ASSERT_TRUE(output_resource.get() != NULL);
+  ASSERT_TRUE(output_resource.get() != nullptr);
   EXPECT_EQ("", failure_reason);
-  EXPECT_EQ(NULL, output_resource->cached_result());
+  EXPECT_EQ(nullptr, output_resource->cached_result());
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_inserts());
@@ -1013,7 +1013,7 @@ TEST_F(ServerContextTest, TestOutlined) {
   rewrite_driver()->Write(
       ResourceVector(), "foo", &kContentTypeCss, StringPiece(),
       output_resource.get());
-  EXPECT_EQ(NULL, output_resource->cached_result());
+  EXPECT_EQ(nullptr, output_resource->cached_result());
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
   EXPECT_EQ(1, lru_cache()->num_inserts());
@@ -1024,9 +1024,9 @@ TEST_F(ServerContextTest, TestOutlined) {
       rewrite_driver()->CreateOutputResourceWithPath(
           kUrlPrefix, CssOutlineFilter::kFilterId, "_", kOutlinedResource,
           &failure_reason));
-  ASSERT_TRUE(output_resource.get() != NULL);
+  ASSERT_TRUE(output_resource.get() != nullptr);
   EXPECT_EQ("", failure_reason);
-  EXPECT_EQ(NULL, output_resource->cached_result());
+  EXPECT_EQ(nullptr, output_resource->cached_result());
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
   EXPECT_EQ(1, lru_cache()->num_inserts());
@@ -1048,9 +1048,9 @@ TEST_F(ServerContextTest, TestOnTheFly) {
       rewrite_driver()->CreateOutputResourceWithPath(
           kUrlPrefix, RewriteOptions::kCssFilterId, "_", kOnTheFlyResource,
           &failure_reason));
-  ASSERT_TRUE(output_resource.get() != NULL);
+  ASSERT_TRUE(output_resource.get() != nullptr);
   EXPECT_EQ("", failure_reason);
-  EXPECT_EQ(NULL, output_resource->cached_result());
+  EXPECT_EQ(nullptr, output_resource->cached_result());
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_inserts());
@@ -1059,7 +1059,7 @@ TEST_F(ServerContextTest, TestOnTheFly) {
   rewrite_driver()->Write(
       ResourceVector(), "foo", &kContentTypeCss, StringPiece(),
       output_resource.get());
-  EXPECT_TRUE(output_resource->cached_result() != NULL);
+  EXPECT_TRUE(output_resource->cached_result() != nullptr);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_inserts());
@@ -1078,9 +1078,9 @@ TEST_F(ServerContextTest, TestNotGenerated) {
       rewrite_driver()->CreateOutputResourceWithPath(
           kUrlPrefix, RewriteOptions::kCssFilterId, "_", kRewrittenResource,
           &failure_reason));
-  ASSERT_TRUE(output_resource.get() != NULL);
+  ASSERT_TRUE(output_resource.get() != nullptr);
   EXPECT_EQ("", failure_reason);
-  EXPECT_EQ(NULL, output_resource->cached_result());
+  EXPECT_EQ(nullptr, output_resource->cached_result());
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
   EXPECT_EQ(0, lru_cache()->num_inserts());
@@ -1089,7 +1089,7 @@ TEST_F(ServerContextTest, TestNotGenerated) {
   rewrite_driver()->Write(
       ResourceVector(), "foo", &kContentTypeCss, StringPiece(),
       output_resource.get());
-  EXPECT_TRUE(output_resource->cached_result() != NULL);
+  EXPECT_TRUE(output_resource->cached_result() != nullptr);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, lru_cache()->num_misses());
   EXPECT_EQ(1, lru_cache()->num_inserts());
@@ -1134,7 +1134,7 @@ TEST_F(ServerContextTest, TestHandleBeacon) {
 
 class BeaconTest : public ServerContextTest {
  protected:
-  BeaconTest() : property_cache_(NULL) { }
+  BeaconTest() : property_cache_(nullptr) { }
   ~BeaconTest() override { }
 
   void SetUp() override {
@@ -1218,15 +1218,15 @@ class BeaconTest : public ServerContextTest {
     GoogleString beacon_url = StrCat(
         "url=http%3A%2F%2Fwww.example.com"
         "&oh=", kOptionsHash, "&n=", last_beacon_metadata_.nonce);
-    if (critical_image_hashes != NULL) {
+    if (critical_image_hashes != nullptr) {
       StrAppend(&beacon_url, "&ci=");
       AppendJoinCollection(&beacon_url, *critical_image_hashes, ",");
     }
-    if (critical_css_selectors != NULL) {
+    if (critical_css_selectors != nullptr) {
       StrAppend(&beacon_url, "&cs=");
       AppendJoinCollection(&beacon_url, *critical_css_selectors, ",");
     }
-    if (rendered_images_json_map != NULL) {
+    if (rendered_images_json_map != nullptr) {
       StrAppend(&beacon_url, "&rd=", *rendered_images_json_map);
     }
     EXPECT_TRUE(server_context()->HandleBeacon(
@@ -1237,16 +1237,16 @@ class BeaconTest : public ServerContextTest {
     ResetDriver();
     std::unique_ptr<MockPropertyPage> page(MockPageForUA(user_agent));
     rewrite_driver()->set_property_page(page.release());
-    if (critical_image_hashes != NULL) {
+    if (critical_image_hashes != nullptr) {
       critical_html_images_ = server_context()->critical_images_finder()->
           GetHtmlCriticalImages(rewrite_driver());
     }
-    if (critical_css_selectors != NULL) {
+    if (critical_css_selectors != nullptr) {
       critical_css_selectors_ = server_context()->critical_selector_finder()->
           GetCriticalSelectors(rewrite_driver());
     }
 
-    if (rendered_images_json_map != NULL) {
+    if (rendered_images_json_map != nullptr) {
       rendered_images_.reset(server_context()->critical_images_finder()->
                              ExtractRenderedImageDimensionsFromCache(
                                  rewrite_driver()));
@@ -1290,9 +1290,9 @@ TEST_F(BeaconTest, HandleBeaconRenderedDimensionsofImages) {
   GoogleString json_map_rendered_dimensions = StrCat(
       "{\"", hash1, "\":{\"rw\":40,", "\"rh\":50,\"ow\":160,\"oh\":200}}");
   InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(NULL, NULL, &json_map_rendered_dimensions,
+  TestBeacon(nullptr, nullptr, &json_map_rendered_dimensions,
               UserAgentMatcherTestBase::kChromeUserAgent);
-  ASSERT_FALSE(rendered_images_.get() == NULL);
+  ASSERT_FALSE(rendered_images_.get() == nullptr);
   EXPECT_EQ(1, rendered_images_->image_size());
   EXPECT_STREQ(hash1, rendered_images_->image(0).src());
   EXPECT_EQ(40, rendered_images_->image(0).rendered_width());
@@ -1310,7 +1310,7 @@ TEST_F(BeaconTest, HandleBeaconCritImages) {
   StringSet critical_image_hashes;
   critical_image_hashes.insert(hash1);
   InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
+  TestBeacon(&critical_image_hashes, nullptr, nullptr,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
 
@@ -1321,13 +1321,13 @@ TEST_F(BeaconTest, HandleBeaconCritImages) {
   critical_image_hashes.insert(hash2);
   for (int i = 0; i < 3; ++i) {
     InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-    TestBeacon(&critical_image_hashes, NULL, NULL,
+    TestBeacon(&critical_image_hashes, nullptr, nullptr,
                UserAgentMatcherTestBase::kChromeUserAgent);
     EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
   }
   GoogleString expected = StrCat(hash1, ",", hash2);
   InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
+  TestBeacon(&critical_image_hashes, nullptr, nullptr,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ(expected, JoinCollection(critical_html_images_, ","));
 
@@ -1335,14 +1335,14 @@ TEST_F(BeaconTest, HandleBeaconCritImages) {
   critical_image_hashes.clear();
   critical_image_hashes.insert(hash1);
   InsertImageBeacon(UserAgentMatcherTestBase::kIPhoneUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
+  TestBeacon(&critical_image_hashes, nullptr, nullptr,
              UserAgentMatcherTestBase::kIPhoneUserAgent);
   EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
 
   // Beacon once more with the original user agent and with only img1; img2
   // loses 80% support again.
   InsertImageBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
-  TestBeacon(&critical_image_hashes, NULL, NULL,
+  TestBeacon(&critical_image_hashes, nullptr, nullptr,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ(hash1, JoinCollection(critical_html_images_, ","));
 }
@@ -1353,7 +1353,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   critical_css_selector.insert("%23foo");
   critical_css_selector.insert(".bar");
   critical_css_selector.insert("%23noncandidate");
-  TestBeacon(NULL, &critical_css_selector, NULL,
+  TestBeacon(nullptr, &critical_css_selector, nullptr,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar",
                JoinCollection(critical_css_selectors_, ","));
@@ -1365,7 +1365,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
   critical_css_selector.insert(".bar");
   critical_css_selector.insert("img");
   critical_css_selector.insert("%23noncandidate");
-  TestBeacon(NULL, &critical_css_selector, NULL,
+  TestBeacon(nullptr, &critical_css_selector, nullptr,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_STREQ("#foo,.bar,img",
                JoinCollection(critical_css_selectors_, ","));
@@ -1374,7 +1374,7 @@ TEST_F(BeaconTest, HandleBeaconCriticalCss) {
 TEST_F(BeaconTest, EmptyCriticalCss) {
   InsertCssBeacon(UserAgentMatcherTestBase::kChromeUserAgent);
   StringSet empty_critical_selectors;
-  TestBeacon(NULL, &empty_critical_selectors, NULL,
+  TestBeacon(nullptr, &empty_critical_selectors, nullptr,
              UserAgentMatcherTestBase::kChromeUserAgent);
   EXPECT_TRUE(critical_css_selectors_.empty());
 }
@@ -1385,7 +1385,7 @@ class ResourceFreshenTest : public ServerContextTest {
     ServerContextTest::SetUp();
     HTTPCache::InitStats(statistics());
     expirations_ = statistics()->GetVariable(HTTPCache::kCacheExpirations);
-    CHECK(expirations_ != NULL);
+    CHECK(expirations_ != nullptr);
     SetDefaultLongCacheHeaders(&kContentTypePng, &response_headers_);
     response_headers_.SetStatusAndReason(HttpStatus::kOK);
     response_headers_.RemoveAll(HttpAttributes::kCacheControl);
@@ -1653,9 +1653,9 @@ TEST_F(ServerContextTest, WriteChecksInputVector) {
   GoogleString failure_reason;
   OutputResourcePtr output_resource(
       rewrite_driver()->CreateOutputResourceFromResource(
-          "cf", rewrite_driver()->default_encoder(), NULL /* no context*/,
+          "cf", rewrite_driver()->default_encoder(), nullptr /* no context*/,
           private_400, kRewrittenResource, &failure_reason));
-  ASSERT_TRUE(output_resource.get() != NULL);
+  ASSERT_TRUE(output_resource.get() != nullptr);
   EXPECT_EQ("", failure_reason);
 
   rewrite_driver()->Write(ResourceVector(1, private_400),
@@ -1711,7 +1711,7 @@ TEST_F(ServerContextTest, PartlyFailedFetch) {
   bool is_authorized;
   ResourcePtr resource = rewrite_driver()->CreateInputResource(
       gurl, RewriteDriver::InputRole::kStyle, &is_authorized);
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   EXPECT_TRUE(is_authorized);
   MockResourceCallback callback(resource, factory()->thread_system());
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -1819,7 +1819,7 @@ TEST_F(ServerContextTest, FillInPartitionInputInfo) {
 // Test of referer for BackgroundFetch: When the resource fetching request
 // header misses referer, we set the driver base url as its referer.
 TEST_F(ServerContextTest, TestRefererBackgroundFetch) {
-  RefererTest(NULL, true);
+  RefererTest(nullptr, true);
   EXPECT_EQ(rewrite_driver()->base_url().Spec(),
             mock_url_fetcher()->last_referer());
 }

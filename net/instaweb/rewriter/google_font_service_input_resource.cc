@@ -64,7 +64,7 @@ bool GoogleFontServiceInputResource::IsFontServiceUrl(const GoogleUrl& url) {
 GoogleFontServiceInputResource* GoogleFontServiceInputResource::Make(
     const GoogleUrl& parsed_url, RewriteDriver* rewrite_driver) {
   if (!IsFontServiceUrl(parsed_url)) {
-    return NULL;
+    return nullptr;
   }
 
   // Compute cache key, incorporating the UA string --- but normalize it first,
@@ -91,7 +91,7 @@ GoogleFontServiceInputResource* GoogleFontServiceInputResource::Make(
     is_https = true;
   } else {
     // Huh?
-    return NULL;
+    return nullptr;
   }
 
   return new GoogleFontServiceInputResource(
@@ -119,7 +119,7 @@ void GoogleFontServiceInputResource::PrepareResponseHeaders(
     ResponseHeaders* headers) {
   // Refuse to deal with anything but CSS.
   const ContentType* content_type = headers->DetermineContentType();
-  if (content_type == NULL || !content_type->IsCss()) {
+  if (content_type == nullptr || !content_type->IsCss()) {
     headers->set_status_code(HttpStatus::kNotAcceptable);
   }
 

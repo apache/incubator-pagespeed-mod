@@ -62,7 +62,7 @@ void HTTPValue::SetHeaders(ResponseHeaders* headers) {
   CopyOnWrite();
   GoogleString headers_string;
   StringWriter writer(&headers_string);
-  headers->WriteAsBinary(&writer, NULL);
+  headers->WriteAsBinary(&writer, nullptr);
   if (storage_.empty()) {
     storage_.Append(&kHeadersFirst, 1);
     SetSizeOfFirstChunk(headers_string.size());

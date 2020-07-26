@@ -56,7 +56,7 @@ GoogleString TestUrlNamer::Encode(const RewriteOptions* rewrite_options,
     return UrlNamer::Encode(rewrite_options, output_resource, encode_option);
   }
 
-  DCHECK(rewrite_options != NULL);
+  DCHECK(rewrite_options != nullptr);
   GoogleUrl base_gurl(output_resource.resolved_base());
 
   // If there is any sharding or rewriting enabled then various tests don't

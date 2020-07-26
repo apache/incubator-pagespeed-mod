@@ -184,7 +184,7 @@ AbstractSharedMemSegment* InProcessSharedMem::AttachToSegment(
   } else {
     handler->Message(kError, "AttachToSegment unable to find segment:%s",
                      name.c_str());
-    return NULL;
+    return nullptr;
   }
 }
 

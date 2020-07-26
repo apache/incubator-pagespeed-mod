@@ -45,7 +45,7 @@ class IntElement : public PoolElement<IntElement> {
 };
 
 typedef Pool<IntElement> IntPool;
-typedef PoolElement<IntElement>::Position PoolPosition;
+using PoolPosition = PoolElement<IntElement>::Position;
 
 class PoolTest : public testing::Test {
  protected:
@@ -140,7 +140,7 @@ TEST_F(PoolTest, TestInsertAndOrderedRemoveOldest) {
   ExpectRemoveOldest(2);
   ExpectRemoveOldest(3);
   EXPECT_TRUE(pool_.empty());
-  EXPECT_TRUE(NULL == pool_.RemoveOldest());
+  EXPECT_TRUE(nullptr == pool_.RemoveOldest());
 }
 
 TEST_F(PoolTest, TestInsertAndRemove) {
@@ -198,7 +198,7 @@ TEST_F(PoolTest, TestClear) {
 }
 
 TEST_F(PoolTest, OldestEmpty) {
-  EXPECT_TRUE(NULL == pool_.oldest());
+  EXPECT_TRUE(nullptr == pool_.oldest());
 }
 
 }  // namespace

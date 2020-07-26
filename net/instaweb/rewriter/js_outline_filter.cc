@@ -43,8 +43,8 @@ const char JsOutlineFilter::kFilterId[] = "jo";
 
 JsOutlineFilter::JsOutlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
-      inline_element_(NULL),
-      inline_chars_(NULL),
+      inline_element_(nullptr),
+      inline_chars_(nullptr),
       server_context_(driver->server_context()),
       size_threshold_bytes_(driver->options()->js_outline_min_bytes()),
       script_tag_scanner_(driver) { }
@@ -52,18 +52,18 @@ JsOutlineFilter::JsOutlineFilter(RewriteDriver* driver)
 JsOutlineFilter::~JsOutlineFilter() {}
 
 void JsOutlineFilter::StartDocumentImpl() {
-  inline_element_ = NULL;
-  inline_chars_ = NULL;
+  inline_element_ = nullptr;
+  inline_chars_ = nullptr;
 }
 
 void JsOutlineFilter::StartElementImpl(HtmlElement* element) {
   // No tags allowed inside script element.
-  if (inline_element_ != NULL) {
+  if (inline_element_ != nullptr) {
     // TODO(sligocki): Add negative unit tests to hit these errors.
     driver()->ErrorHere("Tag '%s' found inside script.",
                         CEscape(element->name_str()).c_str());
-    inline_element_ = NULL;  // Don't outline what we don't understand.
-    inline_chars_ = NULL;
+    inline_element_ = nullptr;  // Don't outline what we don't understand.
+    inline_chars_ = nullptr;
   }
 
   HtmlElement::Attribute* src;
@@ -71,37 +71,37 @@ void JsOutlineFilter::StartElementImpl(HtmlElement* element) {
   if (script_tag_scanner_.ParseScriptElement(element, &src) ==
       ScriptTagScanner::kJavaScript) {
     inline_element_ = element;
-    inline_chars_ = NULL;
+    inline_chars_ = nullptr;
     // script elements which already have a src should not be outlined.
-    if (src != NULL) {
-      inline_element_ = NULL;
+    if (src != nullptr) {
+      inline_element_ = nullptr;
     }
   }
 }
 
 void JsOutlineFilter::EndElementImpl(HtmlElement* element) {
-  if (inline_element_ != NULL) {
+  if (inline_element_ != nullptr) {
     if (element != inline_element_) {
       // No other tags allowed inside script element.
       driver()->ErrorHere("Tag '%s' found inside script.",
                           CEscape(element->name_str()).c_str());
-    } else if (inline_chars_ != NULL &&
+    } else if (inline_chars_ != nullptr &&
                inline_chars_->contents().size() >= size_threshold_bytes_) {
       OutlineScript(inline_element_, inline_chars_->contents());
     }
-    inline_element_ = NULL;
-    inline_chars_ = NULL;
+    inline_element_ = nullptr;
+    inline_chars_ = nullptr;
   }
 }
 
 void JsOutlineFilter::Flush() {
   // If we were flushed in a script element, we cannot outline it.
-  inline_element_ = NULL;
-  inline_chars_ = NULL;
+  inline_element_ = nullptr;
+  inline_chars_ = nullptr;
 }
 
 void JsOutlineFilter::Characters(HtmlCharactersNode* characters) {
-  if (inline_element_ != NULL) {
+  if (inline_element_ != nullptr) {
     inline_chars_ = characters;
   }
 }
@@ -130,7 +130,7 @@ void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
         driver()->CreateOutputResourceWithUnmappedUrl(
             driver()->google_url(), kFilterId, "_", kOutlinedResource,
             &failure_reason));
-    if (resource.get() == NULL) {
+    if (resource.get() == nullptr) {
       driver()->InsertDebugComment(failure_reason, inline_element);
     } else if (WriteResource(content, resource.get(), handler)) {
       HtmlElement* outline_element = driver()->CloneElement(inline_element);

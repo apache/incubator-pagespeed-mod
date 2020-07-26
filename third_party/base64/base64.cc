@@ -35,7 +35,7 @@
 */
 
 #include "base64.h"
-#include <assert.h>
+#include <cassert>
 
 static const char base64_chars[] =
              "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

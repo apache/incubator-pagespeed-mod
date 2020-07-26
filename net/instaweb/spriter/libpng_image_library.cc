@@ -19,7 +19,7 @@
 
 #include "net/instaweb/spriter/libpng_image_library.h"
 
-#include <errno.h>
+#include <cerrno>
 
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -44,7 +44,7 @@ LibpngImageLibrary::Image::Image(ImageLibraryInterface* lib,
 LibpngImageLibrary::Image::~Image() {
   int width, height;
   GetDimensions(&width, &height);
-  png_destroy_read_struct(&png_struct_, &png_info_, NULL);
+  png_destroy_read_struct(&png_struct_, &png_info_, nullptr);
   for (int i = height - 1; i >= 0; i--) {
     delete[] rows_[i];
   }
@@ -88,7 +88,7 @@ bool LibpngImageLibrary::Canvas::WriteToFile(const FilePath& filename,
                                              ImageFormat format) {
   GoogleString write_path = StrCat(base_out_path_, filename);
   FILE* file = fopen(write_path.c_str(), "wb");
-  if (file == NULL) {
+  if (file == nullptr) {
     delegate_->OnError(
         StrCat("Writing image " , write_path, ": ", strerror(errno)));
     fclose(file);
@@ -96,15 +96,15 @@ bool LibpngImageLibrary::Canvas::WriteToFile(const FilePath& filename,
   }
 
   png_structp png_struct = png_create_write_struct(
-      PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-  if (png_struct == NULL) {
+      PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+  if (png_struct == nullptr) {
     delegate_->OnError(
         StrCat("Writing image " , write_path, ": cannot create png struct"));
     fclose(file);
     return false;
   }
   png_infop png_info = png_create_info_struct(png_struct);
-  if (png_info == NULL) {
+  if (png_info == nullptr) {
     delegate_->OnError(
         StrCat("Writing image " , write_path, ": cannot create png info"));
     png_destroy_write_struct(&png_struct, &png_info);
@@ -148,7 +148,7 @@ bool LibpngImageLibrary::Canvas::WriteToFile(const FilePath& filename,
     fclose(file);
     return false;
   }
-  png_write_end(png_struct, NULL);
+  png_write_end(png_struct, nullptr);
   png_destroy_write_struct(&png_struct, &png_info);
   if (fclose(file) != 0) {
     delegate_->OnError(
@@ -187,34 +187,34 @@ ImageLibraryInterface::Image* LibpngImageLibrary::ReadFromFile(
     const FilePath& filename) {
   GoogleString path = StrCat(base_input_path(), filename);
   FILE* file = fopen(path.c_str(), "rb");
-  if (file == NULL) {
+  if (file == nullptr) {
     delegate()->OnError(StrCat("Reading image " , path, ": ", strerror(errno)));
-    return NULL;
+    return nullptr;
   }
   png_byte header[8];
   if (fread(header, 1, 8, file) != 8) {
     delegate()->OnError(StrCat("Image " , path, " has no header."));
     fclose(file);
-    return NULL;
+    return nullptr;
   }
   if (png_sig_cmp(header, 0, 8) != 0) {
     delegate()->OnError(StrCat("Image " , path, " not PNG."));
     fclose(file);
-    return NULL;
+    return nullptr;
   }
   png_structp png_struct = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-                                                  NULL, NULL, NULL);
+                                                  nullptr, nullptr, nullptr);
   png_infop png_info = png_create_info_struct(png_struct);
   if (!png_info) {
-    png_destroy_read_struct(&png_struct, NULL, NULL);
+    png_destroy_read_struct(&png_struct, nullptr, nullptr);
     delegate()->OnError(StrCat("Image " , path, " could not create png_info"));
-    return NULL;
+    return nullptr;
   }
   if (setjmp(png_jmpbuf(png_struct))) {
-    png_destroy_read_struct(&png_struct, &png_info, NULL);
+    png_destroy_read_struct(&png_struct, &png_info, nullptr);
     fclose(file);
     delegate()->OnError(StrCat("Image " , path, " could not be decoded."));
-    return NULL;
+    return nullptr;
   }
   png_init_io(png_struct, file);
   png_set_sig_bytes(png_struct, 8);
@@ -224,11 +224,11 @@ ImageLibraryInterface::Image* LibpngImageLibrary::ReadFromFile(
   if ((width > MAX_PNG_DIMENSION) || (height > MAX_PNG_DIMENSION)) {
     fclose(file);
     delegate()->OnError(StrCat("Image " , path, " is too big."));
-    return NULL;
+    return nullptr;
   }
   if ((width <= 0) || (height <= 0)) {
     delegate()->OnError(StrCat("Image " , path, " has nonpositive dimension."));
-    return NULL;
+    return nullptr;
   }
 
   // Expand the image to 8-bit RGBA.  Code taken from libpng manpage.

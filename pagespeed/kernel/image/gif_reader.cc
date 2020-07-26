@@ -20,8 +20,10 @@
 
 #include "pagespeed/kernel/image/gif_reader.h"
 
-#include <setjmp.h>
+#include <csetjmp>
 #include <cstddef>
+#include <memory>
+
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -122,7 +124,7 @@ bool AddTransparencyChunk(png_structp png_ptr,
   // Set the one transparent index to fully transparent.
   trans[transparent_palette_index] =
       pagespeed::image_compression::kAlphaTransparent;
-  png_set_tRNS(png_ptr, info_ptr, trans, num_trans, NULL);
+  png_set_tRNS(png_ptr, info_ptr, trans, num_trans, nullptr);
   return true;
 }
 
@@ -154,10 +156,10 @@ bool ReadImageDescriptor(GifFileType* gif_file,
 
   // Populate the color map.
   ColorMapObject* color_map =
-      gif_file->Image.ColorMap != NULL ?
+      gif_file->Image.ColorMap != nullptr ?
       gif_file->Image.ColorMap : gif_file->SColorMap;
 
-  if (color_map == NULL) {
+  if (color_map == nullptr) {
     PS_DLOG_INFO(handler, "Failed to find color map.");
     return false;
   }
@@ -215,7 +217,7 @@ bool ReadExtension(GifFileType* gif_file,
                    png_infop info_ptr,
                    int* out_transparent_index,
                    MessageHandler* handler) {
-  GifByteType* extension = NULL;
+  GifByteType* extension = nullptr;
   int ext_code = 0;
   if (DGifGetExtension(gif_file, &ext_code, &extension) == GIF_ERROR) {
     PS_DLOG_INFO(handler, "Failed to read extension.");
@@ -252,7 +254,7 @@ bool ReadExtension(GifFileType* gif_file,
   // contain only one sub-block (handled above). Since we only care
   // about the graphics extension, we can safely ignore all subsequent
   // blocks.
-  while (extension != NULL) {
+  while (extension != nullptr) {
     if (DGifGetExtensionNext(gif_file, &extension) == GIF_ERROR) {
       PS_DLOG_INFO(handler, "Failed to read next extension.");
       return false;
@@ -272,7 +274,7 @@ png_uint_32 AllocatePngPixels(png_structp png_ptr,
   }
 
   png_free_data(png_ptr, info_ptr, PNG_FREE_ROWS, 0);
-  if (png_get_rows(png_ptr, info_ptr) == NULL) {
+  if (png_get_rows(png_ptr, info_ptr) == nullptr) {
     png_uint_32 height = png_get_image_height(png_ptr, info_ptr);
 
     // Allocate the array of pointers to each row.
@@ -370,13 +372,13 @@ bool ReadGifToPng(GifFileType* gif_file,
   // read the color-indexed GIF file directly into png_ptr and
   // info_ptr.
   std::unique_ptr<ScopedPngStruct> paletted_png;
-  png_structp paletted_png_ptr = NULL;
-  png_infop paletted_info_ptr = NULL;
+  png_structp paletted_png_ptr = nullptr;
+  png_infop paletted_info_ptr = nullptr;
 
   if (expand_colormap) {
     // We read the image into a separate struct before expanding the
     // colormap.
-    paletted_png.reset(new ScopedPngStruct(ScopedPngStruct::READ, handler));
+    paletted_png = std::make_unique<ScopedPngStruct>(ScopedPngStruct::READ, handler);
     if (!paletted_png->valid()) {
       PS_LOG_DFATAL(handler, "Invalid ScopedPngStruct r: %d", \
                     paletted_png->valid());
@@ -499,7 +501,7 @@ const int GifFrameReader::kNoTransparentIndex = -1;
 ScanlineStatus SkipOverGifExtensionSubblocks(GifFileType* gif_file,
                                              GifByteType* extension,
                                              MessageHandler* message_handler) {
-  while (extension != NULL) {
+  while (extension != nullptr) {
     if (DGifGetExtensionNext(gif_file, &extension) == GIF_ERROR) {
       return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler,
                               SCANLINE_STATUS_PARSE_ERROR,
@@ -514,8 +516,8 @@ ScanlineStatus SkipOverGifExtensionSubblocks(GifFileType* gif_file,
 void ExpandColorIndex(const ColorMapObject* colormap,
                       const int color_index,
                       PixelRgbaChannels rgba) {
-  if ((colormap != NULL) &&
-      (colormap->Colors != NULL) &&
+  if ((colormap != nullptr) &&
+      (colormap->Colors != nullptr) &&
       (color_index < colormap->ColorCount)) {
     const GifColorType color = colormap->Colors[color_index];
     rgba[RGBA_RED] = color.Red;
@@ -563,16 +565,16 @@ bool GifReader::ReadPng(const GoogleString& body,
 #if GIFLIB_MAJOR < 5
   GifFileType* gif_file = DGifOpen(&input, ReadGifFromStream);
 #else
-  GifFileType* gif_file = DGifOpen(&input, ReadGifFromStream, NULL);
+  GifFileType* gif_file = DGifOpen(&input, ReadGifFromStream, nullptr);
 #endif
-  if (gif_file == NULL) {
+  if (gif_file == nullptr) {
     return false;
   }
 
   bool result = ReadGifToPng(gif_file, png_ptr, info_ptr,
                              expand_colormap, strip_alpha,
                              require_opaque, message_handler_);
-  if (DGifCloseFile(gif_file, NULL) == GIF_ERROR) {
+  if (DGifCloseFile(gif_file, nullptr) == GIF_ERROR) {
     PS_DLOG_INFO(message_handler_, "Failed to close GIF.");
   }
 
@@ -614,7 +616,7 @@ bool GifReader::GetAttributes(const GoogleString& body,
 class ScopedGifStruct {
  public:
   explicit ScopedGifStruct(MessageHandler* handler) :
-      gif_file_(NULL),
+      gif_file_(nullptr),
       message_handler_(handler),
       gif_input_(ScanlineStreamInput(handler)) {
   }
@@ -644,8 +646,8 @@ class ScopedGifStruct {
   }
 
   bool Reset(ScanlineStatus* status) {
-    if (gif_file_ != NULL) {
-      if (DGifCloseFile(gif_file_, NULL) == GIF_ERROR) {
+    if (gif_file_ != nullptr) {
+      if (DGifCloseFile(gif_file_, nullptr) == GIF_ERROR) {
         *status = PS_LOGGED_STATUS(PS_LOG_INFO,
                                    message_handler_,
                                    SCANLINE_STATUS_INTERNAL_ERROR,
@@ -653,7 +655,7 @@ class ScopedGifStruct {
                                    "Failed to close GIF file.");
         return false;
       }
-      gif_file_ = NULL;
+      gif_file_ = nullptr;
     }
     gif_input_.Reset();
     *status = ScanlineStatus(SCANLINE_STATUS_SUCCESS);
@@ -669,10 +671,10 @@ class ScopedGifStruct {
 #if GIFLIB_MAJOR < 5
     gif_file_ = DGifOpen(&gif_input_, ReadGifFromStream);
 #else
-    gif_file_ = DGifOpen(&gif_input_, ReadGifFromStream, NULL);
+    gif_file_ = DGifOpen(&gif_input_, ReadGifFromStream, nullptr);
 #endif
 
-    if (gif_file_ == NULL) {
+    if (gif_file_ == nullptr) {
       *status = PS_LOGGED_STATUS(PS_LOG_INFO,
                                  message_handler_,
                                  SCANLINE_STATUS_INTERNAL_ERROR,
@@ -726,7 +728,7 @@ ScanlineStatus GifFrameReader::Reset() {
   // PrepareNextFrame() is called.
 
   ScanlineStatus status(SCANLINE_STATUS_SUCCESS);
-  if (gif_struct_.get() != NULL) {
+  if (gif_struct_.get() != nullptr) {
     gif_struct_->Reset(&status);
   }
 
@@ -759,7 +761,7 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingFrame() {
 
   GifFileType* gif_file = gif_struct_->gif_file();
 
-  GifByteType* extension = NULL;
+  GifByteType* extension = nullptr;
   int ext_code = 0;
   if (DGifGetExtension(gif_file, &ext_code, &extension) == GIF_ERROR) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
@@ -848,7 +850,7 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
   static const int kGifAeLoopCountHiIndex = 3;
 
   GifFileType* gif_file = gif_struct_->gif_file();
-  GifByteType* extension = NULL;
+  GifByteType* extension = nullptr;
   int ext_code = 0;
 
   if (DGifGetExtension(gif_file, &ext_code, &extension) == GIF_ERROR) {
@@ -859,7 +861,7 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
   }
 
   if  (ext_code == APPLICATION_EXT_FUNC_CODE) {
-    if (extension == NULL) {
+    if (extension == nullptr) {
       return PS_LOGGED_STATUS(
           PS_LOG_INFO, message_handler(),
           SCANLINE_STATUS_PARSE_ERROR,
@@ -914,7 +916,7 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
 }
 
 ScanlineStatus GifFrameReader::Initialize() {
-  if (image_buffer_ == NULL) {
+  if (image_buffer_ == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             FRAME_GIFREADER,
@@ -925,9 +927,9 @@ ScanlineStatus GifFrameReader::Initialize() {
     Reset();
   } else {
     // Allocate and initialize gif_struct_, if that has not been done.
-    if (gif_struct_ == NULL) {
-      gif_struct_.reset(new ScopedGifStruct(message_handler()));
-      if (gif_struct_ == NULL) {
+    if (gif_struct_ == nullptr) {
+      gif_struct_ = std::make_unique<ScopedGifStruct>(message_handler());
+      if (gif_struct_ == nullptr) {
         return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                                 SCANLINE_STATUS_MEMORY_ERROR,
                                 FRAME_GIFREADER,
@@ -935,9 +937,9 @@ ScanlineStatus GifFrameReader::Initialize() {
       }
     }
     // Allocate and initialize gif_palette_, if that has not been done.
-    if (gif_palette_ == NULL) {
-      gif_palette_.reset(new PaletteRGBA[kGifPaletteSize]);
-      if (gif_palette_ == NULL) {
+    if (gif_palette_ == nullptr) {
+      gif_palette_ = std::make_unique<PaletteRGBA[]>(kGifPaletteSize);
+      if (gif_palette_ == nullptr) {
         return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                                 SCANLINE_STATUS_MEMORY_ERROR,
                                 FRAME_GIFREADER,
@@ -1030,7 +1032,7 @@ ScanlineStatus GifFrameReader::GetImageData() {
                                   FRAME_GIFREADER,
                                   "DGifGetCode()");
         }
-        while (code_block != NULL) {
+        while (code_block != nullptr) {
           if (DGifGetCodeNext(gif_file, &code_block) == GIF_ERROR) {
             return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
                                     SCANLINE_STATUS_PARSE_ERROR,
@@ -1206,9 +1208,9 @@ ScanlineStatus GifFrameReader::CreateColorMap() {
 
   // Populate the color map.
   ColorMapObject* color_map =
-      gif_file->Image.ColorMap != NULL ?
+      gif_file->Image.ColorMap != nullptr ?
       gif_file->Image.ColorMap : gif_file->SColorMap;
-  if (color_map == NULL) {
+  if (color_map == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
                             SCANLINE_STATUS_INTERNAL_ERROR,
                             FRAME_GIFREADER,
@@ -1216,7 +1218,7 @@ ScanlineStatus GifFrameReader::CreateColorMap() {
   }
 
   GifColorType* palette_in = color_map->Colors;
-  if (palette_in == NULL) {
+  if (palette_in == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
                             SCANLINE_STATUS_INTERNAL_ERROR,
                             FRAME_GIFREADER,
@@ -1431,7 +1433,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
     frame_index_.reset(new GifPixelType[frame_spec_.width *
                                         frame_spec_.height]);
   }
-  if (frame_index_ == NULL) {
+  if (frame_index_ == nullptr) {
     Reset();
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                             SCANLINE_STATUS_MEMORY_ERROR,
@@ -1470,7 +1472,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
   size_t bytes_per_row =
       GetBytesPerPixel(frame_spec_.pixel_format) * frame_spec_.width;
   frame_buffer_.reset(new GifPixelType[bytes_per_row]);
-  if (frame_buffer_ == NULL) {
+  if (frame_buffer_ == nullptr) {
     Reset();
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
                             SCANLINE_STATUS_MEMORY_ERROR,
@@ -1496,7 +1498,7 @@ ScanlineStatus GifFrameReader::ReadNextScanline(
   const size_t pixel_size = GetBytesPerPixel(frame_spec_.pixel_format);
 
   // Find out the color index for the requested row.
-  GifPixelType* index_buffer = NULL;
+  GifPixelType* index_buffer = nullptr;
   GifFileType* gif_file = gif_struct_->gif_file();
   if (!frame_eagerly_read_) {
     // Decode the image a row at a time.

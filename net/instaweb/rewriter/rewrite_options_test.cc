@@ -1073,7 +1073,7 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   // Check that every option can be looked up by name.
   std::set<StringPiece> tested_names;
   for (int i = 0; i < arraysize(option_names); ++i) {
-    EXPECT_TRUE(NULL != RewriteOptions::LookupOptionByName(option_names[i]))
+    EXPECT_TRUE(nullptr != RewriteOptions::LookupOptionByName(option_names[i]))
         << option_names[i] << " cannot be looked up by name!";
     EXPECT_FALSE(RewriteOptions::IsDeprecatedOptionName(option_names[i]))
         << option_names[i];
@@ -1095,8 +1095,8 @@ TEST_F(RewriteOptionsTest, LookupOptionByNameTest) {
   EXPECT_EQ(named_properties, tested_names.size());
 
   // Check that case doesn't matter when looking up directives.
-  EXPECT_TRUE(NULL != RewriteOptions::LookupOptionByName("EnableRewriting"));
-  EXPECT_TRUE(NULL != RewriteOptions::LookupOptionByName("eNaBlErEWrItIng"));
+  EXPECT_TRUE(nullptr != RewriteOptions::LookupOptionByName("EnableRewriting"));
+  EXPECT_TRUE(nullptr != RewriteOptions::LookupOptionByName("eNaBlErEWrItIng"));
 }
 
 // All the non-base option names are explicitly enumerated here. Modifications
@@ -1302,7 +1302,7 @@ TEST_F(RewriteOptionsTest, ParseAndSetOptionFromName1) {
                 "id=2;enable=recompress_png;percent=50",
                 &msg, &handler));
   RewriteOptions::ExperimentSpec* spec = options_.GetExperimentSpec(2);
-  ASSERT_TRUE(spec != NULL);
+  ASSERT_TRUE(spec != nullptr);
   EXPECT_EQ(2, spec->id());
   EXPECT_EQ(50, spec->percent());
   EXPECT_EQ(1,  spec->enabled_filters().size());
@@ -2628,7 +2628,7 @@ TEST_F(RewriteOptionsTest, ParseBeaconUrl) {
 }
 
 TEST_F(RewriteOptionsTest, AccessOptionByIdAndName) {
-  const char* id = NULL;
+  const char* id = nullptr;
   GoogleString value;
   bool was_set = false;
   EXPECT_TRUE(options_.OptionValue(
@@ -2644,7 +2644,7 @@ TEST_F(RewriteOptionsTest, AccessOptionByIdAndName) {
   EXPECT_EQ(RewriteOptions::kOptionOk,
             options_.SetOptionFromName(
                 RewriteOptions::kImageJpegRecompressionQuality, "63"));
-  id = NULL;
+  id = nullptr;
   EXPECT_TRUE(options_.OptionValue(
       RewriteOptions::kImageJpegRecompressionQuality, &id, &was_set, &value));
   EXPECT_TRUE(was_set);

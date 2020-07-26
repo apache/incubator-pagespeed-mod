@@ -35,7 +35,7 @@ namespace Css {
 // RE2 (http://code.google.com/p/re2/).
 bool ParseDouble(const char* str, int len, double* dest) {
   static const int kMaxLength = 200;
-  if (dest == NULL || len == 0 || len >= kMaxLength) {
+  if (dest == nullptr || len == 0 || len >= kMaxLength) {
     return false;
   }
   char buf[kMaxLength];

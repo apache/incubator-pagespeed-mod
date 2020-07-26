@@ -163,7 +163,7 @@ bool RequestTimingInfo::GetTimeToFirstByte(int64* latency_ms) const {
 }
 
 int64 RequestTimingInfo::NowMs() const {
-  if (timer_ == NULL) {
+  if (timer_ == nullptr) {
     return 0;
   }
 

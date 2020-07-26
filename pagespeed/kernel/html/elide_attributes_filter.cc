@@ -246,7 +246,7 @@ void ElideAttributesFilter::StartElement(HtmlElement* element) {
       for (HtmlElement::AttributeIterator i(attrs->begin());
            i != attrs->end(); ++i) {
         HtmlElement::Attribute& attribute = *i;
-        if (attribute.escaped_value() != NULL &&
+        if (attribute.escaped_value() != nullptr &&
             oneValueAttrs.count(attribute.keyword()) > 0) {
           attribute.SetEscapedValue(StringPiece());
         }
@@ -266,7 +266,7 @@ void ElideAttributesFilter::StartElement(HtmlElement* element) {
       HtmlElement::Attribute& attribute = *i;
       bool remove = false;
       const char* attr_value = attribute.DecodedValueOrNull();
-      if (attr_value != NULL) {
+      if (attr_value != nullptr) {
         ValueMap::const_iterator iter2 = default_values.find(
             attribute.keyword());
         if (iter2 != default_values.end()) {

@@ -55,7 +55,7 @@ void JsDeferDisabledFilter::InsertJsDeferCode() {
   const RewriteOptions* options = driver()->options();
   // Insert script node with deferJs code as outlined.
   HtmlElement* defer_js_url_node =
-      driver()->NewElement(NULL, HtmlName::kScript);
+      driver()->NewElement(nullptr, HtmlName::kScript);
   driver()->AddAttribute(defer_js_url_node, HtmlName::kType,
                                 "text/javascript");
   driver()->AddAttribute(

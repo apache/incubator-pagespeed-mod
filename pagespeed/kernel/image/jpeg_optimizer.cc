@@ -20,10 +20,10 @@
 
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
 
-#include <setjmp.h>
+#include <csetjmp>
 // 'stdio.h' provides FILE for jpeglib (needed for certain builds)
-#include <stdio.h>
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 
 #include "base/logging.h"
@@ -98,7 +98,7 @@ METHODDEF(void) TermDestination(j_compress_ptr cinfo) {
 // Call this function on a j_compress_ptr to install a writer that will write
 // to the given string.
 void JpegStringWriter(j_compress_ptr cinfo, GoogleString *data_dest) {
-  if (cinfo->dest == NULL) {
+  if (cinfo->dest == nullptr) {
     cinfo->dest = (struct jpeg_destination_mgr*)
       (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
                                   sizeof(DestinationManager));
@@ -176,7 +176,7 @@ void SetJpegCompressBeforeStartCompress(const JpegCompressionOptions& options,
         jpeg_compress->comp_info[0].h_samp_factor = 2;
         jpeg_compress->comp_info[0].v_samp_factor = 2;
       } else if (lossy_options.color_sampling == RETAIN &&
-                 jpeg_decompress != NULL) {
+                 jpeg_decompress != nullptr) {
         // Retain the input.
         for (int idx = 0; idx < jpeg_compress->num_components; ++idx) {
           jpeg_compress->comp_info[idx].h_samp_factor =
@@ -206,7 +206,7 @@ void SetJpegCompressAfterStartCompress(const JpegCompressionOptions& options,
     jpeg_compress_struct* jpeg_compress) {
   if (options.retain_color_profile || options.retain_exif_data) {
     jpeg_saved_marker_ptr marker;
-    for (marker = jpeg_decompress.marker_list; marker != NULL;
+    for (marker = jpeg_decompress.marker_list; marker != nullptr;
          marker = marker->next) {
       // We only copy these headers if present in the decompress struct.
       if ((marker->marker == kExifDataMarker && options.retain_exif_data) ||
@@ -341,7 +341,7 @@ bool JpegOptimizer::OptimizeLossless(jpeg_decompress_struct *jpeg_decompress,
   }
 
   jvirt_barray_ptr *coefficients = jpeg_read_coefficients(jpeg_decompress);
-  bool valid_jpeg = (coefficients != NULL);
+  bool valid_jpeg = (coefficients != nullptr);
 
   if (valid_jpeg) {
     // Copy data from the source to the dest.
@@ -423,8 +423,8 @@ bool JpegOptimizer::CreateOptimizedJpeg(const GoogleString &original,
   bool result = DoCreateOptimizedJpeg(original, jpeg_decompress, compressed,
                                       options);
 
-  jpeg_decompress->client_data = NULL;
-  jpeg_compress_.client_data = NULL;
+  jpeg_decompress->client_data = nullptr;
+  jpeg_compress_.client_data = nullptr;
 
   if (!result) {
     // Clean up the state of jpeglib structures.  It is okay to abort even if
@@ -517,13 +517,13 @@ void JpegScanlineWriter::SetJpegCompressParams(
         "Unable to perform lossless encoding in JpegScanlineWriter." \
         " Using jpeg default lossy encoding options.");
   }
-  SetJpegCompressBeforeStartCompress(options, NULL, &data_->jpeg_compress_);
+  SetJpegCompressBeforeStartCompress(options, nullptr, &data_->jpeg_compress_);
 }
 
 ScanlineStatus JpegScanlineWriter::InitializeWriteWithStatus(
     const void* const params,
     GoogleString * const compressed) {
-  if (params == NULL) {
+  if (params == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             SCANLINE_JPEGWRITER,
@@ -561,7 +561,7 @@ ScanlineStatus JpegScanlineWriter::FinalizeWriteWithStatus() {
 }
 
 void JpegScanlineWriter::AbortWrite() {
-  data_->jpeg_compress_.client_data = NULL;
+  data_->jpeg_compress_.client_data = nullptr;
   jpeg_abort_compress(&data_->jpeg_compress_);
 }
 

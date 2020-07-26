@@ -61,7 +61,7 @@ TEST_F(SlowWorkerTest, BasicOperation) {
 
   // Make sure we kill the thread now, so we don't get it accessing
   // deleted start_sync after we exit if it's slow to start
-  worker_.reset(NULL);
+  worker_.reset(nullptr);
 }
 
 class WaitCancelFunction : public Function {
@@ -92,7 +92,7 @@ TEST_F(SlowWorkerTest, Cancellation) {
   start_sync.Wait();
 
   // Ask for exit and block on that.
-  worker_.reset(NULL);
+  worker_.reset(nullptr);
 }
 
 // Used to check that quit_requested is false by default normally.

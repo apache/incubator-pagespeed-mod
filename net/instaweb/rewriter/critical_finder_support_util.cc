@@ -22,6 +22,8 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
+
 #include <set>
 #include <utility>
 
@@ -143,7 +145,7 @@ void AddNonceToCriticalSelectors(const int64 timestamp_ms,
                                  NonceGenerator* nonce_generator,
                                  CriticalKeys* critical_keys,
                                  GoogleString* nonce) {
-  CHECK(nonce_generator != NULL);
+  CHECK(nonce_generator != nullptr);
   uint64 nonce_value = nonce_generator->NewNonce();
   StringPiece nonce_piece(reinterpret_cast<char*>(&nonce_value),
                           sizeof(nonce_value));
@@ -154,7 +156,7 @@ void AddNonceToCriticalSelectors(const int64 timestamp_ms,
   }
   ClearInvalidNonces(timestamp_ms, critical_keys);
   // Look for an invalid entry to reuse.
-  CriticalKeys::PendingNonce* pending_nonce = NULL;
+  CriticalKeys::PendingNonce* pending_nonce = nullptr;
   for (int i = 0; i < critical_keys->pending_nonce_size(); ++i) {
     CriticalKeys::PendingNonce* entry = critical_keys->mutable_pending_nonce(i);
     if (!entry->has_nonce()) {
@@ -162,7 +164,7 @@ void AddNonceToCriticalSelectors(const int64 timestamp_ms,
       break;
     }
   }
-  if (pending_nonce == NULL) {
+  if (pending_nonce == nullptr) {
     // No entry to reuse; create new entry
     pending_nonce = critical_keys->add_pending_nonce();
   }
@@ -218,7 +220,7 @@ void GetCriticalKeysFromProto(int64 support_percentage,
 void UpdateCriticalKeys(bool require_prior_support,
                         const StringSet& new_set, int support_value,
                         CriticalKeys* critical_keys) {
-  DCHECK(critical_keys != NULL);
+  DCHECK(critical_keys != nullptr);
   SupportMap support_map = ConvertCriticalKeysProtoToSupportMap(*critical_keys);
   DecaySupportMap(support_value, &support_map);
   // Update maximum_possible_support.  Initial value must account for legacy
@@ -267,7 +269,7 @@ void WriteCriticalKeysToPropertyCache(
     const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
     MessageHandler* message_handler, Timer* timer) {
   // We can't do anything here if page is NULL, so bail out early.
-  if (page == NULL) {
+  if (page == nullptr) {
     return;
   }
   std::unique_ptr<CriticalKeys> critical_keys;
@@ -276,7 +278,7 @@ void WriteCriticalKeysToPropertyCache(
   // break slamm's tests at the bottom of critical_selector_finder_test.cc
   // depending on how subclassing is done, so some care will be required.
   if (flags & kReplacePriorResult) {
-    critical_keys.reset(new CriticalKeys);
+    critical_keys = std::make_unique<CriticalKeys>();
   } else {
     // We first need to read the current critical keys in the property cache,
     // then update it with the new set if it exists, or create it if it doesn't.
@@ -294,14 +296,14 @@ void WriteCriticalKeysToPropertyCache(
         // For the former, bail out since there is no use trying to update the
         // property cache if it is not setup. For the later, create a new
         // CriticalKeys, since we just haven't written a value before.
-        if (cohort == NULL) {
+        if (cohort == nullptr) {
           return;
         }
         FALLTHROUGH_INTENDED;
       case kPropertyCacheDecodeExpired:
       case kPropertyCacheDecodeParseError:
         // We can proceed here, but we need to create a new CriticalKeys.
-        critical_keys.reset(new CriticalKeys);
+        critical_keys = std::make_unique<CriticalKeys>();
         break;
     }
 

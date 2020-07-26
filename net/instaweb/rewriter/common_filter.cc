@@ -47,15 +47,15 @@ CommonFilter::CommonFilter(RewriteDriver* driver)
     : driver_(driver),
       server_context_(driver->server_context()),
       rewrite_options_(driver->options()),
-      noscript_element_(NULL),
-      end_body_point_(NULL),
+      noscript_element_(nullptr),
+      end_body_point_(nullptr),
       seen_base_(false) {
 }
 
 CommonFilter::~CommonFilter() {}
 
 void CommonFilter::InsertNodeAtBodyEnd(HtmlNode* data) {
-  if (end_body_point_ != NULL && driver_->CanAppendChild(end_body_point_)) {
+  if (end_body_point_ != nullptr && driver_->CanAppendChild(end_body_point_)) {
     driver_->AppendChild(end_body_point_, data);
   } else {
     driver_->InsertNodeBeforeCurrent(data);
@@ -64,8 +64,8 @@ void CommonFilter::InsertNodeAtBodyEnd(HtmlNode* data) {
 
 void CommonFilter::StartDocument() {
   // Base URL starts as document URL.
-  noscript_element_ = NULL;
-  end_body_point_ = NULL;
+  noscript_element_ = nullptr;
+  end_body_point_ = nullptr;
   // Reset whether or not we've seen the base tag yet, because we're starting
   // back at the top of the document.
   seen_base_ = false;
@@ -75,21 +75,21 @@ void CommonFilter::StartDocument() {
 
 void CommonFilter::StartElement(HtmlElement* element) {
   if (element->keyword() == HtmlName::kNoscript) {
-    if (noscript_element_ == NULL) {
+    if (noscript_element_ == nullptr) {
       noscript_element_ = element;  // Record top-level <noscript>
     }
   }
   // If this is a base tag with an href attribute, then we've seen the base, and
   // any url references after this point are relative to that base.
   if (element->keyword() == HtmlName::kBase &&
-      element->FindAttribute(HtmlName::kHref) != NULL) {
+      element->FindAttribute(HtmlName::kHref) != nullptr) {
     seen_base_ = true;
   }
 
   // If end_body_point_ was set (if we've already seen a </body> for instance),
   // and we encounter a new open element, clear end_body_point_ as it's no
   // longer the end of the body.
-  end_body_point_ = NULL;
+  end_body_point_ = nullptr;
 
   // Run actual filter's StartElementImpl.
   StartElementImpl(element);
@@ -99,16 +99,16 @@ void CommonFilter::EndElement(HtmlElement* element) {
   switch (element->keyword()) {
     case HtmlName::kNoscript:
       if (element == noscript_element_) {
-        noscript_element_ = NULL;  // We are exiting the top-level <noscript>
+        noscript_element_ = nullptr;  // We are exiting the top-level <noscript>
       }
-      end_body_point_ = NULL;
+      end_body_point_ = nullptr;
       break;
     case HtmlName::kBody:
       // Preferred injection location
       end_body_point_ = element;
       break;
     case HtmlName::kHtml:
-      if ((end_body_point_ == NULL ||
+      if ((end_body_point_ == nullptr ||
            !driver()->CanAppendChild(end_body_point_)) &&
           driver()->CanAppendChild(element)) {
         // Try to inject before </html> if before </body> won't work.
@@ -118,7 +118,7 @@ void CommonFilter::EndElement(HtmlElement* element) {
     default:
       // There were (possibly implicit) close tags after </body> or </html>, so
       // throw that point away.
-      end_body_point_ = NULL;
+      end_body_point_ = nullptr;
       break;
   }
 
@@ -130,8 +130,8 @@ void CommonFilter::Characters(net_instaweb::HtmlCharactersNode* characters) {
   // If we have a character node after the closing body or html tag, then we
   // can't safely insert something depending on being at the end of the document
   // there. This can happen due to a faulty filter, or malformed HTML.
-  if (end_body_point_ != NULL && !OnlyWhitespace(characters->contents())) {
-    end_body_point_ = NULL;
+  if (end_body_point_ != nullptr && !OnlyWhitespace(characters->contents())) {
+    end_body_point_ = nullptr;
   }
 }
 
@@ -196,11 +196,11 @@ ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
 ResourcePtr CommonFilter::CreateInputResourceOrInsertDebugComment(
     StringPiece input_url, RewriteDriver::InputRole role,
     HtmlElement* element) {
-  DCHECK(element != NULL);
+  DCHECK(element != nullptr);
   bool is_authorized;
   ResourcePtr input_resource(
       CreateInputResource(input_url, role, &is_authorized));
-  if (input_resource.get() == NULL) {
+  if (input_resource.get() == nullptr) {
     if (!is_authorized) {
       driver()->InsertUnauthorizedDomainDebugComment(input_url, role, element);
     }
@@ -229,8 +229,8 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
   bool result = false;
 
   // HTTP-EQUIV case.
-  if ((equiv = element.FindAttribute(HtmlName::kHttpEquiv)) != NULL &&
-      (value = element.FindAttribute(HtmlName::kContent)) != NULL) {
+  if ((equiv = element.FindAttribute(HtmlName::kHttpEquiv)) != nullptr &&
+      (value = element.FindAttribute(HtmlName::kContent)) != nullptr) {
     StringPiece attribute = equiv->DecodedValueOrNull();
     StringPiece value_str = value->DecodedValueOrNull();
     if (!value_str.empty() && !attribute.empty()) {
@@ -256,13 +256,13 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
         if (result) {
           // No charset, see if we have a charset attribute to append.
           if (local_charset.empty() && *(content->rbegin()) == ';' &&
-              ((cs_attr = element.FindAttribute(HtmlName::kCharset)) != NULL) &&
-              (cs_attr->DecodedValueOrNull() != NULL)) {
+              ((cs_attr = element.FindAttribute(HtmlName::kCharset)) != nullptr) &&
+              (cs_attr->DecodedValueOrNull() != nullptr)) {
             StrAppend(content, " charset=", cs_attr->DecodedValueOrNull());
             have_parsed = false;
           }
           // If requested, check to see if we have this value already.
-          if (headers != NULL && headers->HasValue(attribute, *content)) {
+          if (headers != nullptr && headers->HasValue(attribute, *content)) {
             result = false;
           } else if (!have_parsed) {
             result = ParseContentType(*content, mime_type, &local_charset);
@@ -274,8 +274,8 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
       }
     }
   // charset case.
-  } else if (((cs_attr = element.FindAttribute(HtmlName::kCharset)) != NULL) &&
-             (cs_attr->DecodedValueOrNull() != NULL)) {
+  } else if (((cs_attr = element.FindAttribute(HtmlName::kCharset)) != nullptr) &&
+             (cs_attr->DecodedValueOrNull() != nullptr)) {
     *mime_type = "";
     *charset = cs_attr->DecodedValueOrNull();
     result = true;
@@ -287,9 +287,9 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
 bool CommonFilter::CanAddPagespeedOnloadToImage(const HtmlElement& element) {
   const HtmlElement::Attribute* onload_attribute =
       element.FindAttribute(HtmlName::kOnload);
-  return (noscript_element() == NULL &&
-          (onload_attribute == NULL ||
-           (onload_attribute->DecodedValueOrNull() != NULL &&
+  return (noscript_element() == nullptr &&
+          (onload_attribute == nullptr ||
+           (onload_attribute->DecodedValueOrNull() != nullptr &&
             strcmp(onload_attribute->DecodedValueOrNull(),
                    CriticalImagesBeaconFilter::kImageOnloadCode) == 0)));
 }

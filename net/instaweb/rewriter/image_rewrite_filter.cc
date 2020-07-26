@@ -20,9 +20,9 @@
 
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 
-#include <limits.h>
-#include <sys/time.h>
+#include <climits>
 #include <sys/resource.h>
+#include <sys/time.h>
 
 #include <algorithm>
 #include <cstdarg>
@@ -218,7 +218,7 @@ const RewriteOptions::Filter ImageRewriteFilter::kRelatedFilters[] = {
 };
 const int ImageRewriteFilter::kRelatedFiltersSize = arraysize(kRelatedFilters);
 
-StringPieceVector* ImageRewriteFilter::related_options_ = NULL;
+StringPieceVector* ImageRewriteFilter::related_options_ = nullptr;
 
 // names for Statistics variables.
 const char ImageRewriteFilter::kImageRewrites[] = "image_rewrites";
@@ -640,7 +640,7 @@ const UrlSegmentEncoder* ImageRewriteFilter::Context::encoder() const {
 
 GoogleString ImageRewriteFilter::Context::UserAgentCacheKey(
     const ResourceContext* resource_context) const {
-  if (resource_context != NULL) {
+  if (resource_context != nullptr) {
     // cache-key is sensitive to whether the UA supports webp or not.
     return ImageUrlEncoder::CacheKeyFromResourceContext(*resource_context);
   }
@@ -812,16 +812,16 @@ void ImageRewriteFilter::InitStats(Statistics* statistics) {
 }
 
 void ImageRewriteFilter::Initialize() {
-  CHECK(related_options_ == NULL);
+  CHECK(related_options_ == nullptr);
   related_options_ = new StringPieceVector;
   ImageRewriteFilter::AddRelatedOptions(ImageRewriteFilter::related_options_);
   std::sort(related_options_->begin(), related_options_->end());
 }
 
 void ImageRewriteFilter::Terminate() {
-  CHECK(related_options_ != NULL);
+  CHECK(related_options_ != nullptr);
   delete related_options_;
-  related_options_ = NULL;
+  related_options_ = nullptr;
 }
 
 void ImageRewriteFilter::AddRelatedOptions(StringPieceVector* target) {
@@ -866,7 +866,7 @@ void ImageRewriteFilter::RenderDone() {
                 IntegerToString(image_info.dimensions().height()), "},");
     }
     StrAppend(&code, "}");
-    HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+    HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
     HtmlCharactersNode* chars = driver()->NewCharactersNode(script, code);
     InsertNodeAtBodyEnd(script);
     driver()->AppendChild(script, chars);
@@ -1429,8 +1429,8 @@ void ImageRewriteFilter::SaveIfInlinable(const StringPiece& contents,
 // Convert (possibly NULL) Image* to corresponding (possibly NULL) ContentType*
 const ContentType* ImageRewriteFilter::ImageToContentType(
     const GoogleString& origin_url, Image* image) {
-  const ContentType* content_type = NULL;
-  if (image != NULL) {
+  const ContentType* content_type = nullptr;
+  if (image != nullptr) {
     // Even if we know the content type from the extension coming
     // in, the content-type can change as a result of compression,
     // e.g. gif to png, or jpeg to webp.
@@ -1489,7 +1489,7 @@ void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
 
   ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
       src->DecodedValueOrNull(), RewriteDriver::InputRole::kImg, element));
-  if (input_resource.get() == NULL) {
+  if (input_resource.get() == nullptr) {
     return;
   }
 
@@ -1504,10 +1504,10 @@ void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
                                                  element, &state);
   }
   Context* context = new Context(0 /* No CSS inlining, it's html */,
-                                 this, driver(), NULL /*not nested */,
+                                 this, driver(), nullptr /*not nested */,
                                  resource_context.release(),
                                  Context::Place::kHtmlAttr, image_counter_++,
-                                 noscript_element() != NULL,
+                                 noscript_element() != nullptr,
                                  is_resized_using_rendered_dimensions);
   ResourceSlotPtr slot(driver()->GetSlot(input_resource, element, src));
   context->AddSlot(slot);
@@ -1587,7 +1587,7 @@ const char* SkipAsciiWhitespace(const char* position) {
 bool GetDimensionAttribute(
     const HtmlElement* element, HtmlName::Keyword name, int* value) {
   const HtmlElement::Attribute* attribute = element->FindAttribute(name);
-  if (attribute == NULL) {
+  if (attribute == nullptr) {
     return false;
   }
   const char* position = attribute->DecodedValueOrNull();
@@ -1669,7 +1669,7 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
   // explicitly marked as inlinable).
   const char* responsive_attr =
       element->AttributeValue(HtmlName::kDataPagespeedResponsiveTemp);
-  if (responsive_attr != NULL &&
+  if (responsive_attr != nullptr &&
       StringPiece(responsive_attr) !=
       ResponsiveImageFirstFilter::kInlinableVirtualImage) {
     *inline_result = INLINE_RESPONSIVE;
@@ -1737,7 +1737,7 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
       driver()->AddAttribute(element, HtmlName::kHeight,
                              IntegerToString(file_dims.height()));
     }
-    if (element->FindAttribute(HtmlName::kDataPagespeedResponsiveTemp) != NULL
+    if (element->FindAttribute(HtmlName::kDataPagespeedResponsiveTemp) != nullptr
         && cached->has_image_file_dims()
         && ImageUrlEncoder::HasValidDimensions(cached->image_file_dims())) {
       // If this is an image used by ResponsiveImageFilter, add information
@@ -1775,9 +1775,9 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
 
       const ContentType* content_type =
           Image::TypeToContentType(low_res_image_type);
-      DCHECK(content_type != NULL) << "Invalid Image Type: "
+      DCHECK(content_type != nullptr) << "Invalid Image Type: "
                                    << low_res_image_type;
-      if (content_type != NULL) {
+      if (content_type != nullptr) {
         GoogleString data_url;
         DataUrl(*content_type, BASE64, cached->low_resolution_inlined_data(),
                 &data_url);
@@ -1867,14 +1867,14 @@ bool ImageRewriteFilter::StoreUrlInPropertyCache(const StringPiece& url) {
     return true;
   }
   PropertyPage* property_page = driver()->property_page();
-  if (property_page == NULL) {
+  if (property_page == nullptr) {
     LOG(WARNING) << "image_inlining_identify_and_cache_without_rewriting "
                  << "without PropertyPage.";
     return false;
   }
   const PropertyCache::Cohort* cohort =
       driver()->server_context()->dom_cohort();
-  if (cohort == NULL) {
+  if (cohort == nullptr) {
     LOG(WARNING) << "image_inlining_identify_and_cache_without_rewriting "
                  << "without configured DOM cohort.";
     return false;
@@ -1905,7 +1905,7 @@ bool ImageRewriteFilter::HasAnyDimensions(HtmlElement* element) {
 
 bool ImageRewriteFilter::ParseDimensionAttribute(
     const char* position, int* value) {
-  if (position == NULL) {
+  if (position == nullptr) {
     return false;
   }
   // Note that we rely heavily on null-termination of char* here to cause our
@@ -2115,7 +2115,7 @@ void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
   resource_tag_scanner::ScanElement(element, driver()->options(), &attributes);
   for (int i = 0, n = attributes.size(); i < n; ++i) {
     if (attributes[i].category != semantic_type::kImage ||
-        attributes[i].url->DecodedValueOrNull() == NULL) {
+        attributes[i].url->DecodedValueOrNull() == nullptr) {
       continue;
     }
 
@@ -2168,7 +2168,7 @@ RewriteContext* ImageRewriteFilter::MakeRewriteContext() {
   ResourceContext* resource_context = new ResourceContext;
   EncodeUserAgentIntoResourceContext(resource_context);
   return new Context(0 /*No CSS inlining, it's html */,
-                     this, driver(), NULL /*not nested */,
+                     this, driver(), nullptr /*not nested */,
                      resource_context,
                      Context::Place::kFetch,
                      kNotCriticalIndex,
@@ -2184,7 +2184,7 @@ RewriteContext* ImageRewriteFilter::MakeNestedRewriteContextForCss(
   // allowed.
   ResourceContext* cloned_context = new ResourceContext;
   const ResourceContext* parent_context = parent->resource_context();
-  if (parent_context != NULL) {
+  if (parent_context != nullptr) {
     *cloned_context = *parent_context;
   }
 
@@ -2197,7 +2197,7 @@ RewriteContext* ImageRewriteFilter::MakeNestedRewriteContextForCss(
         cloned_context);
   }
   Context* context = new Context(css_image_inline_max_bytes,
-                                 this, NULL /* driver*/, parent,
+                                 this, nullptr /* driver*/, parent,
                                  cloned_context,
                                  Context::Place::kCss,
                                  kNotCriticalIndex,
@@ -2210,13 +2210,13 @@ RewriteContext* ImageRewriteFilter::MakeNestedRewriteContextForCss(
 RewriteContext* ImageRewriteFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
   ResourceContext* resource_context = new ResourceContext;
-  DCHECK(parent != NULL);
-  DCHECK(parent->resource_context() != NULL);
-  if (parent != NULL && parent->resource_context() != NULL) {
+  DCHECK(parent != nullptr);
+  DCHECK(parent->resource_context() != nullptr);
+  if (parent != nullptr && parent->resource_context() != nullptr) {
     *resource_context = *(parent->resource_context());
   }
   Context* context = new Context(
-      0 /*No Css inling */, this, NULL /* driver */, parent, resource_context,
+      0 /*No Css inling */, this, nullptr /* driver */, parent, resource_context,
       Context::Place::kNonCssNested, kNotCriticalIndex,
       false /*not in noscript */, false /*not resized by rendered dimensions*/);
   context->AddSlot(slot);

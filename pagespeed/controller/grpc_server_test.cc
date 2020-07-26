@@ -61,8 +61,8 @@ void GrpcServerTest::SetUp() {
   // Unix sockets are 1 on success. gRPC sets -1 on failure.
   CHECK_GT(bound_port, 0);
 
-  server_thread_.reset(
-      new GrpcServerThread(queue_.get(), thread_system_.get()));
+  server_thread_ = std::make_unique<GrpcServerThread>(
+      queue_.get(), thread_system_.get());
   CHECK(server_thread_->Start());
 }
 
@@ -89,8 +89,8 @@ void GrpcServerTest::QueueFunctionForServerThread(Function* func) {
       // a lock before creating the alarm; We can immediately get a callback
       // on the other thread, before alarm_ is properly populated.
       ScopedMutex lock(mutex_.get());
-      alarm_.reset(
-          new ::grpc::Alarm(queue, gpr_inf_past(GPR_CLOCK_MONOTONIC), this));
+      alarm_ = std::make_unique<::grpc::Alarm>(
+          queue, gpr_inf_past(GPR_CLOCK_MONOTONIC), this);
     }
     ~DelayedCallFunction() override {}
 

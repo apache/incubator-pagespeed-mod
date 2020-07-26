@@ -94,7 +94,7 @@ RewriteQuery::Status RewriteQuery::ScanHeader(
     MessageHandler* handler) {
   Status status = kNoneFound;
 
-  if (headers == NULL) {
+  if (headers == nullptr) {
     return status;
   }
 
@@ -175,7 +175,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   query_params_.Clear();
   pagespeed_query_params_.Clear();
   pagespeed_option_cookies_.Clear();
-  options_.reset(NULL);
+  options_.reset(nullptr);
 
   // To support serving resources from servers that don't share the
   // same settings as the ones generating HTML, we can put whitelisted
@@ -190,12 +190,12 @@ RewriteQuery::Status RewriteQuery::Scan(
       namer.has_options()) {
     const RewriteFilter* rewrite_filter =
         server_context->FindFilterForDecoding(namer.id());
-    if (rewrite_filter != NULL) {
+    if (rewrite_filter != nullptr) {
       options_.reset(factory->NewRewriteOptionsForQuery());
       status = ParseResourceOption(namer.options(), options_.get(),
                                    rewrite_filter);
       if (status != kSuccess) {
-        options_.reset(NULL);
+        options_.reset(nullptr);
 
         // We want query_params() to be populated after calling
         // RewriteQuery::Scan, even if any URL-embedded configuration
@@ -209,7 +209,7 @@ RewriteQuery::Status RewriteQuery::Scan(
   // Extract all cookies iff we can use them to set options.
   RequestHeaders::CookieMultimap no_cookies;
   const RequestHeaders::CookieMultimap& all_cookies(
-      (allow_options_to_be_specified_by_cookies && request_headers != NULL)
+      (allow_options_to_be_specified_by_cookies && request_headers != nullptr)
       ? request_headers->GetAllCookies()
       : no_cookies);
 
@@ -235,8 +235,8 @@ RewriteQuery::Status RewriteQuery::Scan(
   // rather than RewriteOptions so we don't have to create a new driver
   // on an ajax request, but can instead reference properties.  However
   // that change may be fairly significant.
-  if (request_headers != NULL && request_headers->IsXmlHttpRequest()) {
-    if (options_.get() == NULL) {
+  if (request_headers != nullptr && request_headers->IsXmlHttpRequest()) {
+    if (options_.get() == nullptr) {
       options_.reset(factory->NewRewriteOptionsForQuery());
     }
     options_->DisableFiltersThatCantRunInAjax();
@@ -254,12 +254,12 @@ RewriteQuery::Status RewriteQuery::Scan(
     return status;
   }
 
-  if (options_.get() == NULL) {
+  if (options_.get() == nullptr) {
     options_.reset(factory->NewRewriteOptionsForQuery());
   }
 
   std::unique_ptr<RequestProperties> request_properties;
-  if (request_headers != NULL) {
+  if (request_headers != nullptr) {
     request_properties.reset(server_context->NewRequestProperties());
     request_properties->SetUserAgent(
         request_headers->Lookup1(HttpAttributes::kUserAgent));
@@ -367,7 +367,7 @@ RewriteQuery::Status RewriteQuery::Scan(
           break;
         case kInvalid:
           status = kInvalid;
-          options_.reset(NULL);
+          options_.reset(nullptr);
           return status;
       }
     } else {
@@ -392,7 +392,7 @@ RewriteQuery::Status RewriteQuery::Scan(
       break;
     case kInvalid:
       status = kInvalid;
-      options_.reset(NULL);
+      options_.reset(nullptr);
       return status;
   }
 
@@ -406,7 +406,7 @@ RewriteQuery::Status RewriteQuery::Scan(
       break;
     case kInvalid:
       status = kInvalid;
-      options_.reset(NULL);
+      options_.reset(nullptr);
       return status;
   }
 
@@ -421,11 +421,11 @@ RewriteQuery::Status RewriteQuery::Scan(
       options_->SetDefaultRewriteLevel(RewriteOptions::kCoreFilters);
       break;
     case kNoneFound:
-      options_.reset(NULL);
+      options_.reset(nullptr);
       break;
     case kInvalid:
       LOG(DFATAL) << "Invalid responses always use early exit";
-      options_.reset(NULL);
+      options_.reset(nullptr);
       break;
   }
   return status;
@@ -440,7 +440,7 @@ bool RewriteQuery::MightBeCustomOption(StringPiece name) {
 template <class HeaderT>
 bool RewriteQuery::HeadersMayHaveCustomOptions(const QueryParams& params,
                                                const HeaderT* headers) {
-  if (headers != NULL) {
+  if (headers != nullptr) {
     for (int i = 0, n = headers->NumAttributes(); i < n; ++i) {
       if (MightBeCustomOption(headers->Name(i))) {
         return true;
@@ -480,12 +480,12 @@ bool RewriteQuery::MayHaveCustomOptions(
   if (CookiesMayHaveCustomOptions(cookies)) {
     return true;
   }
-  if (req_headers != NULL &&
+  if (req_headers != nullptr &&
       (req_headers->Has(HttpAttributes::kXPsaClientOptions) ||
        req_headers->HasValue(HttpAttributes::kCacheControl, "no-transform"))) {
     return true;
   }
-  if ((resp_headers != NULL) && resp_headers->HasValue(
+  if ((resp_headers != nullptr) && resp_headers->HasValue(
           HttpAttributes::kCacheControl, "no-transform")) {
     return true;
   }
@@ -571,7 +571,7 @@ RewriteQuery::Status RewriteQuery::ScanNameValue(
         status = kSuccess;
         break;
       case RewriteOptions::kOptionNameUnknown:
-        if (request_context.get() != NULL &&
+        if (request_context.get() != nullptr &&
             StringCaseEqual(name_suffix,
                             RewriteOptions::kStickyQueryParameters)) {
           request_context->set_sticky_query_parameters_token(trimmed_value);
@@ -602,7 +602,7 @@ GoogleString RewriteQuery::GenerateResourceOption(
   const RewriteFilter* filter = driver->FindFilter(filter_id);
   // TODO(sligocki): We do not seem to be detecting Apache crashes in the
   // system_test. We should detect and fail when these crashes occur.
-  CHECK(filter != NULL)
+  CHECK(filter != nullptr)
       << "Filter ID " << filter_id << " is not registered in RewriteDriver. "
       << "You must register it with a call to RegisterRewriteFilter() in "
       << "RewriteDriver::SetServerContext().";
@@ -632,7 +632,7 @@ GoogleString RewriteQuery::GenerateResourceOption(
   // Add any non-default options.
   GoogleString option_value;
   const StringPieceVector* opts = filter->RelatedOptions();
-  for (int i = 0, n = (opts == NULL ? 0 : opts->size()); i < n; ++i) {
+  for (int i = 0, n = (opts == nullptr ? 0 : opts->size()); i < n; ++i) {
     StringPiece option = (*opts)[i];
     const char* id;
     bool was_set = false;
@@ -680,7 +680,7 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
         StringPiece option_name =
             RewriteOptions::LookupOptionNameById(name_value[0]);
         if (!option_name.empty() &&
-            opts != NULL &&
+            opts != nullptr &&
             std::binary_search(opts->begin(), opts->end(), option_name) &&
             options->SetOptionFromName(option_name, name_value[1])
             == RewriteOptions::kOptionOk) {
@@ -702,7 +702,7 @@ RewriteQuery::Status RewriteQuery::ParseResourceOption(
 bool RewriteQuery::ParseProxyMode(
     const GoogleString* mode_name, ProxyMode* mode) {
   int mode_value = 0;
-  if (mode_name != NULL &&
+  if (mode_name != nullptr &&
       !mode_name->empty() &&
       StringToInt(*mode_name, &mode_value) &&
       mode_value >= kProxyModeDefault &&
@@ -717,7 +717,7 @@ bool RewriteQuery::ParseImageQualityPreference(
     const GoogleString* preference_value,
     DeviceProperties::ImageQualityPreference* preference) {
   int value = 0;
-  if (preference_value != NULL &&
+  if (preference_value != nullptr &&
       !preference_value->empty() &&
       StringToInt(*preference_value, &value) &&
       value >= DeviceProperties::kImageQualityDefault &&
@@ -739,7 +739,7 @@ bool RewriteQuery::ParseClientOptions(
   const GoogleString* version_value = options.Lookup1(kProxyOptionVersion);
   // We only support version value of kProxyOptionValidVersionValue for now.
   // New supported version might be added later.
-  if (version_value != NULL &&
+  if (version_value != nullptr &&
       *version_value == kProxyOptionValidVersionValue) {
     *proxy_mode = kProxyModeDefault;
     *image_quality_preference = DeviceProperties::kImageQualityDefault;

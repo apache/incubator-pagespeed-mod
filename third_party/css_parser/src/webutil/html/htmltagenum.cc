@@ -85,7 +85,7 @@ const char* HtmlTagName(HtmlTagEnum tag) {
   if (tag < kHtmlTagBuiltinMax) {
     return HtmlTagEnumNames[tag];
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 

@@ -66,7 +66,7 @@ class RewriteOptionsManagerTest :
   }
 
   void CheckNull(RewriteOptions* rewrite_options) {
-    EXPECT_TRUE(NULL == rewrite_options);
+    EXPECT_TRUE(nullptr == rewrite_options);
   }
 
   bool PrepareRequest(const RewriteOptions* rewrite_options,
@@ -103,7 +103,7 @@ TEST_F(RewriteOptionsManagerTest, GetRewriteOptions) {
 TEST_F(RewriteOptionsManagerTest, Prepare_NULLOptions) {
   GoogleString url;
   RequestHeaders request_headers;
-  ASSERT_TRUE(PrepareRequest(NULL, request_context_, &url, &request_headers));
+  ASSERT_TRUE(PrepareRequest(nullptr, request_context_, &url, &request_headers));
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_InvalidUrl) {
@@ -133,13 +133,13 @@ TEST_F(RewriteOptionsManagerTest, Prepare_Proxy) {
       "www.foo.com",
       "www.origin.com",
       "",
-      NULL));
+      nullptr));
 
   GoogleString url("http://www.foo.com");
   RequestHeaders request_headers;
   ASSERT_TRUE(PrepareRequest(
       default_options.get(), request_context_, &url, &request_headers));
-  ASSERT_TRUE(NULL == request_headers.Lookup1(HttpAttributes::kHost));
+  ASSERT_TRUE(nullptr == request_headers.Lookup1(HttpAttributes::kHost));
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_ProxySuffix) {

@@ -42,7 +42,7 @@ GoogleString HtmlLeafNode::ToString() const {
 }
 
 void HtmlLeafNode::MarkAsDead(const HtmlEventListIterator& end) {
-  if (data_.get() != NULL) {
+  if (data_.get() != nullptr) {
     set_iter(end);
     data_->is_live_ = false;
   }

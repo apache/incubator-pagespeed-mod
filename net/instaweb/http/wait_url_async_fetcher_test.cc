@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 
 #include "net/instaweb/http/public/mock_callback.h"
@@ -43,8 +47,8 @@ class WaitUrlAsyncFetcherTest : public ::testing::Test {
  protected:
   void SetUp() override {
     thread_system_.reset(Platform::CreateThreadSystem());
-    wait_fetcher_.reset(new WaitUrlAsyncFetcher(
-        &base_fetcher_, thread_system_->NewMutex()));
+    wait_fetcher_ = std::make_unique<WaitUrlAsyncFetcher>(
+        &base_fetcher_, thread_system_->NewMutex());
 
     ResponseHeaders header;
     header.set_first_line(1, 1, 200, "OK");

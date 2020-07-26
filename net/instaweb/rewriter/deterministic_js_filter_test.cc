@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -37,7 +41,7 @@ class DeterministicJsFilterTest : public RewriteTestBase {
   void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
-    deterministic_js_filter_.reset(new DeterministicJsFilter(rewrite_driver()));
+    deterministic_js_filter_ = std::make_unique<DeterministicJsFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(deterministic_js_filter_.get());
   }
 

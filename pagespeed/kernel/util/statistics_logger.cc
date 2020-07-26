@@ -195,7 +195,7 @@ void StatisticsLogger::AddVariable(StringPiece var_name) {
 void StatisticsLogger::UpdateAndDumpIfRequired() {
   int64 current_time_ms = timer_->NowMs();
   AbstractMutex* mutex = last_dump_timestamp_->mutex();
-  if (mutex == NULL) {
+  if (mutex == nullptr) {
     return;
   }
   // Avoid blocking if the dump is already happening in another thread/process.
@@ -208,7 +208,7 @@ void StatisticsLogger::UpdateAndDumpIfRequired() {
       FileSystem::OutputFile* statistics_log_file =
           file_system_->OpenOutputFileForAppend(
               logfile_name_.c_str(), message_handler_);
-      if (statistics_log_file != NULL) {
+      if (statistics_log_file != nullptr) {
         FileWriter statistics_writer(statistics_log_file);
         DumpConsoleVarsToWriter(current_time_ms, &statistics_writer);
         statistics_writer.Flush(message_handler_);
@@ -265,7 +265,7 @@ void StatisticsLogger::DumpJSON(
     Writer* writer, MessageHandler* message_handler) const {
   FileSystem::InputFile* log_file =
       file_system_->OpenInputFile(logfile_name_.c_str(), message_handler);
-  if (log_file == NULL) {
+  if (log_file == nullptr) {
     // If logfile_name_ represents a file that doesn't exist, OpenInputFile
     // logged an error and log_file will be null.  Return an empty json object.
     writer->Write("{}", message_handler);

@@ -230,15 +230,15 @@ bool ImageOptimizer::ConfigureWriter() {
     case IMAGE_GIF:
       break;
     case IMAGE_PNG:
-      png_config.reset(
-          new PngCompressParams(
+      png_config = std::make_unique<PngCompressParams>(
+          
               options_.try_best_compression_for_png(),
-              false /* never use progressive format */));
+              false /* never use progressive format */);
       writer_config_.reset(png_config.release());
       result = true;
       break;
     case IMAGE_JPEG:
-      jpeg_config.reset(new JpegCompressionOptions);
+      jpeg_config = std::make_unique<JpegCompressionOptions>();
       jpeg_config->retain_color_profile = false;
       jpeg_config->retain_exif_data = false;
       jpeg_config->lossy = true;
@@ -248,7 +248,7 @@ bool ImageOptimizer::ConfigureWriter() {
       result = true;
       break;
     case IMAGE_WEBP:
-      webp_config.reset(new WebpConfiguration);
+      webp_config = std::make_unique<WebpConfiguration>();
       // Quality/speed trade-off (0=fast, 6=slower-better).
       // This is the default value in libpagespeed. We should evaluate
       // whether this is the optimal value, and consider making it
@@ -308,7 +308,7 @@ bool ImageOptimizer::RewriteSingleFrameImage() {
   ScanlineReaderInterface* processor = nullptr;
   std::unique_ptr<ScanlineResizer> resizer;
   if (need_resizing) {
-    resizer.reset(new ScanlineResizer(message_handler_));
+    resizer = std::make_unique<ScanlineResizer>(message_handler_);
     if (!resizer->Initialize(optimizer.get(), optimized_width_,
                              optimized_height_)) {
       return false;
@@ -371,9 +371,9 @@ bool ImageOptimizer::RewriteAnimatedImage() {
 
 bool ImageOptimizer::Run() {
   if (options_.max_timeout_ms() > 0 && timer_ != nullptr) {
-    timeout_handler_.reset(
-        new ConversionTimeoutHandler(options_.max_timeout_ms(), timer_,
-                                     message_handler_));
+    timeout_handler_ = std::make_unique<ConversionTimeoutHandler>(
+        options_.max_timeout_ms(), timer_,
+                                     message_handler_);
     if (timeout_handler_ != nullptr) {
       timeout_handler_->Start(optimized_contents_);
     }

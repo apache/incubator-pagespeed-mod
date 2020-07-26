@@ -21,6 +21,8 @@
 #include "pagespeed/opt/http/property_cache.h"
 
 #include <algorithm>
+#include <memory>
+
 #include <utility>
 
 #include "base/logging.h"
@@ -87,7 +89,7 @@ void PropertyPage::AddValueFromProtobuf(
   PropertyMapStruct* pmap_struct = cohort_itr->second;
   PropertyMap* pmap = &pmap_struct->pmap;
   PropertyValue* property = (*pmap)[pcache_value.name()];
-  if (property == NULL) {
+  if (property == nullptr) {
     property = new PropertyValue;
     (*pmap)[pcache_value.name()] = property;
     log_record()->AddFoundPropertyToCohortInfo(
@@ -171,7 +173,7 @@ PropertyValue::~PropertyValue() {
 }
 
 void PropertyValue::InitFromProtobuf(const PropertyValueProtobuf& value) {
-  proto_.reset(new PropertyValueProtobuf(value));
+  proto_ = std::make_unique<PropertyValueProtobuf>(value);
   changed_ = false;
   valid_ = true;
   was_read_ = true;
@@ -217,7 +219,7 @@ void PropertyPage::Abort() {
 
 void PropertyPage::Read(const PropertyCache::CohortVector& cohort_list) {
   DCHECK(!cohort_list.empty());
-  DCHECK(property_store_callback_ == NULL);
+  DCHECK(property_store_callback_ == nullptr);
   SetupCohorts(cohort_list);
   property_cache_->property_store()->Get(
       url_,
@@ -276,7 +278,7 @@ const PropertyCache::Cohort* PropertyCache::AddCohort(
     const StringPiece& cohort_name) {
   PropertyCache::Cohort* cohort = new PropertyCache::Cohort(cohort_name);
   std::pair<CohortMap::iterator, bool> insertions = cohorts_.insert(
-        make_pair(cohort->name(), static_cast<Cohort*>(NULL)));
+        make_pair(cohort->name(), static_cast<Cohort*>(nullptr)));
   CHECK(insertions.second) << cohort->name() << " is added twice.";
   insertions.first->second = cohort;
   cohort_list_.push_back(insertions.first->second);
@@ -289,7 +291,7 @@ const PropertyCache::Cohort* PropertyCache::GetCohort(
   cohort_name.CopyToString(&cohort_string);
   CohortMap::const_iterator p = cohorts_.find(cohort_string);
   if (p == cohorts_.end()) {
-    return NULL;
+    return nullptr;
   }
   const Cohort* cohort = p->second;
   return cohort;
@@ -323,12 +325,12 @@ PropertyPage::PropertyPage(
       request_context_(request_context),
       was_read_(false),
       property_cache_(property_cache),
-      property_store_callback_(NULL),
+      property_store_callback_(nullptr),
       page_type_(page_type) {
 }
 
 PropertyPage::~PropertyPage() {
-  if (property_store_callback_ != NULL) {
+  if (property_store_callback_ != nullptr) {
     property_store_callback_->DeleteWhenDone();
   }
   while (!cohort_data_map_.empty()) {
@@ -354,8 +356,8 @@ PropertyValue* PropertyPage::GetProperty(
     const StringPiece& property_name) {
   ScopedMutex lock(mutex_.get());
   DCHECK(was_read_);
-  DCHECK(cohort != NULL);
-  PropertyValue* property = NULL;
+  DCHECK(cohort != nullptr);
+  PropertyValue* property = nullptr;
   GoogleString property_name_str(property_name.data(), property_name.size());
   CohortDataMap::const_iterator cohort_itr = cohort_data_map_.find(cohort);
   CHECK(cohort_itr != cohort_data_map_.end());
@@ -364,7 +366,7 @@ PropertyValue* PropertyPage::GetProperty(
   property = (*pmap)[property_name_str];
   log_record()->AddRetrievedPropertyToCohortInfo(
       page_type_, cohort->name(), property_name.as_string());
-  if (property == NULL) {
+  if (property == nullptr) {
     property = new PropertyValue;
     (*pmap)[property_name_str] = property;
     property->set_was_read(was_read_);
@@ -375,7 +377,7 @@ PropertyValue* PropertyPage::GetProperty(
 void PropertyPage::UpdateValue(
     const PropertyCache::Cohort* cohort, const StringPiece& property_name,
     const StringPiece& value) {
-  if (cohort == NULL) {
+  if (cohort == nullptr) {
     // TODO(pulkitg): Change LOG(WARNING) to LOG(DFATAL).
     LOG(WARNING) << "Cohort is NULL in PropertyPage::UpdateValue()";
     return;
@@ -394,7 +396,7 @@ void PropertyPage::UpdateValue(
 }
 
 void PropertyPage::WriteCohort(const PropertyCache::Cohort* cohort) {
-  if (cohort == NULL) {
+  if (cohort == nullptr) {
     // TODO(pulkitg): Change LOG(WARNING) to LOG(DFATAL).
     LOG(WARNING) << "Cohort is NULL in PropertyPage::WriteCohort()";
     return;
@@ -409,7 +411,7 @@ void PropertyPage::WriteCohort(const PropertyCache::Cohort* cohort) {
           cache_key_suffix_,
           cohort,
           &values,
-          NULL);
+          nullptr);
     }
   }
 }
@@ -418,7 +420,7 @@ CacheInterface::KeyState PropertyPage::GetCacheState(
     const PropertyCache::Cohort* cohort) {
   ScopedMutex lock(mutex_.get());
   DCHECK(was_read_);
-  DCHECK(cohort != NULL);
+  DCHECK(cohort != nullptr);
   CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
   CHECK(cohort_itr != cohort_data_map_.end());
   PropertyMapStruct* pmap_struct = cohort_itr->second;
@@ -429,7 +431,7 @@ void PropertyPage::SetCacheState(
     const PropertyCache::Cohort* cohort,
     CacheInterface::KeyState x) {
   ScopedMutex lock(mutex_.get());
-  DCHECK(cohort != NULL);
+  DCHECK(cohort != nullptr);
   CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
   CHECK(cohort_itr != cohort_data_map_.end());
   PropertyMapStruct* pmap_struct = cohort_itr->second;
@@ -439,7 +441,7 @@ void PropertyPage::SetCacheState(
 void PropertyPage::DeleteProperty(
     const PropertyCache::Cohort* cohort, const StringPiece& property_name) {
   DCHECK(was_read_);
-  DCHECK(cohort != NULL);
+  DCHECK(cohort != nullptr);
   ScopedMutex lock(mutex_.get());
   CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
   if (cohort_itr == cohort_data_map_.end()) {
@@ -459,7 +461,7 @@ void PropertyPage::DeleteProperty(
 
 bool PropertyPage::IsCohortPresent(const PropertyCache::Cohort* cohort) {
   ScopedMutex lock(mutex_.get());
-  DCHECK(cohort != NULL);
+  DCHECK(cohort != nullptr);
   CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
   CHECK(cohort_itr != cohort_data_map_.end());
   PropertyMapStruct* pmap_struct = cohort_itr->second;
@@ -467,7 +469,7 @@ bool PropertyPage::IsCohortPresent(const PropertyCache::Cohort* cohort) {
 }
 
 void PropertyPage::FastFinishLookup() {
-  if (property_store_callback_ != NULL) {
+  if (property_store_callback_ != nullptr) {
     property_store_callback_->FastFinishLookup();
   }
 }

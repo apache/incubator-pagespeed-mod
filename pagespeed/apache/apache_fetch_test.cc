@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "pagespeed/apache/apache_fetch.h"
 
 #include "net/instaweb/http/public/http_cache.h"
@@ -75,7 +79,7 @@ class ApacheFetchTest : public RewriteTestBase {
   }
 
   void TearDown() override {
-    apache_fetch_.reset(NULL);
+    apache_fetch_.reset(nullptr);
     RewriteTestBase::TearDown();
   }
 
@@ -91,9 +95,9 @@ class ApacheFetchTest : public RewriteTestBase {
     // Takes ownership of apache_writer and request_headers but nothing else.
     // Keeping a copy them violates ApacheFetch's mutex guarantees, and should
     // only be done by tests.
-    apache_fetch_.reset(new ApacheFetch(
+    apache_fetch_ = std::make_unique<ApacheFetch>(
         url.as_string(), kDebugInfo, rewrite_driver_, apache_writer_,
-        request_headers_, request_ctx_, options(), message_handler()));
+        request_headers_, request_ctx_, options(), message_handler());
     apache_fetch_->set_buffered(buffered);
     apache_fetch_->response_headers()->SetStatusAndReason(code);
 
@@ -145,7 +149,7 @@ class ApacheFetchTest : public RewriteTestBase {
                      "ap_set_content_type(application/javascript) "
                      "ap_rwrite(", kJsData, ")"),
               MockApache::ActionsSinceLastCall());
-    apache_fetch_.reset(NULL);
+    apache_fetch_.reset(nullptr);
   }
 
   void ReleaseKey(GoogleString key) {

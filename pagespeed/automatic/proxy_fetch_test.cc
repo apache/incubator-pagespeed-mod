@@ -20,6 +20,10 @@
 
 // Unit-tests for ProxyFetch and related classes
 
+#include <memory>
+
+
+
 #include "pagespeed/automatic/proxy_fetch.h"
 
 #include "base/logging.h"
@@ -56,12 +60,12 @@ class MockProxyFetch : public ProxyFetch {
                  ProxyFetchFactory* factory,
                  ServerContext* server_context)
       : ProxyFetch("http://www.google.com", false,
-                   NULL,  // callback
+                   nullptr,  // callback
                    async_fetch,
-                   NULL,  // no original content fetch
+                   nullptr,  // no original content fetch
                    GetNewRewriteDriver(server_context, async_fetch),
                    server_context,
-                   NULL,  // timer
+                   nullptr,  // timer
                    factory),
         complete_(false) {
     response_headers()->set_status_code(HttpStatus::kOK);
@@ -114,15 +118,15 @@ class ManagedMockProxyFetch {
     // Suppresses parsing and the invocation of mock_proxy_fetch_->Done().
     server_context->global_options()->set_max_html_parse_bytes(0L);
     server_context->global_options()->ComputeSignature();
-    message_handler_.reset(new NullMessageHandler());
-    async_fetch_.reset(new StringAsyncFetch(
+    message_handler_ = std::make_unique<NullMessageHandler>();
+    async_fetch_ = std::make_unique<StringAsyncFetch>(
         RequestContext::NewTestRequestContext(
-            server_context->thread_system())));
+            server_context->thread_system()));
     async_fetch_->response_headers()->Add("Content-Type", "text/html");
     async_fetch_->response_headers()->ComputeCaching();
     async_fetch_->request_context()->set_sticky_query_parameters_token(
         sticky_query_parameters_token);
-    fetch_factory_.reset(new ProxyFetchFactory(server_context));
+    fetch_factory_ = std::make_unique<ProxyFetchFactory>(server_context);
     mock_proxy_fetch_ = new MockProxyFetch(async_fetch_.get(),
                                            fetch_factory_.get(),
                                            server_context);
@@ -153,7 +157,7 @@ class ProxyFetchPropertyCallbackCollectorTest : public RewriteTestBase {
   void CheckPageNotNullPostLookupTask(
       ProxyFetchPropertyCallbackCollector* collector,
       WorkerTestBase::SyncPoint* sync_point) {
-    EXPECT_TRUE(collector->fallback_property_page() != NULL);
+    EXPECT_TRUE(collector->fallback_property_page() != nullptr);
     sync_point->Notify();
   }
 
@@ -186,7 +190,7 @@ class ProxyFetchPropertyCallbackCollectorTest : public RewriteTestBase {
             RequestContext::NewTestRequestContext(thread_system_.get()),
             options(), UserAgentMatcher::kDesktop);
     // Collector should not contain any PropertyPages
-    EXPECT_EQ(NULL, collector->ReleasePropertyPage(
+    EXPECT_EQ(nullptr, collector->ReleasePropertyPage(
         ProxyFetchPropertyCallback::kPropertyCachePage));
 
     return collector;
@@ -425,7 +429,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeDetach) {
   // Collector should now have a page property.
   std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
-  EXPECT_TRUE(NULL != page.get());
+  EXPECT_TRUE(nullptr != page.get());
 
   // This should not fail - will also delete the collector.
   collector->Detach(HttpStatus::kUnknownStatusCode);
@@ -450,7 +454,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, UrlInvalidDoneBeforeDetach) {
   // Collector should now have a page property.
   std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
-  EXPECT_TRUE(NULL != page.get());
+  EXPECT_TRUE(nullptr != page.get());
 
   // This should not fail - will also delete the collector.
   collector->Detach(HttpStatus::kUnknownStatusCode);
@@ -508,7 +512,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, DoneBeforeSetProxyFetch) {
   // Collector should now have a page property.
   std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
-  EXPECT_TRUE(NULL != page.get());
+  EXPECT_TRUE(nullptr != page.get());
 
   collector.get()->ConnectProxyFetch(mock_proxy_fetch);
   // Should be complete since SetProxyFetch() called after Done().
@@ -549,7 +553,7 @@ TEST_F(ProxyFetchPropertyCallbackCollectorTest, SetProxyFetchBeforeDone) {
   // Collector should now have a page property.
   std::unique_ptr<AbstractPropertyPage> page;
   page.reset(collector->ReleaseFallbackPropertyPage());
-  EXPECT_TRUE(NULL != page.get());
+  EXPECT_TRUE(nullptr != page.get());
 
   // Not yet complete since RequestHeadersComplete() not called yet.
   EXPECT_FALSE(mock_proxy_fetch->complete());

@@ -28,7 +28,7 @@ namespace net_instaweb {
 RemoveCommentsFilter::~RemoveCommentsFilter() {}
 
 void RemoveCommentsFilter::Comment(HtmlCommentNode* comment) {
-  if ((options_ == NULL) ||
+  if ((options_ == nullptr) ||
       !options_->IsRetainedComment(comment->contents())) {
     html_parse_->DeleteNode(comment);
   }

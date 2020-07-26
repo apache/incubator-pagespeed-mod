@@ -20,12 +20,12 @@
 
 #include "pagespeed/system/controller_manager.h"
 
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
 #include <poll.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <cerrno>
-#include <cstdlib>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/string.h"

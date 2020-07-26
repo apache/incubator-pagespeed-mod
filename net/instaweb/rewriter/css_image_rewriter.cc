@@ -99,7 +99,7 @@ bool CssImageRewriter::RewriteImport(RewriteContext* parent,
   GoogleUrl import_url(hierarchy->url());
   ResourcePtr resource = driver()->CreateInputResource(
       import_url, RewriteDriver::InputRole::kStyle, is_authorized);
-  if (resource.get() == NULL) {
+  if (resource.get() == nullptr) {
     return false;
   }
 
@@ -119,7 +119,7 @@ bool CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
   const RewriteOptions* options = driver()->options();
   ResourcePtr resource = driver()->CreateInputResource(
       original_url, RewriteDriver::InputRole::kImg, is_authorized);
-  if (resource.get() == NULL) {
+  if (resource.get() == nullptr) {
     return false;
   }
 

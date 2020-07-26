@@ -141,7 +141,7 @@ void CriticalImagesBeaconFilter::MaybeAddBeaconJavascript(
   StrAppend(&js, send_beacon_at_onload, ",",
             resize_rendered_image_dimensions_enabled, ",'",
             beacon_metadata_.nonce, "');");
-  HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
   driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                          StringPiece());
   // Always add the beacon js before the current node, because the current node
@@ -172,7 +172,7 @@ void CriticalImagesBeaconFilter::EndElementImpl(HtmlElement* element) {
     // original URL. This is what the beacon will send back as the identifier
     // for critical images.
     HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-    if (src != NULL && src->DecodedValueOrNull() != NULL) {
+    if (src != nullptr && src->DecodedValueOrNull() != nullptr) {
       StringPiece url(src->DecodedValueOrNull());
       GoogleUrl gurl(driver()->base_url(), url);
       if (gurl.IsAnyValid()) {

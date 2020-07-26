@@ -688,7 +688,7 @@ class InstawebCacheComputer : public CachingHeaders {
       return true;  // redirects are cacheable
     }
     const ContentType* type = response_headers_.DetermineContentType();
-    return (type != NULL) && type->IsLikelyStaticResource();
+    return (type != nullptr) && type->IsLikelyStaticResource();
   }
 
   bool Lookup(const StringPiece& key, StringPieceVector* values) override {
@@ -745,7 +745,7 @@ void ResponseHeaders::ComputeCaching() {
   const ContentType* type = DetermineContentType();
   if ((force_cache_ttl_ms_) > 0 &&
       (status_code() == HttpStatus::kOK)) {
-    force_caching_enabled = (type == NULL) || !type->IsHtmlLike();
+    force_caching_enabled = (type == nullptr) || !type->IsHtmlLike();
   }
 
   // Note: Unlike pagespeed algorithm, we are very conservative about calling
@@ -794,7 +794,7 @@ void ResponseHeaders::ComputeCaching() {
     // Do not cache HTML or redirects with Set-Cookie / Set-Cookie2 header even
     // though they may have explicit caching directives. This is to prevent the
     // caching of user sensitive data due to misconfigured caching headers.
-    if (((type != NULL && type->IsHtmlLike()) ||
+    if (((type != nullptr && type->IsHtmlLike()) ||
          computer.IsRedirectStatusCode()) &&
         (Has(HttpAttributes::kSetCookie) || Has(HttpAttributes::kSetCookie2))) {
       proto->set_proxy_cacheable(false);
@@ -841,7 +841,7 @@ GoogleString ResponseHeaders::CacheControlValuesToPreserve() {
 GoogleString ResponseHeaders::ToString() const {
   GoogleString str;
   StringWriter writer(&str);
-  WriteAsHttp(&writer, NULL);
+  WriteAsHttp(&writer, nullptr);
   return str;
 }
 
@@ -862,7 +862,7 @@ bool ResponseHeaders::IsGzipped() const {
   bool found = Lookup(HttpAttributes::kContentEncoding, &v);
   if (found) {
     for (int i = 0, n = v.size(); i < n; ++i) {
-      if ((v[i] != NULL) && StringCaseEqual(*v[i], HttpAttributes::kGzip)) {
+      if ((v[i] != nullptr) && StringCaseEqual(*v[i], HttpAttributes::kGzip)) {
         return true;
       }
     }
@@ -875,7 +875,7 @@ bool ResponseHeaders::WasGzippedLast() const {
   bool found = Lookup(HttpAttributes::kContentEncoding, &v);
   if (found) {
     int index = v.size() - 1;
-    if ((index > -1) && (v[index] != NULL) &&
+    if ((index > -1) && (v[index] != nullptr) &&
         StringCaseEqual(*v[index], HttpAttributes::kGzip)) {
       return true;
     }
@@ -889,11 +889,11 @@ void ResponseHeaders::DetermineContentTypeAndCharset(
     const ContentType** content_type_out, GoogleString* charset_out) const {
   ConstStringStarVector content_types;
 
-  if (content_type_out != NULL) {
-    *content_type_out = NULL;
+  if (content_type_out != nullptr) {
+    *content_type_out = nullptr;
   }
 
-  if (charset_out != NULL) {
+  if (charset_out != nullptr) {
     charset_out->clear();
   }
 
@@ -909,11 +909,11 @@ void ResponseHeaders::DetermineContentTypeAndCharset(
       charset.clear();
     }
 
-    if (content_type_out != NULL) {
+    if (content_type_out != nullptr) {
       *content_type_out = MimeTypeToContentType(mime_type);
     }
 
-    if (charset_out != NULL) {
+    if (charset_out != nullptr) {
       *charset_out = charset;
     }
   }
@@ -921,20 +921,20 @@ void ResponseHeaders::DetermineContentTypeAndCharset(
 
 GoogleString ResponseHeaders::DetermineCharset() const {
   GoogleString charset;
-  DetermineContentTypeAndCharset(NULL, &charset);
+  DetermineContentTypeAndCharset(nullptr, &charset);
   return charset;
 }
 
 const ContentType* ResponseHeaders::DetermineContentType() const {
-  const ContentType* content_type = NULL;
-  DetermineContentTypeAndCharset(&content_type, NULL);
+  const ContentType* content_type = nullptr;
+  DetermineContentTypeAndCharset(&content_type, nullptr);
   return content_type;
 }
 
 bool ResponseHeaders::ParseDateHeader(
     const StringPiece& attr, int64* date_ms) const {
   const char* date_string = Lookup1(attr);
-  return (date_string != NULL) && ConvertStringToTime(date_string, date_ms);
+  return (date_string != nullptr) && ConvertStringToTime(date_string, date_ms);
 }
 
 void ResponseHeaders::ParseFirstLine(const StringPiece& first_line) {
@@ -980,7 +980,7 @@ void ResponseHeaders::SetCacheControlMaxAge(int64 ttl_ms) {
       StrCat("max-age=", Integer64ToString(ttl_ms / Timer::kSecondMs));
 
   for (int i = 0, n = values.size(); i < n; ++i) {
-    if (values[i] != NULL) {
+    if (values[i] != nullptr) {
       StringPiece val(*values[i]);
       if (!val.empty() && !StringCaseStartsWith(val, "max-age")) {
         StrAppend(&new_cache_control_value, ",", val);
@@ -1021,7 +1021,7 @@ void ResponseHeaders::DebugPrint() const {
 
 bool ResponseHeaders::FindContentLength(int64* content_length) const {
   const char* val = Lookup1(HttpAttributes::kContentLength);
-  return (val != NULL) && StringToInt64(val, content_length);
+  return (val != nullptr) && StringToInt64(val, content_length);
 }
 
 void ResponseHeaders::ForceCaching(int64 ttl_ms) {
@@ -1095,10 +1095,10 @@ bool ResponseHeaders::HasCookie(StringPiece name,
   CookieMultimapConstIter from = cookies->lower_bound(name);
   CookieMultimapConstIter to = cookies->upper_bound(name);
   for (CookieMultimapConstIter iter = from; iter != to; ++iter) {
-    if (values != NULL) {
+    if (values != nullptr) {
       values->push_back(iter->second.first);
     }
-    if (attributes != NULL) {
+    if (attributes != nullptr) {
       StringPieceVector items;
       SplitStringPieceToVector(iter->second.second, ";", &items, true);
       attributes->insert(attributes->end(), items.begin(), items.end());
@@ -1154,7 +1154,7 @@ bool ResponseHeaders::SetQueryParamsAsCookies(
       // double-escape by GoogleUrl escaping the QueryParams escaped value.
       const GoogleString* value = params.EscapedValue(i);
       GoogleString escaped_value;
-      if (value != NULL) {
+      if (value != nullptr) {
         escaped_value = StrCat("=", GoogleUrl::EscapeQueryParam(*value));
       }
       GoogleString cookie = StrCat(

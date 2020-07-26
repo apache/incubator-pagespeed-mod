@@ -20,7 +20,7 @@
 
 // Unit-test the string-splitter.
 
-#include <locale.h>
+#include <clocale>
 #include <cstddef>
 #include <set>
 #include <vector>
@@ -382,7 +382,7 @@ TEST(StringCaseTest, Locale) {
   // available from mod_pagespeed development environments, or it
   // can be installed via:
   //    sudo apt-get install language-pack-tr-base
-  if (setlocale(LC_ALL, "tr_TR.utf8") != NULL) {
+  if (setlocale(LC_ALL, "tr_TR.utf8") != nullptr) {
     EXPECT_TRUE(StringCaseEqual("div", "DIV"));
 
     // TODO(jmarantz): Leaving the locale set as above is certainly
@@ -600,7 +600,7 @@ TEST(BasicUtilsTest, SplitStringUsingSubstr3) {
 }
 
 TEST(BasicUtilsTest, StringPieceFindWithNull) {
-  StringPiece null_piece(NULL, 0);
+  StringPiece null_piece(nullptr, 0);
   EXPECT_EQ(StringPiece::npos, null_piece.find("not found"));
 }
 

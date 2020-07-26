@@ -54,7 +54,7 @@ MockUrlFetcher::MockUrlFetcher()
       split_writes_(false),
       supports_https_(false),
       strip_query_params_(false),
-      timer_(NULL),
+      timer_(nullptr),
       thread_system_(Platform::CreateThreadSystem()),
       // TODO(hujie): We should pass in the mutex at all call-sites instead of
       //     creating a new mutex here.
@@ -190,7 +190,7 @@ void MockUrlFetcher::Fetch(
     const char* referer = request_headers.Lookup1(HttpAttributes::kReferer);
     {
       ScopedMutex lock(mutex_.get());
-      if (referer == NULL) {
+      if (referer == nullptr) {
         last_referer_.clear();
       } else {
         last_referer_ = referer;
@@ -236,7 +236,7 @@ void MockUrlFetcher::Fetch(
           return;
         }
         if (update_date_headers) {
-          CHECK(timer != NULL);
+          CHECK(timer != nullptr);
           // Update Date headers.
           response_headers->SetDate(timer_->NowMs());
         }

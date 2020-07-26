@@ -139,7 +139,7 @@ class RateController::HostFetchInfo
     ScopedMutex lock(mutex_.get());
     if (fetch_queue_.empty() ||
         num_outbound_fetches_ >= per_host_outgoing_request_threshold_) {
-      return NULL;
+      return nullptr;
     }
     DeferredFetch* fetch = fetch_queue_.front();
     fetch_queue_.pop();
@@ -194,7 +194,7 @@ class RateController::CustomFetch : public SharedAsyncFetch {
     // outstanding fetches for the host is less than the threshold.
     DeferredFetch* deferred_fetch =
         fetch_info_->PopNextFetchAndIncrementCountIfWithinThreshold();
-    if (deferred_fetch != NULL) {
+    if (deferred_fetch != nullptr) {
       DCHECK_GT(controller_->current_global_fetch_queue_size_->Get(), 0);
       controller_->current_global_fetch_queue_size_->Add(-1);
       // Trigger a fetch for the queued up request.

@@ -35,8 +35,8 @@ class ContentTypeTest : public testing::Test {
 };
 
 TEST_F(ContentTypeTest, TestUnknown) {
-  EXPECT_EQ(NULL, NameExtensionToContentType(".unknown"));
-  EXPECT_EQ(NULL, MimeTypeToContentType("unknown/unknown"));
+  EXPECT_EQ(nullptr, NameExtensionToContentType(".unknown"));
+  EXPECT_EQ(nullptr, MimeTypeToContentType("unknown/unknown"));
 }
 
 TEST_F(ContentTypeTest, TestExtensions) {

@@ -24,8 +24,8 @@
 
 #include "webutil/html/htmlcolor.h"
 
-#include <string.h>
 #include <cmath>
+#include <cstring>
 
 #include "strings/ascii_ctype.h"
 #include "strings/case.h"
@@ -198,7 +198,7 @@ static const RgbValue known_color_values[] = {
 // mainly because of consideration of efficiency
 static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
   if (colorstr.size() <= 2) {
-    return NULL;
+    return nullptr;
   }
   switch (ascii_tolower(colorstr[0])) {
     case 'a':
@@ -207,38 +207,38 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           if (CaseEqual("aliceblue", colorstr)) {
             return &known_color_values[0];
           }
-          return NULL;
+          return nullptr;
         case 'n':
           if (CaseEqual("antiquewhite", colorstr)) {
             return &known_color_values[1];
           }
-          return NULL;
+          return nullptr;
         case 'q':
           if (CaseEqual("aqua", colorstr)) {
             return &known_color_values[2];
           } else if (CaseEqual("aquamarine", colorstr)) {
             return &known_color_values[3];
           }
-          return NULL;
+          return nullptr;
         case 'z':
           if (CaseEqual("azure", colorstr)) {
             return &known_color_values[4];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'b':
       switch (ascii_tolower(colorstr[1])) {
         case 'e':
           if (CaseEqual("beige", colorstr)) {
             return &known_color_values[5];
           }
-          return NULL;
+          return nullptr;
         case 'i':
           if (CaseEqual("bisque", colorstr)) {
             return &known_color_values[6];
           }
-          return NULL;
+          return nullptr;
         case 'l':
           if (CaseEqual("black", colorstr)) {
             return &known_color_values[7];
@@ -249,33 +249,33 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("blueviolet", colorstr)) {
             return &known_color_values[10];
           }
-          return NULL;
+          return nullptr;
         case 'r':
           if (CaseEqual("brown", colorstr)) {
             return &known_color_values[11];
           }
-          return NULL;
+          return nullptr;
         case 'u':
           if (CaseEqual("burlywood", colorstr)) {
             return &known_color_values[12];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'c':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
           if (CaseEqual("cadetblue", colorstr)) {
             return &known_color_values[13];
           }
-          return NULL;
+          return nullptr;
         case 'h':
           if (CaseEqual("chartreuse", colorstr)) {
             return &known_color_values[14];
           } else if (CaseEqual("chocolate", colorstr)) {
             return &known_color_values[15];
           }
-          return NULL;
+          return nullptr;
         case 'o':
           if (CaseEqual("coral", colorstr)) {
             return &known_color_values[16];
@@ -284,20 +284,20 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("cornsilk", colorstr)) {
             return &known_color_values[18];
           }
-          return NULL;
+          return nullptr;
         case 'r':
           if (CaseEqual("crimson", colorstr)) {
             return &known_color_values[19];
           }
-          return NULL;
+          return nullptr;
         case 'y':
           if (CaseEqual("cyan", colorstr)) {
             return &known_color_values[20];
           }
-          return NULL;
+          return nullptr;
       }
 
-      return NULL;
+      return nullptr;
     case 'd':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
@@ -340,71 +340,71 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("darkviolet", colorstr)) {
             return &known_color_values[39];
           }
-          return NULL;
+          return nullptr;
         case 'e':
           if (CaseEqual("deeppink", colorstr)) {
             return &known_color_values[40];
           } else if (CaseEqual("deepskyblue", colorstr)) {
             return &known_color_values[41];
           }
-          return NULL;
+          return nullptr;
         case 'i':
           if (CaseEqual("dimgray", colorstr)) {
             return &known_color_values[42];
           } else if (CaseEqual("dimgrey", colorstr)) {
             return &known_color_values[43];
           }
-          return NULL;
+          return nullptr;
         case 'o':
           if (CaseEqual("dodgerblue", colorstr)) {
             return &known_color_values[44];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'f':
       switch (ascii_tolower(colorstr[1])) {
         case 'i':
           if (CaseEqual("firebrick", colorstr)) {
             return &known_color_values[45];
           }
-          return NULL;
+          return nullptr;
         case 'l':
           if (CaseEqual("floralwhite", colorstr)) {
             return &known_color_values[46];
           }
-          return NULL;
+          return nullptr;
         case 'o':
           if (CaseEqual("forestgreen", colorstr)) {
             return &known_color_values[47];
           }
-          return NULL;
+          return nullptr;
         case 'u':
           if (CaseEqual("fuchsia", colorstr)) {
             return &known_color_values[48];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'g':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
           if (CaseEqual("gainsboro", colorstr)) {
             return &known_color_values[49];
           }
-          return NULL;
+          return nullptr;
         case 'h':
           if (CaseEqual("ghostwhite", colorstr)) {
             return &known_color_values[50];
           }
-          return NULL;
+          return nullptr;
         case 'o':
           if (CaseEqual("gold", colorstr)) {
             return &known_color_values[51];
           } else if (CaseEqual("goldenrod", colorstr)) {
             return &known_color_values[52];
           }
-          return NULL;
+          return nullptr;
         case 'r':
           if (CaseEqual("gray", colorstr)) {
             return &known_color_values[53];
@@ -415,16 +415,16 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("greenyellow", colorstr)) {
             return &known_color_values[56];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'h':
       if (CaseEqual("honeydew", colorstr)) {
         return &known_color_values[57];
       } else if (CaseEqual("hotpink", colorstr)) {
         return &known_color_values[58];
       }
-      return NULL;
+      return nullptr;
     case 'i':
       if (CaseEqual("indianred", colorstr)) {
         return &known_color_values[59];
@@ -433,12 +433,12 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
       } else if (CaseEqual("ivory", colorstr)) {
         return &known_color_values[61];
       }
-      return NULL;
+      return nullptr;
     case 'k':
       if (CaseEqual("khaki", colorstr)) {
         return &known_color_values[62];
       }
-      return NULL;
+      return nullptr;
     case 'l':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
@@ -449,12 +449,12 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("lawngreen", colorstr)) {
             return &known_color_values[65];
           }
-          return NULL;
+          return nullptr;
         case 'e':
           if (CaseEqual("lemonchiffon", colorstr)) {
             return &known_color_values[66];
           }
-          return NULL;
+          return nullptr;
         case 'i':
           if (CaseEqual("lightblue", colorstr)) {
             return &known_color_values[67];
@@ -493,9 +493,9 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("linen", colorstr)) {
             return &known_color_values[84];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'm':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
@@ -504,7 +504,7 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("maroon", colorstr)) {
             return &known_color_values[86];
           }
-          return NULL;
+          return nullptr;
         case 'e':
           if (CaseEqual("mediumaquamarine", colorstr)) {
             return &known_color_values[87];
@@ -525,7 +525,7 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("mediumvioletred", colorstr)) {
             return &known_color_values[95];
           }
-          return NULL;
+          return nullptr;
         case 'i':
           if (CaseEqual("midnightblue", colorstr)) {
             return &known_color_values[96];
@@ -534,21 +534,21 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("mistyrose", colorstr)) {
             return &known_color_values[98];
           }
-          return NULL;
+          return nullptr;
         case 'o':
           if (CaseEqual("moccasin", colorstr)) {
             return &known_color_values[99];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'n':
       if (CaseEqual("navajowhite", colorstr)) {
         return &known_color_values[100];
       } else if (CaseEqual("navy", colorstr)) {
         return &known_color_values[101];
       }
-      return NULL;
+      return nullptr;
     case 'o':
       switch (ascii_tolower(colorstr[1])) {
         case 'l':
@@ -559,7 +559,7 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("olivedrab", colorstr)) {
             return &known_color_values[104];
           }
-          return NULL;
+          return nullptr;
         case 'r':
           if (CaseEqual("orange", colorstr)) {
             return &known_color_values[105];
@@ -568,9 +568,9 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("orchid", colorstr)) {
             return &known_color_values[107];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'p':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
@@ -585,36 +585,36 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("papayawhip", colorstr)) {
             return &known_color_values[112];
           }
-          return NULL;
+          return nullptr;
         case 'e':
           if (CaseEqual("peachpuff", colorstr)) {
             return &known_color_values[113];
           } else if (CaseEqual("peru", colorstr)) {
             return &known_color_values[114];
           }
-          return NULL;
+          return nullptr;
         case 'i':
           if (CaseEqual("pink", colorstr)) {
             return &known_color_values[115];
           }
-          return NULL;
+          return nullptr;
         case 'l':
           if (CaseEqual("plum", colorstr)) {
             return &known_color_values[116];
           }
-          return NULL;
+          return nullptr;
         case 'o':
           if (CaseEqual("powderblue", colorstr)) {
             return &known_color_values[117];
           }
-          return NULL;
+          return nullptr;
         case 'u':
           if (CaseEqual("purple", colorstr)) {
             return &known_color_values[118];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'r':
       if (CaseEqual("red", colorstr)) {
         return &known_color_values[119];
@@ -623,7 +623,7 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
       } else if (CaseEqual("royalblue", colorstr)) {
         return &known_color_values[121];
       }
-      return NULL;
+      return nullptr;
     case 's':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
@@ -634,26 +634,26 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("sandybrown", colorstr)) {
             return &known_color_values[124];
           }
-          return NULL;
+          return nullptr;
         case 'e':
           if (CaseEqual("seagreen", colorstr)) {
             return &known_color_values[125];
           } else if (CaseEqual("seashell", colorstr)) {
             return &known_color_values[126];
           }
-          return NULL;
+          return nullptr;
         case 'i':
           if (CaseEqual("sienna", colorstr)) {
             return &known_color_values[127];
           } else if (CaseEqual("silver", colorstr)) {
             return &known_color_values[128];
           }
-          return NULL;
+          return nullptr;
         case 'k':
           if (CaseEqual("skyblue", colorstr)) {
             return &known_color_values[129];
           }
-          return NULL;
+          return nullptr;
         case 'l':
           if (CaseEqual("slateblue", colorstr)) {
             return &known_color_values[130];
@@ -662,58 +662,58 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
           } else if (CaseEqual("slategrey", colorstr)) {
             return &known_color_values[132];
           }
-          return NULL;
+          return nullptr;
         case 'n':
           if (CaseEqual("snow", colorstr)) {
             return &known_color_values[133];
           }
-          return NULL;
+          return nullptr;
         case 'p':
           if (CaseEqual("springgreen", colorstr)) {
             return &known_color_values[134];
           }
-          return NULL;
+          return nullptr;
         case 't':
           if (CaseEqual("steelblue", colorstr)) {
             return &known_color_values[135];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 't':
       switch (ascii_tolower(colorstr[1])) {
         case 'a':
           if (CaseEqual("tan", colorstr)) {
             return &known_color_values[136];
           }
-          return NULL;
+          return nullptr;
         case 'e':
           if (CaseEqual("teal", colorstr)) {
             return &known_color_values[137];
           }
-          return NULL;
+          return nullptr;
         case 'h':
           if (CaseEqual("thistle", colorstr)) {
             return &known_color_values[138];
           }
-          return NULL;
+          return nullptr;
         case 'o':
           if (CaseEqual("tomato", colorstr)) {
             return &known_color_values[139];
           }
-          return NULL;
+          return nullptr;
         case 'u':
           if (CaseEqual("turquoise", colorstr)) {
             return &known_color_values[140];
           }
-          return NULL;
+          return nullptr;
       }
-      return NULL;
+      return nullptr;
     case 'v':
       if (CaseEqual("violet", colorstr)) {
         return &known_color_values[141];
       }
-      return NULL;
+      return nullptr;
     case 'w':
       if (CaseEqual("wheat", colorstr)) {
         return &known_color_values[142];
@@ -722,17 +722,17 @@ static const RgbValue* GetKnownColorValue(CssStringPiece colorstr) {
       } else if (CaseEqual("whitesmoke", colorstr)) {
         return &known_color_values[144];
       }
-      return NULL;
+      return nullptr;
     case 'y':
       if (CaseEqual("yellow", colorstr)) {
         return &known_color_values[145];
       } else if (CaseEqual("yellowgreen", colorstr)) {
         return &known_color_values[146];
       }
-      return NULL;
+      return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }  // NOLINT
 
 const unsigned char HtmlColor::kGoodColorValue;

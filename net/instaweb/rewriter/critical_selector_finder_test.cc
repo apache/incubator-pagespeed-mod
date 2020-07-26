@@ -159,7 +159,7 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
     finder_->GetCriticalSelectors(rewrite_driver());
     CriticalKeys* selectors =
         &rewrite_driver()->critical_selector_info()->proto;
-    if (selectors != NULL) {
+    if (selectors != nullptr) {
       EXPECT_EQ(expected_size, selectors->key_evidence_size());
     } else {
       EXPECT_EQ(expected_size, 0);
@@ -175,7 +175,7 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
     // Check for .foo and #bar support, with no support for other beaconed
     // candidates.
     CriticalKeys* read_selectors = RawCriticalSelectorSet(5);
-    ASSERT_TRUE(read_selectors != NULL);
+    ASSERT_TRUE(read_selectors != nullptr);
     EXPECT_EQ("#bar", read_selectors->key_evidence(0).key());
     EXPECT_EQ(bar_support, read_selectors->key_evidence(0).support());
     EXPECT_EQ("#c", read_selectors->key_evidence(1).key());
@@ -198,11 +198,11 @@ TEST_F(CriticalSelectorFinderTest, StoreRestore) {
   CheckCriticalSelectorFinderStats(0, 0, 0);
   CriticalSelectorInfo* read_selectors =
       rewrite_driver()->critical_selector_info();
-  EXPECT_TRUE(read_selectors == NULL);
+  EXPECT_TRUE(read_selectors == nullptr);
   StringSet critical_selectors =
       finder_->GetCriticalSelectors(rewrite_driver());
   read_selectors = rewrite_driver()->critical_selector_info();
-  EXPECT_TRUE(read_selectors != NULL);
+  EXPECT_TRUE(read_selectors != nullptr);
   EXPECT_TRUE(critical_selectors.empty());
   CheckCriticalSelectorFinderStats(0, 0, 1);
 
@@ -219,7 +219,7 @@ TEST_F(CriticalSelectorFinderTest, StoreRestore) {
   WriteBackAndResetDriver();
   AdvanceTimeMs(2 * options()->finder_properties_cache_expiration_time_ms());
   read_selectors = rewrite_driver()->critical_selector_info();
-  EXPECT_TRUE(read_selectors == NULL);
+  EXPECT_TRUE(read_selectors == nullptr);
   critical_selectors = finder_->GetCriticalSelectors(rewrite_driver());
   CheckCriticalSelectorFinderStats(1, 1, 2);
 }
@@ -341,7 +341,7 @@ TEST_F(CriticalSelectorFinderTest, DuplicateEntries) {
 
   // Now cross-check the critical selector set.
   CriticalKeys* read_selectors = RawCriticalSelectorSet(5);
-  ASSERT_TRUE(read_selectors != NULL);
+  ASSERT_TRUE(read_selectors != nullptr);
   EXPECT_EQ("#bar", read_selectors->key_evidence(0).key());
   EXPECT_EQ("#c", read_selectors->key_evidence(1).key());
   EXPECT_EQ(".a", read_selectors->key_evidence(2).key());
@@ -486,7 +486,7 @@ class UnverifiedCriticalSelectorFinder : public CriticalSelectorFinder {
  public:
   UnverifiedCriticalSelectorFinder(const PropertyCache::Cohort* cohort,
                                    Statistics* stats)
-      : CriticalSelectorFinder(cohort, NULL, stats) {}
+      : CriticalSelectorFinder(cohort, nullptr, stats) {}
   ~UnverifiedCriticalSelectorFinder() override {}
 
   int SupportInterval() const override { return 10; }

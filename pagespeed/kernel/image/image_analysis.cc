@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <memory>
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -116,7 +118,7 @@ bool SobelGradient(const uint8_t* image, int width, int height,
   } else {
     int32_t* luminance = static_cast<int32_t*>(malloc(width * height *
                                                       sizeof(int32_t)));
-    if (luminance == NULL) {
+    if (luminance == nullptr) {
       return false;
     }
 
@@ -198,7 +200,7 @@ float PhotoMetric(const uint8_t* image, int width, int height,
 
   uint8_t* gradient = static_cast<uint8_t*>(malloc(width * height *
                                                    sizeof(uint8_t)));
-  if (gradient == NULL) {
+  if (gradient == nullptr) {
     return KMinMetric;
   }
 
@@ -237,12 +239,12 @@ bool IsPhoto(ScanlineReaderInterface* reader, MessageHandler* handler) {
 
   uint8_t* image = static_cast<uint8_t*>(malloc(bytes_per_line * height *
                                                 sizeof(uint8_t)));
-  if (image == NULL) {
+  if (image == nullptr) {
     return kDefaultReturnValue;
   }
 
   for (int y = 0; y < height; ++y) {
-    uint8_t* scanline = NULL;
+    uint8_t* scanline = nullptr;
     if (!reader->HasMoreScanLines() ||
         !reader->ReadNextScanline(reinterpret_cast<void**>(&scanline))) {
       free(image);
@@ -284,7 +286,7 @@ bool AnalyzeImage(ImageFormat image_type,
     // WebP images.
     sf_reader.reset(CreateScanlineReader(image_type, image_buffer,
                                          buffer_length, handler));
-    if (sf_reader == NULL) {
+    if (sf_reader == nullptr) {
       return false;
     }
   } else {
@@ -295,7 +297,7 @@ bool AnalyzeImage(ImageFormat image_type,
     std::unique_ptr<MultipleFrameReader> mf_reader(
         CreateImageFrameReader(image_type, image_buffer, buffer_length,
                                handler, &status));
-    if (mf_reader == NULL) {
+    if (mf_reader == nullptr) {
       return false;
     }
 
@@ -309,8 +311,8 @@ bool AnalyzeImage(ImageFormat image_type,
       image_width = image_spec.width;
       image_height = image_spec.height;
     } else {
-      sf_reader.reset(new FrameToScanlineReaderAdapter(mf_reader.release()));
-      if (sf_reader == NULL) {
+      sf_reader = std::make_unique<FrameToScanlineReaderAdapter>(mf_reader.release());
+      if (sf_reader == nullptr) {
         return false;
       }
       status = sf_reader->InitializeWithStatus(image_buffer, buffer_length);
@@ -328,16 +330,16 @@ bool AnalyzeImage(ImageFormat image_type,
 
   // No matter how many frames the image has, we can always find out whether it
   // is animated, its width, and its height.
-  if (is_animated != NULL) {
+  if (is_animated != nullptr) {
     *is_animated = image_is_animated;
   }
-  if (width != NULL) {
+  if (width != nullptr) {
     *width = image_width;
   }
-  if (height != NULL) {
+  if (height != nullptr) {
     *height = image_height;
   }
-  if (is_progressive != NULL) {
+  if (is_progressive != nullptr) {
     *is_progressive = image_is_progressive;
   }
 
@@ -351,19 +353,19 @@ bool AnalyzeImage(ImageFormat image_type,
   // for each frame since the frames may have different values. IsPhoto() may
   // return a single value for all of the frames because it is unlikely that
   // the image consists of both photos and graphics.
-  if (sf_reader != NULL && (has_transparency != NULL || is_photo != NULL)) {
+  if (sf_reader != nullptr && (has_transparency != nullptr || is_photo != nullptr)) {
     // Initialize the optimizer which will remove alpha channel if it is
     // completely opaque.
-    optimizer.reset(new PixelFormatOptimizer(handler));
+    optimizer = std::make_unique<PixelFormatOptimizer>(handler);
     if (!optimizer->Initialize(sf_reader.release()).Success()) {
       return false;
     }
 
     // Report the interesting information of the optimized image.
-    if (has_transparency != NULL) {
+    if (has_transparency != nullptr) {
       *has_transparency = (optimizer->GetPixelFormat() == RGBA_8888);
     }
-    if (is_photo != NULL) {
+    if (is_photo != nullptr) {
       if (image_type == IMAGE_JPEG) {
         // Assume all JPEG images are photos. JPEG is the most popular format
         // in internet and most of them have photo content. For the very few
@@ -380,7 +382,7 @@ bool AnalyzeImage(ImageFormat image_type,
     }
   }
 
-  if (quality != NULL && image_type == IMAGE_JPEG) {
+  if (quality != nullptr && image_type == IMAGE_JPEG) {
     *quality = JpegUtils::GetImageQualityFromImage(image_buffer, buffer_length,
                                                    handler);
     // TODO(huibao): Add utility for finding quality number from WebP images
@@ -389,13 +391,13 @@ bool AnalyzeImage(ImageFormat image_type,
 
   // If "reader" has been requested, the caller is responsible for destroying
   // it.
-  if (reader != NULL) {
-    if (optimizer != NULL) {
+  if (reader != nullptr) {
+    if (optimizer != nullptr) {
       *reader = optimizer.release();
-    } else if (sf_reader != NULL) {
+    } else if (sf_reader != nullptr) {
       *reader = sf_reader.release();
     } else {
-      *reader = NULL;
+      *reader = nullptr;
     }
   }
 

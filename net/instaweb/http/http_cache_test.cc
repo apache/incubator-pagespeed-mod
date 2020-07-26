@@ -23,6 +23,8 @@
 #include "net/instaweb/http/public/http_cache.h"
 
 #include <cstddef>                     // for size_t
+#include <memory>
+
 
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/inflating_fetch.h"
@@ -131,14 +133,14 @@ class HTTPCacheTest : public testing::Test {
         mock_timer_(thread_system_->NewMutex(), ParseDate(kStartDate)),
         lru_cache_(kMaxSize) {
     HTTPCache::InitStats(&simple_stats_);
-    http_cache_.reset(new HTTPCache(&lru_cache_, &mock_timer_, &mock_hasher_,
-                                    &simple_stats_));
+    http_cache_ = std::make_unique<HTTPCache>(&lru_cache_, &mock_timer_, &mock_hasher_,
+                                    &simple_stats_);
   }
 
   void InitHeaders(ResponseHeaders* headers, const char* cache_control) {
     headers->Add("name", "value");
     headers->Add("Date", kStartDate);
-    if (cache_control != NULL) {
+    if (cache_control != nullptr) {
       headers->Add("Cache-control", cache_control);
     }
     headers->SetStatusAndReason(HttpStatus::kOK);
@@ -376,7 +378,7 @@ TEST_F(HTTPCacheTest, StaticInflatingFetch) {
   EXPECT_EQ(GoogleString("value"), *(values[0]));
   EXPECT_NE("content", contents);
   ResponseHeaders response_headers;
-  EXPECT_TRUE(value.ExtractHeaders(&response_headers, NULL));
+  EXPECT_TRUE(value.ExtractHeaders(&response_headers, nullptr));
   // Check that the InflatingFetch gzip methods work properly when extracting
   // data.
   HTTPValue ungzipped;
@@ -642,7 +644,7 @@ TEST_F(HTTPCacheTest, IgnoreFailurePuts) {
 
 TEST_F(HTTPCacheTest, Uncacheable) {
   ResponseHeaders meta_data_in, meta_data_out;
-  InitHeaders(&meta_data_in, NULL);
+  InitHeaders(&meta_data_in, nullptr);
   Put(kUrl, kFragment, &meta_data_in, "content");
   HTTPValue value;
   HTTPCache::FindResult found = Find(
@@ -1075,8 +1077,8 @@ class HTTPCacheWriteThroughTest : public HTTPCacheTest {
         content_("content"),
         cache1_ms_(-1),
         cache2_ms_(-1) {
-    http_cache_.reset(new HTTPCache(&write_through_cache_, &mock_timer_,
-                                    &mock_hasher_, &simple_stats_));
+    http_cache_ = std::make_unique<HTTPCache>(&write_through_cache_, &mock_timer_,
+                                    &mock_hasher_, &simple_stats_);
     http_cache_->set_cache_levels(2);
   }
 
@@ -1442,7 +1444,7 @@ TEST_F(HTTPCacheWriteThroughTest, SetIgnoreFailurePuts) {
 TEST_F(HTTPCacheWriteThroughTest, Uncacheable) {
   ClearStats();
   ResponseHeaders headers_in, headers_out;
-  InitHeaders(&headers_in, NULL);
+  InitHeaders(&headers_in, nullptr);
   Put(key_, fragment_, &headers_in, content_);
   HTTPValue value;
   HTTPCache::FindResult found = Find(key_, fragment_, &value, &headers_out);

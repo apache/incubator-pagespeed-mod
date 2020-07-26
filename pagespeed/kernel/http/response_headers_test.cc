@@ -110,8 +110,8 @@ class ResponseHeadersTest : public testing::Test {
     ParseHeaders(header_text);
     bool cacheable = response_headers_.IsProxyCacheable();
     if (!cacheable) {
-      EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kCacheControl));
-      EXPECT_EQ(NULL, response_headers_.Lookup1(HttpAttributes::kExpires));
+      EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kCacheControl));
+      EXPECT_EQ(nullptr, response_headers_.Lookup1(HttpAttributes::kExpires));
     } else {
       EXPECT_STREQ(max_age_string,
                    response_headers_.Lookup1(HttpAttributes::kCacheControl));
@@ -806,7 +806,7 @@ TEST_F(ResponseHeadersTest, TestRemoveAllFromSortedArray) {
   ExpectSizes(8, 4);
 
   // Empty set means remove nothing and return false.
-  EXPECT_FALSE(response_headers_.RemoveAllFromSortedArray(NULL, 0));
+  EXPECT_FALSE(response_headers_.RemoveAllFromSortedArray(nullptr, 0));
   ExpectSizes(8, 4);
 
   // Removing headers which aren't there removes nothing and returns false.
@@ -1521,8 +1521,8 @@ TEST_F(ResponseHeadersTest, RemoveAllCaseInsensitivity) {
   headers.Add("content-encoding", "gzip");
   EXPECT_STREQ("gzip", headers.Lookup1("Content-Encoding"));
   headers.RemoveAll("Content-Encoding");
-  EXPECT_EQ(NULL, headers.Lookup1("content-encoding"));
-  EXPECT_EQ(NULL, headers.Lookup1("Content-Encoding"));
+  EXPECT_EQ(nullptr, headers.Lookup1("content-encoding"));
+  EXPECT_EQ(nullptr, headers.Lookup1("Content-Encoding"));
   EXPECT_EQ(0, headers.NumAttributes()) << headers.Name(0);
 }
 
@@ -1554,7 +1554,7 @@ TEST_F(ResponseHeadersTest, DetermineContentTypeMulti) {
       "\r\n";
   response_headers_.Clear();
   ParseHeaders(headers2);
-  EXPECT_EQ(NULL, response_headers_.DetermineContentType());
+  EXPECT_EQ(nullptr, response_headers_.DetermineContentType());
 }
 
 TEST_F(ResponseHeadersTest, DetermineContentTypeWithCharset) {
@@ -1583,7 +1583,7 @@ TEST_F(ResponseHeadersTest, DetermineContentTypeAndCharsetNonExisting) {
   const ContentType* content_type = &kContentTypeHtml;
   GoogleString charset = "EBCDIC";
   response_headers_.DetermineContentTypeAndCharset(&content_type, &charset);
-  EXPECT_EQ(NULL, content_type);
+  EXPECT_EQ(nullptr, content_type);
   EXPECT_TRUE(charset.empty());
 }
 
@@ -1633,7 +1633,7 @@ TEST_F(ResponseHeadersTest, FixupMissingDate) {
   response_headers_.FixDateHeaders(MockTimer::kApr_5_2010_ms);
   response_headers_.ComputeCaching();
   EXPECT_EQ(MockTimer::kApr_5_2010_ms, response_headers_.date_ms());
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == NULL);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == nullptr);
 }
 
 TEST_F(ResponseHeadersTest, LastModifiedAsInt64) {
@@ -1662,7 +1662,7 @@ TEST_F(ResponseHeadersTest, DoNotCorrectValidDate) {
   int64 prev_date = response_headers_.date_ms();
   response_headers_.FixDateHeaders(prev_date - 1000);
   EXPECT_EQ(prev_date, response_headers_.date_ms());
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == NULL);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == nullptr);
 }
 
 TEST_F(ResponseHeadersTest, FixupStaleDate) {
@@ -1679,7 +1679,7 @@ TEST_F(ResponseHeadersTest, FixupStaleDate) {
   int64 new_date = response_headers_.date_ms() + 1000;
   response_headers_.FixDateHeaders(new_date);
   EXPECT_EQ(new_date, response_headers_.date_ms());
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == NULL);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == nullptr);
 }
 
 TEST_F(ResponseHeadersTest, FixupStaleDateWithExpires) {
@@ -1702,7 +1702,7 @@ TEST_F(ResponseHeadersTest, FixupStaleDateWithExpires) {
 
   response_headers_.FixDateHeaders(new_date);
   EXPECT_EQ(new_date, response_headers_.date_ms());
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) != NULL);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) != nullptr);
   EXPECT_EQ(new_date + 5 * Timer::kMinuteMs,
             response_headers_.CacheExpirationTimeMs());
 }
@@ -1723,14 +1723,14 @@ TEST_F(ResponseHeadersTest, FixupStaleDateWithMaxAge) {
   int64 orig_date = response_headers_.date_ms();
   ASSERT_EQ(orig_date + 5 * Timer::kMinuteMs,
             response_headers_.CacheExpirationTimeMs());
-  ASSERT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == NULL);
+  ASSERT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == nullptr);
   int64 new_date = orig_date + 1000;
 
   response_headers_.FixDateHeaders(new_date);
   EXPECT_EQ(new_date, response_headers_.date_ms());
 
   // Still no Expires entry, but the cache expiration time is still 5 minutes.
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == NULL);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == nullptr);
   EXPECT_EQ(new_date + 5 * Timer::kMinuteMs,
             response_headers_.CacheExpirationTimeMs());
 }
@@ -1745,11 +1745,11 @@ TEST_F(ResponseHeadersTest, MissingDateRemoveExpires) {
   ParseHeaders(headers);
   response_headers_.ComputeCaching();
 
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kDate) == NULL);
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) != NULL);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kDate) == nullptr);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) != nullptr);
   response_headers_.FixDateHeaders(MockTimer::kApr_5_2010_ms);
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kDate) != NULL);
-  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == NULL);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kDate) != nullptr);
+  EXPECT_TRUE(response_headers_.Lookup1(HttpAttributes::kExpires) == nullptr);
 }
 
 TEST_F(ResponseHeadersTest, TestSetCacheControlMaxAge) {
@@ -1942,7 +1942,7 @@ TEST_F(ResponseHeadersTest, HasCookie) {
   StringPieceVector values;
   StringPieceVector attributes;
   StringPiece attribute_value;
-  EXPECT_FALSE(response_headers_.HasCookie("HttpOnly", NULL, NULL));
+  EXPECT_FALSE(response_headers_.HasCookie("HttpOnly", nullptr, nullptr));
   EXPECT_TRUE(response_headers_.HasCookie("UA", &values, &attributes));
   ASSERT_EQ(3, values.size());
   EXPECT_EQ("chrome", values[0]);
@@ -1953,19 +1953,19 @@ TEST_F(ResponseHeadersTest, HasCookie) {
   EXPECT_TRUE(response_headers_.FindValueForName(attributes, "path",
                                                  &attribute_value));
   EXPECT_EQ("/", attribute_value);
-  EXPECT_TRUE(response_headers_.HasAnyCookiesWithAttribute("path", NULL));
-  EXPECT_FALSE(response_headers_.HasAnyCookiesWithAttribute("HttpOnly", NULL));
+  EXPECT_TRUE(response_headers_.HasAnyCookiesWithAttribute("path", nullptr));
+  EXPECT_FALSE(response_headers_.HasAnyCookiesWithAttribute("HttpOnly", nullptr));
 
   response_headers_.Add(HttpAttributes::kSetCookie, "JSESSIONID=123; HttpOnly");
-  EXPECT_TRUE(response_headers_.HasAnyCookiesWithAttribute("HttpOnly", NULL));
+  EXPECT_TRUE(response_headers_.HasAnyCookiesWithAttribute("HttpOnly", nullptr));
   EXPECT_FALSE(response_headers_.HasAnyCookiesWithAttribute("yaddayadda",
-                                                            NULL));
+                                                            nullptr));
 
   response_headers_.RemoveAll(HttpAttributes::kSetCookie);
   values.clear();
   attributes.clear();
-  EXPECT_FALSE(response_headers_.HasCookie("JSESSIONID", NULL, NULL));
-  EXPECT_FALSE(response_headers_.HasAnyCookiesWithAttribute("HttpOnly", NULL));
+  EXPECT_FALSE(response_headers_.HasCookie("JSESSIONID", nullptr, nullptr));
+  EXPECT_FALSE(response_headers_.HasAnyCookiesWithAttribute("HttpOnly", nullptr));
 
   response_headers_.Add(HttpAttributes::kSetCookie, "ID=ABC; HttpOnly ;path=/");
   response_headers_.Add(HttpAttributes::kSetCookie, "UA=chrome");
@@ -1977,7 +1977,7 @@ TEST_F(ResponseHeadersTest, HasCookie) {
   ASSERT_EQ(2, attributes.size());
   EXPECT_EQ(" HttpOnly ", attributes[0]);  // Note, not trimmed.
   EXPECT_EQ("path=/", attributes[1]);
-  EXPECT_TRUE(response_headers_.FindValueForName(attributes, "HttpOnly", NULL));
+  EXPECT_TRUE(response_headers_.FindValueForName(attributes, "HttpOnly", nullptr));
   values.clear();
   attributes.clear();
   EXPECT_TRUE(response_headers_.HasCookie("UA", &values, &attributes));

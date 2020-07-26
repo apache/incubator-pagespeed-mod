@@ -121,9 +121,9 @@ bool FrameSpec::Equals(const FrameSpec& other) const {
 ////////// MultipleFrameReader
 
 MultipleFrameReader::MultipleFrameReader(MessageHandler* const handler)
-    : image_buffer_(NULL), buffer_length_(0), message_handler_(handler),
+    : image_buffer_(nullptr), buffer_length_(0), message_handler_(handler),
       quirks_mode_(QUIRKS_NONE) {
-  CHECK(handler != NULL);
+  CHECK(handler != nullptr);
 }
 
 MultipleFrameReader::~MultipleFrameReader() {
@@ -133,7 +133,7 @@ MultipleFrameReader::~MultipleFrameReader() {
 
 MultipleFrameWriter::MultipleFrameWriter(MessageHandler* const handler)
     : message_handler_(handler) {
-  CHECK(handler != NULL);
+  CHECK(handler != nullptr);
 }
 
 MultipleFrameWriter::~MultipleFrameWriter() {

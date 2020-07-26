@@ -79,7 +79,7 @@ void DomainRewriteFilter::UpdateDomainHeaders(
     const RewriteOptions* options, ResponseHeaders* headers) {
   // IframeFetcher panics when it sees a UA that can't do iframes well,
   // and throws a redirect.  This filter needs to respect that.
-  if ((headers == NULL) || headers->Has(kStickyRedirectHeader)) {
+  if ((headers == nullptr) || headers->Has(kStickyRedirectHeader)) {
     return;
   }
 
@@ -107,7 +107,7 @@ void DomainRewriteFilter::TryUpdateOneHttpDomainHeader(
     StringPiece name,
     ResponseHeaders* headers) {
   const char* val = headers->Lookup1(name);
-  if (val != NULL) {
+  if (val != nullptr) {
     GoogleString new_val;
     if (UpdateOneDomainHeader(kHttp, base_url, server_context, options,
                               name, val, &new_val)) {
@@ -445,10 +445,10 @@ void DomainRewriteFilter::StartElementImpl(HtmlElement* element) {
     const char* equiv = element->AttributeValue(HtmlName::kHttpEquiv);
     HtmlElement::Attribute* content_attr =
         element->FindAttribute(HtmlName::kContent);
-    const char* content = (content_attr != NULL) ?
-                              content_attr->DecodedValueOrNull() : NULL;
+    const char* content = (content_attr != nullptr) ?
+                              content_attr->DecodedValueOrNull() : nullptr;
     GoogleString out;
-    if (equiv != NULL && content != NULL &&
+    if (equiv != nullptr && content != nullptr &&
         UpdateOneDomainHeader(kMetaHttpEquiv,
                               driver()->base_url(),
                               driver()->server_context(),
@@ -561,7 +561,7 @@ void DomainRewriteFilter::EndDocument() {
     }
   }
 
-  HtmlElement* script_node = driver()->NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script_node = driver()->NewElement(nullptr, HtmlName::kScript);
   InsertNodeAtBodyEnd(script_node);
   StaticAssetManager* static_asset_manager =
       driver()->server_context()->static_asset_manager();

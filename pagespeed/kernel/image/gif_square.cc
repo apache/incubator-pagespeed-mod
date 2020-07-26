@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/image/gif_square.h"
 
-#include <math.h>
+#include <cmath>
 
 #include <algorithm>
 #include <cstddef>
@@ -87,7 +87,7 @@ GifSquare::GifSquare(bool manual_gcb,
                      MessageHandler* handler) :
     manual_gcb_(manual_gcb),
     handler_(handler),
-    success_(true), gif_file_(NULL),
+    success_(true), gif_file_(nullptr),
     num_images_(0), closed_(false) {
 }
 
@@ -205,13 +205,13 @@ bool GifSquare::PutImage(size_px left, size_px top,
   // EGifPutImageDesc) in EGifCloseFile. If we are dealing with
   // animated GIFs, we thus need to clear it manually to prevent a
   // memory leak.
-  if (gif_file_->Image.ColorMap != NULL) {
+  if (gif_file_->Image.ColorMap != nullptr) {
     GifFreeMapObject(gif_file_->Image.ColorMap);
-    gif_file_->Image.ColorMap = NULL;
+    gif_file_->Image.ColorMap = nullptr;
   }
 
-  ColorMapObject* cmap = ((colormap != NULL && num_colors > 0) ?
-                          GifMakeMapObject(num_colors, colormap) : NULL);
+  ColorMapObject* cmap = ((colormap != nullptr && num_colors > 0) ?
+                          GifMakeMapObject(num_colors, colormap) : nullptr);
   if (!Log(EGifPutImageDesc(gif_file_, left, top,
                             width, height,
                             interlace, cmap),
@@ -264,11 +264,11 @@ bool GifSquare::Close() {
     return false;
   }
   if (!closed_ &&
-      (gif_file_ != NULL) &&
+      (gif_file_ != nullptr) &&
 #if GIFLIB_MAJOR < 5 || (GIFLIB_MAJOR == 5 && GIFLIB_MINOR == 0)
       !Log(EGifCloseFile(gif_file_), "EGifCloseFile")) {
 #else
-      !Log(EGifCloseFile(gif_file_, NULL), "EGifCloseFile")) {
+      !Log(EGifCloseFile(gif_file_, nullptr), "EGifCloseFile")) {
 #endif
     return false;
   }
@@ -278,7 +278,7 @@ bool GifSquare::Close() {
 
 bool GifSquare::Log(bool success, const char* prefix) {
 #if GIFLIB_MAJOR >= 5
-  return success ? success : Fail(prefix, ((gif_file_ != NULL) ?
+  return success ? success : Fail(prefix, ((gif_file_ != nullptr) ?
                                            GifErrorString(gif_file_->Error) :
                                            "(?)"));
 #else

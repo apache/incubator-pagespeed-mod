@@ -72,7 +72,7 @@ void NamedLockScheduleRewriteController::InitStats(Statistics* statistics) {
 NamedLockScheduleRewriteController::LockInfo*
 NamedLockScheduleRewriteController::GetLockInfo(const GoogleString& key) {
   LockInfo*& info = locks_[key];
-  if (info == NULL) {
+  if (info == nullptr) {
     info = new LockInfo();
   }
   DCHECK_GE(info->pin_count, 0);
@@ -102,7 +102,7 @@ void NamedLockScheduleRewriteController::LockObtained(Function* callback,
 
     LockInfo* info = GetLockInfo(key);
     // This lock may have been held by someone else, but it isn't any more!
-    if (info->lock.get() != NULL) {
+    if (info->lock.get() != nullptr) {
       locks_stolen_->IncBy(1);
       locks_currently_held_->Add(-1);
     }
@@ -183,7 +183,7 @@ void NamedLockScheduleRewriteController::NotifyRewriteComplete(
     ScopedMutex mutex_lock(mutex_.get());
     info = GetLockInfo(key);
     // The lock might not actually be held if it was stolen and then released.
-    if (info->lock.get() == NULL) {
+    if (info->lock.get() == nullptr) {
       locks_released_when_not_held_->IncBy(1);
       DeleteInfoIfUnused(info, key);
       return;

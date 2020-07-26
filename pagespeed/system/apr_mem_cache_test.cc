@@ -22,10 +22,12 @@
 
 #include "pagespeed/system/apr_mem_cache.h"
 
-#include <unistd.h>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
-#include <cstddef>
+#include <memory>
+#include <unistd.h>
+
 
 #include "apr_network_io.h"  // NOLINT
 #include "apr_pools.h"  // NOLINT
@@ -108,8 +110,8 @@ class AprMemCacheTest : public CacheTestBase {
     if (use_md5_hasher) {
       hasher = &md5_hasher_;
     }
-    servers_.reset(new AprMemCache(cluster_spec_, 5, hasher, &statistics_,
-                                   &timer_, &handler_));
+    servers_ = std::make_unique<AprMemCache>(cluster_spec_, 5, hasher, &statistics_,
+                                   &timer_, &handler_);
     // As memcached is not restarted between tests, we need some other kind of
     // isolation. One option would be to flush memcached, if apr_memcache
     // supported that. We do not want to modify our fork even further, so we
@@ -121,12 +123,12 @@ class AprMemCacheTest : public CacheTestBase {
         StrCat(test_info->test_case_name(), ".",
                test_info->name(), "_",
                Integer64ToString(timer.NowUs()), "_");
-    prefixed_memcache_.reset(
-        new CacheKeyPrepender(memcache_prefix, servers_.get()));
+    prefixed_memcache_ = std::make_unique<CacheKeyPrepender>(
+        memcache_prefix, servers_.get());
 
-    cache_.reset(new FallbackCache(prefixed_memcache_.get(), lru_cache_.get(),
+    cache_ = std::make_unique<FallbackCache>(prefixed_memcache_.get(), lru_cache_.get(),
                                    kTestValueSizeThreshold,
-                                   &handler_));
+                                   &handler_);
 
     // apr_memcache actually lazy-connects to memcached, it seems, so
     // if we fail the Connect call then something is truly broken.  To
@@ -456,7 +458,7 @@ TEST_F(AprMemCacheTest, ThreadSafe) {
 // only be run interactively to check on timeout behavior.  To run it,
 // set environemnt variable (APR_MEMCACHE_TIMEOUT_TEST).
 TEST_F(AprMemCacheTest, OneMicrosecondGet) {
-  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == NULL) {
+  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == nullptr) {
     LOG(WARNING)
         << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
         << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
@@ -478,7 +480,7 @@ TEST_F(AprMemCacheTest, OneMicrosecondGet) {
 }
 
 TEST_F(AprMemCacheTest, OneMicrosecondPut) {
-  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == NULL) {
+  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == nullptr) {
     LOG(WARNING)
         << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
         << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
@@ -500,7 +502,7 @@ TEST_F(AprMemCacheTest, OneMicrosecondPut) {
 }
 
 TEST_F(AprMemCacheTest, OneMicrosecondDelete) {
-  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == NULL) {
+  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == nullptr) {
     LOG(WARNING)
         << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
         << "$APR_MEMCACHE_TIMEOUT_TEST to run it";

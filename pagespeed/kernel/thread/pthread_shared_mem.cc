@@ -147,7 +147,7 @@ pthread_mutex_t segment_bases_lock = PTHREAD_MUTEX_INITIALIZER;
 
 size_t PthreadSharedMem::s_instance_count_ = 0;
 
-PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::segment_bases_ = NULL;
+PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::segment_bases_ = nullptr;
 
 PthreadSharedMem::PthreadSharedMem() {
   instance_number_ = ++s_instance_count_;
@@ -169,19 +169,19 @@ AbstractSharedMemSegment* PthreadSharedMem::CreateSegment(
     handler->Message(
         kError, "Unable to create SHM segment %s, open of /dev/zero failed "
         "with errno=%d.", prefixed_name.c_str(), errno);
-    return NULL;
+    return nullptr;
   }
 
   // map it
   char* base = reinterpret_cast<char*>(
-                   mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+                   mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
   int mmap_errno = errno;
   CheckedClose(fd, handler);
   if (base == MAP_FAILED) {
     handler->Message(
         kError, "Unable to create SHM segment %s, mmap failed with errno=%d.",
         prefixed_name.c_str(), mmap_errno);
-    return NULL;
+    return nullptr;
   }
 
   SegmentBaseMap* bases = AcquireSegmentBases();
@@ -199,7 +199,7 @@ AbstractSharedMemSegment* PthreadSharedMem::AttachToSegment(
     handler->Message(kError, "Unable to find SHM segment %s to attach to.",
                      prefixed_name.c_str());
     UnlockSegmentBases();
-    return NULL;
+    return nullptr;
   }
   char* base = i->second.first;
   DCHECK_EQ(size, i->second.second);
@@ -221,7 +221,7 @@ void PthreadSharedMem::DestroySegment(const GoogleString& name,
     bases->erase(i);
     if (bases->empty()) {
       delete segment_bases_;
-      segment_bases_ = NULL;
+      segment_bases_ = nullptr;
     }
   } else {
     handler->Message(kError, "Attempt to destroy unknown SHM segment %s.",
@@ -234,7 +234,7 @@ PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::AcquireSegmentBases() {
   PthreadSharedMemMutex lock(&segment_bases_lock);
   lock.Lock();
 
-  if (segment_bases_ == NULL) {
+  if (segment_bases_ == nullptr) {
     segment_bases_ = new SegmentBaseMap();
   }
 
@@ -257,9 +257,9 @@ void PthreadSharedMem::Terminate() {
   // storage.
   PthreadSharedMemMutex lock(&segment_bases_lock);
   lock.Lock();
-  if (segment_bases_ != NULL) {
+  if (segment_bases_ != nullptr) {
     delete segment_bases_;
-    segment_bases_ = NULL;
+    segment_bases_ = nullptr;
   }
   lock.Unlock();
 }

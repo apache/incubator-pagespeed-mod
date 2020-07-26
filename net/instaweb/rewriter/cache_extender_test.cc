@@ -247,7 +247,7 @@ class CacheExtenderTest : public RewriteTestBase {
     ASSERT_TRUE(FetchResource(kTestDomain, kFilterId, "b.jpg", "jpg",
                               &content, &headers));
     const char* link = headers.Lookup1(HttpAttributes::kLink);
-    ASSERT_TRUE(link != NULL);
+    ASSERT_TRUE(link != nullptr);
     // .jpg should get a canonical link.
     EXPECT_STREQ("<http://test.com/b.jpg>; rel=\"canonical\"", link);
     int64 fetch2_time_ms = timer()->NowMs();

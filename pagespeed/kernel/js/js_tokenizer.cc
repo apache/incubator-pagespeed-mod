@@ -148,7 +148,7 @@
 
 #include "pagespeed/kernel/js/js_tokenizer.h"
 
-#include <stddef.h>
+#include <cstddef>
 #include <vector>
 
 #include "base/logging.h"
@@ -1197,7 +1197,7 @@ bool JsTokenizer::TryInsertLinebreakSemicolon() {
     while (!input_.empty() &&
            (TryConsumeComment(&type, &token) ||
             TryConsumeWhitespace(false, &type, &token))) {
-      lookahead_queue_.push_back(std::make_pair(type, token));
+      lookahead_queue_.emplace_back(type, token);
     }
   }
   // Even if semicolon insertion would technically happen for the linebreak

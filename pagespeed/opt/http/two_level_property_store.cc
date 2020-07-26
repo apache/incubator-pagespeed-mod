@@ -75,7 +75,7 @@ class TwoLevelPropertyStoreGetCallback
         mutex_(mutex),
         primary_property_store_(primary_property_store),
         secondary_property_store_(secondary_property_store),
-        secondary_property_store_get_callback_(NULL),
+        secondary_property_store_get_callback_(nullptr),
         fast_finish_lookup_called_(false),
         lookup_level_(kFirstLevelLooking),
         delete_when_done_(false),
@@ -88,14 +88,14 @@ class TwoLevelPropertyStoreGetCallback
   }
 
   ~TwoLevelPropertyStoreGetCallback() override {
-    if (secondary_property_store_get_callback_ != NULL) {
+    if (secondary_property_store_get_callback_ != nullptr) {
       secondary_property_store_get_callback_->DeleteWhenDone();
     }
   }
 
   void FastFinishLookup() override {
     AbstractPropertyStoreGetCallback* secondary_property_store_get_callback =
-        NULL;
+        nullptr;
     {
       ScopedMutex lock(mutex_.get());
       fast_finish_lookup_called_ = true;
@@ -108,7 +108,7 @@ class TwoLevelPropertyStoreGetCallback
         return;
       }
 
-      DCHECK(secondary_property_store_get_callback_ != NULL);
+      DCHECK(secondary_property_store_get_callback_ != nullptr);
       secondary_property_store_get_callback =
           secondary_property_store_get_callback_;
     }
@@ -133,7 +133,7 @@ class TwoLevelPropertyStoreGetCallback
   // Called after the primary lookup is done.
   void PrimaryLookupDone(bool success) {
     bool should_delete = false;
-    BoolCallback* done = NULL;
+    BoolCallback* done = nullptr;
     {
       ScopedMutex lock(mutex_.get());
       first_level_result_ = success;
@@ -152,7 +152,7 @@ class TwoLevelPropertyStoreGetCallback
       if (fast_finish_lookup_called_ || secondary_lookup_cohort_list_.empty()) {
         lookup_level_ = kDone;
         done = done_;
-        done_ = NULL;
+        done_ = nullptr;
 
         // We should only ever delete ourselves if we've been canceled or we got
         // results for all cohorts from the first level property store.
@@ -183,16 +183,16 @@ class TwoLevelPropertyStoreGetCallback
 
   void SecondaryLookupDone(bool success) {
     bool should_delete = false;
-    BoolCallback* done = NULL;
+    BoolCallback* done = nullptr;
     {
       ScopedMutex lock(mutex_.get());
-      DCHECK(done_ != NULL);
+      DCHECK(done_ != nullptr);
 
       // Second Level lookup finished.
       lookup_level_ = kDone;
       success |= first_level_result_;
       done = done_;
-      done_ = NULL;
+      done_ = nullptr;
 
       // We should only ever delete ourselves if all internal states are
       // updated.
@@ -209,7 +209,7 @@ class TwoLevelPropertyStoreGetCallback
               cache_key_suffix_,
               cohort,
               &values,
-              NULL);
+              nullptr);
         }
       }
     }
@@ -225,7 +225,7 @@ class TwoLevelPropertyStoreGetCallback
   // Issue lookup from secondary_primary_store.
   void IssueSecondaryGet() {
     AbstractPropertyStoreGetCallback* secondary_property_store_get_callback =
-        NULL;
+        nullptr;
     secondary_property_store_->Get(
         url_,
         options_signature_hash_,
@@ -268,7 +268,7 @@ class TwoLevelPropertyStoreGetCallback
   bool ShouldDeleteLocked() {
     mutex_->DCheckLocked();
     if (secondary_lookup_ &&
-        secondary_property_store_get_callback_ == NULL) {
+        secondary_property_store_get_callback_ == nullptr) {
       // We've decided to issue the second lookup but haven't yet updated our
       // internal state.
       return false;
@@ -323,8 +323,8 @@ TwoLevelPropertyStore::TwoLevelPropertyStore(
     : primary_property_store_(primary_property_store),
       secondary_property_store_(secondary_property_store),
       thread_system_(thread_system) {
-  CHECK(primary_property_store_ != NULL);
-  CHECK(secondary_property_store_ != NULL);
+  CHECK(primary_property_store_ != nullptr);
+  CHECK(secondary_property_store_ != nullptr);
   secondary_property_store_->set_enable_get_cancellation(true);
 }
 
@@ -352,7 +352,7 @@ void TwoLevelPropertyStore::Get(
           secondary_property_store_);
   *callback = two_level_property_store_get_callback;
 
-  AbstractPropertyStoreGetCallback* primary_property_store_get_callback = NULL;
+  AbstractPropertyStoreGetCallback* primary_property_store_get_callback = nullptr;
   primary_property_store_->Get(
       url,
       options_signature_hash,
@@ -363,7 +363,7 @@ void TwoLevelPropertyStore::Get(
                   &TwoLevelPropertyStoreGetCallback::PrimaryLookupDone),
       &primary_property_store_get_callback);
 
-  if (primary_property_store_get_callback != NULL) {
+  if (primary_property_store_get_callback != nullptr) {
     // Delete the primary store get callback when it is done as it is not needed
     // any more.
     primary_property_store_get_callback->DeleteWhenDone();
@@ -379,10 +379,10 @@ void TwoLevelPropertyStore::Put(
     BoolCallback* done) {
   // TODO(pulkitg): Pass actual callback instead of NULL.
   primary_property_store_->Put(
-      url, options_signature_hash, cache_key_suffix, cohort, values, NULL);
+      url, options_signature_hash, cache_key_suffix, cohort, values, nullptr);
   secondary_property_store_->Put(
-      url, options_signature_hash, cache_key_suffix, cohort, values, NULL);
-  if (done != NULL) {
+      url, options_signature_hash, cache_key_suffix, cohort, values, nullptr);
+  if (done != nullptr) {
     done->Run(true);
   }
 }

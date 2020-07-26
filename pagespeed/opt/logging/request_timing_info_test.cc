@@ -199,7 +199,7 @@ TEST(RequestTimingInfoTest, TimeToStartParse) {
 
 TEST(RequestTimingInfoTest, CacheLatency) {
   NullMutex mutex;
-  RequestTimingInfo timing_info(NULL, &mutex);
+  RequestTimingInfo timing_info(nullptr, &mutex);
 
   int64 latency_ms;
   ASSERT_FALSE(timing_info.GetHTTPCacheLatencyMs(&latency_ms));

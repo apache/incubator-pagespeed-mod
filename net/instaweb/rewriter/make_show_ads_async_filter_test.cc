@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/make_show_ads_async_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -178,7 +182,7 @@ class MakeShowAdsAsyncFilterTest : public RewriteTestBase {
   void SetUp() override {
     RewriteTestBase::SetUp();
     MakeShowAdsAsyncFilter::InitStats(rewrite_driver()->statistics());
-    filter_.reset(new MakeShowAdsAsyncFilter(rewrite_driver()));
+    filter_ = std::make_unique<MakeShowAdsAsyncFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(filter_.get());
   }
 

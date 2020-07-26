@@ -23,6 +23,10 @@
 
 #include <unistd.h>
 
+
+#include <memory>
+
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -45,7 +49,7 @@ class QueuedAlarmTest : public WorkerTestBase {
  public:
   QueuedAlarmTest()
       : thread_system_(Platform::CreateThreadSystem()),
-        sequence_(NULL),
+        sequence_(nullptr),
         done_(false),
         cancel_(false) {
   }
@@ -65,12 +69,12 @@ class QueuedAlarmTest : public WorkerTestBase {
 
   void SetupWithRealScheduler() {
     timer_.reset(Platform::CreateTimer());
-    scheduler_.reset(new Scheduler(thread_system_.get(), timer_.get()));
+    scheduler_ = std::make_unique<Scheduler>(thread_system_.get(), timer_.get());
     SetupWorker();
   }
 
   void MakeSequence() {
-    if (sequence_ == NULL) {
+    if (sequence_ == nullptr) {
       sequence_ = worker_->NewSequence();
       // Take advantage of mock scheduler's quiescence detection.
       scheduler_->RegisterWorker(sequence_);
@@ -78,10 +82,10 @@ class QueuedAlarmTest : public WorkerTestBase {
   }
 
   void ClearSequence() {
-    if (sequence_ != NULL) {
+    if (sequence_ != nullptr) {
       scheduler_->UnregisterWorker(sequence_);
       worker_->FreeSequence(sequence_);
-      sequence_ = NULL;
+      sequence_ = nullptr;
     }
   }
 
@@ -94,8 +98,8 @@ class QueuedAlarmTest : public WorkerTestBase {
 
  protected:
   void SetupWorker() {
-    worker_.reset(
-        new QueuedWorkerPool(2, "queued_alarm_test", thread_system_.get()));
+    worker_ = std::make_unique<QueuedWorkerPool>(
+        2, "queued_alarm_test", thread_system_.get());
     MakeSequence();
   }
 
@@ -116,7 +120,7 @@ class TestAlarmHandler {
   TestAlarmHandler(QueuedAlarmTest* fixture, WorkerTestBase::SyncPoint* sync)
       : fixture_(fixture),
         sync_(sync),
-        alarm_(NULL),
+        alarm_(nullptr),
         fired_(false) {}
 
   void StartAlarm() {
@@ -131,10 +135,10 @@ class TestAlarmHandler {
 
   void FireAlarm() {
     // Should not have run CancelAlarm if we got here!
-    EXPECT_TRUE(alarm_ != NULL);
+    EXPECT_TRUE(alarm_ != nullptr);
 
     // Nothing more to cancel.
-    alarm_ = NULL;
+    alarm_ = nullptr;
     fired_ = true;
   }
 
@@ -150,9 +154,9 @@ class TestAlarmHandler {
   }
 
   void CancelAlarmImpl() {
-    if (alarm_ != NULL) {
+    if (alarm_ != nullptr) {
       alarm_->CancelAlarm();
-      alarm_ = NULL;
+      alarm_ = nullptr;
     }
 
     // Note that we notify here, as this method will always run. In particular:

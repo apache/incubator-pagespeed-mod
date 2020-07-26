@@ -99,7 +99,7 @@ void ResponsiveImageFirstFilter::AddHiResImages(HtmlElement* element) {
   // look at rendered image dimensions (via beaconing back from clients).
   StringPiece width_str = element->AttributeValue(HtmlName::kWidth);
   StringPiece height_str = element->AttributeValue(HtmlName::kHeight);
-  if ((src_attr == NULL) || (width_str == NULL) || (height_str == NULL)) {
+  if ((src_attr == nullptr) || (width_str == nullptr) || (height_str == nullptr)) {
     driver()->InsertDebugComment(
         "ResponsiveImageFilter: Not adding srcset because image does not "
         "have dimensions (or a src URL).", element);
@@ -211,13 +211,13 @@ ImageDim ActualDims(const HtmlElement* element) {
 
   int height;
   StringPiece height_str = element->AttributeValue(HtmlName::kDataActualHeight);
-  if (height_str != NULL && StringToInt(height_str, &height)) {
+  if (height_str != nullptr && StringToInt(height_str, &height)) {
     dims.set_height(height);
   }
 
   int width;
   StringPiece width_str = element->AttributeValue(HtmlName::kDataActualWidth);
-  if (width_str != NULL && StringToInt(width_str, &width)) {
+  if (width_str != nullptr && StringToInt(width_str, &width)) {
     dims.set_width(width);
   }
 
@@ -262,7 +262,7 @@ void ResponsiveImageSecondFilter::CombineHiResImages(
 
   const char* x1_src = orig_element->AttributeValue(HtmlName::kSrc);
 
-  if (x1_src == NULL) {
+  if (x1_src == nullptr) {
     // Should not happen. We explicitly checked that <img> had a decodeable
     // src= attribute in ResponsiveImageFirstFilter::AddHiResImages().
     LOG(DFATAL) << "Original responsive image has no decodeable URL: "
@@ -293,7 +293,7 @@ void ResponsiveImageSecondFilter::CombineHiResImages(
   for (int i = 0, n = candidates.size(); i < n; ++i) {
     const char* src = candidates[i].element->AttributeValue(HtmlName::kSrc);
 
-    if (src == NULL) {
+    if (src == nullptr) {
       // Should not happen. We explicitly created a src= attribute in
       // ResponsiveImageFirstFilter::AddHiResVersion().
       LOG(DFATAL) << "Virtual responsive image has no URL.";
@@ -380,7 +380,7 @@ namespace {
 const char* AttributeValueOrEmpty(const HtmlElement* element,
                                   const HtmlName::Keyword attr_name) {
   const char* ret = element->AttributeValue(attr_name);
-  if (ret == NULL) {
+  if (ret == nullptr) {
     return "";
   } else {
     return ret;

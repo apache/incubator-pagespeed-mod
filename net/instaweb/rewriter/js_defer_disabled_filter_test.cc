@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -48,8 +52,8 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
     if (debug) {
       options()->EnableFilter(RewriteOptions::kDebug);
     }
-    js_defer_disabled_filter_.reset(
-        new JsDeferDisabledFilter(rewrite_driver()));
+    js_defer_disabled_filter_ = std::make_unique<JsDeferDisabledFilter>(
+        rewrite_driver());
     rewrite_driver()->AddFilter(js_defer_disabled_filter_.get());
   }
 

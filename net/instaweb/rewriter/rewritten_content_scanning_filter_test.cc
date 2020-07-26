@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -55,7 +59,7 @@ class RewrittenContentScanningFilterTest : public RewriteTestBase {
     MockPropertyPage* page = NewMockPage(kRequestUrl);
     rewrite_driver()->set_property_page(page);
     server_context()->page_property_cache()->Read(page);
-    url_namer_.reset(new TestUrlNamer);
+    url_namer_ = std::make_unique<TestUrlNamer>();
     server_context()->set_url_namer(url_namer_.get());
     url_namer_->SetProxyMode(UrlNamer::ProxyExtent::kFull);
   }

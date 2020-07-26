@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
@@ -113,8 +117,8 @@ class StrippingFetch : public StringAsyncFetch {
     } else if (stripped_) {
       // Second pass -- declare completion.
       set_success(true);
-    } else if ((response_headers()->Lookup1(kModPagespeedHeader) != NULL) ||
-               (response_headers()->Lookup1(kPageSpeedHeader) != NULL)) {
+    } else if ((response_headers()->Lookup1(kModPagespeedHeader) != nullptr) ||
+               (response_headers()->Lookup1(kPageSpeedHeader) != nullptr)) {
       // First pass -- the slurped site evidently had mod_pagespeed already
       // enabled.  Turn it off and re-fetch.
 
@@ -187,9 +191,9 @@ bool InstawebHandler::ProxyUrl() {
   std::unique_ptr<UrlAsyncFetcher> fetcher_storage;
 
   if (options()->test_proxy() && !options()->test_proxy_slurp().empty()) {
-    fetcher_storage.reset(new HttpDumpUrlFetcher(
+    fetcher_storage = std::make_unique<HttpDumpUrlFetcher>(
         options()->test_proxy_slurp(), server_context_->file_system(),
-        server_context_->timer()));
+        server_context_->timer());
     fetcher = fetcher_storage.get();
   } else if (!proxy_suffix.empty()) {
     // Do some extra caching when using proxy_suffix (but we don't want it in
@@ -207,7 +211,7 @@ bool InstawebHandler::ProxyUrl() {
     // cache POSTs improperly.
     CacheUrlAsyncFetcher* cache_url_async_fetcher =
         server_context_->CreateCustomCacheFetcher(options(), fragment,
-                                                  NULL, fetcher);
+                                                  nullptr, fetcher);
     cache_url_async_fetcher->set_ignore_recent_fetch_failed(true);
     fetcher_storage.reset(cache_url_async_fetcher);
     fetcher = fetcher_storage.get();

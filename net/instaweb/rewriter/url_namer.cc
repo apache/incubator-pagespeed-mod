@@ -44,7 +44,7 @@ GoogleString UrlNamer::Encode(const RewriteOptions* rewrite_options,
                               EncodeOption encode_option) const {
   GoogleString encoded_leaf(output_resource.full_name().Encode());
   GoogleString encoded_path;
-  if (rewrite_options == NULL) {
+  if (rewrite_options == nullptr) {
     encoded_path = output_resource.resolved_base();
   } else {
     StringPiece hash = output_resource.full_name().hash();

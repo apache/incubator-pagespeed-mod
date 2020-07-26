@@ -49,13 +49,13 @@ const char CssHierarchy::kFailureReasonPrefix[] = "Flattening failed: ";
 
 CssHierarchy::CssHierarchy(CssFilter* filter)
     : filter_(filter),
-      parent_(NULL),
+      parent_(nullptr),
       charset_source_("from unknown"),
       input_contents_resolved_(false),
       flattening_succeeded_(true),
       unparseable_detected_(false),
       flattened_result_limit_(0),
-      message_handler_(NULL) {
+      message_handler_(nullptr) {
 }
 
 CssHierarchy::~CssHierarchy() {
@@ -110,7 +110,7 @@ void CssHierarchy::ResizeChildren(int n) {
     // Decrease the number of elements, deleting each discarded one.
     for (--i; i >= n; --i) {
       delete children_[i];
-      children_[i] = NULL;
+      children_[i] = nullptr;
     }
     children_.resize(n);
   }
@@ -118,7 +118,7 @@ void CssHierarchy::ResizeChildren(int n) {
 
 bool CssHierarchy::IsRecursive() const {
   for (const CssHierarchy* ancestor = parent_;
-       ancestor != NULL; ancestor = ancestor->parent_) {
+       ancestor != nullptr; ancestor = ancestor->parent_) {
     if (ancestor->url_ == url_) {
       return true;
     }
@@ -194,7 +194,7 @@ void CssHierarchy::AddFlatteningFailureReason(const GoogleString& reason) {
 
 bool CssHierarchy::CheckCharsetOk(const ResourcePtr& resource,
                                   GoogleString* failure_reason) {
-  DCHECK(parent_ != NULL);
+  DCHECK(parent_ != nullptr);
   // If we haven't already, determine the charset of this CSS;
   // per the CSS2.1 spec: 1st headers, 2nd @charset, 3rd owning document.
   if (charset_.empty()) {
@@ -228,7 +228,7 @@ bool CssHierarchy::CheckCharsetOk(const ResourcePtr& resource,
 
 bool CssHierarchy::Parse() {
   bool result = true;
-  if (stylesheet_.get() == NULL) {
+  if (stylesheet_.get() == nullptr) {
     // XXX(oschaaf): css 
     CssStringPiece tmp(input_contents_.data(), input_contents_.size());
     Css::Parser parser(tmp);
@@ -240,9 +240,9 @@ bool CssHierarchy::Parse() {
     // being set.
     if (parser.errors_seen_mask() != Css::Parser::kNoError) {
       delete stylesheet;
-      stylesheet = NULL;
+      stylesheet = nullptr;
     }
-    if (stylesheet == NULL) {
+    if (stylesheet == nullptr) {
       result = false;
     } else {
       // Note if we detected anything unparseable.
@@ -297,7 +297,7 @@ bool CssHierarchy::ExpandChildren() {
     GoogleString url(import->link().utf8_data(), import->link().utf8_length());
     const GoogleUrl import_url(css_resolution_base(), url);
     if (!import_url.IsWebValid()) {
-      if (filter_ != NULL) {
+      if (filter_ != nullptr) {
         filter_->num_flatten_imports_invalid_url_->Add(1);
       }
       message_handler_->Message(kInfo, "Invalid import URL %s", url.c_str());
@@ -314,7 +314,7 @@ bool CssHierarchy::ExpandChildren() {
         if (child->DetermineImportMedia(media_, media_types)) {
           child->InitializeNested(*this, import_url);
           if (child->IsRecursive()) {
-            if (filter_ != NULL) {
+            if (filter_ != nullptr) {
               filter_->num_flatten_imports_recursion_->Add(1);
             }
             child->set_flattening_succeeded(false);
@@ -326,7 +326,7 @@ bool CssHierarchy::ExpandChildren() {
         }
       } else {
         // import->media_queries() contained complex media queries.
-        if (filter_ != NULL) {
+        if (filter_ != nullptr) {
           filter_->num_flatten_imports_complex_queries_->Add(1);
         }
         child->set_flattening_succeeded(false);
@@ -346,7 +346,7 @@ void CssHierarchy::RollUpContents() {
   }
 
   // We need a stylesheet to do anything.
-  if (stylesheet_.get() == NULL) {
+  if (stylesheet_.get() == nullptr) {
     // If we don't have one we can try to create it from our contents.
     if (input_contents_.empty()) {
       // The CSS is empty with no contents - that's allowed.
@@ -357,7 +357,7 @@ void CssHierarchy::RollUpContents() {
       return;
     }
   }
-  CHECK(stylesheet_.get() != NULL);
+  CHECK(stylesheet_.get() != nullptr);
 
   const int n = children_.size();
 
@@ -412,7 +412,7 @@ void CssHierarchy::RollUpContents() {
     bool minified_ok = CssMinify::Stylesheet(*stylesheet_.get(), &writer,
                                              message_handler_);
     if (!minified_ok) {
-      if (filter_ != NULL) {
+      if (filter_ != nullptr) {
         filter_->num_flatten_imports_minify_failed_->Add(1);
       }
       flattening_succeeded_ = false;
@@ -421,7 +421,7 @@ void CssHierarchy::RollUpContents() {
     } else if (flattened_result_limit_ > 0) {
       int64 flattened_result_size = minified_contents_.size();
       if (flattened_result_size >= flattened_result_limit_) {
-        if (filter_ != NULL) {
+        if (filter_ != nullptr) {
           filter_->num_flatten_imports_limit_exceeded_->Add(1);
         }
         flattening_succeeded_ = false;
@@ -454,7 +454,7 @@ void CssHierarchy::RollUpContents() {
 
 bool CssHierarchy::RollUpStylesheets() {
   // We need a stylesheet to do anything.
-  if (stylesheet_.get() == NULL) {
+  if (stylesheet_.get() == nullptr) {
     // If we don't have one we can try to create it from our contents.
     if (input_contents_.empty()) {
       // The CSS is empty with no contents - that's allowed.
@@ -473,7 +473,7 @@ bool CssHierarchy::RollUpStylesheets() {
       }
     }
   }
-  CHECK(stylesheet_.get() != NULL);
+  CHECK(stylesheet_.get() != nullptr);
 
   const int n = children_.size();
 
@@ -510,7 +510,7 @@ bool CssHierarchy::RollUpStylesheets() {
     Css::FontFaces& fonts_target = stylesheet_->mutable_font_faces();
     for (int i = n - 1; i >= 0; --i) {  // reverse order
       Css::Stylesheet* stylesheet = children_[i]->stylesheet_.get();
-      if (stylesheet != NULL) {  // NULL if empty
+      if (stylesheet != nullptr) {  // NULL if empty
         Css::Rulesets& source = stylesheet->mutable_rulesets();
         target.insert(target.begin(), source.begin(), source.end());
         source.clear();

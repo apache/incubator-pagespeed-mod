@@ -20,8 +20,8 @@
 
 #include "pagespeed/kernel/image/jpeg_reader.h"
 
-#include <setjmp.h>
-#include <stdlib.h>
+#include <csetjmp>
+#include <cstdlib>
 
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
@@ -69,7 +69,7 @@ METHODDEF(void) TermSource(j_decompress_ptr cinfo) {}
 void JpegStringReader(j_decompress_ptr cinfo,
                       const void* image_data,
                       size_t image_length) {
-  if (cinfo->src == NULL) {
+  if (cinfo->src == nullptr) {
     cinfo->src = (struct jpeg_source_mgr*)
       (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
                                   sizeof(jpeg_source_mgr));
@@ -148,7 +148,7 @@ void JpegReader::PrepareForRead(const void* image_data, size_t image_length) {
 }
 
 JpegScanlineReader::JpegScanlineReader(MessageHandler* handler) :
-  jpeg_env_(NULL),
+  jpeg_env_(nullptr),
   pixel_format_(UNSUPPORTED),
   height_(0),
   width_(0),
@@ -157,7 +157,7 @@ JpegScanlineReader::JpegScanlineReader(MessageHandler* handler) :
   was_initialized_(false),
   is_progressive_(false),
   message_handler_(handler) {
-  row_pointer_[0] = NULL;
+  row_pointer_[0] = nullptr;
 }
 
 JpegScanlineReader::~JpegScanlineReader() {
@@ -178,7 +178,7 @@ bool JpegScanlineReader::Reset() {
   jpeg_destroy_decompress(&(jpeg_env_->jpeg_decompress_));
   memset(jpeg_env_, 0, sizeof(JpegEnv));
   free(row_pointer_[0]);
-  row_pointer_[0] = NULL;
+  row_pointer_[0] = nullptr;
   return true;
 }
 
@@ -187,7 +187,7 @@ ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
   if (was_initialized_) {
     // Reset the reader if it has been initialized before.
     Reset();
-  } else if (jpeg_env_ == NULL) {
+  } else if (jpeg_env_ == nullptr) {
     jpeg_env_ = static_cast<JpegEnv*>(malloc(sizeof(JpegEnv)));
     memset(jpeg_env_, 0, sizeof(JpegEnv));
   }

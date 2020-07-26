@@ -117,7 +117,7 @@ class RpcHandlerTest : public GrpcServerTest {
  public:
   void SetUp() override {
     GrpcServerTest::SetUp();
-    client_.reset(new ClientConnection(ServerAddress()));
+    client_ = std::make_unique<ClientConnection>(ServerAddress());
   }
 
   void RegisterServices(::grpc::ServerBuilder* builder) override {

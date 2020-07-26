@@ -87,7 +87,7 @@ TEST(JpegReaderTest, InvalidJpegs) {
       ASSERT_FALSE(reader.Initialize(src_data.c_str(), src_data.length()));
     } else {
       ASSERT_TRUE(reader.Initialize(src_data.c_str(), src_data.length()));
-      void* scanline = NULL;
+      void* scanline = nullptr;
       // The image data section of this image is corrupted. The first 89 rows
       // can be decoded correctly, but not for the 90th or later rows.
       for (int row = 0; row < 89; ++row) {
@@ -101,7 +101,7 @@ TEST(JpegReaderTest, InvalidJpegs) {
 // Verify that the reader work properly no matter how many scalines it reads.
 TEST(JpegReaderTest, PartialRead) {
   GoogleString image1, image2;
-  void* scanline = NULL;
+  void* scanline = nullptr;
   MockMessageHandler message_handler(new NullMutex);
 
   ReadTestFile(kJpegTestDir, kValidJpegImages[0], "jpg", &image1);

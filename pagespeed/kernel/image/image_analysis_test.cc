@@ -155,7 +155,7 @@ class ImageAnalysisTest : public testing::Test {
       bool has_transparency = false;
       bool is_photo = false;
       int quality = -1;
-      ScanlineReaderInterface* reader = NULL;
+      ScanlineReaderInterface* reader = nullptr;
 
       EXPECT_TRUE(AnalyzeImage(image_format, image_string.data(),
                                image_string.length(), &width, &height,
@@ -176,9 +176,9 @@ class ImageAnalysisTest : public testing::Test {
       EXPECT_EQ(expected_is_photo, is_photo);
 
       if (is_animated || image_format != IMAGE_JPEG) {
-        EXPECT_EQ(static_cast<ScanlineReaderInterface*>(NULL), reader);
+        EXPECT_EQ(static_cast<ScanlineReaderInterface*>(nullptr), reader);
       } else {
-        EXPECT_NE(static_cast<ScanlineReaderInterface*>(NULL), reader);
+        EXPECT_NE(static_cast<ScanlineReaderInterface*>(nullptr), reader);
       }
       delete reader;
     }

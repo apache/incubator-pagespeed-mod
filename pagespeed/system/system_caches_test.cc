@@ -22,6 +22,8 @@
 #include "pagespeed/system/system_caches.h"
 
 #include <cstdlib>
+#include <memory>
+
 #include <vector>
 
 #include "apr_poll.h"
@@ -159,7 +161,7 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
         options_(new SystemRewriteOptions(thread_system_.get())),
         purge_done_(false),
         purge_success_(false) {
-    shared_mem_.reset(new InProcessSharedMem(thread_system_.get()));
+    shared_mem_ = std::make_unique<InProcessSharedMem>(thread_system_.get());
     factory_->set_hasher(new MD5Hasher());
     Statistics* stats = factory()->statistics();
     SystemCaches::InitStats(stats);
@@ -186,8 +188,8 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
   }
 
   void SetUpSystemCaches() {
-    system_caches_.reset(
-        new SystemCaches(factory(), shared_mem_.get(), kThreadLimit));
+    system_caches_ = std::make_unique<SystemCaches>(
+        factory(), shared_mem_.get(), kThreadLimit);
   }
 
   void BreakShm() {
@@ -195,7 +197,7 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
     system_caches_->StopCacheActivity();
     system_caches_->ShutDown(factory()->message_handler());
 
-    shared_mem_.reset(new NullSharedMem());
+    shared_mem_ = std::make_unique<NullSharedMem>();
     SetUpSystemCaches();
   }
 
@@ -397,7 +399,7 @@ TEST_F(SystemCachesTest, BasicFileAndLruCache) {
               Stats("lru_cache", ThreadsafeLRU()),
               FileCacheWithStats())),
       server_context->http_cache()->Name());
-  EXPECT_TRUE(server_context->filesystem_metadata_cache() == NULL);
+  EXPECT_TRUE(server_context->filesystem_metadata_cache() == nullptr);
 }
 
 TEST_F(SystemCachesTest, BasicFileOnlyCache) {
@@ -413,7 +415,7 @@ TEST_F(SystemCachesTest, BasicFileOnlyCache) {
                server_context->metadata_cache()->Name());
   EXPECT_STREQ(HttpCache(FileCacheWithStats()),
                server_context->http_cache()->Name());
-  EXPECT_TRUE(server_context->filesystem_metadata_cache() == NULL);
+  EXPECT_TRUE(server_context->filesystem_metadata_cache() == nullptr);
 }
 
 TEST_F(SystemCachesTest, UnusableShmAndLru) {
@@ -440,7 +442,7 @@ TEST_F(SystemCachesTest, UnusableShmAndLru) {
           Stats("lru_cache", ThreadsafeLRU()),
           FileCacheWithStats())),
       server_context->http_cache()->Name());
-  EXPECT_TRUE(server_context->filesystem_metadata_cache() == NULL);
+  EXPECT_TRUE(server_context->filesystem_metadata_cache() == nullptr);
 }
 
 TEST_F(SystemCachesTest, BasicShmAndLru) {
@@ -464,7 +466,7 @@ TEST_F(SystemCachesTest, BasicShmAndLru) {
       HttpCache(WriteThrough(Stats("lru_cache", ThreadsafeLRU()),
                              FileCacheWithStats())),
       server_context->http_cache()->Name());
-  EXPECT_TRUE(server_context->filesystem_metadata_cache() == NULL);
+  EXPECT_TRUE(server_context->filesystem_metadata_cache() == nullptr);
 }
 
 TEST_F(SystemCachesTest, BasicShmAndNoLru) {
@@ -486,7 +488,7 @@ TEST_F(SystemCachesTest, BasicShmAndNoLru) {
   // HTTP cache is unaffected.
   EXPECT_STREQ(HttpCache(FileCacheWithStats()),
                server_context->http_cache()->Name());
-  EXPECT_TRUE(server_context->filesystem_metadata_cache() == NULL);
+  EXPECT_TRUE(server_context->filesystem_metadata_cache() == nullptr);
 }
 
 TEST_F(SystemCachesTest, DoubleShmCreate) {
@@ -520,7 +522,7 @@ TEST_F(SystemCachesTest, DoubleShmCreate) {
           Stats("lru_cache", ThreadsafeLRU()),
           FileCacheWithStats())),
       server_context->http_cache()->Name());
-  EXPECT_TRUE(server_context->filesystem_metadata_cache() == NULL);
+  EXPECT_TRUE(server_context->filesystem_metadata_cache() == nullptr);
 }
 
 // This class is not template for several reasons:
@@ -618,7 +620,7 @@ class SystemCachesMemCacheTest : public SystemCachesExternalCacheTestBase {
                    << "the tests.  See install/run_program_with_memcached.sh";
         return cluster_spec_;
       }
-      cluster_spec_.servers.push_back(ExternalServerSpec("localhost", port));
+      cluster_spec_.servers.emplace_back("localhost", port);
     }
     return cluster_spec_;
   }
@@ -672,7 +674,7 @@ void SystemCachesExternalCacheTestBase::TestBasicCacheAndLru() {
           Stats("lru_cache", ThreadsafeLRU()),
           AssembledAsyncCacheWithStats())),
       server_context->http_cache()->Name());
-  ASSERT_TRUE(server_context->filesystem_metadata_cache() != NULL);
+  ASSERT_TRUE(server_context->filesystem_metadata_cache() != nullptr);
   EXPECT_TRUE(server_context->filesystem_metadata_cache()->IsBlocking());
   EXPECT_STREQ(
       AssembledBlockingCacheWithStats(),
@@ -735,7 +737,7 @@ void SystemCachesExternalCacheTestBase::TestBasicCacheShmNoLru() {
   EXPECT_STREQ(
       HttpCache(AssembledAsyncCacheWithStats()),
       server_context->http_cache()->Name());
-  ASSERT_TRUE(server_context->filesystem_metadata_cache() != NULL);
+  ASSERT_TRUE(server_context->filesystem_metadata_cache() != nullptr);
   EXPECT_TRUE(server_context->filesystem_metadata_cache()->IsBlocking());
   EXPECT_STREQ(
       Stats("shm_cache", "SharedMemCache<64>"),
@@ -778,7 +780,7 @@ void SystemCachesMemCacheTest::TestBasicMemCacheAndNoLru(
       HttpCache(
           Fallback(mem_cache, Stats("file_cache", FileCacheName()))),
       server_context->http_cache()->Name());
-  ASSERT_TRUE(server_context->filesystem_metadata_cache() != NULL);
+  ASSERT_TRUE(server_context->filesystem_metadata_cache() != nullptr);
 
   // That the code that queries the FSMDC from the validator in RewriteContext
   // does a Get and needs the response to be available inline.
@@ -814,7 +816,7 @@ class SystemCachesRedisCacheTest : public SystemCachesExternalCacheTestBase {
       // This matches the logic in apr_mem_cache_test.
       const char* port_string = getenv("REDIS_PORT");
       int port;
-      if (port_string == NULL || !StringToInt(port_string, &port)) {
+      if (port_string == nullptr || !StringToInt(port_string, &port)) {
         LOG(ERROR) << "SystemCachesRedisCacheTest is skipped because env var "
                    << "$REDIS_PORT is not set to a valid integer. Set that to "
                    << "the port number where redis is running to enable the "
@@ -854,8 +856,8 @@ TEST_F(SystemCachesTest, BasicFileLockManager) {
   PrepareWithConfig(options_.get());
   NamedLockManager* named_locks = system_caches_->GetLockManager(
       options_.get());
-  EXPECT_TRUE(named_locks != NULL);
-  EXPECT_TRUE(dynamic_cast<FileSystemLockManager*>(named_locks) != NULL);
+  EXPECT_TRUE(named_locks != nullptr);
+  EXPECT_TRUE(dynamic_cast<FileSystemLockManager*>(named_locks) != nullptr);
 }
 
 TEST_F(SystemCachesTest, BasicShmLockManager) {
@@ -865,8 +867,8 @@ TEST_F(SystemCachesTest, BasicShmLockManager) {
   PrepareWithConfig(options_.get());
   NamedLockManager* named_locks = system_caches_->GetLockManager(
       options_.get());
-  EXPECT_TRUE(named_locks != NULL);
-  EXPECT_TRUE(dynamic_cast<SharedMemLockManager*>(named_locks) != NULL);
+  EXPECT_TRUE(named_locks != nullptr);
+  EXPECT_TRUE(dynamic_cast<SharedMemLockManager*>(named_locks) != nullptr);
 }
 
 TEST_F(SystemCachesTest, FileShare) {
@@ -1090,13 +1092,13 @@ TEST_F(SystemCachesTest, FileCacheSettings) {
 
   FileCache* file_cache = dynamic_cast<FileCache*>(
       SkipWrappers(server_context->metadata_cache()));
-  ASSERT_TRUE(file_cache != NULL);
+  ASSERT_TRUE(file_cache != nullptr);
   EXPECT_EQ(kCachePath, file_cache->path());
   EXPECT_EQ(3 * Timer::kHourMs, file_cache->cache_policy()->clean_interval_ms);
   // Note: this is in bytes, the setting is in kb.
   EXPECT_EQ(1024*1024, file_cache->cache_policy()->target_size_bytes);
   EXPECT_EQ(50000, file_cache->cache_policy()->target_inode_count);
-  EXPECT_TRUE(file_cache->worker() != NULL);
+  EXPECT_TRUE(file_cache->worker() != nullptr);
 }
 
 TEST_F(SystemCachesTest, LruCacheSettings) {
@@ -1111,18 +1113,18 @@ TEST_F(SystemCachesTest, LruCacheSettings) {
 
   WriteThroughCache* write_through = dynamic_cast<WriteThroughCache*>(
       SkipWrappers(server_context->metadata_cache()));
-  ASSERT_TRUE(write_through != NULL);
+  ASSERT_TRUE(write_through != nullptr);
   EXPECT_EQ(500, write_through->cache1_limit());
 
   LRUCache* lru_cache = dynamic_cast<LRUCache*>(
       SkipWrappers(write_through->cache1()));
-  ASSERT_TRUE(lru_cache != NULL);
+  ASSERT_TRUE(lru_cache != nullptr);
   EXPECT_EQ(1024*1024, lru_cache->max_bytes_in_cache());
 
   // Also on the HTTP cache
   WriteThroughCache* http_write_through =
       dynamic_cast<WriteThroughCache*>(server_context->http_cache()->cache());
-  ASSERT_TRUE(http_write_through != NULL);
+  ASSERT_TRUE(http_write_through != nullptr);
   EXPECT_EQ(500, http_write_through->cache1_limit());
 }
 
@@ -1363,10 +1365,10 @@ TEST_F(SystemCachesTest, BrokenShmFallbackShmLockManager) {
   PrepareWithConfig(options_.get());
   NamedLockManager* named_locks = system_caches_->GetLockManager(
       options_.get());
-  EXPECT_TRUE(named_locks != NULL);
+  EXPECT_TRUE(named_locks != nullptr);
 
   // Actually file system based here, due to fallback.
-  EXPECT_TRUE(dynamic_cast<FileSystemLockManager*>(named_locks) != NULL);
+  EXPECT_TRUE(dynamic_cast<FileSystemLockManager*>(named_locks) != nullptr);
 }
 
 TEST_F(SystemCachesTest, BrokenShmFallbackShmAndLru) {

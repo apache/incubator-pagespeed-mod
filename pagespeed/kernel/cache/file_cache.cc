@@ -254,7 +254,7 @@ bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
   LockBumpingProgressNotifier lock_bumping_notifier(
       file_system_, &clean_lock_path_, message_handler_);
   FileSystem::ProgressNotifier* notifier = &lock_bumping_notifier;
-  if (notifier_for_tests_ != NULL) {
+  if (notifier_for_tests_ != nullptr) {
     notifier = notifier_for_tests_;
   }
   // Get the contents of the cache
@@ -432,8 +432,8 @@ bool FileCache::ShouldClean(int64* suggested_next_clean_time_ms) {
 }
 
 void FileCache::CleanIfNeeded() {
-  DCHECK(worker_ != NULL);
-  if (worker_ != NULL) {
+  DCHECK(worker_ != nullptr);
+  if (worker_ != nullptr) {
     int64 suggested_next_clean_time_ms;
     if (ShouldClean(&suggested_next_clean_time_ms)) {
       worker_->Start();

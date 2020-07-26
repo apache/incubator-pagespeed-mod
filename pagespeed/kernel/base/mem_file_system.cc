@@ -125,7 +125,7 @@ MemFileSystem::MemFileSystem(ThreadSystem* threads, Timer* timer)
       all_else_mutex_(threads->NewMutex()),
       enabled_(true),
       timer_(timer),
-      mock_timer_(NULL),
+      mock_timer_(nullptr),
       temp_file_index_(0),
       atime_enabled_(true),
       advance_time_on_update_(false) {
@@ -219,14 +219,14 @@ FileSystem::InputFile* MemFileSystem::OpenInputFile(
 
   ++num_input_file_opens_;
   if (!enabled_) {
-    return NULL;
+    return nullptr;
   }
 
   StringStringMap::const_iterator iter = string_map_.find(filename);
   if (iter == string_map_.end()) {
     message_handler->Error(filename, 0, "opening input file: %s",
                            "file not found");
-    return NULL;
+    return nullptr;
   } else {
     UpdateAtime(filename);
     return new MemInputFile(filename, iter->second);
@@ -408,7 +408,7 @@ bool MemFileSystem::WriteFile(const char* filename,
                               const StringPiece& buffer,
                               MessageHandler* handler) {
   bool ret = FileSystem::WriteFile(filename, buffer, handler);
-  if (write_callback_.get() != NULL) {
+  if (write_callback_.get() != nullptr) {
     write_callback_.release()->Run(filename);
   }
   return ret;
@@ -419,7 +419,7 @@ bool MemFileSystem::WriteTempFile(const StringPiece& prefix_name,
                                   GoogleString* filename,
                                   MessageHandler* handler) {
   bool ret = FileSystem::WriteTempFile(prefix_name, buffer, filename, handler);
-  if (write_callback_.get() != NULL) {
+  if (write_callback_.get() != nullptr) {
     write_callback_.release()->Run(*filename);
   }
   return ret;

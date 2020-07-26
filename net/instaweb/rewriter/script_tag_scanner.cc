@@ -78,13 +78,13 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
   ScriptClassification lang;
   HtmlElement::Attribute* type_attr = element->FindAttribute(HtmlName::kType);
   bool check_lang_attr = false;
-  if (type_attr == NULL) {
+  if (type_attr == nullptr) {
     check_lang_attr = true;
   } else {
     StringPiece type_str = type_attr->DecodedValueOrNull();
     if (type_attr->decoding_error()) {
       lang = kUnknownScript;                 // e.g. <script type=&#257;>
-    } else if (type_str.data() == NULL) {    // e.g. <script type>
+    } else if (type_str.data() == nullptr) {    // e.g. <script type>
       // If the type attribute is empty (no =) then fall back to the lang attr.
       check_lang_attr = true;
     } else if (type_str.empty() || IsJsMime(Normalized(type_str))) {
@@ -106,11 +106,11 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
     HtmlElement::Attribute* lang_attr = element->FindAttribute(
         HtmlName::kLanguage);
 
-    if (lang_attr != NULL) {
+    if (lang_attr != nullptr) {
       StringPiece lang_piece = lang_attr->DecodedValueOrNull();
       if (lang_attr->decoding_error()) {
         lang = kUnknownScript;                 // e.g. <script language=&#257;>
-      } else if (lang_piece.data() == NULL) {
+      } else if (lang_piece.data() == nullptr) {
         lang = kJavaScript;                    // e.g. <script language>
       } else {
         GoogleString lang_str;
@@ -135,11 +135,11 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
 int ScriptTagScanner::ExecutionMode(const HtmlElement* element) const {
   int flags = 0;
 
-  if (element->FindAttribute(HtmlName::kAsync) != NULL) {
+  if (element->FindAttribute(HtmlName::kAsync) != nullptr) {
     flags |= kExecuteAsync;
   }
 
-  if (element->FindAttribute(HtmlName::kDefer) != NULL) {
+  if (element->FindAttribute(HtmlName::kDefer) != nullptr) {
     flags |= kExecuteDefer;
   }
 
@@ -153,7 +153,7 @@ int ScriptTagScanner::ExecutionMode(const HtmlElement* element) const {
       HtmlName::kFor);
   const HtmlElement::Attribute* event_attr = element->FindAttribute(
       HtmlName::kEvent);
-  if (for_attr != NULL && event_attr != NULL) {
+  if (for_attr != nullptr && event_attr != nullptr) {
     if (Normalized(for_attr->DecodedValueOrNull()) != "window") {
       flags |= kExecuteForEvent;
     }

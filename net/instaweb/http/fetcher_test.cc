@@ -85,7 +85,7 @@ int FetcherTest::CountFetchesAsync(
 int FetcherTest::CountFetchesAsync(
     const StringPiece& url, UrlAsyncFetcher* fetcher,
     bool expect_success, bool check_error_message, bool* callback_called) {
-  CHECK(fetcher != NULL);
+  CHECK(fetcher != nullptr);
   *callback_called = false;
   int starting_fetches = counting_fetcher_.fetch_start_count();
   CheckCallback* fetch = new CheckCallback(

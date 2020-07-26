@@ -68,7 +68,7 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
   }
 
   void TearDown() override {
-    filter_.reset(NULL);
+    filter_.reset(nullptr);
     RewriteTestBase::TearDown();
   }
 

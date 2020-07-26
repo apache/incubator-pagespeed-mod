@@ -19,6 +19,8 @@
 
 
 #include <cstddef>
+#include <memory>
+
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
@@ -292,7 +294,7 @@ class ImageConverterTest : public testing::Test {
 };
 
 TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg_invalidPngs) {
-  png_struct_reader_.reset(new PngReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<PngReader>(&message_handler_);
   pagespeed::image_compression::JpegCompressionOptions options;
   for (size_t i = 0; i < kInvalidFileCount; i++) {
     GoogleString in, out;
@@ -305,7 +307,7 @@ TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg_invalidPngs) {
 }
 
 TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg) {
-  png_struct_reader_.reset(new PngReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<PngReader>(&message_handler_);
   pagespeed::image_compression::JpegCompressionOptions options;
   // We are using default lossy options for conversion.
   options.lossy = true;
@@ -329,7 +331,7 @@ TEST_F(ImageConverterTest, OptimizePngOrConvertToJpeg) {
 }
 
 TEST_F(ImageConverterTest, ConvertPngToWebp_invalidPngs) {
-  png_struct_reader_.reset(new PngReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<PngReader>(&message_handler_);
   WebpConfiguration webp_config;
 
   for (size_t i = 0; i < kInvalidFileCount; i++) {
@@ -343,7 +345,7 @@ TEST_F(ImageConverterTest, ConvertPngToWebp_invalidPngs) {
 }
 
 TEST_F(ImageConverterTest, ConvertOpaqueGifToPng) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<GifReader>(&message_handler_);
   for (size_t i = 0; i < kValidGifImageCount; i++) {
     GoogleString in, out;
      ReadTestFile(
@@ -359,7 +361,7 @@ TEST_F(ImageConverterTest, ConvertOpaqueGifToPng) {
 }
 
 TEST_F(ImageConverterTest, ConvertOpaqueGifToJpeg) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<GifReader>(&message_handler_);
   pagespeed::image_compression::JpegCompressionOptions options;
   options.lossy = true;
   options.progressive = false;
@@ -379,7 +381,7 @@ TEST_F(ImageConverterTest, ConvertOpaqueGifToJpeg) {
 }
 
 TEST_F(ImageConverterTest, ConvertOpaqueGifToWebp) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<GifReader>(&message_handler_);
   pagespeed::image_compression::WebpConfiguration options;
   for (size_t i = 0; i < kValidGifImageCount; i++) {
     GoogleString in, out;
@@ -399,7 +401,7 @@ TEST_F(ImageConverterTest, ConvertOpaqueGifToWebp) {
 }
 
 TEST_F(ImageConverterTest, ConvertTransparentGifToPng) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<GifReader>(&message_handler_);
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "transparent", "gif", &in);
   EXPECT_EQ(static_cast<size_t>(55800), in.size())
@@ -412,7 +414,7 @@ TEST_F(ImageConverterTest, ConvertTransparentGifToPng) {
 }
 
 TEST_F(ImageConverterTest, ConvertTransparentGifToWebp) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<GifReader>(&message_handler_);
   pagespeed::image_compression::WebpConfiguration options;
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "transparent", "gif", &in);
@@ -431,7 +433,7 @@ TEST_F(ImageConverterTest, ConvertTransparentGifToWebp) {
 }
 
 TEST_F(ImageConverterTest, NotConvertTransparentGifToJpeg) {
-  png_struct_reader_.reset(new GifReader(&message_handler_));
+  png_struct_reader_ = std::make_unique<GifReader>(&message_handler_);
   pagespeed::image_compression::JpegCompressionOptions options;
   options.lossy = true;
   options.progressive = false;

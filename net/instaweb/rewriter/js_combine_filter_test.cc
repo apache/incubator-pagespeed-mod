@@ -105,11 +105,11 @@ class JsCombineFilterTest : public RewriteTestBase {
   class ScriptCollector : public EmptyHtmlFilter {
    public:
     explicit ScriptCollector(ScriptInfoVector* output)
-        : output_(output), active_script_(NULL) {
+        : output_(output), active_script_(nullptr) {
     }
 
     void StartElement(HtmlElement* element) override {
-      EXPECT_EQ(NULL, active_script_);
+      EXPECT_EQ(nullptr, active_script_);
       if (element->keyword() == HtmlName::kScript) {
         active_script_ = element;
         script_content_.clear();
@@ -125,12 +125,12 @@ class JsCombineFilterTest : public RewriteTestBase {
         ScriptInfo info;
         info.element = element;
         const char* url_cstr = element->AttributeValue(HtmlName::kSrc);
-        if (url_cstr != NULL) {
+        if (url_cstr != nullptr) {
           info.url = GoogleString(url_cstr);
         }
         info.text_content = script_content_;
         output_->push_back(info);
-        active_script_ = NULL;
+        active_script_ = nullptr;
       }
     }
 

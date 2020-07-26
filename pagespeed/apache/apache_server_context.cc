@@ -20,6 +20,10 @@
 
 #include "pagespeed/apache/apache_server_context.h"
 
+
+#include <memory>
+
+
 // http_protocol.h includes httpd.h. We need to include httpd_includes.h, which
 // works around a conflicting definition of OK in gRPC.
 #include "pagespeed/apache/apache_httpd_includes.h"
@@ -95,9 +99,9 @@ const ApacheConfig* ApacheServerContext::global_config() const {
 ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
   // While we no longer actually use the spdy config overlay, it's still
   // useful for backwards compatibility during parsing.
-  if (spdy_config_overlay_.get() == NULL) {
-    spdy_config_overlay_.reset(new ApacheConfig(
-        "spdy_overlay", thread_system()));
+  if (spdy_config_overlay_.get() == nullptr) {
+    spdy_config_overlay_ = std::make_unique<ApacheConfig>(
+        "spdy_overlay", thread_system());
     // We want to copy any implicit rewrite level from the parent,
     // so we don't end up overriding it with passthrough. It's also OK
     // to forward explicit one to an implicit one here, since an implicit
@@ -108,9 +112,9 @@ ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
 }
 
 ApacheConfig* ApacheServerContext::NonSpdyConfigOverlay() {
-  if (non_spdy_config_overlay_.get() == NULL) {
-    non_spdy_config_overlay_.reset(new ApacheConfig(
-        "non_spdy_overlay", thread_system()));
+  if (non_spdy_config_overlay_.get() == nullptr) {
+    non_spdy_config_overlay_ = std::make_unique<ApacheConfig>(
+        "non_spdy_overlay", thread_system());
     // See ::SpdyConfigOverlay for explanation.
     non_spdy_config_overlay_->SetDefaultRewriteLevel(global_config()->level());
   }
@@ -120,7 +124,7 @@ ApacheConfig* ApacheServerContext::NonSpdyConfigOverlay() {
 void ApacheServerContext::CollapseConfigOverlaysAndComputeSignatures() {
   // These days we ignore the spdy overlay and merge-in the non-spdy one
   // unconditionally.
-  if (non_spdy_config_overlay_.get() != NULL) {
+  if (non_spdy_config_overlay_.get() != nullptr) {
     global_config()->Merge(*non_spdy_config_overlay_);
   }
 
@@ -136,7 +140,7 @@ bool ApacheServerContext::PoolDestroyed() {
 }
 
 void ApacheServerContext::InitProxyFetchFactory() {
-  proxy_fetch_factory_.reset(new ProxyFetchFactory(this));
+  proxy_fetch_factory_ = std::make_unique<ProxyFetchFactory>(this);
 }
 
 ApacheRequestContext* ApacheServerContext::NewApacheRequestContext(
@@ -169,9 +173,9 @@ void ApacheServerContext::ChildInit(SystemRewriteDriverFactory* f) {
   if (global_config()->proxy_all_requests_mode()) {
     apache_factory_->SetNeedSchedulerThread();
     if (global_config()->measurement_proxy_mode()) {
-      measurement_url_namer_.reset(new MeasurementProxyUrlNamer(
+      measurement_url_namer_ = std::make_unique<MeasurementProxyUrlNamer>(
           global_config()->measurement_proxy_root(),
-          global_config()->measurement_proxy_password()));
+          global_config()->measurement_proxy_password());
       set_url_namer(measurement_url_namer_.get());
       SetRewriteOptionsManager(new MeasurementProxyRewriteOptionsManager(
           this,

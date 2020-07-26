@@ -77,7 +77,7 @@ class CachePropertyStoreGetCallback : public PropertyStoreGetCallback {
       CacheInterface::KeyState state,
       bool valid) {
     ScopedMutex lock(mutex());
-    if (page() == NULL) {
+    if (page() == nullptr) {
       return;
     }
     page()->log_record()->SetCacheStatusForCohortInfo(
@@ -214,7 +214,7 @@ void CachePropertyStore::Get(
     BoolCallback* done,
     AbstractPropertyStoreGetCallback** callback) {
   if (cohort_list.empty()) {
-    *callback = NULL;
+    *callback = nullptr;
     done->Run(true);
     return;
   }
@@ -259,7 +259,7 @@ void CachePropertyStore::Put(const GoogleString& url,
   const GoogleString cache_key = CacheKey(
       url, options_signature_hash, cache_key_suffix, cohort);
   cohort_itr->second->PutSwappingString(cache_key, &value);
-  if (done != NULL) {
+  if (done != nullptr) {
     done->Run(true);
   }
 }
@@ -272,7 +272,7 @@ void CachePropertyStore::AddCohortWithCache(
     const GoogleString& cohort, CacheInterface* cache) {
   std::pair<CohortCacheMap::iterator, bool> insertions =
       cohort_cache_map_.insert(
-        make_pair(cohort, static_cast<CacheInterface*>(NULL)));
+        make_pair(cohort, static_cast<CacheInterface*>(nullptr)));
   CHECK(insertions.second) << cohort << " is added twice.";
   // Create a new CacheStats for every cohort so that we can track cache
   // statistics independently for every cohort.

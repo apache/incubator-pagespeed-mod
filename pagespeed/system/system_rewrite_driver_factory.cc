@@ -115,7 +115,7 @@ SystemRewriteDriverFactory::SystemRewriteDriverFactory(
       thread_counts_finalized_(false),
       num_rewrite_threads_(-1),
       num_expensive_rewrite_threads_(-1) {
-  if (shared_mem_runtime == NULL) {
+  if (shared_mem_runtime == nullptr) {
 #ifdef PAGESPEED_SUPPORT_POSIX_SHARED_MEM
     shared_mem_runtime = new PthreadSharedMem();
 #else
@@ -135,12 +135,12 @@ void SystemRewriteDriverFactory::Init() {
 
   int thread_limit = LookupThreadLimit();
   thread_limit += num_rewrite_threads() + num_expensive_rewrite_threads();
-  caches_.reset(
-      new SystemCaches(this, shared_mem_runtime_.get(), thread_limit));
+  caches_ = std::make_unique<SystemCaches>(
+      this, shared_mem_runtime_.get(), thread_limit);
 }
 
 SystemRewriteDriverFactory::~SystemRewriteDriverFactory() {
-  shared_mem_statistics_.reset(NULL);
+  shared_mem_statistics_.reset(nullptr);
 }
 
 void SystemRewriteDriverFactory::InitApr() {
@@ -153,7 +153,7 @@ void SystemRewriteDriverFactory::InitApr() {
 // Note: does not call set_statistics() on the factory.
 Statistics* SystemRewriteDriverFactory::SetUpGlobalSharedMemStatistics(
     const SystemRewriteOptions& options) {
-  if (shared_mem_statistics_.get() == NULL) {
+  if (shared_mem_statistics_.get() == nullptr) {
     shared_mem_statistics_.reset(AllocateAndInitSharedMemStatistics(
         false /* not local */, "global", options));
   }
@@ -218,7 +218,7 @@ NonceGenerator* SystemRewriteDriverFactory::DefaultNonceGenerator() {
   MessageHandler* handler = message_handler();
   FileSystem::InputFile* random_file =
       file_system()->OpenInputFile("/dev/urandom", handler);
-  CHECK(random_file != NULL) << "Couldn't open /dev/urandom";
+  CHECK(random_file != nullptr) << "Couldn't open /dev/urandom";
   // Now use the key to construct an InputFileNonceGenerator.  Passing in a NULL
   // random_file here will create a generator that will fail on first access.
   return new InputFileNonceGenerator(random_file, file_system(),
@@ -324,11 +324,11 @@ void SystemRewriteDriverFactory::RootInit() {
 void SystemRewriteDriverFactory::ChildInit() {
   const SystemRewriteOptions* conf =
       SystemRewriteOptions::DynamicCast(default_options());
-  CHECK(conf != NULL);
+  CHECK(conf != nullptr);
 
   StdioFileSystem* fs = dynamic_cast<StdioFileSystem*>(file_system());
-  DCHECK(fs != NULL) << "Expected StdioFileSystem so we can call TrackTiming";
-  if (fs != NULL) {
+  DCHECK(fs != nullptr) << "Expected StdioFileSystem so we can call TrackTiming";
+  if (fs != nullptr) {
     fs->TrackTiming(conf->slow_file_latency_threshold_us(),
                     timer(), statistics(),
                     message_handler());
@@ -341,7 +341,7 @@ void SystemRewriteDriverFactory::ChildInit() {
 
   SetupMessageHandlers();
 
-  if (shared_mem_statistics_.get() != NULL) {
+  if (shared_mem_statistics_.get() != nullptr) {
     shared_mem_statistics_->Init(false, message_handler());
   }
 
@@ -389,15 +389,15 @@ SystemRewriteDriverFactory::GetCentralController(
 // TODO(jmarantz): make this per-vhost.
 void SystemRewriteDriverFactory::SharedCircularBufferInit(bool is_root) {
   // Set buffer size to 0 means turning it off
-  if (shared_mem_runtime() != NULL && (message_buffer_size_ != 0)) {
+  if (shared_mem_runtime() != nullptr && (message_buffer_size_ != 0)) {
     // TODO(jmarantz): it appears that filename_prefix() is not actually
     // established at the time of this construction, calling into question
     // whether we are naming our shared-memory segments correctly.
-    shared_circular_buffer_.reset(new SharedCircularBuffer(
+    shared_circular_buffer_ = std::make_unique<SharedCircularBuffer>(
         shared_mem_runtime(),
         message_buffer_size_,
         filename_prefix().as_string(),
-        hostname_identifier()));
+        hostname_identifier());
     if (shared_circular_buffer_->InitSegment(is_root, message_handler())) {
       SetCircularBuffer(shared_circular_buffer_.get());
      }
@@ -543,7 +543,7 @@ void SystemRewriteDriverFactory::PostConfig(
       // Lazily create shared-memory statistics if enabled in any config, even
       // when PageSpeed is totally disabled.  This allows statistics to work if
       // PageSpeed gets turned on via .htaccess or query param.
-      if (*global_statistics == NULL) {
+      if (*global_statistics == nullptr) {
         *global_statistics = SetUpGlobalSharedMemStatistics(*options);
       }
 
@@ -594,7 +594,7 @@ void SystemRewriteDriverFactory::ShutDown() {
   if (is_root_process_) {
     // Cleanup statistics.
     // TODO(morlovich): This looks dangerous with async.
-    if (shared_mem_statistics_.get() != NULL) {
+    if (shared_mem_statistics_.get() != nullptr) {
       shared_mem_statistics_->GlobalCleanup(message_handler());
     }
 
@@ -611,7 +611,7 @@ void SystemRewriteDriverFactory::ShutDown() {
     // As we are cleaning SharedCircularBuffer, we do not want to write to its
     // buffer and passing SystemMessageHandler here may cause infinite loop.
     GoogleMessageHandler handler;
-    if (shared_circular_buffer_ != NULL) {
+    if (shared_circular_buffer_ != nullptr) {
       shared_circular_buffer_->GlobalCleanup(&handler);
     }
   }
@@ -652,10 +652,10 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::GetFetcher(
   // Include all the fetcher parameters in the fetcher key, one per line.
   GoogleString key = GetFetcherKey(true, config);
   std::pair<FetcherMap::iterator, bool> result = fetcher_map_.insert(
-      std::make_pair(key, static_cast<UrlAsyncFetcher*>(NULL)));
+      std::make_pair(key, static_cast<UrlAsyncFetcher*>(nullptr)));
   FetcherMap::iterator iter = result.first;
   if (result.second) {
-    UrlAsyncFetcher* fetcher = NULL;
+    UrlAsyncFetcher* fetcher = nullptr;
     if (config->slurping_enabled()) {
       if (config->slurp_read_only()) {
         HttpDumpUrlFetcher* dump_fetcher = new HttpDumpUrlFetcher(
@@ -691,7 +691,7 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(
     SystemRewriteOptions* config) {
   SerfUrlAsyncFetcher* serf = new SerfUrlAsyncFetcher(
       config->fetcher_proxy().c_str(),
-      NULL,  // Do not use the Factory pool so we can control deletion.
+      nullptr,  // Do not use the Factory pool so we can control deletion.
       thread_system(), statistics(), timer(),
       config->blocking_fetch_timeout_ms(),
       message_handler());
@@ -709,7 +709,7 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::GetBaseFetcher(
     SystemRewriteOptions* config) {
   GoogleString cache_key = GetFetcherKey(false, config);
   std::pair<FetcherMap::iterator, bool> result = base_fetcher_map_.insert(
-      std::make_pair(cache_key, static_cast<UrlAsyncFetcher*>(NULL)));
+      std::make_pair(cache_key, static_cast<UrlAsyncFetcher*>(nullptr)));
   FetcherMap::iterator iter = result.first;
   if (result.second) {
     iter->second = AllocateFetcher(config);
@@ -719,7 +719,7 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::GetBaseFetcher(
 
 UrlAsyncFetcher* SystemRewriteDriverFactory::DefaultAsyncUrlFetcher() {
   LOG(DFATAL) << "The fetchers are not global, but kept in a map.";
-  return NULL;
+  return nullptr;
 }
 
 FileSystem* SystemRewriteDriverFactory::DefaultFileSystem() {
@@ -736,12 +736,12 @@ Timer* SystemRewriteDriverFactory::DefaultTimer() {
 
 NamedLockManager* SystemRewriteDriverFactory::DefaultLockManager() {
   LOG(DFATAL) << "Locks are owned by SystemCachePath, not the factory";
-  return NULL;
+  return nullptr;
 }
 
 ServerContext* SystemRewriteDriverFactory::NewServerContext() {
   LOG(DFATAL) << "Use implementation-specific MakeXServerXContext() instead";
-  return NULL;
+  return nullptr;
 }
 
 int SystemRewriteDriverFactory::requests_per_host() {

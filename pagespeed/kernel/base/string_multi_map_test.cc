@@ -59,7 +59,7 @@ TEST_F(StringMultiMapTest, TestAdd) {
   EXPECT_EQ(GoogleString("a"), string_map_.name(0));
   EXPECT_EQ(GoogleString("1"), *(string_map_.value(0)));
   EXPECT_EQ(GoogleString("b"), string_map_.name(1));
-  EXPECT_EQ(NULL, string_map_.value(1));
+  EXPECT_EQ(nullptr, string_map_.value(1));
   EXPECT_EQ(GoogleString("C"), string_map_.name(2));
   EXPECT_EQ(GoogleString("2"), *(string_map_.value(2)));
   EXPECT_EQ(GoogleString("d"), string_map_.name(3));
@@ -104,7 +104,7 @@ TEST_F(StringMultiMapTest, AddFromNameValuePairs) {
 
   EXPECT_TRUE(string_map.Lookup("a,b", &v));
   EXPECT_EQ(1, v.size());
-  EXPECT_EQ(NULL, v[0]);
+  EXPECT_EQ(nullptr, v[0]);
 
   EXPECT_TRUE(string_map.Lookup("a=", &v));
   EXPECT_EQ(1, v.size());
@@ -118,11 +118,11 @@ TEST_F(StringMultiMapTest, TestLookupHas) {
   ASSERT_EQ(2, v.size());
   EXPECT_EQ(GoogleString("1"), *(v[0]));
   EXPECT_EQ(GoogleString("3"), *(v[1]));
-  EXPECT_EQ(NULL, string_map_.Lookup1("a"));
+  EXPECT_EQ(nullptr, string_map_.Lookup1("a"));
 
   ASSERT_TRUE(string_map_.Lookup("B", &v));
   ASSERT_EQ(1, v.size());
-  EXPECT_EQ(NULL, v[0]);
+  EXPECT_EQ(nullptr, v[0]);
 
   ASSERT_TRUE(string_map_.Lookup("c", &v));
   ASSERT_EQ(1, v.size());
@@ -136,7 +136,7 @@ TEST_F(StringMultiMapTest, TestLookupHas) {
 
   EXPECT_FALSE(string_map_.Has("foo"));
   EXPECT_FALSE(string_map_.Lookup("foo", &v));
-  EXPECT_EQ(NULL, string_map_.Lookup1("foo"));
+  EXPECT_EQ(nullptr, string_map_.Lookup1("foo"));
 
   string_map_.Add("foo", "bar");
   EXPECT_TRUE(string_map_.Has("foo"));

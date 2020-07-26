@@ -43,7 +43,7 @@ void PedanticFilter::StartElement(HtmlElement* element) {
   // http://www.w3.org/TR/html5/the-style-element.html#attr-style-type
   if (!doctype.IsVersion5() && element->keyword() == HtmlName::kStyle) {
     HtmlElement::Attribute* type_attr = element->FindAttribute(HtmlName::kType);
-    if (type_attr == NULL) {
+    if (type_attr == nullptr) {
       // We have a style tag without a type attribute, add one.
       html_parse_->AddAttribute(element, HtmlName::kType, "text/css");
     }
@@ -56,11 +56,11 @@ void PedanticFilter::StartElement(HtmlElement* element) {
   if (!doctype.IsVersion5() && element->keyword() == HtmlName::kScript) {
     HtmlElement::Attribute* type_attr = element->FindAttribute(HtmlName::kType);
 
-    if (type_attr == NULL) {
+    if (type_attr == nullptr) {
       // No type and no language attributes, let's double check with
       // ScriptTagScanner that it thinks we're looking at javascript.
 
-      HtmlElement::Attribute* src = NULL;
+      HtmlElement::Attribute* src = nullptr;
       ScriptTagScanner::ScriptClassification classification =
           script_scanner_.ParseScriptElement(element, &src);
       if (classification == ScriptTagScanner::kJavaScript) {

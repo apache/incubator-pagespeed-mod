@@ -21,6 +21,8 @@
 #include "pagespeed/automatic/proxy_interface_test_base.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -153,10 +155,10 @@ void MockFilter::StartDocument() {
   const PropertyCache::Cohort* cohort =
       page_cache->GetCohort(RewriteDriver::kDomCohort);
   PropertyPage* page = driver_->property_page();
-  if (page != NULL) {
+  if (page != nullptr) {
     num_elements_property_ = page->GetProperty(cohort, "num_elements");
   } else {
-    num_elements_property_ = NULL;
+    num_elements_property_ = nullptr;
   }
 }
 
@@ -168,7 +170,7 @@ void MockFilter::StartElement(HtmlElement* element) {
     PropertyCache* page_cache =
         driver_->server_context()->page_property_cache();
 
-    if ((num_elements_property_ != NULL) &&
+    if ((num_elements_property_ != nullptr) &&
                num_elements_property_->has_value()) {
       StrAppend(&comment, num_elements_property_->value(),
                 " elements ",
@@ -188,12 +190,12 @@ void MockFilter::EndDocument() {
   // All these HTML responses are Cache-Control: private.
   EXPECT_TRUE(driver_->response_headers()->IsBrowserCacheable());
   PropertyPage* page = driver_->property_page();
-  if (page != NULL) {
+  if (page != nullptr) {
     page->UpdateValue(
         driver_->server_context()->dom_cohort(),
         "num_elements",
         IntegerToString(num_elements_));
-    num_elements_property_ = NULL;
+    num_elements_property_ = nullptr;
   }
 }
 
@@ -216,8 +218,8 @@ void ProxyInterfaceTestBase::SetUp() {
   sync->EnableForPrefix(ProxyFetch::kCollectorFinish);
   sync->AllowSloppyTermination(ProxyFetch::kCollectorFinish);
   ProxyInterface::InitStats("test-", statistics());
-  proxy_interface_.reset(new ProxyInterface(
-      "test-", "localhost", 80, server_context(), statistics()));
+  proxy_interface_ = std::make_unique<ProxyInterface>(
+      "test-", "localhost", 80, server_context(), statistics());
   server_context()->set_critical_images_finder(
       mock_critical_images_finder_);
 }
@@ -295,8 +297,8 @@ void ProxyInterfaceTestBase::FetchFromProxyNoWait(
     bool expect_success,
     bool log_flush,
     ResponseHeaders* headers_out) {
-  sync_.reset(new WorkerTestBase::SyncPoint(
-      server_context()->thread_system()));
+  sync_ = std::make_unique<WorkerTestBase::SyncPoint>(
+      server_context()->thread_system());
   request_context_.reset(CreateRequestContext());
   if (header_latency_ms_ != 0) {
     RequestTimingInfo* timing_info = mutable_timing_info();
@@ -360,7 +362,7 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
     bool expect_detach_before_pcache, const RequestHeaders& request_headers,
     ResponseHeaders* response_headers, GoogleString* output) {
   std::unique_ptr<QueuedWorkerPool> pool;
-  QueuedWorkerPool::Sequence* sequence = NULL;
+  QueuedWorkerPool::Sequence* sequence = nullptr;
 
   GoogleString delay_pcache_key, delay_http_cache_key;
   if (delay_pcache || thread_pcache) {
@@ -376,8 +378,8 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
     delay_cache()->DelayKey(delay_pcache_key);
     if (thread_pcache) {
       delay_cache()->DelayKey(delay_http_cache_key);
-      pool.reset(new QueuedWorkerPool(
-          1, "pcache", server_context()->thread_system()));
+      pool = std::make_unique<QueuedWorkerPool>(
+          1, "pcache", server_context()->thread_system());
       sequence = pool->NewSequence();
     }
   }
@@ -429,7 +431,7 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
 }
 
 RequestContextPtr ProxyInterfaceTestBase::request_context() {
-  CHECK(request_context_.get() != NULL);
+  CHECK(request_context_.get() != nullptr);
   return request_context_;
 }
 

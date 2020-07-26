@@ -100,7 +100,7 @@ void ApacheWriter::OutputHeaders(ResponseHeaders* response_headers) {
 
   const char* content_type = response_headers->Lookup1(
       HttpAttributes::kContentType);
-  if (content_type != NULL) {
+  if (content_type != nullptr) {
     // ap_set_content_type does not make a copy of the string, we need
     // to duplicate it.  Note that we will update the content type below,
     // after transforming the headers.

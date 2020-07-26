@@ -22,6 +22,8 @@
 // Unit-test InflatingFetch.
 
 #include <cstddef>
+#include <memory>
+
 
 #include "net/instaweb/http/public/inflating_fetch.h"
 
@@ -87,15 +89,15 @@ class MockFetch : public StringAsyncFetch {
 class InflatingFetchTest : public testing::Test {
  protected:
   InflatingFetchTest()
-      : inflating_fetch_(NULL),
+      : inflating_fetch_(nullptr),
         gzipped_data_(reinterpret_cast<const char*>(kGzippedData),
                       STATIC_STRLEN(kGzippedData)),
         thread_system_(Platform::CreateThreadSystem()) {
   }
 
   void SetUp() override {
-    mock_fetch_.reset(new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get())));
+    mock_fetch_ = std::make_unique<MockFetch>(
+        RequestContext::NewTestRequestContext(thread_system_.get()));
     inflating_fetch_ = new InflatingFetch(mock_fetch_.get());
   }
 
@@ -145,7 +147,7 @@ TEST_F(InflatingFetchTest, AutoInflate) {
   EXPECT_EQ(kClearData, mock_fetch_->buffer())
       << "data should be auto-inflated.";
   EXPECT_TRUE(mock_fetch_->response_headers()->Lookup1(
-      HttpAttributes::kContentEncoding) == NULL)
+      HttpAttributes::kContentEncoding) == nullptr)
       << "Content encoding should be stripped since we inflated the data.";
   // Content-length shouldn't be there (since we don't know the uncompressed
   // size early enough).
@@ -272,7 +274,7 @@ TEST_F(InflatingFetchTest, TestEnableGzipFromBackend) {
   EXPECT_EQ(kClearData, mock_fetch_->buffer())
       << "data should be auto-inflated.";
   EXPECT_TRUE(mock_fetch_->response_headers()->Lookup1(
-      HttpAttributes::kContentEncoding) == NULL)
+      HttpAttributes::kContentEncoding) == nullptr)
       << "Content encoding should be stripped since we inflated the data.";
   EXPECT_TRUE(mock_fetch_->done());
   EXPECT_TRUE(mock_fetch_->success());

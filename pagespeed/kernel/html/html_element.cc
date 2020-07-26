@@ -57,7 +57,7 @@ HtmlElement::Data::~Data() {
 }
 
 void HtmlElement::MarkAsDead(const HtmlEventListIterator& end) {
-  if (data_.get() != NULL) {
+  if (data_.get() != nullptr) {
     data_->live_ = false;
     set_begin(end);
     set_end(end);
@@ -97,7 +97,7 @@ bool HtmlElement::DeleteAttribute(StringPiece name) {
 
 const HtmlElement::Attribute* HtmlElement::FindAttribute(
     HtmlName::Keyword keyword) const {
-  const Attribute* ret = NULL;
+  const Attribute* ret = nullptr;
 
   for (AttributeConstIterator iter = attributes().begin();
        iter != attributes().end(); ++iter) {
@@ -119,7 +119,7 @@ const HtmlElement::Attribute* HtmlElement::FindAttribute(
       return attribute;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 GoogleString HtmlElement::ToString() const {
@@ -134,7 +134,7 @@ GoogleString HtmlElement::ToString() const {
     if (attribute.decoding_error()) {
       // This is a debug method; not used in serialization.
       buf += "<DECODING ERROR>";
-    } else if (value != NULL) {
+    } else if (value != nullptr) {
       buf += "=";
       const char* quote = attribute.quote_str();
       buf += quote;
@@ -203,7 +203,7 @@ void HtmlElement::AddEscapedAttribute(const HtmlName& name,
 
 void HtmlElement::Attribute::CopyValue(const StringPiece& src,
                                        scoped_array<char>* dst) {
-  if (src.data() == NULL) {
+  if (src.data() == nullptr) {
     // This case indicates attribute without value <tag attr>, as opposed
     // to data()=="", which implies an empty value <tag attr=>.
     dst->reset();
@@ -247,7 +247,7 @@ void HtmlElement::Attribute::SetEscapedValue(const StringPiece& escaped_value) {
   // is a substring of value_.  This copies the value just prior
   // to deallocation of the old value_.
   const char* value_chars = decoded_value_.get();
-  if (value_chars != NULL) {
+  if (value_chars != nullptr) {
     DCHECK(value_chars + strlen(value_chars) < escaped_value.data() ||
            escaped_value.data() + escaped_value.size() < value_chars)
         << "Setting escaped value from substring of unescaped value.";

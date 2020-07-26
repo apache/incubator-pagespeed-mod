@@ -83,7 +83,7 @@ bool ParseDataUrl(const StringPiece& url,
   const char kBase64[] = ";base64";
   const size_t kBase64Size = STATIC_STRLEN(kBase64);
   // First invalidate all outputs.
-  *content_type = NULL;
+  *content_type = nullptr;
   *encoding = UNKNOWN;
   *encoded_content = StringPiece();
   size_t header_boundary = url.find(',');

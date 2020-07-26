@@ -51,7 +51,7 @@ bool TimeToString(int64 time, GoogleString* time_string,
 #else
   struct tm* time_info = gmtime_r(&time_sec, &time_buf);
 #endif  // WIN32
-  if ((time_info == NULL) ||
+  if ((time_info == nullptr) ||
       (time_buf.tm_wday < 0) ||
       (time_buf.tm_wday > 6) ||
       (time_buf.tm_mon < 0) ||

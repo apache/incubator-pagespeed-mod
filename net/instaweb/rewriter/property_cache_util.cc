@@ -33,20 +33,20 @@ const PropertyValue* DecodeFromPropertyCacheHelper(
     StringPiece property_name,
     int64 cache_ttl_ms,
     PropertyCacheDecodeResult* status) {
-  if (cohort == NULL || page == NULL) {
+  if (cohort == nullptr || page == nullptr) {
     *status = kPropertyCacheDecodeNotFound;
-    return NULL;
+    return nullptr;
   }
 
   PropertyValue* property_value = page->GetProperty(cohort, property_name);
-  if (property_value == NULL || !property_value->has_value()) {
+  if (property_value == nullptr || !property_value->has_value()) {
     *status = kPropertyCacheDecodeNotFound;
-    return NULL;
+    return nullptr;
   }
 
   if ((cache_ttl_ms != -1) && cache->IsExpired(property_value, cache_ttl_ms)) {
     *status = kPropertyCacheDecodeExpired;
-    return NULL;
+    return nullptr;
   }
   return property_value;
 }
@@ -57,7 +57,7 @@ PropertyCacheUpdateResult UpdateInPropertyCache(
     StringPiece property_name,
     bool write_cohort,
     AbstractPropertyPage* page) {
-  if (cohort == NULL || page == NULL) {
+  if (cohort == nullptr || page == nullptr) {
     return kPropertyCacheUpdateNotFound;
   }
 

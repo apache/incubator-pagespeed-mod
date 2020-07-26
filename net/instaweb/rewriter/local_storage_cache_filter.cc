@@ -102,7 +102,7 @@ void LocalStorageCacheFilter::StartElementImpl(HtmlElement* element) {
   // the inlined resource, indicating that we have to insert our JS for them.
   if (element->keyword() == HtmlName::kImg ||
       element->keyword() == HtmlName::kLink) {
-    if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) != NULL) {
+    if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) != nullptr) {
       // Note that we might end up not needing the inserted script because
       // the img/link might not be able to be inlined. So be it.
       script_needs_inserting_ = true;
@@ -127,7 +127,7 @@ void LocalStorageCacheFilter::EndElementImpl(HtmlElement* element) {
   }
   if (is_img || is_link) {
     const char* url = element->AttributeValue(HtmlName::kDataPagespeedLscUrl);
-    if (url != NULL) {
+    if (url != nullptr) {
       num_local_storage_cache_candidates_found_->Add(1);
       GoogleString hash = GenerateHashFromUrlAndElement(driver(), url, element);
       if (IsHashInCookie(driver(), kLscCookieName, hash, &cookie_hashes_)) {
@@ -205,7 +205,7 @@ bool LocalStorageCacheFilter::AddStorableResource(const StringPiece& url,
   if (!skip_cookie_check) {
     RewriteFilter* filter =
         driver->FindFilter(RewriteOptions::kLocalStorageCacheId);
-    if (filter != NULL) {
+    if (filter != nullptr) {
       LocalStorageCacheFilter* lsc =
           static_cast<LocalStorageCacheFilter*>(filter);
       GoogleString hash = GenerateHashFromUrlAndElement(driver, state->url_,
@@ -233,14 +233,14 @@ bool LocalStorageCacheFilter::AddLscAttributes(const StringPiece url,
   }
 
   // Don't add the other attributes if we don't have a data-pagespeed-lsc-url.
-  if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) == NULL) {
+  if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) == nullptr) {
     return false;
   }
 
   // TODO(matterbury): Determine how expensive this is and drop it if too high.
   RewriteFilter* filter =
       driver->FindFilter(RewriteOptions::kLocalStorageCacheId);
-  if (filter != NULL) {
+  if (filter != nullptr) {
     LocalStorageCacheFilter* lsc =
         static_cast<LocalStorageCacheFilter*>(filter);
     lsc->num_local_storage_cache_candidates_added_->Add(1);
@@ -275,7 +275,7 @@ void LocalStorageCacheFilter::RemoveLscAttributes(HtmlElement* element,
 
   RewriteFilter* filter =
       driver->FindFilter(RewriteOptions::kLocalStorageCacheId);
-  if (filter != NULL) {
+  if (filter != nullptr) {
     LocalStorageCacheFilter* lsc =
         static_cast<LocalStorageCacheFilter*>(filter);
     lsc->num_local_storage_cache_candidates_removed_->Add(1);
@@ -286,7 +286,7 @@ bool LocalStorageCacheFilter::IsHashInCookie(const RewriteDriver* driver,
                                              const StringPiece cookie_name,
                                              const StringPiece hash,
                                              std::set<StringPiece>* hash_set) {
-  if (driver->request_headers() == NULL) {
+  if (driver->request_headers() == nullptr) {
     LOG(WARNING) << "LocalStorageCacheFilter::IsHashInCookie: NO HEADERS!";
     return false;
   }
@@ -343,7 +343,7 @@ GoogleString LocalStorageCacheFilter::ExtractOtherImgAttributes(
         keyword != HtmlName::kSrc) {
       GoogleString escaped_js;
       // Escape problematic characters but don't quote it as we do that.
-      if (attr.DecodedValueOrNull() != NULL) {
+      if (attr.DecodedValueOrNull() != nullptr) {
         EscapeToJsStringLiteral(attr.DecodedValueOrNull(), false, &escaped_js);
       }
       StrAppend(&result, ", \"", attr.name_str(), "=", escaped_js, "\"");
@@ -371,14 +371,14 @@ GoogleString LocalStorageCacheFilter::GenerateHashFromUrlAndElement(
   // for images in RewriteContext.
   const char* width  = element->AttributeValue(HtmlName::kWidth);
   const char* height = element->AttributeValue(HtmlName::kHeight);
-  if (width == NULL && height == NULL) {
+  if (width == nullptr && height == nullptr) {
     url_to_hash.set(url.data(), url.size());
   } else {
     url.CopyToString(&backing_string);
-    if (width != NULL) {
+    if (width != nullptr) {
       StrAppend(&backing_string, "!w=", width);
     }
-    if (height != NULL) {
+    if (height != nullptr) {
       StrAppend(&backing_string, "!h=", height);
     }
     url_to_hash.set(backing_string.data(), backing_string.size());

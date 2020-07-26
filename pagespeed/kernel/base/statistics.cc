@@ -63,7 +63,7 @@ MutexedScalar::~MutexedScalar() {
 }
 
 int64 MutexedScalar::Get() const {
-  if (mutex() != NULL) {
+  if (mutex() != nullptr) {
     ScopedMutex hold_lock(mutex());
     return GetLockHeld();
   } else {
@@ -72,14 +72,14 @@ int64 MutexedScalar::Get() const {
 }
 
 void MutexedScalar::Set(int64 new_value) {
-  if (mutex() != NULL) {
+  if (mutex() != nullptr) {
     ScopedMutex hold_lock(mutex());
     SetLockHeld(new_value);
   }
 }
 
 int64 MutexedScalar::SetReturningPreviousValue(int64 new_value) {
-  if (mutex() != NULL) {
+  if (mutex() != nullptr) {
     ScopedMutex hold_lock(mutex());
     return SetReturningPreviousValueLockHeld(new_value);
   } else {
@@ -88,7 +88,7 @@ int64 MutexedScalar::SetReturningPreviousValue(int64 new_value) {
 }
 
 int64 MutexedScalar::AddHelper(int64 delta) {
-  if (mutex() != NULL) {
+  if (mutex() != nullptr) {
     ScopedMutex hold_lock(mutex());
     return AddLockHeld(delta);
   } else {
@@ -339,7 +339,7 @@ GoogleString Histogram::HtmlTableRow(const GoogleString& title, int index) {
 
 void Statistics::RenderTimedVariables(Writer* writer,
                                       MessageHandler* message_handler) {
-  TimedVariable* timedvar = NULL;
+  TimedVariable* timedvar = nullptr;
   const GoogleString end("</table>\n<td>\n<td>\n");
   std::map<GoogleString, StringVector> group_map = TimedVariableMap();
   std::map<GoogleString, StringVector>::const_iterator p;
@@ -378,15 +378,15 @@ void Statistics::RenderTimedVariables(Writer* writer,
 
 int64 Statistics::LookupValue(StringPiece stat_name) {
   Variable* var = FindVariable(stat_name);
-  if (var != NULL) {
+  if (var != nullptr) {
     return var->Get();
   }
   UpDownCounter* counter = FindUpDownCounter(stat_name);
-  if (counter != NULL) {
+  if (counter != nullptr) {
     return counter->Get();
   }
   TimedVariable* tvar = FindTimedVariable(stat_name);
-  if (tvar != NULL) {
+  if (tvar != nullptr) {
     return tvar->Get(TimedVariable::START);
   }
   LOG(FATAL) << "Could not find stat: " << stat_name;

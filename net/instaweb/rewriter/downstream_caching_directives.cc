@@ -47,7 +47,7 @@ DownstreamCachingDirectives::~DownstreamCachingDirectives() {
 void DownstreamCachingDirectives::ParseCapabilityListFromRequestHeaders(
     const RequestHeaders& request_headers) {
   const char* capabilities = request_headers.Lookup1(kPsaCapabilityList);
-  if (capabilities != NULL) {
+  if (capabilities != nullptr) {
     capabilities_to_be_supported_ = capabilities;
   }
   // Reset everything.

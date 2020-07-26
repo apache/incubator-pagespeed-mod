@@ -54,7 +54,7 @@ class PropertyStoreTest : public testing::Test {
   PropertyStoreGetCallback* GetCallback(bool is_cancellable) {
     return new PropertyStoreGetCallback(
         thread_system_->NewMutex(),
-        NULL,
+        nullptr,
         is_cancellable,
         NewCallback(this, &PropertyStoreTest::ExpectCallback),
         &timer_);

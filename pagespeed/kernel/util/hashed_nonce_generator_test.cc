@@ -19,6 +19,10 @@
 
 
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/util/hashed_nonce_generator.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -37,12 +41,12 @@ const char kOtherGeneratorKey[] = "other hashed nonce generator test key";
 class HashedNonceGeneratorTest : public NonceGeneratorTestBase {
  protected:
   HashedNonceGeneratorTest() {
-    main_generator_.reset(new HashedNonceGenerator(
-        &hasher_, kMainGeneratorKey, new NullMutex));
-    duplicate_generator_.reset(new HashedNonceGenerator(
-        &hasher_, kMainGeneratorKey, new NullMutex));
-    other_generator_.reset(new HashedNonceGenerator(
-        &hasher_, kOtherGeneratorKey, new NullMutex));
+    main_generator_ = std::make_unique<HashedNonceGenerator>(
+        &hasher_, kMainGeneratorKey, new NullMutex);
+    duplicate_generator_ = std::make_unique<HashedNonceGenerator>(
+        &hasher_, kMainGeneratorKey, new NullMutex);
+    other_generator_ = std::make_unique<HashedNonceGenerator>(
+        &hasher_, kOtherGeneratorKey, new NullMutex);
   }
 
   MD5Hasher hasher_;

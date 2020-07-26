@@ -20,10 +20,10 @@
 
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 
-#include <setjmp.h>
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/image/jpeg_reader.h"
+#include <csetjmp>
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
@@ -91,7 +91,7 @@ bool IsJpegSegmentPresent(const GoogleString& data, int segment) {
 
   bool is_marker_present = false;
   for (jpeg_saved_marker_ptr marker = jpeg_decompress->marker_list;
-       marker != NULL; marker = marker->next) {
+       marker != nullptr; marker = marker->next) {
     if (marker->marker == segment) {
       is_marker_present = true;
       break;

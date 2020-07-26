@@ -377,7 +377,7 @@ const char kParagraphTerminators[] =
 
 }  // namespace
 
-HtmlKeywords* HtmlKeywords::singleton_ = NULL;
+HtmlKeywords* HtmlKeywords::singleton_ = nullptr;
 
 HtmlKeywords::HtmlKeywords() {
   InitEscapeSequences();
@@ -444,15 +444,15 @@ void HtmlKeywords::InitEscapeSequences() {
 }
 
 void HtmlKeywords::Init() {
-  if (singleton_ == NULL) {
+  if (singleton_ == nullptr) {
     singleton_ = new HtmlKeywords();
   }
 }
 
 void HtmlKeywords::ShutDown() {
-  if (singleton_ != NULL) {
+  if (singleton_ != nullptr) {
     delete singleton_;
-    singleton_ = NULL;
+    singleton_ = nullptr;
   }
 }
 
@@ -503,7 +503,7 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
         accumulate_numeric_code = false;
         hex_mode = false;
       } else if (ch > 127) {
-        return StringPiece(NULL, 0);
+        return StringPiece(nullptr, 0);
       } else if (found_ampersand) {
         *buf += ch;
       }
@@ -517,11 +517,11 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
     } else if (ch == ';') {
       if (!TryUnescape(accumulate_numeric_code, numeric_value, escape,
                        true, buf)) {
-        return StringPiece(NULL, 0);
+        return StringPiece(nullptr, 0);
       }
       in_escape = false;
     } else if (ch > 127) {
-      return StringPiece(NULL, 0);
+      return StringPiece(nullptr, 0);
     } else {
       // Accumulate an escape code based on the current mode (symbolic, decimal,
       // or hex).  If the character is not plausible to accumulate into the
@@ -542,7 +542,7 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
           --i;  // re-examine ch now that we've unescaped what came before it.
           in_escape = false;
         } else {
-          return StringPiece(NULL, 0);
+          return StringPiece(nullptr, 0);
         }
       } else {
         escape += ch;
@@ -558,7 +558,7 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
       buf->push_back('&');
     } else if (!TryUnescape(accumulate_numeric_code, numeric_value,
                             escape, false, buf)) {
-      return StringPiece(NULL, 0);
+      return StringPiece(nullptr, 0);
     }
   }
   *decoding_error = false;
@@ -643,7 +643,7 @@ bool HtmlKeywords::TryUnescape(bool accumulate_numeric_code,
 
 StringPiece HtmlKeywords::EscapeHelper(const StringPiece& unescaped,
                                        GoogleString* buf) const {
-  if (unescaped.data() == NULL) {
+  if (unescaped.data() == nullptr) {
     return unescaped;
   }
   buf->clear();

@@ -21,6 +21,8 @@
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 
 #include <cstddef>
+#include <memory>
+
 #include <new>
 #include <vector>
 
@@ -105,12 +107,12 @@ RewriteTestBaseProcessContext rewrite_test_base_process_context;
 class TestRewriteOptionsManager : public RewriteOptionsManager {
  public:
   TestRewriteOptionsManager()
-      : options_(NULL) {}
+      : options_(nullptr) {}
 
   void GetRewriteOptions(const GoogleUrl& url,
                          const RequestHeaders& headers,
                          OptionsCallback* done) override {
-    done->Run((options_ == NULL) ? NULL : options_->Clone());
+    done->Run((options_ == nullptr) ? nullptr : options_->Clone());
   }
 
   void set_options(RewriteOptions* options) { options_ = options; }
@@ -142,7 +144,7 @@ RewriteTestBase::RewriteTestBase()
       other_options_(other_factory_->NewRewriteOptions()),
       kEtag0(HTTPCache::FormatEtag("0")),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
+  statistics_ = std::make_unique<SimpleStats>(factory_->thread_system());
   Init();
 }
 
@@ -156,12 +158,12 @@ RewriteTestBase::RewriteTestBase(
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
       expected_nonce_(0) {
-  statistics_.reset(new SimpleStats(factory_->thread_system()));
+  statistics_ = std::make_unique<SimpleStats>(factory_->thread_system());
   Init();
 }
 
 void RewriteTestBase::Init() {
-  DCHECK(statistics_ != NULL);
+  DCHECK(statistics_ != nullptr);
   RewriteDriverFactory::Initialize();
   TestRewriteDriverFactory::InitStats(statistics_.get());
   factory_->SetStatistics(statistics_.get());
@@ -200,13 +202,13 @@ void RewriteTestBase::TearDown() {
     factory_->ShutDown();
     rewrite_driver_->Clear();
     delete rewrite_driver_;
-    rewrite_driver_ = NULL;
+    rewrite_driver_ = nullptr;
 
     other_rewrite_driver_->WaitForShutDown();
     other_factory_->ShutDown();
     other_rewrite_driver_->Clear();
     delete other_rewrite_driver_;
-    other_rewrite_driver_ = NULL;
+    other_rewrite_driver_ = nullptr;
   }
   HtmlParseTestBaseNoAlloc::TearDown();
 }
@@ -253,7 +255,7 @@ void RewriteTestBase::SetBaseUrlForFetch(const StringPiece& url) {
 }
 
 void RewriteTestBase::ParseUrl(StringPiece url, StringPiece html_input) {
-  if (rewrite_driver_->request_headers() == NULL) {
+  if (rewrite_driver_->request_headers() == nullptr) {
     SetDriverRequestHeaders();
   }
   HtmlParseTestBaseNoAlloc::ParseUrl(url, html_input);
@@ -544,7 +546,7 @@ bool RewriteTestBase::FetchResourceUrl(
 
 bool RewriteTestBase::FetchResourceUrl(
     const StringPiece& url, GoogleString* content, ResponseHeaders* response) {
-  return FetchResourceUrl(url, NULL, content, response);
+  return FetchResourceUrl(url, nullptr, content, response);
 }
 
 bool RewriteTestBase::FetchResourceUrl(const StringPiece& url,
@@ -553,11 +555,11 @@ bool RewriteTestBase::FetchResourceUrl(const StringPiece& url,
                                        ResponseHeaders* response_headers) {
   content->clear();
   StringAsyncFetch async_fetch(request_context(), content);
-  if (request_headers != NULL) {
+  if (request_headers != nullptr) {
     request_headers->Add(HttpAttributes::kAcceptEncoding,
                          HttpAttributes::kGzip);
     async_fetch.set_request_headers(request_headers);
-  } else if (rewrite_driver_->request_headers() == NULL) {
+  } else if (rewrite_driver_->request_headers() == nullptr) {
     SetDriverRequestHeaders();
   }
   async_fetch.set_response_headers(response_headers);
@@ -673,20 +675,20 @@ void RewriteTestBase::ValidateFallbackHeaderSanitizationHelper(
 
   if (expect_load) {
     ASSERT_TRUE(FetchResourceUrl(resource,
-                                 NULL /* use default request headers */,
+                                 nullptr /* use default request headers */,
                                  &response_content,
                                  &response_headers));
     EXPECT_EQ(origin_contents, response_content);
     const ContentType* content_type = response_headers.DetermineContentType();
-    ASSERT_TRUE(NULL != content_type);
+    ASSERT_TRUE(nullptr != content_type);
     EXPECT_EQ(origin_content_type, content_type->mime_type());
 
     const char* nosniff = response_headers.Lookup1("X-Content-Type-Options");
-    ASSERT_TRUE(NULL != nosniff);
+    ASSERT_TRUE(nullptr != nosniff);
     EXPECT_EQ("nosniff", GoogleString(nosniff));
   } else {
     ASSERT_FALSE(FetchResourceUrl(resource,
-                                  NULL /* use default request headers */,
+                                  nullptr /* use default request headers */,
                                   &response_content,
                                   &response_headers));
   }
@@ -781,7 +783,7 @@ bool RewriteTestBase::CssLink::DecomposeCombinedUrl(
         (namer.id() == RewriteOptions::kCssCombinerId)) {
       UrlMultipartEncoder multipart_encoder;
       GoogleString segment;
-      ret = multipart_encoder.Decode(namer.name(), segments, NULL, handler);
+      ret = multipart_encoder.Decode(namer.name(), segments, nullptr, handler);
     }
   }
   return ret;
@@ -889,7 +891,7 @@ void RewriteTestBase::EncodePathAndLeaf(const StringPiece& id,
 const UrlSegmentEncoder* RewriteTestBase::FindEncoder(
     const StringPiece& id) const {
   RewriteFilter* filter = rewrite_driver_->FindFilter(id);
-  return (filter == NULL) ? &default_encoder_ : filter->encoder();
+  return (filter == nullptr) ? &default_encoder_ : filter->encoder();
 }
 
 GoogleString RewriteTestBase::Encode(const StringPiece& path,
@@ -1049,7 +1051,7 @@ RewriteDriver* RewriteTestBase::MakeDriver(
   RewriteDriver* rd;
   if (!use_managed_rewrite_drivers_) {
     rd = server_context->NewUnmanagedRewriteDriver(
-        NULL /* custom options, so no pool*/, options,
+        nullptr /* custom options, so no pool*/, options,
         CreateRequestContext());
     rd->set_externally_managed(true);
   } else {
@@ -1098,7 +1100,7 @@ void RewriteTestBase::TestRetainExtraHeaders(
 
 void RewriteTestBase::ClearStats() {
   statistics()->Clear();
-  if (lru_cache() != NULL) {
+  if (lru_cache() != nullptr) {
     lru_cache()->ClearStats();
   }
   counting_url_async_fetcher()->Clear();
@@ -1166,12 +1168,12 @@ class HttpCallback : public HTTPCache::Callback {
   explicit HttpCallback(const RequestContextPtr& request_context)
       : HTTPCache::Callback(request_context, RequestHeaders::Properties()),
         done_(false),
-        options_(NULL) {
+        options_(nullptr) {
   }
   ~HttpCallback() override {}
   bool IsCacheValid(const GoogleString& key,
                             const ResponseHeaders& headers) override {
-    if (options_ == NULL) {
+    if (options_ == nullptr) {
       return true;
     }
     return OptionsAwareHTTPCacheCallback::IsCacheValid(
@@ -1220,7 +1222,7 @@ HTTPCache::FindResult RewriteTestBase::HttpBlockingFindWithOptions(
     const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
     ResponseHeaders* headers) {
   HttpCallback callback(CreateRequestContext());
-  if (options != NULL) {
+  if (options != nullptr) {
     callback.set_options(options);
   }
   callback.set_response_headers(headers);
@@ -1234,7 +1236,7 @@ HTTPCache::FindResult RewriteTestBase::HttpBlockingFindWithOptions(
 HTTPCache::FindResult RewriteTestBase::HttpBlockingFind(
     const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
     ResponseHeaders* headers) {
-  return HttpBlockingFindWithOptions(NULL, key, http_cache, value_out, headers);
+  return HttpBlockingFindWithOptions(nullptr, key, http_cache, value_out, headers);
 }
 
 HTTPCache::FindResult RewriteTestBase::HttpBlockingFindStatus(
@@ -1294,9 +1296,9 @@ void RewriteTestBase::SetActiveServer(ActiveServerFlag server_to_use) {
     // because HtmlParseTestBaseNoAlloc::SetupWriter initializes once only, so
     // won't do it for the new one, resulting in fetched content not going to
     // the output_ data member, causing ValidateExpected calls to fail horribly.
-    if (html_writer_filter_.get() != NULL &&
-        other_html_writer_filter_.get() == NULL) {
-      other_html_writer_filter_.reset(new HtmlWriterFilter(html_parse()));
+    if (html_writer_filter_.get() != nullptr &&
+        other_html_writer_filter_.get() == nullptr) {
+      other_html_writer_filter_ = std::make_unique<HtmlWriterFilter>(html_parse());
       other_html_writer_filter_->set_writer(&write_to_string_);
       html_parse()->AddFilter(other_html_writer_filter_.get());
     }
@@ -1317,7 +1319,7 @@ void RewriteTestBase::AdjustTimeUsWithoutWakingAlarms(int64 time_us) {
 
 RequestContextPtr RewriteTestBase::request_context() {
   RequestContextPtr request_context(rewrite_driver_->request_context());
-  CHECK(request_context.get() != NULL);
+  CHECK(request_context.get() != nullptr);
   return request_context;
 }
 

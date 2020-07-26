@@ -21,6 +21,8 @@
 #include "pagespeed/opt/http/two_level_property_store.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/cache_interface.h"
@@ -90,13 +92,13 @@ class TwoLevelPropertyStoreTest : public testing::Test {
   }
 
   void SetUp() override {
-    page_.reset(
-        new MockPropertyPage(
+    page_ = std::make_unique<MockPropertyPage>(
+        
             thread_system_.get(),
             &property_cache_,
             kUrl,
             kOptionsSignatureHash,
-            kCacheKeySuffix));
+            kCacheKeySuffix);
     property_cache_.Read(page_.get());
     lru_cache_1_.ClearStats();
     lru_cache_2_.ClearStats();
@@ -114,7 +116,7 @@ class TwoLevelPropertyStoreTest : public testing::Test {
         kCacheKeySuffix,
         cohort,
         &values,
-        NULL);
+        nullptr);
   }
 
   void ResultCallback(bool result) {
@@ -126,7 +128,7 @@ class TwoLevelPropertyStoreTest : public testing::Test {
   }
 
   AbstractPropertyStoreGetCallback* ExecuteGet(PropertyPage* page) {
-    AbstractPropertyStoreGetCallback* callback = NULL;
+    AbstractPropertyStoreGetCallback* callback = nullptr;
     two_level_property_store_.Get(
         kUrl,
         kOptionsSignatureHash,
@@ -306,7 +308,7 @@ TEST_F(TwoLevelPropertyStoreTest, TestCancelBeforeSecondaryLookupDone) {
 
 TEST_F(TwoLevelPropertyStoreTest, TestCancelAfterSecondaryLookupDone) {
   PutHelper(&cache_property_store_2_, cohort_);
-  AbstractPropertyStoreGetCallback* callback = NULL;
+  AbstractPropertyStoreGetCallback* callback = nullptr;
   two_level_property_store_.Get(
       kUrl,
       kOptionsSignatureHash,
@@ -335,7 +337,7 @@ TEST_F(TwoLevelPropertyStoreTest, TestCancelAfterSecondaryLookupDone) {
 TEST_F(TwoLevelPropertyStoreTest, TestDeleteWhenDoneBeforeSecondaryLookupDone) {
   PutHelper(&cache_property_store_2_, cohort_);
   DelayCacheLookup(&delay_cache_2_, &cache_property_store_2_);
-  AbstractPropertyStoreGetCallback* callback = NULL;
+  AbstractPropertyStoreGetCallback* callback = nullptr;
   two_level_property_store_.Get(
       kUrl,
       kOptionsSignatureHash,

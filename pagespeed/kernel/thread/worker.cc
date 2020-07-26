@@ -47,7 +47,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
         owner_(owner),
         mutex_(runtime->NewMutex()),
         state_change_(mutex_->NewCondvar()),
-        current_task_(NULL),
+        current_task_(nullptr),
         exit_(false),
         started_(false) {
     quit_requested_.set_value(false);
@@ -60,7 +60,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
     ScopedMutex lock(mutex_.get());
 
     // Clean any task we were running last iteration
-    current_task_ = NULL;
+    current_task_ = nullptr;
 
     while (!exit_ && tasks_.empty()) {
       state_change_->Wait();
@@ -68,7 +68,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
 
     // Handle exit.
     if (exit_) {
-      return NULL;
+      return nullptr;
     }
 
     // Get task.
@@ -81,7 +81,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
 
   void Run() override LOCKS_EXCLUDED(mutex_) {
     Function* task;
-    while ((task = GetNextTask()) != NULL) {
+    while ((task = GetNextTask()) != nullptr) {
       // Run tasks (not holding the lock, so new tasks can be added).
       task->set_quit_requested_pointer(&quit_requested_);
       task->CallRun();
@@ -98,7 +98,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
       }
 
       exit_ = true;
-      if (current_task_ != NULL) {
+      if (current_task_ != nullptr) {
         quit_requested_.set_value(true);
       }
       state_change_->Signal();
@@ -142,7 +142,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
     if (owner_->IsPermitted(closure)) {
       tasks_.push_back(closure);
       owner_->UpdateQueueSizeStat(1);
-      if (current_task_ == NULL) {  // wake the thread up if it's idle.
+      if (current_task_ == nullptr) {  // wake the thread up if it's idle.
         state_change_->Signal();
       }
       return true;
@@ -155,7 +155,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
   // IsPermitted() above, making proper annotations difficult.
   int NumJobs() NO_THREAD_SAFETY_ANALYSIS {
     int num = static_cast<int>(tasks_.size());
-    if (current_task_ != NULL) {
+    if (current_task_ != nullptr) {
       ++num;
     }
     return num;
@@ -163,7 +163,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
 
   bool IsBusy() const LOCKS_EXCLUDED(mutex_) {
     ScopedMutex lock(mutex_.get());
-    return (current_task_ != NULL) || !tasks_.empty();
+    return (current_task_ != nullptr) || !tasks_.empty();
   }
 
  private:
@@ -185,7 +185,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
 
 Worker::Worker(StringPiece thread_name, ThreadSystem* runtime)
     : thread_(new WorkThread(this, thread_name, runtime)),
-      queue_size_(NULL) {
+      queue_size_(nullptr) {
 }
 
 Worker::~Worker() {
@@ -213,7 +213,7 @@ void Worker::ShutDown() {
 }
 
 void Worker::UpdateQueueSizeStat(int value) {
-  if (queue_size_ != NULL) {
+  if (queue_size_ != nullptr) {
     queue_size_->AddDelta(value);
   }
 }

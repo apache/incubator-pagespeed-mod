@@ -57,7 +57,7 @@ class DataUrlTest : public testing::Test {
   // Make a ContentType yield readable failure output.  Needed this to fix bugs
   // in the tests!  (No actual program bugs found here...)
   const char* Mime(const ContentType* type) {
-    if (type == NULL || type->mime_type() == NULL) {
+    if (type == nullptr || type->mime_type() == nullptr) {
       return "NULL";
     } else {
       return type->mime_type();
@@ -140,23 +140,23 @@ TEST_F(DataUrlTest, ParseData1Base64) {
 
 TEST_F(DataUrlTest, ParseBadProtocol) {
   TestDecoding(false, false, "http://www.google.com/", "",
-               NULL, UNKNOWN, "");
+               nullptr, UNKNOWN, "");
 }
 
 TEST_F(DataUrlTest, ParseNoComma) {
   TestDecoding(false, false,
                StrCat("data:text/plain;base64;", kMixedDataBase64), "",
-               NULL, UNKNOWN, "");
+               nullptr, UNKNOWN, "");
 }
 
 TEST_F(DataUrlTest, ParseNoMime) {
   TestDecoding(true, true, "data:;base64,", kMixedDataBase64,
-               NULL, BASE64, mixed_data_);
+               nullptr, BASE64, mixed_data_);
 }
 
 TEST_F(DataUrlTest, ParseCorruptMime) {
   TestDecoding(true, true, "data:#$!;base64,", kMixedDataBase64,
-               NULL, BASE64, mixed_data_);
+               nullptr, BASE64, mixed_data_);
 }
 
 TEST_F(DataUrlTest, ParseBadEncodingIsPlain) {

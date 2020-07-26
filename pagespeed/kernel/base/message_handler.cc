@@ -33,7 +33,7 @@ MessageHandler::~MessageHandler() {
 }
 
 const char* MessageHandler::MessageTypeToString(const MessageType type) const {
-  const char* type_string = NULL;
+  const char* type_string = nullptr;
 
   // Don't include a 'default:' clause so that the compiler can tell us when we
   // are missing an enum value.  Instead use a null check for 'type_string' to
@@ -52,7 +52,7 @@ const char* MessageHandler::MessageTypeToString(const MessageType type) const {
       type_string = "Fatal";
       break;
   }
-  CHECK(type_string != NULL) << "INVALID MessageType!";
+  CHECK(type_string != nullptr) << "INVALID MessageType!";
   return type_string;
 }
 

@@ -46,7 +46,7 @@ SimpleTextFilter::~SimpleTextFilter() {
 SimpleTextFilter::Context::Context(const RewriterPtr& rewriter,
                                    RewriteDriver* driver,
                                    RewriteContext* parent)
-    : SingleRewriteContext(driver, parent, NULL),
+    : SingleRewriteContext(driver, parent, nullptr),
       rewriter_(rewriter) {
 }
 
@@ -61,7 +61,7 @@ void SimpleTextFilter::Context::RewriteSingle(const ResourcePtr& input,
   if (rewriter_->RewriteText(input->url(), input->ExtractUncompressedContents(),
                              &rewritten, server_context)) {
     const ContentType* output_type = input->type();
-    if (output_type == NULL) {
+    if (output_type == nullptr) {
       output_type = &kContentTypeText;
     }
     if (Driver()->Write(
@@ -75,29 +75,29 @@ void SimpleTextFilter::Context::RewriteSingle(const ResourcePtr& input,
 
 void SimpleTextFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* attr = rewriter_->FindResourceAttribute(element);
-  if (attr == NULL) {
+  if (attr == nullptr) {
     return;
   }
   ResourcePtr resource(CreateInputResourceOrInsertDebugComment(
       attr->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown, element));
-  if (resource.get() == NULL) {
+  if (resource.get() == nullptr) {
     return;
   }
 
   ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
   // This 'new' is paired with a delete in RewriteContext::FinishFetch()
-  Context* context = new Context(rewriter_, driver(), NULL);
+  Context* context = new Context(rewriter_, driver(), nullptr);
   context->AddSlot(slot);
   driver()->InitiateRewrite(context);
 }
 
 RewriteContext* SimpleTextFilter::MakeRewriteContext() {
-  return new Context(rewriter_, driver(), NULL);
+  return new Context(rewriter_, driver(), nullptr);
 }
 
 RewriteContext* SimpleTextFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
-  RewriteContext* context = new Context(rewriter_, NULL, parent);
+  RewriteContext* context = new Context(rewriter_, nullptr, parent);
   context->AddSlot(slot);
   return context;
 }

@@ -20,6 +20,8 @@
 
 #include "net/instaweb/http/public/rate_controlling_url_async_fetcher.h"
 
+#include <memory>
+
 #include <vector>
 
 #include "net/instaweb/http/public/async_fetch.h"
@@ -98,14 +100,14 @@ class RateControllingUrlAsyncFetcherTest : public ::testing::Test {
         body2_("b2"),
         ttl_ms_(Timer::kHourMs) {
     RateController::InitStats(&stats_);
-    wait_fetcher_.reset(new WaitUrlAsyncFetcher(
-        &mock_fetcher_, thread_system_->NewMutex()));
-    counting_fetcher_.reset(new CountingUrlAsyncFetcher((wait_fetcher_.get())));
+    wait_fetcher_ = std::make_unique<WaitUrlAsyncFetcher>(
+        &mock_fetcher_, thread_system_->NewMutex());
+    counting_fetcher_ = std::make_unique<CountingUrlAsyncFetcher>((wait_fetcher_.get()));
 
     // At max 10 requests will be queued up, and we will have atmost 2 outgoing
     // requests for a particular domain.
-    rate_controlling_fetcher_.reset(new RateControllingUrlAsyncFetcher(
-        counting_fetcher_.get(), 10, 2, 4, thread_system_.get(), &stats_));
+    rate_controlling_fetcher_ = std::make_unique<RateControllingUrlAsyncFetcher>(
+        counting_fetcher_.get(), 10, 2, 4, thread_system_.get(), &stats_);
 
     SetupResponse(domain1_url1_, body1_);
     SetupResponse(domain2_url1_, body2_);

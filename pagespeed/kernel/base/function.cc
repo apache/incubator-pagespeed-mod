@@ -24,7 +24,7 @@
 namespace net_instaweb {
 
 Function::Function()
-    : quit_requested_(NULL),
+    : quit_requested_(nullptr),
       delete_after_callback_(true) {
   Reset();
 }

@@ -19,6 +19,10 @@
 
 
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/util/input_file_nonce_generator.h"
 
 #include "pagespeed/kernel/base/google_message_handler.h"
@@ -34,12 +38,12 @@ namespace {
 class InputFileNonceGeneratorTest : public NonceGeneratorTestBase {
  protected:
   InputFileNonceGeneratorTest() {
-    main_generator_.reset(new InputFileNonceGenerator(
+    main_generator_ = std::make_unique<InputFileNonceGenerator>(
         file_system_.OpenInputFile("/dev/urandom", &handler_),
-        &file_system_, new NullMutex, &handler_));
-    other_generator_.reset(new InputFileNonceGenerator(
+        &file_system_, new NullMutex, &handler_);
+    other_generator_ = std::make_unique<InputFileNonceGenerator>(
         file_system_.OpenInputFile("/dev/urandom", &handler_),
-        &file_system_, new NullMutex, &handler_));
+        &file_system_, new NullMutex, &handler_);
   }
 
   GoogleMessageHandler handler_;

@@ -80,9 +80,9 @@ class SimpleBufferedApacheFetchTest : public RewriteTestBase {
 
   void InitFetch(HttpStatus::Code code) {
     // Takes ownership of apache_writer and request_headers.
-    fetch_.reset(new SimpleBufferedApacheFetch(
+    fetch_ = std::make_unique<SimpleBufferedApacheFetch>(
         request_ctx_, request_headers_, server_context()->thread_system(),
-        &request_, message_handler()));
+        &request_, message_handler());
     rewrite_driver_->SetRequestHeaders(*fetch_->request_headers());
     fetch_->response_headers()->SetStatusAndReason(code);
 

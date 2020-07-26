@@ -60,7 +60,7 @@ void ScanFilter::StartDocument() {
   // Set the driver's containing charset to whatever the headers set it to; if
   // they don't set it to anything, blank the driver's so we know it's not set.
   const ResponseHeaders* headers = driver_->response_headers();
-  driver_->set_containing_charset(headers == NULL ? "" :
+  driver_->set_containing_charset(headers == nullptr ? "" :
                                   headers->DetermineCharset());
 
   driver_->mutable_content_security_policy()->Clear();
@@ -195,7 +195,7 @@ void ScanFilter::StartElement(HtmlElement* element) {
       driver_->containing_charset().empty() &&
       element->keyword() == HtmlName::kMeta) {
     GoogleString content, mime_type, charset;
-    if (CommonFilter::ExtractMetaTagDetails(*element, NULL,
+    if (CommonFilter::ExtractMetaTagDetails(*element, nullptr,
                                             &content, &mime_type, &charset)) {
       if (!charset.empty()) {
         driver_->set_containing_charset(charset);
@@ -209,7 +209,7 @@ void ScanFilter::EndElement(HtmlElement* element) {
   if (element->keyword() == HtmlName::kBase &&
       !driver_->options()->domain_lawyer()->proxy_suffix().empty()) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
+    if (href != nullptr) {
       href->SetValue(driver_->base_url().AllExceptQuery());
     }
   }

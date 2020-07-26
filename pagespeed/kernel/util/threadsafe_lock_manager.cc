@@ -50,8 +50,8 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   friend class ScopedLockRunningDelayedCallbacks;
   friend class Lock;  // Needed by thread annotation for mutex_.
   typedef std::set<Lock*> LockSet;
-  typedef std::pair<Function*, bool> DelayedCall;
-  typedef std::vector<DelayedCall> DelayedCalls;
+  using DelayedCall = std::pair<Function *, bool>;
+  using DelayedCalls = std::vector<DelayedCall>;
 
  public:
   explicit LockHolder(Scheduler* scheduler);
@@ -70,7 +70,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   // Reschedules any outstanding alarms if the wakeup time has changed.
   void UpdateAlarmMutexHeldAndRelease() UNLOCK_FUNCTION() {
     int64 wakeup_time_us = kWakeupNotSet;
-    if (manager_.get() != NULL) {
+    if (manager_.get() != nullptr) {
       int64 wakeup_time_ms = manager_->NextWakeupTimeMs();
       if (wakeup_time_ms != MemLockManager::kNoWakeupsPending) {
         wakeup_time_us = wakeup_time_ms * Timer::kMsUs;
@@ -106,7 +106,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   void RunWhenSchedulerUnlocked(Function* callback)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     mutex_->DCheckLocked();
-    if (manager_.get() == NULL) {
+    if (manager_.get() == nullptr) {
       LOG(DFATAL) << "All locks are denied when manager is deleted";
       EnqueueCancel(callback);
     } else {
@@ -214,7 +214,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
     lock_holder_->RemoveLock(this);
 
     // Clean up underlying MemLock* while still holding lock_holder_->mutex_.
-    lock_.reset(NULL);
+    lock_.reset(nullptr);
   }
 
   // API implementation:
@@ -289,7 +289,7 @@ NamedLock* ThreadSafeLockManager::CreateNamedLock(const StringPiece& name) {
 ThreadSafeLockManager::LockHolder::LockHolder(Scheduler* scheduler)
     : scheduler_(scheduler),
       manager_(new MemLockManager(scheduler->timer())),
-      alarm_(NULL),
+      alarm_(nullptr),
       alarm_time_us_(kWakeupNotSet),
       mutex_(scheduler->thread_system()->NewMutex()) {
 }
@@ -302,7 +302,7 @@ ThreadSafeLockManager::LockHolder::~LockHolder() {
 void ThreadSafeLockManager::LockHolder::Wakeup() LOCKS_EXCLUDED(mutex_) {
   {
     ScopedMutex lock(scheduler_->mutex());
-    alarm_ = NULL;
+    alarm_ = nullptr;
     alarm_time_us_ = kWakeupNotSet;
   }
   {
@@ -315,9 +315,9 @@ void ThreadSafeLockManager::LockHolder::CancelAlarmSchedulerLockHeld() {
   // Note that in scheduler.cc, FunctionAlarm calls DropMutexActAndCleanup
   // so scheduler_->mutex() doesn't protect us from accessing alarm_ after
   // deleting it.
-  if (alarm_ != NULL) {
+  if (alarm_ != nullptr) {
     Scheduler::Alarm* alarm = alarm_;
-    alarm_ = NULL;
+    alarm_ = nullptr;
     scheduler_->CancelAlarm(alarm);
   }
 }
@@ -333,7 +333,7 @@ void ThreadSafeLockManager::LockHolder::ManagerDestroyed() {
       Lock* lock = *p;
       lock->ManagerDestroyed();
     }
-    manager_.reset(NULL);
+    manager_.reset(nullptr);
   }
 }
 

@@ -414,7 +414,7 @@ TEST_F(MemLockManagerTest, CloseManagerWithActiveLocks) {
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   c->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("c"));
-  lock_manager_.reset(NULL);  // Locks still active.
+  lock_manager_.reset(nullptr);  // Locks still active.
   EXPECT_STREQ("a(grant) b(deny) c(deny) ", log_);
 }
 
@@ -428,7 +428,7 @@ TEST_F(MemLockManagerTest, DeletePendingLock) {
   timer()->SetTimeMs(1);
   lock_manager_->Wakeup();
   EXPECT_TRUE(a->Held());
-  b.reset(NULL);                              // Denies B.
+  b.reset(nullptr);                              // Denies B.
   a->Unlock();                                // Grants C.
   Quiesce();
   EXPECT_STREQ("a(grant) b(deny) c(grant) ", log_);

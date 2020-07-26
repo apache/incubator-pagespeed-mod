@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/cache/purge_context.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -89,9 +93,9 @@ class PurgeContextTest : public ::testing::Test,
                       &message_handler_),
         lock_tester_(thread_system_.get()) {
     if (HasValidStats()) {
-      statistics_.reset(new SimpleStats(thread_system_.get()));
+      statistics_ = std::make_unique<SimpleStats>(thread_system_.get());
     } else {
-      statistics_.reset(new NullStatistics);
+      statistics_ = std::make_unique<NullStatistics>();
     }
     PurgeContext::InitStats(statistics_.get());
     purge_context1_.reset(MakePurgeContext());

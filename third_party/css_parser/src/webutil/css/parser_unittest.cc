@@ -150,14 +150,14 @@ class ParserTest : public testing::Test {
     std::unique_ptr<Parser> p(new Parser(str));
     p->set_quirks_mode(quirks_mode);
     std::unique_ptr<Values> vals(p->ParseValues(Property::BACKGROUND));
-    if (vals.get() == NULL || vals->size() == 0) {
-      return NULL;
+    if (vals.get() == nullptr || vals->size() == 0) {
+      return nullptr;
     }
     Declaration background(Property::BACKGROUND, vals.release(), false);
     std::unique_ptr<Declarations> decls(new Declarations);
     Parser::ExpandBackground(background, decls.get());
     if (decls->size() == 0) {
-      return NULL;
+      return nullptr;
     }
     return decls.release();
   }
@@ -202,7 +202,7 @@ class ParserTest : public testing::Test {
     if (size == 0) {
       // new char[0] doesn't seem to work correctly with ASAN (maybe it gets
       // optimized out?) So we use NULL, which shouldn't be dereferenced.
-      CssStringPiece copy_contents(NULL, 0);
+      CssStringPiece copy_contents(nullptr, 0);
       TryParse(copy_contents, method);
     } else {
       // We copy the data region of contents into  it's own buffer which is
@@ -323,110 +323,110 @@ TEST_F(ParserTest, color) {
   EXPECT_EQ(a->ParseColor().ToString(), "#abcdef");
 
   // not allowed in stanard compliant mode.
-  a.reset(new Parser("abCdEF brc.,aoek"));
+  a = std::make_unique<Parser>("abCdEF brc.,aoek");
   a->set_quirks_mode(false);
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
   // this is allowed
-  a.reset(new Parser("#abCdEF brc.,aoek"));
+  a = std::make_unique<Parser>("#abCdEF brc.,aoek");
   a->set_quirks_mode(false);
   EXPECT_EQ(a->ParseColor().ToString(), "#abcdef");
 
-  a.reset(new Parser("abC btneo"));
+  a = std::make_unique<Parser>("abC btneo");
   EXPECT_EQ(a->ParseColor().ToString(), "#aabbcc");
 
   // no longer allowed
-  a.reset(new Parser("#white something"));
+  a = std::make_unique<Parser>("#white something");
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
-  a.reset(new Parser("#white something"));
+  a = std::make_unique<Parser>("#white something");
   a->set_quirks_mode(false);
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
   // this is allowed
-  a.reset(new Parser("white something"));
+  a = std::make_unique<Parser>("white something");
   EXPECT_EQ(a->ParseColor().ToString(), "#ffffff");
 
-  a.reset(new Parser("white something"));
+  a = std::make_unique<Parser>("white something");
   a->set_quirks_mode(false);
   EXPECT_EQ(a->ParseColor().ToString(), "#ffffff");
 
   // system color
-  a.reset(new Parser("buttonface something"));
+  a = std::make_unique<Parser>("buttonface something");
   EXPECT_EQ(a->ParseColor().ToString(), "#ece9d8");
 
   // string patterns
 
-  a.reset(new Parser("'abCdEF' brc.,aoek"));
+  a = std::make_unique<Parser>("'abCdEF' brc.,aoek");
   EXPECT_EQ(a->ParseColor().ToString(), "#abcdef");
 
-  a.reset(new Parser("'abCdEF' brc.,aoek"));
+  a = std::make_unique<Parser>("'abCdEF' brc.,aoek");
   a->set_quirks_mode(false);
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
   // this is not allowed since color values must end on string boundary
-  a.reset(new Parser("'#abCdEF brc'.,aoek"));
+  a = std::make_unique<Parser>("'#abCdEF brc'.,aoek");
   a->set_quirks_mode(false);
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
-  a.reset(new Parser("\"abC\" btneo"));
+  a = std::make_unique<Parser>("\"abC\" btneo");
   EXPECT_EQ(a->ParseColor().ToString(), "#aabbcc");
 
   // no longer allowed
-  a.reset(new Parser("'#white' something"));
+  a = std::make_unique<Parser>("'#white' something");
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
-  a.reset(new Parser("'#white' something"));
+  a = std::make_unique<Parser>("'#white' something");
   a->set_quirks_mode(false);
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
   // this is allowed
-  a.reset(new Parser("'white' something"));
+  a = std::make_unique<Parser>("'white' something");
   EXPECT_EQ(a->ParseColor().ToString(), "#ffffff");
 
-  a.reset(new Parser("'white' something"));
+  a = std::make_unique<Parser>("'white' something");
   a->set_quirks_mode(false);
   EXPECT_EQ(a->ParseColor().ToString(), "#ffffff");
 
   // no longer allowed
-  a.reset(new Parser("100%"));
+  a = std::make_unique<Parser>("100%");
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
   // no longer allowed
-  a.reset(new Parser("100px"));
+  a = std::make_unique<Parser>("100px");
   EXPECT_FALSE(a->ParseColor().IsDefined());
 
   // this is allowed
-  a.reset(new Parser("100"));
+  a = std::make_unique<Parser>("100");
   EXPECT_EQ(a->ParseColor().ToString(), "#110000");
 
   // should be parsed as a number
-  a.reset(new Parser("100px"));
+  a = std::make_unique<Parser>("100px");
   std::unique_ptr<Value> t(a->ParseAnyExpectingColor());
   EXPECT_EQ(Value::NUMBER, t->GetLexicalUnitType());
   EXPECT_EQ("100px", t->ToString());
 
-  a.reset(new Parser("rgb(12,25,30)"));
+  a = std::make_unique<Parser>("rgb(12,25,30)");
   t.reset(a->ParseAny());
   EXPECT_EQ(t->GetColorValue().ToString(), "#0c191e");
 
-  a.reset(new Parser("rgb( 12% , 25%, 30%)"));
+  a = std::make_unique<Parser>("rgb( 12% , 25%, 30%)");
   t.reset(a->ParseAny());
   EXPECT_EQ(t->GetColorValue().ToString(), "#1e3f4c");
 
-  a.reset(new Parser("rgb( 12% , 25% 30%)"));
+  a = std::make_unique<Parser>("rgb( 12% , 25% 30%)");
   t.reset(a->ParseAny());
   EXPECT_FALSE(t.get());
 
   // Parsed as color in quirks-mode.
-  a.reset(new Parser("0000ff"));
+  a = std::make_unique<Parser>("0000ff");
   t.reset(a->ParseAnyExpectingColor());
   EXPECT_EQ(Value::COLOR, t->GetLexicalUnitType());
   EXPECT_EQ("#0000ff", t->ToString());
   EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
 
   // Parsed as dimension in standards-mode.
-  a.reset(new Parser("0000ff"));
+  a = std::make_unique<Parser>("0000ff");
   a->set_quirks_mode(false);
   t.reset(a->ParseAnyExpectingColor());
   EXPECT_EQ(Value::NUMBER, t->GetLexicalUnitType());
@@ -434,7 +434,7 @@ TEST_F(ParserTest, color) {
   EXPECT_EQ(Parser::kNoError, a->errors_seen_mask());
 
   // Original preserved in preservation-mode + standards-mode.
-  a.reset(new Parser("0000ff"));
+  a = std::make_unique<Parser>("0000ff");
   a->set_quirks_mode(false);
   a->set_preservation_mode(true);
   t.reset(a->ParseAnyExpectingColor());
@@ -451,16 +451,16 @@ TEST_F(ParserTest, url) {
   EXPECT_EQ(Value::URI, t->GetLexicalUnitType());
   EXPECT_EQ("blah", UnicodeTextToUTF8(t->GetStringValue()));
 
-  a.reset(new Parser("url( blah )"));
+  a = std::make_unique<Parser>("url( blah )");
   t.reset(a->ParseAny());
 
   EXPECT_EQ(Value::URI, t->GetLexicalUnitType());
   EXPECT_EQ("blah", UnicodeTextToUTF8(t->GetStringValue()));
 
-  a.reset(new Parser("url( blah extra)"));
+  a = std::make_unique<Parser>("url( blah extra)");
   t.reset(a->ParseAny());
 
-  EXPECT_EQ(static_cast<Value *>(NULL), t.get());
+  EXPECT_EQ(static_cast<Value *>(nullptr), t.get());
 }
 
 TEST_F(ParserTest, rect) {
@@ -478,35 +478,35 @@ TEST_F(ParserTest, rect) {
   EXPECT_EQ(Identifier::AUTO,
             t->GetParameters()->get(2)->GetIdentifier().ident());
 
-  a.reset(new Parser("rect(auto)"));
+  a = std::make_unique<Parser>("rect(auto)");
   t.reset(a->ParseAny());
 
-  EXPECT_EQ(static_cast<Value *>(NULL), t.get());
+  EXPECT_EQ(static_cast<Value *>(nullptr), t.get());
 
-  a.reset(new Parser("rect()"));
+  a = std::make_unique<Parser>("rect()");
   t.reset(a->ParseAny());
 
-  EXPECT_EQ(static_cast<Value *>(NULL), t.get());
+  EXPECT_EQ(static_cast<Value *>(nullptr), t.get());
 
-  a.reset(new Parser("rect(13 10 auto 4)"));
+  a = std::make_unique<Parser>("rect(13 10 auto 4)");
   t.reset(a->ParseAny());
 
   EXPECT_EQ(13, t->GetParameters()->get(0)->GetIntegerValue());
 
-  a.reset(new Parser("rect(14,10,1,2)"));
+  a = std::make_unique<Parser>("rect(14,10,1,2)");
   t.reset(a->ParseAny());
 
   EXPECT_EQ(14, t->GetParameters()->get(0)->GetIntegerValue());
 
-  a.reset(new Parser("rect(15 10 1)"));
+  a = std::make_unique<Parser>("rect(15 10 1)");
   t.reset(a->ParseAny());
 
-  EXPECT_EQ(static_cast<Value *>(NULL), t.get());
+  EXPECT_EQ(static_cast<Value *>(nullptr), t.get());
 
-  a.reset(new Parser("rect(16 10 1 2 3)"));
+  a = std::make_unique<Parser>("rect(16 10 1 2 3)");
   t.reset(a->ParseAny());
 
-  EXPECT_EQ(static_cast<Value *>(NULL), t.get());
+  EXPECT_EQ(static_cast<Value *>(nullptr), t.get());
 }
 
 TEST_F(ParserTest, background) {
@@ -621,16 +621,16 @@ TEST_F(ParserTest, font_family) {
   EXPECT_EQ("system", UnicodeTextToUTF8(t->get(2)->GetIdentifierText()));
   EXPECT_EQ("menu new", UnicodeTextToUTF8(t->get(3)->GetIdentifierText()));
 
-  a.reset(new Parser("Verdana 3"));
-  t.reset(new Values);
+  a = std::make_unique<Parser>("Verdana 3");
+  t = std::make_unique<Values>();
   EXPECT_FALSE(a->ParseFontFamily(t.get()));
 
-  a.reset(new Parser("Verdana :"));
-  t.reset(new Values);
+  a = std::make_unique<Parser>("Verdana :");
+  t = std::make_unique<Values>();
   EXPECT_FALSE(a->ParseFontFamily(t.get()));
 
-  a.reset(new Parser("Verdana ;"));
-  t.reset(new Values);
+  a = std::make_unique<Parser>("Verdana ;");
+  t = std::make_unique<Values>();
   EXPECT_TRUE(a->ParseFontFamily(t.get()));
   ASSERT_EQ(1, t->size());
   EXPECT_EQ(Value::IDENT, t->get(0)->GetLexicalUnitType());
@@ -638,56 +638,56 @@ TEST_F(ParserTest, font_family) {
 
   // Legal base example.
   std::unique_ptr<Declarations> d;
-  a.reset(new Parser("font-family: foo"));
+  a = std::make_unique<Parser>("font-family: foo");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   ASSERT_EQ(1, d->size());
   EXPECT_EQ(1, d->at(0)->values()->size());
 
   // Illegal leading comma.
-  a.reset(new Parser("font-family: ,foo"));
+  a = std::make_unique<Parser>("font-family: ,foo");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   EXPECT_EQ(0, d->size());
 
   // Illegal trailing comma.
-  a.reset(new Parser("font-family: foo,"));
+  a = std::make_unique<Parser>("font-family: foo,");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   EXPECT_EQ(0, d->size());
 
   // Legal empty string with separating comma.
-  a.reset(new Parser("font-family: '',foo"));
+  a = std::make_unique<Parser>("font-family: '',foo");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   ASSERT_EQ(1, d->size());
   EXPECT_EQ(2, d->at(0)->values()->size());
 
   // Illegal empty elements in comma-separated list.
-  a.reset(new Parser("font-family: '',,foo"));
+  a = std::make_unique<Parser>("font-family: '',,foo");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   EXPECT_EQ(0, d->size());
 
   // Fonts must be comma separated.
-  a.reset(new Parser("font-family: 'bar' foo"));
+  a = std::make_unique<Parser>("font-family: 'bar' foo");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   EXPECT_EQ(0, d->size());
 
-  a.reset(new Parser("font-family: 'bar' 'foo'"));
+  a = std::make_unique<Parser>("font-family: 'bar' 'foo'");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   EXPECT_EQ(0, d->size());
 
-  a.reset(new Parser("font-family: bar 'foo'"));
+  a = std::make_unique<Parser>("font-family: bar 'foo'");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   EXPECT_EQ(0, d->size());
 
-  a.reset(new Parser("font-family: 'bar'foo"));
+  a = std::make_unique<Parser>("font-family: 'bar'foo");
   d.reset(a->ParseRawDeclarations());
-  ASSERT_TRUE(NULL != d.get());
+  ASSERT_TRUE(nullptr != d.get());
   EXPECT_EQ(0, d->size());
 }
 
@@ -704,7 +704,7 @@ TEST_F(ParserTest, font) {
       "font-family: caption";
   EXPECT_EQ(expected_caption_expansion, declarations->ToString());
 
-  a.reset(new Parser("font: inherit"));
+  a = std::make_unique<Parser>("font: inherit");
   declarations.reset(a->ParseDeclarations());
   const char expected_inherit_expansion[] =
       "font: inherit; "
@@ -716,23 +716,23 @@ TEST_F(ParserTest, font) {
       "font-family: inherit";
   EXPECT_EQ(expected_inherit_expansion, declarations->ToString());
 
-  a.reset(new Parser("normal 10px /120% Arial 'Sans'"));
+  a = std::make_unique<Parser>("normal 10px /120% Arial 'Sans'");
   std::unique_ptr<Values> t(a->ParseFont());
-  EXPECT_TRUE(NULL == t.get());
+  EXPECT_TRUE(nullptr == t.get());
 
-  a.reset(new Parser("normal 10px /120% Arial, 'Sans'"));
+  a = std::make_unique<Parser>("normal 10px /120% Arial, 'Sans'");
   t.reset(a->ParseFont());
   ASSERT_EQ(7, t->size());
   EXPECT_DOUBLE_EQ(10, t->get(3)->GetFloatValue());
   EXPECT_EQ(Value::PERCENT, t->get(4)->GetDimension());
 
-  a.reset(new Parser("italic 10px Arial, Sans"));
+  a = std::make_unique<Parser>("italic 10px Arial, Sans");
   t.reset(a->ParseFont());
   ASSERT_EQ(7, t->size());
   EXPECT_DOUBLE_EQ(10, t->get(3)->GetFloatValue());
   EXPECT_EQ(Identifier::NORMAL, t->get(4)->GetIdentifier().ident());
 
-  a.reset(new Parser("SMALL-caps normal x-large Arial"));
+  a = std::make_unique<Parser>("SMALL-caps normal x-large Arial");
   t.reset(a->ParseFont());
   ASSERT_EQ(6, t->size());
   EXPECT_EQ(Identifier::NORMAL, t->get(0)->GetIdentifier().ident());
@@ -740,95 +740,95 @@ TEST_F(ParserTest, font) {
   EXPECT_EQ(Identifier::X_LARGE, t->get(3)->GetIdentifier().ident());
   EXPECT_EQ(Identifier::NORMAL, t->get(4)->GetIdentifier().ident());
 
-  a.reset(new Parser("bolder 100 120 Arial"));
+  a = std::make_unique<Parser>("bolder 100 120 Arial");
   t.reset(a->ParseFont());
   ASSERT_EQ(6, t->size());
   EXPECT_EQ(100, t->get(2)->GetIntegerValue());
   EXPECT_EQ(120, t->get(3)->GetIntegerValue());
   EXPECT_EQ(Identifier::NORMAL, t->get(4)->GetIdentifier().ident());
 
-  a.reset(new Parser("10px normal"));
+  a = std::make_unique<Parser>("10px normal");
   t.reset(a->ParseFont());
   ASSERT_EQ(6, t->size());
   EXPECT_EQ(10, t->get(3)->GetIntegerValue());
   EXPECT_EQ(Identifier::NORMAL, t->get(5)->GetIdentifier().ident());
 
-  a.reset(new Parser("normal 10px "));
+  a = std::make_unique<Parser>("normal 10px ");
   t.reset(a->ParseFont());
   EXPECT_EQ(5, t->size()) << "missing font-family should be allowed";
 
-  a.reset(new Parser("10px/12pt "));
+  a = std::make_unique<Parser>("10px/12pt ");
   t.reset(a->ParseFont());
   EXPECT_EQ(5, t->size()) << "missing font-family should be allowed";
 
-  a.reset(new Parser("menu 10px"));
+  a = std::make_unique<Parser>("menu 10px");
   t.reset(a->ParseFont());
-  EXPECT_EQ(static_cast<Values *>(NULL), t.get())
+  EXPECT_EQ(static_cast<Values *>(nullptr), t.get())
       << "system font with extra value";
 
-  a.reset(new Parser("Arial, menu "));
+  a = std::make_unique<Parser>("Arial, menu ");
   t.reset(a->ParseFont());
-  EXPECT_EQ(static_cast<Values *>(NULL), t.get()) << "missing font-size";
+  EXPECT_EQ(static_cast<Values *>(nullptr), t.get()) << "missing font-size";
 
-  a.reset(new Parser("transparent 10px "));
+  a = std::make_unique<Parser>("transparent 10px ");
   t.reset(a->ParseFont());
-  EXPECT_EQ(static_cast<Values *>(NULL), t.get()) << "unknown property";
+  EXPECT_EQ(static_cast<Values *>(nullptr), t.get()) << "unknown property";
 
-  a.reset(new Parser("normal / 10px Arial"));
+  a = std::make_unique<Parser>("normal / 10px Arial");
   t.reset(a->ParseFont());
-  EXPECT_EQ(static_cast<Values *>(NULL), t.get())
+  EXPECT_EQ(static_cast<Values *>(nullptr), t.get())
       << "line-height without font-size";
 
-  a.reset(new Parser("normal 10px/ Arial"));
+  a = std::make_unique<Parser>("normal 10px/ Arial");
   t.reset(a->ParseFont());
-  EXPECT_EQ(static_cast<Values *>(NULL), t.get())
+  EXPECT_EQ(static_cast<Values *>(nullptr), t.get())
       << "slash without line-height";
 
-  a.reset(new Parser("normal 10px Arial #333"));
+  a = std::make_unique<Parser>("normal 10px Arial #333");
   t.reset(a->ParseFont());
-  EXPECT_EQ(static_cast<Values *>(NULL), t.get()) << "invalid type";
+  EXPECT_EQ(static_cast<Values *>(nullptr), t.get()) << "invalid type";
 }
 
 TEST_F(ParserTest, numbers) {
   std::unique_ptr<Parser> p;
   std::unique_ptr<Value> v;
 
-  p.reset(new Parser("1"));
+  p = std::make_unique<Parser>("1");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(1, v->GetIntegerValue());
   EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
   EXPECT_TRUE(p->Done());
 
-  p.reset(new Parser("1;"));
+  p = std::make_unique<Parser>("1;");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(1, v->GetIntegerValue());
   EXPECT_EQ(Value::NO_UNIT, v->GetDimension());
   EXPECT_EQ(';', *p->in_);
 
-  p.reset(new Parser("3vm;"));
+  p = std::make_unique<Parser>("3vm;");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(3, v->GetIntegerValue());
   EXPECT_EQ(Value::VM, v->GetDimension());
   EXPECT_EQ(';', *p->in_);
 
-  p.reset(new Parser("1em;"));
+  p = std::make_unique<Parser>("1em;");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(1, v->GetIntegerValue());
   EXPECT_EQ(Value::EM, v->GetDimension());
   EXPECT_EQ(';', *p->in_);
 
-  p.reset(new Parser("1.1em;"));
+  p = std::make_unique<Parser>("1.1em;");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(1.1, v->GetFloatValue());
   EXPECT_EQ(Value::EM, v->GetDimension());
   EXPECT_EQ(';', *p->in_);
 
-  p.reset(new Parser(".1"));
+  p = std::make_unique<Parser>(".1");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(.1, v->GetFloatValue());
@@ -837,7 +837,7 @@ TEST_F(ParserTest, numbers) {
 
   // Note: 1.em is *not* parsed as 1.0em, instead it needs to be parsed as
   // INT(1) DELIM(.) IDENT(em)
-  p.reset(new Parser("1.em;"));
+  p = std::make_unique<Parser>("1.em;");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(1, v->GetIntegerValue());
@@ -845,7 +845,7 @@ TEST_F(ParserTest, numbers) {
   EXPECT_EQ('.', *p->in_);  // Parsing ends on dot.
 
   // Make sure this also works if file ends with dot.
-  p.reset(new Parser("1."));
+  p = std::make_unique<Parser>("1.");
   v.reset(p->ParseNumber());
   ASSERT_EQ(Value::NUMBER, v->GetLexicalUnitType());
   EXPECT_EQ(1, v->GetIntegerValue());
@@ -865,9 +865,9 @@ TEST_F(ParserTest, values) {
   EXPECT_EQ(Value::NUMBER, t->get(3)->GetLexicalUnitType());
   EXPECT_EQ(Value::PERCENT, t->get(3)->GetDimension());
 
-  a.reset(new Parser("rgb( 12,  25,30) @ignored  url( blah  )"
+  a = std::make_unique<Parser>("rgb( 12,  25,30) @ignored  url( blah  )"
                 " rect(12 10 auto 200px)"
-                " { should be {nested }discarded } ident;"));
+                " { should be {nested }discarded } ident;");
   t.reset(a->ParseValues(Property::OTHER));
 
   ASSERT_EQ(4, t->size());
@@ -897,71 +897,71 @@ TEST_F(ParserTest, SkipCornerCases) {
   EXPECT_STREQ("foobar */", p->in_);
 
   // Proper nesting. Ignore escaped closing chars.
-  p.reset(new Parser("{[ (]}) foo\\]\\}bar ] \\} } Now it's closed. }"));
+  p = std::make_unique<Parser>("{[ (]}) foo\\]\\}bar ] \\} } Now it's closed. }");
   EXPECT_TRUE(p->SkipMatching());
   EXPECT_STREQ(" Now it's closed. }", p->in_);
 
   // Ignore closing chars in comments and strings.
-  p.reset(new Parser("[/*]*/ 'fake ]' () { \"also fake }\" ]} ] Finally."));
+  p = std::make_unique<Parser>("[/*]*/ 'fake ]' () { \"also fake }\" ]} ] Finally.");
   EXPECT_TRUE(p->SkipMatching());
   EXPECT_STREQ(" Finally.", p->in_);
 
   // False on unclosed.
-  p.reset(new Parser("("));
+  p = std::make_unique<Parser>("(");
   EXPECT_FALSE(p->SkipMatching());
   EXPECT_STREQ("", p->in_);
 
-  p.reset(new Parser("foo({[)]}, bar\\)(), ')', /*)*/,), baz"));
+  p = std::make_unique<Parser>("foo({[)]}, bar\\)(), ')', /*)*/,), baz");
   EXPECT_TRUE(p->SkipPastDelimiter(','));
   EXPECT_STREQ(" baz", p->in_);
 
-  p.reset(new Parser("{[](} f\\(oo)} @rule bar"));
+  p = std::make_unique<Parser>("{[](} f\\(oo)} @rule bar");
   EXPECT_TRUE(p->SkipToNextAny());
   EXPECT_STREQ("bar", p->in_);
 
   // First {} block ends @media statement.
-  p.reset(new Parser("not all and (color), print { .a { color: red; } } "
-                     ".b { color: green; }"));
+  p = std::make_unique<Parser>("not all and (color), print { .a { color: red; } } "
+                     ".b { color: green; }");
   EXPECT_TRUE(p->SkipToAtRuleEnd());
   EXPECT_STREQ(" .b { color: green; }", p->in_);
 
   // But not nested inside parentheses.
-  p.reset(new Parser("and(\"don't\" { stop, here }) { } .b { color: green; }"));
+  p = std::make_unique<Parser>("and(\"don't\" { stop, here }) { } .b { color: green; }");
   EXPECT_TRUE(p->SkipToAtRuleEnd());
   EXPECT_STREQ(" .b { color: green; }", p->in_);
 
   // ; technically also ends a @media statement.
-  p.reset(new Parser("screen; .a { color: red; }"));
+  p = std::make_unique<Parser>("screen; .a { color: red; }");
   EXPECT_TRUE(p->SkipToAtRuleEnd());
   EXPECT_STREQ(" .a { color: red; }", p->in_);
 
   // Or it runs to EOF.
-  p.reset(new Parser("screen and (color, print"));
+  p = std::make_unique<Parser>("screen and (color, print");
   EXPECT_FALSE(p->SkipToAtRuleEnd());
   EXPECT_STREQ("", p->in_);
 
   // Commas separate each media query.
-  p.reset(new Parser("not all and (color), print { .a { color: red; } }"));
+  p = std::make_unique<Parser>("not all and (color), print { .a { color: red; } }");
   p->SkipToMediaQueryEnd();
   EXPECT_STREQ(", print { .a { color: red; } }", p->in_);
 
   // But not nested inside parentheses.
-  p.reset(new Parser("and(\"don't\", stop, here), screen { }"));
+  p = std::make_unique<Parser>("and(\"don't\", stop, here), screen { }");
   p->SkipToMediaQueryEnd();
   EXPECT_STREQ(", screen { }", p->in_);
 
   // { also signals end of media query.
-  p.reset(new Parser("screen { .a { color: red; } }"));
+  p = std::make_unique<Parser>("screen { .a { color: red; } }");
   p->SkipToMediaQueryEnd();
   EXPECT_STREQ("{ .a { color: red; } }", p->in_);
 
   // ; technically also ends a media query.
-  p.reset(new Parser("screen; .a { color: red; }"));
+  p = std::make_unique<Parser>("screen; .a { color: red; }");
   p->SkipToMediaQueryEnd();
   EXPECT_STREQ("; .a { color: red; }", p->in_);
 
   // Or it runs to EOF.
-  p.reset(new Parser("screen and (color, print"));
+  p = std::make_unique<Parser>("screen and (color, print");
   p->SkipToMediaQueryEnd();
   EXPECT_STREQ("", p->in_);
 }
@@ -1024,10 +1024,10 @@ TEST_F(ParserTest, declarations) {
   EXPECT_EQ("Gill Sans MT",
             UnicodeTextToUTF8(t->get(3)->values()->get(0)->GetStringValue()));
 
-  a.reset(new Parser(
+  a = std::make_unique<Parser>(
       "background-color: 333; color: \"abcdef\";"
       "background-color: #red; color: \"white\";"
-      "background-color: rgb(255, 10%, 10)"));
+      "background-color: rgb(255, 10%, 10)");
   t.reset(a->ParseDeclarations());
 
   ASSERT_EQ(4, t->size()) << "#red is not valid";
@@ -1049,7 +1049,7 @@ TEST_F(ParserTest, declarations) {
   EXPECT_EQ("#ff190a", t->get(3)->values()->get(0)->GetColorValue().ToString());
 
   // expand background
-  a.reset(new Parser("background: #333 fixed no-repeat; "));
+  a = std::make_unique<Parser>("background: #333 fixed no-repeat; ");
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(7, t->size());
   EXPECT_EQ(Property::BACKGROUND, t->get(0)->prop());
@@ -1068,7 +1068,7 @@ TEST_F(ParserTest, declarations) {
   EXPECT_EQ(1, t->get(6)->values()->size());
 
   // expand font
-  a.reset(new Parser("font: small-caps 24px Arial, 'Sans', monospace; "));
+  a = std::make_unique<Parser>("font: small-caps 24px Arial, 'Sans', monospace; ");
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(7, t->size());
   EXPECT_EQ(Property::FONT, t->get(0)->prop());
@@ -1083,47 +1083,47 @@ TEST_F(ParserTest, declarations) {
   EXPECT_EQ("monospace", UnicodeTextToUTF8(t->get(6)->values()->get(2)->
                                            GetIdentifierText()));
 
-  a.reset(new Parser(
-      "{font-size: #333; color:red"));
+  a = std::make_unique<Parser>(
+      "{font-size: #333; color:red");
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(0, t->size());
 
-  a.reset(new Parser(
-      "{font-size: #333; color:red"));
+  a = std::make_unique<Parser>(
+      "{font-size: #333; color:red");
   a->set_quirks_mode(false);
   t.reset(a->ParseDeclarations());
   EXPECT_EQ(0, t->size());
 
-  a.reset(new Parser(
-      "font-size {background: #333; color:red"));
+  a = std::make_unique<Parser>(
+      "font-size {background: #333; color:red");
   t.reset(a->ParseDeclarations());
   EXPECT_EQ(0, t->size());
 
-  a.reset(new Parser(
-      "font-size {background: #333; color:red"));
+  a = std::make_unique<Parser>(
+      "font-size {background: #333; color:red");
   a->set_quirks_mode(false);
   t.reset(a->ParseDeclarations());
   EXPECT_EQ(0, t->size());
 
-  a.reset(new Parser(
-      "font-size }background: #333; color:red"));
+  a = std::make_unique<Parser>(
+      "font-size }background: #333; color:red");
   t.reset(a->ParseDeclarations());
   EXPECT_EQ(0, t->size());
 
-  a.reset(new Parser(
-      "font-size }background: #333; color:red"));
+  a = std::make_unique<Parser>(
+      "font-size }background: #333; color:red");
   a->set_quirks_mode(false);
   t.reset(a->ParseDeclarations());
   EXPECT_EQ(0, t->size());
 
-  a.reset(new Parser(
-      "top:1px; {font-size: #333; color:red}"));
+  a = std::make_unique<Parser>(
+      "top:1px; {font-size: #333; color:red}");
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(1, t->size());
   EXPECT_EQ(Property::TOP, t->get(0)->prop());
 
-  a.reset(new Parser(
-      "top:1px; {font-size: #333; color:red}"));
+  a = std::make_unique<Parser>(
+      "top:1px; {font-size: #333; color:red}");
   a->set_quirks_mode(false);
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(1, t->size());
@@ -1134,15 +1134,15 @@ TEST_F(ParserTest, declarations) {
   // so the recovery should skip to the first ';' after the string end,
   // which would be the one after height: (since the one after the width is
   // inside the string).
-  a.reset(new Parser("display:block; 'width: 100%;\n height: 100%; color:red"));
+  a = std::make_unique<Parser>("display:block; 'width: 100%;\n height: 100%; color:red");
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(2, t->size());
   EXPECT_EQ(Property::DISPLAY, t->get(0)->prop());
   EXPECT_EQ(Property::COLOR, t->get(1)->prop());
 
   // Make sure we count {} when doing recovery
-  a.reset(new Parser(
-      "display:block; 'width: 100%;\n {height: 100%; color:red}; top: 1px"));
+  a = std::make_unique<Parser>(
+      "display:block; 'width: 100%;\n {height: 100%; color:red}; top: 1px");
   t.reset(a->ParseDeclarations());
   ASSERT_EQ(2, t->size());
   EXPECT_EQ(Property::DISPLAY, t->get(0)->prop());
@@ -1157,7 +1157,7 @@ TEST_F(ParserTest, illegal_constructs) {
   //   User agents must ignore a declaration with an illegal value.
   EXPECT_EQ(0, t->size());
 
-  a.reset(new Parser("font-family: \"Gill Sans MT;"));
+  a = std::make_unique<Parser>("font-family: \"Gill Sans MT;");
   t.reset(a->ParseDeclarations());
 
   ASSERT_EQ(1, t->size());
@@ -1167,7 +1167,7 @@ TEST_F(ParserTest, illegal_constructs) {
   EXPECT_EQ("Gill Sans MT;",
             UnicodeTextToUTF8(t->get(0)->values()->get(0)->GetStringValue()));
 
-  a.reset(new Parser("font-family: 'Gill Sans MT"));
+  a = std::make_unique<Parser>("font-family: 'Gill Sans MT");
   t.reset(a->ParseDeclarations());
 
   ASSERT_EQ(1, t->size());
@@ -1184,7 +1184,7 @@ TEST_F(ParserTest, value_validation) {
 
   // Let's take border-color as an example. It only accepts color and the
   // transparent keyword in particular (and inherit is a common one).
-  a.reset(new Parser(
+  a = std::make_unique<Parser>(
       "border-color: \"string\"; "
       "border-color: url(\"abc\"); "
       "border-color: 12345; "
@@ -1195,7 +1195,7 @@ TEST_F(ParserTest, value_validation) {
       "border-color: transparent; "
       "border-color: inherit; "
       "border-color: unknown; "
-      ));
+      );
   t.reset(a->ParseDeclarations());
 
   ASSERT_EQ(10, t->size());
@@ -1227,7 +1227,7 @@ TEST_F(ParserTest, universalselectorcondition) {
   EXPECT_EQ(SimpleSelector::UNIVERSAL, t->get(0)->type());
   EXPECT_EQ(SimpleSelector::EXACT_ATTRIBUTE, t->get(1)->type());
 
-  a.reset(new Parser(" *[foo="));
+  a = std::make_unique<Parser>(" *[foo=");
   t.reset(a->ParseSimpleSelectors(true));
 
   // This is not a valid selector.
@@ -1281,22 +1281,22 @@ TEST_F(ParserTest, simple_selectors) {
 
   {
     const SimpleSelector* c = t->get(0);
-    ASSERT_TRUE(c != NULL);
+    ASSERT_TRUE(c != nullptr);
     ASSERT_EQ(SimpleSelector::UNIVERSAL, c->type());
   }
   {
     const SimpleSelector* c = t->get(1);
-    ASSERT_TRUE(c != NULL);
+    ASSERT_TRUE(c != nullptr);
     ASSERT_EQ(SimpleSelector::BEGIN_HYPHEN_ATTRIBUTE, c->type());
     EXPECT_EQ("lang", UnicodeTextToUTF8(c->attribute()));
     EXPECT_EQ("fr", UnicodeTextToUTF8(c->value()));
   }
 
   // Now, a very complex one.
-  a.reset(new Parser(
+  a = std::make_unique<Parser>(
       "> P:first_child:hover[class~='hidden'][width]#content"
       "[id*=logo][id^=logo][id$=\"logo\"]"
-      "[lang=en].anotherclass.moreclass #next"));
+      "[lang=en].anotherclass.moreclass #next");
   t.reset(a->ParseSimpleSelectors(true));
 
   EXPECT_EQ(SimpleSelectors::CHILD, t->combinator());
@@ -1403,43 +1403,43 @@ TEST_F(ParserTest, bad_simple_selectors) {
   std::unique_ptr<SimpleSelectors> t;
 
   // valid or not?
-  a.reset(new Parser(""));
+  a = std::make_unique<Parser>("");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("{}"));
+  a = std::make_unique<Parser>("{}");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("#"));
+  a = std::make_unique<Parser>("#");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("# {"));
+  a = std::make_unique<Parser>("# {");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("#{"));
+  a = std::make_unique<Parser>("#{");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("##"));
+  a = std::make_unique<Parser>("##");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("*[class="));
+  a = std::make_unique<Parser>("*[class=");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("*[class=hidden];"));
+  a = std::make_unique<Parser>("*[class=hidden];");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("*[class=hidden].;"));
+  a = std::make_unique<Parser>("*[class=hidden].;");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser("#a {"));
+  a = std::make_unique<Parser>("#a {");
   t.reset(a->ParseSimpleSelectors(false));
   EXPECT_TRUE(t.get());
 }
@@ -1452,7 +1452,7 @@ TEST_F(ParserTest, selectors) {
   EXPECT_EQ(3, (*t)[0]->size());
   EXPECT_EQ('{', *a->getpos());
 
-  a.reset(new Parser(" h1 p #id , div.p > h2 > div.t #id"));
+  a = std::make_unique<Parser>(" h1 p #id , div.p > h2 > div.t #id");
   t.reset(a->ParseSelectors());
   EXPECT_TRUE(t.get());
   ASSERT_EQ(2, t->size());
@@ -1460,7 +1460,7 @@ TEST_F(ParserTest, selectors) {
   EXPECT_EQ(4, (*t)[1]->size());
   EXPECT_TRUE(a->Done());
 
-  a.reset(new Parser("/*c*/h1 p #id/*c*/,/*c*/div.p > h2 > div.t #id/*c*/"));
+  a = std::make_unique<Parser>("/*c*/h1 p #id/*c*/,/*c*/div.p > h2 > div.t #id/*c*/");
   t.reset(a->ParseSelectors());
   EXPECT_TRUE(t.get());
   ASSERT_EQ(2, t->size());
@@ -1468,47 +1468,47 @@ TEST_F(ParserTest, selectors) {
   EXPECT_EQ(4, (*t)[1]->size());
   EXPECT_TRUE(a->Done());
 
-  a.reset(new Parser("{}"));
+  a = std::make_unique<Parser>("{}");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_EQ('{', *a->getpos());
 
-  a.reset(new Parser(""));
+  a = std::make_unique<Parser>("");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_TRUE(a->Done());
 
-  a.reset(new Parser("  ,h1 p #id {"));
+  a = std::make_unique<Parser>("  ,h1 p #id {");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_EQ('{', *a->getpos());
 
-  a.reset(new Parser("  , {"));
+  a = std::make_unique<Parser>("  , {");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_EQ('{', *a->getpos());
 
-  a.reset(new Parser("h1 p #id, {"));
+  a = std::make_unique<Parser>("h1 p #id, {");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_EQ('{', *a->getpos());
 
-  a.reset(new Parser("h1 p #id, {"));
+  a = std::make_unique<Parser>("h1 p #id, {");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_EQ('{', *a->getpos());
 
-  a.reset(new Parser("h1 p #id;"));
+  a = std::make_unique<Parser>("h1 p #id;");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_TRUE(a->Done());
 
-  a.reset(new Parser(" h1 p[class=/*{*/ #id , h2 #id"));
+  a = std::make_unique<Parser>(" h1 p[class=/*{*/ #id , h2 #id");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_TRUE(a->Done());
 
-  a.reset(new Parser(" h1 #id. , h2 #id"));
+  a = std::make_unique<Parser>(" h1 #id. , h2 #id");
   t.reset(a->ParseSelectors());
   EXPECT_FALSE(t.get());
   EXPECT_TRUE(a->Done());
@@ -1518,20 +1518,20 @@ TEST_F(ParserTest, rulesets) {
   std::unique_ptr<Parser> a(new Parser("h1 p #id ;"));
   std::unique_ptr<Ruleset> t(a->ParseRuleset());
 
-  EXPECT_EQ(static_cast<Ruleset *>(NULL), t.get());
+  EXPECT_EQ(static_cast<Ruleset *>(nullptr), t.get());
 
-  a.reset(new Parser(", { }"));
+  a = std::make_unique<Parser>(", { }");
   t.reset(a->ParseRuleset());
 
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser(", h1 p #id, { };"));
+  a = std::make_unique<Parser>(", h1 p #id, { };");
   t.reset(a->ParseRuleset());
 
   EXPECT_FALSE(t.get());
 
-  a.reset(new Parser(
-      "h1 p + #id { font-size: 7px; width:10pt !important;}"));
+  a = std::make_unique<Parser>(
+      "h1 p + #id { font-size: 7px; width:10pt !important;}");
   t.reset(a->ParseRuleset());
 
   ASSERT_EQ(1, t->selectors().size());
@@ -1543,7 +1543,7 @@ TEST_F(ParserTest, rulesets) {
   EXPECT_EQ(Property::WIDTH, t->declarations()[1]->prop());
   EXPECT_EQ(true, t->declarations()[1]->IsImportant());
 
-  a.reset(new Parser("h1 p + #id , h1:first_child { font-size: 10px; }"));
+  a = std::make_unique<Parser>("h1 p + #id , h1:first_child { font-size: 10px; }");
   t.reset(a->ParseRuleset());
 
   ASSERT_EQ(2, t->selectors().size());
@@ -1559,30 +1559,30 @@ TEST_F(ParserTest, atrules) {
   std::unique_ptr<Parser> a(
       new Parser("@IMPORT url(assets/style.css) screen,printer;"));
   std::unique_ptr<Stylesheet> t(new Stylesheet());
-  a->ParseStatement(NULL, t.get());
+  a->ParseStatement(nullptr, t.get());
 
   ASSERT_EQ(1, t->imports().size());
   EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(t->import(0).link()));
   EXPECT_EQ(2, t->import(0).media_queries().size());
   EXPECT_EQ(true, a->Done());
 
-  a.reset(new Parser("@import url(foo.css)"));
-  t.reset(new Stylesheet());
-  a->ParseStatement(NULL, t.get());
+  a = std::make_unique<Parser>("@import url(foo.css)");
+  t = std::make_unique<Stylesheet>();
+  a->ParseStatement(nullptr, t.get());
   // We should raise an error for unclosed @import.
   EXPECT_NE(Parser::kNoError, a->errors_seen_mask());
   // But also still record it.
   EXPECT_EQ(1, t->imports().size());
 
-  a.reset(new Parser("@charset \"ISO-8859-1\" ;"));
-  t.reset(new Stylesheet());
-  a->ParseStatement(NULL, t.get());
+  a = std::make_unique<Parser>("@charset \"ISO-8859-1\" ;");
+  t = std::make_unique<Stylesheet>();
+  a->ParseStatement(nullptr, t.get());
   EXPECT_EQ(true, a->Done());
 
-  a.reset(new Parser(
-      "@media print,screen {\n\tbody { font-size: 10pt }\n}"));
-  t.reset(new Stylesheet());
-  a->ParseStatement(NULL, t.get());
+  a = std::make_unique<Parser>(
+      "@media print,screen {\n\tbody { font-size: 10pt }\n}");
+  t = std::make_unique<Stylesheet>();
+  a->ParseStatement(nullptr, t.get());
 
   ASSERT_EQ(1, t->rulesets().size());
   ASSERT_EQ(1, t->ruleset(0).selectors().size());
@@ -1605,19 +1605,19 @@ TEST_F(ParserTest, atrules) {
             t->ruleset(0).declarations()[0]->prop());
   EXPECT_EQ(true, a->Done());
 
-  a.reset(new Parser(
-      "@page :left { margin-left: 4cm; margin-right: 3cm; }"));
-  t.reset(new Stylesheet());
-  a->ParseStatement(NULL, t.get());
+  a = std::make_unique<Parser>(
+      "@page :left { margin-left: 4cm; margin-right: 3cm; }");
+  t = std::make_unique<Stylesheet>();
+  a->ParseStatement(nullptr, t.get());
 
   EXPECT_EQ(0, t->rulesets().size());
   EXPECT_EQ(true, a->Done());
 
   // Make sure media strings can be shared between multiple rulesets.
-  a.reset(new Parser(
-      "@media print { a { color: red; }  p { color: blue; } }"));
-  t.reset(new Stylesheet());
-  a->ParseStatement(NULL, t.get());
+  a = std::make_unique<Parser>(
+      "@media print { a { color: red; }  p { color: blue; } }");
+  t = std::make_unique<Stylesheet>();
+  a->ParseStatement(nullptr, t.get());
 
   ASSERT_EQ(2, t->rulesets().size());
   ASSERT_EQ(1, t->ruleset(0).media_queries().size());
@@ -1628,10 +1628,10 @@ TEST_F(ParserTest, atrules) {
             UnicodeTextToUTF8(t->ruleset(1).media_query(0).media_type()));
   t->ToString(); // Make sure it can be written as a string.
 
-  a.reset(new Parser(
-      "@font-face { font-family: 'Cabin'; src: local('Wingdings'); }"));
-  t.reset(new Stylesheet());
-  a->ParseStatement(NULL, t.get());
+  a = std::make_unique<Parser>(
+      "@font-face { font-family: 'Cabin'; src: local('Wingdings'); }");
+  t = std::make_unique<Stylesheet>();
+  a->ParseStatement(nullptr, t.get());
 
   EXPECT_EQ(0, t->rulesets().size());
   ASSERT_EQ(1, t->font_faces().size());
@@ -1762,15 +1762,15 @@ TEST_F(ParserTest, DeclarationError) {
   EXPECT_EQ(0, declarations->size());
   EXPECT_EQ(Parser::kDeclarationError, p->errors_seen_mask());
 
-  p.reset(new Parser("padding-top: 1.em"));
+  p = std::make_unique<Parser>("padding-top: 1.em");
   declarations.reset(p->ParseDeclarations());
   EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
 
-  p.reset(new Parser("color: red !ie"));
+  p = std::make_unique<Parser>("color: red !ie");
   declarations.reset(p->ParseDeclarations());
   EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
 
-  p.reset(new Parser("color: red !important really"));
+  p = std::make_unique<Parser>("color: red !important really");
   declarations.reset(p->ParseDeclarations());
   EXPECT_TRUE(Parser::kDeclarationError & p->errors_seen_mask());
 }
@@ -1813,8 +1813,8 @@ TEST_F(ParserTest, MediaError) {
             "@media not all { .a {color: #ff0000} }\n",
             stylesheet->ToString());
 
-  p.reset(new Parser(
-      "@media screen and (max-width^?`), print { .a { color: red; } }"));
+  p = std::make_unique<Parser>(
+      "@media screen and (max-width^?`), print { .a { color: red; } }");
   stylesheet.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
   // Note: First media query should be treated as "not all", but the second
@@ -1823,7 +1823,7 @@ TEST_F(ParserTest, MediaError) {
             "@media not all, print { .a {color: #ff0000} }\n",
             stylesheet->ToString());
 
-  p.reset(new Parser("@media { .a { color: red; } }"));
+  p = std::make_unique<Parser>("@media { .a { color: red; } }");
   stylesheet.reset(p->ParseStylesheet());
   EXPECT_FALSE(Parser::kMediaError & p->errors_seen_mask());
   // Note: Empty media query means no media restrictions.
@@ -1859,7 +1859,7 @@ TEST_F(ParserTest, ValueError) {
   Parser p("(12)");
   std::unique_ptr<Value> value(p.ParseAny());
   EXPECT_TRUE(Parser::kValueError & p.errors_seen_mask());
-  EXPECT_TRUE(NULL == value.get());
+  EXPECT_TRUE(nullptr == value.get());
 }
 
 TEST_F(ParserTest, SkippedTokenError) {
@@ -2013,7 +2013,7 @@ TEST_F(ParserTest, MaxNestedFunctions) {
   Parser p("a(b(1,2,3))");
   p.set_max_function_depth(1);
   std::unique_ptr<Value> val(ParseAny(&p));
-  EXPECT_TRUE(NULL == val.get());
+  EXPECT_TRUE(nullptr == val.get());
   EXPECT_TRUE(Parser::kFunctionError & p.errors_seen_mask());
 }
 
@@ -2039,112 +2039,112 @@ TEST_F(ParserTest, ParseNextImport) {
   std::unique_ptr<Parser> parser(
       new Parser("@IMPORT url(assets/style.css) screen,printer;"));
   std::unique_ptr<Import> import(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
+  if (import.get() != nullptr) {
     EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link()));
     EXPECT_EQ(2, import->media_queries().size());
   }
 
-  parser.reset(new Parser("\n\t@import \"mystyle.css\" all; \n"));
+  parser = std::make_unique<Parser>("\n\t@import \"mystyle.css\" all; \n");
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
+  if (import.get() != nullptr) {
     EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
     EXPECT_EQ(1, import->media_queries().size());
   }
 
-  parser.reset(new Parser("\n\t@import url(\"mystyle.css\"); \n"));
+  parser = std::make_unique<Parser>("\n\t@import url(\"mystyle.css\"); \n");
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_TRUE(parser->Done());
-  if (import.get() != NULL) {
+  if (import.get() != nullptr) {
     EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
     EXPECT_EQ(0, import->media_queries().size());
   }
 
-  parser.reset(new Parser("*border: 0px"));
+  parser = std::make_unique<Parser>("*border: 0px");
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
+  EXPECT_TRUE(import.get() == nullptr);
   EXPECT_FALSE(parser->Done());
 
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "*border: 0px"));
+  parser = std::make_unique<Parser>("@import \"mystyle.css\" all;\n"
+                          "*border: 0px");
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_FALSE(parser->Done());
 
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "@import url(\"mystyle.css\" );\n"));
+  parser = std::make_unique<Parser>("@import \"mystyle.css\" all;\n"
+                          "@import url(\"mystyle.css\" );\n");
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_FALSE(parser->Done());
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_TRUE(parser->Done());
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
+  EXPECT_TRUE(import.get() == nullptr);
   EXPECT_TRUE(parser->Done());
 
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
+  parser = std::make_unique<Parser>("@import \"mystyle.css\" all;\n"
                           "@import url(\"mystyle.css\" );\n"
-                          "*border: 0px"));
+                          "*border: 0px");
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_FALSE(parser->Done());
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() != NULL);
+  EXPECT_TRUE(import.get() != nullptr);
   EXPECT_FALSE(parser->Done());
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
+  EXPECT_TRUE(import.get() == nullptr);
   EXPECT_FALSE(parser->Done());
 
-  parser.reset(new Parser("@charset \"ISO-8859-1\";\n"
-                          "@import \"mystyle.css\" all;"));
+  parser = std::make_unique<Parser>("@charset \"ISO-8859-1\";\n"
+                          "@import \"mystyle.css\" all;");
   import.reset(parser->ParseNextImport());
-  EXPECT_TRUE(import.get() == NULL);
+  EXPECT_TRUE(import.get() == nullptr);
 }
 
 TEST_F(ParserTest, ParseSingleImport) {
   std::unique_ptr<Parser> parser(
       new Parser("@IMPORT url(assets/style.css) screen,printer;"));
   std::unique_ptr<Import> import(parser->ParseAsSingleImport());
-  EXPECT_TRUE(import.get() != NULL);
-  if (import.get() != NULL) {
+  EXPECT_TRUE(import.get() != nullptr);
+  if (import.get() != nullptr) {
     EXPECT_EQ("assets/style.css", UnicodeTextToUTF8(import->link()));
     EXPECT_EQ(2, import->media_queries().size());
   }
 
-  parser.reset(new Parser("\n\t@import \"mystyle.css\" all; \n"));
+  parser = std::make_unique<Parser>("\n\t@import \"mystyle.css\" all; \n");
   import.reset(parser->ParseAsSingleImport());
-  EXPECT_TRUE(import.get() != NULL);
-  if (import.get() != NULL) {
+  EXPECT_TRUE(import.get() != nullptr);
+  if (import.get() != nullptr) {
     EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
     EXPECT_EQ(1, import->media_queries().size());
   }
 
-  parser.reset(new Parser("\n\t@import url(\"mystyle.css\"); \n"));
+  parser = std::make_unique<Parser>("\n\t@import url(\"mystyle.css\"); \n");
   import.reset(parser->ParseAsSingleImport());
-  EXPECT_TRUE(import.get() != NULL);
-  if (import.get() != NULL) {
+  EXPECT_TRUE(import.get() != nullptr);
+  if (import.get() != nullptr) {
     EXPECT_EQ("mystyle.css", UnicodeTextToUTF8(import->link()));
     EXPECT_EQ(0, import->media_queries().size());
   }
 
-  parser.reset(new Parser("*border: 0px"));
+  parser = std::make_unique<Parser>("*border: 0px");
   import.reset(parser->ParseAsSingleImport());
-  EXPECT_TRUE(import.get() == NULL);
+  EXPECT_TRUE(import.get() == nullptr);
 
-  parser.reset(new Parser("@import \"mystyle.css\" all;\n"
-                          "@import url(\"mystyle.css\" );\n"));
+  parser = std::make_unique<Parser>("@import \"mystyle.css\" all;\n"
+                          "@import url(\"mystyle.css\" );\n");
   import.reset(parser->ParseAsSingleImport());
-  EXPECT_TRUE(import.get() == NULL);
+  EXPECT_TRUE(import.get() == nullptr);
 
-  parser.reset(new Parser("@charset \"ISO-8859-1\";\n"
-                          "@import \"mystyle.css\" all;"));
+  parser = std::make_unique<Parser>("@charset \"ISO-8859-1\";\n"
+                          "@import \"mystyle.css\" all;");
   import.reset(parser->ParseAsSingleImport());
-  EXPECT_TRUE(import.get() == NULL);
+  EXPECT_TRUE(import.get() == nullptr);
 }
 
 TEST_F(ParserTest, MediaQueries) {
@@ -2237,42 +2237,42 @@ TEST_F(ParserTest, InvalidMediaQueries) {
   // followed by a media expression.
   // See: b/7694757 and
   //      http://lists.w3.org/Archives/Public/www-style/2012Dec/0263.html
-  p.reset(new Parser("@media all and(color) { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media all and(color) { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 
   // Missing "and" between "all" and "(color)".
-  p.reset(new Parser("@media all (color) { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media all (color) { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 
   // Missing "and" and space between "all" and "(color)".
-  p.reset(new Parser("@media all(color) { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media all(color) { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 
   // Too many "and"s.
-  p.reset(new Parser("@media all and and (color) { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media all and and (color) { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 
   // Too many "and"s and missing space.
-  p.reset(new Parser("@media all and and(color) { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media all and and(color) { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 
   // Trailing "and".
-  p.reset(new Parser("@media all and { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media all and { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 
   // Starting "and".
-  p.reset(new Parser("@media and (color) { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media and (color) { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 
   // Starting "and" and no space.
-  p.reset(new Parser("@media and(color) { a { color: red; } }"));
+  p = std::make_unique<Parser>("@media and(color) { a { color: red; } }");
   s.reset(p->ParseStylesheet());
   EXPECT_TRUE(Parser::kMediaError & p->errors_seen_mask());
 }
@@ -2281,32 +2281,32 @@ TEST_F(ParserTest, ExtractCharset) {
   std::unique_ptr<Parser> parser;
   UnicodeText charset;
 
-  parser.reset(new Parser("@charset \"ISO-8859-1\" ;"));
+  parser = std::make_unique<Parser>("@charset \"ISO-8859-1\" ;");
   charset = parser->ExtractCharset();
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("ISO-8859-1", UnicodeTextToUTF8(charset));
 
-  parser.reset(new Parser("@charset foobar;"));
+  parser = std::make_unique<Parser>("@charset foobar;");
   charset = parser->ExtractCharset();
   EXPECT_EQ(Parser::kCharsetError, parser->errors_seen_mask());
   EXPECT_EQ("", UnicodeTextToUTF8(charset));
 
-  parser.reset(new Parser("@charset \"UTF-8\" \"or 9\";"));
+  parser = std::make_unique<Parser>("@charset \"UTF-8\" \"or 9\";");
   charset = parser->ExtractCharset();
   EXPECT_EQ(Parser::kCharsetError, parser->errors_seen_mask());
   EXPECT_EQ("", UnicodeTextToUTF8(charset));
 
-  parser.reset(new Parser("@charsets \"UTF-8\" and \"ISO-8859-1\";"));
+  parser = std::make_unique<Parser>("@charsets \"UTF-8\" and \"ISO-8859-1\";");
   charset = parser->ExtractCharset();
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("", UnicodeTextToUTF8(charset));
 
-  parser.reset(new Parser("@IMPORT url(assets/style.css) screen,printer"));
+  parser = std::make_unique<Parser>("@IMPORT url(assets/style.css) screen,printer");
   charset = parser->ExtractCharset();
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("", UnicodeTextToUTF8(charset));
 
-  parser.reset(new Parser("wotcha!"));
+  parser = std::make_unique<Parser>("wotcha!");
   charset = parser->ExtractCharset();
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("", UnicodeTextToUTF8(charset));
@@ -2317,9 +2317,9 @@ TEST_F(ParserTest, AtFontFace) {
   std::unique_ptr<Stylesheet> stylesheet;
 
   // @font-face is parsed.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@font-face{font-family:'Ubuntu';font-style:normal}\n"
-      ".foo { width: 1px; }"));
+      ".foo { width: 1px; }");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n"
@@ -2327,9 +2327,9 @@ TEST_F(ParserTest, AtFontFace) {
             ".foo {width: 1px}\n", stylesheet->ToString());
 
   // Same in preservation mode.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@font-face{font-family:'Ubuntu';font-style:normal}"
-      ".foo { width: 1px; }"));
+      ".foo { width: 1px; }");
   parser->set_preservation_mode(true);
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
@@ -2338,12 +2338,12 @@ TEST_F(ParserTest, AtFontFace) {
             ".foo {width: 1px}\n", stylesheet->ToString());
 
   // Inside @media
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@media print {\n"
       "  .foo { width: 1px; }\n"
       "  @font-face { font-family: 'Ubuntu'; font-style: normal; }\n"
       "  .bar { height: 2em; }\n"
-      "}\n"));
+      "}\n");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n"
@@ -2355,11 +2355,11 @@ TEST_F(ParserTest, AtFontFace) {
 
 
   // Complex src values.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@media print {\n"
       "  @font-face { font-family: 'Dothraki'; src: local('Khal'),"
       " url('dothraki.woff') format('woff'); }\n"
-      "}\n"));
+      "}\n");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n"
@@ -2368,7 +2368,7 @@ TEST_F(ParserTest, AtFontFace) {
             "\n", stylesheet->ToString());
 
   // @font-face with all properties.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@font-face {\n"
       "  font-family: MainText;\n"
       "  src: url(gentium.eot);\n"  // For use with older UAs.
@@ -2383,7 +2383,7 @@ TEST_F(ParserTest, AtFontFace) {
       "  font-variant: historical-forms, character-variant(cv13), "
       "annotiation(circled);\n"
       "  font-feature-settings: 'hwid', 'swsh' 2;\n"
-      "}\n"));
+      "}\n");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_NE(Parser::kNoError, parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n"
@@ -2403,19 +2403,19 @@ TEST_F(ParserTest, UnexpectedAtRule) {
   std::unique_ptr<Stylesheet> stylesheet;
 
   // Unexpected at-rule with block.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@creature { toughness: 2; power: 2; abilities: double-strike; "
       "protection: black green; }\n"
-      ".foo {width: 1px}\n"));
+      ".foo {width: 1px}\n");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n\n.foo {width: 1px}\n", stylesheet->ToString());
 
   // preservation mode.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@creature { toughness: 2; power: 2; abilities: double-strike; "
       "protection: black green; }\n"
-      ".foo {width: 1px}\n"));
+      ".foo {width: 1px}\n");
   parser->set_preservation_mode(true);
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_EQ(Parser::kNoError, parser->errors_seen_mask());
@@ -2425,15 +2425,15 @@ TEST_F(ParserTest, UnexpectedAtRule) {
             ".foo {width: 1px}\n", stylesheet->ToString());
 
   // ... and with extra selectors.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@page :first { margin-top: 8cm; }\n"
-      ".foo { width: 1px; }"));
+      ".foo { width: 1px; }");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n\n.foo {width: 1px}\n", stylesheet->ToString());
 
   // ... and with subblocks inside block.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@keyframes wiggle {\n"
       "  0% {transform:rotate(6deg);}\n"
       "  50% {transform:rotate(6deg);}\n"
@@ -2444,41 +2444,41 @@ TEST_F(ParserTest, UnexpectedAtRule) {
       "  50% {transform:rotate(6deg);}\n"
       "  100% {transform:rotate(6deg);}\n"
       "}\n"
-      ".foo { width: 1px; }"));
+      ".foo { width: 1px; }");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n\n.foo {width: 1px}\n", stylesheet->ToString());
 
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@font-feature-values Jupiter Sans {\n"
       "  @swash {\n"
       "    delicate: 1;\n"
       "    flowing: 2;\n"
       "  }\n"
       "}\n"
-      ".foo { width: 2px; }"));
+      ".foo { width: 2px; }");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n\n.foo {width: 2px}\n", stylesheet->ToString());
 
   // Unexpected at-rule ending in ';'.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@namespace foo \"http://example.com/ns/foo\";\n"
-      ".foo { width: 1px; }"));
+      ".foo { width: 1px; }");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n\n.foo {width: 1px}\n", stylesheet->ToString());
 
   // Unexpected at-rule with nothing else to parse before ';'.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@use-klingon;\n"
-      ".foo { width: 1px; }"));
+      ".foo { width: 1px; }");
   stylesheet.reset(parser->ParseStylesheet());
   EXPECT_TRUE(Parser::kAtRuleError & parser->errors_seen_mask());
   EXPECT_EQ("/* AUTHOR */\n\n\n\n.foo {width: 1px}\n", stylesheet->ToString());
 
   // Unexpected at-keyword in a block.
-  parser.reset(new Parser(
+  parser = std::make_unique<Parser>(
       "@media screen {\n"
       "  .bar { height: 2px; on-hover: @use-klingon}\n"
       "  .baz { height: 4px }\n"
@@ -2486,7 +2486,7 @@ TEST_F(ParserTest, UnexpectedAtRule) {
       ".foo {\n"
       "  three-dee: @three-dee { @background-lighting { azimuth: 30deg; } };\n"
       "  width: 1px;\n"
-      "}\n"));
+      "}\n");
   stylesheet.reset(parser->ParseStylesheet());
   // Note: These don't actually call the at-rule parsing code because they
   // are not full at-rules, but just at-keywords and are skipped by
@@ -2576,19 +2576,19 @@ TEST_F(ParserTest, SkipPastDelimiterRecusiveDepth) {
 TEST_F(ParserTest, ParseMediaQueries) {
   std::unique_ptr<Parser> a(new Parser("screen"));
   std::unique_ptr<MediaQueries> q(a->ParseMediaQueries());
-  ASSERT_TRUE(NULL != q.get());
+  ASSERT_TRUE(nullptr != q.get());
   EXPECT_EQ(1, q->size());
   EXPECT_EQ(MediaQuery::NO_QUALIFIER, (*q)[0]->qualifier());
   EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
 
   // qualifier
-  a.reset(new Parser("only screen"));
+  a = std::make_unique<Parser>("only screen");
   q.reset(a->ParseMediaQueries());
   EXPECT_EQ(MediaQuery::ONLY, (*q)[0]->qualifier());
   EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
 
   // media expression
-  a.reset(new Parser("screen and (max-width: 640px)"));
+  a = std::make_unique<Parser>("screen and (max-width: 640px)");
   q.reset(a->ParseMediaQueries());
   EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
   ASSERT_EQ(1, (*q)[0]->expressions().size());
@@ -2597,7 +2597,7 @@ TEST_F(ParserTest, ParseMediaQueries) {
   EXPECT_EQ("640px", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
 
   // tailing whitespaces of values are not trimmed.
-  a.reset(new Parser("screen and (max-width:  640 px  )"));
+  a = std::make_unique<Parser>("screen and (max-width:  640 px  )");
   q.reset(a->ParseMediaQueries());
   EXPECT_EQ("screen", UnicodeTextToUTF8((*q)[0]->media_type()));
   ASSERT_EQ(1, (*q)[0]->expressions().size());
@@ -2606,8 +2606,8 @@ TEST_F(ParserTest, ParseMediaQueries) {
   EXPECT_EQ("640 px  ", UnicodeTextToUTF8((*q)[0]->expression(0).value()));
 
   // multiple queries
-  a.reset(new Parser(
-      "not screen and (max-width: 500px), projection and (color)"));
+  a = std::make_unique<Parser>(
+      "not screen and (max-width: 500px), projection and (color)");
   q.reset(a->ParseMediaQueries());
   EXPECT_EQ(2, q->size());
   EXPECT_EQ(MediaQuery::NOT, (*q)[0]->qualifier());
@@ -2622,24 +2622,24 @@ TEST_F(ParserTest, ParseMediaQueries) {
   ASSERT_FALSE((*q)[1]->expression(0).has_value());
 
   // empty input. never return NULL.
-  a.reset(new Parser(""));
+  a = std::make_unique<Parser>("");
   q.reset(a->ParseMediaQueries());
-  EXPECT_TRUE(NULL != q.get());
+  EXPECT_TRUE(nullptr != q.get());
   EXPECT_EQ(0, q->size());
 
   // any media_type is allowed
-  a.reset(new Parser("foobar"));
+  a = std::make_unique<Parser>("foobar");
   q.reset(a->ParseMediaQueries());
   EXPECT_EQ(1, q->size());
   EXPECT_EQ("foobar", UnicodeTextToUTF8((*q)[0]->media_type()));
 
   // Basic media query
-  a.reset(new Parser("screen and (max-width: 640px)"));
+  a = std::make_unique<Parser>("screen and (max-width: 640px)");
   q.reset(a->ParseMediaQueries());
   EXPECT_EQ("screen and (max-width: 640px)", q->ToString());
 
   // Missing "and" invalidates media query.
-  a.reset(new Parser("screen (max-width: 640px)"));
+  a = std::make_unique<Parser>("screen (max-width: 640px)");
   q.reset(a->ParseMediaQueries());
   EXPECT_EQ("not all", q->ToString());
 }
@@ -2656,9 +2656,9 @@ TEST_F(ParserTest, ImportInMiddle) {
   EXPECT_EQ("/* AUTHOR */\n\n\n\n.a {color: #ff0000}\n.b {color: #0000ff}\n",
             s->ToString());
 
-  p.reset(new Parser("@font-face { font-family: 'InFront'; }\n"
+  p = std::make_unique<Parser>("@font-face { font-family: 'InFront'; }\n"
                      "@import url('foo.css');\n"
-                     ".b { color: blue; }\n"));
+                     ".b { color: blue; }\n");
   s.reset(p->ParseStylesheet());
   EXPECT_EQ(0, s->imports().size());
   EXPECT_EQ(1, s->font_faces().size());

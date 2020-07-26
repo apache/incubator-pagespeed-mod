@@ -128,14 +128,14 @@ void AddIdsFilter::StartElement(HtmlElement* element) {
   HtmlName::Keyword tag = element->keyword();
   const HtmlElement::Attribute* id =
       element->FindAttribute(HtmlName::kId);
-  if (id != NULL) {
+  if (id != nullptr) {
     id_stack_.push_back(id);
     div_count_stack_.push_back(kIsId);
   } else if (IsIgnored(tag)) {
     // Don't touch stack in this case.
     return;
   } else if (NeedsExplicitId(tag) ||
-             element->FindAttribute(HtmlName::kClass) != NULL) {
+             element->FindAttribute(HtmlName::kClass) != nullptr) {
     driver_->AddAttribute(element, HtmlName::kId, GetDivCountStackEncoding());
   }
   div_count_stack_.push_back(0);

@@ -47,7 +47,7 @@ void CanonicalAttributes::StartElement(HtmlElement* element) {
     const char* value = attribute.DecodedValueOrNull();
     if (attribute.decoding_error()) {
       ++num_errors_;
-    } else if (value != NULL) {
+    } else if (value != nullptr) {
       ++num_changes_;
 
       // Recomputes escaped attribute.

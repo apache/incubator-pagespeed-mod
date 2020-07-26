@@ -91,15 +91,15 @@ TEST_F(GoogleFontServiceInputResourceTest, Creation) {
 
   GoogleUrl url1("efpeRO#@($@#K$!@($");
   resource.reset(GoogleFontServiceInputResource::Make(url1, rewrite_driver()));
-  EXPECT_TRUE(resource.get() == NULL);
+  EXPECT_TRUE(resource.get() == nullptr);
 
   GoogleUrl url2("http://example.com/foo.css");
   resource.reset(GoogleFontServiceInputResource::Make(url2, rewrite_driver()));
-  EXPECT_TRUE(resource.get() == NULL);
+  EXPECT_TRUE(resource.get() == nullptr);
 
   GoogleUrl url3(kRoboto);
   resource.reset(GoogleFontServiceInputResource::Make(url3, rewrite_driver()));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   EXPECT_EQ(kRoboto, resource->url());
   EXPECT_EQ(
       "gfnt://fonts.googleapis.com/css?family=Roboto&X-PS-UA=Chromezilla",
@@ -107,7 +107,7 @@ TEST_F(GoogleFontServiceInputResourceTest, Creation) {
 
   GoogleUrl url4(kRobotoSsl);
   resource.reset(GoogleFontServiceInputResource::Make(url4, rewrite_driver()));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   EXPECT_EQ(kRobotoSsl, resource->url());
   EXPECT_EQ(
       "gfnts://fonts.googleapis.com/css?family=Roboto&X-PS-UA=Chromezilla",
@@ -120,7 +120,7 @@ TEST_F(GoogleFontServiceInputResourceTest, Load) {
 
   ResourcePtr resource(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   MockResourceCallback callback(resource,
                                 server_context()->thread_system());
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -134,7 +134,7 @@ TEST_F(GoogleFontServiceInputResourceTest, Load) {
   // Make sure it's cached.
   ResourcePtr resource2(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource2.get() != NULL);
+  ASSERT_TRUE(resource2.get() != nullptr);
   MockResourceCallback callback2(resource2,
                                  server_context()->thread_system());
   resource2->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -149,7 +149,7 @@ TEST_F(GoogleFontServiceInputResourceTest, Load) {
   ResetUserAgent("Safieri");
   ResourcePtr resource3(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource3.get() != NULL);
+  ASSERT_TRUE(resource3.get() != nullptr);
   MockResourceCallback callback3(resource3,
                                  server_context()->thread_system());
   resource3->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -180,7 +180,7 @@ TEST_F(GoogleFontServiceInputResourceTest, UANormalization) {
 
   ResourcePtr resource(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   MockResourceCallback callback(resource,
                                 server_context()->thread_system());
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -199,7 +199,7 @@ TEST_F(GoogleFontServiceInputResourceTest, UANormalization) {
 
   ResourcePtr resource2(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource2.get() != NULL);
+  ASSERT_TRUE(resource2.get() != nullptr);
   MockResourceCallback callback2(resource2,
                                  server_context()->thread_system());
   resource2->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -218,7 +218,7 @@ TEST_F(GoogleFontServiceInputResourceTest, LoadParallel) {
   ResetUserAgent("Chromezilla");
   ResourcePtr resource(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   MockResourceCallback callback(resource,
                                 server_context()->thread_system());
   resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -229,7 +229,7 @@ TEST_F(GoogleFontServiceInputResourceTest, LoadParallel) {
   ResetUserAgent("Safieri");
   ResourcePtr resource2(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource2.get() != NULL);
+  ASSERT_TRUE(resource2.get() != nullptr);
   MockResourceCallback callback2(resource2,
                                  server_context()->thread_system());
   resource2->LoadAsync(Resource::kReportFailureIfNotCacheable,
@@ -257,7 +257,7 @@ TEST_F(GoogleFontServiceInputResourceTest, FetchFailure) {
   GoogleUrl url(kRoboto);
   ResourcePtr resource(
       GoogleFontServiceInputResource::Make(url, rewrite_driver()));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   MockResourceCallback callback(resource,
                                 server_context()->thread_system());
   resource->LoadAsync(Resource::kLoadEvenIfNotCacheable,
@@ -275,7 +275,7 @@ TEST_F(GoogleFontServiceInputResourceTest, DontLoadNonCss) {
   GoogleUrl non_css_url(kNonCss);
   ResourcePtr resource(
       GoogleFontServiceInputResource::Make(non_css_url, rewrite_driver()));
-  ASSERT_TRUE(resource.get() != NULL);
+  ASSERT_TRUE(resource.get() != nullptr);
   MockResourceCallback callback(resource,
                                 server_context()->thread_system());
   resource->LoadAsync(Resource::kLoadEvenIfNotCacheable,
@@ -288,7 +288,7 @@ TEST_F(GoogleFontServiceInputResourceTest, DontLoadNonCss) {
   // Make sure we don't end up caching a success, either.
   ResourcePtr resource2(
       GoogleFontServiceInputResource::Make(non_css_url, rewrite_driver()));
-  ASSERT_TRUE(resource2.get() != NULL);
+  ASSERT_TRUE(resource2.get() != nullptr);
   MockResourceCallback callback2(resource2,
                                  server_context()->thread_system());
   resource2->LoadAsync(Resource::kLoadEvenIfNotCacheable,

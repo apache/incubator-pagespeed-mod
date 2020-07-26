@@ -19,6 +19,10 @@
 
 // Unit test for css_url_encoder.
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
@@ -126,7 +130,7 @@ TEST_F(CssUrlEncoderTest, TestSetInliningImages) {
   GoogleString user_agent_string = "Chrome/";
   ResourceContext resource_context;
   UserAgentMatcher user_agent_matcher;
-  request_properties.reset(new RequestProperties(&user_agent_matcher));
+  request_properties = std::make_unique<RequestProperties>(&user_agent_matcher);
   request_properties->SetUserAgent(user_agent_string);
 
   encoder_.SetInliningImages(*request_properties, &resource_context);
@@ -134,7 +138,7 @@ TEST_F(CssUrlEncoderTest, TestSetInliningImages) {
   EXPECT_TRUE(resource_context.inline_images());
 
   user_agent_string = "MSIE 6.0";  // An older UA to check inlining is not set.
-  request_properties.reset(new RequestProperties(&user_agent_matcher));
+  request_properties = std::make_unique<RequestProperties>(&user_agent_matcher);
   request_properties->SetUserAgent(user_agent_string);
 
   encoder_.SetInliningImages(*request_properties, &resource_context);

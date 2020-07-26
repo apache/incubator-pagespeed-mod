@@ -84,7 +84,7 @@ bool SharedDynamicStringMap::InitSegment(bool parent,
     segment_.reset(shm_runtime_->CreateSegment(segment_name_,
                                                total_size_,
                                                message_handler));
-    if (segment_.get() == NULL) {
+    if (segment_.get() == nullptr) {
       ok = false;
     } else {
       // Initialize mutexes - there is an extra mutex, the last one, shared
@@ -103,7 +103,7 @@ bool SharedDynamicStringMap::InitSegment(bool parent,
     segment_.reset(shm_runtime_->AttachToSegment(segment_name_,
                                                  total_size_,
                                                  message_handler));
-    if (segment_.get() == NULL) {
+    if (segment_.get() == nullptr) {
       ok = false;
     }
   }
@@ -116,16 +116,16 @@ bool SharedDynamicStringMap::InitSegment(bool parent,
 }
 
 void SharedDynamicStringMap::ClearSegment(MessageHandler* message_handler) {
-  segment_.reset(NULL);
+  segment_.reset(nullptr);
   shm_runtime_->DestroySegment(segment_name_, message_handler);
 }
 
 int SharedDynamicStringMap::IncrementElement(const StringPiece& string)
     NO_THREAD_SAFETY_ANALYSIS {
-  if (segment_.get() == NULL) {
+  if (segment_.get() == nullptr) {
     return 0;
   }
-  Entry* entry_pointer = 0;
+  Entry* entry_pointer = nullptr;
   // We need to lock the entry for incrementation
   int entry = FindEntry(string, true, &entry_pointer);
   int value;
@@ -148,10 +148,10 @@ int SharedDynamicStringMap::IncrementElement(const StringPiece& string)
 }
 
 int SharedDynamicStringMap::LookupElement(const StringPiece& string) const {
-  if (segment_.get() == NULL) {
+  if (segment_.get() == nullptr) {
     return 0;
   }
-  Entry* entry_pointer = 0;
+  Entry* entry_pointer = nullptr;
   // We don't need to lock the entry for lookup
   int entry = FindEntry(string, false, &entry_pointer);
   // If entry is -1 then the table is full.
@@ -268,7 +268,7 @@ int SharedDynamicStringMap::GetNumberInserted() const {
 }
 
 void SharedDynamicStringMap::GlobalCleanup(MessageHandler* message_handler) {
-  if (segment_.get() != NULL) {
+  if (segment_.get() != nullptr) {
     shm_runtime_->DestroySegment(segment_name_, message_handler);
   }
 }

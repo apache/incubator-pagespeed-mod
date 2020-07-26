@@ -31,7 +31,7 @@
 
 namespace {
 
-net_instaweb::StringVector* recorded_actions = NULL;
+net_instaweb::StringVector* recorded_actions = nullptr;
 bool apr_initialized = false;
 
 }  // namespace
@@ -39,7 +39,7 @@ bool apr_initialized = false;
 namespace net_instaweb {
 
 void MockApache::Initialize() {
-  CHECK(recorded_actions == NULL);
+  CHECK(recorded_actions == nullptr);
   recorded_actions = new StringVector();
   if (!apr_initialized) {
     apr_initialize();
@@ -49,17 +49,17 @@ void MockApache::Initialize() {
 }
 
 void MockApache::Terminate() {
-  CHECK(recorded_actions != NULL);
+  CHECK(recorded_actions != nullptr);
   if (!recorded_actions->empty()) {
     LOG(FATAL) << "MockApache: unprocessed actions: "
                << ActionsSinceLastCall();
   }
   delete recorded_actions;
-  recorded_actions = NULL;
+  recorded_actions = nullptr;
 }
 
 void MockApache::PrepareRequest(request_rec* request) {
-  apr_pool_create(&request->pool, NULL);
+  apr_pool_create(&request->pool, nullptr);
   request->headers_in = apr_table_make(request->pool, 10);
   request->headers_out = apr_table_make(request->pool, 10);
   request->subprocess_env = apr_table_make(request->pool, 10);
@@ -91,7 +91,7 @@ void MockApache::PrepareRequest(request_rec* request) {
     }
     (*filter)->frec->name = filter_name;
   }
-  *filter = NULL;  // Terminate the linked list.
+  *filter = nullptr;  // Terminate the linked list.
 }
 
 void MockApache::CleanupRequest(request_rec* request) {
@@ -99,7 +99,7 @@ void MockApache::CleanupRequest(request_rec* request) {
 }
 
 GoogleString MockApache::ActionsSinceLastCall() {
-  CHECK(recorded_actions != NULL) <<
+  CHECK(recorded_actions != nullptr) <<
       "Must call MockApache::Initialize() first";
   GoogleString response = JoinCollection(*recorded_actions, " ");
   recorded_actions->clear();
@@ -111,7 +111,7 @@ GoogleString MockApache::ActionsSinceLastCall() {
 namespace {
 
 void log_action(StringPiece action) {
-  CHECK(recorded_actions != NULL) <<
+  CHECK(recorded_actions != nullptr) <<
       "Must call MockApache::Initialize() first";
   recorded_actions->push_back(action.as_string());
 }
@@ -149,15 +149,15 @@ void ap_set_content_type(request_rec* r, const char* ct) {
 }
 
 void ap_remove_output_filter(ap_filter_t* filter) {
-  CHECK(filter != NULL);
-  CHECK(filter->frec != NULL);
+  CHECK(filter != nullptr);
+  CHECK(filter->frec != nullptr);
   log_action(StrCat(
       "ap_remove_output_filter(", filter->frec->name, ")"));
 }
 
 ap_filter_t* ap_add_output_filter(const char*, void*, request_rec*, conn_rec*) {
   log_fatal("ap_add_output_filter");
-  return NULL;
+  return nullptr;
 }
 
 apr_status_t ap_get_brigade(ap_filter_t*, apr_bucket_brigade*,
@@ -174,13 +174,13 @@ apr_status_t ap_pass_brigade(ap_filter_t*, apr_bucket_brigade*) {
 ap_filter_rec_t* ap_register_output_filter(
     const char*, ap_out_filter_func, ap_init_filter_func, ap_filter_type) {
   log_fatal("ap_register_output_filter");
-  return NULL;
+  return nullptr;
 }
 
 ap_filter_rec_t* ap_register_input_filter(const char*, ap_in_filter_func,
                                           ap_init_filter_func, ap_filter_type) {
   log_fatal("ap_register_input_filter");
-  return NULL;
+  return nullptr;
 }
 
 #define IMPLEMENT_AS_LOG_FATAL(AP_X) \

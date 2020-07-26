@@ -397,7 +397,7 @@ TEST_F(ScriptTagScannerTest, ForEvent) {
     { "for=\"window\" event=\"onload()\"", ScriptTagScanner::kExecuteSync },
     { "for=\"wiNdow \" event=\" onLoad  \"", ScriptTagScanner::kExecuteSync },
     { "for=\" windOw\" event=\"OnloAd() \"", ScriptTagScanner::kExecuteSync },
-    { 0, ScriptTagScanner::kExecuteSync }
+    { nullptr, ScriptTagScanner::kExecuteSync }
   };
   TestFlags(for_event_tests);
 }
@@ -414,7 +414,7 @@ TEST_F(ScriptTagScannerTest, AsyncDefer) {
     { "defer src=a", ScriptTagScanner::kExecuteDefer },
     { "defer async src=a",
         ScriptTagScanner::kExecuteDefer | ScriptTagScanner::kExecuteAsync },
-    { 0, ScriptTagScanner::kExecuteSync }
+    { nullptr, ScriptTagScanner::kExecuteSync }
   };
   TestFlags(async_defer_tests);
 }

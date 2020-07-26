@@ -42,12 +42,12 @@ class PthreadCondvarTest : public CondvarTestBase {
   }
 
   void CreateHelper() override {
-    pthread_create(&helper_thread_, NULL,
+    pthread_create(&helper_thread_, nullptr,
                    &HelperThread, this);
   }
 
   void FinishHelper() override {
-    pthread_join(helper_thread_, NULL);
+    pthread_join(helper_thread_, nullptr);
   }
 
   Timer* timer() override { return &timer_; }

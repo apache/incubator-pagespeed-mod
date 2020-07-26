@@ -73,7 +73,7 @@ void SystemRewriteOptions::Terminate() {
 
 SystemRewriteOptions::SystemRewriteOptions(ThreadSystem* thread_system)
     : RewriteOptions(thread_system) {
-  DCHECK(system_properties_ != NULL)
+  DCHECK(system_properties_ != nullptr)
       << "Call SystemRewriteOptions::Initialize() before construction";
   InitializeOptions(system_properties_);
 }
@@ -82,7 +82,7 @@ SystemRewriteOptions::SystemRewriteOptions(const StringPiece& description,
                                            ThreadSystem* thread_system)
     : RewriteOptions(thread_system),
       description_(description.data(), description.size()) {
-  DCHECK(system_properties_ != NULL)
+  DCHECK(system_properties_ != nullptr)
       << "Call SystemRewriteOptions::Initialize() before construction";
   InitializeOptions(system_properties_);
 }
@@ -321,7 +321,7 @@ void SystemRewriteOptions::AddProperties() {
   // Leave slurp_read_only out of the signature as (a) we don't actually change
   // this spontaneously, and (b) it's useful to keep the metadata cache between
   // slurping read-only and slurp read/write.
-  SystemRewriteOptions config("dummy_options", NULL);
+  SystemRewriteOptions config("dummy_options", nullptr);
   config.slurp_read_only_.DoNotUseForSignatureComputation();
 
   // This one shouldn't be changed live either nor control any cache keys.
@@ -342,14 +342,14 @@ const SystemRewriteOptions* SystemRewriteOptions::DynamicCast(
     const RewriteOptions* instance) {
   const SystemRewriteOptions* config =
       dynamic_cast<const SystemRewriteOptions*>(instance);
-  DCHECK(config != NULL);
+  DCHECK(config != nullptr);
   return config;
 }
 
 SystemRewriteOptions* SystemRewriteOptions::DynamicCast(
     RewriteOptions* instance) {
   SystemRewriteOptions* config = dynamic_cast<SystemRewriteOptions*>(instance);
-  DCHECK(config != NULL);
+  DCHECK(config != nullptr);
   return config;
 }
 
@@ -427,7 +427,7 @@ GoogleString SystemRewriteOptions::StaticAssetCDNOptions::ToString() const {
 void SystemRewriteOptions::StaticAssetCDNOptions::Merge(const OptionBase* src) {
   const SystemRewriteOptions::StaticAssetCDNOptions* cdn_src =
       dynamic_cast<const SystemRewriteOptions::StaticAssetCDNOptions*>(src);
-  CHECK(cdn_src != NULL);
+  CHECK(cdn_src != nullptr);
   if (cdn_src->was_set()) {
     mutable_value() = cdn_src->value();
     static_assets_to_cdn_ = cdn_src->static_assets_to_cdn_;
@@ -466,7 +466,7 @@ void SystemRewriteOptions::Merge(const RewriteOptions& src) {
   RewriteOptions::Merge(src);
 
   const SystemRewriteOptions* ssrc = DynamicCast(&src);
-  CHECK(ssrc != NULL);
+  CHECK(ssrc != nullptr);
 
   statistics_domains_.MergeOrShare(ssrc->statistics_domains_);
   global_statistics_domains_.MergeOrShare(ssrc->global_statistics_domains_);
@@ -481,7 +481,7 @@ SystemRewriteOptions::ParseAndSetOptionFromName2(
     StringPiece name, StringPiece arg1, StringPiece arg2,
     GoogleString* msg, MessageHandler* handler) {
 
-  CopyOnWrite<FastWildcardGroup>* wildcard_group = NULL;
+  CopyOnWrite<FastWildcardGroup>* wildcard_group = nullptr;
   if (StringCaseEqual(name, "StatisticsDomains")) {
     wildcard_group = &statistics_domains_;
   } else if (StringCaseEqual(name, "GlobalStatisticsDomains")) {
@@ -495,7 +495,7 @@ SystemRewriteOptions::ParseAndSetOptionFromName2(
   } else if (StringCaseEqual(name, "GlobalAdminDomains")) {
     wildcard_group = &global_admin_domains_;
   }
-  if (wildcard_group != NULL) {
+  if (wildcard_group != nullptr) {
     FastWildcardGroup* mutable_wildcard_group = wildcard_group->MakeWriteable();
     if (StringCaseEqual(arg1, "allow")) {
       mutable_wildcard_group->Allow(arg2);

@@ -57,7 +57,7 @@ void DeferIframeFilter::StartDocumentImpl() {
 }
 
 void DeferIframeFilter::StartElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     return;
   }
   if (element->keyword() == HtmlName::kIframe) {
@@ -78,7 +78,7 @@ void DeferIframeFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void DeferIframeFilter::EndElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     return;
   }
   if (element->keyword() == HtmlName::kPagespeedIframe) {

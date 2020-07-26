@@ -93,7 +93,7 @@ void FileInputResource::FillInPartitionInputInfo(
   // If the file is valid and we are using a filesystem metadata cache, save
   // the hash of the file's contents for subsequent storing into it (the cache).
   if (IsValidAndCacheable() &&
-      server_context_->filesystem_metadata_cache() != NULL) {
+      server_context_->filesystem_metadata_cache() != nullptr) {
     input->set_input_content_hash(ContentsHash());
   }
 }
@@ -112,7 +112,7 @@ void FileInputResource::SetDefaultHeaders(const ContentType* content_type,
   header->set_minor_version(1);
   header->SetStatusAndReason(HttpStatus::kOK);
   header->RemoveAll(HttpAttributes::kContentType);
-  if (content_type == NULL) {
+  if (content_type == nullptr) {
     handler->Message(kError, "Loaded resource with no Content-Type %s",
                      url_.c_str());
   } else {

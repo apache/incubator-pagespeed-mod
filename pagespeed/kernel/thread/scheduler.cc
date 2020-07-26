@@ -236,7 +236,7 @@ void Scheduler::BlockingTimedWaitUs(int64 timeout_us) {
   CondVarTimeout* alarm = new CondVarTimeout(&timed_out, this);
   InsertAlarmAtUsMutexHeld(wakeup_time_us, true, alarm);
   waiting_alarms_.insert(alarm);
-  int64 next_wakeup_us = RunAlarms(NULL);
+  int64 next_wakeup_us = RunAlarms(nullptr);
   while (signal_count_ == original_signal_count && !timed_out &&
          next_wakeup_us > 0) {
     // Now we have to block until either we time out, or we are signaled.  We
@@ -244,7 +244,7 @@ void Scheduler::BlockingTimedWaitUs(int64 timeout_us) {
     // a belt and suspenders protection against programmer error; this ought to
     // imply timed_out.
     AwaitWakeupUntilUs(std::min(wakeup_time_us, next_wakeup_us));
-    next_wakeup_us = RunAlarms(NULL);
+    next_wakeup_us = RunAlarms(nullptr);
   }
 }
 
@@ -258,7 +258,7 @@ void Scheduler::TimedWaitMs(int64 timeout_ms, Function* callback) {
   CondVarCallbackTimeout* alarm = new CondVarCallbackTimeout(callback, this);
   InsertAlarmAtUsMutexHeld(completion_time_us, true, alarm);
   waiting_alarms_.insert(alarm);
-  RunAlarms(NULL);
+  RunAlarms(nullptr);
 }
 
 void Scheduler::CancelWaiting(Alarm* alarm) {
@@ -302,7 +302,7 @@ void Scheduler::Signal() {
   }
   condvar_->Broadcast();
   running_waiting_alarms_ = false;
-  RunAlarms(NULL);
+  RunAlarms(nullptr);
 }
 
 // Add alarm while holding mutex.  Don't run any alarms or otherwise drop mutex.
@@ -329,7 +329,7 @@ Scheduler::Alarm* Scheduler::AddAlarmAtUs(int64 wakeup_time_us,
   Alarm* result = new FunctionAlarm(callback, this);
   ScopedMutex lock(mutex_.get());
   InsertAlarmAtUsMutexHeld(wakeup_time_us, true, result);
-  RunAlarms(NULL);
+  RunAlarms(nullptr);
   return result;
 }
 
@@ -366,7 +366,7 @@ int64 Scheduler::RunAlarms(bool* ran_alarms) {
     // first_alarm should be run.  It can't have been cancelled as we've held
     // the lock since we found it.
     outstanding_alarms_.erase(first_alarm_iterator);  // Prevent cancellation.
-    if (ran_alarms != NULL) {
+    if (ran_alarms != nullptr) {
       *ran_alarms = true;
     }
     // Note that the following call may drop and re-lock the scheduler lock.
@@ -401,7 +401,7 @@ bool Scheduler::ProcessAlarmsOrWaitUs(int64 timeout_us) {
     }
     AwaitWakeupUntilUs(next_wakeup_us);
 
-    next_wakeup_us = RunAlarms(NULL);
+    next_wakeup_us = RunAlarms(nullptr);
   }
   return !outstanding_alarms_.empty();
 }

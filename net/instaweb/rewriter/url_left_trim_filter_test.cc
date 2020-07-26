@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 
 #include "base/logging.h"
@@ -35,8 +39,8 @@ class UrlLeftTrimFilterTest : public RewriteTestBase {
  protected:
   void SetUp() override {
     RewriteTestBase::SetUp();
-    left_trim_filter_.reset(new UrlLeftTrimFilter(rewrite_driver(),
-                                                  statistics()));
+    left_trim_filter_ = std::make_unique<UrlLeftTrimFilter>(rewrite_driver(),
+                                                  statistics());
     rewrite_driver()->AddFilter(left_trim_filter_.get());
   }
 
@@ -64,7 +68,7 @@ class UrlLeftTrimFilterTest : public RewriteTestBase {
                const StringPiece& init, const StringPiece& expected) {
     StringPiece url(init);
     GoogleString trimmed;
-    CHECK(base_url_.get() != NULL);
+    CHECK(base_url_.get() != nullptr);
     EXPECT_EQ(changed, left_trim_filter_->Trim(
         *base_url_.get(), url, &trimmed,
         rewrite_driver()->message_handler()));
@@ -74,7 +78,7 @@ class UrlLeftTrimFilterTest : public RewriteTestBase {
   }
 
   void SetFilterBaseUrl(const StringPiece& base_url) {
-    base_url_.reset(new GoogleUrl(base_url));
+    base_url_ = std::make_unique<GoogleUrl>(base_url);
   }
 
   bool AddBody() const override { return false; }

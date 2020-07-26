@@ -21,7 +21,7 @@
 
 #include "pagespeed/apache/apache_message_handler.h"
 
-#include <signal.h>
+#include <csignal>
 #include <unistd.h>
 
 #include "pagespeed/apache/apr_timer.h"

@@ -42,8 +42,8 @@ class DomainLawyer::Domain {
   explicit Domain(const StringPiece& name)
       : wildcard_(name),
         name_(name.data(), name.size()),
-        rewrite_domain_(NULL),
-        origin_domain_(NULL),
+        rewrite_domain_(nullptr),
+        origin_domain_(nullptr),
         authorized_(false),
         cycle_breadcrumb_(false),
         is_proxy_(false) {
@@ -67,9 +67,9 @@ class DomainLawyer::Domain {
       return;
     }
     cycle_breadcrumb_ = true;
-    if ((origin_domain != origin_domain_) && (origin_domain != NULL)) {
-      if (origin_domain_ != NULL) {
-        if (handler != NULL) {
+    if ((origin_domain != origin_domain_) && (origin_domain != nullptr)) {
+      if (origin_domain_ != nullptr) {
+        if (handler != nullptr) {
           handler->Message(kError,
                            "RewriteDomain %s has conflicting origins %s and "
                            "%s, overriding to %s",
@@ -83,7 +83,7 @@ class DomainLawyer::Domain {
       for (int i = 0; i < num_shards(); ++i) {
         shards_[i]->MergeOrigin(origin_domain, handler);
       }
-      if (rewrite_domain_ != NULL) {
+      if (rewrite_domain_ != nullptr) {
         rewrite_domain_->MergeOrigin(origin_domain, handler);
       }
     }
@@ -103,8 +103,8 @@ class DomainLawyer::Domain {
     // in that context it's a functional problem to have multiple
     // proxy directories mapped to a single origin, so we must fail
     // the configuration.
-    if (is_proxy_ && (rewrite_domain_ != NULL)) {
-      if (handler != NULL) {
+    if (is_proxy_ && (rewrite_domain_ != nullptr)) {
+      if (handler != nullptr) {
         handler->Message(kError,
                          "ProxyDomain %s has conflicting proxies %s and %s",
                          name_.c_str(),
@@ -132,9 +132,9 @@ class DomainLawyer::Domain {
     // in that context it's a functional problem to have the same
     // proxy directory mapped to multiple origins, so we must fail
     // the configuration.
-    if ((origin_domain_ != NULL) &&
+    if ((origin_domain_ != nullptr) &&
         (origin_domain_->is_proxy_ || origin_domain->is_proxy_)) {
-      if (handler != NULL) {
+      if (handler != nullptr) {
         handler->Message(kError,
                          "ProxyDomain %s has conflicting origins %s and %s",
                          name_.c_str(),
@@ -145,7 +145,7 @@ class DomainLawyer::Domain {
     }
 
     MergeOrigin(origin_domain, handler);
-    if (rewrite_domain_ != NULL) {
+    if (rewrite_domain_ != nullptr) {
       rewrite_domain_->MergeOrigin(origin_domain_, handler);
     }
 
@@ -161,8 +161,8 @@ class DomainLawyer::Domain {
   // handler==NULL means this is happening from a 'merge' so we will
   // silently let the new rewrite_domain win.
   bool SetShardFrom(Domain* rewrite_domain, MessageHandler* handler) {
-    if ((rewrite_domain_ != rewrite_domain) && (rewrite_domain_ != NULL)) {
-      if (handler != NULL) {
+    if ((rewrite_domain_ != rewrite_domain) && (rewrite_domain_ != nullptr)) {
+      if (handler != nullptr) {
         // We only treat this as an error when the handler is non-null.  We
         // use a null handler during merges, and will do the best we can
         // to get correct behavior.
@@ -204,19 +204,19 @@ class DomainLawyer::Domain {
               authorized_ ? "_a" : "_n", "_");
     // Assuming that there will be no cycle of Domains like Domain A has a
     // rewrite domain to domain B which in turn have the original domain as A.
-    if (rewrite_domain_ != NULL) {
+    if (rewrite_domain_ != nullptr) {
       StrAppend(&signature, "R:", rewrite_domain_->name(), "_");
     }
     if (!host_header_.empty()) {
       StrAppend(&signature, "H:", host_header_, "|");
     }
-    if (origin_domain_ != NULL) {
+    if (origin_domain_ != nullptr) {
       StrAppend(&signature,
                 origin_domain_->is_proxy_ ? "P:" : "O:",
                 origin_domain_->name(), "_");
     }
     for (int index = 0; index < num_shards(); ++index) {
-      if (shards_[index] != NULL) {
+      if (shards_[index] != nullptr) {
         StrAppend(&signature, "S:", shards_[index]->name(), "_");
       }
     }
@@ -230,13 +230,13 @@ class DomainLawyer::Domain {
       StrAppend(&output, " Auth");
     }
 
-    if (rewrite_domain_ != NULL) {
+    if (rewrite_domain_ != nullptr) {
       StrAppend(&output,
                 is_proxy_ ? " ProxyDomain:" : " RewriteDomain:",
                 rewrite_domain_->name());
     }
 
-    if (origin_domain_ != NULL) {
+    if (origin_domain_ != nullptr) {
       StrAppend(&output,
                 (origin_domain_->is_proxy_
                  ? " ProxyOriginDomain:" : " OriginDomain:"),
@@ -306,12 +306,12 @@ DomainLawyer::~DomainLawyer() {
 
 bool DomainLawyer::AddDomain(const StringPiece& domain_name,
                              MessageHandler* handler) {
-  return (AddDomainHelper(domain_name, true, true, false, handler) != NULL);
+  return (AddDomainHelper(domain_name, true, true, false, handler) != nullptr);
 }
 
 bool DomainLawyer::AddKnownDomain(const StringPiece& domain_name,
                                   MessageHandler* handler) {
-  return (AddDomainHelper(domain_name, false, false, false, handler) != NULL);
+  return (AddDomainHelper(domain_name, false, false, false, handler) != nullptr);
 }
 
 GoogleString DomainLawyer::NormalizeDomainName(const StringPiece& domain_name) {
@@ -371,10 +371,10 @@ DomainLawyer::Domain* DomainLawyer::AddDomainHelper(
     // handler will be NULL only when called from Merge, which should
     // only have pre-validated (non-empty) domains.  So it should not
     // be possible to get here from Merge.
-    if (handler != NULL) {
+    if (handler != nullptr) {
       handler->MessageS(kWarning, "Empty domain passed to AddDomain");
     }
-    return NULL;
+    return nullptr;
   }
 
   if (authorize && domain_name == "*") {
@@ -387,7 +387,7 @@ DomainLawyer::Domain* DomainLawyer::AddDomainHelper(
   //    match just the domain name.
   // 2) Use a better lookup structure for wildcard searching.
   GoogleString domain_name_str = NormalizeDomainName(domain_name);
-  Domain* domain = NULL;
+  Domain* domain = nullptr;
   std::pair<DomainMap::iterator, bool> p = domain_map_.insert(
       DomainMap::value_type(domain_name_str, domain));
   DomainMap::iterator iter = p.first;
@@ -402,10 +402,10 @@ DomainLawyer::Domain* DomainLawyer::AddDomainHelper(
     if (warn_on_duplicate && (authorize == domain->authorized())) {
       handler->Message(kWarning, "AddDomain of domain already in map: %s",
                        domain_name_str.c_str());
-      domain = NULL;
+      domain = nullptr;
     }
   }
-  if (domain != NULL) {
+  if (domain != nullptr) {
     if (authorize) {
       domain->set_authorized(true);
     }
@@ -425,7 +425,7 @@ DomainLawyer::Domain* DomainLawyer::FindDomain(const GoogleUrl& gurl) const {
   // First do a quick lookup on the domain name only, since that's the most
   // common case. Failing that, try searching for domain + path.
   // TODO(matterbury): see AddDomainHelper for speed issues.
-  Domain* domain = NULL;
+  Domain* domain = nullptr;
 
   // There may be multiple entries in the map with the same domain,
   // but varying paths.  We want to choose the entry with the longest
@@ -453,7 +453,7 @@ DomainLawyer::Domain* DomainLawyer::FindDomain(const GoogleUrl& gurl) const {
       components[0].empty() &&
       components[components.size() - 1].empty()) {
     int component_size = 0;
-    for (int i = components.size() - 1; (domain == NULL) && (i >= 1); --i) {
+    for (int i = components.size() - 1; (domain == nullptr) && (i >= 1); --i) {
       domain_path.resize(domain_path.size() - component_size);
       DCHECK(StringPiece(domain_path).ends_with("/"));
       DomainMap::const_iterator p = domain_map_.find(domain_path);
@@ -476,13 +476,13 @@ DomainLawyer::Domain* DomainLawyer::FindDomain(const GoogleUrl& gurl) const {
     }
   }
 
-  if (domain == NULL) {
+  if (domain == nullptr) {
     for (int i = 0, n = wildcarded_domains_.size(); i < n; ++i) {
       domain = wildcarded_domains_[i];
       if (domain->Match(domain_path)) {
         break;
       } else {
-        domain = NULL;
+        domain = nullptr;
       }
     }
   }
@@ -505,7 +505,7 @@ void DomainLawyer::FindDomainsRewrittenTo(
   for (DomainMap::const_iterator p = domain_map_.begin();
       p != domain_map_.end(); ++p) {
     Domain* src_domain = p->second;
-    if (!src_domain->IsWildcarded() && (src_domain->rewrite_domain() != NULL) &&
+    if (!src_domain->IsWildcarded() && (src_domain->rewrite_domain() != nullptr) &&
         domain_name == src_domain->rewrite_domain()->name()) {
       from_domains->push_back(&src_domain->name());
     }
@@ -536,7 +536,7 @@ bool DomainLawyer::MapRequestToDomain(
     if (resolved_origin == original_origin) {
       resolved_origin.Spec().CopyToString(mapped_domain_name);
       ret = true;
-    } else if (resolved_domain != NULL && resolved_domain->authorized()) {
+    } else if (resolved_domain != nullptr && resolved_domain->authorized()) {
       if (resolved_domain->IsWildcarded()) {
         // This is a sharded domain. We do not do the sharding in this function.
         resolved_origin.Spec().CopyToString(mapped_domain_name);
@@ -554,9 +554,9 @@ bool DomainLawyer::MapRequestToDomain(
     // from.  We are only concerned here with what URLs we will write into
     // HTML files.  See MapOrigin below which is used to redirect fetch
     // requests to a different domain (e.g. localhost).
-    if (ret && resolved_domain != NULL) {
+    if (ret && resolved_domain != nullptr) {
       Domain* mapped_domain = resolved_domain->rewrite_domain();
-      if (mapped_domain != NULL) {
+      if (mapped_domain != nullptr) {
         CHECK(!mapped_domain->IsWildcarded());
         CHECK(mapped_domain != resolved_domain);
         *mapped_domain_name = mapped_domain->name();
@@ -584,7 +584,7 @@ bool DomainLawyer::IsDomainAuthorized(const GoogleUrl& original_request,
       ret = true;
     } else {
       Domain* path_domain = FindDomain(domain_to_check);
-      ret = (path_domain != NULL) && path_domain->authorized();
+      ret = (path_domain != nullptr) && path_domain->authorized();
     }
   }
   return ret;
@@ -593,7 +593,7 @@ bool DomainLawyer::IsDomainAuthorized(const GoogleUrl& original_request,
 bool DomainLawyer::IsOriginKnown(const GoogleUrl& domain_to_check) const {
   if (domain_to_check.IsWebValid()) {
     Domain* path_domain = FindDomain(domain_to_check);
-    return (path_domain != NULL);
+    return (path_domain != nullptr);
   }
   return false;
 }
@@ -616,9 +616,9 @@ bool DomainLawyer::MapOriginUrl(const GoogleUrl& gurl,
     ret = true;
     gurl.Spec().CopyToString(out);
     Domain* domain = FindDomain(gurl);
-    if (domain != NULL) {
+    if (domain != nullptr) {
       Domain* origin_domain = domain->origin_domain();
-      if (origin_domain != NULL) {
+      if (origin_domain != nullptr) {
         GoogleUrl mapped_gurl;
         if (MapUrlHelper(*domain, *origin_domain, gurl, &mapped_gurl)) {
           mapped_gurl.Spec().CopyToString(out);
@@ -866,7 +866,7 @@ bool DomainLawyer::MapDomainHelper(
   }
   Domain* to_domain = AddDomainHelper(to_domain_name, false,
                                       authorize_to_domain, false, handler);
-  if (to_domain == NULL) {
+  if (to_domain == nullptr) {
     return false;
   }
 
@@ -884,7 +884,7 @@ bool DomainLawyer::MapDomainHelper(
       const StringPiece& domain_name = domains[i];
       Domain* from_domain = AddDomainHelper(domain_name, false, true, false,
                                             handler);
-      if (from_domain != NULL) {
+      if (from_domain != nullptr) {
         GoogleUrl from_url(from_domain->name());
         if (to_url.Origin() == from_url.Origin()) {
           // Ignore requests to map to the same scheme://hostname:port/.
@@ -909,7 +909,7 @@ bool DomainLawyer::MapDomainHelper(
 
 DomainLawyer::Domain* DomainLawyer::CloneAndAdd(const Domain* src) {
   Domain* dst = AddDomainHelper(src->name(), false, src->authorized(),
-                                src->is_proxy(), NULL);
+                                src->is_proxy(), nullptr);
   dst->set_host_header(src->host_header());
   return dst;
 }
@@ -923,17 +923,17 @@ void DomainLawyer::Merge(const DomainLawyer& src) {
     Domain* src_domain = p->second;
     Domain* dst_domain = CloneAndAdd(src_domain);
     Domain* src_rewrite_domain = src_domain->rewrite_domain();
-    if (src_rewrite_domain != NULL) {
-      dst_domain->SetRewriteDomain(CloneAndAdd(src_rewrite_domain), NULL);
+    if (src_rewrite_domain != nullptr) {
+      dst_domain->SetRewriteDomain(CloneAndAdd(src_rewrite_domain), nullptr);
     }
     Domain* src_origin_domain = src_domain->origin_domain();
-    if (src_origin_domain != NULL) {
-      dst_domain->SetOriginDomain(CloneAndAdd(src_origin_domain), NULL);
+    if (src_origin_domain != nullptr) {
+      dst_domain->SetOriginDomain(CloneAndAdd(src_origin_domain), nullptr);
     }
     for (int i = 0; i < src_domain->num_shards(); ++i) {
       Domain* src_shard = src_domain->shard(i);
       Domain* dst_shard = CloneAndAdd(src_shard);
-      dst_shard->SetShardFrom(dst_domain, NULL);
+      dst_shard->SetShardFrom(dst_domain, nullptr);
     }
   }
 
@@ -973,7 +973,7 @@ bool DomainLawyer::ShardDomain(const StringPiece& domain_name,
   GoogleUrl domain_gurl(NormalizeDomainName(domain_name));
   Domain* domain = FindDomain(domain_gurl);
   bool sharded = false;
-  if (domain != NULL) {
+  if (domain != nullptr) {
     if (domain->num_shards() != 0) {
       int shard_index = hash % domain->num_shards();
       domain = domain->shard(shard_index);
@@ -986,10 +986,10 @@ bool DomainLawyer::ShardDomain(const StringPiece& domain_name,
 
 bool DomainLawyer::WillDomainChange(const GoogleUrl& gurl) const {
   Domain* domain = FindDomain(gurl), *mapped_domain = domain;
-  if (domain != NULL) {
+  if (domain != nullptr) {
     // First check a mapping based on AddRewriteDomainMapping.
     mapped_domain = domain->rewrite_domain();
-    if (mapped_domain == NULL)  {
+    if (mapped_domain == nullptr)  {
       // Even if there was no AddRewriteDomainMapping for this domain, there
       // may still have been shards.
       mapped_domain = domain;
@@ -1008,7 +1008,7 @@ bool DomainLawyer::WillDomainChange(const GoogleUrl& gurl) const {
         //
         // TODO(jmarantz): rename this method to MayDomainChange, or
         // pass in the sharding index.
-        mapped_domain = NULL;
+        mapped_domain = nullptr;
       }
     }
   }
@@ -1017,9 +1017,9 @@ bool DomainLawyer::WillDomainChange(const GoogleUrl& gurl) const {
 
 bool DomainLawyer::IsProxyMapped(const GoogleUrl& gurl) const {
   Domain* domain = FindDomain(gurl);
-  if (domain != NULL) {
+  if (domain != nullptr) {
     Domain* origin = domain->origin_domain();
-    if ((origin != NULL) && origin->is_proxy()) {
+    if ((origin != nullptr) && origin->is_proxy()) {
       return true;
     }
   }
@@ -1032,7 +1032,7 @@ bool DomainLawyer::DoDomainsServeSameContent(
   Domain* domain1 = FindDomain(domain1_gurl);
   GoogleUrl domain2_gurl(NormalizeDomainName(domain2_name));
   Domain* domain2 = FindDomain(domain2_gurl);
-  if ((domain1 == NULL) || (domain2 == NULL)) {
+  if ((domain1 == nullptr) || (domain2 == nullptr)) {
     return false;
   }
   if (domain1 == domain2) {
@@ -1043,7 +1043,7 @@ bool DomainLawyer::DoDomainsServeSameContent(
   if ((rewrite1 == domain2) || (rewrite2 == domain1)) {
     return true;
   }
-  if ((rewrite1 != NULL) && (rewrite1 == rewrite2)) {
+  if ((rewrite1 != nullptr) && (rewrite1 == rewrite2)) {
     return true;
   }
   return false;

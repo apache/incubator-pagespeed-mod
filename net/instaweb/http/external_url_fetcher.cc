@@ -85,7 +85,7 @@ void ExternalUrlFetcher::Fetch(
   // Use default user-agent if none is set in headers.
   ConstStringStarVector values;
   request_headers.Lookup("user-agent", &values);
-  const char* user_agent = values.empty() ? kDefaultUserAgent : NULL;
+  const char* user_agent = values.empty() ? kDefaultUserAgent : nullptr;
 
   StringVector escaped_headers;
   AppendHeaders(request_headers, &escaped_headers);
@@ -102,7 +102,7 @@ void ExternalUrlFetcher::Fetch(
   FILE* cmd_stdout = popen(cmd.c_str(), "r");
 
   bool ret = false;
-  if (cmd_stdout == NULL) {
+  if (cmd_stdout == nullptr) {
     handler->Message(kError, "Fetch command popen failed on url %s: %s",
                      url.c_str(), strerror(errno));
   } else {

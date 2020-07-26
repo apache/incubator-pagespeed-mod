@@ -44,12 +44,12 @@ SpriterResult* ImageSpriter::Sprite(
   switch (spriter_input.options().placement_method()) {
     case VERTICAL_STRIP: {
       if (!DrawImagesInVerticalStrip(spriter_input, spriter_result.get()))
-        return NULL;
+        return nullptr;
     } break;
 
     default: {
       LOG(DFATAL) << "Unhandled case.";
-      return NULL;  // TODO(skerner): Error call to delegate.
+      return nullptr;  // TODO(skerner): Error call to delegate.
     }
   }
 
@@ -85,7 +85,7 @@ bool ImageSpriter::DrawImagesInVerticalStrip(
         image_lib_->ReadFromFile(image_path));
 
     int width, height;
-    if (image.get() == NULL || !image->GetDimensions(&width, &height))
+    if (image.get() == nullptr || !image->GetDimensions(&width, &height))
       return false;  // ReadFromFile() or GetDimensions() has called OnError.
 
     images.push_back(image.release());  // |images| takes ownership of |image|.

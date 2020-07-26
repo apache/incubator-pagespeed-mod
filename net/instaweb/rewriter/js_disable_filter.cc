@@ -82,7 +82,7 @@ void JsDisableFilter::InsertJsDeferExperimentalScript() {
   // We are not adding this code in js_defer_disabled_filter to avoid
   // duplication of code for blink and critical line code.
   HtmlElement* script_node =
-      driver()->NewElement(NULL, HtmlName::kScript);
+      driver()->NewElement(nullptr, HtmlName::kScript);
 
   driver()->AddAttribute(script_node, HtmlName::kType, "text/javascript");
   driver()->AddAttribute(script_node, HtmlName::kDataPagespeedNoDefer,
@@ -139,7 +139,7 @@ void JsDisableFilter::StartElementImpl(HtmlElement* element) {
       }
 
       // Honor disallow.
-      if (src != NULL && src->DecodedValueOrNull() != NULL) {
+      if (src != nullptr && src->DecodedValueOrNull() != nullptr) {
         GoogleUrl abs_url(driver()->base_url(), src->DecodedValueOrNull());
         if (abs_url.IsWebValid() &&
             !driver()->options()->IsAllowed(abs_url.Spec())) {
@@ -157,7 +157,7 @@ void JsDisableFilter::StartElementImpl(HtmlElement* element) {
 
       // TODO(rahulbansal): Add logging for prioritize scripts
       HtmlElement::Attribute* type = element->FindAttribute(HtmlName::kType);
-      if (type != NULL) {
+      if (type != nullptr) {
         type->set_name(driver()->MakeName(HtmlName::kDataPagespeedOrigType));
       }
       // Delete all type attributes if any. Some sites have more than one type
@@ -166,7 +166,7 @@ void JsDisableFilter::StartElementImpl(HtmlElement* element) {
       while (element->DeleteAttribute(HtmlName::kType)) {}
       HtmlElement::Attribute* prioritize_attr = element->FindAttribute(
           HtmlName::kDataPagespeedPrioritize);
-      if (prioritize_attr != NULL &&
+      if (prioritize_attr != nullptr &&
           driver()->options()->enable_prioritizing_scripts()) {
         element->AddAttribute(
             driver()->MakeName(HtmlName::kType), "text/prioritypsajs",
@@ -183,7 +183,7 @@ void JsDisableFilter::StartElementImpl(HtmlElement* element) {
   }
 
   HtmlElement::Attribute* onload = element->FindAttribute(HtmlName::kOnload);
-  if (onload != NULL) {
+  if (onload != nullptr) {
     // The onload value can be any script. It's not necessary that it is
     // always javascript. But we don't have any way of identifying it.
     // For now let us assume it is JS, which is the case in majority.

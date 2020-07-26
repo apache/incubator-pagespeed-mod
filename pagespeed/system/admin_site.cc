@@ -93,9 +93,9 @@ const Tab kTabs[] = {
   {"Configuration", "Configuration", "config", "?config", kShortBreak},
   {"Histograms", "Histograms", "histograms", "?histograms", kLongBreak},
   {"Caches", "Caches", "cache", "?cache", kLongBreak},
-  {"Console", "Console", "console", NULL, kLongBreak},
-  {"Message History", "Message History", "message_history", NULL, kLongBreak},
-  {"Graphs", "Graphs", "graphs", NULL, kLongBreak},
+  {"Console", "Console", "console", nullptr, kLongBreak},
+  {"Message History", "Message History", "message_history", nullptr, kLongBreak},
+  {"Graphs", "Graphs", "graphs", nullptr, kLongBreak},
 };
 
 // Controls the generation of an HTML Admin page.  Constructing it
@@ -138,7 +138,7 @@ class AdminHtml {
     GoogleString buf;
     for (int i = 0, n = arraysize(kTabs); i < n; ++i) {
       const Tab& tab = kTabs[i];
-      const char* link = NULL;
+      const char* link = nullptr;
       switch (source) {
         case AdminSite::kPageSpeedAdmin:
           link = tab.admin_link;
@@ -147,10 +147,10 @@ class AdminHtml {
           link = tab.statistics_link;
           break;
         case AdminSite::kOther:
-          link = NULL;
+          link = nullptr;
           break;
       }
-      if (link != NULL) {
+      if (link != nullptr) {
         StringPiece style;
         if (tab.admin_link == current_link) {
           style = " style='color:darkblue;text-decoration:underline;'";
@@ -322,7 +322,7 @@ void AdminSite::GraphsHandler(const RewriteOptions& options,
 void AdminSite::ConsoleJsonHandler(const QueryParams& params,
                                    AsyncFetch* fetch, Statistics* statistics) {
   StatisticsLogger* console_logger = statistics->console_logger();
-  if (console_logger == NULL) {
+  if (console_logger == nullptr) {
     fetch->response_headers()->SetStatusAndReason(HttpStatus::kNotFound);
     fetch->response_headers()->Add(HttpAttributes::kContentType, "text/plain");
     fetch->Write(
@@ -581,7 +581,7 @@ void AdminSite::PrintCaches(bool is_global, AdminSource source,
     }
     fetch->Write("</div>\n", message_handler_);
     // Display configured cache information.
-    if (system_caches != NULL) {
+    if (system_caches != nullptr) {
       int flags = SystemCaches::kDefaultStatFlags;
       if (is_global) {
         flags |= SystemCaches::kGlobalView;
@@ -602,7 +602,7 @@ void AdminSite::PrintCaches(bool is_global, AdminSource source,
           CacheInfoHtmlSnippet("Property Cache",
                                page_property_cache->property_store()->Name()),
           CacheInfoHtmlSnippet("FileSystem Metadata Cache",
-                               (fsmdc == NULL) ? "none" : fsmdc->Name())),
+                               (fsmdc == nullptr) ? "none" : fsmdc->Name())),
                    message_handler_);
       fetch->Write(kTableEnd, message_handler_);
       fetch->Write("</div>", message_handler_);
@@ -815,7 +815,7 @@ void AdminSite::StatisticsPage(
   } else if (query_params.Has("cache")) {
     GoogleUrl empty_url;
     PrintCaches(is_global, kStatistics, empty_url, query_params,
-                options, NULL,  // cache_path is reference from statistics page.
+                options, nullptr,  // cache_path is reference from statistics page.
                 fetch, system_caches, filesystem_metadata_cache,
                 http_cache, metadata_cache, page_property_cache,
                 server_context);

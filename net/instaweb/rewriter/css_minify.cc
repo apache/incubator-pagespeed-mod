@@ -59,7 +59,7 @@ bool CssMinify::ParseStylesheet(StringPiece stylesheet_text) {
   std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
   // Report error summary.
-  if (error_writer_ != NULL) {
+  if (error_writer_ != nullptr) {
     if (parser.errors_seen_mask() != Css::Parser::kNoError) {
       error_writer_->Write(absl::StrFormat(
           "CSS parsing error mask %s\n",
@@ -93,8 +93,8 @@ bool CssMinify::Declarations(const Css::Declarations& declarations,
 }
 
 CssMinify::CssMinify(Writer* writer, MessageHandler* handler)
-    : writer_(writer), error_writer_(NULL), handler_(handler), ok_(true),
-      url_collector_(NULL), in_css_calc_function_(false) {
+    : writer_(writer), error_writer_(nullptr), handler_(handler), ok_(true),
+      url_collector_(nullptr), in_css_calc_function_(false) {
 }
 
 CssMinify::~CssMinify() {
@@ -109,7 +109,7 @@ void CssMinify::Write(const StringPiece& str) {
 
 void CssMinify::WriteURL(const UnicodeText& url) {
   StringPiece string_url(url.utf8_data(), url.utf8_length());
-  if (url_collector_ != NULL) {
+  if (url_collector_ != nullptr) {
     string_url.CopyToString(StringVectorAdd(url_collector_));
   }
   // XXX(oschaaf): css

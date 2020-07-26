@@ -93,7 +93,7 @@ StyleExtractor::StyleExtractor(HtmlElement* element)
     : decls_(GetDeclsFromElement(element)),
       width_px_(kNoValue),
       height_px_(kNoValue) {
-  if (decls_.get() != NULL) {
+  if (decls_.get() != nullptr) {
     state_ = GetDimensions(decls_.get(), &width_px_, &height_px_);
   } else {
     state_ = kNoDimensions;
@@ -106,11 +106,11 @@ StyleExtractor::~StyleExtractor() {}
 // there is no style, return NULL.
 Css::Declarations* StyleExtractor::GetDeclsFromElement(HtmlElement* element) {
   HtmlElement::Attribute* style = element->FindAttribute(HtmlName::kStyle);
-  if ((style != NULL) && (style->DecodedValueOrNull() != NULL)) {
+  if ((style != nullptr) && (style->DecodedValueOrNull() != nullptr)) {
     Css::Parser parser(style->DecodedValueOrNull());
     return parser.ParseDeclarations();
   }
-  return NULL;
+  return nullptr;
 }
 
 void VectorizeMediaAttribute(const StringPiece& input_media,

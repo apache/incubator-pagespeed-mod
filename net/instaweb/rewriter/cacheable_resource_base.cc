@@ -83,9 +83,9 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
         rewrite_options_(rewrite_options),
         message_handler_(handler),
         no_cache_ok_(false),
-        fetcher_(NULL),
-        fallback_fetch_(NULL) {
-    if (fallback_value != NULL) {
+        fetcher_(nullptr),
+        fallback_fetch_(nullptr) {
+    if (fallback_value != nullptr) {
       fallback_value_.Link(fallback_value);
     }
   }
@@ -110,7 +110,7 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
   void HandleDone(bool success) override {
     bool cached = false;
     // Do not store the response in cache if we are using the fallback.
-    if (fallback_fetch_ != NULL && fallback_fetch_->serving_fallback()) {
+    if (fallback_fetch_ != nullptr && fallback_fetch_->serving_fallback()) {
       // Normally AddToCache would classify the failure, but we don't
       // use that in case of fallback, so make sure to compute it here.
       // Unfortunately, FallbackSharedAsyncFetch has already got
@@ -144,7 +144,7 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
 
   // Overridden from AsyncFetch.
   void HandleHeadersComplete() override {
-    if (fallback_fetch_ != NULL && fallback_fetch_->serving_fallback()) {
+    if (fallback_fetch_ != nullptr && fallback_fetch_->serving_fallback()) {
       response_headers()->ComputeCaching();
     }
     http_value_writer()->CheckCanCacheElseClear(response_headers());
@@ -167,10 +167,10 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
         // Set referer for background fetching, if the referer is missing.
         request_headers()->Add(HttpAttributes::kReferer,
                                driver_->base_url().Spec());
-      } else if (driver_->request_headers() != NULL) {
+      } else if (driver_->request_headers() != nullptr) {
         const char* referer_str = driver_->request_headers()->Lookup1(
             HttpAttributes::kReferer);
-        if (referer_str != NULL) {
+        if (referer_str != nullptr) {
           request_headers()->Add(HttpAttributes::kReferer, referer_str);
         }
       }
@@ -321,7 +321,7 @@ class CacheableResourceBase::FreshenFetchCallback : public FetchCallbackBase {
   }
 
   void Finalize(bool lock_failure, bool resource_ok) override {
-    if (callback_ != NULL) {
+    if (callback_ != nullptr) {
       if (!lock_failure) {
         resource_ok &= resource_->UpdateInputInfoForFreshen(
             *response_headers(), http_value_, callback_);
@@ -528,7 +528,7 @@ void CacheableResourceBase::LoadHttpCacheCallback::LoadAndSaveToCache() {
                              false /* resource_ok */);
     return;
   }
-  CHECK(resource_callback_ != NULL)
+  CHECK(resource_callback_ != nullptr)
       << "A callback must be supplied, or else it will "
           "not be possible to determine when it's safe to delete the resource.";
   CHECK(resource_ == resource_callback_->resource().get())
@@ -577,7 +577,7 @@ class CacheableResourceBase::FreshenHttpCacheCallback
           driver_, options_, fallback_http_value(), resource_, callback_);
       cb->Start(driver_->async_fetcher());
     } else {
-      if (callback_ != NULL) {
+      if (callback_ != nullptr) {
         bool success = (find_result.status == HTTPCache::kFound) &&
                        resource_->UpdateInputInfoForFreshen(
                            *response_headers(), *http_value(), callback_);
@@ -692,7 +692,7 @@ void CacheableResourceBase::RefreshIfImminentlyExpiring() {
     if (ResponseHeaders::IsImminentlyExpiring(
             start_date_ms, expire_ms, timer()->NowMs(),
             rewrite_options()->ComputeHttpOptions())) {
-      Freshen(NULL, server_context()->message_handler());
+      Freshen(nullptr, server_context()->message_handler());
     }
   }
 }
@@ -733,7 +733,7 @@ bool CacheableResourceBase::UpdateInputInfoForFreshen(
     const HTTPValue& value,
     Resource::FreshenCallback* callback) {
   InputInfo* input_info = callback->input_info();
-  if (input_info != NULL && input_info->has_input_content_hash() &&
+  if (input_info != nullptr && input_info->has_input_content_hash() &&
       IsValidAndCacheableImpl(headers)) {
     StringPiece content;
     if (value.ExtractContents(&content)) {

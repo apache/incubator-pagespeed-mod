@@ -19,7 +19,7 @@
 
 #include "pagespeed/envoy/envoy_message_handler.h"
 
-#include <signal.h>
+#include <csignal>
 
 #include "net/instaweb/public/version.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"

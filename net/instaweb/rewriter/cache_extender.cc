@@ -71,7 +71,7 @@ class CacheExtender::Context : public SingleRewriteContext {
           CacheExtender* extender, RewriteDriver* driver,
           RewriteContext* parent)
       : SingleRewriteContext(driver, parent,
-                             NULL /* no resource context */),
+                             nullptr /* no resource context */),
         input_role_(input_role), extender_(extender) {}
   ~Context() override {}
 
@@ -85,7 +85,7 @@ class CacheExtender::Context : public SingleRewriteContext {
   void FixFetchFallbackHeaders(const CachedResult& cached_result,
                                ResponseHeaders* headers) override {
     SingleRewriteContext::FixFetchFallbackHeaders(cached_result, headers);
-    if (num_slots() != 1 || slot(0)->resource().get() == NULL) {
+    if (num_slots() != 1 || slot(0)->resource().get() == nullptr) {
       return;
     }
     ResourcePtr input_resource(slot(0)->resource());
@@ -99,7 +99,7 @@ class CacheExtender::Context : public SingleRewriteContext {
   // use search engines to look for .css and .js files, so adding it
   // there would just be a waste of bytes.
   bool ShouldAddCanonical(const ResourcePtr& input_resource) {
-    return input_resource->type() != NULL &&
+    return input_resource->type() != nullptr &&
            (input_resource->type()->IsImage() ||
             input_resource->type()->type() == ContentType::kPdf);
   }
@@ -129,14 +129,14 @@ bool CacheExtender::ShouldRewriteResource(
     const ResourcePtr& input_resource, const StringPiece& url,
     CachedResult* result) const {
   const ContentType* input_resource_type = input_resource->type();
-  if (input_resource_type == NULL) {
+  if (input_resource_type == nullptr) {
     return false;
   }
   if (input_resource_type->type() == ContentType::kJavascript &&
       driver()->options()->avoid_renaming_introspective_javascript() &&
       JavascriptCodeBlock::UnsafeToRename(
           input_resource->ExtractUncompressedContents())) {
-    CHECK(result != NULL);
+    CHECK(result != nullptr);
     result->add_debug_message(JavascriptCodeBlock::kIntrospectionComment);
     return false;
   }
@@ -192,7 +192,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
         break;
       default:
         // Does the url in the attribute end in .pdf, ignoring query params?
-        if (attributes[i].url->DecodedValueOrNull() != NULL
+        if (attributes[i].url->DecodedValueOrNull() != nullptr
             && driver()->MayCacheExtendPdfs()) {
         GoogleUrl url(driver()->base_url(),
                       attributes[i].url->DecodedValueOrNull());
@@ -212,7 +212,7 @@ void CacheExtender::StartElementImpl(HtmlElement* element) {
     if (driver()->IsRewritable(element)) {
       ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
           attributes[i].url->DecodedValueOrNull(), input_role, element));
-      if (input_resource.get() == NULL) {
+      if (input_resource.get() == nullptr) {
         continue;
       }
 
@@ -287,10 +287,10 @@ void CacheExtender::Context::Render() {
     // Log applied rewriter id. Here, we care only about non-nested
     // cache extensions, and that too, those occurring in synchronous
     // flows only.
-    if (Driver() != NULL) {
+    if (Driver() != nullptr) {
       ResourceSlotPtr the_slot = slot(0);
-      if (the_slot->resource().get() != NULL &&
-          the_slot->resource()->type() != NULL) {
+      if (the_slot->resource().get() != nullptr &&
+          the_slot->resource()->type() != nullptr) {
         const char* filter_id = id();
         const ContentType* type = the_slot->resource()->type();
         if (type->type() == ContentType::kCss) {
@@ -332,7 +332,7 @@ RewriteResult CacheExtender::RewriteLoadedResource(
   // Assume that it may have cookies; see comment in
   // CacheableResourceBase::IsValidAndCacheableImpl.
   RequestHeaders::Properties req_properties;
-  const ContentType* output_type = NULL;
+  const ContentType* output_type = nullptr;
   if (!server_context()->http_cache()->force_caching() &&
       !headers->IsProxyCacheable(
           req_properties,

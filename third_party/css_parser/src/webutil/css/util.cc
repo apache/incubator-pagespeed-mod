@@ -77,7 +77,7 @@ bool GetCssLength(const Css::Value* val, double parent_size,
                   double font_size, double unit,
                   bool can_negative, bool can_unitless,
                   double* size) {
-  if (val == NULL || val->GetLexicalUnitType() != Css::Value::NUMBER ||
+  if (val == nullptr || val->GetLexicalUnitType() != Css::Value::NUMBER ||
       (!can_negative && val->GetFloatValue() < 0))
     return false;
 
@@ -182,21 +182,21 @@ const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
       } else if (!strcasecmp("activecaption", colorstr)) {
         return &known_system_color_values[1];
       }
-      return NULL;
+      return nullptr;
     case 'p':
       if (!strcasecmp("appworkspace", colorstr)) {
         return &known_system_color_values[2];
       }
-      return NULL;
+      return nullptr;
     }
-    return NULL;
+    return nullptr;
   case 'b':
     switch (ascii_tolower(colorstr[1])) {
     case 'a':
       if (!strcasecmp("background", colorstr)) {
         return &known_system_color_values[3];
       }
-      return NULL;
+      return nullptr;
     case 'u':
       if (!strcasecmp("buttonface", colorstr)) {
         return &known_system_color_values[4];
@@ -207,26 +207,26 @@ const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
       } else if (!strcasecmp("buttontext", colorstr)) {
         return &known_system_color_values[7];
       }
-      return NULL;
+      return nullptr;
     }
-    return NULL;
+    return nullptr;
   case 'c':
     if (!strcasecmp("captiontext", colorstr)) {
       return &known_system_color_values[8];
     }
-    return NULL;
+    return nullptr;
   case 'g':
     if (!strcasecmp("graytext", colorstr)) {
       return &known_system_color_values[9];
     }
-    return NULL;
+    return nullptr;
   case 'h':
     if (!strcasecmp("highlight", colorstr)) {
       return &known_system_color_values[10];
     } else if (!strcasecmp("highlighttext", colorstr)) {
       return &known_system_color_values[11];
     }
-    return NULL;
+    return nullptr;
   case 'i':
     if (!strcasecmp("inactiveborder", colorstr)) {
       return &known_system_color_values[12];
@@ -239,19 +239,19 @@ const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
     } else if (!strcasecmp("infotext", colorstr)) {
       return &known_system_color_values[16];
     }
-    return NULL;
+    return nullptr;
   case 'm':
     if (!strcasecmp("menu", colorstr)) {
       return &known_system_color_values[17];
     } else if (!strcasecmp("menutext", colorstr)) {
       return &known_system_color_values[18];
     }
-    return NULL;
+    return nullptr;
   case 's':
     if (!strcasecmp("scrollbar", colorstr)) {
       return &known_system_color_values[19];
     }
-    return NULL;
+    return nullptr;
   case 't':
     if (!strcasecmp("threeddarkshadow", colorstr)) {
       return &known_system_color_values[20];
@@ -264,7 +264,7 @@ const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
     } else if (!strcasecmp("threedshadow", colorstr)) {
       return &known_system_color_values[24];
     }
-    return NULL;
+    return nullptr;
   case 'w':
     if (!strcasecmp("window", colorstr)) {
       return &known_system_color_values[25];
@@ -273,9 +273,9 @@ const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
     } else if (!strcasecmp("windowtext", colorstr)) {
       return &known_system_color_values[27];
     }
-    return NULL;
+    return nullptr;
   }
-  return NULL;
+  return nullptr;
 }
 
 bool GetSystemColor(const string& colorstr, HtmlColor* color) {

@@ -57,7 +57,7 @@ void DomStatsFilter::EndElementImpl(HtmlElement* element) {
     ++num_img_tags_;
 
     HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-    StringPiece url(src == NULL ? "" : src->DecodedValueOrNull());
+    StringPiece url(src == nullptr ? "" : src->DecodedValueOrNull());
     if (!url.empty()) {
       if (IsDataUrl(url)) {
         ++num_inlined_img_tags_;
@@ -75,7 +75,7 @@ void DomStatsFilter::EndElementImpl(HtmlElement* element) {
   } else if (element->keyword() == HtmlName::kLink &&
       CssTagScanner::IsStylesheetOrAlternate(
           element->AttributeValue(HtmlName::kRel)) &&
-      element->FindAttribute(HtmlName::kHref) != NULL) {
+      element->FindAttribute(HtmlName::kHref) != nullptr) {
     ++num_external_css_;
   } else {
     HtmlElement::Attribute* src;

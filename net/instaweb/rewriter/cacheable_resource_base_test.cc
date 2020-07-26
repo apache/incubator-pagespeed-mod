@@ -54,7 +54,7 @@ const char kContent[] = "content!";
 class TestResource : public CacheableResourceBase {
  public:
   explicit TestResource(RewriteDriver* rewrite_driver)
-      : CacheableResourceBase("test", kTestUrl, kTestUrl, NULL, rewrite_driver),
+      : CacheableResourceBase("test", kTestUrl, kTestUrl, nullptr, rewrite_driver),
         cache_key_(kTestUrl),
         do_prepare_request_(false),
         do_prepare_response_(false) {

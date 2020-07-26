@@ -36,7 +36,7 @@ namespace {
 class CssSystemColorTest : public testing::Test {
  protected:
   void SetUp() override {
-    color_.reset(new HtmlColor(0, 0, 0));
+    color_ = std::make_unique<HtmlColor>(0, 0, 0);
   }
 
   void TearDown() override {

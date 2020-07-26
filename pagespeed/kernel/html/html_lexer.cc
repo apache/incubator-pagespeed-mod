@@ -161,7 +161,7 @@ HtmlLexer::HtmlLexer(HtmlParse* html_parse)
       state_(START),
       attr_quote_(HtmlElement::NO_QUOTE),
       has_attr_value_(false),
-      element_(NULL),
+      element_(nullptr),
       line_(1),
       tag_start_line_(-1),
       script_html_comment_(false),
@@ -685,7 +685,7 @@ void HtmlLexer::EmitTagOpen(bool allow_implicit_close) {
     return;
   }
 
-  DCHECK(element_ != NULL);
+  DCHECK(element_ != nullptr);
   DCHECK(token_.empty());
   HtmlName next_tag = element_->name();
 
@@ -695,7 +695,7 @@ void HtmlLexer::EmitTagOpen(bool allow_implicit_close) {
   // Continue popping off auto-close elements as needed to handle cases like
   // IClosedByOpenTr in html_parse_test.cc: "<tr><i>a<tr>b".  The first the <i>
   // needs to be auto-closed, then the <tr>.
-  for (HtmlElement* open_element = Parent(); open_element != NULL; ) {
+  for (HtmlElement* open_element = Parent(); open_element != nullptr; ) {
     // TODO(jmarantz): this is a hack -- we should make a more elegant
     // structure of open/new tag combinations that we should auto-close.
     HtmlName::Keyword open_keyword = open_element->keyword();
@@ -736,7 +736,7 @@ void HtmlLexer::EmitTagOpen(bool allow_implicit_close) {
     EmitTagClose(HtmlElement::IMPLICIT_CLOSE);
   }
 
-  element_ = NULL;
+  element_ = nullptr;
 }
 
 void HtmlLexer::EmitTagBriefClose() {
@@ -749,14 +749,14 @@ void HtmlLexer::EmitTagBriefClose() {
 
 HtmlElement* HtmlLexer::Parent() const {
   if (element_stack_.empty()) {
-    return NULL;
+    return nullptr;
   }
   return element_stack_.back();
 }
 
 void HtmlLexer::MakeElement() {
   DCHECK(!discard_until_start_state_for_error_recovery_);
-  if (element_ == NULL) {
+  if (element_ == nullptr) {
     if (token_.empty()) {
       SyntaxError("Making element with empty tag name");
     }
@@ -776,8 +776,8 @@ void HtmlLexer::StartParse(const StringPiece& id,
   attr_quote_ = HtmlElement::NO_QUOTE;
   state_ = START;
   element_stack_.clear();
-  element_stack_.push_back(static_cast<HtmlElement*>(0));
-  element_ = NULL;
+  element_stack_.push_back(static_cast<HtmlElement*>(nullptr));
+  element_ = nullptr;
   token_.clear();
   attr_name_.clear();
   attr_value_.clear();
@@ -812,7 +812,7 @@ void HtmlLexer::FinishParse() {
   // Any unclosed tags?  These should be noted.
   html_parse_->message_handler()->Check(!element_stack_.empty(),
                                         "element_stack_.empty()");
-  html_parse_->message_handler()->Check(element_stack_[0] == NULL,
+  html_parse_->message_handler()->Check(element_stack_[0] == nullptr,
                                         "element_stack_[0] != NULL");
 
   for (int i = element_stack_.size() - 1; i > 0; --i) {
@@ -828,17 +828,17 @@ void HtmlLexer::FinishParse() {
     }
   }
   DCHECK_EQ(1U, element_stack_.size());
-  DCHECK_EQ(static_cast<HtmlElement*>(0), element_stack_[0]);
-  element_ = NULL;
+  DCHECK_EQ(static_cast<HtmlElement*>(nullptr), element_stack_[0]);
+  element_ = nullptr;
 }
 
 void HtmlLexer::MakeAttribute(bool has_value) {
   if (!discard_until_start_state_for_error_recovery_) {
-    html_parse_->message_handler()->Check(element_ != NULL, "element_ == NULL");
+    html_parse_->message_handler()->Check(element_ != nullptr, "element_ == NULL");
   }
   HtmlName name = html_parse_->MakeName(attr_name_);
   attr_name_.clear();
-  const char* value = NULL;
+  const char* value = nullptr;
   html_parse_->message_handler()->Check(has_value == has_attr_value_,
                                         "has_value != has_attr_value_");
   if (has_value) {
@@ -991,7 +991,7 @@ void HtmlLexer::EvalAttrValSq(char c) {
 
 void HtmlLexer::EmitTagClose(HtmlElement::Style style) {
   HtmlElement* element = PopElementMatchingTag(token_);
-  if (element != NULL) {
+  if (element != nullptr) {
     DCHECK(StringCaseEqual(token_, element->name_str()));
     element->set_end_line_number(line_);
     CloseElement(element, style);
@@ -1122,7 +1122,7 @@ void HtmlLexer::DebugPrintStack() {
 }
 
 HtmlElement* HtmlLexer::PopElement() {
-  HtmlElement* element = NULL;
+  HtmlElement* element = nullptr;
   if (!element_stack_.empty()) {
     element = element_stack_.back();
     element_stack_.pop_back();
@@ -1139,7 +1139,7 @@ void HtmlLexer::CloseElement(HtmlElement* element,
 }
 
 HtmlElement* HtmlLexer::PopElementMatchingTag(const StringPiece& tag) {
-  HtmlElement* element = NULL;
+  HtmlElement* element = nullptr;
 
   HtmlName::Keyword keyword = HtmlName::Lookup(tag);
   int close_index = element_stack_.size();
@@ -1162,12 +1162,12 @@ HtmlElement* HtmlLexer::PopElementMatchingTag(const StringPiece& tag) {
       // point the appropriate response is to give up -- there is no
       // matching open-tag for the </tr> inside the <table>.  See
       // HtmlAnnotationTest.StrayCloseTrInTable in html_parse_test.cc.
-      return NULL;
+      return nullptr;
     }
   }
 
   if (close_index == static_cast<int>(element_stack_.size())) {
-    element = NULL;
+    element = nullptr;
   } else {
     element = element_stack_[close_index];
 

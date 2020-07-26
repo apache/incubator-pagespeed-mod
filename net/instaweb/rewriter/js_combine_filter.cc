@@ -213,7 +213,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
 class JsCombineFilter::Context : public RewriteContext {
  public:
   Context(RewriteDriver* driver, JsCombineFilter* filter)
-      : RewriteContext(driver, NULL, NULL),
+      : RewriteContext(driver, nullptr, nullptr),
         combiner_(filter, driver),
         filter_(filter),
         fresh_combination_(true) {
@@ -224,7 +224,7 @@ class JsCombineFilter::Context : public RewriteContext {
     ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
         href->DecodedValueOrNull(), RewriteDriver::InputRole::kScript,
         element));
-    if (resource.get() == NULL) {
+    if (resource.get() == nullptr) {
       return false;
     }
     ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
@@ -280,7 +280,7 @@ class JsCombineFilter::Context : public RewriteContext {
   void PartitionImpl(OutputPartitions* partitions,
                      OutputResourceVector* outputs) {
     MessageHandler* handler = Driver()->message_handler();
-    CachedResult* partition = NULL;
+    CachedResult* partition = nullptr;
     CHECK_EQ(static_cast<int>(elements_.size()), num_slots());
     CHECK_EQ(static_cast<int>(elements_charsets_.size()), num_slots());
 
@@ -294,19 +294,19 @@ class JsCombineFilter::Context : public RewriteContext {
         combiner_.set_resources_attribute_charset(elements_charsets_[i]);
         if (combiner_.AddResourceNoFetch(resource, handler).value) {
           add_input = true;
-        } else if (partition != NULL) {
+        } else if (partition != nullptr) {
           FinalizePartition(partitions, partition, outputs);
-          partition = NULL;
+          partition = nullptr;
           if (combiner_.AddResourceNoFetch(resource, handler).value) {
             add_input = true;
           }
         }
       } else {
         FinalizePartition(partitions, partition, outputs);
-        partition = NULL;
+        partition = nullptr;
       }
       if (add_input) {
-        if (partition == NULL) {
+        if (partition == nullptr) {
           partition = partitions->add_partition();
         }
         resource->AddInputInfoToPartition(
@@ -398,9 +398,9 @@ class JsCombineFilter::Context : public RewriteContext {
   void FinalizePartition(OutputPartitions* partitions,
                          CachedResult* partition,
                          OutputResourceVector* outputs) {
-    if (partition != NULL) {
+    if (partition != nullptr) {
       OutputResourcePtr combination_output(combiner_.MakeOutput());
-      if (combination_output.get() == NULL) {
+      if (combination_output.get() == nullptr) {
         partitions->mutable_partition()->RemoveLast();
       } else {
         combination_output->UpdateCachedResultPreservingInputInfo(partition);
@@ -417,7 +417,7 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlResourceSlot* first_slot =
         static_cast<HtmlResourceSlot*>(slot(first_index).get());
     HtmlElement* combine_element =
-        Driver()->NewElement(NULL,  // no parent yet.
+        Driver()->NewElement(nullptr,  // no parent yet.
                              HtmlName::kScript);
     Driver()->InsertNodeBeforeNode(first_slot->element(), combine_element);
     Driver()->AddAttribute(combine_element, HtmlName::kSrc,
@@ -435,7 +435,7 @@ class JsCombineFilter::Context : public RewriteContext {
     // Create a new element that doesn't have any children the
     // original element had.
     HtmlElement* original = html_slot->element();
-    HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
+    HtmlElement* element = Driver()->NewElement(nullptr, HtmlName::kScript);
     Driver()->InsertNodeBeforeNode(original, element);
     GoogleString var_name = filter_->VarName(Driver(),
                                              html_slot->resource()->url());
@@ -495,7 +495,7 @@ JavascriptCodeBlock* JsCombineFilter::JsCombiner::BlockForResource(
 
   if (insert_result.second) {
     // Actually inserted, so we need a value.
-    if (config_.get() == NULL) {
+    if (config_.get() == nullptr) {
       config_.reset(JavascriptFilter::InitializeConfig(rewrite_driver_));
     }
 
@@ -512,7 +512,7 @@ JsCombineFilter::JsCombineFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       script_scanner_(driver),
       script_depth_(0),
-      current_js_script_(NULL),
+      current_js_script_(nullptr),
       context_(MakeContext()) {
 }
 
@@ -564,7 +564,7 @@ void JsCombineFilter::StartDocumentImpl() {
 }
 
 void JsCombineFilter::StartElementImpl(HtmlElement* element) {
-  HtmlElement::Attribute* src = NULL;
+  HtmlElement::Attribute* src = nullptr;
   ScriptTagScanner::ScriptClassification classification =
       script_scanner_.ParseScriptElement(element, &src);
   switch (classification) {
@@ -597,7 +597,7 @@ void JsCombineFilter::EndElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kScript) {
     --script_depth_;
     if (script_depth_ == 0) {
-      current_js_script_ = NULL;
+      current_js_script_ = nullptr;
     }
   }
 }
@@ -658,20 +658,20 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
 
   // If our current script may be inside a noscript, which means
   // we should not be making it runnable.
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     NextCombination();
     return;
   }
 
   // An inline script.
-  if (src == NULL || src->DecodedValueOrNull() == NULL) {
+  if (src == nullptr || src->DecodedValueOrNull() == nullptr) {
     NextCombination();
     return;
   }
 
   // Don't combine scripts with the data-pagespeed-no-defer attribute.
-  if (element->FindAttribute(HtmlName::kDataPagespeedNoDefer) != NULL ||
-      element->FindAttribute(HtmlName::kPagespeedNoDefer) != NULL) {
+  if (element->FindAttribute(HtmlName::kDataPagespeedNoDefer) != nullptr ||
+      element->FindAttribute(HtmlName::kPagespeedNoDefer) != nullptr) {
     NextCombination();
     return;
   }

@@ -507,16 +507,16 @@ OutputConsumer* Minifier<OutputConsumer>::GetOutput() {
   if (!error_) {
     return &output_;
   }
-  return NULL;
+  return nullptr;
 }
 
 bool MinifyJs(const StringPiece& input, GoogleString* out) {
   Minifier<StringConsumer> minifier(input, out);
-  return (minifier.GetOutput() != NULL);
+  return (minifier.GetOutput() != nullptr);
 }
 
 bool GetMinifiedJsSize(const StringPiece& input, int* minimized_size) {
-  Minifier<SizeConsumer> minifier(input, NULL);
+  Minifier<SizeConsumer> minifier(input, nullptr);
   SizeConsumer* output = minifier.GetOutput();
   if (output) {
     *minimized_size = output->size_;
@@ -530,12 +530,12 @@ bool MinifyJsAndCollapseStrings(const StringPiece& input,
                                GoogleString* out) {
   Minifier<StringConsumer> minifier(input, out);
   minifier.EnableStringCollapse();
-  return (minifier.GetOutput() != NULL);
+  return (minifier.GetOutput() != nullptr);
 }
 
 bool GetMinifiedStringCollapsedJsSize(const StringPiece& input,
                                       int* minimized_size) {
-  Minifier<SizeConsumer> minifier(input, NULL);
+  Minifier<SizeConsumer> minifier(input, nullptr);
   minifier.EnableStringCollapse();
   SizeConsumer* output = minifier.GetOutput();
   if (output) {
@@ -607,7 +607,7 @@ JsMinifyingTokenizer::JsMinifyingTokenizer(
     : tokenizer_(patterns, input), whitespace_(kNoWhitespace),
       prev_type_(JsKeywords::kEndOfInput), prev_token_(),
       next_type_(JsKeywords::kEndOfInput), next_token_(),
-      mappings_(NULL) {}
+      mappings_(nullptr) {}
 
 JsMinifyingTokenizer::JsMinifyingTokenizer(
     const JsTokenizerPatterns* patterns, StringPiece input,
@@ -623,7 +623,7 @@ JsMinifyingTokenizer::~JsMinifyingTokenizer() {}
 JsKeywords::Type JsMinifyingTokenizer::NextToken(StringPiece* token_out) {
   net_instaweb::source_map::Mapping token_out_position;
   const JsKeywords::Type type = NextTokenHelper(token_out, &token_out_position);
-  if (mappings_ != NULL && type != JsKeywords::kEndOfInput &&
+  if (mappings_ != nullptr && type != JsKeywords::kEndOfInput &&
       ShouldRecordStep(*mappings_, token_out_position)) {
     mappings_->push_back(token_out_position);
   }
@@ -748,7 +748,7 @@ bool JsMinifyingTokenizer::WhitespaceNeededBefore(
 
 bool MinifyUtf8Js(const JsTokenizerPatterns* patterns,
                   StringPiece input, GoogleString* output) {
-  return MinifyUtf8JsWithSourceMap(patterns, input, output, NULL);
+  return MinifyUtf8JsWithSourceMap(patterns, input, output, nullptr);
 }
 
 bool MinifyUtf8JsWithSourceMap(

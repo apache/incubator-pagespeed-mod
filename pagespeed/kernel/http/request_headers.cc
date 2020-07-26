@@ -58,7 +58,7 @@ void RequestHeaders::CopyFrom(const RequestHeaders& other) {
 GoogleString RequestHeaders::ToString() const {
   GoogleString str;
   StringWriter writer(&str);
-  WriteAsHttp("", &writer, NULL);
+  WriteAsHttp("", &writer, nullptr);
   return str;
 }
 
@@ -117,7 +117,7 @@ const char* RequestHeaders::method_string() const {
     case HttpRequestHeaders::INVALID:     return "ERROR";
   }
   LOG(DFATAL) << "Invalid method";
-  return NULL;
+  return nullptr;
 }
 
 const GoogleString& RequestHeaders::message_body() const {
@@ -165,7 +165,7 @@ bool RequestHeaders::IsXmlHttpRequest() const {
   // It is not guaranteed that javascript present in the html loaded via
   // ajax request will execute.
   const char* x_requested_with = Lookup1(HttpAttributes::kXRequestedWith);
-  if (x_requested_with != NULL &&
+  if (x_requested_with != nullptr &&
       StringCaseEqual(x_requested_with, HttpAttributes::kXmlHttpRequest)) {
     return true;
   }

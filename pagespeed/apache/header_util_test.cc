@@ -116,7 +116,7 @@ TEST_F(HeaderUtilTest, DisableCachingRelatedHeaders) {
   SetLastModified("some random string");
   DisableCachingRelatedHeaders(&request_);
   DisableCacheControlHeader(&request_);
-  EXPECT_EQ(NULL, GetLastModified());
+  EXPECT_EQ(nullptr, GetLastModified());
   EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
                       ", must-revalidate, ",
                       HttpAttributes::kNoStore),
@@ -136,7 +136,7 @@ TEST_F(HeaderUtilTest, SelectiveRequestHeaders) {
       test, &HeaderUtilTest::PredicateMatchingA));
   ApacheRequestToRequestHeaders(request_, &selective, predicate.get());
   EXPECT_STREQ("b", selective.Lookup1("a"));
-  EXPECT_TRUE(selective.Lookup1("c") == NULL);
+  EXPECT_TRUE(selective.Lookup1("c") == nullptr);
   EXPECT_EQ(1, selective.NumAttributes());
 }
 

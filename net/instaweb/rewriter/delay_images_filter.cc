@@ -99,7 +99,7 @@ void DelayImagesFilter::MaybeAddImageOnloadJsSnippet(HtmlElement* element) {
     return;
   }
   added_image_onload_js_ = true;
-  HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
   driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                          StringPiece());
   // Always add the image-onload js before the current node, because the
@@ -130,7 +130,7 @@ void DelayImagesFilter::EndElementImpl(HtmlElement* element) {
     // resource_tag_scanner::ScanElement.
     HtmlElement::Attribute* low_res_src =
         element->FindAttribute(HtmlName::kDataPagespeedLowResSrc);
-    if (low_res_src == NULL || low_res_src->DecodedValueOrNull() == NULL) {
+    if (low_res_src == nullptr || low_res_src->DecodedValueOrNull() == nullptr) {
       return;
     }
     HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
@@ -138,7 +138,7 @@ void DelayImagesFilter::EndElementImpl(HtmlElement* element) {
         resource_tag_scanner::CategorizeAttribute(
             element, src, driver()->options());
     if (category != semantic_type::kImage ||
-        src->DecodedValueOrNull() == NULL) {
+        src->DecodedValueOrNull() == nullptr) {
       return;  // Failed to find valid Image-valued src attribute.
     }
     ++num_low_res_inlined_images_;
@@ -151,7 +151,7 @@ void DelayImagesFilter::EndElementImpl(HtmlElement* element) {
       // Rename srcset -> data-pagespeed-high-res-srcset
       HtmlElement::Attribute* srcset =
           element->FindAttribute(HtmlName::kSrcset);
-      if (srcset != NULL) {
+      if (srcset != nullptr) {
         driver()->SetAttributeName(
             srcset, HtmlName::kDataPagespeedHighResSrcset);
       }

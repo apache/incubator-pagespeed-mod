@@ -46,7 +46,7 @@ class UrlEscaperTest : public testing::Test {
     // Make sure there are only alphanumerics and _+-=%
     for (size_t i = 0; i < encoded.size(); ++i) {
       char c = encoded[i];
-      EXPECT_TRUE(isalnum(c) || (strchr(kAcceptableSpecialChars, c) != NULL));
+      EXPECT_TRUE(isalnum(c) || (strchr(kAcceptableSpecialChars, c) != nullptr));
     }
 
     EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoded, &decoded));

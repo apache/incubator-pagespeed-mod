@@ -47,7 +47,7 @@ GoogleString WgetUrlFetcher::ConstructFetchCommand(
   StrAppend(&cmd, " --save-headers -q -O -");
 
   // Use default user-agent if none is set in headers.
-  if (user_agent == NULL) {
+  if (user_agent == nullptr) {
     StrAppend(&cmd,
               " --user-agent \"",
               ExternalUrlFetcher::kDefaultUserAgent,

@@ -68,7 +68,7 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
     ScanlineReaderInterface* reader) {
   Reset();
 
-  if (reader == NULL ||
+  if (reader == nullptr ||
       reader->GetPixelFormat() == UNSUPPORTED ||
       reader->GetImageWidth() == 0 ||
       reader->GetImageHeight() == 0) {
@@ -101,7 +101,7 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
 
   input_row_ = 0;
   while (input_row_ < image_height) {
-    void* in_scanline = NULL;
+    void* in_scanline = nullptr;
     ScanlineStatus status = reader_->ReadNextScanlineWithStatus(&in_scanline);
     if (!status.Success()) {
       Reset();

@@ -20,6 +20,10 @@
 
 #include "pagespeed/system/system_cache_path.h"
 
+
+#include <memory>
+
+
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -56,10 +60,10 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
     : path_(path.data(), path.size()),
       factory_(factory),
       shm_runtime_(shm_runtime),
-      lock_manager_(NULL),
-      file_cache_backend_(NULL),
-      lru_cache_(NULL),
-      file_cache_(NULL),
+      lock_manager_(nullptr),
+      file_cache_backend_(nullptr),
+      lru_cache_(nullptr),
+      file_cache_(nullptr),
       cache_flush_filename_(config->cache_flush_filename()),
       unplugged_(config->unplugged()),
       enable_cache_purge_(config->enable_cache_purge()),
@@ -100,9 +104,9 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
   }
 
   if (config->use_shared_mem_locking()) {
-    shared_mem_lock_manager_.reset(new SharedMemLockManager(
+    shared_mem_lock_manager_ = std::make_unique<SharedMemLockManager>(
         shm_runtime, LockManagerSegmentName(),
-        factory->scheduler(), factory->hasher(), factory->message_handler()));
+        factory->scheduler(), factory->hasher(), factory->message_handler());
     lock_manager_ = shared_mem_lock_manager_.get();
   } else {
     FallBackToFileBasedLocking();
@@ -116,7 +120,7 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
       config->file_cache_clean_inode_limit());
   file_cache_backend_ =
       new FileCache(config->file_cache_path(), factory->file_system(),
-                    factory->thread_system(), NULL, policy,
+                    factory->thread_system(), nullptr, policy,
                     factory->statistics(), factory->message_handler());
   factory->TakeOwnership(file_cache_backend_);
   file_cache_ = new CacheStats(kFileCache, file_cache_backend_,
@@ -217,7 +221,7 @@ void SystemCachePath::MergeEntries(int64 config_value, bool config_was_set,
 void SystemCachePath::RootInit() {
   factory_->message_handler()->Message(
       kInfo, "Initializing shared memory for path: %s.", path_.c_str());
-  if ((shared_mem_lock_manager_.get() != NULL) &&
+  if ((shared_mem_lock_manager_.get() != nullptr) &&
       !shared_mem_lock_manager_->Initialize()) {
     FallBackToFileBasedLocking();
   }
@@ -229,15 +233,15 @@ void SystemCachePath::ChildInit(SlowWorker* cache_clean_worker) {
   }
   factory_->message_handler()->Message(
       kInfo, "Reusing shared memory for path: %s.", path_.c_str());
-  if ((shared_mem_lock_manager_.get() != NULL) &&
+  if ((shared_mem_lock_manager_.get() != nullptr) &&
       !shared_mem_lock_manager_->Attach()) {
     FallBackToFileBasedLocking();
   }
-  if (file_cache_backend_ != NULL) {
+  if (file_cache_backend_ != nullptr) {
     file_cache_backend_->set_worker(cache_clean_worker);
   }
 
-  purge_context_.reset(new PurgeContext(cache_flush_filename_,
+  purge_context_ = std::make_unique<PurgeContext>(cache_flush_filename_,
                                         factory_->file_system(),
                                         factory_->timer(),
                                         RewriteOptions::kCachePurgeBytes,
@@ -245,25 +249,25 @@ void SystemCachePath::ChildInit(SlowWorker* cache_clean_worker) {
                                         lock_manager_,
                                         factory_->scheduler(),
                                         factory_->statistics(),
-                                        factory_->message_handler()));
+                                        factory_->message_handler());
   purge_context_->set_enable_purge(enable_cache_purge_);
   purge_context_->SetUpdateCallback(NewPermanentCallback(
       this, &SystemCachePath::UpdateCachePurgeSet));
 }
 
 void SystemCachePath::GlobalCleanup(MessageHandler* handler) {
-  if (shared_mem_lock_manager_.get() != NULL) {
+  if (shared_mem_lock_manager_.get() != nullptr) {
     shared_mem_lock_manager_->GlobalCleanup(
         shm_runtime_, LockManagerSegmentName(), handler);
   }
 }
 
 void SystemCachePath::FallBackToFileBasedLocking() {
-  if ((shared_mem_lock_manager_.get() != NULL) || (lock_manager_ == NULL)) {
-    shared_mem_lock_manager_.reset(NULL);
-    file_system_lock_manager_.reset(new FileSystemLockManager(
+  if ((shared_mem_lock_manager_.get() != nullptr) || (lock_manager_ == nullptr)) {
+    shared_mem_lock_manager_.reset(nullptr);
+    file_system_lock_manager_ = std::make_unique<FileSystemLockManager>(
         factory_->file_system(), path_,
-        factory_->scheduler(), factory_->message_handler()));
+        factory_->scheduler(), factory_->message_handler());
     lock_manager_ = file_system_lock_manager_.get();
   }
 }

@@ -20,9 +20,11 @@
 
 #include "pagespeed/system/redis_cache.h"
 
-#include <sys/time.h>
 #include <algorithm>
 #include <cstddef>
+#include <memory>
+#include <sys/time.h>
+
 #include <utility>
 
 #include "base/logging.h"
@@ -375,8 +377,8 @@ RedisCache::Connection* RedisCache::GetOrCreateConnection(
     ConnectionsMap::iterator it = connections_.find(name);
     if (it == connections_.end()) {
       LOG(INFO) << "Initiating connection Redis server at " << spec.ToString();
-      it = connections_.emplace(name, std::unique_ptr<Connection>(
-          new Connection(this, spec.host, spec.port, database_index)))
+      it = connections_.emplace(name, std::make_unique<Connection>(
+          this, spec.host, spec.port, database_index))
           .first;
       should_start_up = true;
     }
@@ -475,10 +477,10 @@ void RedisCache::FetchClusterSlotMapping(Connection* connection) {
     }
     // Everything is there and is the right type.  Store it.
     // Using database 0 for cluster
-    new_cluster_mappings.push_back(ClusterMapping(
+    new_cluster_mappings.emplace_back(
         start_slot_range->integer, end_slot_range->integer,
         GetOrCreateConnection(ExternalServerSpec(
-            master_ip->str, master_port->integer), kDefaultDatabaseIndex)));
+            master_ip->str, master_port->integer), kDefaultDatabaseIndex));
   }
 
   // Sort new_cluster_mappings based on start_slot_range_.

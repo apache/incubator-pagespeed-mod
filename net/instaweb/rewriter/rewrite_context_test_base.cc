@@ -21,6 +21,10 @@
 // Base-class & helper classes for testing RewriteContext and its
 // interaction with various subsystems.
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
 
 #include "base/logging.h"
@@ -68,7 +72,7 @@ HtmlElement::Attribute* TrimWhitespaceRewriter::FindResourceAttribute(
   if (element->keyword() == HtmlName::kLink) {
     return element->FindAttribute(HtmlName::kHref);
   }
-  return NULL;
+  return nullptr;
 }
 
 TrimWhitespaceSyncFilter::~TrimWhitespaceSyncFilter() {
@@ -77,7 +81,7 @@ TrimWhitespaceSyncFilter::~TrimWhitespaceSyncFilter() {
 void TrimWhitespaceSyncFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kLink) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
+    if (href != nullptr) {
       GoogleUrl gurl(driver()->google_url(), href->DecodedValueOrNull());
       href->SetValue(StrCat(gurl.Spec(), ".pagespeed.ts.0.css"));
     }
@@ -112,7 +116,7 @@ void NestedFilter::Context::RewriteSingle(
         bool unused;
         ResourcePtr resource(Driver()->CreateInputResource(
             url, RewriteDriver::InputRole::kUnknown, &unused));
-        if (resource.get() != NULL) {
+        if (resource.get() != nullptr) {
           ResourceSlotPtr slot(new NestedSlot(resource));
           RewriteContext* nested_context =
               filter_->upper_filter()->MakeNestedRewriteContext(this, slot);
@@ -169,12 +173,12 @@ void NestedFilter::Context::Harvest() {
 
 void NestedFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kHref);
-  if (attr != NULL) {
+  if (attr != nullptr) {
     bool unused;
     ResourcePtr resource = CreateInputResource(
         attr->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
         &unused);
-    if (resource.get() != NULL) {
+    if (resource.get() != nullptr) {
       ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
 
       // This 'new' is paired with a delete in RewriteContext::FinishFetch()
@@ -195,8 +199,8 @@ CombiningFilter::CombiningFilter(RewriteDriver* driver,
       num_will_not_render_(0),
       num_cancel_(0),
       rewrite_delay_ms_(rewrite_delay_ms),
-      rewrite_block_on_(NULL),
-      rewrite_signal_on_(NULL),
+      rewrite_block_on_(nullptr),
+      rewrite_signal_on_(nullptr),
       on_the_fly_(false),
       optimization_only_(true),
       disable_successors_(false) {
@@ -209,7 +213,7 @@ CombiningFilter::~CombiningFilter() {
 CombiningFilter::Context::Context(RewriteDriver* driver,
                                   CombiningFilter* filter,
                                   MockScheduler* scheduler)
-    : RewriteContext(driver, NULL, NULL),
+    : RewriteContext(driver, nullptr, nullptr),
       combiner_(driver, filter),
       scheduler_(scheduler),
       time_at_start_of_rewrite_us_(scheduler_->timer()->NowUs()),
@@ -233,7 +237,7 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
   }
   OutputResourcePtr combination(combiner_.MakeOutput());
   // MakeOutput can fail if for example there is only one input resource.
-  if (combination.get() == NULL) {
+  if (combination.get() == nullptr) {
     return false;
   }
 
@@ -251,10 +255,10 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
 void CombiningFilter::Context::Rewrite(int partition_index,
                                        CachedResult* partition,
                                        const OutputResourcePtr& output) {
-  if (filter_->rewrite_signal_on_ != NULL) {
+  if (filter_->rewrite_signal_on_ != nullptr) {
     filter_->rewrite_signal_on_->Notify();
   }
-  if (filter_->rewrite_block_on_ != NULL) {
+  if (filter_->rewrite_block_on_ != nullptr) {
     filter_->rewrite_block_on_->Wait();
   }
   if (filter_->rewrite_delay_ms() == 0) {
@@ -320,14 +324,14 @@ void CombiningFilter::Context::DisableRemovedSlots(
 void CombiningFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kLink) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
+    if (href != nullptr) {
       bool unused;
       ResourcePtr resource(CreateInputResource(
           href->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
           &unused));
-      if (resource.get() != NULL) {
-        if (context_.get() == NULL) {
-          context_.reset(new Context(driver(), this, scheduler_));
+      if (resource.get() != nullptr) {
+        if (context_.get() == nullptr) {
+          context_ = std::make_unique<Context>(driver(), this, scheduler_);
         }
         context_->AddElement(element, href, resource);
       }
@@ -341,10 +345,10 @@ RewriteContextTestBase::~RewriteContextTestBase() {
 }
 
 void RewriteContextTestBase::SetUp() {
-  trim_filter_ = NULL;
-  other_trim_filter_ = NULL;
-  combining_filter_ = NULL;
-  nested_filter_ = NULL;
+  trim_filter_ = nullptr;
+  other_trim_filter_ = nullptr;
+  combining_filter_ = nullptr;
+  nested_filter_ = nullptr;
   // The default deadline set in RewriteDriver is dependent on whether
   // the system was compiled for debug, or is being run under valgrind.
   // However, the unit-tests here use mock-time so we want to set the
@@ -495,16 +499,16 @@ void RewriteContextTestBase::InitTrimFilters(OutputResourceKind kind) {
 
 void RewriteContextTestBase::ClearStats() {
   RewriteTestBase::ClearStats();
-  if (trim_filter_ != NULL) {
+  if (trim_filter_ != nullptr) {
     trim_filter_->ClearStats();
   }
-  if (other_trim_filter_ != NULL) {
+  if (other_trim_filter_ != nullptr) {
     other_trim_filter_->ClearStats();
   }
-  if (combining_filter_ != NULL) {
+  if (combining_filter_ != nullptr) {
     combining_filter_->ClearStats();
   }
-  if (nested_filter_ != NULL) {
+  if (nested_filter_ != nullptr) {
     nested_filter_->ClearStats();
   }
 }

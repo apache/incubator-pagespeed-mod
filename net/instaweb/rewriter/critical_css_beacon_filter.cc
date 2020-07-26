@@ -92,7 +92,7 @@ bool CriticalCssBeaconFilter::MustSummarize(HtmlElement* element) const {
   // Don't summarize non-screen-affecting or <noscript> CSS at all; the time we
   // spend doing that is better devoted to summarizing CSS selectors we will
   // actually consider critical.
-  return (noscript_element() == NULL) &&
+  return (noscript_element() == nullptr) &&
       css_util::CanMediaAffectScreen(element->AttributeValue(HtmlName::kMedia));
 }
 
@@ -208,13 +208,13 @@ void CriticalCssBeaconFilter::SummariesDone() {
     script = kInitializePageSpeedJs;
     AppendSelectorsInitJs(&script, selectors);
   }
-  HtmlElement* script_element = driver()->NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script_element = driver()->NewElement(nullptr, HtmlName::kScript);
   driver()->AddAttribute(script_element, HtmlName::kDataPagespeedNoDefer,
                          StringPiece());
   InsertNodeAtBodyEnd(script_element);
   AddJsToElement(script, script_element);
 
-  if (critical_css_beacon_added_count_ != NULL) {
+  if (critical_css_beacon_added_count_ != nullptr) {
     critical_css_beacon_added_count_->Add(1);
   }
 }

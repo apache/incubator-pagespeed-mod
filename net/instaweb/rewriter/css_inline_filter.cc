@@ -55,7 +55,7 @@ class CssInlineFilter::Context : public InlineRewriteContext {
         filter_(filter) {
     base_url_.Reset(base_url);
     const char* charset = element->AttributeValue(HtmlName::kCharset);
-    if (charset != NULL) {
+    if (charset != nullptr) {
       attrs_charset_ = GoogleString(charset);
     }
   }
@@ -131,12 +131,12 @@ void CssInlineFilter::StartElementImpl(HtmlElement* element) {
 
 void CssInlineFilter::EndElementImpl(HtmlElement* element) {
   // Don't inline if the CSS element is under <noscript>.
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     return;
   }
 
-  HtmlElement::Attribute* href = NULL;
-  const char* media = NULL;
+  HtmlElement::Attribute* href = nullptr;
+  const char* media = nullptr;
   if (CssTagScanner::ParseCssElement(element, &href, &media) &&
       !driver()->HasChildrenInFlushWindow(element)) {
     if (driver()->is_amp_document()) {

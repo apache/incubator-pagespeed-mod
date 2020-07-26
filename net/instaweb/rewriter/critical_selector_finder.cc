@@ -87,7 +87,7 @@ const StringSet& CriticalSelectorFinder::GetCriticalSelectors(
 
 void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCache(
     const StringSet& selector_set, StringPiece nonce, RewriteDriver* driver) {
-  DCHECK(cohort_ != NULL);
+  DCHECK(cohort_ != nullptr);
   WriteCriticalSelectorsToPropertyCacheStatic(
       selector_set, nonce, SupportInterval(), ShouldReplacePriorResult(),
       driver->server_context()->page_property_cache(), cohort_,
@@ -114,7 +114,7 @@ void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCacheStatic(
 
 void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
     RewriteDriver* driver) {
-  if (driver->critical_selector_info() != NULL) {
+  if (driver->critical_selector_info() != nullptr) {
     return;
   }
 
@@ -122,8 +122,8 @@ void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
   // NOTE: if any of these checks fail you probably didn't set up your test
   // environment carefully enough.  Figuring that out based on test failures
   // alone will drive you nuts and take hours out of your life, thus DCHECKs.
-  DCHECK(driver != NULL);
-  DCHECK(cohort_ != NULL);
+  DCHECK(driver != nullptr);
+  DCHECK(cohort_ != nullptr);
   std::unique_ptr<CriticalKeys> critical_keys(DecodeFromPropertyCache<CriticalKeys>(
       driver, cohort_, kCriticalSelectorsPropertyName,
       driver->options()->finder_properties_cache_expiration_time_ms(),
@@ -148,7 +148,7 @@ void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
   // DecodeFromPropertyCache above returned NULL.
   CriticalKeys static_keys;
   CriticalKeys* keys_to_use =
-      (critical_keys == NULL) ? &static_keys : critical_keys.get();
+      (critical_keys == nullptr) ? &static_keys : critical_keys.get();
 
   CriticalSelectorInfo* critical_selector_info = new CriticalSelectorInfo;
   critical_selector_info->proto = *keys_to_use;
@@ -181,7 +181,7 @@ BeaconMetadata CriticalSelectorFinder::PrepareForBeaconInsertion(
       &proto, nonce_generator_, driver,
       true /* using_candidate_key_detection */, &result);
   if (result.status != kDoNotBeacon) {
-    DCHECK(cohort_ != NULL);
+    DCHECK(cohort_ != nullptr);
     UpdateInPropertyCache(proto, cohort_, kCriticalSelectorsPropertyName,
                           true /* write_cohort */, driver->property_page());
   }

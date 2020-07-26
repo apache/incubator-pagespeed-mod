@@ -47,7 +47,7 @@
 namespace net_instaweb {
 
 HtmlParse::HtmlParse(MessageHandler* message_handler)
-    : lexer_(NULL),  // Can't initialize here, since "this" should not be used
+    : lexer_(nullptr),  // Can't initialize here, since "this" should not be used
                      // in the initializer list (it generates an error in
                      // Visual Studio builds).
       current_(queue_.end()),
@@ -64,9 +64,9 @@ HtmlParse::HtmlParse(MessageHandler* message_handler)
       running_filters_(false),
       buffer_events_(false),
       parse_start_time_us_(0),
-      timer_(NULL),
-      current_filter_(NULL),
-      dynamically_disabled_filter_list_(NULL) {
+      timer_(nullptr),
+      current_filter_(nullptr),
+      dynamically_disabled_filter_list_(nullptr) {
   lexer_ = new HtmlLexer(this);
   HtmlKeywords::Init();
 }
@@ -102,7 +102,7 @@ HtmlEventListIterator HtmlParse::Last() {
 // Note that we also have sanity checks that run after each filter.
 void HtmlParse::CheckParentFromAddEvent(HtmlEvent* event) {
   HtmlNode* node = event->GetNode();
-  if (node != NULL) {
+  if (node != nullptr) {
     message_handler_->Check(lexer_->Parent() == node->parent(),
                             "lexer_->Parent() != node->parent()");
     DCHECK_EQ(lexer_->Parent(), node->parent()) << url_;
@@ -122,7 +122,7 @@ void HtmlParse::AddEvent(HtmlEvent* event) {
   // need to do it here.  If this is some other kind of event, there are no
   // iterators to set.
   HtmlLeafNode* leaf = event->GetLeafNode();
-  if (leaf != NULL) {
+  if (leaf != nullptr) {
     leaf->set_iter(Last());
     message_handler_->Check(IsRewritable(leaf), "!IsRewritable(leaf)");
   }
@@ -200,20 +200,20 @@ void HtmlParse::SetupScript(StringPiece text, bool external,
 }
 
 void HtmlParse::InsertScriptBeforeCurrent(StringPiece text, bool external) {
-  HtmlElement* script = NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script = NewElement(nullptr, HtmlName::kScript);
   InsertNodeBeforeCurrent(script);
   SetupScript(text, external, script);
 }
 
 void HtmlParse::InsertScriptAfterCurrent(StringPiece text, bool external) {
-  HtmlElement* script = NewElement(NULL, HtmlName::kScript);
+  HtmlElement* script = NewElement(nullptr, HtmlName::kScript);
   InsertNodeAfterCurrent(script);
   SetupScript(text, external, script);
 }
 
 HtmlElement* HtmlParse::NewElement(HtmlElement* parent, const HtmlName& name) {
 #ifndef NDEBUG
-  if ((name.keyword() == HtmlName::kScript) && (current_filter_ != NULL)) {
+  if ((name.keyword() == HtmlName::kScript) && (current_filter_ != nullptr)) {
     HtmlFilter::ScriptUsage script_usage = current_filter_->GetScriptUsage();
     if (HtmlFilter::kNeverInjectsScripts == script_usage) {
       LOG(DFATAL)
@@ -254,12 +254,12 @@ bool HtmlParse::StartParseId(const StringPiece& url, const StringPiece& id,
   deferred_nodes_.clear();
   DCHECK(open_deferred_nodes_.empty());
   open_deferred_nodes_.clear();
-  DCHECK(current_filter_ == NULL);
-  current_filter_ = NULL;
+  DCHECK(current_filter_ == nullptr);
+  current_filter_ = nullptr;
   DCHECK(deferred_deleted_nodes_.empty());
   deferred_deleted_nodes_.clear();
 
-  if (dynamically_disabled_filter_list_ != NULL) {
+  if (dynamically_disabled_filter_list_ != nullptr) {
     dynamically_disabled_filter_list_->clear();
   }
   url.CopyToString(&url_);
@@ -308,7 +308,7 @@ void HtmlParse::BeginFinishParse() {
   DCHECK(url_valid_) << "Invalid to call FinishParse on invalid input";
   if (url_valid_) {
     lexer_->FinishParse();
-    DCHECK(delayed_start_literal_.get() == NULL);
+    DCHECK(delayed_start_literal_.get() == nullptr);
     delayed_start_literal_.reset();
     AddEvent(new HtmlEndDocumentEvent(line_number_));
   }
@@ -342,7 +342,7 @@ void HtmlParse::CheckFilterBehavior(HtmlFilter* filter) {
   filter->DetermineEnabled(&disabled_reason);
 
   if (!filter->is_enabled()) {
-    if (dynamically_disabled_filter_list_ != NULL) {
+    if (dynamically_disabled_filter_list_ != nullptr) {
       GoogleString final_reason(filter->Name());
       if (!disabled_reason.empty()) {
         StrAppend(&final_reason, ": ", disabled_reason);
@@ -372,7 +372,7 @@ void HtmlParse::DisableFiltersInjectingScripts(const FilterList& filters) {
 void HtmlParse::ApplyFilter(HtmlFilter* filter) {
   // Keep track of the current filter in a state variable, for associating
   // node-deferrals with the filter that requested them.
-  DCHECK(current_filter_ == NULL);
+  DCHECK(current_filter_ == nullptr);
   current_filter_ = filter;
 
   // If, in a previous flush window, the current filter requested the deferral
@@ -416,7 +416,7 @@ void HtmlParse::ApplyFilter(HtmlFilter* filter) {
     SanityCheck();
     need_sanity_check_ = false;
   }
-  current_filter_ = NULL;
+  current_filter_ = nullptr;
 }
 
 void HtmlParse::NextEvent() {
@@ -429,11 +429,11 @@ void HtmlParse::NextEvent() {
 
 void HtmlParse::CoalesceAdjacentCharactersNodes() {
   ShowProgress("CoalesceAdjacentCharactersNodes");
-  HtmlCharactersNode* prev = NULL;
+  HtmlCharactersNode* prev = nullptr;
   for (current_ = queue_.begin(); current_ != queue_.end(); ) {
     HtmlEvent* event = *current_;
     HtmlCharactersNode* node = event->GetCharactersNode();
-    if ((node != NULL) && (prev != NULL)) {
+    if ((node != nullptr) && (prev != nullptr)) {
       prev->Append(node->contents());
       current_ = queue_.erase(current_);  // returns element after erased
       delete event;
@@ -454,7 +454,7 @@ void HtmlParse::DelayLiteralTag() {
   --current_;
   HtmlEvent* event = *current_;
   HtmlElement* element = event->GetElementIfStartEvent();
-  if ((element != NULL) && IsLiteralTag(element->keyword())) {
+  if ((element != nullptr) && IsLiteralTag(element->keyword())) {
     // The current stream ends with the beginning of a literal
     // tag.  We are not going to process this within the current
     // flush window, but instead wait till the EndElement arrives
@@ -467,9 +467,9 @@ void HtmlParse::DelayLiteralTag() {
 
 void HtmlParse::CheckEventParent(HtmlEvent* event, HtmlElement* expect,
                                  HtmlElement* actual) {
-  if ((expect != NULL) && (actual != expect)) {
+  if ((expect != nullptr) && (actual != expect)) {
     GoogleString actual_buf;
-    if (actual != NULL) {
+    if (actual != nullptr) {
       actual_buf = actual->ToString();
     } else {
       actual_buf = "(null)";
@@ -493,7 +493,7 @@ void HtmlParse::SanityCheck() {
   // the stack we can detect in this event stream.  This is represented
   // here by an empty stack.
   std::vector<HtmlElement*> element_stack;
-  HtmlElement* expect_parent = NULL;
+  HtmlElement* expect_parent = nullptr;
   for (current_ = queue_.begin(); current_ != queue_.end(); ++current_) {
     HtmlEvent* event = *current_;
 
@@ -503,7 +503,7 @@ void HtmlParse::SanityCheck() {
     // sure the elements have the expected parent based on context, when
     // we can figure out what the expected parent is.
     HtmlElement* start_element = event->GetElementIfStartEvent();
-    if (start_element != NULL) {
+    if (start_element != nullptr) {
       CheckEventParent(event, expect_parent, start_element->parent());
       message_handler_->Check(start_element->begin() == current_,
                               "start_element->begin() != current_");
@@ -512,7 +512,7 @@ void HtmlParse::SanityCheck() {
       expect_parent = start_element;
     } else {
       HtmlElement* end_element = event->GetElementIfEndEvent();
-      if (end_element != NULL) {
+      if (end_element != nullptr) {
         message_handler_->Check(end_element->end() == current_,
                                 "end_element->end() != current_");
         message_handler_->Check(end_element->live(),
@@ -527,13 +527,13 @@ void HtmlParse::SanityCheck() {
                                   "element_stack.back() != end_element");
           element_stack.pop_back();
         }
-        expect_parent = element_stack.empty() ? NULL : element_stack.back();
+        expect_parent = element_stack.empty() ? nullptr : element_stack.back();
         CheckEventParent(event, expect_parent, end_element->parent());
       } else {
         // We only know for sure what the parents are once we have seen
         // a start_element.
         HtmlLeafNode* leaf_node = event->GetLeafNode();
-        if (leaf_node != NULL) {   // Start/EndDocument are not leaf nodes
+        if (leaf_node != nullptr) {   // Start/EndDocument are not leaf nodes
           message_handler_->Check(leaf_node->live(), "!leaf_node->live()");
           message_handler_->Check(leaf_node->end() == current_,
                                   "leaf_node->end() != current_");
@@ -583,16 +583,16 @@ void HtmlParse::ClearEvents() {
     HtmlEvent* event = *current_;
     line_number_ = event->line_number();
     HtmlElement* element = event->GetElementIfStartEvent();
-    if (element != NULL) {
+    if (element != nullptr) {
       element->set_begin(queue_.end());
     } else {
       element = event->GetElementIfEndEvent();
-      if (element != NULL) {
+      if (element != nullptr) {
         element->set_end(queue_.end());
         element->FreeData();
       } else {
         HtmlLeafNode* leaf_node = event->GetLeafNode();
-        if (leaf_node != NULL) {
+        if (leaf_node != nullptr) {
           leaf_node->set_iter(queue_.end());
           leaf_node->FreeData();
         }
@@ -638,7 +638,7 @@ void HtmlParse::PrependChild(const HtmlElement* existing_parent,
 
 void HtmlParse::AppendChild(const HtmlElement* existing_parent,
                             HtmlNode* new_child) {
-  if (existing_parent != NULL) {
+  if (existing_parent != nullptr) {
     message_handler_->Check(existing_parent->end() != queue_.end(),
                             "AppendChild: existing_parent invalid");
     new_child->set_parent(const_cast<HtmlElement*>(existing_parent));
@@ -653,14 +653,14 @@ void HtmlParse::InsertNodeBeforeCurrent(HtmlNode* new_node) {
     FatalErrorHere("InsertNodeBeforeCurrent after current has been "
                    "deleted.");
   }
-  if ((new_node->parent() == NULL) && (current_ != queue_.end())) {
+  if ((new_node->parent() == nullptr) && (current_ != queue_.end())) {
     // Add a parent if one was not provided in new_node.  We figure out
     // what the parent should be by looking at current_.  If that's an
     // EndElement event, then that means that we are adding a new child
     // of that element.  In all other cases, we are adding a sibling.
     HtmlEvent* current_event = *current_;
     HtmlElement* end_element = current_event->GetElementIfEndEvent();
-    if (end_element != NULL) {
+    if (end_element != nullptr) {
       // The node pointed to by Current will be our new parent.
       new_node->set_parent(end_element);
     } else {
@@ -668,7 +668,7 @@ void HtmlParse::InsertNodeBeforeCurrent(HtmlNode* new_node) {
       // we should grab its parent.
       HtmlNode* node = current_event->GetNode();
       // 'node' can be null when the current event is EndDocument.
-      if (node != NULL) {
+      if (node != nullptr) {
         new_node->set_parent(node->parent());
       }
     }
@@ -700,13 +700,13 @@ void HtmlParse::InsertNodeAfterCurrent(HtmlNode* new_node) {
   if (current_ == queue_.end()) {
     FatalErrorHere("InsertNodeAfterCurrent called with queue at end.");
   }
-  if ((new_node->parent() == NULL) && (current_ != queue_.end())) {
+  if ((new_node->parent() == nullptr) && (current_ != queue_.end())) {
     HtmlElement* parent = (*current_)->GetElementIfEndEvent();
-    if (parent != NULL) {
+    if (parent != nullptr) {
       parent = parent->parent();
     } else {
       parent = (*current_)->GetElementIfStartEvent();
-      if (parent == NULL) {
+      if (parent == nullptr) {
         parent = (*current_)->GetNode()->parent();
       }
     }
@@ -762,7 +762,7 @@ void HtmlParse::FixParents(const HtmlEventListIterator& begin,
   ++end;
   for (HtmlEventListIterator p = begin; p != end; ++p) {
     HtmlNode* node = (*p)->GetNode();
-    if ((node != NULL) && (node->parent() == original_parent)) {
+    if ((node != nullptr) && (node->parent() == original_parent)) {
       node->set_parent(new_parent);
     }
   }
@@ -855,7 +855,7 @@ bool HtmlParse::IsDescendantOf(const HtmlNode* possible_child,
                                const HtmlNode* possible_parent) {
   // node walks up the DOM starting from possible_child.
   const HtmlNode* node = possible_child;
-  while (node != NULL) {
+  while (node != nullptr) {
     if (node == possible_parent) {
       // If possible_parent is a parent-of-parent-of-...
       return true;
@@ -889,10 +889,10 @@ bool HtmlParse::DeleteNode(HtmlNode* node) {
       p = queue_.erase(p);
 
       HtmlNode* nested_node = event->GetElementIfEndEvent();
-      if (nested_node == NULL) {
+      if (nested_node == nullptr) {
         nested_node = event->GetLeafNode();
       }
-      if (nested_node != NULL) {
+      if (nested_node != nullptr) {
         message_handler_->Check(nested_node->live(), "!nested_node->live()");
         nested_node->MarkAsDead(queue_.end());
       }
@@ -912,7 +912,7 @@ bool HtmlParse::DeleteNode(HtmlNode* node) {
     // keep track of which deferred nodes we don't expect to restore.
     HtmlEvent* event = *current_;
     if ((event->GetNode() == node) &&
-        (event->GetElementIfEndEvent() == NULL)) {  // leaf or StartElement OK
+        (event->GetElementIfEndEvent() == nullptr)) {  // leaf or StartElement OK
       DeferCurrentNode();
       deferred_deleted_nodes_.insert(node);
       deleted = true;
@@ -986,7 +986,7 @@ bool HtmlParse::ReplaceNode(HtmlNode* existing_node, HtmlNode* new_node) {
 }
 
 HtmlElement* HtmlParse::CloneElement(HtmlElement* in_element) {
-  HtmlElement* out_element = NewElement(NULL, in_element->name());
+  HtmlElement* out_element = NewElement(nullptr, in_element->name());
   out_element->set_style(in_element->style());
 
   const HtmlElement::AttributeList& attrs = in_element->attributes();
@@ -1152,9 +1152,9 @@ void HtmlParse::FatalErrorHere(const char* msg, ...) {
 
 void HtmlParse::CloseElement(
     HtmlElement* element, HtmlElement::Style style, int line_number) {
-  if (delayed_start_literal_.get() != NULL) {
+  if (delayed_start_literal_.get() != nullptr) {
     HtmlElement* element = delayed_start_literal_->GetElementIfStartEvent();
-    DCHECK(element != NULL);
+    DCHECK(element != nullptr);
     bool insert_at_begin = true;
     if (!queue_.empty()) {
       // We have been holding back "<script>" until the lexer tells us the
@@ -1170,7 +1170,7 @@ void HtmlParse::CloseElement(
       --p;
       HtmlEvent* event = *p;
       HtmlCharactersNode* node = event->GetCharactersNode();
-      if (node != NULL) {
+      if (node != nullptr) {
         if (p != queue_.begin()) {
           --p;
           element->set_begin(
@@ -1194,7 +1194,7 @@ void HtmlParse::CloseElement(
       queue_.push_front(delayed_start_literal_.release());
       element->set_begin(queue_.begin());
     }
-    DCHECK(delayed_start_literal_.get() == NULL);
+    DCHECK(delayed_start_literal_.get() == nullptr);
   }
 
   HtmlEndElementEvent* end_event =
@@ -1220,7 +1220,7 @@ HtmlName HtmlParse::MakeName(const StringPiece& str_piece) {
   // recognized keyword, then we must make a permanent copy in our
   // string table.  Note that we are comparing the bytes of the
   // keyword from the table, not the pointer.
-  if ((str == NULL) || (str_piece != *str)) {
+  if ((str == nullptr) || (str_piece != *str)) {
     Atom atom = string_table_.Intern(str_piece);
     str = atom.Rep();
   }
@@ -1240,7 +1240,7 @@ bool HtmlParse::size_limit_exceeded() const {
 }
 
 bool HtmlParse::InsertComment(StringPiece unescaped) {
-  HtmlElement* parent = NULL;
+  HtmlElement* parent = nullptr;
 
   GoogleString escaped;
   HtmlKeywords::Escape(unescaped, &escaped);
@@ -1261,10 +1261,10 @@ bool HtmlParse::InsertComment(StringPiece unescaped) {
     // but if we are looking at an end_element, then insert after.
     HtmlElement* start_element = event->GetElementIfStartEvent();
     HtmlElement* end_element = event->GetElementIfEndEvent();
-    if (start_element != NULL) {
+    if (start_element != nullptr) {
       parent = start_element->parent();
       InsertNodeBeforeEvent(pos, NewCommentNode(parent, escaped));
-    } else if (end_element != NULL) {
+    } else if (end_element != nullptr) {
       parent = end_element->parent();
       InsertNodeAfterEvent(pos, NewCommentNode(parent, escaped));
     } else {
@@ -1273,7 +1273,7 @@ bool HtmlParse::InsertComment(StringPiece unescaped) {
       // Insert the comment immediately after the node if we are at the
       // end, otherwise insert the comment before the current node.
       HtmlNode* node = event->GetNode();
-      if (node != NULL) {
+      if (node != nullptr) {
         parent = node->parent();
       }
       if (current_ == queue_.end()) {
@@ -1287,7 +1287,7 @@ bool HtmlParse::InsertComment(StringPiece unescaped) {
     // block. This can happen if we already flushed the open tag of a literal
     // element, but haven't seen the close tag yet.
     HtmlElement* parent = lexer_->Parent();
-    if (parent != NULL && IsLiteralTag(parent->keyword())) {
+    if (parent != nullptr && IsLiteralTag(parent->keyword())) {
       return false;
     }
     AddEvent(
@@ -1328,8 +1328,8 @@ void HtmlParse::DeferCurrentNode() {
     // so as we lex in new child nodes we can put them onto the correct
     // node-list, rather than the queue_, until it's closed.
     HtmlElement* element = (*node->begin())->GetElementIfStartEvent();
-    CHECK(element != NULL) << "Only HtmlElements can cut across flush windows.";
-    DCHECK(current_filter_ != NULL);
+    CHECK(element != nullptr) << "Only HtmlElements can cut across flush windows.";
+    DCHECK(current_filter_ != nullptr);
     open_deferred_nodes_[current_filter_] = DeferredNode(
         node, node_events);
   }
@@ -1375,7 +1375,7 @@ void HtmlParse::RestoreDeferredNode(HtmlNode* deferred_node) {
   // restore on a start element, as the parent will be the current_ element.
   HtmlEvent* event = *current_;
   HtmlElement* new_parent = event->GetNode()->parent();
-  if (event->GetElementIfStartEvent() != NULL) {
+  if (event->GetElementIfStartEvent() != nullptr) {
     new_parent = event->GetElementIfStartEvent();
   }
   deferred_node->set_parent(new_parent);

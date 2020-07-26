@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/thread/scheduler_based_abstract_lock.h"
 
 #include "base/logging.h"
@@ -356,8 +360,8 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
     }
   }
   void StartHelper() LOCKS_EXCLUDED(scheduler_.mutex()) {
-    helper_thread_.reset(
-        new ThreadedSchedulerBasedLockTest::HelperThread(this));
+    helper_thread_ = std::make_unique<ThreadedSchedulerBasedLockTest::HelperThread>(
+        this);
     helper_thread_->Start();
     {
       ScopedMutex lock(scheduler_.mutex());

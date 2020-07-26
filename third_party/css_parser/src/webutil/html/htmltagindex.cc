@@ -21,6 +21,8 @@
 
 #include "webutil/html/htmltagindex.h"
 
+#include <memory>
+
 #include <utility>
 
 #include "base/logging.h"
@@ -134,8 +136,8 @@ int HtmlTagIndex::AddHtmlTag(const char* tag, int length) {
     return tag_id;
 
   // Add to the custom table.
-  if (custom_tag_map_.get() == NULL) {
-    custom_tag_map_.reset(new CustomTagMap);
+  if (custom_tag_map_.get() == nullptr) {
+    custom_tag_map_ = std::make_unique<CustomTagMap>();
     custom_tag_map_->set_empty_key(string(""));
   }
   string tag_copy(CaseAwareString(case_sensitive_, tag, length));
@@ -472,7 +474,7 @@ int HtmlTagIndex::FindHtmlTag(const char* tag, int length) const {
 #undef S1
 
   // Look in the custom table.
-  if (custom_tag_map_.get() != NULL) {
+  if (custom_tag_map_.get() != nullptr) {
     string tag_copy(CaseAwareString(case_sensitive_, tag, length));
     CustomTagMap::const_iterator it = custom_tag_map_->find(tag_copy);
     if (it != custom_tag_map_->end()) {

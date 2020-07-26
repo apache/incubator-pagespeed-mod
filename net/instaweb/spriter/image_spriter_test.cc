@@ -93,7 +93,7 @@ TEST(SpriterTest, ZeroImages) {
 
   // spriter.Sprite() will free the canvas it gets.  In the test,
   // the canvas is mock object |mock_canvas|.  Disown the pointer.
-  EXPECT_FALSE(NULL == mock_canvas.release());
+  EXPECT_FALSE(nullptr == mock_canvas.release());
 
   ImageSpriter spriter(&mock_image_lib);
   std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
@@ -143,8 +143,8 @@ TEST(SpriterTest, OneImage) {
       .WillOnce(Return(true));
 
   // spriter.Sprite() will free these.
-  EXPECT_FALSE(NULL == mock_canvas.release());
-  EXPECT_FALSE(NULL == mock_image_a.release());
+  EXPECT_FALSE(nullptr == mock_canvas.release());
+  EXPECT_FALSE(nullptr == mock_image_a.release());
 
   ImageSpriter spriter(&mock_image_lib);
   std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
@@ -213,9 +213,9 @@ TEST(SpriterTest, TwoImages) {
       .WillOnce(Return(true));
 
   // spriter.Sprite() will free these.
-  EXPECT_FALSE(NULL == mock_canvas.release());
-  EXPECT_FALSE(NULL == mock_image_a.release());
-  EXPECT_FALSE(NULL == mock_image_b.release());
+  EXPECT_FALSE(nullptr == mock_canvas.release());
+  EXPECT_FALSE(nullptr == mock_image_a.release());
+  EXPECT_FALSE(nullptr == mock_image_b.release());
 
   ImageSpriter spriter(&mock_image_lib);
   std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));

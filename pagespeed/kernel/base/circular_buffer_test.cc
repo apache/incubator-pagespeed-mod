@@ -47,7 +47,7 @@ TEST_F(CircularBufferTest, InstantiateWithPreAllocatedBlock) {
   void* segment = static_cast<void*>(malloc(segment_size));
   CircularBuffer* cb = CircularBuffer::Init(true, segment,
                                             segment_size, capacity);
-  if (cb != NULL) {
+  if (cb != nullptr) {
     cb->Write("0123456789");
   }
   EXPECT_EQ("0123456789", cb->ToString(&handler_));

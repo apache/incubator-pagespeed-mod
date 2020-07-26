@@ -20,7 +20,7 @@
 
 #include "pagespeed/kernel/base/stdio_file_system.h"
 
-#include <errno.h>
+#include <cerrno>
 #include <sys/stat.h>
 #include <utime.h>
 #ifdef WIN32
@@ -75,7 +75,7 @@ class StdioFileHelper {
   }
 
   ~StdioFileHelper() {
-    CHECK(file_ == NULL);
+    CHECK(file_ == nullptr);
   }
 
   void ReportError(MessageHandler* message_handler, const char* context) {
@@ -91,7 +91,7 @@ class StdioFileHelper {
         ret = false;
       }
     }
-    file_ = NULL;
+    file_ = nullptr;
     return ret;
   }
 
@@ -218,11 +218,11 @@ class StdioOutputFile : public FileSystem::OutputFile {
 
 StdioFileSystem::StdioFileSystem()
     : slow_file_latency_threshold_us_(0),
-      timer_(NULL),
-      statistics_(NULL),
-      outstanding_ops_(NULL),
-      slow_ops_(NULL),
-      total_ops_(NULL) {
+      timer_(nullptr),
+      statistics_(nullptr),
+      outstanding_ops_(nullptr),
+      slow_ops_(nullptr),
+      total_ops_(nullptr) {
 }
 
 StdioFileSystem::~StdioFileSystem() {
@@ -247,13 +247,13 @@ void StdioFileSystem::TrackTiming(int64 slow_file_latency_threshold_us,
 }
 
 int64 StdioFileSystem::StartTimer() {
-  if (timer_ == NULL) {
+  if (timer_ == nullptr) {
     return 0;
   }
-  if (outstanding_ops_ != NULL) {
+  if (outstanding_ops_ != nullptr) {
     outstanding_ops_->Add(1);
   }
-  if (total_ops_ != NULL) {
+  if (total_ops_ != nullptr) {
     total_ops_->Add(1);
   }
   return timer_->NowUs();
@@ -261,14 +261,14 @@ int64 StdioFileSystem::StartTimer() {
 
 void StdioFileSystem::EndTimer(const char* filename, const char* operation,
                                int64 start_us) {
-  if (outstanding_ops_ != NULL) {
+  if (outstanding_ops_ != nullptr) {
     outstanding_ops_->Add(-1);
   }
-  if (timer_ != NULL) {
+  if (timer_ != nullptr) {
     int64 end_us = timer_->NowUs();
     int64 latency_us = end_us - start_us;
     if (latency_us > slow_file_latency_threshold_us_) {
-      if (slow_ops_ != NULL) {
+      if (slow_ops_ != nullptr) {
         slow_ops_->Add(1);
       }
       message_handler_->Message(
@@ -300,9 +300,9 @@ int StdioFileSystem::MaxPathLength(const StringPiece& base) const {
 
 FileSystem::InputFile* StdioFileSystem::OpenInputFile(
     const char* filename, MessageHandler* message_handler) {
-  FileSystem::InputFile* input_file = NULL;
+  FileSystem::InputFile* input_file = nullptr;
   FILE* f = fopen(filename, "r");
-  if (f == NULL) {
+  if (f == nullptr) {
     message_handler->Error(filename, 0, "opening input file: %s",
                            strerror(errno));
   } else {
@@ -314,13 +314,13 @@ FileSystem::InputFile* StdioFileSystem::OpenInputFile(
 
 FileSystem::OutputFile* StdioFileSystem::OpenOutputFileHelper(
     const char* filename, bool append, MessageHandler* message_handler) {
-  FileSystem::OutputFile* output_file = NULL;
+  FileSystem::OutputFile* output_file = nullptr;
   if (strcmp(filename, "-") == 0) {
     output_file = new StdioOutputFile(stdout, "<stdout>", this);
   } else {
     const char* mode = append ? "a" : "w";
     FILE* f = fopen(filename, mode);
-    if (f == NULL) {
+    if (f == nullptr) {
       message_handler->Error(filename, 0,
                              "opening output file: %s", strerror(errno));
     } else {
@@ -349,7 +349,7 @@ FileSystem::OutputFile* StdioFileSystem::OpenTempFileHelper(
 #else
   int fd = mkstemp(template_name);
 #endif  // WIN32
-  OutputFile* output_file = NULL;
+  OutputFile* output_file = nullptr;
   if (fd < 0) {
     message_handler->Error(template_name, 0,
                            "opening temp file: %s", strerror(errno));
@@ -360,7 +360,7 @@ FileSystem::OutputFile* StdioFileSystem::OpenTempFileHelper(
       _close(fd);
 #else
     FILE* f = fdopen(fd, "w");
-    if (f == NULL) {
+    if (f == nullptr) {
       close(fd);
 #endif
 
@@ -492,17 +492,17 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
   EnsureEndsInSlash(&dir_string);
   const char* dirname = dir_string.c_str();
   DIR* mydir = opendir(dirname);
-  if (mydir == NULL) {
+  if (mydir == nullptr) {
       handler->Error(dirname, 0, "Failed to opendir: %s", strerror(errno));
     return false;
   } else {
-    dirent* entry = NULL;
+    dirent* entry = nullptr;
     dirent buffer;
 
 // XXX(oschaaf):
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-    while (readdir_r(mydir, &buffer, &entry) == 0 && entry != NULL) {
+    while (readdir_r(mydir, &buffer, &entry) == 0 && entry != nullptr) {
 #pragma GCC diagnostic pop
       if ((strcmp(entry->d_name, ".") != 0) &&
           (strcmp(entry->d_name, "..") != 0)) {
@@ -647,7 +647,7 @@ BoolOrError StdioFileSystem::TryLockWithTimeout(const StringPiece& lock_name,
 bool StdioFileSystem::BumpLockTimeout(const StringPiece& lock_name,
                                       MessageHandler* handler) {
   bool success = utime(lock_name.as_string().c_str(),
-                       NULL /* update mtime to current time */) == 0;
+                       nullptr /* update mtime to current time */) == 0;
   if (!success) {
     handler->Info(lock_name.as_string().c_str(), 0,
                   "Failed to bump lock: %s", strerror(errno));

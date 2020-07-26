@@ -70,8 +70,8 @@ AprMemCache::AprMemCache(const ExternalClusterSpec& cluster, int thread_limit,
     : cluster_spec_(cluster),
       thread_limit_(thread_limit),
       timeout_us_(kTimeoutUnset),
-      pool_(NULL),
-      memcached_(NULL),
+      pool_(nullptr),
+      memcached_(nullptr),
       hasher_(hasher),
       timer_(timer),
       timeouts_(statistics->GetVariable(kMemCacheTimeouts)),
@@ -79,7 +79,7 @@ AprMemCache::AprMemCache(const ExternalClusterSpec& cluster, int thread_limit,
           statistics->GetUpDownCounter(kLastErrorCheckpointMs)),
       error_burst_size_(statistics->GetUpDownCounter(kErrorBurstSize)),
       message_handler_(handler) {
-  pool_ = AprCreateThreadCompatiblePool(NULL);
+  pool_ = AprCreateThreadCompatiblePool(nullptr);
 
   // Don't try to connect on construction; we don't want to bother creating
   // connections to the memcached servers in the root process.
@@ -107,7 +107,7 @@ bool AprMemCache::Connect() {
   if ((status == APR_SUCCESS) && !cluster_spec_.empty()) {
     success = true;
     for (const ExternalServerSpec& spec : cluster_spec_.servers) {
-      apr_memcache2_server_t* server = NULL;
+      apr_memcache2_server_t* server = nullptr;
       status = apr_memcache2_server_create(
           pool_, spec.host.c_str(), spec.port,
           kDefaultServerMin, kDefaultServerSmax,
@@ -164,12 +164,12 @@ void AprMemCache::Get(const GoogleString& key, Callback* callback) {
   }
   apr_pool_t* data_pool;
   apr_pool_create(&data_pool, pool_);
-  CHECK(data_pool != NULL) << "apr_pool_t data_pool allocation failure";
+  CHECK(data_pool != nullptr) << "apr_pool_t data_pool allocation failure";
   GoogleString hashed_key = hasher_->Hash(key);
   char* data;
   apr_size_t data_len;
   apr_status_t status = apr_memcache2_getp(
-      memcached_, data_pool, hashed_key.c_str(), &data, &data_len, NULL);
+      memcached_, data_pool, hashed_key.c_str(), &data, &data_len, nullptr);
   if (status == APR_SUCCESS) {
     DecodeValueMatchingKeyAndCallCallback(key, data, data_len, "Get", callback);
   } else {
@@ -201,10 +201,10 @@ void AprMemCache::MultiGet(MultiGetRequest* request) {
   // data after the call.
   apr_pool_t* data_pool;
   apr_pool_create(&data_pool, pool_);
-  CHECK(data_pool != NULL) << "apr_pool_t data_pool allocation failure";
-  apr_pool_t* temp_pool = NULL;
+  CHECK(data_pool != nullptr) << "apr_pool_t data_pool allocation failure";
+  apr_pool_t* temp_pool = nullptr;
   apr_pool_create(&temp_pool, pool_);
-  CHECK(temp_pool != NULL) << "apr_pool_t temp_pool allocation failure";
+  CHECK(temp_pool != nullptr) << "apr_pool_t temp_pool allocation failure";
   apr_hash_t* hash_table = apr_hash_make(data_pool);
   StringVector hashed_keys;
 
@@ -226,7 +226,7 @@ void AprMemCache::MultiGet(MultiGetRequest* request) {
       const GoogleString& hashed_key = hashed_keys[i];
       apr_memcache2_value_t* value = static_cast<apr_memcache2_value_t*>(
           apr_hash_get(hash_table, hashed_key.data(), hashed_key.size()));
-      if (value == NULL) {
+      if (value == nullptr) {
         status = APR_NOTFOUND;
       } else {
         status = value->status;
@@ -350,9 +350,9 @@ void AprMemCache::Delete(const GoogleString& key) {
 }
 
 bool AprMemCache::GetStatus(GoogleString* buffer) {
-  apr_pool_t* temp_pool = NULL;
+  apr_pool_t* temp_pool = nullptr;
   apr_pool_create(&temp_pool, pool_);
-  CHECK(temp_pool != NULL) << "apr_pool_t allocation failure";
+  CHECK(temp_pool != nullptr) << "apr_pool_t allocation failure";
   bool ret = true;
   for (int i = 0, n = servers_.size(); i < n; ++i) {
     apr_memcache2_stats_t* stats;
@@ -461,7 +461,7 @@ void AprMemCache::ShutDown() {
 
 void AprMemCache::set_timeout_us(int timeout_us) {
   timeout_us_ = timeout_us;
-  if ((memcached_ != NULL) && (timeout_us != kTimeoutUnset)) {
+  if ((memcached_ != nullptr) && (timeout_us != kTimeoutUnset)) {
     apr_memcache2_set_timeout_microseconds(memcached_, timeout_us);
   }
 }

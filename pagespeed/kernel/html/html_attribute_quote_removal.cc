@@ -68,7 +68,7 @@ HtmlAttributeQuoteRemoval::~HtmlAttributeQuoteRemoval() {}
 bool HtmlAttributeQuoteRemoval::NeedsQuotes(const char *val) {
   bool needs_quotes = false;
   int i = 0;
-  if (val != NULL) {
+  if (val != nullptr) {
     for (; val[i] != '\0'; ++i) {
       // Explicit cast to unsigned char ensures that our offset
       // into needs_no_quotes_ is positive.

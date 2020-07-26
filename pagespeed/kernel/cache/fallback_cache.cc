@@ -62,7 +62,7 @@ class FallbackCallback : public CacheInterface::Callback {
 
   void Done(CacheInterface::KeyState state) override {
     DCHECK(validate_candidate_called_);
-    if (callback_ != NULL) {
+    if (callback_ != nullptr) {
       callback_->DelegatedDone(state);
     }
     delete this;
@@ -82,7 +82,7 @@ class FallbackCallback : public CacheInterface::Callback {
       // We erase callback_ so we don't forward the Done report
       // from the small cache.
       Callback* callback = callback_;
-      callback_ = NULL;
+      callback_ = nullptr;
       large_object_cache_->Get(key, callback);
       return true;  // The forwarding-marker in the small object cache is OK.
     } else if ((size >= 1) && (val[size - 1] == kInSmallObjectCache)) {

@@ -21,6 +21,8 @@
 #include "pagespeed/apache/instaweb_handler.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
@@ -101,17 +103,17 @@ InstawebHandler::InstawebHandler(request_rec* request)
     : request_(request),
       server_context_(InstawebContext::ServerContextFromServerRec(
           request->server)),
-      rewrite_driver_(NULL),
+      rewrite_driver_(nullptr),
       driver_owned_(true),
       num_response_attributes_(0),
-      fetch_(NULL) {
+      fetch_(nullptr) {
   apache_request_context_ = server_context_->NewApacheRequestContext(request);
   request_context_.reset(apache_request_context_);
 
   // Global options
   options_ = server_context_->global_config();
 
-  request_headers_.reset(new RequestHeaders);
+  request_headers_ = std::make_unique<RequestHeaders>();
   ApacheRequestToRequestHeaders(*request, request_headers_.get());
 
   original_url_ = InstawebContext::MakeRequestUrl(*options_, request);
@@ -125,7 +127,7 @@ InstawebHandler::InstawebHandler(request_rec* request)
 InstawebHandler::~InstawebHandler() {
   // If fetch_ is null we either never tried to fetch anything or it took
   // ownership of itself after timing out.
-  if (fetch_ != NULL) {
+  if (fetch_ != nullptr) {
     WaitForFetch();
     delete fetch_;
   }
@@ -136,7 +138,7 @@ InstawebHandler::~InstawebHandler() {
 }
 
 void InstawebHandler::WaitForFetch() {
-  if (fetch_ == NULL) {
+  if (fetch_ == nullptr) {
     return;  // Nothing to wait for.
   }
   fetch_->Wait();
@@ -151,8 +153,8 @@ void InstawebHandler::DisownDriver() {
 // this can only be called once, as it potentially mutates the options
 // as it transfers ownership of custom_options.
 RewriteDriver* InstawebHandler::MakeDriver() {
-  CHECK(fetch_ == NULL) << "Call MakeDriver before MakeFetch";
-  DCHECK(rewrite_driver_ == NULL)
+  CHECK(fetch_ == nullptr) << "Call MakeDriver before MakeFetch";
+  DCHECK(rewrite_driver_ == nullptr)
       << "We can only call MakeDriver once per InstawebHandler:"
       << original_url_;
 
@@ -173,13 +175,13 @@ RewriteDriver* InstawebHandler::MakeDriver() {
 ApacheFetch* InstawebHandler::MakeFetch(const GoogleString& url,
                                         bool buffered,
                                         StringPiece debug_info) {
-  DCHECK(fetch_ == NULL);
+  DCHECK(fetch_ == nullptr);
   // ApacheFetch takes ownership of request_headers.
   RequestHeaders* request_headers = new RequestHeaders();
   ApacheRequestToRequestHeaders(*request_, request_headers);
   ApacheWriter* writer = new ApacheWriter(request_,
                                           server_context_->thread_system());
-  if (rewrite_driver_ == NULL) {
+  if (rewrite_driver_ == nullptr) {
     MakeDriver();
   }
   fetch_ = new ApacheFetch(
@@ -191,7 +193,7 @@ ApacheFetch* InstawebHandler::MakeFetch(const GoogleString& url,
 
 /* static */
 bool InstawebHandler::IsCompressibleContentType(const char* content_type) {
-  if (content_type == NULL) {
+  if (content_type == nullptr) {
     return false;
   }
   GoogleString type = content_type;
@@ -233,7 +235,7 @@ void InstawebHandler::send_out_headers_and_body(
   if (response_headers.status_code() == HttpStatus::kOK &&
       IsCompressibleContentType(request->content_type)) {
     // Make sure compression is enabled for this response.
-    ap_add_output_filter("DEFLATE", NULL, request, request->connection);
+    ap_add_output_filter("DEFLATE", nullptr, request, request->connection);
   }
 
   // Recompute the content-length, because the content may have changed.
@@ -261,7 +263,7 @@ void InstawebHandler::ComputeCustomOptions() {
     // it should only be used for computing the custom options.
     ApacheConfig* directory_options = static_cast<ApacheConfig*>
         ap_get_module_config(request_->per_dir_config, &pagespeed_module);
-    if ((directory_options != NULL) && directory_options->modified()) {
+    if ((directory_options != nullptr) && directory_options->modified()) {
       custom_options_.reset(
           server_context_->apache_factory()->NewRewriteOptions());
       custom_options_->Merge(*options_);
@@ -281,9 +283,9 @@ void InstawebHandler::ComputeCustomOptions() {
   // have. As long as we don't allow changing implicit cache TTL in
   // ResponseHeaders, this should be fine.
   const RewriteOptions* directory_aware_options =
-      (custom_options_.get() != NULL) ? custom_options_.get() : options_;
-  response_headers_.reset(
-      new ResponseHeaders(directory_aware_options->ComputeHttpOptions()));
+      (custom_options_.get() != nullptr) ? custom_options_.get() : options_;
+  response_headers_ = std::make_unique<ResponseHeaders>(
+      directory_aware_options->ComputeHttpOptions());
 
   // Copy headers_out and err_headers_out into response_headers.
   // Note that err_headers_out will come after the headers_out in the list of
@@ -300,7 +302,7 @@ void InstawebHandler::ComputeCustomOptions() {
     std::unique_ptr<RewriteOptions> remote_options(directory_aware_options->Clone());
 
     server_context_->GetRemoteOptions(remote_options.get(), false);
-    if (custom_options_.get() == NULL) {
+    if (custom_options_.get() == nullptr) {
       custom_options_.reset(
           server_context_->apache_factory()->NewRewriteOptions());
       custom_options_->Merge(*options_);
@@ -319,8 +321,8 @@ void InstawebHandler::ComputeCustomOptions() {
         stripped_gurl_.spec_c_str());
   }
   const RewriteOptions* query_options = rewrite_query_.options();
-  if (query_options != NULL) {
-    if (custom_options_.get() == NULL) {
+  if (query_options != nullptr) {
+    if (custom_options_.get() == nullptr) {
       custom_options_.reset(
           server_context_->apache_factory()->NewRewriteOptions());
       custom_options_->Merge(*options_);
@@ -332,7 +334,7 @@ void InstawebHandler::ComputeCustomOptions() {
       custom_options_->set_running_experiment(false);
     }
   }
-  if (custom_options_.get() != NULL) {
+  if (custom_options_.get() != nullptr) {
     options_ = custom_options_.get();
   }
 }
@@ -377,14 +379,14 @@ void InstawebHandler::RemoveStrippedResponseHeadersFromApacheRequest() {
                                "" /* request option override */,
                                null_request_context,
                                &tmp_err_resp_headers,
-                               NULL /* device_properties */,
+                               nullptr /* device_properties */,
                                unused_opts1.get(),
                                server_context_->message_handler());
       RewriteQuery::ScanHeader(true /* enable options */,
                                "" /* request option override */,
                                null_request_context,
                                &tmp_resp_headers,
-                               NULL /* device_properties */,
+                               nullptr /* device_properties */,
                                unused_opts2.get(),
                                server_context_->message_handler());
 
@@ -449,10 +451,10 @@ bool InstawebHandler::HandleAsInPlace() {
   // Note that apr_table_get is case insensitive. See
   // http://apr.apache.org/docs/apr/2.0/group__apr__tables.html#ga4db13e3915c6b9a3142b175d4c15d915
   RequestHeaders::Properties request_properties(
-      apr_table_get(request_->headers_in, HttpAttributes::kCookie) != NULL,
-      apr_table_get(request_->headers_in, HttpAttributes::kCookie2) != NULL,
+      apr_table_get(request_->headers_in, HttpAttributes::kCookie) != nullptr,
+      apr_table_get(request_->headers_in, HttpAttributes::kCookie2) != nullptr,
       (apr_table_get(request_->headers_in, HttpAttributes::kAuthorization)
-       != NULL) || (request_->user != NULL));
+       != nullptr) || (request_->user != nullptr));
 
   RewriteDriver* driver = MakeDriver();
   MakeFetch(false /* not buffered */, "ipro");
@@ -526,7 +528,7 @@ bool InstawebHandler::HandleAsProxy() {
     fetch_->set_is_proxy(true);
     DisownDriver();
     server_context_->proxy_fetch_factory()->StartNewProxyFetch(
-        mapped_url, fetch_, driver, NULL, NULL);
+        mapped_url, fetch_, driver, nullptr, nullptr);
     WaitForFetch();
     return true;  // handled
   }
@@ -651,13 +653,13 @@ const char* InstawebHandler::get_instaweb_resource_url(
   // other module's translate_hook returned OK first, then run it now. The
   // main reason we try to do this early is to save our URL before mod_rewrite
   // mutates it.
-  if (resource == NULL) {
+  if (resource == nullptr) {
     InstawebHandler::save_url_in_note(request, server_context);
     resource = apr_table_get(request->notes, kResourceUrlNote);
   }
 
-  if (resource != NULL && strcmp(resource, kResourceUrlNo) == 0) {
-    return NULL;
+  if (resource != nullptr && strcmp(resource, kResourceUrlNo) == 0) {
+    return nullptr;
   }
 
   const char* url = apr_table_get(request->notes, kPagespeedOriginalUrl);
@@ -758,7 +760,7 @@ bool InstawebHandler::parse_body_from_post(const request_rec* request,
   // coming back as NULL, even when the header was set correctly.
   const char* content_type = apr_table_get(request->headers_in,
                                            HttpAttributes::kContentType);
-  if (content_type == NULL) {
+  if (content_type == nullptr) {
     *ret = HTTP_BAD_REQUEST;
     return false;
   }
@@ -784,7 +786,7 @@ bool InstawebHandler::parse_body_from_post(const request_rec* request,
   int content_len = kMaxPostSizeBytes;
   const char* content_len_str = apr_table_get(request->headers_in,
                                               HttpAttributes::kContentLength);
-  if (content_len_str != NULL) {
+  if (content_len_str != nullptr) {
     if (!StringToInt(content_len_str, &content_len)) {
       *ret = HTTP_BAD_REQUEST;
       return false;
@@ -816,7 +818,7 @@ bool InstawebHandler::parse_body_from_post(const request_rec* request,
          bucket != APR_BRIGADE_SENTINEL(bbin);
          bucket = APR_BUCKET_NEXT(bucket) ) {
       if (!APR_BUCKET_IS_METADATA(bucket)) {
-        const char* buf = NULL;
+        const char* buf = nullptr;
         size_t bytes = 0;
         rv = apr_bucket_read(bucket, &buf, &bytes, APR_BLOCK_READ);
         if (rv != APR_SUCCESS) {
@@ -919,7 +921,7 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
 
   const char* url = InstawebContext::MakeRequestUrl(*global_config, request);
   GoogleUrl gurl;
-  if (url == NULL || !gurl.Reset(url)) {
+  if (url == nullptr || !gurl.Reset(url)) {
     return DECLINED;  // URL not valid, let someone other module handle.
   }
 
@@ -1016,22 +1018,22 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
     write_handler_response(output, request, kContentTypeJavascript, "public");
     ret = APACHE_OK;
   } else if (strcmp(request->handler, kGenerateResponseWithOptionsHandler) == 0
-             && request->uri != NULL) {
+             && request->uri != nullptr) {
     // This handler is only needed for apache_system_test. It adds headers to
     // headers_out and/or err_headers_out to test handling of parameters in
     // those resources.
-    if (strstr(request->parsed_uri.query, "headers_out") != NULL) {
+    if (strstr(request->parsed_uri.query, "headers_out") != nullptr) {
       apr_table_add(request->headers_out, "PageSpeed", "off");
-    } else if (strstr(request->parsed_uri.query, "headers_errout") != NULL) {
+    } else if (strstr(request->parsed_uri.query, "headers_errout") != nullptr) {
       apr_table_add(request->err_headers_out, "PageSpeed", "off");
-    } else if (strstr(request->parsed_uri.query, "headers_override") != NULL) {
+    } else if (strstr(request->parsed_uri.query, "headers_override") != nullptr) {
       apr_table_add(request->headers_out, "PageSpeed", "off");
       apr_table_add(request->headers_out, "PageSpeedFilters",
                     "-remove_comments");
       apr_table_add(request->err_headers_out, "PageSpeed", "on");
       apr_table_add(request->err_headers_out, "PageSpeedFilters",
                     "+remove_comments");
-    } else if (strstr(request->parsed_uri.query, "headers_combine") != NULL) {
+    } else if (strstr(request->parsed_uri.query, "headers_combine") != nullptr) {
       apr_table_add(request->headers_out, "PageSpeed", "on");
       apr_table_add(request->err_headers_out, "PageSpeedFilters",
                     "+remove_comments");
@@ -1039,7 +1041,7 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
   } else {
     const char* url = InstawebContext::MakeRequestUrl(*global_config, request);
     // Do not try to rewrite our own sub-request.
-    if (url != NULL) {
+    if (url != nullptr) {
       GoogleUrl gurl(url);
       if (!gurl.IsWebValid()) {
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
@@ -1196,7 +1198,7 @@ apr_status_t InstawebHandler::instaweb_map_to_storage(request_rec* request) {
     return DECLINED;
   }
 
-  if (request->filename == NULL) {
+  if (request->filename == nullptr) {
     // We set filename to NULL below, and it appears other modules do too
     // (the WebSphere plugin for example; see issue 610), so to prevent a
     // dereference of NULL.
@@ -1210,7 +1212,7 @@ apr_status_t InstawebHandler::instaweb_map_to_storage(request_rec* request) {
     return DECLINED;
   }
 
-  if (get_instaweb_resource_url(request, server_context) == NULL) {
+  if (get_instaweb_resource_url(request, server_context) == nullptr) {
     return DECLINED;
   }
 
@@ -1238,7 +1240,7 @@ apr_status_t InstawebHandler::instaweb_map_to_storage(request_rec* request) {
   // character and replace the whole leaf with 'A', and then call
   // ap_directory_walk to figure out custom options.
   char* filename_starting_at_last_slash = strrchr(request->filename, '/');
-  if (filename_starting_at_last_slash != NULL &&
+  if (filename_starting_at_last_slash != nullptr &&
       filename_starting_at_last_slash[1] != '\0') {
     filename_starting_at_last_slash[1] = 'A';
     filename_starting_at_last_slash[2] = '\0';
@@ -1258,7 +1260,7 @@ apr_status_t InstawebHandler::instaweb_map_to_storage(request_rec* request) {
   //
   // If at some point we stop NULLing the filename here we need to modify the
   // code above that mangles it to use a temporary buffer instead.
-  request->filename = NULL;
+  request->filename = nullptr;
 
   // While setting request->filename helps get mod_speling (as well as
   // mod_mime and mod_mime_magic) out of our hair, it causes crashes

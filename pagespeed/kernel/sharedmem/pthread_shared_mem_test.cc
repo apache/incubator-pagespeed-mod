@@ -61,7 +61,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
  public:
   bool CreateChild(Function* callback) override {
     pthread_t thread;
-    if (pthread_create(&thread, NULL, InvokeCallback, callback) != 0) {
+    if (pthread_create(&thread, nullptr, InvokeCallback, callback) != 0) {
       return false;
     }
     child_threads_.push_back(thread);
@@ -72,7 +72,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
     for (size_t i = 0; i < child_threads_.size(); ++i) {
       void* result = this;  // non-NULL -> failure.
       EXPECT_EQ(0, pthread_join(child_threads_[i], &result));
-      EXPECT_EQ(NULL, result) << "Child reported failure";
+      EXPECT_EQ(nullptr, result) << "Child reported failure";
     }
     child_threads_.clear();
   }
@@ -88,7 +88,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
   static void* InvokeCallback(void* raw_callback_ptr) {
     Function* callback = static_cast<Function*>(raw_callback_ptr);
     callback->CallRun();
-    return NULL;  // Used to denote success
+    return nullptr;  // Used to denote success
   }
 
   std::vector<pthread_t> child_threads_;

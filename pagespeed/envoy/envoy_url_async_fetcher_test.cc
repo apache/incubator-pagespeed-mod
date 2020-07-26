@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "pagespeed/envoy/envoy_url_async_fetcher.h"
@@ -127,7 +131,7 @@ protected:
 
   void SetUpWithProxy(const char* proxy) {
     const char* env_host = getenv("PAGESPEED_TEST_HOST");
-    if (env_host != NULL) {
+    if (env_host != nullptr) {
       test_host_ = env_host;
     }
     if (test_host_.empty()) {
@@ -135,7 +139,7 @@ protected:
     }
     GoogleString fetch_test_domain = StrCat("//", test_host_);
     timer_.reset(Platform::CreateTimer());
-    statistics_.reset(new SimpleStats(thread_system_.get()));
+    statistics_ = std::make_unique<SimpleStats>(thread_system_.get());
     EnvoyUrlAsyncFetcher::InitStats(statistics_.get());
     envoy_url_async_fetcher_ = std::make_unique<EnvoyUrlAsyncFetcher>(
         proxy, thread_system_.get(), statistics_.get(), timer_.get(), fetcher_timeout_ms_,

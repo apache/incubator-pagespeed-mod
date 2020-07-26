@@ -391,7 +391,7 @@ TEST_F(JpegOptimizerTest, CleanupAfterReadingInvalidJpeg) {
   for (size_t i = 0; i < kValidImageCount; ++i) {
     GoogleString src_data;
     ReadTestFileWithExt(kJpegTestDir, kValidImages[i].filename, &src_data);
-    correctly_compressed.push_back("");
+    correctly_compressed.emplace_back("");
     GoogleString &dest_data = correctly_compressed.back();
     ASSERT_TRUE(OptimizeJpeg(src_data, &dest_data, &message_handler_));
   }

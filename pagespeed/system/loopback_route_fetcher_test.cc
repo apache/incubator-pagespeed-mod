@@ -55,7 +55,7 @@ const char kOwnIp[] = "198.51.100.1";
 class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
  public:
   LoopbackRouteFetcherTest()
-      : pool_(NULL),
+      : pool_(nullptr),
         thread_system_(Platform::CreateThreadSystem()),
         options_(thread_system_.get()),
         loopback_route_fetcher_(&options_, kOwnIp, 42, &reflecting_fetcher_) {
@@ -67,7 +67,7 @@ class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
   }
 
   void SetUp() override {
-    apr_pool_create(&pool_, NULL);
+    apr_pool_create(&pool_, nullptr);
   }
 
   void TearDown() override {
@@ -80,7 +80,7 @@ class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
 
  protected:
   char* DumpAddr(apr_sockaddr_t* addr) {
-    char* dbg = NULL;
+    char* dbg = nullptr;
     apr_sockaddr_ip_get(&dbg, addr);
     return dbg;  // it's in pool_
   }
@@ -169,37 +169,37 @@ TEST_F(LoopbackRouteFetcherTest, LoopbackRouteFetcherWorks) {
 }
 
 TEST_F(LoopbackRouteFetcherTest, CanDetectSelfSrc) {
-  apr_sockaddr_t* loopback_1 = NULL;
+  apr_sockaddr_t* loopback_1 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&loopback_1, "127.0.0.1", APR_INET,
                                   80, 0, pool_));
 
-  apr_sockaddr_t* loopback_2 = NULL;
+  apr_sockaddr_t* loopback_2 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&loopback_2, "127.12.34.45", APR_INET,
                                   80, 0, pool_));
 
-  apr_sockaddr_t* loopback_3 = NULL;
+  apr_sockaddr_t* loopback_3 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&loopback_3, "::1", APR_INET6,
                                   80, 0, pool_));
 
-  apr_sockaddr_t* loopback_4 = NULL;
+  apr_sockaddr_t* loopback_4 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&loopback_4, "::FFFF:127.0.0.2", APR_INET6,
                                   80, 0, pool_));
 
-  apr_sockaddr_t* not_loopback_1 = NULL;
+  apr_sockaddr_t* not_loopback_1 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&not_loopback_1, "128.0.0.1", APR_INET,
                                   80, 0, pool_));
 
-  apr_sockaddr_t* not_loopback_2 = NULL;
+  apr_sockaddr_t* not_loopback_2 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&not_loopback_2, "::1:1", APR_INET6,
                                   80, 0, pool_));
 
-  apr_sockaddr_t* not_loopback_3 = NULL;
+  apr_sockaddr_t* not_loopback_3 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&not_loopback_3, "::1:FFFF:127.0.0.1",
                                   APR_INET6, 80, 0, pool_));
@@ -235,7 +235,7 @@ TEST_F(LoopbackRouteFetcherTest, ProxySuffix) {
       NewCallback(this, &LoopbackRouteFetcherTest::PrepareDone));
   loopback_route_fetcher_.Fetch("http://www.foo.com", &handler_, &dest);
   EXPECT_STREQ("http://www.foo.com", dest.buffer());
-  EXPECT_EQ(NULL, dest.response_headers()->Lookup1("Host"));
+  EXPECT_EQ(nullptr, dest.response_headers()->Lookup1("Host"));
 }
 
 }  // namespace

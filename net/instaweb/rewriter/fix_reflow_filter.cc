@@ -71,7 +71,7 @@ void FixReflowFilter::StartDocument() {
   PropertyPage* page = rewrite_driver_->property_page();
   const PropertyCache::Cohort* cohort =
       rewrite_driver_->server_context()->fix_reflow_cohort();
-  if (page != NULL && cohort != NULL) {
+  if (page != nullptr && cohort != nullptr) {
     PropertyValue* property_value = page->GetProperty(
         cohort, kElementRenderedHeightPropertyName);
     VLOG(1) << "Property value: " << property_value << " has value? "
@@ -80,7 +80,7 @@ void FixReflowFilter::StartDocument() {
         finder_properties_cache_expiration_time_ms();
     PropertyCache* property_cache =
         rewrite_driver_->server_context()->page_property_cache();
-    if (property_value != NULL &&
+    if (property_value != nullptr &&
         property_value->has_value() &&
         !property_cache->IsExpired(property_value, cache_ttl_ms)) {
       pcache_miss = false;
@@ -113,7 +113,7 @@ void FixReflowFilter::StartElement(HtmlElement* element) {
   // If yes insert a style attribute with height.
   if (element->keyword() == HtmlName::kDiv) {
     const char* id = element->AttributeValue(HtmlName::kId);
-    if (id != NULL) {
+    if (id != nullptr) {
       ElementHeightMap::const_iterator i = element_height_map_.find(id);
       if (i != element_height_map_.end()) {
         rewrite_driver_->log_record()->SetRewriterLoggingStatus(

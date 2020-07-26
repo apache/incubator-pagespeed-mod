@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/http/public/inflating_fetch.h"
 
 #include "base/logging.h"
@@ -46,7 +50,7 @@ bool InflatingFetch::IsCompressionAllowedInRequest() {
     ConstStringStarVector v;
     if (request_headers()->Lookup(HttpAttributes::kAcceptEncoding, &v)) {
       for (int i = 0, n = v.size(); i < n; ++i) {
-        if (v[i] != NULL) {
+        if (v[i] != nullptr) {
           StringPiece value = *v[i];
           if (StringCaseEqual(value, HttpAttributes::kGzip) ||
               StringCaseEqual(value, HttpAttributes::kDeflate)) {
@@ -75,7 +79,7 @@ bool InflatingFetch::HandleWrite(const StringPiece& sp,
   if (inflate_failure_) {
     return false;
   }
-  if (inflater_.get() == NULL) {
+  if (inflater_.get() == nullptr) {
     return SharedAsyncFetch::HandleWrite(sp, handler);
   }
 
@@ -159,7 +163,7 @@ bool InflatingFetch::GzipValue(int compression_level,
     headers->Add(HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
     headers->SetContentLength(deflated.length());
     compressed_value->SetHeaders(headers);
-    compressed_value->Write(deflated, NULL);
+    compressed_value->Write(deflated, nullptr);
     return true;
   }
   return false;
@@ -179,7 +183,7 @@ void InflatingFetch::HandleHeadersComplete() {
     // Look for an encoding to strip.  We only look at the *last* encoding.
     // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
     for (int i = v.size() - 1; i >= 0; --i) {
-      if (v[i] != NULL) {
+      if (v[i] != nullptr) {
         const StringPiece& value = *v[i];
         if (!value.empty()) {
           if (StringCaseEqual(value, HttpAttributes::kGzip)) {
@@ -203,10 +207,10 @@ void InflatingFetch::InitInflater(GzipInflater::InflateType type,
 
   // TODO(jmarantz): Consider integrating with a free-store of Inflater
   // objects to avoid re-initializing these on every request.
-  inflater_.reset(new GzipInflater(type));
+  inflater_ = std::make_unique<GzipInflater>(type);
   if (!inflater_->Init()) {
     inflate_failure_ = true;
-    inflater_.reset(NULL);
+    inflater_.reset(nullptr);
   }
 }
 
@@ -216,9 +220,9 @@ void InflatingFetch::HandleDone(bool success) {
 }
 
 void InflatingFetch::Reset() {
-  if (inflater_.get() != NULL) {
+  if (inflater_.get() != nullptr) {
     inflater_->ShutDown();
-    inflater_.reset(NULL);
+    inflater_.reset(nullptr);
   }
   request_checked_for_accept_encoding_ = false;
   compression_desired_ = false;

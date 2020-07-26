@@ -72,7 +72,7 @@ void DedupInlinedImagesFilter::DetermineEnabled(GoogleString* disabled_reason) {
   // they both replace an image with JavaScript, and in both cases we need
   // to disable the filter for certain classes of UA.
   if (!driver()->request_properties()->SupportsLazyloadImages() ||
-      (driver()->request_headers() != NULL &&
+      (driver()->request_headers() != nullptr &&
        driver()->request_headers()->IsXmlHttpRequest())) {
     set_is_enabled(false);
   }
@@ -116,7 +116,7 @@ void DedupInlinedImagesFilter::EndElementImpl(HtmlElement* element) {
     GoogleString hash = server_context()->hasher()->Hash(src);
     GoogleString element_id;
     const char* id = element->AttributeValue(HtmlName::kId);
-    if (id == NULL || id[0] == '\0') {
+    if (id == nullptr || id[0] == '\0') {
       element_id = StrCat("pagespeed_img_", hash,
                           IntegerToString(++snippet_id_));
       driver()->AddAttribute(element, HtmlName::kId, element_id);
@@ -162,7 +162,7 @@ bool DedupInlinedImagesFilter::IsDedupCandidate(HtmlElement* element,
   // Ignore images that are smaller than the cutoff, current set to roughly
   // the size of the JS snippet we insert (ignoring the functions JS overhead).
   // TODO(matterbury): Also handle input tags.
-  if (noscript_element() == NULL && element->keyword() == HtmlName::kImg) {
+  if (noscript_element() == nullptr && element->keyword() == HtmlName::kImg) {
     const StringPiece src(element->AttributeValue(HtmlName::kSrc));
     if (IsDataImageUrl(src) && src.size() > kMinimumImageCutoff) {
       *src_iff_true = src;

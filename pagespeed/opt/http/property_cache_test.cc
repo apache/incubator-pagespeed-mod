@@ -329,7 +329,7 @@ TEST_F(PropertyCacheTest, EmptyReadNewPropertyWasRead) {
 
 TEST_F(PropertyCacheTest, TwoCohorts) {
   EXPECT_EQ(cohort_, property_cache_.GetCohort(kCohortName1));
-  EXPECT_TRUE(property_cache_.GetCohort(kCohortName2) == NULL);
+  EXPECT_TRUE(property_cache_.GetCohort(kCohortName2) == nullptr);
   const PropertyCache::Cohort* cohort2 =
       property_cache_.AddCohort(kCohortName2);
   cache_property_store_.AddCohort(kCohortName2);
@@ -605,7 +605,7 @@ TEST_F(PropertyCacheTest, DeleteProperty) {
 
 TEST_F(PropertyCacheTest, TwoCohortsDifferentCacheImplementations) {
   // Verify the second cohort does not exist.
-  EXPECT_TRUE(property_cache_.GetCohort(kCohortName2) == NULL);
+  EXPECT_TRUE(property_cache_.GetCohort(kCohortName2) == nullptr);
 
   // Create a second cache implementation.
   LRUCache second_cache(kMaxCacheSize);
@@ -687,7 +687,7 @@ TEST_F(PropertyCacheTest, TwoCohortsDifferentCacheImplementations) {
 
 TEST_F(PropertyCacheTest, MultiReadWithCohorts) {
   EXPECT_EQ(cohort_, property_cache_.GetCohort(kCohortName1));
-  EXPECT_TRUE(property_cache_.GetCohort(kCohortName2) == NULL);
+  EXPECT_TRUE(property_cache_.GetCohort(kCohortName2) == nullptr);
 
   const PropertyCache::Cohort* cohort2 =
       property_cache_.AddCohort(kCohortName2);

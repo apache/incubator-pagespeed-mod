@@ -1214,9 +1214,9 @@ TEST_F(ImageTest, DrawImage) {
 // pixel.
 TEST_F(ImageTest, DrawImageDetails) {
   GoogleString buf1, buf2;
-  uint8_t* image1_pixels = NULL;
-  uint8_t* image2_pixels = NULL;
-  uint8_t* canvas_pixels = NULL;
+  uint8_t* image1_pixels = nullptr;
+  uint8_t* image2_pixels = nullptr;
+  uint8_t* canvas_pixels = nullptr;
   PixelFormat image1_format, image2_format, canvas_format;
   size_t image1_width, image2_width, canvas_width;
   size_t image1_height, image2_height, canvas_height;

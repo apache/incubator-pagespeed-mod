@@ -44,12 +44,12 @@ void CriticalImagesFinderTestBase::ResetDriver() {
 const PropertyValue*
 CriticalImagesFinderTestBase::GetCriticalImagesUpdatedValue() {
   PropertyPage* page = rewrite_driver()->property_page();
-  if (page == NULL) {
-    return NULL;
+  if (page == nullptr) {
+    return nullptr;
   }
   const PropertyCache::Cohort* cohort = finder()->cohort();
-  if (cohort == NULL) {
-    return NULL;
+  if (cohort == nullptr) {
+    return nullptr;
   }
   const PropertyValue* property_value = page->GetProperty(
       cohort, CriticalImagesFinder::kCriticalImagesPropertyName);

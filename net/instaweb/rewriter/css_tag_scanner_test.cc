@@ -51,11 +51,11 @@ class CssTagScannerTest : public testing::Test {
  protected:
   CssTagScannerTest()
       : html_parse_(&message_handler_),
-        link_(NULL), href_(NULL), media_(NULL) {
+        link_(nullptr), href_(nullptr), media_(nullptr) {
   }
 
   void SetUp() override {
-    link_ = html_parse_.NewElement(NULL, HtmlName::kLink);
+    link_ = html_parse_.NewElement(nullptr, HtmlName::kLink);
     // Set up link_ to a reasonable (and legal) start state.
     html_parse_.AddAttribute(link_, HtmlName::kRel, "stylesheet");
     html_parse_.AddAttribute(link_, HtmlName::kHref, kUrl);
@@ -308,7 +308,7 @@ class RewriteDomainTransformerTest : public RewriteTestBase {
 
     for (int c = 0; pieces[c]; ++c) {
       const char* piece = pieces[c];
-      bool last_piece = (pieces[c + 1] == NULL);
+      bool last_piece = (pieces[c + 1] == nullptr);
 
       GoogleString output_piece;
       StringWriter output_writer(&output_piece);
@@ -523,7 +523,7 @@ TEST_F(RewriteDomainTransformerTest, StreamingUrlInterrupt) {
                           ".png\"",
                           ") bar u",
                           "x",
-                          NULL };
+                          nullptr };
   EXPECT_EQ("portion=, retain=u|"
             "portion=, retain=url(|"
             "portion=, retain=url(\"foo|"
@@ -538,7 +538,7 @@ TEST_F(RewriteDomainTransformerTest, StreamingOtherAtRule) {
   // when seeing it.
   const char* input[] = { "@export",
                           " \"foo.png\";",
-                          NULL };
+                          nullptr };
   EXPECT_EQ("portion=@export, retain=|"
             "portion= \"foo.png\";, retain=|",
             TransformStreaming(input));
@@ -548,7 +548,7 @@ TEST_F(RewriteDomainTransformerTest, StreamingUrlArgInterrupt) {
   const char* input[] = { "background-image:url(",
                           "foo.png",
                           ")",
-                          NULL };
+                          nullptr };
   EXPECT_EQ("portion=background-image:, retain=url(|"
             "portion=, retain=url(foo.png|"
             "portion=url(http://old-base.com/foo.png), retain=|",
@@ -562,7 +562,7 @@ TEST_F(RewriteDomainTransformerTest, StreamingImportInterrupt) {
                           " ",
                           " \"foo.css",
                           "\";",
-                          NULL };
+                          nullptr };
   EXPECT_EQ("portion=, retain=@|"
             "portion=, retain=@imp|"
             "portion=, retain=@import|"
@@ -575,7 +575,7 @@ TEST_F(RewriteDomainTransformerTest, StreamingImportInterrupt) {
 TEST_F(RewriteDomainTransformerTest, StreamingEscape) {
   const char* input[] = { "background-image: url(\"foo\\",
                           "\"bar\")",
-                          NULL };
+                          nullptr };
   EXPECT_EQ("portion=background-image: , retain=url(\"foo\\|"
             "portion=url(\"http://old-base.com/foo%22bar\"), retain=|",
             TransformStreaming(input));

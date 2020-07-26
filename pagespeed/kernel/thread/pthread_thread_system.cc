@@ -121,7 +121,7 @@ class PthreadThreadImpl : public ThreadSystem::ThreadImpl {
 #endif
 #endif
     self->wrapper_->Run();
-    return NULL;
+    return nullptr;
   }
 
   PthreadThreadSystem* thread_system_;

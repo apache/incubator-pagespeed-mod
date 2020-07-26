@@ -239,7 +239,7 @@ void LowerString(GoogleString* s) {
 // ----------------------------------------------------------------------
 int GlobalReplaceSubstring(StringPiece substring, StringPiece replacement,
                            GoogleString* s) {
-  CHECK(s != NULL);
+  CHECK(s != nullptr);
   if (s->empty())
     return 0;
   GoogleString tmp;

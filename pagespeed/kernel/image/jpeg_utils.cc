@@ -20,10 +20,10 @@
 
 #include "pagespeed/kernel/image/jpeg_utils.h"
 
-#include <setjmp.h>  // for longjmp
+#include <csetjmp>  // for longjmp
 // 'stdio.h' provides FILE for jpeglib (needed for certain builds)
 
-#include <stdio.h>
+#include <cstdio>
 
 
 #include "pagespeed/kernel/image/jpeg_reader.h"
@@ -129,13 +129,13 @@ int JpegUtils::GetImageQualityFromImage(const void* image_data,
 
   double quality_entries_sum = 0;
   double quality_entries_count = 0;
-  if (jpeg_decompress->quant_tbl_ptrs[0] != NULL) {
+  if (jpeg_decompress->quant_tbl_ptrs[0] != nullptr) {
     quality_entries_sum += ComputeQualityEntriesSum(
         jpeg_decompress->quant_tbl_ptrs[0], std_luminance_quant_tbl);
     quality_entries_count += DCTSIZE2;
   }
 
-  if (jpeg_decompress->quant_tbl_ptrs[1] != NULL) {
+  if (jpeg_decompress->quant_tbl_ptrs[1] != nullptr) {
     quality_entries_sum += ComputeQualityEntriesSum(
         jpeg_decompress->quant_tbl_ptrs[1], std_chrominance_quant_tbl);
     quality_entries_count += DCTSIZE2;

@@ -59,7 +59,7 @@ class FileSystemLockManagerTest : public testing::Test {
 
   SchedulerBasedAbstractLock* MakeLock(const StringPiece& name) {
     SchedulerBasedAbstractLock* result = manager_.CreateNamedLock(name);
-    CHECK(NULL != result) << "Creating lock " << name;
+    CHECK(nullptr != result) << "Creating lock " << name;
     EXPECT_EQ(StrCat(GTestTempDir(), "/", name), result->name());
     return result;
   }

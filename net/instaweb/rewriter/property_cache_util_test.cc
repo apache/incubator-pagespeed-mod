@@ -79,7 +79,7 @@ TEST_F(PropertyCacheUtilTest, WriteRead) {
           rewrite_driver(), dom_cohort_, kTestProp,
           -1 /*no ttl check*/, &read_status));
   EXPECT_EQ(kPropertyCacheDecodeOk, read_status);
-  ASSERT_TRUE(result.get() != NULL);
+  ASSERT_TRUE(result.get() != nullptr);
   EXPECT_STREQ("name", result->name());
   EXPECT_STREQ("value", result->value());
 }
@@ -105,7 +105,7 @@ TEST_F(PropertyCacheUtilTest, WritePersistence) {
           rewrite_driver(), dom_cohort_, kTestProp,
           -1 /*no ttl check*/, &read_status));
   EXPECT_EQ(kPropertyCacheDecodeNotFound, read_status);
-  EXPECT_TRUE(result.get() == NULL);
+  EXPECT_TRUE(result.get() == nullptr);
 
   // Now write again, but ask the routine to write out.
   write_status = UpdateInPropertyCache(
@@ -120,7 +120,7 @@ TEST_F(PropertyCacheUtilTest, WritePersistence) {
           rewrite_driver(), dom_cohort_, kTestProp,
           -1 /*no ttl check*/, &read_status));
   EXPECT_EQ(kPropertyCacheDecodeOk, read_status);
-  ASSERT_TRUE(result.get() != NULL);
+  ASSERT_TRUE(result.get() != nullptr);
   EXPECT_STREQ("name", result->name());
   EXPECT_STREQ("value", result->value());
 }
@@ -142,7 +142,7 @@ TEST_F(PropertyCacheUtilTest, DecodeExpired) {
           rewrite_driver(), dom_cohort_, kTestProp,
           100 /* ttl check */, &read_status));
   EXPECT_EQ(kPropertyCacheDecodeExpired, read_status);
-  ASSERT_TRUE(result.get() == NULL);
+  ASSERT_TRUE(result.get() == nullptr);
 }
 
 TEST_F(PropertyCacheUtilTest, DecodeMissing) {
@@ -150,7 +150,7 @@ TEST_F(PropertyCacheUtilTest, DecodeMissing) {
   std::unique_ptr<NameValue> result(
       DecodeFromPropertyCache<NameValue>(
           rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
-  EXPECT_TRUE(result.get() == NULL);
+  EXPECT_TRUE(result.get() == nullptr);
   EXPECT_EQ(kPropertyCacheDecodeNotFound, status);
 }
 
@@ -162,7 +162,7 @@ TEST_F(PropertyCacheUtilTest, DecodeError) {
   std::unique_ptr<NameValue> result(
       DecodeFromPropertyCache<NameValue>(
           rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
-  EXPECT_TRUE(result.get() == NULL);
+  EXPECT_TRUE(result.get() == nullptr);
   EXPECT_EQ(kPropertyCacheDecodeParseError, status);
 }
 

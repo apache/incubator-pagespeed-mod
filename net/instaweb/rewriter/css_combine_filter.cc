@@ -172,7 +172,7 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
 class CssCombineFilter::Context : public RewriteContext {
  public:
   Context(RewriteDriver* driver, CssCombineFilter* filter)
-      : RewriteContext(driver, NULL, NULL),
+      : RewriteContext(driver, nullptr, nullptr),
         filter_(filter),
         combiner_(driver, filter),
         new_combination_(true) {
@@ -183,7 +183,7 @@ class CssCombineFilter::Context : public RewriteContext {
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
     ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
         href->DecodedValueOrNull(), RewriteDriver::InputRole::kStyle, element));
-    if (resource.get() == NULL) {
+    if (resource.get() == nullptr) {
       return false;
     }
     ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
@@ -210,7 +210,7 @@ class CssCombineFilter::Context : public RewriteContext {
   bool Partition(OutputPartitions* partitions,
                          OutputResourceVector* outputs) override {
     MessageHandler* handler = Driver()->message_handler();
-    CachedResult* partition = NULL;
+    CachedResult* partition = nullptr;
     CHECK_EQ(static_cast<int>(elements_.size()), num_slots());
     for (int i = 0, n = num_slots(); i < n; ++i) {
       bool add_input = false;
@@ -223,9 +223,9 @@ class CssCombineFilter::Context : public RewriteContext {
         } else {
           // This new element does not work in the existing partition,
           // so close out that partition if it's non-empty.
-          if (partition != NULL) {
+          if (partition != nullptr) {
             FinalizePartition(partitions, partition, outputs);
-            partition = NULL;
+            partition = nullptr;
             if (combiner_.AddResourceNoFetch(resource, handler).value) {
               add_input = true;
             }
@@ -238,10 +238,10 @@ class CssCombineFilter::Context : public RewriteContext {
         // fetch that file, and thus we'd mangle the ordering if we combined
         // across it.
         FinalizePartition(partitions, partition, outputs);
-        partition = NULL;
+        partition = nullptr;
       }
       if (add_input) {
-        if (partition == NULL) {
+        if (partition == nullptr) {
           partition = partitions->add_partition();
         }
         resource->AddInputInfoToPartition(
@@ -314,9 +314,9 @@ class CssCombineFilter::Context : public RewriteContext {
   void FinalizePartition(OutputPartitions* partitions,
                          CachedResult* partition,
                          OutputResourceVector* outputs) {
-    if (partition != NULL) {
+    if (partition != nullptr) {
       OutputResourcePtr combination_output(combiner_.MakeOutput());
-      if (combination_output.get() == NULL) {
+      if (combination_output.get() == nullptr) {
         partitions->mutable_partition()->RemoveLast();
       } else {
         combination_output->UpdateCachedResultPreservingInputInfo(partition);
@@ -465,7 +465,7 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
     }
     // We cannot combine with a link in <noscript> tag and we cannot combine
     // over a link in a <noscript> tag, so this is a barrier.
-    if (noscript_element() != NULL) {
+    if (noscript_element() != nullptr) {
       NextCombination("noscript");
       return;
     }

@@ -44,7 +44,7 @@ void LRUCache::Get(const GoogleString& key, Callback* callback) {
   }
   KeyState key_state = kNotFound;
   SharedString* value = base_.GetFreshen(key);
-  if (value != NULL) {
+  if (value != nullptr) {
     key_state = kAvailable;
     callback->set_value(*value);
   }

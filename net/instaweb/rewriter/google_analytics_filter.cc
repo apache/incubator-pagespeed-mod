@@ -98,8 +98,8 @@ GoogleAnalyticsFilter::GoogleAnalyticsFilter(
     : glue_methods_(new MethodVector),
       unhandled_methods_(new MethodVector),
       html_parse_(html_parse),
-      script_element_(NULL),
-      script_characters_node_(NULL),
+      script_element_(nullptr),
+      script_characters_node_(nullptr),
       page_load_count_(stats->GetVariable(kPageLoadCount)),
       rewritten_count_(stats->GetVariable(kRewrittenCount)) {
   // The following are the methods that need to be forwarded to the asyn
@@ -194,11 +194,11 @@ GoogleAnalyticsFilter::GoogleAnalyticsFilter(
     : glue_methods_(glue_methods),
       unhandled_methods_(unhandled_methods),
       html_parse_(html_parse),
-      script_element_(NULL),
-      script_characters_node_(NULL),
-      page_load_count_((stats == NULL) ? NULL :
+      script_element_(nullptr),
+      script_characters_node_(nullptr),
+      page_load_count_((stats == nullptr) ? nullptr :
                        stats->GetVariable(kPageLoadCount)),
-      rewritten_count_((stats == NULL) ? NULL :
+      rewritten_count_((stats == nullptr) ? nullptr :
                        stats->GetVariable(kRewrittenCount))
     { }
 
@@ -233,7 +233,7 @@ void GoogleAnalyticsFilter::EndDocument() {
 
 void GoogleAnalyticsFilter::StartElement(HtmlElement* element) {
   // No tags allowed inside script element.
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     html_parse_->ErrorHere("Google Analytics reset: Tag '%s' found inside "
                            "script.", CEscape(element->name_str()).c_str());
     ResetFilter();
@@ -244,7 +244,7 @@ void GoogleAnalyticsFilter::StartElement(HtmlElement* element) {
 }
 
 void GoogleAnalyticsFilter::EndElement(HtmlElement* element) {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     if (element != script_element_) {
       html_parse_->ErrorHere("Google Analytics reset: Unexpected tag '%s' "
                              "inside a script.",
@@ -252,22 +252,22 @@ void GoogleAnalyticsFilter::EndElement(HtmlElement* element) {
       ResetFilter();
     } else {
       FindRewritableScripts();
-      script_element_ = NULL;
-      script_characters_node_ = NULL;
+      script_element_ = nullptr;
+      script_characters_node_ = nullptr;
     }
   }
 }
 
 void GoogleAnalyticsFilter::Flush() {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     html_parse_->InfoHere("Google Analytics reset: flush in a script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::Characters(HtmlCharactersNode* characters_node) {
-  if (script_element_ != NULL) {
-    if (script_characters_node_ == NULL) {
+  if (script_element_ != nullptr) {
+    if (script_characters_node_ == nullptr) {
       script_characters_node_ = characters_node;
     } else {
       html_parse_->ErrorHere("Google Analytics reset: multiple character "
@@ -278,7 +278,7 @@ void GoogleAnalyticsFilter::Characters(HtmlCharactersNode* characters_node) {
 }
 
 void GoogleAnalyticsFilter::Comment(HtmlCommentNode* comment) {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     html_parse_->InfoHere("Google Analytics reset: comment found inside "
                           "script.");
     ResetFilter();
@@ -286,14 +286,14 @@ void GoogleAnalyticsFilter::Comment(HtmlCommentNode* comment) {
 }
 
 void GoogleAnalyticsFilter::Cdata(HtmlCdataNode* cdata) {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     html_parse_->InfoHere("Google Analytics reset: CDATA found inside script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::IEDirective(HtmlIEDirectiveNode* directive) {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     html_parse_->ErrorHere("Google Analytics reset: IE Directive found "
                            "inside script.");
     ResetFilter();
@@ -301,8 +301,8 @@ void GoogleAnalyticsFilter::IEDirective(HtmlIEDirectiveNode* directive) {
 }
 
 void GoogleAnalyticsFilter::ResetFilter() {
-  script_element_ = NULL;
-  script_characters_node_ = NULL;
+  script_element_ = nullptr;
+  script_characters_node_ = nullptr;
   is_init_found_ = false;
   is_load_found_ = false;
   STLDeleteContainerPointers(script_editors_.begin(),
@@ -405,7 +405,7 @@ void GoogleAnalyticsFilter::FindRewritableScripts() {
             GoogleString::npos, GoogleString::npos,
             ScriptEditor::kGaJsScriptSrcLoad));
       }
-    } else if (script_characters_node_ != NULL) {
+    } else if (script_characters_node_ != nullptr) {
       StringPiece contents = script_characters_node_->contents();
       if (!contents.empty()) {
         GoogleString::size_type start_pos = 0;

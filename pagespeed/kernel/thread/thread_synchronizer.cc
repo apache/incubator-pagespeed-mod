@@ -112,7 +112,7 @@ ThreadSynchronizer::SyncPoint* ThreadSynchronizer::GetSyncPoint(
     const GoogleString& key) {
   ScopedMutex lock(map_mutex_.get());
   SyncPoint* sync_point = sync_map_[key];
-  if (sync_point == NULL) {
+  if (sync_point == nullptr) {
     sync_point = new SyncPoint(thread_system_, key);
     sync_map_[key] = sync_point;
   }

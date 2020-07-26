@@ -21,6 +21,8 @@
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
@@ -259,16 +261,16 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
         file_system_(thread_system_.get(), &timer_),
         lock_manager_(&file_system_, GTestTempDir(), &scheduler_, &handler_) {
     HTTPCache::InitStats(&statistics_);
-    http_cache_.reset(new HTTPCache(&lru_cache_, &timer_, &mock_hasher_,
-                                    &statistics_));
-    cache_fetcher_.reset(
-        new CacheUrlAsyncFetcher(
+    http_cache_ = std::make_unique<HTTPCache>(&lru_cache_, &timer_, &mock_hasher_,
+                                    &statistics_);
+    cache_fetcher_ = std::make_unique<CacheUrlAsyncFetcher>(
+        
             &mock_hasher_,
             &lock_manager_,
             http_cache_.get(),
             fragment_,
             &mock_async_op_hooks_,
-            &counting_fetcher_));
+            &counting_fetcher_);
     // Enable serving of stale content if the fetch fails.
     cache_fetcher_->set_serve_stale_if_fetch_error(true);
 
@@ -411,7 +413,7 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
     fetch_response_headers.set_implicit_cache_ttl_ms(implicit_cache_ttl_ms_);
     MockFetch* fetch = new MockFetch(
         RequestContextPtr(new RequestContext(
-            http_options_, thread_system_->NewMutex(), NULL)),
+            http_options_, thread_system_->NewMutex(), nullptr)),
         &fetch_content, &fetch_done, &fetch_success, &is_cacheable);
     fetch->set_cache_result_valid(cache_result_valid_);
     fetch->request_headers()->CopyFrom(request_headers);
@@ -1706,7 +1708,7 @@ TEST_F(CacheUrlAsyncFetcherTest, NotInCache) {
       http_cache_.get(),
       fragment_,
       &mock_async_op_hooks_,
-      NULL);
+      nullptr);
   StringAsyncFetch fetch(
       RequestContext::NewTestRequestContext(thread_system_.get()));
   // Note: nocache_url_ is not even in the cache.
@@ -1726,7 +1728,7 @@ TEST_F(CacheUrlAsyncFetcherTest, NotInCachePost) {
       http_cache_.get(),
       fragment_,
       &mock_async_op_hooks_,
-      NULL);
+      nullptr);
   StringAsyncFetch fetch(
       RequestContext::NewTestRequestContext(thread_system_.get()));
   fetch.request_headers()->set_method(RequestHeaders::kPost);

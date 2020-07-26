@@ -40,12 +40,12 @@ size_t NullSharedMem::SharedMutexSize() const {
 AbstractSharedMemSegment* NullSharedMem::CreateSegment(
     const GoogleString& name, size_t size, MessageHandler* handler) {
   handler->MessageS(kWarning, "Using null shared memory runtime.");
-  return NULL;
+  return nullptr;
 }
 
 AbstractSharedMemSegment* NullSharedMem::AttachToSegment(
     const GoogleString& name, size_t size, MessageHandler* handler) {
-  return NULL;
+  return nullptr;
 }
 
 void NullSharedMem::DestroySegment(const GoogleString& name,

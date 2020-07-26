@@ -21,6 +21,8 @@
 #include "net/instaweb/rewriter/public/in_place_rewrite_context.h"
 
 #include <algorithm>
+#include <memory>
+
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -107,7 +109,7 @@ void RecordingFetch::HandleHeadersComplete() {
   streaming_ = ShouldStream();
   if (can_in_place_rewrite_) {
     // Save the headers, and wait to finalize them in HandleDone().
-    saved_headers_.reset(new ResponseHeaders(*response_headers()));
+    saved_headers_ = std::make_unique<ResponseHeaders>(*response_headers());
     if (streaming_) {
       if (response_headers()->status_code() == HttpStatus::kOK) {
         if (desired_s_maxage_sec_ != -1) {
@@ -136,7 +138,7 @@ void RecordingFetch::HandleHeadersComplete() {
       // fetch, since the CacheUrlAsyncFetcher will still be trying to write
       // to us.
       streaming_ = false;
-      set_request_headers(NULL);
+      set_request_headers(nullptr);
       // If we cannot rewrite in-place, we should not serve a 200/OK.  Serve
       // kNotInCacheStatus instead to fall back to the server's native method of
       // serving the url and indicate we do want it recorded.
@@ -148,8 +150,8 @@ void RecordingFetch::HandleHeadersComplete() {
         response_headers()->set_status_code(
             CacheUrlAsyncFetcher::kNotInCacheStatus);
       }
-      set_response_headers(NULL);
-      set_extra_response_headers(NULL);
+      set_response_headers(nullptr);
+      set_extra_response_headers(nullptr);
       SharedAsyncFetch::HandleDone(false);
     }
   }
@@ -213,7 +215,7 @@ void RecordingFetch::HandleDone(bool success) {
     const char* original_content_length_hdr = extra_response_headers()->Lookup1(
         HttpAttributes::kXOriginalContentLength);
     int64 ocl;
-    if (original_content_length_hdr != NULL &&
+    if (original_content_length_hdr != nullptr &&
         StringToInt64(original_content_length_hdr, &ocl)) {
       saved_headers_->SetOriginalContentLength(ocl);
     }
@@ -251,7 +253,7 @@ bool RecordingFetch::CanInPlaceRewrite() {
   }
 
   const ContentType* type = response_headers()->DetermineContentType();
-  if (type == NULL) {
+  if (type == nullptr) {
     VLOG(2) << "CanInPlaceRewrite false. Content-Type is not defined. Url: "
             << resource_->url();
     return false;
@@ -285,7 +287,7 @@ bool RecordingFetch::CanInPlaceRewrite() {
 
 InPlaceRewriteContext::InPlaceRewriteContext(RewriteDriver* driver,
                                        const StringPiece& url)
-    : SingleRewriteContext(driver, NULL, new ResourceContext),
+    : SingleRewriteContext(driver, nullptr, new ResourceContext),
       url_(url.data(), url.size()),
       is_rewritten_(true),
       proxy_mode_(true) {
@@ -329,7 +331,7 @@ void InPlaceRewriteContext::Harvest() {
               << nested_resource->url();
       partition->set_url(nested_resource->url());
       partition->set_optimizable(true);
-      CHECK(nested_partition != NULL);
+      CHECK(nested_partition != nullptr);
       // TODO(jmaessen): Does any more state need to find its way into the
       // enclosing CachedResult from the nested one?
       if (nested_partition->has_optimized_image_type()) {
@@ -378,7 +380,7 @@ void InPlaceRewriteContext::FetchTryFallback(const GoogleString& url,
                                           const StringPiece& hash) {
   const char* request_etag = async_fetch()->request_headers()->Lookup1(
       HttpAttributes::kIfNoneMatch);
-  if (request_etag != NULL && !hash.empty() &&
+  if (request_etag != nullptr && !hash.empty() &&
       (HTTPCache::FormatEtag(StrCat(id(), "-", hash)) == request_etag)) {
     // Serve out a 304.
     async_fetch()->response_headers()->Clear();
@@ -520,7 +522,7 @@ RewriteFilter* InPlaceRewriteContext::GetRewriteFilter(
     // shouldn't do inter-conversion since we can't change the file extension.
     return Driver()->FindFilter(RewriteOptions::kImageCompressionId);
   }
-  return NULL;
+  return nullptr;
 }
 
 void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
@@ -528,15 +530,15 @@ void InPlaceRewriteContext::RewriteSingle(const ResourcePtr& input,
   input_resource_ = input;
   output_resource_ = output;
   input->DetermineContentType();
-  if (input->type() != NULL && input->IsSafeToRewrite(rewrite_uncacheable())) {
+  if (input->type() != nullptr && input->IsSafeToRewrite(rewrite_uncacheable())) {
     const ContentType* type = input->type();
     RewriteFilter* filter = GetRewriteFilter(*type);
-    if (filter != NULL) {
+    if (filter != nullptr) {
       ResourceSlotPtr in_place_slot(
           new InPlaceRewriteResourceSlot(slot(0)->resource()));
       RewriteContext* context = filter->MakeNestedRewriteContext(
           this, in_place_slot);
-      if (context != NULL) {
+      if (context != nullptr) {
         AddNestedContext(context);
         // Propagate the uncacheable resource rewriting settings.
         context->set_rewrite_uncacheable(rewrite_uncacheable());
@@ -793,7 +795,7 @@ void InPlaceRewriteContext::AddVaryIfRequired(
 
 GoogleString InPlaceRewriteContext::UserAgentCacheKey(
     const ResourceContext* resource_context) const {
-  if (InPlaceOptimizeForBrowserEnabled() && resource_context != NULL) {
+  if (InPlaceOptimizeForBrowserEnabled() && resource_context != nullptr) {
     return ImageUrlEncoder::CacheKeyFromResourceContext(*resource_context);
   }
   return "";
@@ -821,19 +823,19 @@ void InPlaceRewriteContext::EncodeUserAgentIntoResourceContext(
   // dealing with possible mobile user agents,
   // which requires a different set of vary: headers.
   const ContentType* type = NameExtensionToContentType(url_);
-  if (type == NULL) {
+  if (type == nullptr) {
     // Get ImageRewriteFilter with any image type.
     RewriteFilter* filter = GetRewriteFilter(kContentTypeJpeg);
-    if (filter != NULL) {
+    if (filter != nullptr) {
       filter->EncodeUserAgentIntoResourceContext(context);
     }
     filter = GetRewriteFilter(kContentTypeCss);
-    if (filter != NULL) {
+    if (filter != nullptr) {
       filter->EncodeUserAgentIntoResourceContext(context);
     }
   } else if (type->IsImage() || type->IsCss()) {
     RewriteFilter* filter = GetRewriteFilter(*type);
-    if (filter != NULL) {
+    if (filter != nullptr) {
       filter->EncodeUserAgentIntoResourceContext(context);
     }
   }

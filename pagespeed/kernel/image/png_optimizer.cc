@@ -20,6 +20,10 @@
 
 #include "pagespeed/kernel/image/png_optimizer.h"
 
+
+#include <memory>
+
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -190,24 +194,24 @@ PngCompressParams::~PngCompressParams() {
 
 ScopedPngStruct::ScopedPngStruct(Type type,
     MessageHandler* handler)
-  : png_ptr_(NULL),
-    info_ptr_(NULL),
+  : png_ptr_(nullptr),
+    info_ptr_(nullptr),
     type_(type),
     message_handler_(handler) {
   DCHECK(type == READ || type == WRITE);
   switch (type) {
     case READ:
       png_ptr_ = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-                                        NULL, NULL, NULL);
+                                        nullptr, nullptr, nullptr);
       break;
     case WRITE:
       png_ptr_ = png_create_write_struct(PNG_LIBPNG_VER_STRING,
-                                         NULL, NULL, NULL);
+                                         nullptr, nullptr, nullptr);
       break;
     default:
       PS_LOG_DFATAL(handler, "Invalid type");
   }
-  if (png_ptr_ != NULL) {
+  if (png_ptr_ != nullptr) {
     info_ptr_ = png_create_info_struct(png_ptr_);
   }
 
@@ -218,13 +222,13 @@ ScopedPngStruct::ScopedPngStruct(Type type,
 bool ScopedPngStruct::reset() {
   DCHECK(type_ == READ || type_ == WRITE);
   if (type_ == READ) {
-    png_destroy_read_struct(&png_ptr_, &info_ptr_, NULL);
+    png_destroy_read_struct(&png_ptr_, &info_ptr_, nullptr);
     png_ptr_ = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-                                      NULL, NULL, NULL);
+                                      nullptr, nullptr, nullptr);
   } else {
     png_destroy_write_struct(&png_ptr_, &info_ptr_);
     png_ptr_ = png_create_write_struct(PNG_LIBPNG_VER_STRING,
-                                       NULL, NULL, NULL);
+                                       nullptr, nullptr, nullptr);
   }
 
   if (setjmp(png_jmpbuf(png_ptr_))) {
@@ -232,7 +236,7 @@ bool ScopedPngStruct::reset() {
     return false;
   }
 
-  if (png_ptr_ != NULL) {
+  if (png_ptr_ != nullptr) {
     info_ptr_ = png_create_info_struct(png_ptr_);
   }
 
@@ -244,7 +248,7 @@ bool ScopedPngStruct::reset() {
 ScopedPngStruct::~ScopedPngStruct() {
   switch (type_) {
     case READ:
-      png_destroy_read_struct(&png_ptr_, &info_ptr_, NULL);
+      png_destroy_read_struct(&png_ptr_, &info_ptr_, nullptr);
       break;
     case WRITE:
       png_destroy_write_struct(&png_ptr_, &info_ptr_);
@@ -393,7 +397,7 @@ bool PngReader::ReadPng(const GoogleString& body,
       return false;
     }
     png_set_read_fn(png_ptr, &input, &ReadPngFromStream);
-    png_read_png(png_ptr, info_ptr, transforms, NULL);
+    png_read_png(png_ptr, info_ptr, transforms, nullptr);
 
     if (require_opaque &&
         ((transforms & PNG_TRANSFORM_STRIP_ALPHA) == 0)) {
@@ -507,7 +511,7 @@ bool PngOptimizer::WritePng(ScopedPngStruct* write, GoogleString* buffer) {
   }
   png_set_write_fn(write->png_ptr(), buffer, &WritePngToString, &PngFlush);
   png_write_png(
-      write->png_ptr(), write->info_ptr(), PNG_TRANSFORM_IDENTITY, NULL);
+      write->png_ptr(), write->info_ptr(), PNG_TRANSFORM_IDENTITY, nullptr);
 
   return true;
 }
@@ -596,7 +600,7 @@ bool PngReaderInterface::IsAlphaChannelOpaque(
     return false;
   }
   png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type,
-               NULL, NULL, NULL);
+               nullptr, nullptr, nullptr);
 
   if ((color_type & PNG_COLOR_MASK_ALPHA) == 0) {
     // Image doesn't have alpha.
@@ -926,9 +930,9 @@ ScanlineStatus PngScanlineReaderRaw::InitializeWithStatus(
                             "Reset()");
   }
 
-  png_struct_.reset(new ScopedPngStruct(ScopedPngStruct::READ,
-                                        message_handler_));
-  if (png_struct_ == NULL) {
+  png_struct_ = std::make_unique<ScopedPngStruct>(ScopedPngStruct::READ,
+                                        message_handler_);
+  if (png_struct_ == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                             SCANLINE_STATUS_MEMORY_ERROR,
                             SCANLINE_PNGREADERRAW,
@@ -936,9 +940,9 @@ ScanlineStatus PngScanlineReaderRaw::InitializeWithStatus(
   }
 
   // Allocate and initialize png_input_, if that has not been done.
-  if (png_input_ == NULL) {
-    png_input_.reset(new ScanlineStreamInput(message_handler_));
-    if (png_input_ == NULL) {
+  if (png_input_ == nullptr) {
+    png_input_ = std::make_unique<ScanlineStreamInput>(message_handler_);
+    if (png_input_ == nullptr) {
       return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                               SCANLINE_STATUS_MEMORY_ERROR,
                               SCANLINE_PNGREADERRAW,
@@ -973,7 +977,7 @@ ScanlineStatus PngScanlineReaderRaw::InitializeWithStatus(
   int32 bit_depth, color_type, interlace_type;
   png_read_info(png_ptr, info_ptr);
   const int ok = png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
-                              &color_type, &interlace_type, NULL, NULL);
+                              &color_type, &interlace_type, nullptr, nullptr);
   if (ok == 0) {
     png_struct_.reset();
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
@@ -1088,10 +1092,10 @@ ScanlineStatus PngScanlineReaderRaw::ReadNextScanlineWithStatus(
       // For a progressive PNG, we have to decode the entire image before
       // rendering any row. So at the first time when ReadNextScanline()
       // is called, we decode the entire image into image_buffer_.
-      if (image_buffer_ != NULL) {
+      if (image_buffer_ != nullptr) {
         // Initialize an array of pointers, which specify the address of rows.
         row_pointers_.reset(new png_bytep[height_]);
-        if (row_pointers_ == NULL) {
+        if (row_pointers_ == nullptr) {
           Reset();
           return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                                   SCANLINE_STATUS_MEMORY_ERROR,
@@ -1106,7 +1110,7 @@ ScanlineStatus PngScanlineReaderRaw::ReadNextScanlineWithStatus(
         png_read_image(png_ptr, row_pointers_.get());
       }
     }
-    if (image_buffer_ == NULL) {
+    if (image_buffer_ == nullptr) {
       Reset();
       return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler_,
                               SCANLINE_STATUS_MEMORY_ERROR,
@@ -1117,7 +1121,7 @@ ScanlineStatus PngScanlineReaderRaw::ReadNextScanlineWithStatus(
 
   if (!is_progressive_) {
     // For a non-progressive PNG, we decode the image a row at a time.
-    png_read_row(png_ptr, image_buffer_.get(), NULL);
+    png_read_row(png_ptr, image_buffer_.get(), nullptr);
     *out_scanline_bytes = static_cast<void*>(image_buffer_.get());
   } else {
     // For a progressive PNG, we simply point the output to the corresponding
@@ -1155,7 +1159,7 @@ bool PngScanlineWriter::Reset() {
 
 bool PngScanlineWriter::Validate(const PngCompressParams* params,
                                  GoogleString* png_image) {
-  if (params != NULL) {
+  if (params != nullptr) {
     // PNG_NO_FILTERS == 0
     // PNG_ALL_FILTERS == (PNG_FILTER_NONE | PNG_FILTER_SUB | PNG_FILTER_UP |
     //                     PNG_FILTER_AVG | PNG_FILTER_PAETH)
@@ -1181,7 +1185,7 @@ bool PngScanlineWriter::Validate(const PngCompressParams* params,
     }
   }
 
-  if (png_image == NULL) {
+  if (png_image == nullptr) {
     PS_LOG_DFATAL(message_handler_, "Output PNG image cannot be NULL.");
     return false;
   }
@@ -1198,10 +1202,10 @@ ScanlineStatus PngScanlineWriter::InitWithStatus(const size_t width,
                             SCANLINE_PNGWRITER, "Reset()");
   }
 
-  if (png_struct_ == NULL) {
-    png_struct_.reset(new ScopedPngStruct(ScopedPngStruct::WRITE,
-                                          message_handler_));
-    if (png_struct_ == NULL) {
+  if (png_struct_ == nullptr) {
+    png_struct_ = std::make_unique<ScopedPngStruct>(ScopedPngStruct::WRITE,
+                                          message_handler_);
+    if (png_struct_ == nullptr) {
       return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                               SCANLINE_STATUS_MEMORY_ERROR,
                               SCANLINE_PNGWRITER,
@@ -1338,7 +1342,7 @@ ScanlineStatus PngScanlineWriter::FinalizeWriteWithStatus() {
   png_set_rows(png_struct_->png_ptr(), png_struct_->info_ptr(),
                row_pointers.get());
   png_write_png(png_struct_->png_ptr(), png_struct_->info_ptr(),
-                PNG_TRANSFORM_IDENTITY, NULL);
+                PNG_TRANSFORM_IDENTITY, nullptr);
 
   if (try_best_compression_) {
     if (!DoBestCompression()) {
@@ -1367,7 +1371,7 @@ bool PngScanlineWriter::DoBestCompression() {
 
   png_set_read_fn(png_read.png_ptr(), &png_input, &ReadPngFromStream);
   png_read_png(png_read.png_ptr(), png_read.info_ptr(), PNG_TRANSFORM_IDENTITY,
-               NULL);
+               nullptr);
   opng_reduce_image(png_read.png_ptr(), png_read.info_ptr(), OPNG_REDUCE_ALL);
 
   int min_size = png_image->length();
@@ -1393,7 +1397,7 @@ bool PngScanlineWriter::DoBestCompression() {
     png_set_write_fn(png_write.png_ptr(), &recompressed_image,
                      &WritePngToString, &PngFlush);
     png_write_png(png_write.png_ptr(), png_write.info_ptr(),
-                  PNG_TRANSFORM_IDENTITY, NULL);
+                  PNG_TRANSFORM_IDENTITY, nullptr);
 
     int recompressed_length = recompressed_image.length();
     if (min_size > recompressed_length) {

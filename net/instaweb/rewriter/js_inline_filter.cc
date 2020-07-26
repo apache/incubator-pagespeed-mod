@@ -103,7 +103,7 @@ void JsInlineFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* src;
   if (script_tag_scanner_.ParseScriptElement(element, &src) ==
       ScriptTagScanner::kJavaScript) {
-    should_inline_ = (src != NULL) && (src->DecodedValueOrNull() != NULL);
+    should_inline_ = (src != nullptr) && (src->DecodedValueOrNull() != nullptr);
   }
 }
 
@@ -111,9 +111,9 @@ void JsInlineFilter::EndElementImpl(HtmlElement* element) {
   if (should_inline_ && driver()->IsRewritable(element)) {
     DCHECK(element->keyword() == HtmlName::kScript);
     HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kSrc);
-    CHECK(attr != NULL);
+    CHECK(attr != nullptr);
     const char* src = attr->DecodedValueOrNull();
-    DCHECK(src != NULL) << "should_inline_ should be false if attr val is null";
+    DCHECK(src != nullptr) << "should_inline_ should be false if attr val is null";
 
     // StartInlining() transfers ownership of ctx to RewriteDriver, or deletes
     // it on failure.
@@ -247,7 +247,7 @@ void JsInlineFilter::RenderInline(
 void JsInlineFilter::Characters(HtmlCharactersNode* characters) {
   if (should_inline_) {
     HtmlElement* script_element = characters->parent();
-    DCHECK(script_element != NULL);
+    DCHECK(script_element != nullptr);
     DCHECK_EQ(HtmlName::kScript, script_element->keyword());
     if (driver()->IsRewritable(script_element) &&
         OnlyWhitespace(characters->contents())) {

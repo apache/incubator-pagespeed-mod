@@ -103,7 +103,7 @@ ThreadSystem::ThreadId* NullThreadSystem::GetThreadId() const {
 ThreadSystem::ThreadImpl* NullThreadSystem::NewThreadImpl(Thread* wrapper,
                                                           ThreadFlags flags) {
   LOG(FATAL) << "Creating threads in null thread system not supported";
-  return NULL;
+  return nullptr;
 }
 
 NullCondvar::~NullCondvar() {
@@ -113,14 +113,14 @@ NullCondvar::~NullCondvar() {
   }
   // If caller set a callback for TimedWait() then they should also have
   // called TimedWait().
-  CHECK(timed_wait_callback_ == NULL);
+  CHECK(timed_wait_callback_ == nullptr);
 }
 
 void NullCondvar::TimedWait(int64 timeout_ms) {
   actions_.push_back(StrCat("TimedWait(", IntegerToString(timeout_ms), ")"));
-  if (timed_wait_callback_ != NULL) {
+  if (timed_wait_callback_ != nullptr) {
     timed_wait_callback_->Call();
-    timed_wait_callback_ = NULL;
+    timed_wait_callback_ = nullptr;
   }
 }
 

@@ -189,8 +189,8 @@ void DebugFilter::EndElement(HtmlElement* element) {
     // if so, use the original src.
     HtmlElement::Attribute* src;
     if ((src = element->FindAttribute(HtmlName::kDataPagespeedLazySrc)) !=
-            NULL ||
-        (src = element->FindAttribute(HtmlName::kSrc)) != NULL) {
+            nullptr ||
+        (src = element->FindAttribute(HtmlName::kSrc)) != nullptr) {
       GoogleUrl gurl(driver_->base_url(),
                      StringPiece(src->DecodedValueOrNull()));
       GoogleString url_str = gurl.UncheckedSpec().as_string();

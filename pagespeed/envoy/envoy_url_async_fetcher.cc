@@ -62,7 +62,7 @@ EnvoyUrlAsyncFetcher::EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thre
                                            Statistics* statistics, Timer* timer, int64 timeout_ms,
                                            MessageHandler* handler)
     : fetchers_count_(0), shutdown_(false), track_original_content_length_(false), byte_count_(0),
-      thread_system_(thread_system), message_handler_(handler), mutex_(NULL) {
+      thread_system_(thread_system), message_handler_(handler), mutex_(nullptr) {
   if (!Init()) {
     shutdown_ = true;
     message_handler_->Message(kError, "EnvoyUrlAsyncFetcher failed to init, fetching disabled.");

@@ -58,11 +58,11 @@ const char kEmptyValuePlaceholder[] = "\n";
 CriticalImagesInfo* CriticalImagesInfoFromPropertyValue(
     int percent_seen_for_critical,
     const PropertyValue* property_value) {
-  DCHECK(property_value != NULL);
+  DCHECK(property_value != nullptr);
   std::unique_ptr<CriticalImagesInfo> info(new CriticalImagesInfo());
   if (!CriticalImagesFinder::PopulateCriticalImagesFromPropertyValue(
           property_value, &info->proto)) {
-    return NULL;
+    return nullptr;
   }
   // Fill in map fields based on proto value so that image lookups are O(lg n).
   GetCriticalKeysFromProto(percent_seen_for_critical,
@@ -152,7 +152,7 @@ bool CriticalImagesFinder::GetRenderedImageDimensions(
     std::pair<int32, int32>* dimensions) {
   UpdateCriticalImagesSetInDriver(driver);
   const CriticalImagesInfo* info = driver->critical_images_info();
-  CHECK(info != NULL);
+  CHECK(info != nullptr);
   RenderedImageDimensionsMap::const_iterator iterator =
       info->rendered_images_map.find(
           GetKeyForUrl(image_src_gurl.spec_c_str()));
@@ -167,7 +167,7 @@ const StringSet& CriticalImagesFinder::GetHtmlCriticalImages(
     RewriteDriver* driver) {
   UpdateCriticalImagesSetInDriver(driver);
   const CriticalImagesInfo* info = driver->critical_images_info();
-  CHECK(info != NULL);
+  CHECK(info != nullptr);
 
   return info->html_critical_images;
 }
@@ -176,17 +176,17 @@ const StringSet& CriticalImagesFinder::GetCssCriticalImages(
     RewriteDriver* driver) {
   UpdateCriticalImagesSetInDriver(driver);
   const CriticalImagesInfo* info = driver->critical_images_info();
-  CHECK(info != NULL);
+  CHECK(info != nullptr);
 
   return info->css_critical_images;
 }
 
 StringSet* CriticalImagesFinder::mutable_html_critical_images(
     RewriteDriver* driver) {
-  DCHECK(driver != NULL);
+  DCHECK(driver != nullptr);
   CriticalImagesInfo* driver_info = driver->critical_images_info();
   // Preserve CSS critical images if they have been updated already.
-  if (driver_info == NULL) {
+  if (driver_info == nullptr) {
     driver_info = new CriticalImagesInfo;
     driver->set_critical_images_info(driver_info);
   }
@@ -195,10 +195,10 @@ StringSet* CriticalImagesFinder::mutable_html_critical_images(
 
 StringSet* CriticalImagesFinder::mutable_css_critical_images(
     RewriteDriver* driver) {
-  DCHECK(driver != NULL);
+  DCHECK(driver != nullptr);
   CriticalImagesInfo* driver_info = driver->critical_images_info();
   // Preserve CSS critical images if they have been updated already.
-  if (driver_info == NULL) {
+  if (driver_info == nullptr) {
     driver_info = new CriticalImagesInfo;
     driver->set_critical_images_info(driver_info);
   }
@@ -212,19 +212,19 @@ StringSet* CriticalImagesFinder::mutable_css_critical_images(
 void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
     RewriteDriver* driver) {
   // Don't update critical_images_info if it's already been set.
-  if (driver->critical_images_info() != NULL) {
+  if (driver->critical_images_info() != nullptr) {
     return;
   }
-  CriticalImagesInfo* info = NULL;
+  CriticalImagesInfo* info = nullptr;
   // Fallback properties can be used for critical images.
   AbstractPropertyPage* page = driver->fallback_property_page();
-  if (page != NULL && cohort() != NULL) {
+  if (page != nullptr && cohort() != nullptr) {
     PropertyValue* property_value = page->GetProperty(
         cohort(), kCriticalImagesPropertyName);
     info = ExtractCriticalImagesFromCache(driver, property_value);
-    if (info != NULL) {
+    if (info != nullptr) {
       info->is_critical_image_info_present = true;
-      if (driver->request_context().get() != NULL) {
+      if (driver->request_context().get() != nullptr) {
         driver->log_record()->SetNumHtmlCriticalImages(
             info->html_critical_images.size());
         driver->log_record()->SetNumCssCriticalImages(
@@ -235,7 +235,7 @@ void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
 
   // Store an empty CriticalImagesInfo back into the driver if we don't have any
   // beacon results yet.
-  if (info == NULL) {
+  if (info == nullptr) {
     info = new CriticalImagesInfo;
   }
 
@@ -243,7 +243,7 @@ void CriticalImagesFinder::UpdateCriticalImagesSetInDriver(
       RewriteOptions::kResizeToRenderedImageDimensions)) {
     std::unique_ptr<RenderedImages> rendered_images(
         ExtractRenderedImageDimensionsFromCache(driver));
-    if (rendered_images != NULL) {
+    if (rendered_images != nullptr) {
       SetupRenderedImageDimensionsMap(*rendered_images,
                                       &info->rendered_images_map);
     }
@@ -262,7 +262,7 @@ bool CriticalImagesFinder::UpdateCriticalImagesCacheEntryFromDriver(
   AbstractPropertyPage* page = driver->fallback_property_page();
   return UpdateCriticalImagesCacheEntry(
       html_critical_images_set, css_critical_images_set,
-      NULL /* RenderedImages Proto */,
+      nullptr /* RenderedImages Proto */,
       SupportInterval(), cohort(), page);
 }
 
@@ -272,8 +272,8 @@ bool CriticalImagesFinder::UpdateCriticalImagesCacheEntryFromDriver(
 bool CriticalImagesFinder::PopulateCriticalImagesFromPropertyValue(
     const PropertyValue* property_value,
     CriticalImages* critical_images) {
-  DCHECK(property_value != NULL);
-  DCHECK(critical_images != NULL);
+  DCHECK(property_value != nullptr);
+  DCHECK(critical_images != nullptr);
   if (!property_value->has_value()) {
     return false;
   }
@@ -299,10 +299,10 @@ bool CriticalImagesFinder::UpdateCriticalImagesCacheEntry(
     AbstractPropertyPage* page) {
   // Update property cache if above the fold critical images are successfully
   // determined.
-  if (page == NULL) {
+  if (page == nullptr) {
     return false;
   }
-  if (cohort == NULL) {
+  if (cohort == nullptr) {
     LOG(WARNING) << "Critical Images Cohort is NULL.";
     return false;
   }
@@ -326,7 +326,7 @@ bool CriticalImagesFinder::UpdateAndWriteBackCriticalImagesCacheEntry(
     AbstractPropertyPage* page,
     CriticalImages* critical_images) {
   // Update RenderedImages proto in property Cache.
-  if (rendered_images_set != NULL) {
+  if (rendered_images_set != nullptr) {
     UpdateInPropertyCache(
         *rendered_images_set, cohort, kRenderedImageDimensionsProperty,
         false /* don't write cohort */, page);
@@ -359,15 +359,15 @@ bool CriticalImagesFinder::UpdateCriticalImages(
     const StringSet* css_critical_images,
     int support_interval,
     CriticalImages* critical_images) {
-  DCHECK(critical_images != NULL);
-  if (html_critical_images != NULL) {
+  DCHECK(critical_images != nullptr);
+  if (html_critical_images != nullptr) {
     UpdateCriticalKeys(
         false /* require_prior_support */,
         *html_critical_images,
         support_interval,
         critical_images->mutable_html_critical_image_support());
   }
-  if (css_critical_images != NULL) {
+  if (css_critical_images != nullptr) {
     UpdateCriticalKeys(
         false /* require_prior_support */,
         *css_critical_images,
@@ -375,7 +375,7 @@ bool CriticalImagesFinder::UpdateCriticalImages(
         critical_images->mutable_css_critical_image_support());
   }
   // We updated if either StringSet* was set.
-  return (html_critical_images != NULL || css_critical_images != NULL);
+  return (html_critical_images != nullptr || css_critical_images != nullptr);
 }
 
 RenderedImages* CriticalImagesFinder::ExtractRenderedImageDimensionsFromCache(
@@ -404,12 +404,12 @@ RenderedImages* CriticalImagesFinder::JsonMapToRenderedImagesMap(
     Json::Value json_rendered_image_map;
     if (!reader.parse(str, json_rendered_image_map)) {
       LOG(WARNING) << "Unable to parse Json data for rendered images";
-      return NULL;
+      return nullptr;
     }
     // Parse json data into a map.
     if (json_rendered_image_map.isNull() || !json_rendered_image_map.isObject()) {
       LOG(WARNING) << "Bad Json rendered image dimensions map";
-      return NULL;
+      return nullptr;
     }
     // Put the extracted map into RenderedImages proto data.
     RenderedImages* rendered_images = new RenderedImages();
@@ -440,14 +440,14 @@ RenderedImages* CriticalImagesFinder::JsonMapToRenderedImagesMap(
     return rendered_images;
   } catch (std::exception& e) {
     LOG(WARNING) << "Bad Json rendered image dimensions map";
-    return NULL;
+    return nullptr;
   }
 }
 
 CriticalImagesInfo* CriticalImagesFinder::ExtractCriticalImagesFromCache(
     RewriteDriver* driver,
     const PropertyValue* property_value) {
-  CriticalImagesInfo* critical_images_info = NULL;
+  CriticalImagesInfo* critical_images_info = nullptr;
   const PropertyCache* page_property_cache =
       driver->server_context()->page_property_cache();
   int64 cache_ttl_ms =
@@ -460,7 +460,7 @@ CriticalImagesInfo* CriticalImagesFinder::ExtractCriticalImagesFromCache(
       critical_images_info =
           CriticalImagesInfoFromPropertyValue(PercentSeenForCritical(),
                                               property_value);
-      if (critical_images_info == NULL) {
+      if (critical_images_info == nullptr) {
         critical_images_not_found_count_->Add(1);
       } else {
         critical_images_valid_count_->Add(1);
@@ -478,7 +478,7 @@ CriticalImagesFinder::Availability CriticalImagesFinder::Available(
     RewriteDriver* driver) {
   UpdateCriticalImagesSetInDriver(driver);
   CriticalImagesInfo* info = driver->critical_images_info();
-  if (info != NULL && info->is_critical_image_info_present &&
+  if (info != nullptr && info->is_critical_image_info_present &&
       info->proto.has_html_critical_image_support() &&
       IsBeaconDataAvailable(info->proto.html_critical_image_support())) {
     return kAvailable;

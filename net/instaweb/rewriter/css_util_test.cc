@@ -23,6 +23,8 @@
 #include "net/instaweb/rewriter/public/css_util.h"
 
 #include <algorithm>
+#include <memory>
+
 #include <vector>
 
 #include "base/logging.h"
@@ -56,7 +58,7 @@ class CssUtilTest : public testing::Test {
 
 TEST_F(CssUtilTest, TestGetDimensions) {
   HtmlParse html_parse(&message_handler_);
-  HtmlElement* img = html_parse.NewElement(NULL, HtmlName::kImg);
+  HtmlElement* img = html_parse.NewElement(nullptr, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "height:50px;width:80px;border-width:0px;");
 
@@ -66,29 +68,29 @@ TEST_F(CssUtilTest, TestGetDimensions) {
   EXPECT_EQ(50, extractor->height());
 
   html_parse.DeleteNode(img);
-  img = html_parse.NewElement(NULL, HtmlName::kImg);
+  img = html_parse.NewElement(nullptr, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;");
-  extractor.reset(new StyleExtractor(img));
+  extractor = std::make_unique<StyleExtractor>(img);
   EXPECT_EQ(kNoDimensions, extractor->state());
   EXPECT_EQ(kNoValue, extractor->width());
   EXPECT_EQ(kNoValue, extractor->height());
 
   html_parse.DeleteNode(img);
-  img = html_parse.NewElement(NULL, HtmlName::kImg);
+  img = html_parse.NewElement(nullptr, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;width:80px;");
 
-  extractor.reset(new StyleExtractor(img));
+  extractor = std::make_unique<StyleExtractor>(img);
   EXPECT_EQ(kHasWidthOnly, extractor->state());
   EXPECT_EQ(kNoValue, extractor->height());
   EXPECT_EQ(80, extractor->width());
 
   html_parse.DeleteNode(img);
-  img = html_parse.NewElement(NULL, HtmlName::kImg);
+  img = html_parse.NewElement(nullptr, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;height:200px");
-  extractor.reset(new StyleExtractor(img));
+  extractor = std::make_unique<StyleExtractor>(img);
   EXPECT_EQ(kHasHeightOnly, extractor->state());
   EXPECT_EQ(200, extractor->height());
   EXPECT_EQ(kNoValue, extractor->width());
@@ -97,7 +99,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
 
 TEST_F(CssUtilTest, TestAnyDimensions) {
   HtmlParse html_parse(&message_handler_);
-  HtmlElement* img = html_parse.NewElement(NULL, HtmlName::kImg);
+  HtmlElement* img = html_parse.NewElement(nullptr, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "width:80px;border-width:0px;");
   std::unique_ptr<StyleExtractor> extractor(new StyleExtractor(img));
@@ -105,17 +107,17 @@ TEST_F(CssUtilTest, TestAnyDimensions) {
   EXPECT_EQ(kHasWidthOnly, extractor->state());
 
   html_parse.DeleteNode(img);
-  img = html_parse.NewElement(NULL, HtmlName::kImg);
+  img = html_parse.NewElement(nullptr, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;background-color:blue;");
-  extractor.reset(new StyleExtractor(img));
+  extractor = std::make_unique<StyleExtractor>(img);
   EXPECT_FALSE(extractor->HasAnyDimensions());
 
   html_parse.DeleteNode(img);
-  img = html_parse.NewElement(NULL, HtmlName::kImg);
+  img = html_parse.NewElement(nullptr, HtmlName::kImg);
   html_parse.AddAttribute(img, HtmlName::kStyle,
                           "border-width:0px;width:30px;height:40px");
-  extractor.reset(new StyleExtractor(img));
+  extractor = std::make_unique<StyleExtractor>(img);
   EXPECT_TRUE(extractor->HasAnyDimensions());
 }
 
@@ -298,7 +300,7 @@ TEST_F(CssUtilTest, JsDetectableSelector) {
   parser.set_quirks_mode(false);
   std::unique_ptr<const Css::Selectors> selectors(parser.ParseSelectors());
   EXPECT_EQ(Css::Parser::kNoError, parser.errors_seen_mask());
-  CHECK(selectors.get() != NULL);
+  CHECK(selectors.get() != nullptr);
   EXPECT_EQ(arraysize(kExpected), selectors->size());
   for (int i = 0; i < selectors->size(); ++i) {
     EXPECT_EQ(kExpected[i], JsDetectableSelector(*(*selectors)[i]));

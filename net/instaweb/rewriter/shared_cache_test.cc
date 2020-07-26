@@ -67,8 +67,8 @@ class SharedCacheTest : public RewriteContextTestBase {
     filesystem1_ = server1_->file_system();
     filesystem2_ = server2_->file_system();
 
-    EXPECT_EQ(NULL, server1_->filesystem_metadata_cache());
-    EXPECT_EQ(NULL, server2_->filesystem_metadata_cache());
+    EXPECT_EQ(nullptr, server1_->filesystem_metadata_cache());
+    EXPECT_EQ(nullptr, server2_->filesystem_metadata_cache());
 
     kRewrittenHref = Encode("", "tw", "0", kOriginalHref, "css");
 

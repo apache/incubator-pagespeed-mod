@@ -60,7 +60,7 @@ struct DerivedB : public BaseClass {};
 }  // namespace
 
 typedef RefCountedObj<SimpleClass> SimplePtr;
-typedef RefCountedPtr<BaseClass> PolymorphicPtr;
+using PolymorphicPtr = RefCountedPtr<BaseClass>;
 
 class RefCountedPtrTest : public testing::Test {
  protected:
@@ -97,10 +97,10 @@ TEST_F(RefCountedPtrTest, Polymorphic) {
   EXPECT_TRUE(poly4.unique());
   EXPECT_NE(index, poly4->index());
   PolymorphicPtr poly5;
-  EXPECT_TRUE(poly5.get() == NULL);
+  EXPECT_TRUE(poly5.get() == nullptr);
   EXPECT_TRUE(poly5.unique());
   poly5.clear();
-  EXPECT_TRUE(poly5.get() == NULL);
+  EXPECT_TRUE(poly5.get() == nullptr);
   poly1.reset(new DerivedA);
   EXPECT_TRUE(poly1.unique());
 }

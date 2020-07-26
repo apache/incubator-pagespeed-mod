@@ -47,7 +47,7 @@ MemLock::~MemLock() {
 
 void MemLock::Clear() {
   DCHECK(!lock_state_->IsHeldInOrderedSet(this));
-  callback_ = NULL;
+  callback_ = nullptr;
   cancel_time_ms_ = 0;
   steal_ms_ = 0;
   wakeup_time_ms_ = kNotPending;
@@ -71,7 +71,7 @@ void MemLock::LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
     callback->CallRun();
   } else {
     DCHECK(!lock_state_->IsHeldInOrderedSet(this));
-    CHECK(callback_ == NULL);
+    CHECK(callback_ == nullptr);
     cancel_time_ms_ = lock_state_->manager()->timer()->NowMs() + wait_ms;
     steal_ms_ = steal_ms;
     callback_ = callback;

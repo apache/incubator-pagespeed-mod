@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/base/chunking_writer.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -93,12 +97,12 @@ class ChunkingWriterTest : public testing::Test {
   ChunkingWriterTest() : message_handler_(new NullMutex) {}
 
   void SetUp() override {
-    tracer_.reset(new TracingWriter(&message_handler_));
+    tracer_ = std::make_unique<TracingWriter>(&message_handler_);
     SetUpWithLimit(0);
   }
 
   void SetUpWithLimit(int limit) {
-    chunker_.reset(new ChunkingWriter(tracer_.get(), limit));
+    chunker_ = std::make_unique<ChunkingWriter>(tracer_.get(), limit);
   }
 
  protected:

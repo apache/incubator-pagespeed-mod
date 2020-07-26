@@ -19,6 +19,8 @@
 
 
 #include <cstdlib>
+#include <memory>
+
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -103,7 +105,7 @@ struct ReadPngDescriptor {
   unsigned char bg_red, bg_green, bg_blue;
   bool bgcolor_retval;
 
-  ReadPngDescriptor() : img_bytes(NULL), img_rgba_bytes(NULL) {}
+  ReadPngDescriptor() : img_bytes(nullptr), img_rgba_bytes(nullptr) {}
   ~ReadPngDescriptor() {
     free(img_bytes);
     if (channels != 4) {
@@ -173,7 +175,7 @@ void PopulateDescriptor(const GoogleString& img,
 
   unsigned char* next_scanline_to_write = desc->img_bytes;
   while (scanline_reader.HasMoreScanLines()) {
-    void* scanline = NULL;
+    void* scanline = nullptr;
     if (scanline_reader.ReadNextScanline(&scanline)) {
       memcpy(next_scanline_to_write, scanline,
              scanline_reader.GetBytesPerScanline());
@@ -277,8 +279,8 @@ void AssertReadersMatch(ScanlineReaderInterface* reader1,
   const int num_channels =
     GetNumChannelsFromPixelFormat(reader1->GetPixelFormat(),
                                   &message_handler);
-  uint8* pixels1 = NULL;
-  uint8* pixels2 = NULL;
+  uint8* pixels1 = nullptr;
+  uint8* pixels2 = nullptr;
 
   // Decode and check the image a scanline at a time.
   while (reader1->HasMoreScanLines() &&
@@ -606,7 +608,7 @@ class PngScanlineWriterTest : public testing::Test {
     writer_.reset(CreateScanlineWriter(
         pagespeed::image_compression::IMAGE_PNG, pixel_format_, width_,
         height_, &params_, &output_, &message_handler_));
-    return (writer_ != NULL);
+    return (writer_ != nullptr);
   }
 
   void TestRewritePng(bool best_compression, int* total_bytes);
@@ -626,7 +628,7 @@ class PngScanlineWriterTest : public testing::Test {
 };
 
 TEST_F(PngOptimizerTest, ValidPngs) {
-  reader_.reset(new PngReader(&message_handler_));
+  reader_ = std::make_unique<PngReader>(&message_handler_);
   for (size_t i = 0; i < kValidImageCount; i++) {
     GoogleString in, out;
     ReadTestFile(kPngSuiteTestDir, kValidImages[i].filename, "png", &in);
@@ -681,7 +683,7 @@ TEST_F(PngOptimizerTest, ValidPngs_isOpaque) {
     GoogleString in, out;
     ReadTestFile(kPngSuiteTestDir, kOpaqueImagesWithAlpha[i].filename, "png",
                  &in);
-    reader_.reset(new PngReader(&message_handler_));
+    reader_ = std::make_unique<PngReader>(&message_handler_);
     ASSERT_TRUE(reader_->ReadPng(in, read.png_ptr(), read.info_ptr(), 0));
     EXPECT_EQ(kOpaqueImagesWithAlpha[i].is_opaque,
               PngReaderInterface::IsAlphaChannelOpaque(
@@ -691,7 +693,7 @@ TEST_F(PngOptimizerTest, ValidPngs_isOpaque) {
 }
 
 TEST_F(PngOptimizerTest, LargerPng) {
-  reader_.reset(new PngReader(&message_handler_));
+  reader_ = std::make_unique<PngReader>(&message_handler_);
   GoogleString in, out;
   ReadTestFile(kPngTestDir, "this_is_a_test", "png", &in);
   ASSERT_EQ(static_cast<size_t>(20316), in.length());
@@ -715,7 +717,7 @@ TEST_F(PngOptimizerTest, LargerPng) {
 }
 
 TEST_F(PngOptimizerTest, InvalidPngs) {
-  reader_.reset(new PngReader(&message_handler_));
+  reader_ = std::make_unique<PngReader>(&message_handler_);
   for (size_t i = 0; i < kInvalidFileCount; i++) {
     GoogleString in, out;
     ReadTestFile(kPngSuiteTestDir, kInvalidFiles[i], "png", &in);
@@ -739,7 +741,7 @@ TEST_F(PngOptimizerTest, InvalidPngs) {
 }
 
 TEST_F(PngOptimizerTest, FixPngOutOfBoundReadCrash) {
-  reader_.reset(new PngReader(&message_handler_));
+  reader_ = std::make_unique<PngReader>(&message_handler_);
   GoogleString in, out;
   ReadTestFile(kPngTestDir, "read_from_stream_crash", "png", &in);
   ASSERT_EQ(static_cast<size_t>(193), in.length());
@@ -756,7 +758,7 @@ TEST_F(PngOptimizerTest, FixPngOutOfBoundReadCrash) {
 }
 
 TEST_F(PngOptimizerTest, PartialPng) {
-  reader_.reset(new PngReader(&message_handler_));
+  reader_ = std::make_unique<PngReader>(&message_handler_);
   GoogleString in, out;
   int width, height, bit_depth, color_type;
   ReadTestFile(kPngTestDir, "pagespeed-128", "png", &in);
@@ -789,7 +791,7 @@ TEST_F(PngOptimizerTest, PartialPng) {
 }
 
 TEST_F(PngOptimizerTest, ValidGifs) {
-  reader_.reset(new GifReader(&message_handler_));
+  reader_ = std::make_unique<GifReader>(&message_handler_);
   for (size_t i = 0; i < kValidGifImageCount; i++) {
     GoogleString in, ref, gif_rgba;
     ReadTestFile(
@@ -803,7 +805,7 @@ TEST_F(PngOptimizerTest, ValidGifs) {
 }
 
 TEST_F(PngOptimizerTest, AnimatedGif) {
-  reader_.reset(new GifReader(&message_handler_));
+  reader_ = std::make_unique<GifReader>(&message_handler_);
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "animated", "gif", &in);
   ASSERT_NE(static_cast<size_t>(0), in.length());
@@ -820,7 +822,7 @@ TEST_F(PngOptimizerTest, AnimatedGif) {
 }
 
 TEST_F(PngOptimizerTest, InterlacedGif) {
-  reader_.reset(new GifReader(&message_handler_));
+  reader_ = std::make_unique<GifReader>(&message_handler_);
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "interlaced", "gif", &in);
   ASSERT_NE(static_cast<size_t>(0), in.length());
@@ -837,7 +839,7 @@ TEST_F(PngOptimizerTest, InterlacedGif) {
 }
 
 TEST_F(PngOptimizerTest, TransparentGif) {
-  reader_.reset(new GifReader(&message_handler_));
+  reader_ = std::make_unique<GifReader>(&message_handler_);
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "transparent", "gif", &in);
   ASSERT_NE(static_cast<size_t>(0), in.length());
@@ -856,7 +858,7 @@ TEST_F(PngOptimizerTest, TransparentGif) {
 // Verify that we fail gracefully when processing partial versions of
 // the animated GIF.
 TEST_F(PngOptimizerTest, PartialAnimatedGif) {
-  reader_.reset(new GifReader(&message_handler_));
+  reader_ = std::make_unique<GifReader>(&message_handler_);
   GoogleString in, out;
   int width, height, bit_depth, color_type;
   ReadTestFile(kGifTestDir, "animated", "gif", &in);
@@ -889,7 +891,7 @@ TEST_F(PngOptimizerTest, PartialAnimatedGif) {
 // Make sure we do not leak memory when attempting to optimize a GIF
 // that fails to decode.
 TEST_F(PngOptimizerTest, BadGifNoLeak) {
-  reader_.reset(new GifReader(&message_handler_));
+  reader_ = std::make_unique<GifReader>(&message_handler_);
   GoogleString in, out;
   ReadTestFile(kGifTestDir, "bad", "gif", &in);
   ASSERT_NE(static_cast<size_t>(0), in.length());
@@ -903,7 +905,7 @@ TEST_F(PngOptimizerTest, BadGifNoLeak) {
 TEST_F(PngOptimizerTest, InvalidGifs) {
   // Verify that we fail gracefully when trying to parse PNGs using
   // the GIF reader.
-  reader_.reset(new GifReader(&message_handler_));
+  reader_ = std::make_unique<GifReader>(&message_handler_);
   for (size_t i = 0; i < kValidImageCount; i++) {
     GoogleString in, out;
     ReadTestFile(kPngSuiteTestDir, kValidImages[i].filename, "png", &in);
@@ -929,7 +931,7 @@ TEST_F(PngOptimizerTest, InvalidGifs) {
 // Make sure that after we fail, we're still able to successfully
 // compress valid images.
 TEST_F(PngOptimizerTest, SuccessAfterFailure) {
-  reader_.reset(new PngReader(&message_handler_));
+  reader_ = std::make_unique<PngReader>(&message_handler_);
   for (size_t i = 0; i < kInvalidFileCount; i++) {
     {
       GoogleString in, out;
@@ -953,13 +955,13 @@ TEST_F(PngOptimizerTest, SuccessAfterFailure) {
 TEST_F(PngOptimizerTest, ScopedPngStruct) {
   ScopedPngStruct read(ScopedPngStruct::READ, &message_handler_);
   ASSERT_TRUE(read.valid());
-  ASSERT_NE(static_cast<png_structp>(NULL), read.png_ptr());
-  ASSERT_NE(static_cast<png_infop>(NULL), read.info_ptr());
+  ASSERT_NE(static_cast<png_structp>(nullptr), read.png_ptr());
+  ASSERT_NE(static_cast<png_infop>(nullptr), read.info_ptr());
 
   ScopedPngStruct write(ScopedPngStruct::WRITE, &message_handler_);
   ASSERT_TRUE(write.valid());
-  ASSERT_NE(static_cast<png_structp>(NULL), write.png_ptr());
-  ASSERT_NE(static_cast<png_infop>(NULL), write.info_ptr());
+  ASSERT_NE(static_cast<png_structp>(nullptr), write.png_ptr());
+  ASSERT_NE(static_cast<png_infop>(nullptr), write.info_ptr());
 
 #ifdef NDEBUG
   ScopedPngStruct invalid(static_cast<ScopedPngStruct::Type>(-1),
@@ -1059,8 +1061,8 @@ TEST_F(PngScanlineReaderRawTest, ValidPngsRow) {
     const int num_channels =
       GetNumChannelsFromPixelFormat(per_row_reader.GetPixelFormat(),
                                     &message_handler_);
-    uint8* buffer_per_row = NULL;
-    uint8* buffer_entire = NULL;
+    uint8* buffer_per_row = nullptr;
+    uint8* buffer_entire = nullptr;
 
     // Decode and check the image a row at a time.
     while (per_row_reader.HasMoreScanLines() &&
@@ -1106,7 +1108,7 @@ TEST_F(PngScanlineReaderRawTest, ValidPngsEntire) {
     pagespeed::image_compression::PixelFormat pixel_format;
     ASSERT_TRUE(ReadImage(pagespeed::image_compression::IMAGE_PNG,
                           image_string.data(), image_string.length(),
-                          &buffer_for_raw_reader, &pixel_format, &width, NULL,
+                          &buffer_for_raw_reader, &pixel_format, &width, nullptr,
                           &bytes_per_row, &message_handler_));
     uint8* buffer_per_row = static_cast<uint8*>(buffer_for_raw_reader);
     int num_channels = GetNumChannelsFromPixelFormat(pixel_format,
@@ -1114,7 +1116,7 @@ TEST_F(PngScanlineReaderRawTest, ValidPngsEntire) {
 
     // Check the image row by row.
     while (entire_image_reader.HasMoreScanLines()) {
-      uint8* buffer_entire = NULL;
+      uint8* buffer_entire = nullptr;
       ASSERT_TRUE(entire_image_reader.ReadNextScanline(
         reinterpret_cast<void**>(&buffer_entire)));
 
@@ -1129,7 +1131,7 @@ TEST_F(PngScanlineReaderRawTest, ValidPngsEntire) {
 }
 
 TEST_F(PngScanlineReaderRawTest, PartialRead) {
-  uint8* buffer = NULL;
+  uint8* buffer = nullptr;
   GoogleString image_string;
   ReadTestFile(kPngSuiteTestDir, kValidImages[0].filename, "png",
                &image_string);
@@ -1164,7 +1166,7 @@ TEST_F(PngScanlineReaderRawTest, PartialRead) {
 }
 
 TEST_F(PngScanlineReaderRawTest, ReadAfterReset) {
-  uint8* buffer = NULL;
+  uint8* buffer = nullptr;
   GoogleString image_string;
   ReadTestFile(kPngSuiteTestDir, kValidImages[0].filename, "png",
                &image_string);
@@ -1183,7 +1185,7 @@ TEST_F(PngScanlineReaderRawTest, ReadAfterReset) {
   pagespeed::image_compression::PixelFormat pixel_format;
   ASSERT_TRUE(ReadImage(pagespeed::image_compression::IMAGE_PNG,
                         image_string.data(), image_string.length(),
-                        &buffer_for_raw_reader, &pixel_format, &width, NULL,
+                        &buffer_for_raw_reader, &pixel_format, &width, nullptr,
                         &bytes_per_row, &message_handler_));
   uint8* buffer_entire = static_cast<uint8*>(buffer_for_raw_reader);
   int num_channels = GetNumChannelsFromPixelFormat(pixel_format,
@@ -1191,7 +1193,7 @@ TEST_F(PngScanlineReaderRawTest, ReadAfterReset) {
 
   // Compare the image row by row.
   while (reader.HasMoreScanLines()) {
-    uint8* buffer_row = NULL;
+    uint8* buffer_row = nullptr;
     ASSERT_TRUE(reader.ReadNextScanline(
       reinterpret_cast<void**>(&buffer_row)));
 
@@ -1218,7 +1220,7 @@ TEST_F(PngScanlineReaderRawTest, InvalidPngs) {
 
     ASSERT_FALSE(ReadImage(pagespeed::image_compression::IMAGE_PNG,
                            image_string.data(), image_string.length(),
-                           NULL, NULL, NULL, NULL, NULL, &message_handler_));
+                           nullptr, nullptr, nullptr, nullptr, nullptr, &message_handler_));
   }
 }
 
@@ -1273,22 +1275,22 @@ void PngScanlineWriterTest::TestRewritePng(bool best_compression,
     int filter_level = png_filter_list[(i / num_z) % 5];
     std::unique_ptr<PngCompressParams> params;
     if (best_compression) {
-      params.reset(new PngCompressParams(true /*best compression*/,
-                                         true /*progressive*/));
+      params = std::make_unique<PngCompressParams>(true /*best compression*/,
+                                         true /*progressive*/);
     } else {
-      params.reset(new PngCompressParams (filter_level, compression_strategy,
-                                          false));
+      params = std::make_unique<PngCompressParams>(filter_level, compression_strategy,
+                                          false);
     }
 
     // Initialize the writer.
     writer_.reset(CreateScanlineWriter(
         pagespeed::image_compression::IMAGE_PNG, pixel_format, width,
         height, params.get(), &rewritten_image, &message_handler_));
-    ASSERT_NE(static_cast<ScanlineWriterInterface *>(NULL), writer_.get());
+    ASSERT_NE(static_cast<ScanlineWriterInterface *>(nullptr), writer_.get());
 
     // Read the scanlines from the original image and write them to the new one.
     while (original_reader.HasMoreScanLines()) {
-      uint8* scanline = NULL;
+      uint8* scanline = nullptr;
       ASSERT_TRUE(original_reader.ReadNextScanline(
           reinterpret_cast<void**>(&scanline)));
       ASSERT_TRUE(writer_->WriteNextScanline(

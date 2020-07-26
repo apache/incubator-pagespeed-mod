@@ -134,7 +134,7 @@ TEST_F(WaveformTest, Delta) {
 // Overflows the number of samples and makes sure the desired results
 // are shown.
 TEST_F(WaveformTest, Overflow) {
-  Waveform waveform(thread_system_.get(), &timer_, 10, NULL /* variable */);
+  Waveform waveform(thread_system_.get(), &timer_, 10, nullptr /* variable */);
 
   // Don't overflow at first.
   for (int i = 0; i < 10; ++i) {
@@ -177,7 +177,7 @@ TEST_F(WaveformTest, Overflow) {
 }
 
 TEST_F(WaveformTest, AvgMinMax) {
-  Waveform waveform(thread_system_.get(), &timer_, 10, NULL /* variable */);
+  Waveform waveform(thread_system_.get(), &timer_, 10, nullptr /* variable */);
   for (int i = 1; i <= 1000; ++i) {
     waveform.Add(i);
     timer_.AdvanceMs(10);

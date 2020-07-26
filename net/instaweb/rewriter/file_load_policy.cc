@@ -97,12 +97,12 @@ bool FileLoadPolicy::ShouldLoadFromFile(const GoogleUrl& url,
   // filter those out.  This also lets us limit to static resources, which are
   // the only content types we want to handle.
   const ContentType* content_type = NameExtensionToContentType(*filename);
-  return content_type != NULL && content_type->IsLikelyStaticResource();
+  return content_type != nullptr && content_type->IsLikelyStaticResource();
 }
 
 bool FileLoadPolicy::AddRule(const GoogleString& rule_str, bool is_regexp,
                              bool allow, GoogleString* error) {
-  FileLoadRule* rule = NULL;
+  FileLoadRule* rule = nullptr;
   if (is_regexp) {
     const RE2 re(rule_str);
     if (!re.ok()) {

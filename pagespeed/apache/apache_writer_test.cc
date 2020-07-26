@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "pagespeed/apache/apache_writer.h"
 
 #include "pagespeed/apache/apache_httpd_includes.h"
@@ -38,8 +42,8 @@ class ApacheWriterTest : public testing::Test {
     MockApache::Initialize();
     MockApache::PrepareRequest(&request_);
 
-    apache_writer_.reset(new ApacheWriter(&request_, &thread_system_));
-    response_headers_.reset(new ResponseHeaders());
+    apache_writer_ = std::make_unique<ApacheWriter>(&request_, &thread_system_);
+    response_headers_ = std::make_unique<ResponseHeaders>();
 
     // Standard response headers, some overridden in tests.
     response_headers_->set_status_code(200 /* OK */);
@@ -140,7 +144,7 @@ TEST_F(ApacheWriterTest, DisableDownstream) {
 }
 
 TEST_F(ApacheWriterTest, DisableDownstreamNoneToDisable) {
-  request_.output_filters = NULL;  // Not a leak because they're pool allocated.
+  request_.output_filters = nullptr;  // Not a leak because they're pool allocated.
   apache_writer_->set_disable_downstream_header_filters(true);
   apache_writer_->OutputHeaders(response_headers_.get());
   EXPECT_TRUE(apache_writer_->Write("hello world", &message_handler_));

@@ -23,6 +23,8 @@
 #include "pagespeed/kernel/cache/cache_batcher.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -52,17 +54,17 @@ class CacheBatcherTest : public CacheTestBase {
  protected:
   CacheBatcherTest() : expected_pending_(0) {
     thread_system_.reset(Platform::CreateThreadSystem());
-    statistics_.reset(new SimpleStats(thread_system_.get()));
+    statistics_ = std::make_unique<SimpleStats>(thread_system_.get());
     CacheBatcher::InitStats(statistics_.get());
-    lru_cache_.reset(new LRUCache(kMaxSize));
+    lru_cache_ = std::make_unique<LRUCache>(kMaxSize);
     timer_.reset(thread_system_->NewTimer());
-    pool_.reset(
-        new QueuedWorkerPool(kMaxWorkers, "cache", thread_system_.get()));
-    threadsafe_cache_.reset(new ThreadsafeCache(
-        lru_cache_.get(), thread_system_->NewMutex()));
-    async_cache_.reset(new AsyncCache(threadsafe_cache_.get(), pool_.get()));
-    delay_cache_.reset(new DelayCache(async_cache_.get(),
-                                      thread_system_.get()));
+    pool_ = std::make_unique<QueuedWorkerPool>(
+        kMaxWorkers, "cache", thread_system_.get());
+    threadsafe_cache_ = std::make_unique<ThreadsafeCache>(
+        lru_cache_.get(), thread_system_->NewMutex());
+    async_cache_ = std::make_unique<AsyncCache>(threadsafe_cache_.get(), pool_.get());
+    delay_cache_ = std::make_unique<DelayCache>(async_cache_.get(),
+                                      thread_system_.get());
     // Note: it is each test's responsibility to reset batcher_ with the backend
     // and options that it needs.
     set_mutex(thread_system_->NewMutex());
@@ -96,10 +98,10 @@ class CacheBatcherTest : public CacheTestBase {
 
   void ChangeBatcherConfig(const CacheBatcher::Options& options,
                            CacheInterface* cache) {
-    batcher_.reset(new CacheBatcher(options,
+    batcher_ = std::make_unique<CacheBatcher>(options,
                                     cache,
                                     thread_system_->NewMutex(),
-                                    statistics_.get()));
+                                    statistics_.get());
   }
 
   // After the Done() callback is be called, there is a slight delay

@@ -50,12 +50,12 @@ bool RewriteFilter::ComputeOnTheFly() const {
 }
 
 RewriteContext* RewriteFilter::MakeRewriteContext() {
-  return NULL;
+  return nullptr;
 }
 
 RewriteContext* RewriteFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
-  return NULL;
+  return nullptr;
 }
 
 StringPiece RewriteFilter::GetCharsetForScript(
@@ -134,7 +134,7 @@ GoogleString RewriteFilter::GetCharsetForStylesheet(
 const RewriteOptions::Filter* RewriteFilter::RelatedFilters(
     int* num_filters) const {
   *num_filters = 0;
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace net_instaweb

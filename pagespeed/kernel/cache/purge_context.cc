@@ -540,7 +540,7 @@ void PurgeContext::ReadFileAndCallCallbackIfChanged(bool needs_update) {
         purge_index_->Add(1);
       }
       purge_set_ = purges_from_file;
-      if (update_callback_ != NULL) {
+      if (update_callback_ != nullptr) {
         // We don't want to call the update callback while holding the
         // lock.  Also note that even though we will release the lock
         // before calling the callback, purge_set_ will not be mutated

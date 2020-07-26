@@ -193,7 +193,7 @@ bool Wildcard::Match(const StringPiece& actual) const {
     // candidate match position.
     const char* new_str =
         static_cast<const char*>(memchr(str, pat[0], str_last_block - str));
-    if (new_str == NULL) {
+    if (new_str == nullptr) {
       // First char in block wasn't found, so we can't match.
       return false;
     }

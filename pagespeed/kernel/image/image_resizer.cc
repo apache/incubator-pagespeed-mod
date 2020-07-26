@@ -20,8 +20,10 @@
 
 #include "pagespeed/kernel/image/image_resizer.h"
 
-#include <math.h>
 #include <algorithm>
+#include <cmath>
+#include <memory>
+
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -115,12 +117,12 @@ ResizeTableEntry* CreateTableForAreaMethod(int in_size,
                                            MessageHandler* handler) {
   if (in_size <= 0 || out_size <= 0 || ratio <= 0) {
     PS_LOG_DFATAL(handler, "The inputs must be positive values.");
-    return NULL;
+    return nullptr;
   }
   ResizeTableEntry* table = new ResizeTableEntry[out_size];
-  if (table == NULL) {
+  if (table == nullptr) {
     PS_LOG_DFATAL(handler, "Failed to allocate memory.");
-    return NULL;
+    return nullptr;
   }
 
   double end_pos = 0;
@@ -156,7 +158,7 @@ ResizeTableEntry* CreateTableForAreaMethod(int in_size,
 
     if (i > 0 && table[i - 1].first_index >= table[i].first_index) {
       LOG(DFATAL) << "Significant rounding error has been accumulated.";
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -374,7 +376,7 @@ class ResizeCol {
 class ResizeRowArea : public ResizeRow {
  public:
   explicit ResizeRowArea(int num_channels)
-      : num_channels_(num_channels), output_buffer_(NULL) {}
+      : num_channels_(num_channels), output_buffer_(nullptr) {}
 
   bool Initialize(int in_size, int out_size, double ratio,
                           float* output_buffer, MessageHandler* handler) override;
@@ -393,7 +395,7 @@ bool ResizeRowArea::Initialize(int in_size,
     return false;
   }
   table_.reset(CreateTableForAreaMethod(in_size, out_size, ratio, handler));
-  if (table_ == NULL) {
+  if (table_ == nullptr) {
     return false;
   }
 
@@ -408,7 +410,7 @@ bool ResizeRowArea::Initialize(int in_size,
 }
 
 const void* ResizeRowArea::Resize(const uint8_t* in_data) {
-  if (output_buffer_ == NULL) {
+  if (output_buffer_ == nullptr) {
     return in_data;
   }
 
@@ -431,7 +433,7 @@ const void* ResizeRowArea::Resize(const uint8_t* in_data) {
 template<class BufferType>
 class ResizeColArea : public ResizeCol {
  public:
-  ResizeColArea() : output_buffer_(NULL) {}
+  ResizeColArea() : output_buffer_(nullptr) {}
 
   bool Initialize(int in_size,
                           int out_size,
@@ -487,14 +489,14 @@ bool ResizeColArea<BufferType>::Initialize(
     uint8_t* output_buffer,
     MessageHandler* handler) {
   table_.reset(CreateTableForAreaMethod(in_size, out_size, ratio_y, handler));
-  if (table_ == NULL) {
+  if (table_ == nullptr) {
     return false;
   }
 
   only_scale_outputs_ = (ratio_y == 1.0);
   if (!only_scale_outputs_) {
     buffer_.reset(new float[elements_per_output_row]);
-    if (buffer_ == NULL) {
+    if (buffer_ == nullptr) {
       return false;
     }
   }
@@ -592,7 +594,7 @@ const uint8_t* ResizeColArea<BufferType>::Resize(const void* in_data_ptr) {
     ++in_row_;
     ++out_row_;
 
-    if (output_buffer_ == NULL) {
+    if (output_buffer_ == nullptr) {
       return static_cast<const uint8_t*>(in_data_ptr);
     } else {
       const float* in_data = static_cast<const float*>(in_data_ptr);
@@ -643,13 +645,13 @@ bool InstantiateResizers(pagespeed::image_compression::PixelFormat pixel_format,
                          std::unique_ptr<ResizeCol>* resizer_y,
                          MessageHandler* handler) {
   const int num_channels = GetNumChannelsFromPixelFormat(pixel_format, handler);
-  resizer_x->reset(new ResizeRowArea(num_channels));
+  *resizer_x = std::make_unique<ResizeRowArea>(num_channels);
   resizer_y->reset(new ResizeColArea<BufferType>());
-  return (resizer_x->get() != NULL && resizer_y->get() != NULL);
+  return (resizer_x->get() != nullptr && resizer_y->get() != nullptr);
 }
 
 ScanlineResizer::ScanlineResizer(MessageHandler* handler)
-  : reader_(NULL),
+  : reader_(nullptr),
     width_(0),
     height_(0),
     elements_per_row_(0),
@@ -662,7 +664,7 @@ ScanlineResizer::~ScanlineResizer() {
 
 // Reset the scanline reader to its initial state.
 bool ScanlineResizer::Reset() {
-  reader_ = NULL;
+  reader_ = nullptr;
   width_ = 0;
   height_ = 0;
   elements_per_row_ = 0;
@@ -686,7 +688,7 @@ ScanlineStatus ScanlineResizer::InitializeWithStatus(
 // Reads the next available scanline.
 ScanlineStatus ScanlineResizer::ReadNextScanlineWithStatus(
     void** out_scanline_bytes) {
-  if (reader_ == NULL || !HasMoreScanLines()) {
+  if (reader_ == nullptr || !HasMoreScanLines()) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                             SCANLINE_STATUS_INVOCATION_ERROR,
                             SCANLINE_RESIZER,
@@ -703,7 +705,7 @@ ScanlineStatus ScanlineResizer::ReadNextScanlineWithStatus(
                               SCANLINE_RESIZER,
                               "HasMoreScanLines()");
     }
-    void* in_scanline_bytes = NULL;
+    void* in_scanline_bytes = nullptr;
     ScanlineStatus status = reader_->ReadNextScanlineWithStatus(
         &in_scanline_bytes);
     if (!status.Success()) {
@@ -729,7 +731,7 @@ ScanlineStatus ScanlineResizer::ReadNextScanlineWithStatus(
 bool ScanlineResizer::Initialize(ScanlineReaderInterface* reader,
                                  size_t request_width,
                                  size_t request_height) {
-  if (reader == NULL ||
+  if (reader == nullptr ||
       reader->GetImageWidth() == 0 ||
       reader->GetImageHeight() == 0) {
     PS_LOG_DFATAL(message_handler_, "The input image cannot be empty.");
@@ -794,8 +796,8 @@ bool ScanlineResizer::Initialize(ScanlineReaderInterface* reader,
 
   const bool need_resize_x = (ratio_x != 1.0);
   const bool need_resize_y = (ratio_y != 1.0);
-  float* resizer_x_buffer = NULL;
-  uint8_t* resizer_y_buffer = NULL;
+  float* resizer_x_buffer = nullptr;
+  uint8_t* resizer_y_buffer = nullptr;
   if (need_resize_x) {
     InstantiateResizers<float>(pixel_format, &resizer_x_, &resizer_y_,
                                message_handler_);
@@ -803,7 +805,7 @@ bool ScanlineResizer::Initialize(ScanlineReaderInterface* reader,
     resizer_x_buffer = buffer_.get();
     output_.reset(new uint8_t[elements_per_row_]);
     resizer_y_buffer = output_.get();
-    if (resizer_x_buffer == NULL || resizer_y_buffer == NULL) {
+    if (resizer_x_buffer == nullptr || resizer_y_buffer == nullptr) {
       return false;
     }
   } else {
@@ -812,7 +814,7 @@ bool ScanlineResizer::Initialize(ScanlineReaderInterface* reader,
     if (need_resize_y) {
       output_.reset(new uint8_t[elements_per_row_]);
       resizer_y_buffer = output_.get();
-      if (resizer_y_buffer == NULL) {
+      if (resizer_y_buffer == nullptr) {
         return false;
       }
     }

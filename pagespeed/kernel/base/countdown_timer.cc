@@ -36,7 +36,7 @@ CountdownTimer::CountdownTimer(Timer* timer,
 
 void CountdownTimer::Reset(int64 allowed_time_ms) {
   start_time_us_ = timer_->NowUs();
-  limit_time_us_ = ((allowed_time_ms >= 0) && (timer_ != NULL)) ?
+  limit_time_us_ = ((allowed_time_ms >= 0) && (timer_ != nullptr)) ?
       start_time_us_ + 1000 * allowed_time_ms : 0;
 }
 

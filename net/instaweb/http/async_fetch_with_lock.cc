@@ -57,7 +57,7 @@ AsyncFetchWithLock::AsyncFetchWithLock(
 }
 
 AsyncFetchWithLock::~AsyncFetchWithLock() {
-  DCHECK(lock_ == NULL) << "Fetch is completed without deleting the lock for "
+  DCHECK(lock_ == nullptr) << "Fetch is completed without deleting the lock for "
                         << "cache key: " << cache_key_ << "url: " << url_;
 }
 
@@ -84,7 +84,7 @@ void AsyncFetchWithLock::Start(UrlAsyncFetcher* fetcher) {
 void AsyncFetchWithLock::LockFailed(UrlAsyncFetcher* fetcher) {
   // lock_name will be needed after lock is deleted.
   GoogleString lock_name(lock_->name());
-  lock_.reset(NULL);
+  lock_.reset(nullptr);
   // TODO(abliss): a per-unit-time statistic would be useful here.
   if (ShouldYieldToRedundantFetchInProgress()) {
     message_handler_->Message(
@@ -105,9 +105,9 @@ void AsyncFetchWithLock::LockAcquired(UrlAsyncFetcher* fetcher) {
 }
 
 void AsyncFetchWithLock::HandleDone(bool success) {
-  if (lock_.get() != NULL) {
+  if (lock_.get() != nullptr) {
     lock_->Unlock();
-    lock_.reset(NULL);
+    lock_.reset(nullptr);
   }
   Finalize(false /* lock_failure */, success /* success */);
   delete this;

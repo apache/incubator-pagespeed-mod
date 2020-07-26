@@ -82,7 +82,7 @@ void LoopbackRouteFetcher::Fetch(const GoogleString& original_url,
           parsed_url.Origin().as_string())) {
     // If there is no host header, make sure to add one, since we are about
     // to munge the URL.
-    if (request_headers->Lookup1(HttpAttributes::kHost) == NULL) {
+    if (request_headers->Lookup1(HttpAttributes::kHost) == nullptr) {
       request_headers->Replace(HttpAttributes::kHost, parsed_url.HostAndPort());
     }
 

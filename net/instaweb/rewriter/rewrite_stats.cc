@@ -237,7 +237,7 @@ RewriteStats::RewriteStats(bool has_waveforms,
           new Waveform(thread_system, timer, kNumWaveformSamples,
                        stats->GetUpDownCounter(kWaveFormCounters[i])));
     } else {
-      thread_queue_depths_.push_back(NULL);
+      thread_queue_depths_.push_back(nullptr);
     }
   }
 }

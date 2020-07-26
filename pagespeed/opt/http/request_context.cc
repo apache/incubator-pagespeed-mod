@@ -91,7 +91,7 @@ RequestContextPtr RequestContext::NewTestRequestContext(
     AbstractLogRecord* log_record) {
   return RequestContextPtr(
       new RequestContext(kDefaultHttpOptionsForTests,
-                         log_record->mutex(), NULL, log_record));
+                         log_record->mutex(), nullptr, log_record));
 }
 
 AbstractLogRecord* RequestContext::NewSubordinateLogRecord(
@@ -104,7 +104,7 @@ void RequestContext::set_root_trace_context(RequestTrace* x) {
 }
 
 AbstractLogRecord* RequestContext::log_record() {
-  DCHECK(log_record_.get() != NULL);
+  DCHECK(log_record_.get() != nullptr);
   return log_record_.get();
 }
 
@@ -113,7 +113,7 @@ void RequestContext::PrepareLogRecordForOutput() {
 }
 
 void RequestContext::WriteBackgroundRewriteLog() {
-  if (background_rewrite_log_record_.get() != NULL) {
+  if (background_rewrite_log_record_.get() != nullptr) {
     background_rewrite_log_record_->WriteLog();
   }
 }
@@ -145,7 +145,7 @@ AbstractLogRecord* RequestContext::GetBackgroundRewriteLog(
   // creation of background log record.
   ScopedMutex lock(log_record()->mutex());
   AbstractLogRecord* log_record = background_rewrite_log_record_.get();
-  if (log_record == NULL) {
+  if (log_record == nullptr) {
     // We need to create a new log record.
     log_record = NewSubordinateLogRecord(thread_system->NewMutex());
     log_record->SetBackgroundRewriteInfo(log_urls, log_url_indices,
@@ -156,7 +156,7 @@ AbstractLogRecord* RequestContext::GetBackgroundRewriteLog(
 }
 
 void RequestContext::ReleaseDependentTraceContext(RequestTrace* t) {
-  if (t != NULL) {
+  if (t != nullptr) {
     delete t;
   }
 }

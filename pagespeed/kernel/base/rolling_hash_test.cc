@@ -39,7 +39,7 @@ const size_t kTestStringSize = STATIC_STRLEN(kTestString);
 
 TEST(RollingHashTest, EmptyString) {
   EXPECT_EQ(0, RollingHash("", 0, 0));
-  EXPECT_EQ(0, RollingHash(NULL, 0, 0));
+  EXPECT_EQ(0, RollingHash(nullptr, 0, 0));
 }
 
 TEST(RollingHashTest, SingleChar) {

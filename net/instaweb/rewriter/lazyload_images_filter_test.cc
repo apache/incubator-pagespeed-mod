@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -55,8 +59,8 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
       options()->EnableFilter(RewriteOptions::kDebug);
     }
     options()->DisallowTroublesomeResources();
-    lazyload_images_filter_.reset(
-        new LazyloadImagesFilter(rewrite_driver()));
+    lazyload_images_filter_ = std::make_unique<LazyloadImagesFilter>(
+        rewrite_driver());
     rewrite_driver()->AddFilter(lazyload_images_filter_.get());
   }
 

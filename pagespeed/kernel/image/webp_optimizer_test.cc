@@ -94,7 +94,7 @@ class WebpScanlineOptimizerTest : public testing::Test {
   WebpScanlineOptimizerTest()
     : message_handler_(new NullMutex),
       reader_(&message_handler_),
-      scanline_(NULL) {
+      scanline_(nullptr) {
   }
 
   bool Initialize(const char* file_name) {
@@ -128,7 +128,7 @@ class WebpScanlineOptimizerTest : public testing::Test {
 
     // Read the scanlines from the original image and write them to the new one.
     while (png_reader.HasMoreScanLines()) {
-      uint8* scanline = NULL;
+      uint8* scanline = nullptr;
       ASSERT_TRUE(png_reader.ReadNextScanline(
           reinterpret_cast<void**>(&scanline)));
       ASSERT_TRUE(webp_writer->WriteNextScanline(

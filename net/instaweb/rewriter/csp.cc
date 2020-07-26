@@ -21,6 +21,10 @@
 // This provides basic parsing and evaluation of a (subset of)
 // Content-Security-Policy that's relevant for PageSpeed Automatic.
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/csp.h"
 
 #include "net/instaweb/rewriter/public/csp_directive.h"
@@ -481,7 +485,7 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
     return policy;
   }
 
-  policy.reset(new CspPolicy);
+  policy = std::make_unique<CspPolicy>();
   for (StringPiece token : tokens) {
     TrimCspWhitespace(&token);
     StringPiece::size_type pos = token.find(' ');
@@ -503,7 +507,7 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
       int dir_name_num = static_cast<int>(dir_name);
       if (dir_name != CspDirective::kNumSourceListDirectives &&
           policy->policies_[dir_name_num] == nullptr) {
-        policy->policies_[dir_name_num].reset(new CspSourceList());
+        policy->policies_[dir_name_num] = std::make_unique<CspSourceList>();
       }
     }
   }

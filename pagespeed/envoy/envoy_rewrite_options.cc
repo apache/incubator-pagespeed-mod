@@ -75,7 +75,7 @@ const char* const main_only_options[] = {"UseNativeFetcher", "NativeFetcherMaxKe
 
 } // namespace
 
-RewriteOptions::Properties* EnvoyRewriteOptions::envoy_properties_ = NULL;
+RewriteOptions::Properties* EnvoyRewriteOptions::envoy_properties_ = nullptr;
 
 EnvoyRewriteOptions::EnvoyRewriteOptions(const StringPiece& description,
                                          ThreadSystem* thread_system)
@@ -89,7 +89,7 @@ EnvoyRewriteOptions::EnvoyRewriteOptions(ThreadSystem* thread_system)
 }
 
 void EnvoyRewriteOptions::Init() {
-  DCHECK(envoy_properties_ != NULL) << "Call EnvoyRewriteOptions::Initialize() before construction";
+  DCHECK(envoy_properties_ != nullptr) << "Call EnvoyRewriteOptions::Initialize() before construction";
   InitializeOptions(envoy_properties_);
 }
 
@@ -114,7 +114,7 @@ void EnvoyRewriteOptions::AddProperties() {
 
   // Default properties are global but to set them the current API requires
   // a RewriteOptions instance and we're in a static method.
-  EnvoyRewriteOptions dummy_config(NULL);
+  EnvoyRewriteOptions dummy_config(nullptr);
   dummy_config.set_default_x_header_value(kModPagespeedVersion);
 }
 

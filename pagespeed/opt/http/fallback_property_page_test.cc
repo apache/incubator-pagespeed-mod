@@ -21,6 +21,8 @@
 #include "pagespeed/opt/http/fallback_property_page.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -80,8 +82,8 @@ class FallbackPropertyPageTest : public testing::Test {
         kCacheKey2,
         kOptionsSignatureHash,
         kCacheKeySuffix);
-    fallback_page_.reset(new FallbackPropertyPage(
-        actual_property_page, fallback_property_page));
+    fallback_page_ = std::make_unique<FallbackPropertyPage>(
+        actual_property_page, fallback_property_page);
     property_cache_.Read(actual_property_page);
     property_cache_.Read(fallback_property_page);
   }
@@ -140,7 +142,7 @@ TEST_F(FallbackPropertyPageTest, TestIfNoFallbackPageSet) {
       kCacheKey1,
       kOptionsSignatureHash,
       kCacheKeySuffix);
-  fallback_page_.reset(new FallbackPropertyPage(actual_property_page, NULL));
+  fallback_page_ = std::make_unique<FallbackPropertyPage>(actual_property_page, nullptr);
   property_cache_.Read(actual_property_page);
   fallback_page_->UpdateValue(cohort_, kPropertyName1, kValue1);
   fallback_page_->WriteCohort(cohort_);

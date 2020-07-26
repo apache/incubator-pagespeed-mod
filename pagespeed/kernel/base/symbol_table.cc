@@ -45,7 +45,7 @@ namespace net_instaweb {
 
 template<class CharTransform>
 SymbolTable<CharTransform>::SymbolTable()
-    : next_ptr_(NULL),
+    : next_ptr_(nullptr),
       string_bytes_allocated_(0) {
   // We can use an empty string piece as the empty value, since
   // ::Intern has a quick exit on empty inputs.
@@ -60,7 +60,7 @@ void SymbolTable<CharTransform>::Clear() {
   }
   storage_.clear();
   pieces_.clear();
-  next_ptr_ = NULL;
+  next_ptr_ = nullptr;
   string_bytes_allocated_ = 0;
 }
 
@@ -84,7 +84,7 @@ Atom SymbolTable<CharTransform>::Intern(const StringPiece& src) {
     }
 
     size_t bytes_required = src.size();
-    char* new_symbol_storage = NULL;
+    char* new_symbol_storage = nullptr;
     if (bytes_required > kChunkSize / 4) {
       // The string we are trying to put into the symbol table is sufficiently
       // large that it might waste a lot of our chunked storage, so just

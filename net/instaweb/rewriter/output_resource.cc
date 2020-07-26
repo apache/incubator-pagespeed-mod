@@ -77,16 +77,16 @@ OutputResource::OutputResource(const RewriteDriver* driver,
                                StringPiece original_base,
                                const ResourceNamer& full_name,
                                OutputResourceKind kind)
-    : Resource(driver, NULL /* no type yet*/),
+    : Resource(driver, nullptr /* no type yet*/),
       writing_complete_(false),
       cached_result_owned_(false),
-      cached_result_(NULL),
+      cached_result_(nullptr),
       resolved_base_(resolved_base.data(), resolved_base.size()),
       unmapped_base_(unmapped_base.data(), unmapped_base.size()),
       original_base_(original_base.data(), original_base.size()),
       rewrite_options_(driver->options()),
       kind_(kind) {
-  DCHECK(rewrite_options_ != NULL);
+  DCHECK(rewrite_options_ != nullptr);
   full_name_.CopyFrom(full_name);
   CHECK(EndsInSlash(resolved_base)) <<
       "resolved_base must end in a slash, was: " << resolved_base;
@@ -106,7 +106,7 @@ void OutputResource::DumpToDisk(MessageHandler* handler) {
   FileSystem* file_system = server_context_->file_system();
   FileSystem::OutputFile* output_file =
       file_system->OpenOutputFile(file_name.c_str(), handler);
-  if (output_file == NULL) {
+  if (output_file == nullptr) {
     handler->Message(kWarning, "Unable to open dump file: %s",
                      file_name.c_str());
     return;
@@ -148,7 +148,7 @@ void OutputResource::EndWrite(MessageHandler* handler) {
 }
 
 StringPiece OutputResource::suffix() const {
-  CHECK(type_ != NULL);
+  CHECK(type_ != nullptr);
   return type_->file_extension();
 }
 
@@ -242,7 +242,7 @@ GoogleString OutputResource::decoded_base() const {
 
 void OutputResource::SetType(const ContentType* content_type) {
   Resource::SetType(content_type);
-  if (content_type != NULL) {
+  if (content_type != nullptr) {
     // TODO(jmaessen): The addition of 1 below avoids the leading ".";
     // make this convention consistent and fix all code.
     full_name_.set_ext(content_type->file_extension() + 1);
@@ -255,7 +255,7 @@ void OutputResource::SetType(const ContentType* content_type) {
 }
 
 CachedResult* OutputResource::EnsureCachedResultCreated() {
-  if (cached_result_ == NULL) {
+  if (cached_result_ == nullptr) {
     clear_cached_result();
     cached_result_ = new CachedResult();
     cached_result_owned_ = true;
@@ -279,7 +279,7 @@ void OutputResource::clear_cached_result() {
     delete cached_result_;
     cached_result_owned_ = false;
   }
-  cached_result_ = NULL;
+  cached_result_ = nullptr;
 }
 
 GoogleString OutputResource::ComputeSignature() {

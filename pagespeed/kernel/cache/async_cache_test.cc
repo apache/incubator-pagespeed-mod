@@ -24,6 +24,8 @@
 
 #include <cstddef>
 #include <map>
+#include <memory>
+
 #include <utility>                      // for pair
 
 #include "base/logging.h"
@@ -96,7 +98,7 @@ class AsyncCacheTest : public CacheTestBase {
     }
 
     void Notify(const GoogleString& key) {
-      WorkerTestBase::SyncPoint* sync_point = NULL;
+      WorkerTestBase::SyncPoint* sync_point = nullptr;
       {
         ScopedMutex lock(mutex_.get());
         Map::iterator p = map_.find(key);
@@ -104,7 +106,7 @@ class AsyncCacheTest : public CacheTestBase {
           sync_point = p->second;
         }
       }
-      CHECK(sync_point != NULL);
+      CHECK(sync_point != nullptr);
       sync_point->Notify();
     }
 
@@ -125,7 +127,7 @@ class AsyncCacheTest : public CacheTestBase {
                    AbstractMutex* mutex)
         : ThreadsafeCache(lru_cache, mutex),
           delay_map_(delay_map),
-          sync_point_(NULL) {
+          sync_point_(nullptr) {
       set_is_healthy(true);
     }
     ~SyncedLRUCache() override {}
@@ -133,7 +135,7 @@ class AsyncCacheTest : public CacheTestBase {
     void set_sync_point(WorkerTestBase::SyncPoint* x) { sync_point_ = x; }
 
     void Get(const GoogleString& key, Callback* callback) override {
-      if (sync_point_ != NULL) {
+      if (sync_point_ != nullptr) {
         sync_point_->Notify();
       }
       delay_map_->Wait(key);
@@ -177,10 +179,10 @@ class AsyncCacheTest : public CacheTestBase {
         suppress_post_get_cleanup_(false),
         expected_outstanding_operations_(0) {
     set_mutex(thread_system_->NewMutex());
-    pool_.reset(new QueuedWorkerPool(1, "cache", thread_system_.get()));
-    synced_lru_cache_.reset(new SyncedLRUCache(
-        &delay_map_, &lru_cache_, thread_system_->NewMutex()));
-    async_cache_.reset(new AsyncCache(synced_lru_cache_.get(), pool_.get()));
+    pool_ = std::make_unique<QueuedWorkerPool>(1, "cache", thread_system_.get());
+    synced_lru_cache_ = std::make_unique<SyncedLRUCache>(
+        &delay_map_, &lru_cache_, thread_system_->NewMutex());
+    async_cache_ = std::make_unique<AsyncCache>(synced_lru_cache_.get(), pool_.get());
   }
 
   ~AsyncCacheTest() override {
@@ -224,7 +226,7 @@ class AsyncCacheTest : public CacheTestBase {
     synced_lru_cache_->set_sync_point(&sync_point);
     Callback* callback = InitiateGet(key);
     sync_point.Wait();
-    synced_lru_cache_->set_sync_point(NULL);
+    synced_lru_cache_->set_sync_point(nullptr);
     return callback;
   }
 

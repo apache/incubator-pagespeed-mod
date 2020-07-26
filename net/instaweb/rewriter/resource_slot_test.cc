@@ -58,10 +58,10 @@ class ResourceSlotTest : public RewriteTestBase {
     driver->AddFilters();
     ASSERT_TRUE(driver->StartParseId(kHtmlUrl, "resource_slot_test",
                                      kContentTypeHtml));
-    elements_[0] = driver->NewElement(NULL, HtmlName::kLink);
+    elements_[0] = driver->NewElement(nullptr, HtmlName::kLink);
     driver->AddAttribute(elements_[0], HtmlName::kHref, "v1");
     driver->AddAttribute(elements_[0], HtmlName::kSrc, "v2");
-    elements_[1] = driver->NewElement(NULL, HtmlName::kLink);
+    elements_[1] = driver->NewElement(nullptr, HtmlName::kLink);
     driver->AddAttribute(element(1), HtmlName::kHref, "v3");
     driver->AddAttribute(element(1), HtmlName::kSrc, "v4");
 
@@ -108,7 +108,7 @@ class ResourceSlotTest : public RewriteTestBase {
         return i.Get();
       }
     }
-    return NULL;
+    return nullptr;
   }
 
   GoogleString GetHtmlDomAsString() {

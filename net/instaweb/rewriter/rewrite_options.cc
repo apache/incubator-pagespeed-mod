@@ -21,6 +21,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
+
 #include <new>
 #include <set>
 #include <utility>
@@ -552,10 +554,10 @@ const RewriteOptions::FilterEnumToIdAndNameEntry*
     RewriteOptions::filter_id_to_enum_array_[RewriteOptions::kEndOfFilters];
 
 RewriteOptions::PropertyNameMap*
-    RewriteOptions::option_name_to_property_map_ = NULL;
+    RewriteOptions::option_name_to_property_map_ = nullptr;
 
 const RewriteOptions::PropertyBase**
-    RewriteOptions::option_id_to_property_array_ = NULL;
+    RewriteOptions::option_id_to_property_array_ = nullptr;
 
 RewriteOptions::Properties* RewriteOptions::properties_ = nullptr;
 RewriteOptions::Properties* RewriteOptions::all_properties_ = nullptr;
@@ -958,7 +960,7 @@ const RenamedOptionMap kRenamedOptionNameData[] = {
 
 // Will be initialized to a sorted list of headers not allowed in
 // AddResourceHeader.
-const StringPieceVector* fixed_resource_headers = NULL;
+const StringPieceVector* fixed_resource_headers = nullptr;
 bool http_header_separators[256] = {false};
 
 }  // namespace
@@ -1128,9 +1130,9 @@ RewriteOptions::RewriteOptions(ThreadSystem* thread_system)
       signature_(),
       hasher_(kHashBytes),
       thread_system_(thread_system) {
-  cache_purge_mutex_.reset(new NullRWLock);
+  cache_purge_mutex_ = std::make_unique<NullRWLock>();
 
-  DCHECK(properties_ != NULL)
+  DCHECK(properties_ != nullptr)
       << "Call RewriteOptions::Initialize() before construction";
 
   // Sanity-checks -- will be active only when compiled for debug.
@@ -1283,7 +1285,7 @@ void RewriteOptions::AddProperties() {
       "To remove this limit, use -1.", true);
   AddBaseProperty(kDefaultMaxHtmlCacheTimeMs,
                   &RewriteOptions::max_html_cache_time_ms_, "hc",
-                  kMaxHtmlCacheTimeMs, kDirectoryScope, NULL, true);
+                  kMaxHtmlCacheTimeMs, kDirectoryScope, nullptr, true);
   AddBaseProperty(
       kDefaultMaxHtmlParseBytes,
       &RewriteOptions::max_html_parse_bytes_, "hpb",
@@ -1296,13 +1298,13 @@ void RewriteOptions::AddProperties() {
       &RewriteOptions::min_resource_cache_time_to_rewrite_ms_, "rc",
       kMinResourceCacheTimeToRewriteMs,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): remove this or document it.
+      nullptr, true);  // TODO(jmarantz): remove this or document it.
   AddBaseProperty(
       false,
       &RewriteOptions::oblivious_pagespeed_urls_, "opu",
       kObliviousPagespeedUrls,
       kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
+      nullptr, true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
       false,
       &RewriteOptions::rewrite_uncacheable_resources_, "rur",
@@ -1315,13 +1317,13 @@ void RewriteOptions::AddProperties() {
       &RewriteOptions::idle_flush_time_ms_, "if",
       kIdleFlushTimeMs,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): implement for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): implement for mod_pagespeed.
   AddBaseProperty(
       kDefaultFlushBufferLimitBytes,
       &RewriteOptions::flush_buffer_limit_bytes_, "fbl",
       kFlushBufferLimitBytes,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): implement for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): implement for mod_pagespeed.
   AddBaseProperty(
       kDefaultImplicitCacheTtlMs,
       &RewriteOptions::implicit_cache_ttl_ms_, "ict",
@@ -1353,7 +1355,7 @@ void RewriteOptions::AddProperties() {
       kDefaultMaxUrlSize, &RewriteOptions::max_url_size_, "us",
       kMaxUrlSize,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::forbid_all_disabled_filters_, "fadf",
       kForbidAllDisabledFilters,
@@ -1368,7 +1370,7 @@ void RewriteOptions::AddProperties() {
   AddBaseProperty(
       kEnabledOn, &RewriteOptions::enabled_, "e", kEnabled,
       kDirectoryScope,
-      NULL, true);  // initialized explicitly in mod_instaweb.cc.
+      nullptr, true);  // initialized explicitly in mod_instaweb.cc.
   AddBaseProperty(
       false, &RewriteOptions::add_options_to_urls_, "aou",
       kAddOptionsToUrls,
@@ -1469,7 +1471,7 @@ void RewriteOptions::AddProperties() {
       false, &RewriteOptions::log_background_rewrites_, "lbr",
       kLogBackgroundRewrite,
       kServerScope,
-      NULL, false);  // TODO(huibao): write help & doc for mod_pagespeed.
+      nullptr, false);  // TODO(huibao): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::log_mobilization_samples_, "lms",
       kLogMobilizationSamples,
@@ -1496,7 +1498,7 @@ void RewriteOptions::AddProperties() {
       false, &RewriteOptions::always_rewrite_css_, "arc",
       kAlwaysRewriteCss,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::respect_vary_, "rv", kRespectVary,
       kDirectoryScope,
@@ -1536,12 +1538,12 @@ void RewriteOptions::AddProperties() {
       true, &RewriteOptions::serve_stale_if_fetch_error_, "ss",
       kServeStaleIfFetchError,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::proactively_freshen_user_facing_request_, "pfur",
       kProactivelyFreshenUserFacingRequest,
       kDirectoryScope,
-      NULL, true);
+      nullptr, true);
   AddBaseProperty(
       0,
       &RewriteOptions::serve_stale_while_revalidate_threshold_sec_,
@@ -1591,17 +1593,17 @@ void RewriteOptions::AddProperties() {
       false, &RewriteOptions::lazyload_highres_images_,
       "elhr", kEnableLazyLoadHighResImages,
       kDirectoryScope,
-      NULL, true);
+      nullptr, true);
   AddBaseProperty(
       false, &RewriteOptions::default_cache_html_, "dch",
       kDefaultCacheHtml,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): implement for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): implement for mod_pagespeed.
   AddBaseProperty(
       kDefaultDomainShardCount, &RewriteOptions::domain_shard_count_,
       "dsc", kDomainShardCount,
       kQueryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
+      nullptr, true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
       true, &RewriteOptions::modify_caching_headers_, "mch",
       kModifyCachingHeaders,
@@ -1806,7 +1808,7 @@ void RewriteOptions::AddProperties() {
       &RewriteOptions::image_webp_timeout_ms_, "wt",
       kImageWebpTimeoutMs,
       kLegacyProcessScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       kDefaultMaxInlinedPreviewImagesIndex,
       &RewriteOptions::max_inlined_preview_images_index_, "mdii",
@@ -1840,13 +1842,13 @@ void RewriteOptions::AddProperties() {
       &RewriteOptions::finder_properties_cache_refresh_time_ms_,
       "fpcr", kFinderPropertiesCacheRefreshTimeMs,
       kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
+      nullptr, true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
       kDefaultExperimentCookieDurationMs,
       &RewriteOptions::experiment_cookie_duration_ms_, "fcd",
       kExperimentCookieDurationMs,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       kDefaultImageJpegNumProgressiveScans,
       &RewriteOptions::image_jpeg_num_progressive_scans_, "ijps",
@@ -1869,7 +1871,7 @@ void RewriteOptions::AddProperties() {
       false, &RewriteOptions::cache_small_images_unrewritten_, "csiu",
       kCacheSmallImagesUnrewritten,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       kDefaultImageResolutionLimitBytes,
       &RewriteOptions::image_resolution_limit_bytes_,
@@ -1904,16 +1906,16 @@ void RewriteOptions::AddProperties() {
       true, &RewriteOptions::increase_speed_tracking_, "st",
       kIncreaseSpeedTracking,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::running_experiment_, "fur", kRunningExperiment,
       kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
+      nullptr, true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
       kDefaultExperimentSlot, &RewriteOptions::experiment_ga_slot_, "fga",
       kExperimentSlot,
       kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
+      nullptr, true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
       experiment::kForceNoExperiment, &RewriteOptions::enroll_experiment_id_,
       "eeid",
@@ -1942,13 +1944,13 @@ void RewriteOptions::AddProperties() {
       false, &RewriteOptions::reject_blacklisted_, "rbl",
       kRejectBlacklisted,
       kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
+      nullptr, false);   // Not applicable for mod_pagespeed.
   AddBaseProperty(
       HttpStatus::kForbidden,
       &RewriteOptions::reject_blacklisted_status_code_, "rbls",
       kRejectBlacklistedStatusCode,
       kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
+      nullptr, false);   // Not applicable for mod_pagespeed.
   AddBaseProperty(
       kDefaultBlockingRewriteKey, &RewriteOptions::blocking_rewrite_key_,
       "blrw", kXPsaBlockingRewrite,
@@ -1973,7 +1975,7 @@ void RewriteOptions::AddProperties() {
         &RewriteOptions::await_pcache_lookup_,
         "wpcl", kAwaitPcacheLookup,
         kServerScope,
-        NULL, true);
+        nullptr, true);
   AddBaseProperty(
       true, &RewriteOptions::support_noscript_enabled_, "snse",
       kSupportNoScriptEnabled,
@@ -2010,17 +2012,17 @@ void RewriteOptions::AddProperties() {
       -1, &RewriteOptions::override_caching_ttl_ms_, "octm",
       kOverrideCachingTtlMs,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       5 * Timer::kSecondMs, &RewriteOptions::blocking_fetch_timeout_ms_,
       "bfto", RewriteOptions::kFetcherTimeOutMs,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::enable_prioritizing_scripts_, "eps",
       kEnablePrioritizingScripts,
       kDirectoryScope,
-      NULL, true);   // Not applicable for mod_pagespeed.
+      nullptr, true);   // Not applicable for mod_pagespeed.
   AddRequestProperty(
       "", &RewriteOptions::pre_connect_url_, "pcu", true);
   AddRequestProperty(
@@ -2032,13 +2034,13 @@ void RewriteOptions::AddProperties() {
       &RewriteOptions::max_rewrite_info_log_size_, "mrils",
       kMaxRewriteInfoLogSize,
       kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
+      nullptr, false);   // Not applicable for mod_pagespeed.
   AddBaseProperty(
       kDefaultMetadataCacheStalenessThresholdMs,
       &RewriteOptions::metadata_cache_staleness_threshold_ms_, "mcst",
       kMetadataCacheStalenessThresholdMs,
       kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       kDefaultDownstreamCachePurgeMethod,
       &RewriteOptions::downstream_cache_purge_method_, "dcpm",
@@ -2121,7 +2123,7 @@ void RewriteOptions::AddProperties() {
   AddBaseProperty(
       false, &RewriteOptions::allow_logging_urls_in_log_record_,
       "alulr", kAllowLoggingUrlsInLogRecord, kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
+      nullptr, false);   // Not applicable for mod_pagespeed.
 
   AddBaseProperty(
       true, &RewriteOptions::allow_options_to_be_set_by_cookies_,
@@ -2133,7 +2135,7 @@ void RewriteOptions::AddProperties() {
       "", &RewriteOptions::non_cacheables_for_cache_partial_html_, "nccp",
       kNonCacheablesForCachePartialHtml,
       kDirectoryScope,
-      NULL, false);  // Not applicable for mod_pagespeed.
+      nullptr, false);  // Not applicable for mod_pagespeed.
 
   AddBaseProperty(
       false, &RewriteOptions::no_transform_optimized_images_, "ntoi",
@@ -2147,7 +2149,7 @@ void RewriteOptions::AddProperties() {
       "lris",
       kMaxLowResImageSizeBytes,
       kDirectoryScope,
-      NULL, true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
 
   AddBaseProperty(
       kDefaultMaxLowResToFullResImageSizePercentage,
@@ -2155,7 +2157,7 @@ void RewriteOptions::AddProperties() {
       "lrhrs",
       kMaxLowResToHighResImageSizePercentage,
       kDirectoryScope,
-      NULL, true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
+      nullptr, true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
 
   AddBaseProperty(
       true,
@@ -2322,7 +2324,7 @@ RewriteOptions::PropertyBase::~PropertyBase() {
 
 bool RewriteOptions::Properties::Initialize(Properties** properties_handle) {
   Properties* properties = *properties_handle;
-  if (properties == NULL) {
+  if (properties == nullptr) {
     *properties_handle = new Properties;
     return true;
   }
@@ -2352,7 +2354,7 @@ bool RewriteOptions::Properties::Terminate(Properties** properties_handle) {
   DCHECK_GT(properties->initialization_count_, 0);
   if (--(properties->initialization_count_) == 0) {
     delete properties;
-    *properties_handle = NULL;
+    *properties_handle = nullptr;
     return true;
   }
   return false;
@@ -2495,18 +2497,18 @@ void RewriteOptions::InitFixedResourceHeaders() {
 }
 
 bool RewriteOptions::Terminate() {
-  if (fixed_resource_headers != NULL) {
+  if (fixed_resource_headers != nullptr) {
     delete fixed_resource_headers;
-    fixed_resource_headers = NULL;
+    fixed_resource_headers = nullptr;
   }
   if (Properties::Terminate(&properties_)) {
-    DCHECK(option_id_to_property_array_ != NULL);
+    DCHECK(option_id_to_property_array_ != nullptr);
     delete [] option_id_to_property_array_;
-    option_id_to_property_array_ = NULL;
-    DCHECK(option_name_to_property_map_ != NULL);
+    option_id_to_property_array_ = nullptr;
+    DCHECK(option_name_to_property_map_ != nullptr);
     option_name_to_property_map_->clear();
     delete option_name_to_property_map_;
-    option_name_to_property_map_ = NULL;
+    option_name_to_property_map_ = nullptr;
     Properties::Terminate(&all_properties_);
     Properties::Terminate(&deprecated_properties_);
     return true;
@@ -2882,7 +2884,7 @@ bool RewriteOptions::AddByNameToFilterSet(
         set->Insert(kCoreFilterSet[i]);
       }
     } else {
-      if (handler != NULL) {
+      if (handler != nullptr) {
         handler->Message(kWarning, "Invalid filter name: %s",
                          option.as_string().c_str());
       }
@@ -2951,7 +2953,7 @@ const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionById(
   // we must double-check its result as it doesn't guarantee an exact match.
   // Note that std::binary_search provides an exact match but only a bool
   // result and not the actual object we were searching for.
-  return ((it == end || option_id != (*it)->id()) ? NULL : *it);
+  return ((it == end || option_id != (*it)->id()) ? nullptr : *it);
 }
 
 const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionByName(
@@ -2959,7 +2961,7 @@ const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionByName(
   // There are many options without a name, and it doesn't make sense to
   // find "the one" with an empty name, so short-circuit that early.
   if (option_name.empty()) {
-    return NULL;
+    return nullptr;
   }
   PropertyNameMap::iterator
       end = option_name_to_property_map_->end(),
@@ -2970,11 +2972,11 @@ const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionByName(
 
 const StringPiece RewriteOptions::LookupOptionNameById(StringPiece option_id) {
   const PropertyBase* option = LookupOptionById(option_id);
-  return (option == NULL ? StringPiece() : option->option_name());
+  return (option == nullptr ? StringPiece() : option->option_name());
 }
 
 bool RewriteOptions::IsValidOptionName(StringPiece name) {
-  return (LookupOptionByName(name) != NULL);
+  return (LookupOptionByName(name) != nullptr);
 }
 
 bool RewriteOptions::IsDeprecatedOptionName(StringPiece option_name) {
@@ -3129,7 +3131,7 @@ RewriteOptions::ParseAndSetOptionFromNameWithScope(
     }
   } else if (StringCaseEqual(name, kExperimentSpec)) {
     ExperimentSpec* spec = AddExperimentSpec(arg, handler);
-    if (spec == NULL) {
+    if (spec == nullptr) {
       *msg = "not a valid experiment spec";
       result = RewriteOptions::kOptionValueInvalid;
     } else {
@@ -3721,7 +3723,7 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
   for (; it != src.rejected_request_map_.end(); ++it) {
     std::pair<FastWildcardGroupMap::iterator, bool> insert_result =
         rejected_request_map_.insert(std::make_pair(
-            it->first, static_cast<FastWildcardGroup*>(NULL)));
+            it->first, static_cast<FastWildcardGroup*>(nullptr)));
     if (insert_result.second) {
       insert_result.first->second = new FastWildcardGroup;
     }
@@ -3967,7 +3969,7 @@ void RewriteOptions::ComputeSignatureLockHeld() {
                 option->Signature(hasher()), "_");
     }
   }
-  if (javascript_library_identification() != NULL) {
+  if (javascript_library_identification() != nullptr) {
     StrAppend(&signature_, "LI:");
     javascript_library_identification()->AppendSignature(&signature_);
     StrAppend(&signature_, "_");
@@ -4323,7 +4325,7 @@ GoogleString RewriteOptions::ExperimentSpec::ToString() const {
     sep = ",";
   }
 
-  if (matches_device_types_.get() != NULL) {
+  if (matches_device_types_.get() != nullptr) {
     StrAppend(&out, ";matches_device_type=");
     sep = "";
     if ((*matches_device_types_)[UserAgentMatcher::kDesktop]) {
@@ -4365,7 +4367,7 @@ GoogleString RewriteOptions::ExperimentSpec::ToString() const {
 
 GoogleString RewriteOptions::ToExperimentString() const {
   // Only add the experiment id if we're running this experiment.
-  if (GetExperimentSpec(experiment_id_) != NULL) {
+  if (GetExperimentSpec(experiment_id_) != nullptr) {
     return absl::StrFormat("Experiment: %d", experiment_id_);
   }
   return GoogleString();
@@ -4384,7 +4386,7 @@ GoogleString RewriteOptions::ToExperimentDebugString() const {
     output += "no experiment; ";
   } else {
     ExperimentSpec* spec = GetExperimentSpec(experiment_id_);
-    if (spec != NULL) {
+    if (spec != nullptr) {
       output += spec->ToString();
     }
   }
@@ -4398,8 +4400,8 @@ void RewriteOptions::Modify() {
   // The data in last_thread_id_ is currently only examined in DCHECKs so
   // there's no need to pay the cost of populating it in production.
 #ifndef NDEBUG
-  if (thread_system_ != NULL) {
-    if (last_thread_id_.get() == NULL) {
+  if (thread_system_ != nullptr) {
+    if (last_thread_id_.get() == nullptr) {
       last_thread_id_.reset(thread_system_->GetThreadId());
     } else {
       DCHECK(ModificationOK());
@@ -4413,12 +4415,12 @@ void RewriteOptions::Modify() {
 // compiled into the class in non-debug compiles.
 #ifndef NDEBUG
 bool RewriteOptions::ModificationOK() const {
-  return ((last_thread_id_.get() == NULL) ||
+  return ((last_thread_id_.get() == nullptr) ||
           (last_thread_id_->IsCurrentThread()));
 }
 
 bool RewriteOptions::MergeOK() const {
-  return frozen_ || (last_thread_id_.get() == NULL) ||
+  return frozen_ || (last_thread_id_.get() == nullptr) ||
       last_thread_id_->IsCurrentThread();
 }
 #endif
@@ -4426,9 +4428,9 @@ bool RewriteOptions::MergeOK() const {
 bool RewriteOptions::ValidateConfiguredHttpHeader(const GoogleString& name,
                                                   const GoogleString& value,
                                                   GoogleString* error_message) {
-  DCHECK(error_message != NULL);
+  DCHECK(error_message != nullptr);
 
-  if (error_message == NULL) {
+  if (error_message == nullptr) {
     return false;
   }
 
@@ -4535,7 +4537,7 @@ RewriteOptions::ExperimentSpec* RewriteOptions::GetExperimentSpec(
       return experiment_specs_[i];
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 bool RewriteOptions::AvailableExperimentId(int id) {
@@ -4543,14 +4545,14 @@ bool RewriteOptions::AvailableExperimentId(int id) {
       id == experiment::kNoExperiment) {
     return false;
   }
-  return (GetExperimentSpec(id) == NULL);
+  return (GetExperimentSpec(id) == nullptr);
 }
 
 RewriteOptions::ExperimentSpec* RewriteOptions::AddExperimentSpec(
     const StringPiece& spec, MessageHandler* handler) {
   ExperimentSpec* f_spec = new ExperimentSpec(spec, this, handler);
   if (!InsertExperimentSpecInVector(f_spec)) {
-    return NULL;  // InsertExperimentSpecInVector deletes f_spec on failure.
+    return nullptr;  // InsertExperimentSpecInVector deletes f_spec on failure.
   }
   return f_spec;
 }
@@ -4583,7 +4585,7 @@ bool RewriteOptions::SetupExperimentRewriters() {
   // Do NOT try to set up things to look like the ExperimentSpec
   // for this id: it doesn't match the rewrite options.
   ExperimentSpec* spec = GetExperimentSpec(experiment_id_);
-  if (spec == NULL) {
+  if (spec == nullptr) {
     return false;
   }
 
@@ -4656,9 +4658,9 @@ void RewriteOptions::ExperimentSpec::Merge(const ExperimentSpec& spec) {
   percent_ = spec.percent_;
   rewrite_level_ = spec.rewrite_level_;
   use_default_ = spec.use_default_;
-  if (spec.matches_device_types_.get() != NULL) {
-    matches_device_types_.reset(
-        new DeviceTypeBitSet(*spec.matches_device_types_));
+  if (spec.matches_device_types_.get() != nullptr) {
+    matches_device_types_ = std::make_unique<DeviceTypeBitSet>(
+        *spec.matches_device_types_);
   }
   if (!spec.alternate_origin_domains_.empty()) {
     alternate_origin_domains_ = spec.alternate_origin_domains_;
@@ -4730,7 +4732,7 @@ void RewriteOptions::ExperimentSpec::Initialize(const StringPiece& spec,
         AddCommaSeparatedListToOptionSet(options, &filter_options_, handler);
       }
     } else if (StringCaseStartsWith(piece, "matches_device_type")) {
-      matches_device_types_.reset(new DeviceTypeBitSet());
+      matches_device_types_ = std::make_unique<DeviceTypeBitSet>();
       ParseDeviceTypeBitSet(PieceAfterEquals(piece),
                             matches_device_types_.get(), handler);
     } else if (StringCaseStartsWith(piece, "alternate_origin_domain=")) {
@@ -4933,7 +4935,7 @@ bool RewriteOptions::ExperimentSpec::matches_device_type(
   }
 
   // If no device_type filter has been specified, this will match all devices.
-  if (matches_device_types_.get() == NULL) {
+  if (matches_device_types_.get() == nullptr) {
     return true;
   }
 
@@ -4981,8 +4983,8 @@ void RewriteOptions::set_inline_unauthorized_resource_types(
 void RewriteOptions::AddUrlValuedAttribute(
     const StringPiece& element, const StringPiece& attribute,
     semantic_type::Category category) {
-  if (url_valued_attributes_ == NULL) {
-    url_valued_attributes_.reset(new std::vector<ElementAttributeCategory>());
+  if (url_valued_attributes_ == nullptr) {
+    url_valued_attributes_ = std::make_unique<std::vector<ElementAttributeCategory>>();
   }
   ElementAttributeCategory eac;
   element.CopyToString(&eac.element);

@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 
 #include "net/instaweb/rewriter/public/common_filter.h"
@@ -44,10 +48,10 @@ const char kScript[] = "alert('foo');";
 class StaticAssetManagerTest : public RewriteTestBase {
  protected:
   StaticAssetManagerTest() {
-    manager_.reset(new StaticAssetManager("http://proxy-domain",
+    manager_ = std::make_unique<StaticAssetManager>("http://proxy-domain",
                                           server_context()->thread_system(),
                                           server_context()->hasher(),
-                                          server_context()->message_handler()));
+                                          server_context()->message_handler());
   }
 
   void SetUp() override {

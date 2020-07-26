@@ -37,8 +37,8 @@ InlineAttributeSlot::~InlineAttributeSlot() {
 
 void InlineAttributeSlot::Render() {
   if (!disable_rendering()) {
-    DCHECK(attribute_ != NULL);
-    if (attribute_ != NULL) {
+    DCHECK(attribute_ != nullptr);
+    if (attribute_ != nullptr) {
       attribute_->SetValue(resource()->ExtractUncompressedContents());
     }
   }

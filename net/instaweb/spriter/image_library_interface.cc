@@ -27,7 +27,7 @@ ImageLibraryInterface* ImageLibraryInterface::ImageLibraryInterfaceFactory(
     const GoogleString& library_name) {
   // TODO(skerner):  Implement some interfaces.  Will do OpenCV first.
 
-  return NULL;
+  return nullptr;
 }
 
 ImageLibraryInterface::ImageLibraryInterface(const FilePath& base_input_path,

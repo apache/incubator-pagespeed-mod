@@ -49,7 +49,7 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
         url_(url), handler_(handler), base_fetch_(base_fetch),
         filename_(filename), dump_fetcher_(dump_fetcher),
         file_system_(file_system) {
-    DCHECK(request_context.get() != NULL);
+    DCHECK(request_context.get() != nullptr);
   }
 
   void StartFetch(const bool accept_gzip, UrlAsyncFetcher* base_fetcher) {
@@ -98,7 +98,7 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
 
       FileSystem::OutputFile* file = file_system_->OpenTempFile(
           filename_ + ".temp", handler_);
-      if (file != NULL) {
+      if (file != nullptr) {
         handler_->Message(kInfo, "Storing %s as %s", url_.c_str(),
                           filename_.c_str());
         GoogleString temp_filename = file->filename();

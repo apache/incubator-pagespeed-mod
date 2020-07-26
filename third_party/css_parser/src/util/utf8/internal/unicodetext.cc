@@ -22,8 +22,8 @@
 
 #include "util/utf8/public/unicodetext.h"
 
-#include <string.h>                     // for memcpy, NULL, memcmp, etc
 #include <algorithm>                    // for max
+#include <cstring>                     // for memcpy, NULL, memcmp, etc
 
 #include "base/logging.h"               // for operator<<, CHECK, etc
 #include "strings/stringpiece.h"        // for CssStringPiece, etc

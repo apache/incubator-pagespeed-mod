@@ -22,6 +22,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
+
 
 extern "C" {
 #ifdef USE_SYSTEM_ZLIB
@@ -140,9 +142,9 @@ const uint8 kAlphaOpaque = 255;
 void UpdateWebpStats(bool ok, bool was_timed_out, int64 time_elapsed_ms,
                      Image::ConversionVariables::VariableType var_type,
                      Image::ConversionVariables* conversion_vars) {
-  if (conversion_vars != NULL) {
+  if (conversion_vars != nullptr) {
     Image::ConversionBySourceVariable* the_var = conversion_vars->Get(var_type);
-    if (the_var != NULL) {
+    if (the_var != nullptr) {
       if (was_timed_out) {
         the_var->timeout_count->Add(1);
         DCHECK(!ok);
@@ -383,7 +385,7 @@ ImageImpl::ImageImpl(const StringPiece& original_contents,
       low_quality_enabled_(false),
       timer_(timer) {
   const GoogleString annotation = StrCat(url, ": ");
-  handler_.reset(new AnnotatedMessageHandler(annotation, handler));
+  handler_ = std::make_unique<AnnotatedMessageHandler>(annotation, handler);
 }
 
 Image* NewImage(const StringPiece& original_contents,
@@ -415,7 +417,7 @@ ImageImpl::ImageImpl(int width, int height, ImageType type,
   options_.reset(options);
   dims_.set_width(width);
   dims_.set_height(height);
-  handler_.reset(new AnnotatedMessageHandler(handler));
+  handler_ = std::make_unique<AnnotatedMessageHandler>(handler);
 }
 
 bool ImageImpl::GenerateBlankImage() {
@@ -436,10 +438,10 @@ Image* BlankImageWithOptions(int width, int height, ImageType type,
                              Image::CompressionOptions* options) {
   std::unique_ptr<ImageImpl> image(new ImageImpl(width, height, type, tmp_dir,
                                             timer, handler, options));
-  if (image != NULL && image->GenerateBlankImage()) {
+  if (image != nullptr && image->GenerateBlankImage()) {
     return image.release();
   }
-  return NULL;
+  return nullptr;
 }
 
 Image::~Image() {
@@ -574,7 +576,7 @@ void ImageImpl::ComputeImageType() {
 }
 
 const ContentType* Image::TypeToContentType(ImageType image_type) {
-  const ContentType* res = NULL;
+  const ContentType* res = nullptr;
   switch (image_type) {
     case IMAGE_UNKNOWN:
       break;
@@ -689,7 +691,7 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
                            original_contents_.data(),
                            original_contents_.length(),
                            handler_.get()));
-  if (image_reader == NULL) {
+  if (image_reader == nullptr) {
     resize_debug_message_ =
         absl::StrFormat("Cannot resize: Cannot open the image%s to resize",
                      debug_message_url_.c_str());
@@ -746,12 +748,12 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
       PS_LOG_DFATAL(handler_, "Unsupported image format");
   }
 
-  if (writer == NULL) {
+  if (writer == nullptr) {
     return false;
   }
 
   // Resize the image and save the results in 'resized_image_'.
-  void* scanline = NULL;
+  void* scanline = nullptr;
   while (resizer.HasMoreScanLines()) {
     if (!resizer.ReadNextScanline(&scanline)) {
       resize_debug_message_ =
@@ -894,7 +896,7 @@ bool ImageImpl::ComputeOutputContents() {
         }
         break;
       case IMAGE_PNG:
-        png_reader.reset(new PngReader(handler_.get()));
+        png_reader = std::make_unique<PngReader>(handler_.get());
         ok = ComputeOutputContentsFromGifOrPng(
             string_for_image,
             png_reader.get(),
@@ -908,11 +910,11 @@ bool ImageImpl::ComputeOutputContents() {
         if (resized) {
           // If the GIF image has been resized, it has already been
           // converted to a PNG image.
-          png_reader.reset(new PngReader(handler_.get()));
+          png_reader = std::make_unique<PngReader>(handler_.get());
           current_image_type = IMAGE_PNG;
         } else if (options_->convert_gif_to_png || low_quality_enabled_ ||
                    options_->allow_webp_animated) {
-          png_reader.reset(new GifReader(handler_.get()));
+          png_reader = std::make_unique<GifReader>(handler_.get());
         } else {
           break;
         }
@@ -999,7 +1001,7 @@ bool ImageImpl::ConvertAnimatedGifToWebp(bool has_transparency) {
   // format conversion and compression.
   pagespeed::image_compression::ImageSpec image_spec;
   pagespeed::image_compression::FrameSpec frame_spec;
-  const void* scan_row = NULL;
+  const void* scan_row = nullptr;
   if (reader->GetImageSpec(&image_spec, &status) &&
       writer->PrepareImage(&image_spec, &status)) {
     while (reader->HasMoreFrames() &&
@@ -1054,9 +1056,9 @@ inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
 
   AnalyzeImage(ImageTypeToImageFormat(input_type),
                string_for_image.data(), string_for_image.length(),
-               NULL /* width */, NULL /* height */, NULL /* is_progressive */,
+               nullptr /* width */, nullptr /* height */, nullptr /* is_progressive */,
                &is_animated, &has_transparency, &is_photo,
-               NULL /* quality */, NULL /* reader */, handler_.get());
+               nullptr /* quality */, nullptr /* reader */, handler_.get());
 
   debug_message_ = absl::StrFormat("Image%s has%s transparent pixels,"
                                 " is%s sensitive to compression noise, and"
@@ -1328,7 +1330,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
       output_contents_.data(),
       output_contents_.length(),
       handler_.get()));
-  if (canvas_reader == NULL) {
+  if (canvas_reader == nullptr) {
     PS_LOG_ERROR(handler_, "Cannot open canvas image.");
     return false;
   }
@@ -1345,7 +1347,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
                              impl->original_contents().data(),
                              impl->original_contents().length(),
                              handler_.get()));
-  if (image_reader == NULL) {
+  if (image_reader == nullptr) {
     PS_LOG_INFO(handler_, "Cannot open the image which will be sprited.");
     return false;
   }
@@ -1379,14 +1381,14 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
       CreateUncompressedPngWriter(canvas_width, canvas_height,
                                   &canvas_image, handler_.get(),
                                   has_transparency));
-  if (canvas_writer == NULL) {
+  if (canvas_writer == nullptr) {
     PS_LOG_ERROR(handler_, "Failed to create canvas writer.");
     return false;
   }
 
   // Overlay the new image onto the canvas image.
   for (int row = 0; row < static_cast<int>(canvas_height); ++row) {
-    uint8* canvas_line = NULL;
+    uint8* canvas_line = nullptr;
     if (!canvas_reader->ReadNextScanline(
         reinterpret_cast<void**>(&canvas_line))) {
       PS_LOG_ERROR(handler_, "Failed to read canvas image.");
@@ -1394,7 +1396,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
     }
 
     if (row >= y && row < y + static_cast<int>(image_height)) {
-      uint8* image_line = NULL;
+      uint8* image_line = nullptr;
       if (!image_reader->ReadNextScanline(
           reinterpret_cast<void**>(&image_line))) {
         PS_LOG_INFO(handler_,

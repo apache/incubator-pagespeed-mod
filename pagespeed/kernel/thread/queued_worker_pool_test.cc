@@ -209,7 +209,7 @@ TEST_F(QueuedWorkerPoolTest, AddAfterShutDown) {
   worker_->ShutDown();
   LogOpsFunction f;
   sequence->Add(&f);
-  worker_.reset(NULL);
+  worker_.reset(nullptr);
   EXPECT_TRUE(f.cancel_called());
   EXPECT_FALSE(f.run_called());
 }

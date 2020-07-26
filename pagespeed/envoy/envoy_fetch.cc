@@ -67,7 +67,7 @@ EnvoyFetch::EnvoyFetch(const GoogleString& url,
                    MessageHandler* message_handler,
                    EnvoyClusterManager& cluster_manager)
     : str_url_(url),
-      fetcher_(NULL),
+      fetcher_(nullptr),
       async_fetch_(async_fetch),
       message_handler_(message_handler),
       cluster_manager_(cluster_manager),

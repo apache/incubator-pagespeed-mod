@@ -31,14 +31,14 @@ AddHeadFilter::AddHeadFilter(HtmlParse* html_parse, bool combine_multiple_heads)
     : html_parse_(html_parse),
       combine_multiple_heads_(combine_multiple_heads),
       found_head_(false),
-      head_element_(NULL) {
+      head_element_(nullptr) {
 }
 
 AddHeadFilter::~AddHeadFilter() {}
 
 void AddHeadFilter::StartDocument() {
   found_head_ = false;
-  head_element_ = NULL;
+  head_element_ = nullptr;
 }
 
 void AddHeadFilter::StartElement(HtmlElement* element) {
@@ -59,7 +59,7 @@ void AddHeadFilter::StartElement(HtmlElement* element) {
 void AddHeadFilter::EndElement(HtmlElement* element) {
   if (combine_multiple_heads_ &&
       (element->keyword() == HtmlName::kHead) && (element != head_element_) &&
-      (head_element_ != NULL) && html_parse_->IsRewritable(head_element_)) {
+      (head_element_ != nullptr) && html_parse_->IsRewritable(head_element_)) {
     // Combine heads
     if (!(html_parse_->MoveCurrentInto(head_element_) &&
           html_parse_->DeleteSavingChildren(element))) {
@@ -70,13 +70,13 @@ void AddHeadFilter::EndElement(HtmlElement* element) {
 
 void AddHeadFilter::Flush() {
   // Cannot combine heads across flush, so we NULL the pointer.
-  head_element_ = NULL;
+  head_element_ = nullptr;
 }
 
 void AddHeadFilter::EndDocument() {
   if (!found_head_) {
     // Degenerate case: page contains no elements (or only <html> elements).
-    head_element_ = html_parse_->NewElement(NULL, HtmlName::kHead);
+    head_element_ = html_parse_->NewElement(nullptr, HtmlName::kHead);
     html_parse_->InsertNodeBeforeCurrent(head_element_);
     found_head_ = true;
   }

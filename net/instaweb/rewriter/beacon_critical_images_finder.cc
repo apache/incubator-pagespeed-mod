@@ -52,11 +52,11 @@ bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
       const StringPiece& nonce,
       const PropertyCache::Cohort* cohort,
       AbstractPropertyPage* page, Timer* timer) {
-  DCHECK(cohort != NULL);
-  DCHECK(page != NULL);
+  DCHECK(cohort != nullptr);
+  DCHECK(page != nullptr);
   PropertyValue* property_value =
       page->GetProperty(cohort, kCriticalImagesPropertyName);
-  if (property_value == NULL) {
+  if (property_value == nullptr) {
     return false;
   }
   CriticalImages critical_images;
@@ -94,9 +94,9 @@ bool BeaconCriticalImagesFinder::ShouldBeacon(RewriteDriver* driver) {
   UpdateCriticalImagesSetInDriver(driver);
   int64 next_beacon_timestamp_ms = 0;
   CriticalImagesInfo* critical_images = driver->critical_images_info();
-  DCHECK(critical_images != NULL)
+  DCHECK(critical_images != nullptr)
       << "UpdateCriticalImagesSetInDriver must be called before ShouldBeacon";
-  if (critical_images != NULL) {
+  if (critical_images != nullptr) {
     const CriticalImages& proto = critical_images->proto;
     if (proto.has_html_critical_image_support()) {
       next_beacon_timestamp_ms =

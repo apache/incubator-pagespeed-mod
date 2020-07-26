@@ -59,7 +59,7 @@ void PthreadCondvar::TimedWait(int64 timeout_ms) {
   // Carrying ns to s as appropriate.  As morlovich notes, we
   // get *really close* to overflowing a 32-bit tv_nsec here,
   // so this code should be modified with caution.
-  if (gettimeofday(&current_time, NULL) != 0) {
+  if (gettimeofday(&current_time, nullptr) != 0) {
     LOG(FATAL) << "Could not determine time of day";
   }
   timeout.tv_nsec = current_time.tv_usec * 1000 + timeout_ms * kMsNs;
@@ -71,7 +71,7 @@ void PthreadCondvar::TimedWait(int64 timeout_ms) {
 }
 
 void PthreadCondvar::Init() {
-  while (pthread_cond_init(&condvar_, NULL) == EAGAIN) { }
+  while (pthread_cond_init(&condvar_, nullptr) == EAGAIN) { }
 }
 
 }  // namespace net_instaweb

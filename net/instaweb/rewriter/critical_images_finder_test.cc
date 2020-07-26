@@ -17,6 +17,10 @@
  * under the License.
  */
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -67,8 +71,8 @@ class CriticalImagesFinderTest : public CriticalImagesFinderTestBase {
   void SetUp() override {
     CriticalImagesFinderTestBase::SetUp();
     SetupCohort(page_property_cache(), kCriticalImagesCohort);
-    finder_.reset(new TestCriticalImagesFinder(
-        page_property_cache()->GetCohort(kCriticalImagesCohort), statistics()));
+    finder_ = std::make_unique<TestCriticalImagesFinder>(
+        page_property_cache()->GetCohort(kCriticalImagesCohort), statistics());
     ResetDriver();
   }
 
@@ -83,8 +87,8 @@ class CriticalImagesHistoryFinderTest : public CriticalImagesFinderTest {
   void SetUp() override {
     CriticalImagesFinderTestBase::SetUp();
     SetupCohort(page_property_cache(), kCriticalImagesCohort);
-    finder_.reset(new HistoryTestCriticalImagesFinder(
-        page_property_cache()->GetCohort(kCriticalImagesCohort), statistics()));
+    finder_ = std::make_unique<HistoryTestCriticalImagesFinder>(
+        page_property_cache()->GetCohort(kCriticalImagesCohort), statistics());
     ResetDriver();
   }
 };
@@ -126,21 +130,21 @@ TEST_F(CriticalImagesFinderTest,
 }
 
 TEST_F(CriticalImagesFinderTest, UpdateCriticalImagesCacheEntrySetNULL) {
-  EXPECT_FALSE(UpdateCriticalImagesCacheEntry(NULL, NULL));
+  EXPECT_FALSE(UpdateCriticalImagesCacheEntry(nullptr, nullptr));
   EXPECT_FALSE(GetCriticalImagesUpdatedValue()->has_value());
 }
 
 TEST_F(CriticalImagesFinderTest,
        UpdateCriticalImagesCacheEntryPropertyPageMissing) {
   // No cache insert if PropertyPage is not set in RewriteDriver.
-  rewrite_driver()->set_property_page(NULL);
+  rewrite_driver()->set_property_page(nullptr);
   // Include an actual value in the RPC result to induce a cache write. We
   // expect no writes, but not from a lack of results!
   StringSet html_critical_images_set;
   StringSet css_critical_images_set;
   EXPECT_FALSE(UpdateCriticalImagesCacheEntry(
       &html_critical_images_set, &css_critical_images_set));
-  EXPECT_EQ(NULL, GetCriticalImagesUpdatedValue());
+  EXPECT_EQ(nullptr, GetCriticalImagesUpdatedValue());
 }
 
 TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
@@ -181,7 +185,7 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   // critical_images_info() is NULL because there is no previous call to
   // GetCriticalImages()
   ResetDriver();
-  EXPECT_TRUE(rewrite_driver()->critical_images_info() == NULL);
+  EXPECT_TRUE(rewrite_driver()->critical_images_info() == nullptr);
   EXPECT_TRUE(IsHtmlCriticalImage("imageA.jpeg"));
   CheckCriticalImageFinderStats(1, 0, 0);
   EXPECT_EQ(2, logging_info()->num_html_critical_images());
@@ -189,7 +193,7 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   ClearStats();
 
   // GetCriticalImages() updates critical_images set in RewriteDriver().
-  EXPECT_TRUE(rewrite_driver()->critical_images_info() != NULL);
+  EXPECT_TRUE(rewrite_driver()->critical_images_info() != nullptr);
   // EXPECT_EQ(2, GetCriticalImages(rewrite_driver()).size());
   EXPECT_TRUE(IsHtmlCriticalImage("imageA.jpeg"));
   EXPECT_TRUE(IsHtmlCriticalImage("imageB.jpeg"));
@@ -221,9 +225,9 @@ TEST_F(CriticalImagesFinderTest, GetCriticalImagesTest) {
   ResetDriver();
   // Advance past expiry, so that the pages expire; now no images are critical.
   AdvanceTimeMs(2 * options()->finder_properties_cache_expiration_time_ms());
-  EXPECT_TRUE(rewrite_driver()->critical_images_info() == NULL);
+  EXPECT_TRUE(rewrite_driver()->critical_images_info() == nullptr);
   EXPECT_FALSE(IsHtmlCriticalImage("imageA.jpeg"));
-  EXPECT_TRUE(rewrite_driver()->critical_images_info() != NULL);
+  EXPECT_TRUE(rewrite_driver()->critical_images_info() != nullptr);
   CheckCriticalImageFinderStats(0, 1, 0);
   // Here -1 results mean "no valid critical image data" due to expiry.
   EXPECT_EQ(-1, logging_info()->num_html_critical_images());
@@ -259,7 +263,7 @@ TEST_F(CriticalImagesHistoryFinderTest, GetCriticalImagesTest) {
   for (int i = 0; i < 2; ++i) {
     ResetDriver();
     EXPECT_TRUE(UpdateCriticalImagesCacheEntry(
-        &html_critical_images_set, NULL));
+        &html_critical_images_set, nullptr));
     rewrite_driver()->property_page()->WriteCohort(finder()->cohort());
     ResetDriver();
     EXPECT_TRUE(IsHtmlCriticalImage("imgA.jpeg"));
@@ -271,7 +275,7 @@ TEST_F(CriticalImagesHistoryFinderTest, GetCriticalImagesTest) {
   for (int i = 0; i < finder()->SupportInterval(); ++i) {
     ResetDriver();
     EXPECT_TRUE(UpdateCriticalImagesCacheEntry(
-        &html_critical_images_set, NULL));
+        &html_critical_images_set, nullptr));
     rewrite_driver()->property_page()->WriteCohort(finder()->cohort());
     ResetDriver();
     EXPECT_TRUE(IsHtmlCriticalImage("imgA.jpeg"));
@@ -286,7 +290,7 @@ TEST_F(CriticalImagesHistoryFinderTest, GetCriticalImagesTest) {
   for (int i = 0; i < 2; ++i) {
     ResetDriver();
     EXPECT_TRUE(UpdateCriticalImagesCacheEntry(
-        &html_critical_images_set, NULL));
+        &html_critical_images_set, nullptr));
     rewrite_driver()->property_page()->WriteCohort(finder()->cohort());
     ResetDriver();
     EXPECT_TRUE(IsHtmlCriticalImage("imgA.jpeg"));
@@ -307,7 +311,7 @@ TEST_F(CriticalImagesHistoryFinderTest, GetCriticalImagesTest) {
   for (int i = 0; i < 12; ++i) {
     ResetDriver();
     EXPECT_TRUE(UpdateCriticalImagesCacheEntry(
-        &html_critical_images_set, NULL));
+        &html_critical_images_set, nullptr));
     rewrite_driver()->property_page()->WriteCohort(finder()->cohort());
     ResetDriver();
     EXPECT_FALSE(IsHtmlCriticalImage("imgA.jpeg"));
@@ -320,7 +324,7 @@ TEST_F(CriticalImagesHistoryFinderTest, GetCriticalImagesTest) {
   for (int i = 0; i < finder()->SupportInterval(); ++i) {
     ResetDriver();
     EXPECT_TRUE(UpdateCriticalImagesCacheEntry(
-        &html_critical_images_set, NULL));
+        &html_critical_images_set, nullptr));
     rewrite_driver()->property_page()->WriteCohort(finder()->cohort());
     ResetDriver();
     EXPECT_FALSE(IsHtmlCriticalImage("imgA.jpeg"));
@@ -383,8 +387,8 @@ TEST_F(CriticalImagesFinderTest, TestRenderedImageExtractionFromPropertyCache) {
 
 TEST_F(CriticalImagesFinderTest, TestJsonMapToRenderedImagesMapReturnsNullOnBadType) {
   RenderedImages* actual =
-    finder()->JsonMapToRenderedImagesMap("{\"2758473226\":{\"rw\":\"137\"}}", NULL);
-  EXPECT_TRUE(actual == NULL);
+    finder()->JsonMapToRenderedImagesMap("{\"2758473226\":{\"rw\":\"137\"}}", nullptr);
+  EXPECT_TRUE(actual == nullptr);
 }
 
 }  // namespace net_instaweb

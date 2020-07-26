@@ -20,6 +20,10 @@
 
 #include "pagespeed/system/system_server_context.h"
 
+
+#include <memory>
+
+
 #include "base/logging.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/url_async_fetcher_stats.h"
@@ -67,24 +71,24 @@ SystemServerContext::SystemServerContext(
       use_per_vhost_statistics_(false),
       cache_flush_mutex_(thread_system()->NewMutex()),
       last_cache_flush_check_sec_(0),
-      cache_flush_count_(NULL),         // Lazy-initialized under mutex.
-      cache_flush_timestamp_ms_(NULL),  // Lazy-initialized under mutex.
-      html_rewrite_time_us_histogram_(NULL),
-      local_statistics_(NULL),
+      cache_flush_count_(nullptr),         // Lazy-initialized under mutex.
+      cache_flush_timestamp_ms_(nullptr),  // Lazy-initialized under mutex.
+      html_rewrite_time_us_histogram_(nullptr),
+      local_statistics_(nullptr),
       hostname_identifier_(StrCat(hostname, ":", IntegerToString(port))),
-      system_caches_(NULL),
-      cache_path_(NULL) {
+      system_caches_(nullptr),
+      cache_path_(nullptr) {
   global_system_rewrite_options()->set_description(hostname_identifier_);
 }
 
 SystemServerContext::~SystemServerContext() {
-  if (cache_path_ != NULL) {
+  if (cache_path_ != nullptr) {
     cache_path_->RemoveServerContext(this);
   }
 }
 
 void SystemServerContext::SetCachePath(SystemCachePath* cache_path) {
-  DCHECK(cache_path_ == NULL);
+  DCHECK(cache_path_ == nullptr);
   cache_path_ = cache_path;
   cache_path->AddServerContext(this);
 }
@@ -114,10 +118,10 @@ void SystemServerContext::CheckLegacyGlobalCacheFlushFile() {
         last_cache_flush_check_sec_ = now_sec;
         check_cache_file = true;
       }
-      if (cache_flush_count_ == NULL) {
+      if (cache_flush_count_ == nullptr) {
         cache_flush_count_ = statistics()->GetVariable(kCacheFlushCount);
       }
-      if (cache_flush_timestamp_ms_ == NULL) {
+      if (cache_flush_timestamp_ms_ == nullptr) {
         cache_flush_timestamp_ms_ = statistics()->GetUpDownCounter(
             kCacheFlushTimestampMs);
       }
@@ -181,7 +185,7 @@ void SystemServerContext::CheckLegacyGlobalCacheFlushFile() {
 void SystemServerContext::UpdateCachePurgeSet(
     const CopyOnWrite<PurgeSet>& purge_set) {
   global_options()->UpdateCachePurgeSet(purge_set);
-  if (cache_flush_count_ == NULL) {
+  if (cache_flush_count_ == nullptr) {
     cache_flush_count_ = statistics()->GetVariable(kCacheFlushCount);
   }
   cache_flush_count_->Add(1);
@@ -192,7 +196,7 @@ bool SystemServerContext::UpdateCacheFlushTimestampMs(int64 timestamp_ms) {
 }
 
 void SystemServerContext::AddHtmlRewriteTimeUs(int64 rewrite_time_us) {
-  if (html_rewrite_time_us_histogram_ != NULL) {
+  if (html_rewrite_time_us_histogram_ != nullptr) {
     html_rewrite_time_us_histogram_->Add(rewrite_time_us);
   }
 }
@@ -200,14 +204,14 @@ void SystemServerContext::AddHtmlRewriteTimeUs(int64 rewrite_time_us) {
 SystemRewriteOptions* SystemServerContext::global_system_rewrite_options() {
   SystemRewriteOptions* out =
       dynamic_cast<SystemRewriteOptions*>(global_options());
-  CHECK(out != NULL);
+  CHECK(out != nullptr);
   return out;
 }
 
 void SystemServerContext::PostInitHook() {
   ServerContext::PostInitHook();
-  admin_site_.reset(new AdminSite(static_asset_manager(), timer(),
-                                  message_handler()));
+  admin_site_ = std::make_unique<AdminSite>(static_asset_manager(), timer(),
+                                  message_handler());
 }
 
 void SystemServerContext::CreateLocalStatistics(
@@ -217,8 +221,8 @@ void SystemServerContext::CreateLocalStatistics(
       factory->AllocateAndInitSharedMemStatistics(
           true /* local */, hostname_identifier(),
           *global_system_rewrite_options());
-  split_statistics_.reset(new SplitStatistics(
-      factory->thread_system(), local_statistics_, global_statistics));
+  split_statistics_ = std::make_unique<SplitStatistics>(
+      factory->thread_system(), local_statistics_, global_statistics);
   // local_statistics_ was ::InitStat'd by AllocateAndInitSharedMemStatistics,
   // but we need to take care of split_statistics_.
   factory->NonStaticInitStats(split_statistics_.get());
@@ -253,7 +257,7 @@ void SystemServerContext::ChildInit(SystemRewriteDriverFactory* factory) {
         factory->GetFetcher(global_system_rewrite_options());
     set_default_system_fetcher(fetcher);
 
-    if (split_statistics_.get() != NULL) {
+    if (split_statistics_.get() != nullptr) {
       // Readjust the SHM stuff for the new process
       local_statistics_->Init(false, message_handler());
 
@@ -262,9 +266,9 @@ void SystemServerContext::ChildInit(SystemRewriteDriverFactory* factory) {
       // they would get set to the factory's by the InitServerContext call
       // below.
       set_statistics(split_statistics_.get());
-      local_rewrite_stats_.reset(new RewriteStats(
+      local_rewrite_stats_ = std::make_unique<RewriteStats>(
           factory->HasWaveforms(), split_statistics_.get(),
-          factory->thread_system(), factory->timer()));
+          factory->thread_system(), factory->timer());
       set_rewrite_stats(local_rewrite_stats_.get());
 
       // In case of gzip fetching, we will have the UrlAsyncFetcherStats take
@@ -274,9 +278,9 @@ void SystemServerContext::ChildInit(SystemRewriteDriverFactory* factory) {
       if (fetch_with_gzip) {
         fetcher->set_fetch_with_gzip(false);
       }
-      stats_fetcher_.reset(new UrlAsyncFetcherStats(
+      stats_fetcher_ = std::make_unique<UrlAsyncFetcherStats>(
           kLocalFetcherStatsPrefix, fetcher,
-          factory->timer(), split_statistics_.get()));
+          factory->timer(), split_statistics_.get());
       if (fetch_with_gzip) {
         stats_fetcher_->set_fetch_with_gzip(true);
       }
@@ -302,10 +306,10 @@ void SystemServerContext::ApplySessionFetchers(
     const RequestContextPtr& request, RewriteDriver* driver) {
   const SystemRewriteOptions* conf =
       SystemRewriteOptions::DynamicCast(driver->options());
-  CHECK(conf != NULL);
+  CHECK(conf != nullptr);
   SystemRequestContext* system_request = SystemRequestContext::DynamicCast(
       request.get());
-  if (system_request == NULL) {
+  if (system_request == nullptr) {
     return;  // decoding_driver has a null RequestContext.
   }
 

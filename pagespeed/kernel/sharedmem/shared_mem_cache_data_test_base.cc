@@ -117,8 +117,8 @@ void SharedMemCacheDataTestBase::ExtractAndSanityCheckLRU(
 }
 
 void SharedMemCacheDataTestBase::TestFreeList() NO_THREAD_SAFETY_ANALYSIS {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
   std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
   std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
@@ -172,8 +172,8 @@ void SharedMemCacheDataTestBase::TestFreeList() NO_THREAD_SAFETY_ANALYSIS {
 }
 
 void SharedMemCacheDataTestBase::TestFreeListChild() NO_THREAD_SAFETY_ANALYSIS {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   if (!ChildInit(&seg_raw_ptr, &sector_raw_ptr)) {
     test_env_->ChildFailed();
   }
@@ -191,8 +191,8 @@ void SharedMemCacheDataTestBase::TestFreeListChild() NO_THREAD_SAFETY_ANALYSIS {
 }
 
 void SharedMemCacheDataTestBase::TestLRU() {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
   std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
   std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
@@ -239,8 +239,8 @@ void SharedMemCacheDataTestBase::TestLRU() {
 }
 
 void SharedMemCacheDataTestBase::TestBlockLists() NO_THREAD_SAFETY_ANALYSIS {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
   std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
   std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
@@ -302,7 +302,7 @@ bool SharedMemCacheDataTestBase::ParentInit(AbstractSharedMemSegment** out_seg,
       Sector<kBlockSize>::RequiredSize(shmem_runtime_.get(), kEntries, kBlocks);
   AbstractSharedMemSegment* seg =
       shmem_runtime_->CreateSegment(kSegment, bytes + kExtra, &handler_);
-  if (seg == NULL) {
+  if (seg == nullptr) {
     return false;
   }
 
@@ -320,7 +320,7 @@ bool SharedMemCacheDataTestBase::ChildInit(AbstractSharedMemSegment** out_seg,
       Sector<kBlockSize>::RequiredSize(shmem_runtime_.get(), kEntries, kBlocks);
   AbstractSharedMemSegment* seg =
       shmem_runtime_->AttachToSegment(kSegment, bytes + kExtra, &handler_);
-  if (seg == NULL) {
+  if (seg == nullptr) {
     return false;
   }
 

@@ -71,7 +71,7 @@ class CachePutFetch : public SharedAsyncFetch {
         cache_value_writer_(&cache_value_, cache_),
         saved_headers_(http_options_),
         req_properties_(base_fetch->request_headers()->GetProperties()) {
-    if (backend_first_byte_latency_ != NULL) {
+    if (backend_first_byte_latency_ != nullptr) {
       start_time_ms_ = cache_->timer()->NowMs();
     }
   }
@@ -82,7 +82,7 @@ class CachePutFetch : public SharedAsyncFetch {
     // We compute the latency here as it's the spot where we're doing an
     // actual backend fetch and not potentially using the cache.
     int64 now_ms = cache_->timer()->NowMs();
-    if (backend_first_byte_latency_ != NULL) {
+    if (backend_first_byte_latency_ != nullptr) {
       backend_first_byte_latency_->Add(now_ms - start_time_ms_);
     }
     ResponseHeaders* headers = response_headers();
@@ -93,7 +93,7 @@ class CachePutFetch : public SharedAsyncFetch {
         // TODO(sligocki): Use some sort of computed
         // headers->HasExplicitCachingTtl() instead
         // of just checking for the existence of 2 headers.
-        (cache_control == NULL || cache_control == StringPiece("public")) &&
+        (cache_control == nullptr || cache_control == StringPiece("public")) &&
         !headers->Has(HttpAttributes::kExpires)) {
       headers->Add(HttpAttributes::kCacheControl,
           "max-age=" + Integer64ToString(headers->implicit_cache_ttl_ms()));
@@ -144,7 +144,7 @@ class CachePutFetch : public SharedAsyncFetch {
       const char* orig_content_length = extra_response_headers()->Lookup1(
           HttpAttributes::kXOriginalContentLength);
       int64 ocl;
-      if (orig_content_length != NULL &&
+      if (orig_content_length != nullptr &&
           StringToInt64(orig_content_length, &ocl)) {
         saved_headers_.SetOriginalContentLength(ocl);
       }
@@ -281,7 +281,7 @@ class CacheFindCallback : public HTTPCache::Callback {
   ~CacheFindCallback() override {}
 
   void Done(HTTPCache::FindResult find_result) override {
-    if (response_sequence_ == NULL) {
+    if (response_sequence_ == nullptr) {
       Finish(find_result);
     } else {
       response_sequence_->Add(MakeFunction(
@@ -331,13 +331,13 @@ class CacheFindCallback : public HTTPCache::Callback {
           is_imminently_expiring = IsImminentlyExpiring(*response_headers());
         }
 
-        if (fetcher_ != NULL &&
+        if (fetcher_ != nullptr &&
             proactively_freshen_user_facing_request_ &&
-            async_op_hooks_ != NULL &&
+            async_op_hooks_ != nullptr &&
             is_imminently_expiring) {
           // Triggers the background fetch to freshen the value in cache if
           // resource is about to expire.
-          if (num_proactively_freshen_user_facing_request_ != NULL) {
+          if (num_proactively_freshen_user_facing_request_ != nullptr) {
             num_proactively_freshen_user_facing_request_->Add(1);
           }
           TriggerBackgroundFreshenFetch();
@@ -365,7 +365,7 @@ class CacheFindCallback : public HTTPCache::Callback {
       case HTTPCache::kNotFound: {
         VLOG(1) << "Did not find in cache: "
                 << url_ << " (" << fragment_ << ")";
-        if (fetcher_ == NULL) {
+        if (fetcher_ == nullptr) {
           // Set status code to indicate reason we failed Fetch.
           DCHECK(!base_fetch_->headers_complete());
           base_fetch_->response_headers()->set_status_code(
@@ -424,7 +424,7 @@ class CacheFindCallback : public HTTPCache::Callback {
  private:
   bool ServedStaleContentWhileRevalidate(AsyncFetch* base_fetch) {
     if (serve_stale_while_revalidate_threshold_sec_ == 0 ||
-        fallback_http_value() == NULL ||
+        fallback_http_value() == nullptr ||
         fallback_http_value()->Empty()) {
       return false;
     }
@@ -446,7 +446,7 @@ class CacheFindCallback : public HTTPCache::Callback {
       response_headers->Clear();
       return false;
     }
-    if (fallback_responses_served_while_revalidate_ != NULL) {
+    if (fallback_responses_served_while_revalidate_ != nullptr) {
       fallback_responses_served_while_revalidate_->Add(1);
     }
     // CacheControl header is changed to private, max-age=0 to avoid caching
@@ -498,7 +498,7 @@ class CacheFindCallback : public HTTPCache::Callback {
     // Otherwise, return a 304 only if there was no If-None-Match header in the
     // request and the last modified timestamp matches.
     // (from http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html)
-    return request_headers()->Lookup1(HttpAttributes::kIfNoneMatch) == NULL &&
+    return request_headers()->Lookup1(HttpAttributes::kIfNoneMatch) == nullptr &&
         ConditionalHeadersMatch(HttpAttributes::kIfModifiedSince,
                                 HttpAttributes::kLastModified);
   }
@@ -509,7 +509,7 @@ class CacheFindCallback : public HTTPCache::Callback {
         request_headers()->Lookup1(request_header);
     const char* response_header_value =
         response_headers()->Lookup1(response_header);
-    return request_header_value != NULL && response_header_value != NULL &&
+    return request_header_value != nullptr && response_header_value != nullptr &&
         strcmp(request_header_value, response_header_value) == 0;
   }
 
@@ -537,7 +537,7 @@ class CacheFindCallback : public HTTPCache::Callback {
     // understand them.
     const char* etag = request_headers()->Lookup1(
         HttpAttributes::kIfNoneMatch);
-    if (etag != NULL &&
+    if (etag != nullptr &&
         StringCaseStartsWith(etag, HTTPCache::kEtagPrefix)) {
       put_fetch->request_headers()->RemoveAll(
           HttpAttributes::kIfNoneMatch);
@@ -594,11 +594,11 @@ CacheUrlAsyncFetcher::CacheUrlAsyncFetcher(const Hasher* lock_hasher,
       fragment_(fragment),
       fetcher_(fetcher),
       async_op_hooks_(async_op_hooks),
-      backend_first_byte_latency_(NULL),
-      fallback_responses_served_(NULL),
-      fallback_responses_served_while_revalidate_(NULL),
-      num_conditional_refreshes_(NULL),
-      num_proactively_freshen_user_facing_request_(NULL),
+      backend_first_byte_latency_(nullptr),
+      fallback_responses_served_(nullptr),
+      fallback_responses_served_while_revalidate_(nullptr),
+      num_conditional_refreshes_(nullptr),
+      num_proactively_freshen_user_facing_request_(nullptr),
       respect_vary_(false),
       ignore_recent_fetch_failed_(false),
       serve_stale_if_fetch_error_(false),
@@ -606,13 +606,13 @@ CacheUrlAsyncFetcher::CacheUrlAsyncFetcher(const Hasher* lock_hasher,
       proactively_freshen_user_facing_request_(false),
       own_fetcher_(false),
       serve_stale_while_revalidate_threshold_sec_(0),
-      response_sequence_(NULL) {
+      response_sequence_(nullptr) {
 }
 
 CacheUrlAsyncFetcher::~CacheUrlAsyncFetcher() {
   if (own_fetcher_) {
     delete fetcher_;
-    fetcher_ = NULL;
+    fetcher_ = nullptr;
   }
 }
 
@@ -652,7 +652,7 @@ void CacheUrlAsyncFetcher::Fetch(
 
   // Original resource not cacheable.
   base_fetch->log_record()->SetIsOriginalResourceCacheable(false);
-  if (fetcher_ != NULL) {
+  if (fetcher_ != nullptr) {
     fetcher_->Fetch(url, handler, base_fetch);
   } else {
     // Set status code to indicate reason we failed Fetch.

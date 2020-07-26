@@ -128,11 +128,11 @@ TEST_F(FrameScanlineAdapterWithPaddingTest, ReaderPadsLines) {
 
   std::unique_ptr<MultipleFrameReader> mf_reader(
       new TestGifFrameReader(&message_handler_));
-  ASSERT_TRUE(mf_reader != NULL);
+  ASSERT_TRUE(mf_reader != nullptr);
   std::unique_ptr<ScanlineReaderInterface> reader(
       new FrameToScanlineReaderAdapter(
           new MultipleFramePaddingReader(mf_reader.release())));
-  ASSERT_TRUE(reader != NULL);
+  ASSERT_TRUE(reader != nullptr);
   ScanlineStatus status = reader->InitializeWithStatus(in.c_str(), in.size());
   ASSERT_TRUE(status.Success()) << status.ToString();
 
@@ -140,7 +140,7 @@ TEST_F(FrameScanlineAdapterWithPaddingTest, ReaderPadsLines) {
   EXPECT_EQ(kHeight, reader->GetImageHeight());
   EXPECT_EQ(RGBA_8888, reader->GetPixelFormat());
 
-  uint32_t* scanline = NULL;
+  uint32_t* scanline = nullptr;
   for (int j = 0; j < kHeight; ++j) {
     EXPECT_TRUE(reader->HasMoreScanLines());
     reader->ReadNextScanlineWithStatus(reinterpret_cast<void **>(&scanline));

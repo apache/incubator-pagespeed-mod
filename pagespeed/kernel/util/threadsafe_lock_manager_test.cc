@@ -23,6 +23,10 @@
 // TODO(jmarantz): factor out common code between this and
 // mem_lock_manager_test.cc.
 
+#include <memory>
+
+
+
 #include "pagespeed/kernel/util/threadsafe_lock_manager.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -56,7 +60,7 @@ const int64 kWaitMs = 10000;
 class ThreadsafeLockManagerTest : public testing::Test {
  public:
   void DeleteManager() {
-    lock_manager_.reset(NULL);
+    lock_manager_.reset(nullptr);
   }
 
  protected:
@@ -418,7 +422,7 @@ TEST_F(ThreadsafeLockManagerTest, CloseManagerWithActiveLocks) {
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   c->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("c"));
-  lock_manager_.reset(NULL);  // Locks still active.
+  lock_manager_.reset(nullptr);  // Locks still active.
   EXPECT_STREQ("a(grant) b(deny) c(deny) ", log_);
 }
 
@@ -449,7 +453,7 @@ TEST_F(ThreadsafeLockManagerTest, DeletePendingLock) {
   timer()->SetTimeMs(1);
   scheduler_->Wakeup();
   EXPECT_TRUE(a->Held());
-  b.reset(NULL);                              // Denies B.
+  b.reset(nullptr);                              // Denies B.
   a->Unlock();                                // Grants C.
   Quiesce();
   EXPECT_STREQ("a(grant) b(deny) c(grant) ", log_);
@@ -457,7 +461,7 @@ TEST_F(ThreadsafeLockManagerTest, DeletePendingLock) {
 
 TEST_F(ThreadsafeLockManagerTest, TryLockWithDeletedManager) {
   std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
-  lock_manager_.reset(NULL);
+  lock_manager_.reset(nullptr);
   EXPECT_FALSE(TryLock(lock1));
   EXPECT_FALSE(TryLockStealOld(kStealMs, lock1));
 }
@@ -467,7 +471,7 @@ TEST_F(ThreadsafeLockManagerTest, UnlockWithDeletedManager) {
   std::unique_ptr<NamedLock> b(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
-  lock_manager_.reset(NULL);
+  lock_manager_.reset(nullptr);
   a->Unlock();
   EXPECT_STREQ("a(grant) b(deny) ", log_);
 }
@@ -510,8 +514,8 @@ class ThreadsafeLockManagerSpammerTest : public testing::Test {
   void SetUp() override {
     timer_.reset(Platform::CreateTimer());
     thread_system_.reset(Platform::CreateThreadSystem());
-    scheduler_.reset(new Scheduler(thread_system_.get(), timer_.get()));
-    lock_manager_.reset(new ThreadSafeLockManager(scheduler_.get()));
+    scheduler_ = std::make_unique<Scheduler>(thread_system_.get(), timer_.get());
+    lock_manager_ = std::make_unique<ThreadSafeLockManager>(scheduler_.get());
   }
 
   std::unique_ptr<Timer> timer_;

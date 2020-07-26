@@ -186,7 +186,7 @@ class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
       const GoogleString& nonce) {
     EXPECT_FALSE(nonce.empty());
     return finder_->UpdateCriticalImagesCacheEntry(
-        html_critical_images_set, css_critical_images_set, NULL,
+        html_critical_images_set, css_critical_images_set, nullptr,
         nonce, server_context()->beacon_cohort(),
         rewrite_driver()->property_page(), server_context()->timer());
   }
@@ -202,11 +202,11 @@ TEST_F(BeaconCriticalImagesFinderTest, StoreRestore) {
   CheckCriticalImageFinderStats(0, 0, 0);
   CriticalImagesInfo* read_images =
       rewrite_driver()->critical_images_info();
-  EXPECT_TRUE(read_images == NULL);
+  EXPECT_TRUE(read_images == nullptr);
   // Force computation of critical_images_info() via CriticalImagesString()
   EXPECT_STREQ(";", CriticalImagesString());
   read_images = rewrite_driver()->critical_images_info();
-  EXPECT_TRUE(read_images != NULL);
+  EXPECT_TRUE(read_images != nullptr);
   // Now beacon and register some critical image results.
   Beacon();
   CheckCriticalImageFinderStats(0, 0, 2);
@@ -220,7 +220,7 @@ TEST_F(BeaconCriticalImagesFinderTest, StoreRestore) {
   WriteBackAndResetDriver();
   AdvanceTimeMs(2 * options()->finder_properties_cache_expiration_time_ms());
   read_images = rewrite_driver()->critical_images_info();
-  EXPECT_TRUE(read_images == NULL);
+  EXPECT_TRUE(read_images == nullptr);
   // Force computation of critical_images_info() via CriticalImagesString()
   EXPECT_STREQ(";", CriticalImagesString());
   CheckCriticalImageFinderStats(2, 1, 2);
@@ -419,7 +419,7 @@ TEST_F(BeaconCriticalImagesFinderTest, LowFrequencyBeaconing) {
   for (int i = 0; i <= kHighFreqBeaconCount; ++i) {
     Beacon();
     BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-        &html_critical_images_set, NULL, NULL, last_beacon_metadata_.nonce,
+        &html_critical_images_set, nullptr, nullptr, last_beacon_metadata_.nonce,
         server_context()->beacon_cohort(), rewrite_driver()->property_page(),
         factory()->mock_timer());
     CriticalKeys* html_critical_images =

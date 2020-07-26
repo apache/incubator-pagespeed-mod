@@ -18,6 +18,10 @@
  */
 
 
+#include <memory>
+
+
+
 #include "net/instaweb/rewriter/public/url_partnership.h"
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -62,17 +66,17 @@ class UrlPartnershipTest : public RewriteTestBase {
   void SetUp() override {
     RewriteTestBase::SetUp();
     GoogleUrl original_gurl(kOriginalRequest);
-    partnership_.reset(new UrlPartnership(rewrite_driver()));
+    partnership_ = std::make_unique<UrlPartnership>(rewrite_driver());
     partnership_->Reset(original_gurl);
   }
 
   // Add up to 3 URLs -- url2 and url3 are ignored if null.
   bool AddUrls(const char* url1, const char* url2, const char* url3) {
     bool ret = partnership_->AddUrl(url1, &message_handler_);
-    if (url2 != NULL) {
+    if (url2 != nullptr) {
       ret &= partnership_->AddUrl(url2, &message_handler_);
     }
-    if (url3 != NULL) {
+    if (url3 != nullptr) {
       ret &= partnership_->AddUrl(url3, &message_handler_);
     }
     return ret;
@@ -95,7 +99,7 @@ class UrlPartnershipTest : public RewriteTestBase {
 };
 
 TEST_F(UrlPartnershipTest, OneUrlFlow) {
-  ASSERT_TRUE(AddUrls(kResourceUrl1, NULL, NULL));
+  ASSERT_TRUE(AddUrls(kResourceUrl1, nullptr, nullptr));
   ASSERT_EQ(1, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -103,7 +107,7 @@ TEST_F(UrlPartnershipTest, OneUrlFlow) {
 }
 
 TEST_F(UrlPartnershipTest, OneUrlFlowAbsolute) {
-  ASSERT_TRUE(AddUrls(kAbsoluteResourceUrl1, NULL, NULL));
+  ASSERT_TRUE(AddUrls(kAbsoluteResourceUrl1, nullptr, nullptr));
   ASSERT_EQ(1, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -111,7 +115,7 @@ TEST_F(UrlPartnershipTest, OneUrlFlowAbsolute) {
 }
 
 TEST_F(UrlPartnershipTest, TwoUrlFlowSamePath) {
-  AddUrls(kResourceUrl1, kResourceUrl2, NULL);
+  AddUrls(kResourceUrl1, kResourceUrl2, nullptr);
   ASSERT_EQ(2, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -119,7 +123,7 @@ TEST_F(UrlPartnershipTest, TwoUrlFlowSamePath) {
 }
 
 TEST_F(UrlPartnershipTest, TwoUrlFlowSamePathMixed) {
-  AddUrls(kAbsoluteResourceUrl1, kResourceUrl2, NULL);
+  AddUrls(kAbsoluteResourceUrl1, kResourceUrl2, nullptr);
   ASSERT_EQ(2, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -160,7 +164,7 @@ TEST_F(UrlPartnershipTest, ThreeUrlFlowDifferentPathsMixed) {
 }
 
 TEST_F(UrlPartnershipTest, ExternalDomainNotDeclared) {
-  EXPECT_FALSE(AddUrls(kCdnResourceUrl, NULL, NULL));
+  EXPECT_FALSE(AddUrls(kCdnResourceUrl, nullptr, nullptr));
 }
 
 TEST_F(UrlPartnershipTest, ExternalDomainDeclared) {
@@ -203,7 +207,7 @@ TEST_F(UrlPartnershipTest, EmptyWithPartner) {
 }
 
 TEST_F(UrlPartnershipTest, NeedsATrim) {
-  AddUrls(" http://www.nytimes.com/needs_a_trim.jpg ", NULL, NULL);
+  AddUrls(" http://www.nytimes.com/needs_a_trim.jpg ", nullptr, nullptr);
   EXPECT_EQ(GoogleString("needs_a_trim.jpg"), partnership_->RelativePath(0));
 }
 

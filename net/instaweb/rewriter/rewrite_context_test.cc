@@ -2968,8 +2968,8 @@ class TestNotifyFilter : public CommonFilter {
   class Context : public SingleRewriteContext {
    public:
     Context(RewriteDriver* driver, WorkerTestBase::SyncPoint* sync)
-        : SingleRewriteContext(driver, NULL /* parent */,
-                               NULL /* resource context*/),
+        : SingleRewriteContext(driver, nullptr /* parent */,
+                               nullptr /* resource context*/),
           sync_(sync) {}
 
     ~Context() override {
@@ -3002,7 +3002,7 @@ class TestNotifyFilter : public CommonFilter {
   void StartDocumentImpl() override {}
   void StartElementImpl(net_instaweb::HtmlElement* element) override {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
+    if (href != nullptr) {
       bool unused;
       ResourcePtr input_resource(CreateInputResource(
           href->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
@@ -5101,7 +5101,7 @@ class FailOnHashMismatchFilter : public RewriteFilter {
   class Context : public SingleRewriteContext {
    public:
     explicit Context(RewriteDriver* driver)
-        : SingleRewriteContext(driver, NULL, NULL) {}
+        : SingleRewriteContext(driver, nullptr, nullptr) {}
 
     bool FailOnHashMismatch() const override { return true; }
 

@@ -38,11 +38,11 @@
 
 namespace {
 
-apr_pool_t* log_pool = NULL;
+apr_pool_t* log_pool = nullptr;
 
 const int kMaxInt = std::numeric_limits<int>::max();
 int log_level_cutoff = kMaxInt;
-GoogleString* mod_pagespeed_version = NULL;
+GoogleString* mod_pagespeed_version = nullptr;
 
 int GetApacheLogLevel(int severity) {
   switch (severity) {
@@ -92,7 +92,7 @@ bool LogMessageHandler(int severity, const char* file, int line,
   if (this_log_level <= log_level_cutoff || log_level_cutoff == kMaxInt) {
     ap_log_perror(APLOG_MARK, this_log_level, APR_SUCCESS, log_pool,
                   "[mod_pagespeed %s @%ld] %s",
-                  (mod_pagespeed_version == NULL)
+                  (mod_pagespeed_version == nullptr)
                     ? ""
                     : mod_pagespeed_version->c_str(),
                   static_cast<long>(getpid()),
@@ -122,9 +122,9 @@ void Install(apr_pool_t* pool) {
 }
 
 void ShutDown() {
-  if (mod_pagespeed_version != NULL) {
+  if (mod_pagespeed_version != nullptr) {
     delete mod_pagespeed_version;
-    mod_pagespeed_version = NULL;
+    mod_pagespeed_version = nullptr;
   }
 }
 
@@ -153,7 +153,7 @@ void AddServerConfig(const server_rec* server, const StringPiece& version) {
       // XXX(oschaaf):
       // logging::SetMinLogLevel(kDebugLogLevel);
   }
-  if (mod_pagespeed_version == NULL) {
+  if (mod_pagespeed_version == nullptr) {
     mod_pagespeed_version = new GoogleString(version.as_string());
   } else {
     *mod_pagespeed_version = version.as_string();

@@ -23,6 +23,8 @@
 #include "pagespeed/opt/http/cache_property_store.h"
 
 #include <cstddef>
+#include <memory>
+
 
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/callback.h"
@@ -78,13 +80,13 @@ class CachePropertyStoreTest : public testing::Test {
   }
 
   void SetUp() override {
-    page_.reset(
-        new MockPropertyPage(
+    page_ = std::make_unique<MockPropertyPage>(
+        
             thread_system_.get(),
             &property_cache_,
             kUrl,
             kOptionsSignatureHash,
-            kCacheKeySuffix));
+            kCacheKeySuffix);
     property_cache_.Read(page_.get());
   }
 
@@ -98,7 +100,7 @@ class CachePropertyStoreTest : public testing::Test {
   }
 
   bool ExecuteGet(PropertyPage* page) {
-    AbstractPropertyStoreGetCallback* callback = NULL;
+    AbstractPropertyStoreGetCallback* callback = nullptr;
     cache_property_store_.Get(
         kUrl,
         kOptionsSignatureHash,
@@ -145,7 +147,7 @@ TEST_F(CachePropertyStoreTest, TestResultAvailable) {
       kCacheKeySuffix,
       cohort_,
       &values,
-      NULL);
+      nullptr);
   EXPECT_TRUE(ExecuteGet(page_.get()));
   EXPECT_EQ(CacheInterface::kAvailable, page_->GetCacheState(cohort_));
   EXPECT_EQ(0, num_callback_with_false_called_);
@@ -194,7 +196,7 @@ TEST_F(CachePropertyStoreTest, TestMultipleCohorts) {
       kCacheKeySuffix,
       cohort_,
       &values,
-      NULL);
+      nullptr);
   EXPECT_TRUE(ExecuteGet(&page));
 
   EXPECT_EQ(1, lru_cache_.num_hits());
@@ -209,7 +211,7 @@ TEST_F(CachePropertyStoreTest, TestMultipleCohorts) {
       kCacheKeySuffix,
       cohort2,
       &values,
-      NULL);
+      nullptr);
   EXPECT_TRUE(ExecuteGet(&page));
 
   EXPECT_EQ(2, lru_cache_.num_hits());
@@ -245,7 +247,7 @@ TEST_F(CachePropertyStoreTest, TestMultipleCacheBackends) {
       kCacheKeySuffix,
       cohort_,
       &values,
-      NULL);
+      nullptr);
   // Insert the value for cohort2.
   cache_property_store_.Put(
       kUrl,
@@ -253,7 +255,7 @@ TEST_F(CachePropertyStoreTest, TestMultipleCacheBackends) {
       kCacheKeySuffix,
       cohort2,
       &values,
-      NULL);
+      nullptr);
   cohort_list_.push_back(cohort2);
   // Get the value for cohort1 and cohort2.
   EXPECT_TRUE(ExecuteGet(&page));

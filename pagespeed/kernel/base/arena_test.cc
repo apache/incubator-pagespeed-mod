@@ -44,8 +44,8 @@ class ArenaTest : public testing::Test {
     explicit Base(ArenaTest* owner) : owner_(owner) {}
     virtual ~Base() {
       // Watch out for double-delete
-      EXPECT_TRUE(owner_ != NULL);
-      owner_ = NULL;
+      EXPECT_TRUE(owner_ != nullptr);
+      owner_ = nullptr;
     }
 
     // When testing creation, we invoke this method.

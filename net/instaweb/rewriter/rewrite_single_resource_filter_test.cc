@@ -99,12 +99,12 @@ class TestRewriter : public RewriteFilter {
   void EndElementImpl(HtmlElement* element) override {
     if (element->keyword() == HtmlName::kTag) {
       HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-      if (src != NULL) {
+      if (src != nullptr) {
         bool unused;
         ResourcePtr resource = CreateInputResource(
             src->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
             &unused);
-        if (resource.get() != NULL) {
+        if (resource.get() != nullptr) {
           ResourceSlotPtr slot(driver()->GetSlot(resource, element, src));
           Context* context = new Context(driver(), this);
           context->AddSlot(slot);
@@ -127,8 +127,8 @@ class TestRewriter : public RewriteFilter {
       const ResourcePtr& input_resource,
       const OutputResourcePtr& output_resource) {
     ++num_rewrites_called_;
-    EXPECT_TRUE(input_resource.get() != NULL);
-    EXPECT_TRUE(output_resource.get() != NULL);
+    EXPECT_TRUE(input_resource.get() != nullptr);
+    EXPECT_TRUE(output_resource.get() != nullptr);
     EXPECT_TRUE(input_resource->HttpStatusOk());
 
     StringPiece contents = input_resource->ExtractUncompressedContents();
@@ -160,7 +160,7 @@ class TestRewriter : public RewriteFilter {
   class Context : public SingleRewriteContext {
    public:
     Context(RewriteDriver* driver, TestRewriter* rewriter)
-        : SingleRewriteContext(driver, NULL, NULL),
+        : SingleRewriteContext(driver, nullptr, nullptr),
           filter_(rewriter) {
     }
     ~Context() override {}
