@@ -2401,6 +2401,7 @@ TEST_F(ParserTest, AtFontFace) {
             " url(gentium.woff);"
             " font-style: italic; font-weight: 800;"
             " font-stretch: ultra-condensed;"
+            " font-variant: historical-forms , character-variant(cv13) , annotiation(circled);"
             " font-feature-settings: \"hwid\" , \"swsh\" 2 }\n\n",
             stylesheet->ToString());
 }
