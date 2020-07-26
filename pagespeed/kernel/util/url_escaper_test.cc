@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,11 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/util/url_escaper.h"
 
 #include <cctype>
 #include <cstddef>
-#include "pagespeed/kernel/util/url_escaper.h"
+
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -31,7 +32,7 @@ namespace {
 // accept those characters, plus ',', as acceptable in the encoded
 // URLs.
 static const char kAcceptableSpecialChars[] = ",._+-=";
-static const char kPassThruChars[]          =  "._+-=";
+static const char kPassThruChars[] = "._+-=";
 
 }  // namespace
 
@@ -46,7 +47,8 @@ class UrlEscaperTest : public testing::Test {
     // Make sure there are only alphanumerics and _+-=%
     for (size_t i = 0; i < encoded.size(); ++i) {
       char c = encoded[i];
-      EXPECT_TRUE(isalnum(c) || (strchr(kAcceptableSpecialChars, c) != nullptr));
+      EXPECT_TRUE(isalnum(c) ||
+                  (strchr(kAcceptableSpecialChars, c) != nullptr));
     }
 
     EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoded, &decoded));
@@ -110,7 +112,7 @@ TEST_F(UrlEscaperTest, PercentDecoding) {
   // Test the corner case where browser percent-encoded parts of our url.
   EXPECT_EQ("a.css", Decode("%61%2E%63%73%73"));  // Just %-encode whole url
   EXPECT_EQ("a.js+b.js", Decode("a.js%20b.js"));  // '+' re-encoded as %20 (' ')
-  EXPECT_EQ("a%20b", Decode("a%2CP20b"));  // %-encoding of ,
+  EXPECT_EQ("a%20b", Decode("a%2CP20b"));         // %-encoding of ,
   // TODO(jmaessen): The following never seems to happen in practice
   //  (encoding of character following , in comma encoding)
   // EXPECT_EQ("a/b", Decode("a,%2Fb"));  // %-encoding of character after ,

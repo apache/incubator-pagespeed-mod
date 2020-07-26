@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/url_input_resource.h"
 
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -25,11 +26,10 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "net/instaweb/rewriter/public/url_input_resource.h"
 #include "pagespeed/kernel/base/basictypes.h"  // for arraysize
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/string.h"  // for GoogleString
+#include "pagespeed/kernel/base/string.h"       // for GoogleString
 #include "pagespeed/kernel/base/string_util.h"  // for StrCat, etc
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
@@ -60,8 +60,7 @@ class UrlInputResourceTest : public RewriteTestBase {
   void ResourceFetchHelper(const GoogleString& url,
                            const GoogleString& fetch_url,
                            const GoogleString& base_url,
-                           bool is_background_fetch,
-                           bool is_authorized_domain,
+                           bool is_background_fetch, bool is_authorized_domain,
                            bool is_auth_domain_expected,
                            const ResourcePtr& resource,
                            const GoogleString& expected_cache_key,
@@ -93,9 +92,8 @@ class UrlInputResourceTest : public RewriteTestBase {
     RequestContextPtr request_context(
         RequestContext::NewTestRequestContext(factory()->thread_system()));
     ResourceFetchHelper(url, fetch_url, base_url, is_background_fetch,
-                        is_authorized_domain, is_auth_domain_expected,
-                        resource, expected_cache_key, expected_referer,
-                        request_context);
+                        is_authorized_domain, is_auth_domain_expected, resource,
+                        expected_cache_key, expected_referer, request_context);
     EXPECT_STREQ(expected_referer, mock_url_fetcher()->last_referer());
     if (!is_authorized_domain) {
       GoogleUrl tmp_url(fetch_url);
@@ -122,10 +120,9 @@ class UrlInputResourceTest : public RewriteTestBase {
     ResourcePtr resource(MakeUrlInputResource(url, is_authorized_domain));
     RequestContextPtr request_context(
         RequestContext::NewTestRequestContext(factory()->thread_system()));
-     ResourceFetchHelper(
-        url, fetch_url, base_url, is_background_fetch, is_authorized_domain,
-        is_auth_domain_expected, resource, expected_cache_key, expected_referer,
-        request_context);
+    ResourceFetchHelper(url, fetch_url, base_url, is_background_fetch,
+                        is_authorized_domain, is_auth_domain_expected, resource,
+                        expected_cache_key, expected_referer, request_context);
     EXPECT_STREQ(kHello, resource->ExtractUncompressedContents());
   }
 
@@ -153,17 +150,13 @@ class UrlInputResourceTest : public RewriteTestBase {
   }
 };
 
-
-
-
 // Test of referer (BackgroundFetch): When the resource fetching request header
 // misses referer, we set the referer for it. Base url and resource url are
 // same.
 TEST_F(UrlInputResourceTest, TestBackgroundFetchRefererSameDomain) {
   GoogleString url = StrCat(kTestDomain, "1.jpg");
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               true, true, kUnusedBoolArg,
-                               url, kTestDomain);
+  CheckResourceFetchHasReferer(url, url, kTestDomain, true, true,
+                               kUnusedBoolArg, url, kTestDomain);
 }
 
 // Test extraction of gzipped resource.
@@ -181,8 +174,7 @@ TEST_F(UrlInputResourceTest, TestExtractGzippedResource) {
 TEST_F(UrlInputResourceTest, TestBackgroundFetchRefererDomain) {
   GoogleString url = "http://other.com/1.jpg";
   CheckResourceFetchHasReferer(url, url, kTestDomain, true, true,
-                               kUnusedBoolArg, url,
-                               kTestDomain);
+                               kUnusedBoolArg, url, kTestDomain);
 }
 
 // Test of referer (NonBackgroundFetch): When the resource fetching request
@@ -193,9 +185,8 @@ TEST_F(UrlInputResourceTest, TestNonBackgroundFetchWithRefererMissing) {
   GoogleString url = "http://other.com/1.jpg";
   RequestHeaders headers;
   rewrite_driver()->SetRequestHeaders(headers);
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               false, true, kUnusedBoolArg,
-                               url, "");
+  CheckResourceFetchHasReferer(url, url, kTestDomain, false, true,
+                               kUnusedBoolArg, url, "");
 }
 
 // Test of referer (NonBackgroundFetch): When the resource fetching request
@@ -206,9 +197,8 @@ TEST_F(UrlInputResourceTest, TestNonBackgroundFetchWithReferer) {
   RequestHeaders headers;
   headers.Add(HttpAttributes::kReferer, kTestDomain);
   rewrite_driver()->SetRequestHeaders(headers);
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               false, true, kUnusedBoolArg,
-                               url, kTestDomain);
+  CheckResourceFetchHasReferer(url, url, kTestDomain, false, true,
+                               kUnusedBoolArg, url, kTestDomain);
 }
 
 /* Tests related to unauthorized http domains. */
@@ -216,15 +206,15 @@ TEST_F(UrlInputResourceTest, TestNonBackgroundFetchWithReferer) {
 // Test that unauthorized resources are created correctly with http protocol.
 TEST_F(UrlInputResourceTest, TestUnauthorizedDomainHttp) {
   GoogleString url = "http://other.com/1.jpg";
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               true, false, true,
+  CheckResourceFetchHasReferer(url, url, kTestDomain, true, false, true,
                                "unauth://other.com/1.jpg", kTestDomain);
 }
 
 // Test that unauthorized resources are not created with wrong protocol.
 TEST_F(UrlInputResourceTest, TestUnauthorizedDomainWrongProtocol) {
   GoogleString url = "ftp://other.com/1.jpg";
-  PrepareResourceFetch(url);;
+  PrepareResourceFetch(url);
+  ;
   SetBaseUrlForFetch(kTestDomain);
   ASSERT_DEATH(MakeUrlInputResource(url, false), "");
 }
@@ -232,7 +222,8 @@ TEST_F(UrlInputResourceTest, TestUnauthorizedDomainWrongProtocol) {
 // Test that unauthorized resources are not created with a relative URL.
 TEST_F(UrlInputResourceTest, TestUnauthorizedDomainRelativeURL) {
   GoogleString url = "/1.jpg";
-  PrepareResourceFetch(url);;
+  PrepareResourceFetch(url);
+  ;
   SetBaseUrlForFetch(kTestDomain);
   ASSERT_DEATH(MakeUrlInputResource(url, false), "");
 }
@@ -241,17 +232,16 @@ TEST_F(UrlInputResourceTest, TestUnauthorizedDomainRelativeURL) {
 // specified for http.
 TEST_F(UrlInputResourceTest, TestUnauthorizedDomainHttpWithCorrectPort) {
   GoogleString url = "http://other.com:80/1.jpg";
-  CheckResourceFetchHasReferer(url, "http://other.com/1.jpg", kTestDomain,
-                               true, false, true,
-                               "unauth://other.com/1.jpg", kTestDomain);
+  CheckResourceFetchHasReferer(url, "http://other.com/1.jpg", kTestDomain, true,
+                               false, true, "unauth://other.com/1.jpg",
+                               kTestDomain);
 }
 
 // Test that unauthorized resources are not created when a non-standard port
 // is specified for http.
 TEST_F(UrlInputResourceTest, TestNoUnauthorizedDomainHttpWithWrongPort) {
   GoogleString url = "http://other.com:1234/1.jpg";
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               true, false, false,
+  CheckResourceFetchHasReferer(url, url, kTestDomain, true, false, false,
                                "unauth://other.com:1234/1.jpg", kTestDomain);
 }
 
@@ -259,8 +249,7 @@ TEST_F(UrlInputResourceTest, TestNoUnauthorizedDomainHttpWithWrongPort) {
 // specified for http.
 TEST_F(UrlInputResourceTest, TestNoUnauthorizedDomainHttpWithHttpsPort) {
   GoogleString url = "http://other.com:443/1.jpg";
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               true, false, false,
+  CheckResourceFetchHasReferer(url, url, kTestDomain, true, false, false,
                                "unauth://other.com:443/1.jpg", kTestDomain);
 }
 
@@ -269,8 +258,7 @@ TEST_F(UrlInputResourceTest, TestNoUnauthorizedDomainHttpWithHttpsPort) {
 // Test that unauthorized resources are created correctly with https protocol.
 TEST_F(UrlInputResourceTest, TestUnauthorizedDomainHttps) {
   GoogleString url = "https://other.com/1.jpg";
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               true, false, true,
+  CheckResourceFetchHasReferer(url, url, kTestDomain, true, false, true,
                                "unauths://other.com/1.jpg", kTestDomain);
 }
 
@@ -279,16 +267,15 @@ TEST_F(UrlInputResourceTest, TestUnauthorizedDomainHttps) {
 TEST_F(UrlInputResourceTest, TestUnauthorizedDomainHttpsWithCorrectPort) {
   GoogleString url = "https://other.com:443/1.jpg";
   CheckResourceFetchHasReferer(url, "https://other.com/1.jpg", kTestDomain,
-                               true, false, true,
-                               "unauths://other.com/1.jpg", kTestDomain);
+                               true, false, true, "unauths://other.com/1.jpg",
+                               kTestDomain);
 }
 
 // Test that unauthorized resources are not created when a non-standard port
 // is specified for https.
 TEST_F(UrlInputResourceTest, TestNoUnauthorizedDomainHttpsWithWrongPort) {
   GoogleString url = "https://other.com:1234/1.jpg";
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               true, false, false,
+  CheckResourceFetchHasReferer(url, url, kTestDomain, true, false, false,
                                "unauths://other.com:1234/1.jpg", kTestDomain);
 }
 
@@ -296,8 +283,7 @@ TEST_F(UrlInputResourceTest, TestNoUnauthorizedDomainHttpsWithWrongPort) {
 // specified for https.
 TEST_F(UrlInputResourceTest, TestNoUnauthorizedDomainHttpsWithHttpPort) {
   GoogleString url = "https://other.com:80/1.jpg";
-  CheckResourceFetchHasReferer(url, url, kTestDomain,
-                               true, false, false,
+  CheckResourceFetchHasReferer(url, url, kTestDomain, true, false, false,
                                "unauths://other.com:80/1.jpg", kTestDomain);
 }
 
@@ -311,17 +297,17 @@ struct PortTest {
 // by GoogleUrl.
 TEST_F(UrlInputResourceTest, IntPort) {
   const PortTest port_tests[] = {
-    // http
-    {"http://www.google.com/", 80, url::PORT_UNSPECIFIED},
-    {"http://www.google.com:80/", 80, url::PORT_UNSPECIFIED},
-    {"http://www.google.com:443/", 443, 443},
-    {"http://www.google.com:1234/", 1234, 1234},
+      // http
+      {"http://www.google.com/", 80, url::PORT_UNSPECIFIED},
+      {"http://www.google.com:80/", 80, url::PORT_UNSPECIFIED},
+      {"http://www.google.com:443/", 443, 443},
+      {"http://www.google.com:1234/", 1234, 1234},
 
-    // https
-    {"https://www.google.com/", 443, url::PORT_UNSPECIFIED},
-    {"https://www.google.com:443/", 443, url::PORT_UNSPECIFIED},
-    {"https://www.google.com:80/", 80, 80},
-    {"https://www.google.com:1234/", 1234, 1234},
+      // https
+      {"https://www.google.com/", 443, url::PORT_UNSPECIFIED},
+      {"https://www.google.com:443/", 443, url::PORT_UNSPECIFIED},
+      {"https://www.google.com:80/", 80, 80},
+      {"https://www.google.com:1234/", 1234, 1234},
   };
 
   for (int i = 0; i < arraysize(port_tests); ++i) {

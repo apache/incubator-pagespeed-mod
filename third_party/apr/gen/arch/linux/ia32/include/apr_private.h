@@ -1,10 +1,10 @@
-/* include/arch/unix/apr_private.h.  Generated from apr_private.h.in by configure.  */
-/* include/arch/unix/apr_private.h.in.  Generated from configure.in by autoheader.  */
-
+/* include/arch/unix/apr_private.h.  Generated from apr_private.h.in by
+ * configure.  */
+/* include/arch/unix/apr_private.h.in.  Generated from configure.in by
+ * autoheader.  */
 
 #ifndef APR_PRIVATE_H
 #define APR_PRIVATE_H
-
 
 /* Define as function which can be used for conversion of strings to
    apr_int64_t */
@@ -82,7 +82,7 @@
 #define HAVE_ALLOCA 1
 
 /* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
-   */
+ */
 #define HAVE_ALLOCA_H 1
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
@@ -791,9 +791,9 @@
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at runtime.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown */
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
 /* #undef STACK_DIRECTION */
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -872,7 +872,7 @@
 
 /* Enable GNU extensions on systems that have them.  */
 #ifndef _GNU_SOURCE
-# define _GNU_SOURCE 1
+#define _GNU_SOURCE 1
 #endif
 
 /* Define to 1 if on MINIX. */
@@ -887,13 +887,13 @@
 
 /* Enable extensions on Solaris.  */
 #ifndef __EXTENSIONS__
-# define __EXTENSIONS__ 1
+#define __EXTENSIONS__ 1
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
-# define _POSIX_PTHREAD_SEMANTICS 1
+#define _POSIX_PTHREAD_SEMANTICS 1
 #endif
 #ifndef _TANDEM_SOURCE
-# define _TANDEM_SOURCE 1
+#define _TANDEM_SOURCE 1
 #endif
 
 /* Define to empty if `const' does not conform to ANSI C. */
@@ -922,7 +922,6 @@
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
-
 
 /* switch this on if we have a BeOS version below BONE */
 #if BEOS && !HAVE_BONE_VERSION

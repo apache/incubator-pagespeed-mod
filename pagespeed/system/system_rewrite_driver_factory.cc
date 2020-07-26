@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/system_rewrite_driver_factory.h"
 
 #include <sys/prctl.h>
+
 #include <algorithm>  // for min
 #include <cstdio>
 #include <cstdlib>
@@ -40,19 +40,11 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "net/instaweb/util/public/property_cache.h"
 #include "pagespeed/controller/central_controller_rpc_client.h"
 #include "pagespeed/controller/central_controller_rpc_server.h"
 #include "pagespeed/controller/popularity_contest_schedule_rewrite_controller.h"
 #include "pagespeed/controller/queued_expensive_operation_controller.h"
-#include "pagespeed/system/controller_manager.h"
-#include "pagespeed/system/controller_process.h"
-#include "pagespeed/system/in_place_resource_recorder.h"
-#include "pagespeed/system/serf_url_async_fetcher.h"
-#include "pagespeed/system/system_caches.h"
-#include "pagespeed/system/system_rewrite_options.h"
-#include "pagespeed/system/system_server_context.h"
-#include "pagespeed/system/system_thread_system.h"
-#include "net/instaweb/util/public/property_cache.h"
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/file_system.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
@@ -73,6 +65,14 @@
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/util/input_file_nonce_generator.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
+#include "pagespeed/system/controller_manager.h"
+#include "pagespeed/system/controller_process.h"
+#include "pagespeed/system/in_place_resource_recorder.h"
+#include "pagespeed/system/serf_url_async_fetcher.h"
+#include "pagespeed/system/system_caches.h"
+#include "pagespeed/system/system_rewrite_options.h"
+#include "pagespeed/system/system_server_context.h"
+#include "pagespeed/system/system_thread_system.h"
 
 namespace net_instaweb {
 
@@ -97,8 +97,7 @@ const char kCreateSharedMemoryMetadataCache[] =
 }  // namespace
 
 SystemRewriteDriverFactory::SystemRewriteDriverFactory(
-    const ProcessContext& process_context,
-    SystemThreadSystem* thread_system,
+    const ProcessContext& process_context, SystemThreadSystem* thread_system,
     AbstractSharedMem* shared_mem_runtime, /* may be null */
     StringPiece hostname, int port)
     : RewriteDriverFactory(process_context, thread_system),
@@ -135,8 +134,8 @@ void SystemRewriteDriverFactory::Init() {
 
   int thread_limit = LookupThreadLimit();
   thread_limit += num_rewrite_threads() + num_expensive_rewrite_threads();
-  caches_ = std::make_unique<SystemCaches>(
-      this, shared_mem_runtime_.get(), thread_limit);
+  caches_ = std::make_unique<SystemCaches>(this, shared_mem_runtime_.get(),
+                                           thread_limit);
 }
 
 SystemRewriteDriverFactory::~SystemRewriteDriverFactory() {
@@ -163,11 +162,9 @@ Statistics* SystemRewriteDriverFactory::SetUpGlobalSharedMemStatistics(
   return shared_mem_statistics_.get();
 }
 
-SharedMemStatistics* SystemRewriteDriverFactory::
-    AllocateAndInitSharedMemStatistics(
-        bool local,
-        const StringPiece& name,
-        const SystemRewriteOptions& options) {
+SharedMemStatistics*
+SystemRewriteDriverFactory::AllocateAndInitSharedMemStatistics(
+    bool local, const StringPiece& name, const SystemRewriteOptions& options) {
   // Note that we create the statistics object in the parent process, and
   // it stays around in the kids but gets reinitialized for them
   // inside ChildInit(), called from pagespeed_child_init.
@@ -180,13 +177,13 @@ SharedMemStatistics* SystemRewriteDriverFactory::
   }
   SharedMemStatistics* stats = new SharedMemStatistics(
       options.statistics_logging_interval_ms(),
-      options.statistics_logging_max_file_size_kb(),
-      log_filename, logging_enabled,
+      options.statistics_logging_max_file_size_kb(), log_filename,
+      logging_enabled,
       // TODO(jmarantz): it appears that filename_prefix() is not actually
       // established at the time of this construction, calling into question
       // whether we are naming our shared-memory segments correctly.
-      StrCat(filename_prefix(), name), shared_mem_runtime(),
-      message_handler(), file_system(), timer());
+      StrCat(filename_prefix(), name), shared_mem_runtime(), message_handler(),
+      file_system(), timer());
   NonStaticInitStats(stats);
   bool init_ok = stats->Init(true, message_handler());
   if (local && init_ok) {
@@ -243,8 +240,7 @@ QueuedWorkerPool* SystemRewriteDriverFactory::CreateWorkerPool(
     case kRewriteWorkers:
       return new QueuedWorkerPool(num_rewrite_threads_, name, thread_system());
     case kLowPriorityRewriteWorkers:
-      return new QueuedWorkerPool(num_expensive_rewrite_threads_,
-                                  name,
+      return new QueuedWorkerPool(num_expensive_rewrite_threads_, name,
                                   thread_system());
     default:
       return RewriteDriverFactory::CreateWorkerPool(pool, name);
@@ -284,9 +280,10 @@ void SystemRewriteDriverFactory::StartController(
   if (!options.controller_port().empty()) {
     std::unique_ptr<CentralControllerRpcServer> controller(
         new CentralControllerRpcServer(
-            options.controller_port(), new QueuedExpensiveOperationController(
-                                           options.image_max_rewrites_at_once(),
-                                           thread_system(), statistics()),
+            options.controller_port(),
+            new QueuedExpensiveOperationController(
+                options.image_max_rewrites_at_once(), thread_system(),
+                statistics()),
             new PopularityContestScheduleRewriteController(
                 thread_system(), statistics(), timer(),
                 options.popularity_contest_max_inflight_requests(),
@@ -306,7 +303,8 @@ void SystemRewriteDriverFactory::RootInit() {
   // first, as well as external cache instances.
   for (SystemServerContextSet::iterator
            p = uninitialized_server_contexts_.begin(),
-           e = uninitialized_server_contexts_.end(); p != e; ++p) {
+           e = uninitialized_server_contexts_.end();
+       p != e; ++p) {
     SystemServerContext* server_context = *p;
     caches_->RegisterConfig(server_context->global_system_rewrite_options());
   }
@@ -327,11 +325,11 @@ void SystemRewriteDriverFactory::ChildInit() {
   CHECK(conf != nullptr);
 
   StdioFileSystem* fs = dynamic_cast<StdioFileSystem*>(file_system());
-  DCHECK(fs != nullptr) << "Expected StdioFileSystem so we can call TrackTiming";
+  DCHECK(fs != nullptr)
+      << "Expected StdioFileSystem so we can call TrackTiming";
   if (fs != nullptr) {
-    fs->TrackTiming(conf->slow_file_latency_threshold_us(),
-                    timer(), statistics(),
-                    message_handler());
+    fs->TrackTiming(conf->slow_file_latency_threshold_us(), timer(),
+                    statistics(), message_handler());
   }
 
   is_root_process_ = false;
@@ -354,13 +352,13 @@ void SystemRewriteDriverFactory::ChildInit() {
     static_asset_manager()->ServeAssetsFromGStatic(
         conf->static_assets_cdn_base());
     static_asset_manager()->ApplyGStaticConfiguration(
-        out_conf,
-        StaticAssetManager::kInitialConfiguration);
+        out_conf, StaticAssetManager::kInitialConfiguration);
   }
 
   for (SystemServerContextSet::iterator
            p = uninitialized_server_contexts_.begin(),
-           e = uninitialized_server_contexts_.end(); p != e; ++p) {
+           e = uninitialized_server_contexts_.end();
+       p != e; ++p) {
     SystemServerContext* server_context = *p;
     server_context->ChildInit(this);
   }
@@ -394,13 +392,11 @@ void SystemRewriteDriverFactory::SharedCircularBufferInit(bool is_root) {
     // established at the time of this construction, calling into question
     // whether we are naming our shared-memory segments correctly.
     shared_circular_buffer_ = std::make_unique<SharedCircularBuffer>(
-        shared_mem_runtime(),
-        message_buffer_size_,
-        filename_prefix().as_string(),
-        hostname_identifier());
+        shared_mem_runtime(), message_buffer_size_,
+        filename_prefix().as_string(), hostname_identifier());
     if (shared_circular_buffer_->InitSegment(is_root, message_handler())) {
       SetCircularBuffer(shared_circular_buffer_.get());
-     }
+    }
   }
 }
 
@@ -426,9 +422,8 @@ SystemRewriteDriverFactory::ParseAndSetOption1(StringPiece option,
              StringCaseEqual(option, kTrackOriginalContentLength)) {
     if (!process_scope) {
       // msg is only printed to the user on error, so warnings must be logged.
-      handler->Message(
-          kWarning, "'%s' is global and is ignored at this scope",
-          option.as_string().c_str());
+      handler->Message(kWarning, "'%s' is global and is ignored at this scope",
+                       option.as_string().c_str());
       // OK here means "move on" not "accepted and applied".
       return RewriteOptions::kOptionOk;
     }
@@ -446,8 +441,9 @@ SystemRewriteDriverFactory::ParseAndSetOption1(StringPiece option,
   // Most of our options take booleans, so just parse once.
   bool is_on = false;
   RewriteOptions::OptionSettingResult parsed_as_bool =
-      RewriteOptions::ParseFromString(arg, &is_on) ?
-      RewriteOptions::kOptionOk : RewriteOptions::kOptionValueInvalid;
+      RewriteOptions::ParseFromString(arg, &is_on)
+          ? RewriteOptions::kOptionOk
+          : RewriteOptions::kOptionValueInvalid;
   if (StringCaseEqual(option, kUsePerVHostStatistics)) {
     set_use_per_vhost_statistics(is_on);
     return parsed_as_bool;
@@ -472,8 +468,9 @@ SystemRewriteDriverFactory::ParseAndSetOption1(StringPiece option,
   //   MessageBufferSize: disable the message buffer
   int int_value = 0;
   RewriteOptions::OptionSettingResult parsed_as_int =
-      RewriteOptions::ParseFromString(arg, &int_value) ?
-      RewriteOptions::kOptionOk : RewriteOptions::kOptionValueInvalid;
+      RewriteOptions::ParseFromString(arg, &int_value)
+          ? RewriteOptions::kOptionOk
+          : RewriteOptions::kOptionValueInvalid;
   if (StringCaseEqual(option, kNumRewriteThreads)) {
     set_num_rewrite_threads(int_value);
     return parsed_as_int;
@@ -490,18 +487,14 @@ SystemRewriteDriverFactory::ParseAndSetOption1(StringPiece option,
 }
 
 RewriteOptions::OptionSettingResult
-SystemRewriteDriverFactory::ParseAndSetOption2(StringPiece option,
-                                               StringPiece arg1,
-                                               StringPiece arg2,
-                                               bool process_scope,
-                                               GoogleString* msg,
-                                               MessageHandler* handler) {
+SystemRewriteDriverFactory::ParseAndSetOption2(
+    StringPiece option, StringPiece arg1, StringPiece arg2, bool process_scope,
+    GoogleString* msg, MessageHandler* handler) {
   if (StringCaseEqual(option, kCreateSharedMemoryMetadataCache)) {
     if (!process_scope) {
       // msg is only printed to the user on error, so warnings must be logged.
-      handler->Message(
-          kWarning, "'%s' is global and is ignored at this scope",
-          option.as_string().c_str());
+      handler->Message(kWarning, "'%s' is global and is ignored at this scope",
+                       option.as_string().c_str());
       // OK here means "move on" not "accepted and applied".
       return RewriteOptions::kOptionOk;
     }
@@ -519,8 +512,7 @@ SystemRewriteDriverFactory::ParseAndSetOption2(StringPiece option,
 
 void SystemRewriteDriverFactory::PostConfig(
     const std::vector<SystemServerContext*>& server_contexts,
-    GoogleString* error_message,
-    int* error_index,
+    GoogleString* error_message, int* error_index,
     Statistics** global_statistics) {
   for (int i = 0, n = server_contexts.size(); i < n; ++i) {
     server_contexts[i]->CollapseConfigOverlaysAndComputeSignatures();
@@ -627,10 +619,11 @@ GoogleString SystemRewriteDriverFactory::GetFetcherKey(
     key = StrCat(
         list_outstanding_urls_on_error_ ? "list_errors\n" : "no_errors\n",
         config->fetcher_proxy(), "\n",
-        config->fetch_with_gzip() ? "fetch_with_gzip\n": "no_gzip\n",
-        track_original_content_length_ ? "track_content_length\n" : "no_track\n"
-        "timeout: ", Integer64ToString(config->blocking_fetch_timeout_ms()),
-        "\n");
+        config->fetch_with_gzip() ? "fetch_with_gzip\n" : "no_gzip\n",
+        track_original_content_length_ ? "track_content_length\n"
+                                       : "no_track\n"
+                                         "timeout: ",
+        Integer64ToString(config->blocking_fetch_timeout_ms()), "\n");
     if (config->slurping_enabled() && include_slurping_config) {
       if (config->slurp_read_only()) {
         StrAppend(&key, "R", config->slurp_directory(), "\n");
@@ -638,8 +631,7 @@ GoogleString SystemRewriteDriverFactory::GetFetcherKey(
         StrAppend(&key, "W", config->slurp_directory(), "\n");
       }
     }
-    StrAppend(&key,
-              "\nhttps: ", config->https_options(),
+    StrAppend(&key, "\nhttps: ", config->https_options(),
               "\ncert_dir: ", config->ssl_cert_directory(),
               "\ncert_file: ", config->ssl_cert_file());
   }
@@ -693,8 +685,7 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(
       config->fetcher_proxy().c_str(),
       nullptr,  // Do not use the Factory pool so we can control deletion.
       thread_system(), statistics(), timer(),
-      config->blocking_fetch_timeout_ms(),
-      message_handler());
+      config->blocking_fetch_timeout_ms(), message_handler());
   serf->set_list_outstanding_urls_on_error(list_outstanding_urls_on_error_);
   serf->set_fetch_with_gzip(config->fetch_with_gzip());
   serf->set_track_original_content_length(track_original_content_length_);
@@ -703,7 +694,6 @@ UrlAsyncFetcher* SystemRewriteDriverFactory::AllocateFetcher(
   serf->SetSslCertificatesFile(config->ssl_cert_file());
   return serf;
 }
-
 
 UrlAsyncFetcher* SystemRewriteDriverFactory::GetBaseFetcher(
     SystemRewriteOptions* config) {
@@ -726,13 +716,9 @@ FileSystem* SystemRewriteDriverFactory::DefaultFileSystem() {
   return new StdioFileSystem();
 }
 
-Hasher* SystemRewriteDriverFactory::NewHasher() {
-  return new MD5Hasher();
-}
+Hasher* SystemRewriteDriverFactory::NewHasher() { return new MD5Hasher(); }
 
-Timer* SystemRewriteDriverFactory::DefaultTimer() {
-  return new PosixTimer();
-}
+Timer* SystemRewriteDriverFactory::DefaultTimer() { return new PosixTimer(); }
 
 NamedLockManager* SystemRewriteDriverFactory::DefaultLockManager() {
   LOG(DFATAL) << "Locks are owned by SystemCachePath, not the factory";
@@ -762,7 +748,8 @@ void SystemRewriteDriverFactory::AutoDetectThreadCounts() {
       num_expensive_rewrite_threads_ = 4;
     }
     message_handler()->Message(
-        kInfo, "Detected threaded server."
+        kInfo,
+        "Detected threaded server."
         " Own threads: %d Rewrite, %d Expensive Rewrite.",
         num_rewrite_threads_, num_expensive_rewrite_threads_);
 
@@ -774,7 +761,8 @@ void SystemRewriteDriverFactory::AutoDetectThreadCounts() {
       num_expensive_rewrite_threads_ = 1;
     }
     message_handler()->Message(
-        kInfo, "No threading detected."
+        kInfo,
+        "No threading detected."
         " Own threads: %d Rewrite, %d Expensive Rewrite.",
         num_rewrite_threads_, num_expensive_rewrite_threads_);
   }

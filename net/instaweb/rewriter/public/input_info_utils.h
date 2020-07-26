@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_INPUT_INFO_UTILS_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_INPUT_INFO_UTILS_H_
@@ -38,10 +37,9 @@ namespace input_info_utils {
 // *stale_rewrite will be set (and true will be returned) if
 // options->metadata_cache_staleness_threshold_ms() permitted reuse past
 // expiration at this time, andthe rewrite isn't nested.
-bool IsInputValid(
-    ServerContext* server_context, const RewriteOptions* options,
-    bool nested_rewrite, const InputInfo& input_info,
-    int64 now_ms, bool* purged, bool* stale_rewrite);
+bool IsInputValid(ServerContext* server_context, const RewriteOptions* options,
+                  bool nested_rewrite, const InputInfo& input_info,
+                  int64 now_ms, bool* purged, bool* stale_rewrite);
 
 }  // namespace input_info_utils
 }  // namespace net_instaweb

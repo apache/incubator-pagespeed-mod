@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,7 +39,7 @@ const int kMaxSize = 100;
 const int kNumThreads = 4;
 const int kNumIters = 10000;
 const int kNumInserts = 10;
-}
+}  // namespace
 
 namespace net_instaweb {
 
@@ -48,8 +48,7 @@ class ThreadsafeCacheTest : public testing::Test {
   ThreadsafeCacheTest()
       : lru_cache_(new LRUCache(kMaxSize)),
         thread_runtime_(Platform::CreateThreadSystem()),
-        threadsafe_cache_(lru_cache_.get(), thread_runtime_->NewMutex()) {
-  }
+        threadsafe_cache_(lru_cache_.get(), thread_runtime_->NewMutex()) {}
 
   void TestHelper(bool expecting_evictions, bool do_deletes,
                   const char* value_pattern) {

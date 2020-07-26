@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_HTML_HTML_ELEMENT_H_
 #define PAGESPEED_KERNEL_HTML_HTML_ELEMENT_H_
@@ -59,11 +58,7 @@ class HtmlElement : public HtmlNode {
   };
 
   // Various ways things can be quoted (or not)
-  enum QuoteStyle {
-    NO_QUOTE,
-    SINGLE_QUOTE,
-    DOUBLE_QUOTE
-  };
+  enum QuoteStyle { NO_QUOTE, SINGLE_QUOTE, DOUBLE_QUOTE };
 
   class Attribute : public InlineSListElement<Attribute> {
    public:
@@ -245,8 +240,7 @@ class HtmlElement : public HtmlNode {
   //
   // The value, if non-null, is assumed to be unescaped.  See also
   // AddEscapedAttribute.
-  void AddAttribute(const HtmlName& name,
-                    const StringPiece& decoded_value,
+  void AddAttribute(const HtmlName& name, const StringPiece& decoded_value,
                     QuoteStyle quote_style);
   // As AddAttribute, but assumes value has been escaped for html output.
   void AddEscapedAttribute(const HtmlName& name,
@@ -349,7 +343,7 @@ class HtmlElement : public HtmlNode {
 
  protected:
   void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue) override;
+                        HtmlEventList* queue) override;
 
   HtmlEventListIterator begin() const override { return data_->begin_; }
   HtmlEventListIterator end() const override { return data_->end_; }
@@ -358,8 +352,7 @@ class HtmlElement : public HtmlNode {
   // All of the data associated with an HtmlElement is indirected through this
   // class, so we can delete it on Flush after a CloseElement event.
   struct Data {
-    Data(const HtmlName& name,
-         const HtmlEventListIterator& begin,
+    Data(const HtmlName& name, const HtmlEventListIterator& begin,
          const HtmlEventListIterator& end);
     ~Data();
 

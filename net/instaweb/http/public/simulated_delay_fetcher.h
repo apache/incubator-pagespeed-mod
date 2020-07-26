@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_SIMULATED_DELAY_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_SIMULATED_DELAY_FETCHER_H_
@@ -54,20 +53,16 @@ class SimulatedDelayFetcher : public UrlAsyncFetcher {
   //
   // request_log_path will be used to log when each request was received.
   // (Not when it was served).
-  SimulatedDelayFetcher(ThreadSystem* thread_system,
-                        Timer* timer,
-                        Scheduler* scheduler,
-                        MessageHandler* handler,
-                        FileSystem* file_system,
-                        StringPiece delay_map_path,
+  SimulatedDelayFetcher(ThreadSystem* thread_system, Timer* timer,
+                        Scheduler* scheduler, MessageHandler* handler,
+                        FileSystem* file_system, StringPiece delay_map_path,
                         StringPiece request_log_path,
                         int request_log_flush_frequency);
 
   ~SimulatedDelayFetcher() override;
 
-  void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch) override;
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
  private:
   typedef std::map<GoogleString, int> DelayMap;

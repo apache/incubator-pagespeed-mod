@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 
 #include <cstdio>
 #include <memory>
-
 #include <set>
-#include <utility>                     // for pair
+#include <utility>  // for pair
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -61,8 +59,7 @@ const char HttpDumpUrlFetcher::kGzipContentLengthAttribute[] =
     "X-Instaweb-Gzip-Content-Length";
 
 HttpDumpUrlFetcher::HttpDumpUrlFetcher(const StringPiece& root_dir,
-                                       FileSystem* file_system,
-                                       Timer* timer)
+                                       FileSystem* file_system, Timer* timer)
     : root_dir_(root_dir.data(), root_dir.size()),
       file_system_(file_system),
       timer_(timer),
@@ -70,8 +67,7 @@ HttpDumpUrlFetcher::HttpDumpUrlFetcher(const StringPiece& root_dir,
   EnsureEndsInSlash(&root_dir_);
 }
 
-HttpDumpUrlFetcher::~HttpDumpUrlFetcher() {
-}
+HttpDumpUrlFetcher::~HttpDumpUrlFetcher() {}
 
 bool HttpDumpUrlFetcher::GetFilenameFromUrl(const StringPiece& root_dir,
                                             const GoogleUrl& gurl,
@@ -121,8 +117,7 @@ class HttpResponseWriter : public Writer {
         want_gzip_(want_gzip),
         first_write_(true),
         writer_(writer),
-        response_(response) {
-  }
+        response_(response) {}
 
   bool Write(const StringPiece& str, MessageHandler* handler) override {
     bool ret = true;
@@ -189,8 +184,8 @@ class HttpResponseWriter : public Writer {
   DISALLOW_COPY_AND_ASSIGN(HttpResponseWriter);
 };
 
-void HttpDumpUrlFetcher::Fetch(
-    const GoogleString& url, MessageHandler* handler, AsyncFetch* fetch) {
+void HttpDumpUrlFetcher::Fetch(const GoogleString& url, MessageHandler* handler,
+                               AsyncFetch* fetch) {
   bool ret = false;
   GoogleString filename;
   GoogleUrl gurl(url);
@@ -230,8 +225,8 @@ void HttpDumpUrlFetcher::Fetch(
           response_headers->SetContentLength(writer.content_length());
         }
         if (writer.gzip_content_length() != 0) {
-          response_headers->Add(kGzipContentLengthAttribute, IntegerToString(
-              writer.gzip_content_length()));
+          response_headers->Add(kGzipContentLengthAttribute,
+                                IntegerToString(writer.gzip_content_length()));
         }
         response_headers->ComputeCaching();
         fetch->Write(output_buffer, handler);
@@ -248,8 +243,7 @@ void HttpDumpUrlFetcher::Fetch(
                        filename.c_str(), url.c_str());
     }
   } else {
-    handler->Message(kError,
-                     "HttpDumpUrlFetcher: Requested invalid URL %s",
+    handler->Message(kError, "HttpDumpUrlFetcher: Requested invalid URL %s",
                      url.c_str());
   }
 

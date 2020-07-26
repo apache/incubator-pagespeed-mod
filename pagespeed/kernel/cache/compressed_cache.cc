@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/cache/compressed_cache.h"
 
@@ -58,13 +57,12 @@ class CompressedCallback : public CacheInterface::Callback {
                      Variable* corrupt_payloads)
       : callback_(callback),
         corrupt_payloads_(corrupt_payloads),
-        validate_candidate_called_(false) {
-  }
+        validate_candidate_called_(false) {}
 
   ~CompressedCallback() override {}
 
   bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) override {
+                         CacheInterface::KeyState state) override {
     validate_candidate_called_ = true;
     bool ret = false;
     if (state == CacheInterface::kAvailable) {
@@ -112,8 +110,7 @@ CompressedCache::CompressedCache(CacheInterface* cache, Statistics* stats)
   compressed_size_ = stats->GetVariable(kCompressedCacheCompressedSize);
 }
 
-CompressedCache::~CompressedCache() {
-}
+CompressedCache::~CompressedCache() {}
 
 GoogleString CompressedCache::FormatName(StringPiece name) {
   return StrCat("Compressed(", name, ")");
@@ -142,33 +139,24 @@ void CompressedCache::Put(const GoogleString& key, const SharedString& value) {
   if (GzipInflater::Deflate(value.Value(), GzipInflater::kDeflate, &writer)) {
     buf.append(kTrailer, STATIC_STRLEN(kTrailer));
 #if INCLUDE_HISTOGRAMS
-    compressed_cache_savings_->Add(
-        old_size - static_cast<int64>(buf.size()));
+    compressed_cache_savings_->Add(old_size - static_cast<int64>(buf.size()));
 #endif
     compressed_size_->Add(buf.size());
     cache_->PutSwappingString(key, &buf);
   }
 }
 
-void CompressedCache::Delete(const GoogleString& key) {
-  cache_->Delete(key);
-}
+void CompressedCache::Delete(const GoogleString& key) { cache_->Delete(key); }
 
-bool CompressedCache::IsHealthy() const {
-  return cache_->IsHealthy();
-}
+bool CompressedCache::IsHealthy() const { return cache_->IsHealthy(); }
 
-void CompressedCache::ShutDown() {
-  return cache_->ShutDown();
-}
+void CompressedCache::ShutDown() { return cache_->ShutDown(); }
 
 int64 CompressedCache::CorruptPayloads() const {
   return corrupt_payloads_->Get();
 }
 
-int64 CompressedCache::OriginalSize() const {
-  return original_size_->Get();
-}
+int64 CompressedCache::OriginalSize() const { return original_size_->Get(); }
 
 int64 CompressedCache::CompressedSize() const {
   return compressed_size_->Get();

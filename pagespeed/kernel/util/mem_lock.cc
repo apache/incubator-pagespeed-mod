@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/mem_lock.h"
 
@@ -31,8 +30,7 @@
 namespace net_instaweb {
 
 MemLock::MemLock(int64 sequence, MemLockState* lock_state)
-    : lock_state_(lock_state),
-      sequence_(sequence) {
+    : lock_state_(lock_state), sequence_(sequence) {
   Clear();
 }
 
@@ -88,9 +86,7 @@ void MemLock::Wakeup() {
   }
 }
 
-GoogleString MemLock::name() const {
-  return lock_state_->name();
-}
+GoogleString MemLock::name() const { return lock_state_->name(); }
 
 void MemLock::CalculateWakeupTime(int64 held_lock_grant_time_ms) {
   DCHECK(!lock_state_->IsHeldInOrderedSet(this));

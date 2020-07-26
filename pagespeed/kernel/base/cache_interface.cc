@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/cache_interface.h"
 
 namespace net_instaweb {
@@ -25,11 +24,7 @@ namespace net_instaweb {
 namespace {
 
 static const char* kKeyStateNames[] = {
-  "available",
-  "not_found",
-  "overload",
-  "network_error",
-    "timeout",
+    "available", "not_found", "overload", "network_error", "timeout",
 };
 
 }  // namespace
@@ -38,18 +33,13 @@ const char* CacheInterface::KeyStateName(KeyState state) {
   return kKeyStateNames[state];
 }
 
-CacheInterface::CacheInterface() {
-}
+CacheInterface::CacheInterface() {}
 
-CacheInterface::~CacheInterface() {
-}
+CacheInterface::~CacheInterface() {}
 
-CacheInterface::Callback::~Callback() {
-}
+CacheInterface::Callback::~Callback() {}
 
-CacheInterface* CacheInterface::Backend() {
-  return this;
-}
+CacheInterface* CacheInterface::Backend() { return this; }
 
 void CacheInterface::ValidateAndReportResult(const GoogleString& key,
                                              KeyState state,

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,12 @@
  * under the License.
  */
 
-
 // Unit-test PurgeSet
 
 #include "pagespeed/kernel/cache/purge_set.h"
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_timer.h"
@@ -36,8 +36,7 @@ const size_t kMaxSize = 100;
 
 class PurgeSetTest : public testing::Test {
  protected:
-  PurgeSetTest() : purge_set_(kMaxSize) {
-  }
+  PurgeSetTest() : purge_set_(kMaxSize) {}
 
   PurgeSet purge_set_;
 
@@ -45,9 +44,7 @@ class PurgeSetTest : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(PurgeSetTest);
 };
 
-TEST_F(PurgeSetTest, Empty) {
-  EXPECT_TRUE(purge_set_.empty());
-}
+TEST_F(PurgeSetTest, Empty) { EXPECT_TRUE(purge_set_.empty()); }
 
 TEST_F(PurgeSetTest, SimpleInvaldations) {
   EXPECT_TRUE(purge_set_.IsValid("a", 1));
@@ -173,10 +170,12 @@ TEST_F(PurgeSetTest, Assign) {
 TEST_F(PurgeSetTest, ToString) {
   ASSERT_TRUE(purge_set_.UpdateGlobalInvalidationTimestampMs(
       MockTimer::kApr_5_2010_ms));
-  ASSERT_TRUE(purge_set_.Put("a",
-                             MockTimer::kApr_5_2010_ms + Timer::kSecondMs));
-  EXPECT_STREQ("Global@Mon, 05 Apr 2010 18:51:26 GMT\n"
-               "a@Mon, 05 Apr 2010 18:51:27 GMT", purge_set_.ToString());
+  ASSERT_TRUE(
+      purge_set_.Put("a", MockTimer::kApr_5_2010_ms + Timer::kSecondMs));
+  EXPECT_STREQ(
+      "Global@Mon, 05 Apr 2010 18:51:26 GMT\n"
+      "a@Mon, 05 Apr 2010 18:51:27 GMT",
+      purge_set_.ToString());
 }
 
 }  // namespace net_instaweb

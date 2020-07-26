@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/resource_fetch.h"
 
@@ -68,38 +67,38 @@ void ResourceFetch::ApplyExperimentOptions(const GoogleUrl& url,
   }
 }
 
-RewriteDriver* ResourceFetch::GetDriver(
-    const GoogleUrl& url, RewriteOptions* custom_options,
-    ServerContext* server_context, const RequestContextPtr& request_ctx) {
+RewriteDriver* ResourceFetch::GetDriver(const GoogleUrl& url,
+                                        RewriteOptions* custom_options,
+                                        ServerContext* server_context,
+                                        const RequestContextPtr& request_ctx) {
   ApplyExperimentOptions(url, request_ctx, server_context, &custom_options);
-  RewriteDriver* driver = (custom_options == nullptr)
-      ? server_context->NewRewriteDriver(request_ctx)
-      : server_context->NewCustomRewriteDriver(custom_options, request_ctx);
+  RewriteDriver* driver =
+      (custom_options == nullptr)
+          ? server_context->NewRewriteDriver(request_ctx)
+          : server_context->NewCustomRewriteDriver(custom_options, request_ctx);
   return driver;
 }
 
-void ResourceFetch::StartWithDriver(
-    const GoogleUrl& url, CleanupMode cleanup_mode,
-    ServerContext* server_context, RewriteDriver* driver,
-    AsyncFetch* async_fetch) {
-
-  ResourceFetch* resource_fetch = new ResourceFetch(
-      url, cleanup_mode, driver, server_context->timer(),
-      server_context->message_handler(), async_fetch);
+void ResourceFetch::StartWithDriver(const GoogleUrl& url,
+                                    CleanupMode cleanup_mode,
+                                    ServerContext* server_context,
+                                    RewriteDriver* driver,
+                                    AsyncFetch* async_fetch) {
+  ResourceFetch* resource_fetch =
+      new ResourceFetch(url, cleanup_mode, driver, server_context->timer(),
+                        server_context->message_handler(), async_fetch);
 
   if (!driver->FetchResource(url.Spec(), resource_fetch)) {
     resource_fetch->Done(false);
   }
 }
 
-void ResourceFetch::Start(const GoogleUrl& url,
-                          RewriteOptions* custom_options,
+void ResourceFetch::Start(const GoogleUrl& url, RewriteOptions* custom_options,
                           ServerContext* server_context,
                           AsyncFetch* async_fetch) {
-  RewriteDriver* driver = GetDriver(
-      url, custom_options, server_context, async_fetch->request_context());
-  StartWithDriver(url, kAutoCleanupDriver,
-                  server_context, driver, async_fetch);
+  RewriteDriver* driver = GetDriver(url, custom_options, server_context,
+                                    async_fetch->request_context());
+  StartWithDriver(url, kAutoCleanupDriver, server_context, driver, async_fetch);
 }
 
 bool ResourceFetch::BlockingFetch(const GoogleUrl& url,
@@ -143,12 +142,9 @@ bool ResourceFetch::BlockingFetch(const GoogleUrl& url,
   return ok;
 }
 
-ResourceFetch::ResourceFetch(const GoogleUrl& url,
-                             CleanupMode cleanup_mode,
-                             RewriteDriver* driver,
-                             Timer* timer,
-                             MessageHandler*,
-                             AsyncFetch* async_fetch)
+ResourceFetch::ResourceFetch(const GoogleUrl& url, CleanupMode cleanup_mode,
+                             RewriteDriver* driver, Timer* timer,
+                             MessageHandler*, AsyncFetch* async_fetch)
     : SharedAsyncFetch(async_fetch),
       driver_(driver),
       timer_(timer),
@@ -159,8 +155,7 @@ ResourceFetch::ResourceFetch(const GoogleUrl& url,
   DCHECK(driver_->request_headers() == nullptr);
 }
 
-ResourceFetch::~ResourceFetch() {
-}
+ResourceFetch::~ResourceFetch() {}
 
 void ResourceFetch::HandleHeadersComplete() {
   // We do not want any cookies (or other person information) in pagespeed
@@ -188,8 +183,8 @@ void ResourceFetch::HandleHeadersComplete() {
 
 void ResourceFetch::HandleDone(bool success) {
   if (success) {
-    LOG(INFO) << "Resource " << resource_url_.Spec()
-              << " : " << response_headers()->status_code();
+    LOG(INFO) << "Resource " << resource_url_.Spec() << " : "
+              << response_headers()->status_code();
   } else {
     // This is a fetcher failure, like connection refused, not just an error
     // status code.

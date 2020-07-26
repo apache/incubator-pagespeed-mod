@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,18 +17,19 @@
  * under the License.
  */
 
+#include "pagespeed/controller/context_registry.h"
 
 #include <unistd.h>
+
 #include <memory>
 #include <vector>
 
-#include "pagespeed/controller/context_registry.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
+#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
 
 using testing::AtMost;
@@ -44,9 +45,7 @@ namespace {
 // Trivial mock object that can be put into a ContextRegistry.
 class MockContext {
  public:
-  MockContext() {
-    EXPECT_CALL(*this, TryCancel()).Times(0);
-  }
+  MockContext() { EXPECT_CALL(*this, TryCancel()).Times(0); }
 
   MOCK_METHOD0(TryCancel, void());
 };

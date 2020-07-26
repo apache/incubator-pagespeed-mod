@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/html/html_writer_filter.h"
 
@@ -42,8 +41,7 @@ HtmlWriterFilter::HtmlWriterFilter(HtmlParse* html_parse)
   Clear();
 }
 
-HtmlWriterFilter::~HtmlWriterFilter() {
-}
+HtmlWriterFilter::~HtmlWriterFilter() {}
 
 void HtmlWriterFilter::Clear() {
   lazy_close_element_ = nullptr;
@@ -96,8 +94,8 @@ void HtmlWriterFilter::StartElement(HtmlElement* element) {
   EmitName(element->name());
 
   const HtmlElement::AttributeList& attrs = element->attributes();
-  for (HtmlElement::AttributeConstIterator i(attrs.begin());
-       i != attrs.end(); ++i) {
+  for (HtmlElement::AttributeConstIterator i(attrs.begin()); i != attrs.end();
+       ++i) {
     const HtmlElement::Attribute& attribute = *i;
     // If the column has grown too large, insert a newline.  It's always safe
     // to insert whitespace in the middle of tag parameters.
@@ -240,9 +238,7 @@ void HtmlWriterFilter::Directive(HtmlDirectiveNode* directive) {
   EmitBytes(">");
 }
 
-void HtmlWriterFilter::StartDocument() {
-  Clear();
-}
+void HtmlWriterFilter::StartDocument() { Clear(); }
 
 void HtmlWriterFilter::EndDocument() {
   EmitBytes("");  // flushes any lazily closed elements at end of the document.

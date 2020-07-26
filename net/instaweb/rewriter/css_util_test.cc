@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 // Unit-test the css utilities.
 
 #include "net/instaweb/rewriter/public/css_util.h"
 
 #include <algorithm>
 #include <memory>
-
 #include <vector>
 
 #include "base/logging.h"
@@ -48,7 +46,7 @@ namespace css_util {
 
 class CssUtilTest : public testing::Test {
  protected:
-  CssUtilTest() { }
+  CssUtilTest() {}
 
   GoogleMessageHandler message_handler_;
 
@@ -69,8 +67,7 @@ TEST_F(CssUtilTest, TestGetDimensions) {
 
   html_parse.DeleteNode(img);
   img = html_parse.NewElement(nullptr, HtmlName::kImg);
-  html_parse.AddAttribute(img, HtmlName::kStyle,
-                          "border-width:0px;");
+  html_parse.AddAttribute(img, HtmlName::kStyle, "border-width:0px;");
   extractor = std::make_unique<StyleExtractor>(img);
   EXPECT_EQ(kNoDimensions, extractor->state());
   EXPECT_EQ(kNoValue, extractor->width());
@@ -123,7 +120,7 @@ TEST_F(CssUtilTest, TestAnyDimensions) {
 
 TEST_F(CssUtilTest, VectorizeMediaAttribute) {
   const char kSimpleMedia[] = "screen";
-  const char* kSimpleVector[] = { "screen" };
+  const char* kSimpleVector[] = {"screen"};
   StringVector simple_expected(kSimpleVector,
                                kSimpleVector + arraysize(kSimpleVector));
   StringVector simple_actual;
@@ -131,7 +128,7 @@ TEST_F(CssUtilTest, VectorizeMediaAttribute) {
   EXPECT_TRUE(simple_expected == simple_actual);
 
   const char kUglyMessMedia[] = "screen,, ,printer , screen ";
-  const char* kUglyMessVector[] = { "screen", "printer", "screen" };
+  const char* kUglyMessVector[] = {"screen", "printer", "screen"};
   StringVector ugly_expected(kUglyMessVector,
                              kUglyMessVector + arraysize(kUglyMessVector));
   StringVector ugly_actual;
@@ -146,14 +143,14 @@ TEST_F(CssUtilTest, VectorizeMediaAttribute) {
 
 TEST_F(CssUtilTest, StringifyMediaVector) {
   const char kSimpleMedia[] = "screen";
-  const char* kSimpleVector[] = { "screen" };
+  const char* kSimpleVector[] = {"screen"};
   StringVector simple_vector(kSimpleVector,
                              kSimpleVector + arraysize(kSimpleVector));
   GoogleString simple_media = StringifyMediaVector(simple_vector);
   EXPECT_EQ(kSimpleMedia, simple_media);
 
   const char kMultipleMedia[] = "screen,printer,screen";
-  const char* kMultipleVector[] = { "screen", "printer", "screen" };
+  const char* kMultipleVector[] = {"screen", "printer", "screen"};
   StringVector multiple_vector(kMultipleVector,
                                kMultipleVector + arraysize(kMultipleVector));
   GoogleString multiple_media = StringifyMediaVector(multiple_vector);
@@ -201,7 +198,7 @@ TEST_F(CssUtilTest, ConvertMediaQueriesToStringVector) {
   queries.push_back(NewSimpleMedium("printer"));
   queries.push_back(NewSimpleMedium("all"));
 
-  const char* kExpectedVector[] = { "screen", "printer", "all" };
+  const char* kExpectedVector[] = {"screen", "printer", "all"};
   StringVector expected_vector(kExpectedVector,
                                kExpectedVector + arraysize(kExpectedVector));
   StringVector actual_vector;
@@ -218,8 +215,8 @@ TEST_F(CssUtilTest, ConvertMediaQueriesToStringVector) {
 }
 
 TEST_F(CssUtilTest, ConvertStringVectorToMediaQueries) {
-  const char* kInputVector[] = { "screen", "", " ", "print ", " all ",
-                                 "not braille and (color)" };
+  const char* kInputVector[] = {"screen", "",      " ",
+                                "print ", " all ", "not braille and (color)"};
   StringVector input_vector(kInputVector,
                             kInputVector + arraysize(kInputVector));
   Css::MediaQueries queries;
@@ -246,7 +243,7 @@ TEST_F(CssUtilTest, ConvertStringVectorToMediaQueries) {
 }
 
 TEST_F(CssUtilTest, ClearVectorIfContainsMediaAll) {
-  const char* kInputVector[] = { "screen", "", " ", "print " };
+  const char* kInputVector[] = {"screen", "", " ", "print "};
   StringVector input_vector(kInputVector,
                             kInputVector + arraysize(kInputVector));
 
@@ -269,8 +266,7 @@ TEST_F(CssUtilTest, CanMediaAffectScreenTest) {
   EXPECT_TRUE(css_util::CanMediaAffectScreen("all\n"));
   // Case insensitive, handles multiple (possibly junk) media types.
   EXPECT_TRUE(css_util::CanMediaAffectScreen("print, audio ,, ,sCrEeN"));
-  EXPECT_TRUE(css_util::CanMediaAffectScreen(
-      "not!?#?;valid,screen,@%*%@*"));
+  EXPECT_TRUE(css_util::CanMediaAffectScreen("not!?#?;valid,screen,@%*%@*"));
   // Some cases that fail.
   EXPECT_FALSE(css_util::CanMediaAffectScreen("print"));
   EXPECT_FALSE(css_util::CanMediaAffectScreen("not screen"));
@@ -292,9 +288,10 @@ TEST_F(CssUtilTest, JsDetectableSelector) {
   const char kSelectors[] =
       "a, a:visited, p, :visited, p:visited a, p :visited a, p > :hover > a, "
       "hjf98a7o, img[src^=\"mod_pagespeed_examples/images\"]";
-  const char *kExpected[] =
-      {"a", "a", "p", "", "p a", "p", "p",
-       "hjf98a7o", "img[src^=\"mod_pagespeed_examples/images\"]"};
+  const char* kExpected[] = {
+      "a", "a",        "p",
+      "",  "p a",      "p",
+      "p", "hjf98a7o", "img[src^=\"mod_pagespeed_examples/images\"]"};
   Css::Parser parser(kSelectors);
   parser.set_preservation_mode(true);
   parser.set_quirks_mode(false);
@@ -308,16 +305,16 @@ TEST_F(CssUtilTest, JsDetectableSelector) {
 }
 
 TEST_F(CssUtilTest, EliminateElementsNotIn) {
-  const char* kSmallVector[] = { "screen", "print", "alternate" };
+  const char* kSmallVector[] = {"screen", "print", "alternate"};
   StringVector small_vector(kSmallVector,
                             kSmallVector + arraysize(kSmallVector));
   std::sort(small_vector.begin(), small_vector.end());
-  const char* kLargeVector[] = { "aural", "visual", "screen",
-                                 "tactile", "print", "olfactory" };
+  const char* kLargeVector[] = {"aural",   "visual", "screen",
+                                "tactile", "print",  "olfactory"};
   StringVector large_vector(kLargeVector,
                             kLargeVector + arraysize(kLargeVector));
   std::sort(large_vector.begin(), large_vector.end());
-  const char* kIntersectVector[] = { "screen", "print" };
+  const char* kIntersectVector[] = {"screen", "print"};
   StringVector intersect_vector(kIntersectVector,
                                 kIntersectVector + arraysize(kIntersectVector));
   std::sort(intersect_vector.begin(), intersect_vector.end());

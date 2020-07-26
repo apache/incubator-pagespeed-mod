@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 // Unit-test the string-splitter.
+
+#include "pagespeed/kernel/base/string_util.h"
 
 #include <clocale>
 #include <cstddef>
@@ -28,7 +29,6 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -225,8 +225,7 @@ TEST_F(StringToDoubleTest, NoParse) {
   InvalidStringToDouble(embedded_null_sp);
 }
 
-class SplitStringTest : public testing::Test {
-};
+class SplitStringTest : public testing::Test {};
 
 TEST_F(SplitStringTest, TestSplitNoOmitTrailing) {
   StringPieceVector components;
@@ -399,10 +398,10 @@ TEST(ParseShellLikeStringTest, TestParse) {
   std::vector<GoogleString> parts;
   ParseShellLikeString("a b \"c d\" e 'f g'", &parts);
   ASSERT_EQ(5, parts.size());
-  EXPECT_EQ("a",   parts[0]);
-  EXPECT_EQ("b",   parts[1]);
+  EXPECT_EQ("a", parts[0]);
+  EXPECT_EQ("b", parts[1]);
   EXPECT_EQ("c d", parts[2]);
-  EXPECT_EQ("e",   parts[3]);
+  EXPECT_EQ("e", parts[3]);
   EXPECT_EQ("f g", parts[4]);
 }
 
@@ -411,7 +410,7 @@ TEST(ParseShellLikeStringTest, Backslash) {
   ParseShellLikeString(" \"a\\\"b\" 'c\\'d' ", &parts);
   ASSERT_EQ(2, parts.size());
   EXPECT_EQ("a\"b", parts[0]);
-  EXPECT_EQ("c'd",  parts[1]);
+  EXPECT_EQ("c'd", parts[1]);
 }
 
 TEST(ParseShellLikeStringTest, UnclosedQuote) {
@@ -428,8 +427,7 @@ TEST(ParseShellLikeStringTest, UnclosedQuoteAndBackslash) {
   EXPECT_EQ("a b", parts[0]);
 }
 
-class BasicUtilsTest : public testing::Test {
-};
+class BasicUtilsTest : public testing::Test {};
 
 TEST(BasicUtilsTest, TrimLeadingWhitespaceTest) {
   StringPiece trimmed("Mary had a little lamb.  ");
@@ -483,8 +481,9 @@ TEST(BasicUtilsTest, CountSubstringTest) {
   EXPECT_EQ(5, CountSubstring(text1, e));
   EXPECT_EQ(2, CountSubstring(text1, twice));
   EXPECT_EQ(2, CountSubstring(text1, en));
-  StringPiece text2("Finished files are the result\nof years of scientific "
-                    "study\ncombined with the experience\nof years...");
+  StringPiece text2(
+      "Finished files are the result\nof years of scientific "
+      "study\ncombined with the experience\nof years...");
   StringPiece f("f");
   StringPiece of("of");
   EXPECT_EQ(5, CountSubstring(text2, f));
@@ -575,8 +574,8 @@ TEST(BasicUtilsTest, CEscape) {
 
 TEST(BasicUtilsTest, SplitStringUsingSubstr1) {
   StringPieceVector components;
-  net_instaweb::SplitStringUsingSubstr(
-      "word1abword2abword3", "ab", &components);
+  net_instaweb::SplitStringUsingSubstr("word1abword2abword3", "ab",
+                                       &components);
   EXPECT_EQ(3, components.size());
   EXPECT_EQ("word1", components[0]);
   EXPECT_EQ("word2", components[1]);
@@ -639,14 +638,13 @@ TEST(BasicUtilsTest, EraseBracketedSubstring) {
 
 class JoinCollectionTest : public testing::Test {
  public:
-  JoinCollectionTest() { }
-  ~JoinCollectionTest() override { }
+  JoinCollectionTest() {}
+  ~JoinCollectionTest() override {}
+
  protected:
   template <typename C>
-  void CheckAppendJoinCollection(
-      const StringPiece expected,
-      const C& collection,
-      const StringPiece sep) {
+  void CheckAppendJoinCollection(const StringPiece expected,
+                                 const C& collection, const StringPiece sep) {
     const char kJoinInit[] = "= ";
     GoogleString join_expected = StrCat(kJoinInit, expected);
     GoogleString join_result(kJoinInit);
@@ -654,6 +652,7 @@ class JoinCollectionTest : public testing::Test {
     EXPECT_STREQ(join_expected, join_result);
     EXPECT_STREQ(expected, JoinCollection(collection, sep));
   }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(JoinCollectionTest);
 };
@@ -661,7 +660,7 @@ class JoinCollectionTest : public testing::Test {
 TEST_F(JoinCollectionTest, BasicSequence) {
   // For set we rely on the fact that the following is already sorted.  If set's
   // iterator isn't lexicographically sorted that's a bug with set!
-  const char* kInputs[] = { "", "a", "b", "c", "duck", "elephant" };
+  const char* kInputs[] = {"", "a", "b", "c", "duck", "elephant"};
   const char kExpected[] = ", a, b, c, duck, elephant";
   StringVector string_vector;
   StringPieceVector stringpiece_vector;

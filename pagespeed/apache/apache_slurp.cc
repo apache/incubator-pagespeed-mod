@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,7 @@
  * under the License.
  */
 
-
 #include <memory>
-
-
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -68,12 +65,9 @@ namespace {
 // rather not send ModPagespeed=off to servers that are not expecting it.
 class StrippingFetch : public StringAsyncFetch {
  public:
-  StrippingFetch(const GoogleString& url_input,
-                 const DomainLawyer* lawyer,
-                 UrlAsyncFetcher* fetcher,
-                 ThreadSystem* thread_system,
-                 const RequestContextPtr& ctx,
-                 MessageHandler* message_handler)
+  StrippingFetch(const GoogleString& url_input, const DomainLawyer* lawyer,
+                 UrlAsyncFetcher* fetcher, ThreadSystem* thread_system,
+                 const RequestContextPtr& ctx, MessageHandler* message_handler)
       : StringAsyncFetch(ctx),
         fetcher_(fetcher),
         lawyer_(lawyer),
@@ -81,8 +75,7 @@ class StrippingFetch : public StringAsyncFetch {
         message_handler_(message_handler),
         stripped_(false),
         mutex_(thread_system->NewMutex()),
-        condvar_(mutex_->NewCondvar()) {
-  }
+        condvar_(mutex_->NewCondvar()) {}
 
   // Blocking fetch.
   bool Fetch() {
@@ -204,14 +197,15 @@ bool InstawebHandler::ProxyUrl() {
     // fetcher.  We don't want the loopback fetcher because we
     // are proxying an external site.
 
-    const GoogleString& fragment = options()->cache_fragment().empty()
-        ? request_context_->minimal_private_suffix()
-        : options()->cache_fragment();
+    const GoogleString& fragment =
+        options()->cache_fragment().empty()
+            ? request_context_->minimal_private_suffix()
+            : options()->cache_fragment();
     // Note that the cache fetcher is aware of request methods, so it won't
     // cache POSTs improperly.
     CacheUrlAsyncFetcher* cache_url_async_fetcher =
-        server_context_->CreateCustomCacheFetcher(options(), fragment,
-                                                  nullptr, fetcher);
+        server_context_->CreateCustomCacheFetcher(options(), fragment, nullptr,
+                                                  fetcher);
     cache_url_async_fetcher->set_ignore_recent_fetch_failed(true);
     fetcher_storage.reset(cache_url_async_fetcher);
     fetcher = fetcher_storage.get();
@@ -223,9 +217,9 @@ bool InstawebHandler::ProxyUrl() {
       new RequestContext(options()->ComputeHttpOptions(),
                          server_context_->thread_system()->NewMutex(),
                          server_context_->timer()));
-  StrippingFetch fetch(stripped_url, options()->domain_lawyer(),
-                       fetcher, server_context_->thread_system(),
-                       request_context, handler);
+  StrippingFetch fetch(stripped_url, options()->domain_lawyer(), fetcher,
+                       server_context_->thread_system(), request_context,
+                       handler);
   fetch.set_request_headers(request_headers_.get());
 
   // Handle a POST if needed.
@@ -271,12 +265,13 @@ bool InstawebHandler::ProxyUrl() {
     // in the fetch we did to write the slurp.
     ApacheWriter apache_writer(request_, server_context_->thread_system());
 
-    ChunkingWriter chunking_writer(
-        &apache_writer, options()->slurp_flush_limit());
+    ChunkingWriter chunking_writer(&apache_writer,
+                                   options()->slurp_flush_limit());
     apache_writer.OutputHeaders(fetch.response_headers());
     chunking_writer.Write(fetch.buffer(), handler);
   } else {
-    handler->Message(kInfo, "mod_pagespeed: slurp of url %s failed.\n"
+    handler->Message(kInfo,
+                     "mod_pagespeed: slurp of url %s failed.\n"
                      "Request Headers: %s\n\nResponse Headers: %s",
                      stripped_url.c_str(),
                      fetch.request_headers()->ToString().c_str(),
@@ -294,8 +289,8 @@ bool InstawebHandler::AuthenticateProxy() {
   const ApacheConfig* config = ApacheConfig::DynamicCast(options());
   if (config->GetProxyAuth(&cookie_name, &cookie_value, &redirect)) {
     bool ok = cookie_value.empty()
-        ? request_headers_->HasCookie(cookie_name)
-        : request_headers_->HasCookieValue(cookie_name, cookie_value);
+                  ? request_headers_->HasCookie(cookie_name)
+                  : request_headers_->HasCookieValue(cookie_name, cookie_value);
     if (!ok) {
       ResponseHeaders response_headers;
       if (redirect.empty()) {
@@ -306,8 +301,8 @@ bool InstawebHandler::AuthenticateProxy() {
         response_headers.Add(HttpAttributes::kLocation, redirect);
         GoogleString redirect_escaped;
         HtmlKeywords::Escape(redirect, &redirect_escaped);
-        send_out_headers_and_body(request_, response_headers, StrCat(
-            "Redirecting to ", redirect_escaped));
+        send_out_headers_and_body(request_, response_headers,
+                                  StrCat("Redirecting to ", redirect_escaped));
       }
       return false;
     }

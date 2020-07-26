@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_APACHE_APACHE_SERVER_CONTEXT_H_
 #define PAGESPEED_APACHE_APACHE_SERVER_CONTEXT_H_
@@ -58,8 +57,7 @@ class ApacheServerContext : public SystemServerContext {
   // Prefix for ProxyInterface stats (active in proxy_all_requests_mode() only).
   static const char kProxyInterfaceStatsPrefix[];
 
-  ApacheServerContext(ApacheRewriteDriverFactory* factory,
-                      server_rec* server,
+  ApacheServerContext(ApacheRewriteDriverFactory* factory, server_rec* server,
                       const StringPiece& version);
   ~ApacheServerContext() override;
 
@@ -155,10 +153,8 @@ class ApacheServerContext : public SystemServerContext {
  private:
   void ChildInit(SystemRewriteDriverFactory* factory) override;
 
-  void ReportNotFoundHelper(MessageType message_type,
-                            StringPiece url,
-                            request_rec* request,
-                            Variable* error_count);
+  void ReportNotFoundHelper(MessageType message_type, StringPiece url,
+                            request_rec* request, Variable* error_count);
 
   ApacheRewriteDriverFactory* apache_factory_;
   server_rec* server_rec_;

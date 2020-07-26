@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-
 
 #ifndef PAGESPEED_KERNEL_HTTP_RESPONSE_HEADERS_H_
 #define PAGESPEED_KERNEL_HTTP_RESPONSE_HEADERS_H_
@@ -59,9 +57,8 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // Returns true if the resource with given date and TTL is going to expire
   // shortly and should hence be proactively re-fetched. All the parameters are
   // absolute times.
-  static bool IsImminentlyExpiring(
-      int64 start_date_ms, int64 expire_ms, int64 now_ms,
-      const HttpOptions& options);
+  static bool IsImminentlyExpiring(int64 start_date_ms, int64 expire_ms,
+                                   int64 now_ms, const HttpOptions& options);
 
   // This will set Date and (if supplied in the first place, Expires)
   // header to now if the delta of date header wrt now_ms is more than
@@ -138,8 +135,8 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // assuming the request has cookies, there is no validator, and we
   // respect Vary.
   bool IsProxyCacheable() const {
-    return IsProxyCacheable(
-        RequestHeaders::Properties(), kRespectVaryOnResources, kNoValidator);
+    return IsProxyCacheable(RequestHeaders::Properties(),
+                            kRespectVaryOnResources, kNoValidator);
   }
 
   // Returns true if the response is privately cacheable.
@@ -288,7 +285,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   void DetermineContentTypeAndCharset(const ContentType** content_type_out,
                                       GoogleString* charset_out) const;
 
-
   // Parses a date header such as HttpAttributes::kDate or
   // HttpAttributes::kExpires, returning the timestamp as
   // number of milliseconds since 1970.
@@ -390,8 +386,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   void SetSMaxAge(int s_maxage_sec);
   // Stand-alone version of SetSMaxAge.  If there are changes to make, returns
   // true and sets updated_cache_control.
-  static bool ApplySMaxAge(int s_maxage_sec,
-                           StringPiece existing_cache_control,
+  static bool ApplySMaxAge(int s_maxage_sec, StringPiece existing_cache_control,
                            GoogleString* updated_cache_control);
 
   // Returns true if the given value should be interpreted as a header being

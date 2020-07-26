@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_CONTROLLER_H_
@@ -31,7 +30,7 @@ namespace net_instaweb {
 
 class ExpensiveOperationController {
  public:
-  virtual ~ExpensiveOperationController() { }
+  virtual ~ExpensiveOperationController() {}
 
   // Run callback at an indeterminate time in the future when it is safe
   // to perform a CPU intensive operation. May Cancel the callback at some
@@ -43,7 +42,7 @@ class ExpensiveOperationController {
   virtual void NotifyExpensiveOperationComplete() = 0;
 
  protected:
-  ExpensiveOperationController() { }
+  ExpensiveOperationController() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ExpensiveOperationController);

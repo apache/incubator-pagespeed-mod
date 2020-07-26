@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the string-splitter.
 
@@ -44,14 +43,10 @@ namespace net_instaweb {
 
 class GoogleUrlTest : public testing::Test {
  protected:
-  GoogleUrlTest()
-  : gurl_(kUrl),
-    gurl_with_port_(kUrlWithPort)
-  {}
+  GoogleUrlTest() : gurl_(kUrl), gurl_with_port_(kUrlWithPort) {}
 
-  void TestCopyAndAddQueryParam(const char* before,
-                                const char* key, const char* value,
-                                const char* after) {
+  void TestCopyAndAddQueryParam(const char* before, const char* key,
+                                const char* value, const char* after) {
     GoogleUrl before_url(before);
     StringPiece before_url_original(before_url.UncheckedSpec());
     std::unique_ptr<GoogleUrl> after_url(
@@ -116,9 +111,8 @@ class GoogleUrlTest : public testing::Test {
   }
 
   void TestEscapeUnescape(StringPiece value) {
-    EXPECT_STREQ(value,
-                 GoogleUrl::UnescapeQueryParam(
-                     GoogleUrl::EscapeQueryParam(value)));
+    EXPECT_STREQ(value, GoogleUrl::UnescapeQueryParam(
+                            GoogleUrl::EscapeQueryParam(value)));
   }
 
   GoogleUrl gurl_;
@@ -166,7 +160,6 @@ TEST_F(GoogleUrlTest, TestSpec) {
   EXPECT_STREQ("/b/c/d.ext?f=g/h", gurl_.PathAndLeaf());
   EXPECT_STREQ("/b/c/d.ext", gurl_.PathSansQuery());
 }
-
 
 TEST_F(GoogleUrlTest, TestSpecWithPort) {
   EXPECT_STREQ(kUrlWithPort, gurl_with_port_.Spec());
@@ -221,8 +214,7 @@ TEST_F(GoogleUrlTest, TestCopyAndAddQueryParam) {
   TestCopyAndAddQueryParam("http://a.com/b/c/d.ext?p=q", "r", "s",
                            "http://a.com/b/c/d.ext?p=q&r=s");
 
-  TestCopyAndAddQueryParam("http://a.com", "r", "s",
-                           "http://a.com/?r=s");
+  TestCopyAndAddQueryParam("http://a.com", "r", "s", "http://a.com/?r=s");
 
   TestCopyAndAddQueryParam("http://a.com?p=q", "r", "s",
                            "http://a.com/?p=q&r=s");
@@ -240,31 +232,25 @@ TEST_F(GoogleUrlTest, TestCopyAndAddQueryParam) {
 }
 
 TEST_F(GoogleUrlTest, TestAllExceptQuery) {
-  TestAllExceptQueryCase("http://a.com/b/c/d.ext",
-                         "http://a.com/b/c/d.ext");
+  TestAllExceptQueryCase("http://a.com/b/c/d.ext", "http://a.com/b/c/d.ext");
 
   TestAllExceptQueryCase("http://a.com/b/c/d.ext?p=p&q=q",
                          "http://a.com/b/c/d.ext");
 
-  TestAllExceptQueryCase("http://a.com?p=p&q=q",
-                         "http://a.com/");
+  TestAllExceptQueryCase("http://a.com?p=p&q=q", "http://a.com/");
 }
 
 TEST_F(GoogleUrlTest, TestAllAfterQuery) {
-  TestAllAfterQueryCase("http://a.com/b/c/d.ext",
-                        "");
+  TestAllAfterQueryCase("http://a.com/b/c/d.ext", "");
 
-  TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q",
-                        "");
+  TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q", "");
 
-  TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q#ref",
-                        "#ref");
+  TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q#ref", "#ref");
 
   TestAllAfterQueryCase("http://a.com/b/c/d.ext?p=p&q=q#ref1#ref2",
                         "#ref1#ref2");
 
-  TestAllAfterQueryCase("http://a.com#ref",
-                        "#ref");
+  TestAllAfterQueryCase("http://a.com#ref", "#ref");
 }
 
 TEST_F(GoogleUrlTest, TestTrivialAllExceptLeaf) {
@@ -376,13 +362,12 @@ TEST_F(GoogleUrlTest, SchemeRelativeNoBase) {
 
 TEST_F(GoogleUrlTest, FindRelativity) {
   EXPECT_EQ(kAbsoluteUrl, GoogleUrl::FindRelativity(
-      "http://example.com/foo/bar/file.ext?k=v#f"));
-  EXPECT_EQ(kNetPath, GoogleUrl::FindRelativity(
-      "//example.com/foo/bar/file.ext?k=v#f"));
-  EXPECT_EQ(kAbsolutePath, GoogleUrl::FindRelativity(
-      "/foo/bar/file.ext?k=v#f"));
-  EXPECT_EQ(kRelativePath, GoogleUrl::FindRelativity(
-      "bar/file.ext?k=v#f"));
+                              "http://example.com/foo/bar/file.ext?k=v#f"));
+  EXPECT_EQ(kNetPath,
+            GoogleUrl::FindRelativity("//example.com/foo/bar/file.ext?k=v#f"));
+  EXPECT_EQ(kAbsolutePath,
+            GoogleUrl::FindRelativity("/foo/bar/file.ext?k=v#f"));
+  EXPECT_EQ(kRelativePath, GoogleUrl::FindRelativity("bar/file.ext?k=v#f"));
 }
 
 TEST_F(GoogleUrlTest, Relativize) {
@@ -395,8 +380,7 @@ TEST_F(GoogleUrlTest, Relativize) {
             url.Relativize(kNetPath, good_base_url));
   EXPECT_EQ("/foo/bar/file.ext?k=v#f",
             url.Relativize(kAbsolutePath, good_base_url));
-  EXPECT_EQ("bar/file.ext?k=v#f",
-            url.Relativize(kRelativePath, good_base_url));
+  EXPECT_EQ("bar/file.ext?k=v#f", url.Relativize(kRelativePath, good_base_url));
 
   GoogleUrl bad_base_url("https://www.example.com/other/path.html");
   EXPECT_EQ("http://example.com/foo/bar/file.ext?k=v#f",
@@ -451,16 +435,16 @@ TEST_F(GoogleUrlTest, Relativize) {
 
 TEST_F(GoogleUrlTest, RelativeUrls) {
   const StringPiece base_urls[] = {
-    "http://example.com/",
-    "https://example.com/foo/bar/file.ext?k=v#f",
-    "file:///dir/sub/foo.html",
-    "file://",
+      "http://example.com/",
+      "https://example.com/foo/bar/file.ext?k=v#f",
+      "file:///dir/sub/foo.html",
+      "file://",
   };
 
   // URLs which will be reproduced by Relativize().
   const StringPiece reproducible_urls[] = {
-    "http://example.com/", "/", "/foo.html", "foo.html", "dir/foo.html",
-    "//example.com/foo.html",
+      "http://example.com/",    "/", "/foo.html", "foo.html", "dir/foo.html",
+      "//example.com/foo.html",
   };
 
   for (int i = 0; i < arraysize(reproducible_urls); ++i) {
@@ -478,25 +462,62 @@ TEST_F(GoogleUrlTest, RelativeUrls) {
   // Format: { (original url), (after relativized w/ base_urls[0]),
   //           (after relativized w/ base_urls[1]), ... }
   const StringPiece non_reproducible_urls[][arraysize(base_urls) + 1] = {
-    { "../file.html",
-      "file.html", "https://example.com/foo/file.html",
-      "file:///dir/file.html", "file.html", },
-    { "../../file.html",
-      "file.html", "https://example.com/file.html",
-      "file:///file.html", "file.html", },
-    { "./file.html",
-      "file.html", "file.html", "file.html", "file.html", },
-    { "../bar/file.html",
-      "bar/file.html", "file.html",
-      "file:///dir/bar/file.html", "bar/file.html", },
-    { "",
-      "", "file.ext?k=v", "foo.html", "", },
-    { "?a=b",
-      "?a=b", "file.ext?a=b", "foo.html?a=b", "?a=b", },
-    { "#f2",
-      "#f2", "file.ext?k=v#f2", "foo.html#f2", "#f2", },
-    { ".",
-      "", "https://example.com/foo/bar/", "file:///dir/sub/", "", },
+      {
+          "../file.html",
+          "file.html",
+          "https://example.com/foo/file.html",
+          "file:///dir/file.html",
+          "file.html",
+      },
+      {
+          "../../file.html",
+          "file.html",
+          "https://example.com/file.html",
+          "file:///file.html",
+          "file.html",
+      },
+      {
+          "./file.html",
+          "file.html",
+          "file.html",
+          "file.html",
+          "file.html",
+      },
+      {
+          "../bar/file.html",
+          "bar/file.html",
+          "file.html",
+          "file:///dir/bar/file.html",
+          "bar/file.html",
+      },
+      {
+          "",
+          "",
+          "file.ext?k=v",
+          "foo.html",
+          "",
+      },
+      {
+          "?a=b",
+          "?a=b",
+          "file.ext?a=b",
+          "foo.html?a=b",
+          "?a=b",
+      },
+      {
+          "#f2",
+          "#f2",
+          "file.ext?k=v#f2",
+          "foo.html#f2",
+          "#f2",
+      },
+      {
+          ".",
+          "",
+          "https://example.com/foo/bar/",
+          "file:///dir/sub/",
+          "",
+      },
   };
   for (int i = 0; i < arraysize(non_reproducible_urls); ++i) {
     StringPiece in_url = non_reproducible_urls[i][0];
@@ -506,7 +527,7 @@ TEST_F(GoogleUrlTest, RelativeUrls) {
       GoogleUrl base(base_urls[j]);
       GoogleUrl url(base, in_url);
 
-      StringPiece expected_url = non_reproducible_urls[i][j+1];
+      StringPiece expected_url = non_reproducible_urls[i][j + 1];
       EXPECT_EQ(expected_url, url.Relativize(url_relativity, base))
           << in_url << " " << base_urls[j];
     }
@@ -518,16 +539,16 @@ TEST_F(GoogleUrlTest, TestNoCrash) {
   RunAllMethods("http://www.example.com/");
   RunAllMethods("http:foo.css");
   RunAllMethods("data:");
-  RunAllMethods("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAA"
-                "FCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljN"
-                "BAAO9TXL0Y4OHwAAAABJRU5ErkJggg==");
+  RunAllMethods(
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAA"
+      "FCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljN"
+      "BAAO9TXL0Y4OHwAAAABJRU5ErkJggg==");
   RunAllMethods("https://secure.example.org/foo/bar.html?blah=t#frag");
   RunAllMethods("file:");
   RunAllMethods("file:foobar");
   RunAllMethods("file:foo/bar/baz.rtf");
   RunAllMethods("file:///var/log/");
   RunAllMethods("ftp://ftp.example.com/");
-
 }
 
 TEST_F(GoogleUrlTest, Query) {
@@ -564,22 +585,22 @@ TEST_F(GoogleUrlTest, URLQuery) {
   //   the characters in [ "#<>], & DEL (& "'" in open source), however since
   //   '#' terminates the query part it cannot be in the result.
   GoogleString good_query_param1(kBadQueryString);
-  ASSERT_EQ(1, GlobalReplaceSubstring("#more",   "", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("#extra",  "", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\t",      "", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\n",      "", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\r",      "", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\a",   "%07", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\b",   "%08", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\v",   "%0B", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\f",   "%0C", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring(" ",    "%20", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("\"",   "%22", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring("<",    "%3C", &good_query_param1));
-  ASSERT_EQ(1, GlobalReplaceSubstring(">",    "%3E", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("#more", "", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("#extra", "", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\t", "", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\n", "", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\r", "", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\a", "%07", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\b", "%08", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\v", "%0B", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\f", "%0C", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring(" ", "%20", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("\"", "%22", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring("<", "%3C", &good_query_param1));
+  ASSERT_EQ(1, GlobalReplaceSubstring(">", "%3E", &good_query_param1));
   ASSERT_EQ(1, GlobalReplaceSubstring("\177", "%7F", &good_query_param1));
   GoogleString good_query_param2 = good_query_param1;
-  ASSERT_EQ(1, GlobalReplaceSubstring("'",    "%27", &good_query_param2));
+  ASSERT_EQ(1, GlobalReplaceSubstring("'", "%27", &good_query_param2));
 
   // Despite all the ugliness in the query parameter, it's [now] a valid URL.
   GoogleUrl gurl(StrCat("http://example.com/?", kBadQueryString));

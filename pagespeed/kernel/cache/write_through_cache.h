@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_CACHE_WRITE_THROUGH_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_WRITE_THROUGH_CACHE_H_
@@ -38,10 +37,7 @@ class WriteThroughCache : public CacheInterface {
 
   // Does not take ownership of caches passed in.
   WriteThroughCache(CacheInterface* cache1, CacheInterface* cache2)
-      : cache1_(cache1),
-        cache2_(cache2),
-        cache1_size_limit_(kUnlimited) {
-  }
+      : cache1_(cache1), cache2_(cache2), cache1_size_limit_(kUnlimited) {}
 
   ~WriteThroughCache() override;
 
@@ -72,7 +68,7 @@ class WriteThroughCache : public CacheInterface {
     cache2_->ShutDown();
   }
 
-  GoogleString Name() const  override {
+  GoogleString Name() const override {
     return FormatName(cache1_->Name(), cache2_->Name());
   }
   static GoogleString FormatName(StringPiece l1, StringPiece l2);

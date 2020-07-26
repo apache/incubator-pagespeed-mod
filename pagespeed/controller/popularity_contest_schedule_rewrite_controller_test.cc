@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,7 +21,6 @@
 
 #include <algorithm>
 #include <memory>
-
 #include <queue>
 
 #include "base/logging.h"
@@ -51,7 +50,7 @@ class TrackCallsFunction : public Function {
   TrackCallsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  ~TrackCallsFunction() override { }
+  ~TrackCallsFunction() override {}
 
   void Run() override { run_called_ = true; }
   void Cancel() override { cancel_called_ = true; }
@@ -63,12 +62,9 @@ class TrackCallsFunction : public Function {
 class RecordKeyFunction : public Function {
  public:
   RecordKeyFunction(const GoogleString& key, std::queue<GoogleString>* queue)
-      : key_(key), queue_(queue) {
-  }
+      : key_(key), queue_(queue) {}
 
-  void Run() override {
-    queue_->push(key_);
-  }
+  void Run() override { queue_->push(key_); }
 
   void Cancel() override {
     CHECK(false) << "Cancel called for key '" << key_ << "'";
@@ -108,7 +104,8 @@ class PopularityContestScheduleRewriteControllerTest : public testing::Test {
     // Make a function that will attempt to schedule another rewrite when it is
     // run. This will deadlock (ie: Timeout) if controller doesn't correctly
     // support this.
-    Function* bootstrap_callback = MakeFunction(this,
+    Function* bootstrap_callback = MakeFunction(
+        this,
         &PopularityContestScheduleRewriteControllerTest::
             ScheduleRewriteCallback,
         &PopularityContestScheduleRewriteControllerTest::CancelRewriteCallback,
@@ -120,14 +117,12 @@ class PopularityContestScheduleRewriteControllerTest : public testing::Test {
   // Explicitly not passing by const reference (here and below), because
   // MakeFunction doesn't handle that properly.
   void ScheduleRewriteCallback(GoogleString bootstrap_key,
-                               GoogleString main_key,
-                               Function* main_callback) {
+                               GoogleString main_key, Function* main_callback) {
     controller_->ScheduleRewrite(main_key, main_callback);
     controller_->NotifyRewriteComplete(bootstrap_key);
   }
 
-  void CancelRewriteCallback(GoogleString bootstrap_key,
-                             GoogleString main_key,
+  void CancelRewriteCallback(GoogleString bootstrap_key, GoogleString main_key,
                              Function* main_callback) {
     controller_->ScheduleRewrite(main_key, main_callback);
   }
@@ -1161,10 +1156,10 @@ TEST_F(PopularityContestScheduleRewriteControllerTest, OldRetryTortureTest) {
 
     CheckStats(
         1 + i * (kNumFailuresToTest + 3) + kNumFailuresToTest /* total */,
-        cumulative_successes /* success */,
-        cumulative_failures /* fail */, 0 /* queue_full */,
-        0 /* already_running */, kNumFailuresToTest - i /* queue_size */,
-        0 /* running */, kNumFailuresToTest - i /* queued_retries */);
+        cumulative_successes /* success */, cumulative_failures /* fail */,
+        0 /* queue_full */, 0 /* already_running */,
+        kNumFailuresToTest - i /* queue_size */, 0 /* running */,
+        kNumFailuresToTest - i /* queued_retries */);
 
     // Plug up the head of the queue.
     const GoogleString queue_block_key("block");
@@ -1256,9 +1251,8 @@ TEST_F(PopularityContestScheduleRewriteControllerTest, OldRetryTortureTest) {
                    num_dummies_to_insert /* total */,
                cumulative_successes /* success */,
                cumulative_failures /* fail */, 0 /* queue_full */,
-               0 /* already_running */,
-               expected_queued_items /* queue_size */, 0 /* running */,
-               expected_queued_items /* queued_retries */);
+               0 /* already_running */, expected_queued_items /* queue_size */,
+               0 /* running */, expected_queued_items /* queued_retries */);
   }
 }
 

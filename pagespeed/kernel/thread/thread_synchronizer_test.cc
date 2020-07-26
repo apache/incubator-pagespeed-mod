@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,19 +17,18 @@
  * under the License.
  */
 
-
 // Unit-test for ThreadSynchronizer
 
 #include "pagespeed/kernel/thread/thread_synchronizer.h"
 
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
+#include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/thread/worker_test_base.h"
+#include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
 
@@ -42,8 +41,7 @@ class ThreadSynchronizerTest : public testing::Test {
         synchronizer_(thread_system_.get()),
         pool_(1, "thread_synchronizer_test", thread_system_.get()),
         sequence_(pool_.NewSequence()),
-        sync_point_(new WorkerTestBase::SyncPoint(thread_system_.get())) {
-  }
+        sync_point_(new WorkerTestBase::SyncPoint(thread_system_.get())) {}
 
   ~ThreadSynchronizerTest() override {
     sync_point_.reset(nullptr);  // make sure this is destructed first.
@@ -58,8 +56,8 @@ class ThreadSynchronizerTest : public testing::Test {
 
   void AppendStringOneCharAtATime(const StringPiece& str) {
     for (int i = 0, n = str.size(); i < n; ++i) {
-      sequence_->Add(MakeFunction(
-          this, &ThreadSynchronizerTest::AppendChar, str[i]));
+      sequence_->Add(
+          MakeFunction(this, &ThreadSynchronizerTest::AppendChar, str[i]));
     }
   }
 
@@ -81,9 +79,7 @@ class ThreadSynchronizerTest : public testing::Test {
   GoogleString buffer_;
 };
 
-TEST_F(ThreadSynchronizerTest, SyncDisabled) {
-  TestSyncDisabled();
-}
+TEST_F(ThreadSynchronizerTest, SyncDisabled) { TestSyncDisabled(); }
 
 TEST_F(ThreadSynchronizerTest, SyncWrongPrefix) {
   synchronizer_.EnableForPrefix("WrongPrefix_");

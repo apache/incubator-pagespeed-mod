@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_SPRITER_IMAGE_LIBRARY_INTERFACE_H_
 #define NET_INSTAWEB_SPRITER_IMAGE_LIBRARY_INTERFACE_H_
@@ -60,10 +59,12 @@ class ImageLibraryInterface {
     // Get the width and height of an image.
     virtual bool GetDimensions(int* out_width, int* out_height) const = 0;
     virtual ~Image() {}
+
    protected:
     // Only methods of ImageLibraryInterface may create images.
     explicit Image(ImageLibraryInterface* lib) : lib_(lib) {}
     ImageLibraryInterface* lib_;
+
    private:
     DISALLOW_COPY_AND_ASSIGN(Image);
   };
@@ -78,12 +79,14 @@ class ImageLibraryInterface {
   class Canvas {
    public:
     virtual bool DrawImage(const Image* image, int x, int y) = 0;
-    virtual bool WriteToFile(
-        const FilePath& write_path, ImageFormat format) = 0;
+    virtual bool WriteToFile(const FilePath& write_path,
+                             ImageFormat format) = 0;
     virtual ~Canvas() {}
+
    protected:
     explicit Canvas(ImageLibraryInterface* lib) : lib_(lib) {}
     ImageLibraryInterface* lib_;
+
    private:
     DISALLOW_COPY_AND_ASSIGN(Canvas);
   };
@@ -103,8 +106,7 @@ class ImageLibraryInterface {
  protected:
   // Use ImageLibraryInterfaceFactory() to access an image library.
   ImageLibraryInterface(const FilePath& base_input_path,
-                        const FilePath& base_output_path,
-                        Delegate* delegate);
+                        const FilePath& base_output_path, Delegate* delegate);
 
   // Used by subclasses:
   const FilePath& base_input_path() { return base_input_path_; }

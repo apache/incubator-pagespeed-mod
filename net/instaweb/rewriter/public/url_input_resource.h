@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -45,13 +45,11 @@ class UrlInputResource : public CacheableResourceBase {
  private:
   friend class RewriteDriver;
   friend class UrlInputResourceTest;
-  UrlInputResource(RewriteDriver* rewrite_driver,
-                   const ContentType* type,
-                   const StringPiece& url,
-                   bool is_authorized_domain);
+  UrlInputResource(RewriteDriver* rewrite_driver, const ContentType* type,
+                   const StringPiece& url, bool is_authorized_domain);
 
   void PrepareRequest(const RequestContextPtr& request_context,
-                              RequestHeaders* headers) override;
+                      RequestHeaders* headers) override;
 
   // If the resource is from a domain that is not explicitly authorized,
   // the domain for the resource is stored in origin_ by the constructor

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/js_outline_filter.h"
 
@@ -47,7 +46,7 @@ JsOutlineFilter::JsOutlineFilter(RewriteDriver* driver)
       inline_chars_(nullptr),
       server_context_(driver->server_context()),
       size_threshold_bytes_(driver->options()->js_outline_min_bytes()),
-      script_tag_scanner_(driver) { }
+      script_tag_scanner_(driver) {}
 
 JsOutlineFilter::~JsOutlineFilter() {}
 
@@ -113,9 +112,8 @@ bool JsOutlineFilter::WriteResource(const GoogleString& content,
   // We don't provide charset here since in generally we can just inherit
   // from the page.
   // TODO(morlovich) check for proper behavior in case of embedded BOM.
-  return driver()->Write(
-      ResourceVector(), content, &kContentTypeJavascript, StringPiece(),
-      resource);
+  return driver()->Write(ResourceVector(), content, &kContentTypeJavascript,
+                         StringPiece(), resource);
 }
 
 // Create file with script content and remove that element from DOM.
@@ -126,16 +124,14 @@ void JsOutlineFilter::OutlineScript(HtmlElement* inline_element,
     MessageHandler* handler = driver()->message_handler();
     // Create outline resource at the document location, not base URL location
     GoogleString failure_reason;
-    OutputResourcePtr resource(
-        driver()->CreateOutputResourceWithUnmappedUrl(
-            driver()->google_url(), kFilterId, "_", kOutlinedResource,
-            &failure_reason));
+    OutputResourcePtr resource(driver()->CreateOutputResourceWithUnmappedUrl(
+        driver()->google_url(), kFilterId, "_", kOutlinedResource,
+        &failure_reason));
     if (resource.get() == nullptr) {
       driver()->InsertDebugComment(failure_reason, inline_element);
     } else if (WriteResource(content, resource.get(), handler)) {
       HtmlElement* outline_element = driver()->CloneElement(inline_element);
-      driver()->AddAttribute(outline_element, HtmlName::kSrc,
-                             resource->url());
+      driver()->AddAttribute(outline_element, HtmlName::kSrc, resource->url());
       // Add <script src=...> element to DOM.
       driver()->InsertNodeBeforeNode(inline_element, outline_element);
       // Remove original script element from DOM.

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -63,8 +63,8 @@ void TestMinifyJavascript(bool use_experimental_minifier, int iters, int size) {
   pagespeed::js::JsTokenizerPatterns js_tokenizer_patterns;
   JavascriptLibraryIdentification js_lib_id;
   JavascriptRewriteConfig config(&stats, true /* minify */,
-                                 use_experimental_minifier,
-                                 &js_lib_id, &js_tokenizer_patterns);
+                                 use_experimental_minifier, &js_lib_id,
+                                 &js_tokenizer_patterns);
 
   NullMessageHandler handler;
   for (int i = 0; i < iters; ++i) {
@@ -76,12 +76,12 @@ void TestMinifyJavascript(bool use_experimental_minifier, int iters, int size) {
 static void BM_MinifyJavascriptNew(int iters, int size) {
   TestMinifyJavascript(true, iters, size);
 }
-BENCHMARK_RANGE(BM_MinifyJavascriptNew, 1<<6, 1<<18);
+BENCHMARK_RANGE(BM_MinifyJavascriptNew, 1 << 6, 1 << 18);
 
 static void BM_MinifyJavascriptOld(int iters, int size) {
   TestMinifyJavascript(false, iters, size);
 }
-BENCHMARK_RANGE(BM_MinifyJavascriptOld, 1<<6, 1<<18);
+BENCHMARK_RANGE(BM_MinifyJavascriptOld, 1 << 6, 1 << 18);
 
 }  // namespace
 

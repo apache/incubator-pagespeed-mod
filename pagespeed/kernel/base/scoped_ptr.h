@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,10 +23,11 @@
 
 namespace net_instaweb {
 
-template<typename T> class scoped_array : public std::unique_ptr<T[]> {
+template <typename T>
+class scoped_array : public std::unique_ptr<T[]> {
  public:
   scoped_array() : std::unique_ptr<T[]>() {}
   explicit scoped_array(T* t) : std::unique_ptr<T[]>(t) {}
 };
 
-}
+}  // namespace net_instaweb

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/common_filter.h"
 
 #include <memory>
-
-
-
-#include "net/instaweb/rewriter/public/common_filter.h"
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -43,10 +40,11 @@ namespace {
 
 class CountingFilter : public CommonFilter {
  public:
-  explicit CountingFilter(RewriteDriver* driver) : CommonFilter(driver),
-                                                   start_doc_calls_(0),
-                                                   start_element_calls_(0),
-                                                   end_element_calls_(0) {}
+  explicit CountingFilter(RewriteDriver* driver)
+      : CommonFilter(driver),
+        start_doc_calls_(0),
+        start_element_calls_(0),
+        end_element_calls_(0) {}
 
   void StartDocumentImpl() override { ++start_doc_calls_; }
   void StartElementImpl(HtmlElement* element) override {
@@ -54,7 +52,9 @@ class CountingFilter : public CommonFilter {
   }
   void EndElementImpl(HtmlElement* element) override { ++end_element_calls_; }
 
-  const char* Name() const override { return "CommonFilterTest.CountingFilter"; }
+  const char* Name() const override {
+    return "CommonFilterTest.CountingFilter";
+  }
 
   int start_doc_calls_;
   int start_element_calls_;
@@ -82,8 +82,7 @@ class CommonFilterTest : public RewriteTestBase {
   }
 
   CommonFilter* MakeFilter(const StringPiece& base_url,
-                           const StringPiece& domain,
-                           RewriteOptions* options,
+                           const StringPiece& domain, RewriteOptions* options,
                            RewriteDriver* driver) {
     options->WriteableDomainLawyer()->AddDomain(domain, message_handler());
     CountingFilter* filter = new CountingFilter(driver);
@@ -123,8 +122,7 @@ TEST_F(CommonFilterTest, StoresCorrectBaseUrl) {
   ExpectUrl(doc_url, driver->google_url());
   ExpectUrl(doc_url, filter_->base_url());
 
-  driver->ParseText(
-      "<html><head><link rel='stylesheet' href='foo.css'>");
+  driver->ParseText("<html><head><link rel='stylesheet' href='foo.css'>");
   driver->Flush();
   ExpectUrl(doc_url, filter_->base_url());
 
@@ -236,8 +234,8 @@ TEST_F(CommonFilterTest, DetectsNoScriptCorrectly) {
 TEST_F(CommonFilterTest, TestTwoDomainLawyers) {
   static const char kBaseUrl[] = "http://www.base.com/";
   CommonFilter* a = MakeFilter(kBaseUrl, "a.com", options(), rewrite_driver());
-  CommonFilter* b = MakeFilter(kBaseUrl, "b.com", other_options(),
-                               other_rewrite_driver());
+  CommonFilter* b =
+      MakeFilter(kBaseUrl, "b.com", other_options(), other_rewrite_driver());
 
   // Either filter can rewrite resources from the base URL
   EXPECT_TRUE(CanRewriteResource(a, StrCat(kBaseUrl, "base.css")));
@@ -255,8 +253,7 @@ const char kEndDocumentComment[] = "<!--test comment-->";
 class EndDocumentInserterFilter : public CommonFilter {
  public:
   explicit EndDocumentInserterFilter(RewriteDriver* driver)
-      : CommonFilter(driver)
-  {}
+      : CommonFilter(driver) {}
 
   void EndDocument() override {
     InsertNodeAtBodyEnd(driver()->NewCommentNode(nullptr, "test comment"));

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_THREAD_QUEUED_ALARM_H_
 #define PAGESPEED_KERNEL_THREAD_QUEUED_ALARM_H_
@@ -44,9 +43,7 @@ class QueuedAlarm : public Function {
   // The object will be destroyed automatically when either the callback
   // is invoked or the cancellation is complete. You should not free the
   // sequence until one of these points is reached.
-  QueuedAlarm(Scheduler* scheduler,
-              Sequence* sequence,
-              int64 wakeup_time_us,
+  QueuedAlarm(Scheduler* scheduler, Sequence* sequence, int64 wakeup_time_us,
               Function* callback);
 
   // Cancels the alarm. This method must be run from the sequence given to the

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -75,8 +75,8 @@ namespace SharedMemLockData {
 // getting filled suggests it's under heavy load as it is, in which case
 // blocking further operations is desirable.
 //
-const size_t kBuckets = 512;   // needs to be <= 65536 as we use 2 bytes of
-                               // hash to pick a bucket.
+const size_t kBuckets = 512;  // needs to be <= 65536 as we use 2 bytes of
+                              // hash to pick a bucket.
 const size_t kSlotsPerBucket = 32;
 
 struct Slot {
@@ -91,9 +91,7 @@ struct Bucket {
   char mutex_base[1];
 };
 
-inline size_t Align64(size_t in) {
-  return (in + 63) & ~63;
-}
+inline size_t Align64(size_t in) { return (in + 63) & ~63; }
 
 inline size_t BucketSize(size_t lock_size) {
   return Align64(offsetof(Bucket, mutex_base) + lock_size);
@@ -109,13 +107,9 @@ namespace Data = SharedMemLockData;
 
 class SharedMemLock : public SchedulerBasedAbstractLock {
  public:
-  ~SharedMemLock() override {
-    Unlock();
-  }
+  ~SharedMemLock() override { Unlock(); }
 
-  bool TryLock() override {
-    return TryLockImpl(false, 0);
-  }
+  bool TryLock() override { return TryLockImpl(false, 0); }
 
   bool TryLockStealOld(int64 timeout_ms) override {
     return TryLockImpl(true, timeout_ms);
@@ -148,18 +142,12 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
     acquisition_time_ = Data::kNotAcquired;
   }
 
-  GoogleString name() const override {
-    return name_;
-  }
+  GoogleString name() const override { return name_; }
 
-  bool Held() override {
-    return (acquisition_time_ != Data::kNotAcquired);
-  }
+  bool Held() override { return (acquisition_time_ != Data::kNotAcquired); }
 
  protected:
-  Scheduler* scheduler() const override {
-    return manager_->scheduler_;
-  }
+  Scheduler* scheduler() const override { return manager_->scheduler_; }
 
  private:
   friend class SharedMemLockManager;
@@ -196,8 +184,7 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
   }
 
   AbstractMutex* AttachMutex() const {
-    return manager_->seg_->AttachToSharedMutex(
-        manager_->MutexOffset(bucket_));
+    return manager_->seg_->AttachToSharedMutex(manager_->MutexOffset(bucket_));
   }
 
   bool TryLockImpl(bool steal, int64 steal_timeout_ms) {
@@ -276,9 +263,10 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
   DISALLOW_COPY_AND_ASSIGN(SharedMemLock);
 };
 
-SharedMemLockManager::SharedMemLockManager(
-    AbstractSharedMem* shm, const GoogleString& path, Scheduler* scheduler,
-    Hasher* hasher, MessageHandler* handler)
+SharedMemLockManager::SharedMemLockManager(AbstractSharedMem* shm,
+                                           const GoogleString& path,
+                                           Scheduler* scheduler, Hasher* hasher,
+                                           MessageHandler* handler)
     : shm_runtime_(shm),
       path_(path),
       scheduler_(scheduler),
@@ -288,8 +276,7 @@ SharedMemLockManager::SharedMemLockManager(
   CHECK_GE(hasher_->RawHashSizeInBytes(), 9) << "Need >= 9 byte hashes";
 }
 
-SharedMemLockManager::~SharedMemLockManager() {
-}
+SharedMemLockManager::~SharedMemLockManager() {}
 
 bool SharedMemLockManager::Initialize() {
   seg_.reset(shm_runtime_->CreateSegment(path_, Data::SegmentSize(lock_size_),
@@ -302,9 +289,8 @@ bool SharedMemLockManager::Initialize() {
   // Create the mutexes for each bucket
   for (size_t bucket = 0; bucket < Data::kBuckets; ++bucket) {
     if (!seg_->InitializeSharedMutex(MutexOffset(Bucket(bucket)), handler_)) {
-      handler_->MessageS(kError,
-                         StrCat("Unable to create lock service mutex #",
-                                Integer64ToString(bucket)));
+      handler_->MessageS(kError, StrCat("Unable to create lock service mutex #",
+                                        Integer64ToString(bucket)));
       return false;
     }
   }
@@ -323,8 +309,9 @@ bool SharedMemLockManager::Attach() {
   return true;
 }
 
-void SharedMemLockManager::GlobalCleanup(
-  AbstractSharedMem* shm, const GoogleString& path, MessageHandler* handler) {
+void SharedMemLockManager::GlobalCleanup(AbstractSharedMem* shm,
+                                         const GoogleString& path,
+                                         MessageHandler* handler) {
   shm->DestroySegment(path, handler);
 }
 
@@ -334,8 +321,8 @@ SchedulerBasedAbstractLock* SharedMemLockManager::CreateNamedLock(
 }
 
 Data::Bucket* SharedMemLockManager::Bucket(size_t bucket) {
-  return reinterpret_cast<Data::Bucket*>(
-      const_cast<char*>(seg_->Base()) + bucket * Data::BucketSize(lock_size_));
+  return reinterpret_cast<Data::Bucket*>(const_cast<char*>(seg_->Base()) +
+                                         bucket * Data::BucketSize(lock_size_));
 }
 
 size_t SharedMemLockManager::MutexOffset(SharedMemLockData::Bucket* bucket) {

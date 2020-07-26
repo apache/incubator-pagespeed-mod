@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -34,19 +34,18 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-#include "pagespeed/kernel/cache/lru_cache.h"
-
 #include <vector>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/shared_string.h"
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/cache/lru_cache.h"
 #include "pagespeed/kernel/util/simple_random.h"
+#include "pagespeed/kernel/base/benchmark.h"
 
 namespace {
 
@@ -168,7 +167,8 @@ static void LRUGets(benchmark::State& state) {
   for (int i = 0; i < state.iterations(); ++i) {
     payload.DoGets();
   }
-  CHECK_EQ(kNumKeys * state.iterations(), static_cast<int>(payload.lru_cache()->num_hits()));
+  CHECK_EQ(kNumKeys * state.iterations(),
+           static_cast<int>(payload.lru_cache()->num_hits()));
 }
 
 static void LRUFailedGets(benchmark::State& state) {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DEBUG_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DEBUG_FILTER_H_
@@ -103,7 +102,7 @@ class DebugFilter : public EmptyHtmlFilter {
 
   RewriteDriver* driver_;
   Timer* timer_;
-  bool end_document_seen_;   // Set at EndOfDocument, checked at Flush.
+  bool end_document_seen_;  // Set at EndOfDocument, checked at Flush.
   int num_flushes_;
   int64 start_doc_time_us_;  // Established at InitParse.
   Event parse_;              // Tracks how much time is spent parsing.

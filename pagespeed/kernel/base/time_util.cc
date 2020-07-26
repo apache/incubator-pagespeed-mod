@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,14 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/time_util.h"
+
 #include <ctime>
+
+#include "absl/time/time.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "absl/time/time.h"
 #ifdef WIN32
 #include <time.h>
 #endif  // WIN32
@@ -51,19 +52,16 @@ bool TimeToString(int64 time, GoogleString* time_string,
 #else
   struct tm* time_info = gmtime_r(&time_sec, &time_buf);
 #endif  // WIN32
-  if ((time_info == nullptr) ||
-      (time_buf.tm_wday < 0) ||
-      (time_buf.tm_wday > 6) ||
-      (time_buf.tm_mon < 0) ||
+  if ((time_info == nullptr) || (time_buf.tm_wday < 0) ||
+      (time_buf.tm_wday > 6) || (time_buf.tm_mon < 0) ||
       (time_buf.tm_mon > 11)) {
     return false;
   }
 
-  static const char* kWeekDay[] = {
-    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-  static const char* kMonth[] = {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
-    "Dec"};
+  static const char* kWeekDay[] = {"Sun", "Mon", "Tue", "Wed",
+                                   "Thu", "Fri", "Sat"};
+  static const char* kMonth[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
   // RFC 822 says to format like this:
   //                Thu Nov 18 02:15:22 2010 GMT
@@ -74,14 +72,10 @@ bool TimeToString(int64 time, GoogleString* time_string,
 
   // If us is true, time is down to microseconds, the format is like this:
   //    Wed, 24 Nov 2010 21:14:12.12345 GMT
-  *time_string = absl::StrFormat("%s, %02d %s %4d %02d:%02d:%02d",
-                              kWeekDay[time_buf.tm_wday],
-                              time_buf.tm_mday,
-                              kMonth[time_buf.tm_mon],
-                              1900 + time_buf.tm_year,
-                              time_buf.tm_hour,
-                              time_buf.tm_min,
-                              time_buf.tm_sec);
+  *time_string = absl::StrFormat(
+      "%s, %02d %s %4d %02d:%02d:%02d", kWeekDay[time_buf.tm_wday],
+      time_buf.tm_mday, kMonth[time_buf.tm_mon], 1900 + time_buf.tm_year,
+      time_buf.tm_hour, time_buf.tm_min, time_buf.tm_sec);
   if (include_microseconds) {
     // Append microseconds.
     int remainder = time % 1000000;
@@ -104,20 +98,23 @@ bool ConvertTimeToString(int64 time_ms, GoogleString* time_string) {
 // This function is similar to ConvertTimeToString, except it takes time_us
 // and returns a string with microsecond accuracy.
 bool ConvertTimeToStringWithUs(int64 time_us, GoogleString* time_string) {
-  return(TimeToString(time_us, time_string, true));
+  return (TimeToString(time_us, time_string, true));
 }
 
-bool ConvertStringToTime(const StringPiece& time_string, int64 *time_ms) {
+bool ConvertStringToTime(const StringPiece& time_string, int64* time_ms) {
   if (time_string.empty()) {
     *time_ms = 0;
     return false;
   }
- absl::Time time;
- static const auto& rfc7231_date_formats = *new std::array<std::string, 3>{
-      "%a, %d %b %Y %H:%M:%S GMT", "%A, %d-%b-%y %H:%M:%S GMT", "%a %b %e %H:%M:%S %Y"};
+  absl::Time time;
+  static const auto& rfc7231_date_formats = *new std::array<std::string, 3>{
+      "%a, %d %b %Y %H:%M:%S GMT", "%A, %d-%b-%y %H:%M:%S GMT",
+      "%a %b %e %H:%M:%S %Y"};
   for (const std::string& format : rfc7231_date_formats) {
     if (absl::ParseTime(format, time_string, &time, nullptr)) {
-      *time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(absl::ToChronoTime(time).time_since_epoch()).count();
+      *time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                     absl::ToChronoTime(time).time_since_epoch())
+                     .count();
       return true;
     }
   }

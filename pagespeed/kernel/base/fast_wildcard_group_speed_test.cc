@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,14 @@
  * under the License.
  */
 
-
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/fast_wildcard_group.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/fast_wildcard_group.h"
 #include "pagespeed/kernel/base/wildcard_group.h"
+#include "pagespeed/kernel/base/benchmark.h"
 
 //
 // (8 X 2262 MHz CPUs); 2012/07/11-19:20:51
@@ -77,11 +76,10 @@ namespace net_instaweb {
 
 namespace {
 
-template<class G>
+template <class G>
 class UrlBlacklistTest {
  public:
-  UrlBlacklistTest(int size, bool include_wildcards)
-      : size_(size) {
+  UrlBlacklistTest(int size, bool include_wildcards) : size_(size) {
     if (include_wildcards) {
       Disallow("");
       Allow("?*");
@@ -136,79 +134,73 @@ class UrlBlacklistTest {
         break;
     }
   }
-  ~UrlBlacklistTest() { }
+  ~UrlBlacklistTest() {}
 
   void PerformLookups() {
     CHECK(IsAllowed("http://platform.linkedin.com/in.js"));
-    CHECK(IsAllowed("http://www.minecraftdl.com/wp-content/w3tc/min/"
-                    "f2077/default.include.849527.js"));
-    CHECK(IsAllowed("http://www.minecraftdl.com/wp-includes/js/jquery/"
-                    "jquery.js,qver=1.7.1"));
-    CHECK(IsAllowed("http://www.lijit.com/delivery/fp,"
-                    "qu=ittikorns,ai=lijit_region_143587,az=143587,an=4"));
+    CHECK(
+        IsAllowed("http://www.minecraftdl.com/wp-content/w3tc/min/"
+                  "f2077/default.include.849527.js"));
+    CHECK(
+        IsAllowed("http://www.minecraftdl.com/wp-includes/js/jquery/"
+                  "jquery.js,qver=1.7.1"));
+    CHECK(
+        IsAllowed("http://www.lijit.com/delivery/fp,"
+                  "qu=ittikorns,ai=lijit_region_143587,az=143587,an=4"));
     CHECK(IsAllowed("http://www.priceindia.in/cj/js/script.js"));
-    CHECK_EQ(
-        size_ < 8,
-        IsAllowed("http://ajax.googleapis.com/ajax/libs/"
-                  "jquery/1.6.4/jquery.min.js"));
-    CHECK(IsAllowed("http://annoncesgirls.com/wp-includes/js/jquery/"
-                    "ui/jquery.ui.mouse.min.js"));
-    CHECK_EQ(
-        size_ < 1,
-        IsAllowed("http://www.googleadservices.com/pagead/conversion.js"));
-    CHECK(IsAllowed("http://anticariatultau.ro/catalog/view/javascript/"
-                    "common.js"));
-    CHECK(IsAllowed("http://blog.gooera.com/wp-content/plugins/"
-                    "search-google/js/search-google.js,qver=1.4"));
-    CHECK_EQ(
-        size_ < 7,
-        IsAllowed("http://pagead2.googlesyndication.com/pagead/"
-                  "show_ads.js?_=1339538917578"));
-    CHECK(IsAllowed("http://cellcustomize.com/wp-content/themes/yoo_balance_wp/"
-                    "js/template.js"));
-    CHECK_EQ(
-        size_ < 6,
-        IsAllowed("http://partner.googleadservices.com/gampad/"
-                  "google_service.js"));
+    CHECK_EQ(size_ < 8, IsAllowed("http://ajax.googleapis.com/ajax/libs/"
+                                  "jquery/1.6.4/jquery.min.js"));
+    CHECK(
+        IsAllowed("http://annoncesgirls.com/wp-includes/js/jquery/"
+                  "ui/jquery.ui.mouse.min.js"));
+    CHECK_EQ(size_ < 1,
+             IsAllowed("http://www.googleadservices.com/pagead/conversion.js"));
+    CHECK(
+        IsAllowed("http://anticariatultau.ro/catalog/view/javascript/"
+                  "common.js"));
+    CHECK(
+        IsAllowed("http://blog.gooera.com/wp-content/plugins/"
+                  "search-google/js/search-google.js,qver=1.4"));
+    CHECK_EQ(size_ < 7, IsAllowed("http://pagead2.googlesyndication.com/pagead/"
+                                  "show_ads.js?_=1339538917578"));
+    CHECK(
+        IsAllowed("http://cellcustomize.com/wp-content/themes/yoo_balance_wp/"
+                  "js/template.js"));
+    CHECK_EQ(size_ < 6, IsAllowed("http://partner.googleadservices.com/gampad/"
+                                  "google_service.js"));
     CHECK(IsAllowed("http://cb.yebhi.com/js/combo.js"));
-    CHECK(IsAllowed("http://chunchu.org/syntaxhighlighter/scripts/"
-                    "shBrushClojure.js"));
+    CHECK(
+        IsAllowed("http://chunchu.org/syntaxhighlighter/scripts/"
+                  "shBrushClojure.js"));
     CHECK(IsAllowed("http://angel.ge/templates/moxeve/js/geo.js"));
-    CHECK_EQ(
-        size_ < 7,
-        IsAllowed("http://pagead2.googlesyndication.com/pagead/"
-                     "show_ads.js"));
+    CHECK_EQ(size_ < 7, IsAllowed("http://pagead2.googlesyndication.com/pagead/"
+                                  "show_ads.js"));
     CHECK(IsAllowed("http://education.ge/SpryAssets/SpryMenuBar.js"));
-    CHECK(IsAllowed("http://anticariatultau.ro/catalog/view/javascript/"
-                    "common.js"));
-    CHECK_EQ(
-        size_ < 5,
-        IsAllowed("http://platform.twitter.com/widgets.js"));
+    CHECK(
+        IsAllowed("http://anticariatultau.ro/catalog/view/javascript/"
+                  "common.js"));
+    CHECK_EQ(size_ < 5, IsAllowed("http://platform.twitter.com/widgets.js"));
     CHECK(IsAllowed("http://jishinyochi.net/js/glossy.js"));
-    CHECK(IsAllowed("http://mblaze.websiteforever.com/dashboard120607/js/"
-                    "region.js"));
-    CHECK(IsAllowed("http://members.lovingfromadistance.com/clientscript/"
-                    "vbulletin_ajax_htmlloader.js"));
+    CHECK(
+        IsAllowed("http://mblaze.websiteforever.com/dashboard120607/js/"
+                  "region.js"));
+    CHECK(
+        IsAllowed("http://members.lovingfromadistance.com/clientscript/"
+                  "vbulletin_ajax_htmlloader.js"));
     CHECK(IsAllowed("http://movie-renamer.fr/js/roundabout_shapes.js"));
   }
 
  private:
-  void Allow(const StringPiece& s) {
-    blacklist_.Allow(s);
-  }
-  void Disallow(const StringPiece& s) {
-    blacklist_.Disallow(s);
-  }
-  bool IsAllowed(const StringPiece& s) {
-    return blacklist_.Match(s, true);
-  }
+  void Allow(const StringPiece& s) { blacklist_.Allow(s); }
+  void Disallow(const StringPiece& s) { blacklist_.Disallow(s); }
+  bool IsAllowed(const StringPiece& s) { return blacklist_.Match(s, true); }
 
   G blacklist_;
   int size_;
 };
 
-template<class G> static void UrlBlacklistBenchmark(
-    int iters, int size, bool include_wildcards) {
+template <class G>
+static void UrlBlacklistBenchmark(int iters, int size, bool include_wildcards) {
   UrlBlacklistTest<G> test_object(size, include_wildcards);
   for (int i = 0; i < iters; ++i) {
     test_object.PerformLookups();
@@ -224,16 +216,13 @@ void BM_WildcardGroup(int iters, int size) {
 void BM_FastWildcardGroup(int iters, int size) {
   int actual_size = size / 2;
   bool include_wildcards = (size % 2) == 1;
-  UrlBlacklistBenchmark<FastWildcardGroup>(
-      iters, actual_size, include_wildcards);
+  UrlBlacklistBenchmark<FastWildcardGroup>(iters, actual_size,
+                                           include_wildcards);
 }
-
-
 
 // Test version of this code, designed to make sure larger wildcard groups are
 // routinely exercised.
-class FastWildcardGroupScaleTest : public testing::Test {
-};
+class FastWildcardGroupScaleTest : public testing::Test {};
 
 TEST_F(FastWildcardGroupScaleTest, LargeWildcardGroup) {
   UrlBlacklistBenchmark<WildcardGroup>(1, 14, true);

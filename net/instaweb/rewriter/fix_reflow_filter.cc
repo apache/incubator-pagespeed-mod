@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/fix_reflow_filter.h"
 
@@ -51,11 +50,9 @@ const char FixReflowFilter::kElementRenderedHeightPropertyName[] =
     "element_rendered_height";
 
 FixReflowFilter::FixReflowFilter(RewriteDriver* driver)
-    : rewrite_driver_(driver) {
-}
+    : rewrite_driver_(driver) {}
 
-FixReflowFilter::~FixReflowFilter() {
-}
+FixReflowFilter::~FixReflowFilter() {}
 
 void FixReflowFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(JsDeferDisabledFilter::ShouldApply(rewrite_driver_));
@@ -72,28 +69,27 @@ void FixReflowFilter::StartDocument() {
   const PropertyCache::Cohort* cohort =
       rewrite_driver_->server_context()->fix_reflow_cohort();
   if (page != nullptr && cohort != nullptr) {
-    PropertyValue* property_value = page->GetProperty(
-        cohort, kElementRenderedHeightPropertyName);
+    PropertyValue* property_value =
+        page->GetProperty(cohort, kElementRenderedHeightPropertyName);
     VLOG(1) << "Property value: " << property_value << " has value? "
             << property_value->has_value();
-    const int64 cache_ttl_ms = rewrite_driver_->options()->
-        finder_properties_cache_expiration_time_ms();
+    const int64 cache_ttl_ms =
+        rewrite_driver_->options()
+            ->finder_properties_cache_expiration_time_ms();
     PropertyCache* property_cache =
         rewrite_driver_->server_context()->page_property_cache();
-    if (property_value != nullptr &&
-        property_value->has_value() &&
+    if (property_value != nullptr && property_value->has_value() &&
         !property_cache->IsExpired(property_value, cache_ttl_ms)) {
       pcache_miss = false;
       VLOG(1) << "FixReflowFilter.  Valid value in pcache.";
       // Parse property_value->value() into "id:height" and keep these locally.
       StringPieceVector element_height_vector;
-      SplitStringPieceToVector(
-          property_value->value(), kReflowValueSeparators,
-          &element_height_vector, true);
+      SplitStringPieceToVector(property_value->value(), kReflowValueSeparators,
+                               &element_height_vector, true);
       for (int i = 0, n = element_height_vector.size(); i < n - 1; i += 2) {
-        element_height_map_.insert(make_pair(
-            element_height_vector[i].as_string(),
-            element_height_vector[i+1].as_string()));
+        element_height_map_.insert(
+            make_pair(element_height_vector[i].as_string(),
+                      element_height_vector[i + 1].as_string()));
       }
     }
   }

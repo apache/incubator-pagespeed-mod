@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 
@@ -52,9 +51,7 @@ void CssMoveToHeadFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCssElementsMoved);
 }
 
-void CssMoveToHeadFilter::StartDocumentImpl() {
-  move_to_element_ = nullptr;
-}
+void CssMoveToHeadFilter::StartDocumentImpl() { move_to_element_ = nullptr; }
 
 void CssMoveToHeadFilter::EndElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* href;
@@ -62,8 +59,7 @@ void CssMoveToHeadFilter::EndElementImpl(HtmlElement* element) {
   if (move_to_element_ == nullptr) {
     // We record the first we see, either </head> or <script>. That will be
     // the anchor for where to move all styles.
-    if (move_css_to_head_ &&
-        element->keyword() == HtmlName::kHead) {
+    if (move_css_to_head_ && element->keyword() == HtmlName::kHead) {
       move_to_element_ = element;
       element_is_head_ = true;
     } else if (move_css_above_scripts_ &&

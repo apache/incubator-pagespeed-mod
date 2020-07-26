@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -42,16 +42,14 @@ BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(
     Statistics* stats)
     : CriticalImagesFinder(cohort, stats), nonce_generator_(nonce_generator) {}
 
-BeaconCriticalImagesFinder::~BeaconCriticalImagesFinder() {
-}
+BeaconCriticalImagesFinder::~BeaconCriticalImagesFinder() {}
 
 bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      const RenderedImages* rendered_images_set,
-      const StringPiece& nonce,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page, Timer* timer) {
+    const StringSet* html_critical_images_set,
+    const StringSet* css_critical_images_set,
+    const RenderedImages* rendered_images_set, const StringPiece& nonce,
+    const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
+    Timer* timer) {
   DCHECK(cohort != nullptr);
   DCHECK(page != nullptr);
   PropertyValue* property_value =
@@ -60,8 +58,8 @@ bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
     return false;
   }
   CriticalImages critical_images;
-  if (!PopulateCriticalImagesFromPropertyValue(
-          property_value, &critical_images)) {
+  if (!PopulateCriticalImagesFromPropertyValue(property_value,
+                                               &critical_images)) {
     return false;
   }
   if (!ValidateAndExpireNonce(

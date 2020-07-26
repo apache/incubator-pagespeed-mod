@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include <cstdio>
 #include <cstdlib>
@@ -49,8 +48,9 @@ bool MinifyCss_main(int argc, char** argv) {
   // Read text from file.
   GoogleString in_text;
   if (!file_system.ReadFile(infilename, &in_text, &handler)) {
-    error_file->Write(absl::StrFormat(
-        "Failed to read input file %s\n", infilename), &handler);
+    error_file->Write(
+        absl::StrFormat("Failed to read input file %s\n", infilename),
+        &handler);
     return false;
   }
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 
@@ -26,7 +25,6 @@
 #include <list>
 #include <map>
 #include <memory>
-
 #include <new>
 #include <set>
 #include <utility>  // for std::pair
@@ -175,8 +173,7 @@ class RemoveCommentsFilterOptions
     : public RemoveCommentsFilter::OptionsInterface {
  public:
   explicit RemoveCommentsFilterOptions(const RewriteOptions* options)
-      : options_(options) {
-  }
+      : options_(options) {}
 
   bool IsRetainedComment(const StringPiece& comment) const override {
     return options_->IsRetainedComment(comment);
@@ -195,11 +192,10 @@ class RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks
     : public CacheUrlAsyncFetcher::AsyncOpHooks {
  public:
   explicit RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks(
-      RewriteDriver* rewrite_driver) : rewrite_driver_(rewrite_driver) {
-  }
+      RewriteDriver* rewrite_driver)
+      : rewrite_driver_(rewrite_driver) {}
 
-  ~RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks() override {
-  }
+  ~RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks() override {}
 
   // TODO(pulkitg): Remove session fetchers, so that fetcher can live as long
   // server is alive and there is no need of
@@ -289,8 +285,8 @@ RewriteDriver::RewriteDriver(MessageHandler* message_handler,
       defer_instrumentation_script_(false),
       is_amp_(false),
       downstream_cache_purger_(this)
-      // NOTE:  Be sure to clear per-request member variables in Clear()
-{ // NOLINT  -- I want the initializer-list to end with that comment.
+// NOTE:  Be sure to clear per-request member variables in Clear()
+{  // NOLINT  -- I want the initializer-list to end with that comment.
   // The Scan filter always goes first so it can find base-tags.
   early_pre_render_filters_.push_back(&scan_filter_);
 
@@ -314,8 +310,8 @@ void RewriteDriver::SetRequestHeaders(const RequestHeaders& headers) {
   request_headers_.reset(new_request_headers);
   ClearRequestProperties();
 
-  const char* user_agent = request_headers_->Lookup1(
-      HttpAttributes::kUserAgent);
+  const char* user_agent =
+      request_headers_->Lookup1(HttpAttributes::kUserAgent);
   if (user_agent != nullptr) {
     user_agent_ = user_agent;
     request_properties_->SetUserAgent(user_agent_);
@@ -519,9 +515,7 @@ void RewriteDriver::WaitForCompletion() {
   BoundedWaitFor(kWaitForCompletion, -1);
 }
 
-void RewriteDriver::WaitForShutDown() {
-  BoundedWaitFor(kWaitForShutDown, -1);
-}
+void RewriteDriver::WaitForShutDown() { BoundedWaitFor(kWaitForShutDown, -1); }
 
 void RewriteDriver::BoundedWaitFor(WaitMode mode, int64 timeout_ms) {
   SchedulerBlockingFunction wait(scheduler_);
@@ -541,8 +535,7 @@ void RewriteDriver::BoundedWaitFor(WaitMode mode, int64 timeout_ms) {
 }
 
 void RewriteDriver::CheckForCompletionAsync(WaitMode wait_mode,
-                                            int64 timeout_ms,
-                                            Function* done) {
+                                            int64 timeout_ms, Function* done) {
   scheduler_->DCheckLocked();
   DCHECK_NE(kNoWait, wait_mode);
   DCHECK_EQ(kNoWait, waiting_);
@@ -583,9 +576,8 @@ void RewriteDriver::TryCheckForCompletion(WaitMode wait_mode, int64 end_time_ms,
   // that at least the metadata cache lookups have a chance to come in.
   if (!IsDone(wait_mode, waiting_deadline_reached_)) {
     scheduler_->TimedWaitMs(
-        sleep_ms,
-        MakeFunction(this, &RewriteDriver::TryCheckForCompletion,
-                     wait_mode, end_time_ms, done));
+        sleep_ms, MakeFunction(this, &RewriteDriver::TryCheckForCompletion,
+                               wait_mode, end_time_ms, done));
   } else {
     // Done. Note that we may get deleted by our callback, so we have to
     // make sure to save the mutex pointer. The thread annotation can't deal
@@ -664,14 +656,14 @@ void RewriteDriver::FlushAsync(Function* callback) {
   DetermineFiltersBehavior();
 
   for (FilterList::iterator it = early_pre_render_filters_.begin();
-      it != early_pre_render_filters_.end(); ++it) {
+       it != early_pre_render_filters_.end(); ++it) {
     HtmlFilter* filter = *it;
     if (filter->is_enabled()) {
       ApplyFilter(filter);
     }
   }
   for (FilterList::iterator it = pre_render_filters_.begin();
-      it != pre_render_filters_.end(); ++it) {
+       it != pre_render_filters_.end(); ++it) {
     HtmlFilter* filter = *it;
     if (filter->is_enabled()) {
       ApplyFilter(filter);
@@ -717,9 +709,8 @@ void RewriteDriver::FlushAsync(Function* callback) {
     ScopedMutex lock(rewrite_mutex());
     DCHECK_EQ(0, ref_counts_.QueryCountMutexHeld(kRefFetchUserFacing));
     DCHECK_EQ(0, ref_counts_.QueryCountMutexHeld(kRefFetchBackground));
-    Function* flush_async_done =
-        MakeFunction(this, &RewriteDriver::QueueFlushAsyncDone,
-                     num_rewrites, callback);
+    Function* flush_async_done = MakeFunction(
+        this, &RewriteDriver::QueueFlushAsyncDone, num_rewrites, callback);
     if (fully_rewrite_on_flush_) {
       CheckForCompletionAsync(kWaitForCompletion, -1, flush_async_done);
     } else {
@@ -734,8 +725,7 @@ int64 RewriteDriver::ComputeCurrentFlushWindowRewriteDelayMs() {
   // If we've configured a max processing delay for the entire page, enforce
   // that limit here.
   if (max_page_processing_delay_ms_ > 0) {
-    int64 ms_since_start =
-        server_context_->timer()->NowMs() - start_time_ms_;
+    int64 ms_since_start = server_context_->timer()->NowMs() - start_time_ms_;
     int64 ms_remaining = max_page_processing_delay_ms_ - ms_since_start;
     // If the deadline for the current flush window (deadline) is less
     // than the overall time remaining (ms_remaining), we enforce the
@@ -788,7 +778,8 @@ void RewriteDriver::FlushAsyncDone(int num_rewrites, Function* callback) {
     // initiated_rewrites_ to detached_rewrites_; also notify them that they
     // will not be rendered.
     for (RewriteContextSet::iterator p = initiated_rewrites_.begin(),
-              e = initiated_rewrites_.end(); p != e; ++p) {
+                                     e = initiated_rewrites_.end();
+         p != e; ++p) {
       RewriteContext* rewrite_context = *p;
 
       // If debugging is enabled, annotate that we have missed our rewrite
@@ -820,7 +811,7 @@ void RewriteDriver::FlushAsyncDone(int num_rewrites, Function* callback) {
     slots_.clear();
     inline_slots_.clear();
     inline_attribute_slots_.clear();
-    for(auto c : srcset_collections_) {
+    for (auto c : srcset_collections_) {
       c->Detach();
     }
     srcset_collections_.clear();
@@ -961,13 +952,12 @@ PropertyCache::CohortVector RewriteDriver::GetCohortList(
   return filtered_cohorts;
 }
 
-void RewriteDriver::PropertyCacheSetupDone() {
-  dependency_tracker_->Start();
-}
+void RewriteDriver::PropertyCacheSetupDone() { dependency_tracker_->Start(); }
 
 RequestTrace* RewriteDriver::trace_context() {
-  return request_context_.get() == nullptr ? nullptr :
-      request_context_->root_trace_context();
+  return request_context_.get() == nullptr
+             ? nullptr
+             : request_context_->root_trace_context();
 }
 
 void RewriteDriver::TracePrintf(const char* fmt, ...) {
@@ -1025,8 +1015,8 @@ void RewriteDriver::AddPreRenderFilters() {
     // based on the content it sees.
     add_event_listener(new FlushHtmlFilter(this));
   }
-  add_event_listener(new AmpDocumentFilter(this, NewPermanentCallback(
-      this, &RewriteDriver::SetIsAmpDocument)));
+  add_event_listener(new AmpDocumentFilter(
+      this, NewPermanentCallback(this, &RewriteDriver::SetIsAmpDocument)));
 
   if (rewrite_options->Enabled(RewriteOptions::kComputeStatistics)) {
     dom_stats_filter_ = new DomStatsFilter(this);
@@ -1081,8 +1071,8 @@ void RewriteDriver::AddPreRenderFilters() {
         rewrite_options->Enabled(RewriteOptions::kComputeCriticalCss)))) {
     // If we're converting simple embedded CSS @imports into a href link
     // then we need to do that before any other CSS processing.
-    AppendOwnedPreRenderFilter(new CssInlineImportToLinkFilter(this,
-                                                               statistics()));
+    AppendOwnedPreRenderFilter(
+        new CssInlineImportToLinkFilter(this, statistics()));
   }
   if (!rewrite_options->Enabled(RewriteOptions::kPrioritizeCriticalCss) &&
       // If we're inlining styles that resolved initially, skip outlining
@@ -1474,14 +1464,10 @@ int RewriteDriver::SignatureLength() const {
 }
 
 bool RewriteDriver::DecodeOutputResourceNameHelper(
-    const GoogleUrl& gurl,
-    const RewriteOptions* options_to_use,
-    const UrlNamer* url_namer,
-    ResourceNamer* namer_out,
-    OutputResourceKind* kind_out,
-    RewriteFilter** filter_out,
-    GoogleString* url_base,
-    StringVector* urls) const {
+    const GoogleUrl& gurl, const RewriteOptions* options_to_use,
+    const UrlNamer* url_namer, ResourceNamer* namer_out,
+    OutputResourceKind* kind_out, RewriteFilter** filter_out,
+    GoogleString* url_base, StringVector* urls) const {
   // In forward proxy in preserve-URLs mode we want to fetch .pagespeed.
   // resource, i.e. do not decode and and do not fetch original (especially
   // that encoded one will never be cached internally).
@@ -1588,8 +1574,10 @@ bool RewriteDriver::DecodeOutputResourceNameHelper(
   // TODO(morlovich): This is doing some redundant work.
   if (*filter_out != nullptr) {
     ResourceContext resource_context;
-    if (!(*filter_out)->encoder()->Decode(
-            namer_out->name(), urls, &resource_context, message_handler())) {
+    if (!(*filter_out)
+             ->encoder()
+             ->Decode(namer_out->name(), urls, &resource_context,
+                      message_handler())) {
       message_handler()->Message(kInfo,
                                  "Decoding of resource name %s failed because "
                                  " filter %s cannot decode the URL.",
@@ -1611,35 +1599,31 @@ bool RewriteDriver::DecodeOutputResourceNameHelper(
 }
 
 bool RewriteDriver::DecodeOutputResourceName(
-    const GoogleUrl& gurl,
-    const RewriteOptions* options_to_use,
-    const UrlNamer* url_namer,
-    ResourceNamer* namer_out,
-    OutputResourceKind* kind_out,
-    RewriteFilter** filter_out) const {
+    const GoogleUrl& gurl, const RewriteOptions* options_to_use,
+    const UrlNamer* url_namer, ResourceNamer* namer_out,
+    OutputResourceKind* kind_out, RewriteFilter** filter_out) const {
   StringVector urls;
   GoogleString url_base;
-  return DecodeOutputResourceNameHelper(
-      gurl, options_to_use, url_namer, namer_out, kind_out,
-      filter_out, &url_base, &urls);
+  return DecodeOutputResourceNameHelper(gurl, options_to_use, url_namer,
+                                        namer_out, kind_out, filter_out,
+                                        &url_base, &urls);
 }
 
 bool RewriteDriver::DecodeUrl(const GoogleUrl& url,
                               StringVector* decoded_urls) const {
-  return DecodeUrlGivenOptions(url, options(),
-                               server_context()->url_namer(), decoded_urls);
+  return DecodeUrlGivenOptions(url, options(), server_context()->url_namer(),
+                               decoded_urls);
 }
 
-bool RewriteDriver::DecodeUrlGivenOptions(
-    const GoogleUrl& url,
-    const RewriteOptions* options,
-    const UrlNamer* url_namer,
-    StringVector* decoded_urls) const {
+bool RewriteDriver::DecodeUrlGivenOptions(const GoogleUrl& url,
+                                          const RewriteOptions* options,
+                                          const UrlNamer* url_namer,
+                                          StringVector* decoded_urls) const {
   ResourceNamer namer;
   OutputResourceKind kind;
   RewriteFilter* filter = nullptr;
   GoogleString url_base;
-  bool is_decoded =  DecodeOutputResourceNameHelper(
+  bool is_decoded = DecodeOutputResourceNameHelper(
       url, options, url_namer, &namer, &kind, &filter, &url_base, decoded_urls);
   if (is_decoded) {
     GoogleUrl gurl_base(url_base);
@@ -1652,8 +1636,7 @@ bool RewriteDriver::DecodeUrlGivenOptions(
 }
 
 OutputResourcePtr RewriteDriver::DecodeOutputResource(
-    const GoogleUrl& gurl,
-    RewriteFilter** filter) const {
+    const GoogleUrl& gurl, RewriteFilter** filter) const {
   ResourceNamer namer;
   OutputResourceKind kind;
   if (!DecodeOutputResourceName(gurl, options(), server_context()->url_namer(),
@@ -1675,15 +1658,12 @@ namespace {
 class FilterFetch : public SharedAsyncFetch {
  public:
   FilterFetch(RewriteDriver* driver, AsyncFetch* async_fetch)
-      : SharedAsyncFetch(async_fetch),
-        driver_(driver) {
-  }
+      : SharedAsyncFetch(async_fetch), driver_(driver) {}
   ~FilterFetch() override {}
 
   static bool Start(RewriteFilter* filter,
                     const OutputResourcePtr& output_resource,
-                    AsyncFetch* async_fetch,
-                    MessageHandler* handler) {
+                    AsyncFetch* async_fetch, MessageHandler* handler) {
     RewriteDriver* driver = filter->driver();
     FilterFetch* filter_fetch = new FilterFetch(driver, async_fetch);
 
@@ -1722,11 +1702,9 @@ class FilterFetch : public SharedAsyncFetch {
 
 class CacheCallback : public OptionsAwareHTTPCacheCallback {
  public:
-  CacheCallback(RewriteDriver* driver,
-                RewriteFilter* filter,
+  CacheCallback(RewriteDriver* driver, RewriteFilter* filter,
                 const OutputResourcePtr& output_resource,
-                AsyncFetch* async_fetch,
-                MessageHandler* handler)
+                AsyncFetch* async_fetch, MessageHandler* handler)
       : OptionsAwareHTTPCacheCallback(driver->options(),
                                       async_fetch->request_context()),
         driver_(driver),
@@ -1755,7 +1733,8 @@ class CacheCallback : public OptionsAwareHTTPCacheCallback {
     http_cache->Find(canonical_url_, driver_->CacheFragment(), handler_, this);
   }
 
-  bool IsCacheValid(const GoogleString& key, const ResponseHeaders& headers) override {
+  bool IsCacheValid(const GoogleString& key,
+                    const ResponseHeaders& headers) override {
     // If the user cares, don't try to send a rewritten .pagespeed. webp
     // resources to a browser that can't handle it.
     if (!driver_->options()->serve_rewritten_webp_urls_to_any_agent() &&
@@ -1838,7 +1817,8 @@ bool RewriteDriver::FetchResource(const StringPiece& url,
   fetch_url_ = url.as_string();
 
   // Set the request headers if they haven't been yet.
-  if (request_headers_ == nullptr && async_fetch->request_headers() != nullptr) {
+  if (request_headers_ == nullptr &&
+      async_fetch->request_headers() != nullptr) {
     SetRequestHeaders(*async_fetch->request_headers());
   }
 
@@ -1872,8 +1852,7 @@ bool RewriteDriver::FetchResource(const StringPiece& url,
   return handled;
 }
 
-void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
-                                         bool proxy_mode,
+void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl, bool proxy_mode,
                                          AsyncFetch* async_fetch) {
   CHECK(gurl.IsWebValid()) << "Invalid URL " << gurl.spec_c_str();
   CHECK(request_headers_.get() != nullptr);
@@ -1884,7 +1863,8 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
       new OutputResource(this, base, base, base, namer, kRewrittenResource));
   SetBaseUrlForFetch(gurl.Spec());
   // Set the request headers if they haven't been yet.
-  if (request_headers_ == nullptr && async_fetch->request_headers() != nullptr) {
+  if (request_headers_ == nullptr &&
+      async_fetch->request_headers() != nullptr) {
     SetRequestHeaders(*async_fetch->request_headers());
   }
 
@@ -1916,10 +1896,8 @@ void RewriteDriver::FetchInPlaceResource(const GoogleUrl& gurl,
 }
 
 bool RewriteDriver::FetchOutputResource(
-    const OutputResourcePtr& output_resource,
-    RewriteFilter* filter,
+    const OutputResourcePtr& output_resource, RewriteFilter* filter,
     AsyncFetch* async_fetch) {
-
   // None of our resources ever change -- the hash of the content is embedded
   // in the filename.  This is why we serve them with very long cache
   // lifetimes.  However, when the user presses Reload, the browser may
@@ -1964,9 +1942,7 @@ bool RewriteDriver::FetchOutputResource(
   return queued;
 }
 
-void RewriteDriver::FetchComplete() {
-  DropReference(kRefFetchUserFacing);
-}
+void RewriteDriver::FetchComplete() { DropReference(kRefFetchUserFacing); }
 
 void RewriteDriver::DetachFetch() {
   ScopedMutex lock(rewrite_mutex());
@@ -1980,18 +1956,16 @@ void RewriteDriver::DetachedFetchComplete() {
 }
 
 bool RewriteDriver::MayRewriteUrl(
-    const GoogleUrl& domain_url,
-    const GoogleUrl& input_url,
+    const GoogleUrl& domain_url, const GoogleUrl& input_url,
     InlineAuthorizationPolicy inline_authorization_policy,
-    IntendedFor intended_for,
-    bool* is_authorized_domain) const {
+    IntendedFor intended_for, bool* is_authorized_domain) const {
   *is_authorized_domain = false;
   if (domain_url.IsWebValid()) {
     if (options()->IsAllowed(input_url.Spec()) ||
         (intended_for == kIntendedForInlining &&
          options()->IsAllowedWhenInlining(input_url.Spec()))) {
-      *is_authorized_domain = options()->domain_lawyer()->IsDomainAuthorized(
-          domain_url, input_url);
+      *is_authorized_domain =
+          options()->domain_lawyer()->IsDomainAuthorized(domain_url, input_url);
       if (!*is_authorized_domain &&
           inline_authorization_policy == kInlineUnauthorizedResources) {
         // We decide that this URL can be rewritten (true) but
@@ -2013,17 +1987,14 @@ bool RewriteDriver::MatchesBaseUrl(const GoogleUrl& input_url) const {
 ResourcePtr RewriteDriver::CreateInputResource(const GoogleUrl& input_url,
                                                InputRole role,
                                                bool* is_authorized) {
-  return CreateInputResource(
-      input_url, kInlineOnlyAuthorizedResources, kIntendedForGeneral,
-      role, is_authorized);
+  return CreateInputResource(input_url, kInlineOnlyAuthorizedResources,
+                             kIntendedForGeneral, role, is_authorized);
 }
 
 ResourcePtr RewriteDriver::CreateInputResource(
     const GoogleUrl& input_url,
     InlineAuthorizationPolicy inline_authorization_policy,
-    IntendedFor intended_for,
-    InputRole role,
-    bool* is_authorized) {
+    IntendedFor intended_for, InputRole role, bool* is_authorized) {
   *is_authorized = true;  // Must be false iff we fail b/c of authorization.
   ResourcePtr resource;
   bool may_rewrite = false;
@@ -2037,14 +2008,13 @@ ResourcePtr RewriteDriver::CreateInputResource(
     if (!IsLoadPermittedByCsp(input_url, role)) {
       *is_authorized = false;
       message_handler()->Message(kInfo, "CSP prevents use of '%s'",
-                                input_url.spec_c_str());
+                                 input_url.spec_c_str());
       return resource;
     }
 
-    may_rewrite = MayRewriteUrl(decoded_base_url_, input_url,
-                                inline_authorization_policy,
-                                intended_for,
-                                is_authorized);
+    may_rewrite =
+        MayRewriteUrl(decoded_base_url_, input_url, inline_authorization_policy,
+                      intended_for, is_authorized);
     // In the case where we are proxying and we have resources that have been
     // rewritten multiple times, input_url will still have the encoded domain,
     // and we can rewrite that, so test again but against the encoded base url.
@@ -2054,15 +2024,14 @@ ResourcePtr RewriteDriver::CreateInputResource(
       if (namer->Decode(input_url, options(), &decoded_input)) {
         GoogleUrl decoded_url(decoded_input);
         may_rewrite = MayRewriteUrl(decoded_base_url_, decoded_url,
-                                    inline_authorization_policy,
-                                    intended_for,
+                                    inline_authorization_policy, intended_for,
                                     is_authorized);
       }
     }
   } else {
     // Shouldn't happen?
-    message_handler()->Message(
-        kFatal, "invalid decoded_base_url_ for '%s'", input_url.spec_c_str());
+    message_handler()->Message(kFatal, "invalid decoded_base_url_ for '%s'",
+                               input_url.spec_c_str());
     LOG(DFATAL);
   }
   RewriteStats* stats = server_context_->rewrite_stats();
@@ -2094,8 +2063,7 @@ ResourcePtr RewriteDriver::CreateInputResourceAbsoluteUncheckedForTestsOnly(
 }
 
 ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
-    const GoogleUrl& url,
-    bool is_authorized_domain) {
+    const GoogleUrl& url, bool is_authorized_domain) {
   StringPiece url_string = url.Spec();
   ResourcePtr resource;
 
@@ -2115,8 +2083,7 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
     const ContentType* type = NameExtensionToContentType(url.LeafSansQuery());
     GoogleString filename;
     if (options()->file_load_policy()->ShouldLoadFromFile(url, &filename)) {
-      resource.reset(
-          new FileInputResource(this, type, url_string, filename));
+      resource.reset(new FileInputResource(this, type, url_string, filename));
     } else {
       // If the scheme is https and the fetcher doesn't support https, map
       // the URL to what will ultimately be fetched to see if that will be
@@ -2124,14 +2091,14 @@ ResourcePtr RewriteDriver::CreateInputResourceUnchecked(
       GoogleString mapped_url;
       GoogleString host_header;
       bool is_proxy = false;
-      options()->domain_lawyer()->MapOriginUrl(url, &mapped_url,
-                                               &host_header, &is_proxy);
+      options()->domain_lawyer()->MapOriginUrl(url, &mapped_url, &host_header,
+                                               &is_proxy);
       GoogleUrl mapped_gurl(mapped_url);
       if (mapped_gurl.SchemeIs("http") ||
           (mapped_gurl.SchemeIs("https") &&
            url_async_fetcher_->SupportsHttps())) {
-        resource.reset(new UrlInputResource(this, type, url_string,
-                                            is_authorized_domain));
+        resource.reset(
+            new UrlInputResource(this, type, url_string, is_authorized_domain));
       } else {
         message_handler()->Message(
             kInfo, "Cannot fetch url '%s': as %s is not supported",
@@ -2226,10 +2193,10 @@ bool RewriteDriver::ShouldSkipParsing() {
       PropertyCache* pcache = server_context_->page_property_cache();
       const PropertyCache::Cohort* dom_cohort = pcache->GetCohort(kDomCohort);
       if (dom_cohort != nullptr) {
-        PropertyValue* property_value = property_page()->GetProperty(
-            dom_cohort, kParseSizeLimitExceeded);
+        PropertyValue* property_value =
+            property_page()->GetProperty(dom_cohort, kParseSizeLimitExceeded);
         should_skip = property_value->has_value() &&
-            StringCaseEqual(property_value->value(), "1");
+                      StringCaseEqual(property_value->value(), "1");
       }
     }
     should_skip_parsing_ = should_skip ? kTrue : kFalse;
@@ -2315,7 +2282,6 @@ void RewriteDriver::DeleteRewriteContext(RewriteContext* rewrite_context) {
   DropReference(kRefDeletingRewrites);
 }
 
-
 void RewriteDriver::PossiblyPurgeCachedResponseAndReleaseDriver() {
   DCHECK(!externally_managed_);
   // We might temporarily (due to purging) revive the object here, so
@@ -2366,22 +2332,20 @@ void RewriteDriver::WriteDomCohortIntoPropertyCache() {
   // TODO(jud): Is this the best place to check for shutting down? It might
   // make more sense for this check to be done at the property cache or
   // lower level.
-  if (server_context_->shutting_down() ||
-      page == nullptr ||
+  if (server_context_->shutting_down() || page == nullptr ||
       !owns_property_page_) {
     return;
   }
   // Update the timestamp of the last request in both actual property page
   // and property page with fallback values.
   UpdatePropertyValueInDomCohort(
-    fallback_property_page(),
-    kLastRequestTimestamp,
-    Integer64ToString(server_context()->timer()->NowMs()));
+      fallback_property_page(), kLastRequestTimestamp,
+      Integer64ToString(server_context()->timer()->NowMs()));
   // Update the status code of the last request.
   if (status_code_ != HttpStatus::kUnknownStatusCode) {
-    UpdatePropertyValueInDomCohort(
-        fallback_property_page(),
-        kStatusCodePropertyName, IntegerToString(status_code_));
+    UpdatePropertyValueInDomCohort(fallback_property_page(),
+                                   kStatusCodePropertyName,
+                                   IntegerToString(status_code_));
   }
   if (options()->max_html_parse_bytes() > 0) {
     // Update whether the page exceeded the html parse size limit.
@@ -2392,23 +2356,22 @@ void RewriteDriver::WriteDomCohortIntoPropertyCache() {
   if (flush_early_info_.get() != nullptr) {
     GoogleString value;
     flush_early_info_->SerializeToString(&value);
-    UpdatePropertyValueInDomCohort(
-        fallback_property_page(), kSubresourcesPropertyName, value);
+    UpdatePropertyValueInDomCohort(fallback_property_page(),
+                                   kSubresourcesPropertyName, value);
   }
   // Write dom cohort for both actual property page and property page with
   // fallback values.
   fallback_property_page()->WriteCohort(server_context()->dom_cohort());
 }
 
-void RewriteDriver::UpdatePropertyValueInDomCohort(
-    AbstractPropertyPage* page,
-    StringPiece property_name,
-    StringPiece property_value) {
+void RewriteDriver::UpdatePropertyValueInDomCohort(AbstractPropertyPage* page,
+                                                   StringPiece property_name,
+                                                   StringPiece property_value) {
   if (page == nullptr || !owns_property_page_) {
     return;
   }
-  page->UpdateValue(
-      server_context()->dom_cohort(), property_name, property_value);
+  page->UpdateValue(server_context()->dom_cohort(), property_name,
+                    property_value);
 }
 
 void RewriteDriver::Cleanup() {
@@ -2424,20 +2387,18 @@ void RewriteDriver::Cleanup() {
   DropReference(kRefUser);
 }
 
-void RewriteDriver::AddUserReference() {
-  ref_counts_.AddRef(kRefUser);
-}
+void RewriteDriver::AddUserReference() { ref_counts_.AddRef(kRefUser); }
 
 namespace {
 
 void AppendBool(GoogleString* out, const char* name, bool val) {
-  StrAppend(out, name, ": ", val ? "true\n": "false\n");
+  StrAppend(out, name, ": ", val ? "true\n" : "false\n");
 }
 
 }  // namespace
 
-GoogleString RewriteDriver::ToStringLockHeld(bool show_detached_contexts)
-    const {
+GoogleString RewriteDriver::ToStringLockHeld(
+    bool show_detached_contexts) const {
   GoogleString out;
   StrAppend(&out, "URL: ", google_url().Spec(), "\n");
   StrAppend(&out, "decoded_base: ", decoded_base_url().Spec(), "\n");
@@ -2468,7 +2429,8 @@ GoogleString RewriteDriver::ToStringLockHeld(bool show_detached_contexts)
 
   if (show_detached_contexts) {
     for (RewriteContextSet::iterator p = detached_rewrites_.begin(),
-             e = detached_rewrites_.end(); p != e; ++p) {
+                                     e = detached_rewrites_.end();
+         p != e; ++p) {
       RewriteContext* detached_rewrite = *p;
       StrAppend(&out, "  Detached Rewrite:\n",
                 detached_rewrite->ToStringWithPrefix("  "));
@@ -2515,8 +2477,8 @@ void RewriteDriver::LogStats() {
   }
   request_properties_->LogDeviceInfo(
       log_record(), options()->enable_aggressive_rewriters_for_mobile());
-  bool is_xhr = request_headers() != nullptr &&
-      request_headers()->IsXmlHttpRequest();
+  bool is_xhr =
+      request_headers() != nullptr && request_headers()->IsXmlHttpRequest();
   log_record()->LogIsXhr(is_xhr);
 }
 
@@ -2533,9 +2495,8 @@ void RewriteDriver::FinishParseAsync(Function* callback) {
 }
 
 void RewriteDriver::QueueFinishParseAfterFlush(Function* user_callback) {
-  Function* finish_parse = MakeFunction(this,
-                                        &RewriteDriver::FinishParseAfterFlush,
-                                        user_callback);
+  Function* finish_parse =
+      MakeFunction(this, &RewriteDriver::FinishParseAfterFlush, user_callback);
   html_worker_->Add(finish_parse);
 }
 
@@ -2548,8 +2509,8 @@ void RewriteDriver::FinishParseAfterFlush(Function* user_callback) {
 
   // Update stats.
   RewriteStats* stats = server_context_->rewrite_stats();
-  stats->rewrite_latency_histogram()->Add(
-      server_context_->timer()->NowMs() - start_time_ms_);
+  stats->rewrite_latency_histogram()->Add(server_context_->timer()->NowMs() -
+                                          start_time_ms_);
   stats->total_rewrite_count()->IncBy(1);
 
   // Update statistics log.
@@ -2566,8 +2527,8 @@ void RewriteDriver::FinishParseAfterFlush(Function* user_callback) {
   }
 }
 
-void RewriteDriver::InfoAt(const RewriteContext* context,
-                           const char* msg, ...) {
+void RewriteDriver::InfoAt(const RewriteContext* context, const char* msg,
+                           ...) {
   va_list args;
   va_start(args, msg);
 
@@ -2588,12 +2549,9 @@ void RewriteDriver::InfoAt(const RewriteContext* context,
 
 // Constructs name and URL for the specified input resource and encoder.
 bool RewriteDriver::GenerateOutputResourceNameAndUrl(
-    const UrlSegmentEncoder* encoder,
-    const ResourceContext* data,
-    const ResourcePtr& input_resource,
-    GoogleString* name,
-    GoogleUrl* mapped_gurl,
-    GoogleString* failure_reason) {
+    const UrlSegmentEncoder* encoder, const ResourceContext* data,
+    const ResourcePtr& input_resource, GoogleString* name,
+    GoogleUrl* mapped_gurl, GoogleString* failure_reason) {
   if (input_resource.get() == nullptr) {
     *failure_reason = "No input resource.";
     return false;
@@ -2612,8 +2570,8 @@ bool RewriteDriver::GenerateOutputResourceNameAndUrl(
   if (!options()->domain_lawyer()->MapRequestToDomain(
           unmapped_gurl, unmapped_gurl.Spec(), &mapped_domain, mapped_gurl,
           server_context_->message_handler())) {
-    *failure_reason = StrCat("Domain not authorized for ",
-                             unmapped_gurl.Spec());
+    *failure_reason =
+        StrCat("Domain not authorized for ", unmapped_gurl.Spec());
     return false;
   }
 
@@ -2626,12 +2584,9 @@ bool RewriteDriver::GenerateOutputResourceNameAndUrl(
 // Constructs an output resource corresponding to the specified input resource
 // and encoded using the provided encoder.
 OutputResourcePtr RewriteDriver::CreateOutputResourceFromResource(
-    const char* filter_id,
-    const UrlSegmentEncoder* encoder,
-    const ResourceContext* data,
-    const ResourcePtr& input_resource,
-    OutputResourceKind kind,
-    GoogleString* failure_reason) {
+    const char* filter_id, const UrlSegmentEncoder* encoder,
+    const ResourceContext* data, const ResourcePtr& input_resource,
+    OutputResourceKind kind, GoogleString* failure_reason) {
   OutputResourcePtr result;
   GoogleString name;
   GoogleUrl mapped_gurl;
@@ -2645,17 +2600,16 @@ OutputResourcePtr RewriteDriver::CreateOutputResourceFromResource(
   GoogleUrl unmapped_gurl(input_resource->url());
 
   result.reset(CreateOutputResourceWithMappedPath(
-      mapped_gurl.AllExceptLeaf(), unmapped_gurl.AllExceptLeaf(),
-      filter_id, name, kind, failure_reason));
+      mapped_gurl.AllExceptLeaf(), unmapped_gurl.AllExceptLeaf(), filter_id,
+      name, kind, failure_reason));
 
   CHECK(input_resource->is_authorized_domain());
   return result;
 }
 
-void RewriteDriver::PopulateResourceNamer(
-    const StringPiece& filter_id,
-    const StringPiece& name,
-    ResourceNamer* full_name) {
+void RewriteDriver::PopulateResourceNamer(const StringPiece& filter_id,
+                                          const StringPiece& name,
+                                          ResourceNamer* full_name) {
   full_name->set_id(filter_id);
   full_name->set_name(name);
   full_name->set_experiment(options()->GetExperimentStateStr());
@@ -2664,8 +2618,8 @@ void RewriteDriver::PopulateResourceNamer(
   // rewrites.
   if (filter_id != RewriteOptions::kInPlaceRewriteId &&
       !full_name->has_experiment() && options()->add_options_to_urls()) {
-    GoogleString resource_option = RewriteQuery::GenerateResourceOption(
-        filter_id, this);
+    GoogleString resource_option =
+        RewriteQuery::GenerateResourceOption(filter_id, this);
     full_name->set_options(resource_option);
   } else {
     full_name->set_options("");
@@ -2673,12 +2627,9 @@ void RewriteDriver::PopulateResourceNamer(
 }
 
 OutputResourcePtr RewriteDriver::CreateOutputResourceWithPath(
-    const StringPiece& mapped_path,
-    const StringPiece& unmapped_path,
-    const StringPiece& base_url,
-    const StringPiece& filter_id,
-    const StringPiece& name,
-    OutputResourceKind kind,
+    const StringPiece& mapped_path, const StringPiece& unmapped_path,
+    const StringPiece& base_url, const StringPiece& filter_id,
+    const StringPiece& name, OutputResourceKind kind,
     GoogleString* failure_reason) {
   ResourceNamer full_name;
   PopulateResourceNamer(filter_id, name, &full_name);
@@ -2701,12 +2652,12 @@ OutputResourcePtr RewriteDriver::CreateOutputResourceWithPath(
     full_name.set_hash(GoogleString(hasher->HashSizeInChars(), '#'));
     extra_len = ContentType::MaxProducedExtensionLength();
   }
-  resource.reset(new OutputResource(
-      this, mapped_path, unmapped_path, base_url, full_name, kind));
+  resource.reset(new OutputResource(this, mapped_path, unmapped_path, base_url,
+                                    full_name, kind));
 
   if (options()->max_url_size() <
       (static_cast<int>(resource->url().size()) + extra_len)) {
-    *failure_reason = StrCat("Rewritten URL too long: ",  resource->url());
+    *failure_reason = StrCat("Rewritten URL too long: ", resource->url());
     resource.clear();
     return resource;
   }
@@ -2731,14 +2682,14 @@ OutputResourcePtr RewriteDriver::CreateOutputResourceWithUnmappedUrl(
   if (!options()->domain_lawyer()->MapRequestToDomain(
           unmapped_gurl, unmapped_gurl.Spec(), &mapped_domain, &mapped_gurl,
           server_context_->message_handler())) {
-    *failure_reason = StrCat("Domain not authorized for ",
-                             unmapped_gurl.Spec());
+    *failure_reason =
+        StrCat("Domain not authorized for ", unmapped_gurl.Spec());
     return resource;
   }
 
   resource.reset(CreateOutputResourceWithMappedPath(
-      mapped_gurl.AllExceptLeaf(), unmapped_gurl.AllExceptLeaf(),
-      filter_id, name, kind, failure_reason));
+      mapped_gurl.AllExceptLeaf(), unmapped_gurl.AllExceptLeaf(), filter_id,
+      name, kind, failure_reason));
   return resource;
 }
 
@@ -2750,8 +2701,7 @@ void RewriteDriver::SetBaseUrlIfUnset(const StringPiece& new_base) {
   if (new_base_url.IsAnyValid()) {
     if (base_was_set_) {
       if (new_base_url.Spec() != base_url_.Spec()) {
-        InfoHere("Conflicting base tags: %s and %s",
-                 new_base_url.spec_c_str(),
+        InfoHere("Conflicting base tags: %s and %s", new_base_url.spec_c_str(),
                  base_url_.spec_c_str());
       }
     } else {
@@ -2760,8 +2710,7 @@ void RewriteDriver::SetBaseUrlIfUnset(const StringPiece& new_base) {
       SetDecodedUrlFromBase();
     }
   } else {
-    InfoHere("Invalid base tag %s relative to %s",
-             new_base.as_string().c_str(),
+    InfoHere("Invalid base tag %s relative to %s", new_base.as_string().c_str(),
              base_url_.spec_c_str());
   }
 }
@@ -2790,9 +2739,9 @@ RewriteFilter* RewriteDriver::FindFilter(const StringPiece& id) const {
   return filter;
 }
 
-HtmlResourceSlotPtr RewriteDriver::GetSlot(
-    const ResourcePtr& resource, HtmlElement* elt,
-    HtmlElement::Attribute* attr) {
+HtmlResourceSlotPtr RewriteDriver::GetSlot(const ResourcePtr& resource,
+                                           HtmlElement* elt,
+                                           HtmlElement::Attribute* attr) {
   HtmlResourceSlotPtr slot(new HtmlResourceSlot(resource, elt, attr, this));
   std::pair<HtmlResourceSlotSet::iterator, bool> iter_inserted =
       slots_.insert(slot);
@@ -2977,10 +2926,8 @@ OptionsAwareHTTPCacheCallback::RespectVaryOnResources() const {
 
 // static
 bool OptionsAwareHTTPCacheCallback::IsCacheValid(
-    const GoogleString& url,
-    const RewriteOptions& rewrite_options,
-    const RequestContextPtr& request_ctx,
-    const ResponseHeaders& headers) {
+    const GoogleString& url, const RewriteOptions& rewrite_options,
+    const RequestContextPtr& request_ctx, const ResponseHeaders& headers) {
   if ((headers.DetermineContentType() == &kContentTypeWebp) &&
       !request_ctx->accepts_webp() &&
       headers.HasValue(HttpAttributes::kVary, HttpAttributes::kAccept)) {
@@ -3001,11 +2948,8 @@ int64 OptionsAwareHTTPCacheCallback::OverrideCacheTtlMs(
 }
 
 RewriteDriver::CssResolutionStatus RewriteDriver::ResolveCssUrls(
-    const GoogleUrl& input_css_base,
-    const StringPiece& output_css_base,
-    const StringPiece& contents,
-    Writer* writer,
-    MessageHandler* handler) {
+    const GoogleUrl& input_css_base, const StringPiece& output_css_base,
+    const StringPiece& contents, Writer* writer, MessageHandler* handler) {
   GoogleUrl output_base(output_css_base);
   bool proxy_mode;
   if (ShouldAbsolutifyUrl(input_css_base, output_base, &proxy_mode)) {
@@ -3056,8 +3000,9 @@ bool RewriteDriver::ShouldAbsolutifyUrl(const GoogleUrl& input_base,
 }
 
 PropertyPage* RewriteDriver::property_page() const {
-  return fallback_property_page_ == nullptr ?
-      nullptr : fallback_property_page_->actual_property_page();
+  return fallback_property_page_ == nullptr
+             ? nullptr
+             : fallback_property_page_->actual_property_page();
 }
 
 PropertyPage* RewriteDriver::origin_property_page() const {
@@ -3171,8 +3116,8 @@ void RewriteDriver::DecrementRenderBlockingAsyncEventsCount() {
 
 void RewriteDriver::EnableBlockingRewrite(RequestHeaders* request_headers) {
   if (!options()->blocking_rewrite_key().empty()) {
-    const char* blocking_rewrite_key = request_headers->Lookup1(
-        HttpAttributes::kXPsaBlockingRewrite);
+    const char* blocking_rewrite_key =
+        request_headers->Lookup1(HttpAttributes::kXPsaBlockingRewrite);
     if (blocking_rewrite_key != nullptr) {
       if (options()->blocking_rewrite_key() == blocking_rewrite_key) {
         set_fully_rewrite_on_flush(true);
@@ -3185,16 +3130,15 @@ void RewriteDriver::EnableBlockingRewrite(RequestHeaders* request_headers) {
   }
   if (!fully_rewrite_on_flush() &&
       options()->IsBlockingRewriteRefererUrlPatternPresent()) {
-    const char* referer = request_headers->Lookup1(
-        HttpAttributes::kReferer);
+    const char* referer = request_headers->Lookup1(HttpAttributes::kReferer);
     if (referer != nullptr &&
         options()->IsBlockingRewriteEnabledForReferer(referer)) {
       set_fully_rewrite_on_flush(true);
     }
   }
   if (fully_rewrite_on_flush()) {
-    const char* blocking_rewrite_mode(request_headers->Lookup1(
-        HttpAttributes::kXPsaBlockingRewriteMode));
+    const char* blocking_rewrite_mode(
+        request_headers->Lookup1(HttpAttributes::kXPsaBlockingRewriteMode));
     if (blocking_rewrite_mode != nullptr) {
       StringPiece mode(HttpAttributes::kXPsaBlockingRewriteModeSlow);
       if (blocking_rewrite_mode == mode) {
@@ -3227,12 +3171,9 @@ FlushEarlyInfo* RewriteDriver::flush_early_info() {
   if (flush_early_info_.get() == nullptr) {
     PropertyCacheDecodeResult status;
     flush_early_info_.reset(DecodeFromPropertyCache<FlushEarlyInfo>(
-        server_context()->page_property_cache(),
-        fallback_property_page(),
-        server_context()->dom_cohort(),
-        kSubresourcesPropertyName,
-        -1 /* no ttl checking*/,
-        &status));
+        server_context()->page_property_cache(), fallback_property_page(),
+        server_context()->dom_cohort(), kSubresourcesPropertyName,
+        -1 /* no ttl checking*/, &status));
     if (status != kPropertyCacheDecodeOk) {
       flush_early_info_ = std::make_unique<FlushEarlyInfo>();
     }
@@ -3240,8 +3181,7 @@ FlushEarlyInfo* RewriteDriver::flush_early_info() {
   return flush_early_info_.get();
 }
 
-void RewriteDriver::InsertDebugComment(StringPiece unescaped,
-                                       HtmlNode* node) {
+void RewriteDriver::InsertDebugComment(StringPiece unescaped, HtmlNode* node) {
   if (DebugMode() && node != nullptr && IsRewritable(node)) {
     GoogleString escaped;
     HtmlKeywords::Escape(unescaped, &escaped);
@@ -3270,8 +3210,9 @@ void RewriteDriver::InsertDebugComments(
   }
 }
 
-void RewriteDriver::InsertUnauthorizedDomainDebugComment(
-    StringPiece url, InputRole role, HtmlElement* element) {
+void RewriteDriver::InsertUnauthorizedDomainDebugComment(StringPiece url,
+                                                         InputRole role,
+                                                         HtmlElement* element) {
   if (DebugMode() && element != nullptr && IsRewritable(element)) {
     GoogleUrl gurl(url);
     InsertNodeAfterNode(
@@ -3312,10 +3253,8 @@ bool RewriteDriver::is_critical_images_beacon_enabled() {
 }
 
 bool RewriteDriver::Write(const ResourceVector& inputs,
-                          const StringPiece& contents,
-                          const ContentType* type,
-                          StringPiece charset,
-                          OutputResource* output) {
+                          const StringPiece& contents, const ContentType* type,
+                          StringPiece charset, OutputResource* output) {
   output->SetType(type);
   output->set_charset(charset);
   ResponseHeaders* meta_data = output->response_headers();
@@ -3325,8 +3264,8 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
   // resources.
   if ((inputs.size() == 1) && (output->kind() == kOnTheFlyResource)) {
     const ResponseHeaders* input_headers = inputs[0]->response_headers();
-    const char* last_modified = input_headers->Lookup1(
-        HttpAttributes::kLastModified);
+    const char* last_modified =
+        input_headers->Lookup1(HttpAttributes::kLastModified);
     if (last_modified == nullptr) {
       clear_last_modified = true;
     } else {
@@ -3360,10 +3299,9 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
         (http_cache->force_caching() || meta_data->IsProxyCacheable())) {
       // This URL should already be mapped to the canonical rewrite domain,
       // But we should store its unsharded form in the cache.
-      http_cache->Put(output->HttpCacheKey(), CacheFragment(),
-                      RequestHeaders::Properties(),
-                      options()->ComputeHttpOptions(),
-                      &output->value_, handler);
+      http_cache->Put(
+          output->HttpCacheKey(), CacheFragment(), RequestHeaders::Properties(),
+          options()->ComputeHttpOptions(), &output->value_, handler);
     }
 
     // If we're asked to, also save a debug dump
@@ -3383,7 +3321,8 @@ bool RewriteDriver::Write(const ResourceVector& inputs,
   } else {
     // Note that we've already gotten a "could not open file" message;
     // this just serves to explain why and suggest a remedy.
-    handler->Message(kInfo, "Could not create output resource"
+    handler->Message(kInfo,
+                     "Could not create output resource"
                      " (bad filename prefix '%s'?)",
                      server_context_->filename_prefix().as_string().c_str());
   }
@@ -3410,7 +3349,7 @@ const GoogleString& RewriteDriver::CacheFragment() const {
     return fragment;
   }
   CHECK(request_context_.get() != nullptr) << "NULL request context in "
-                                        << "RewriteDriver::CacheFragment";
+                                           << "RewriteDriver::CacheFragment";
   return request_context_->minimal_private_suffix();
 }
 
@@ -3423,16 +3362,14 @@ bool RewriteDriver::SetOrClearPageSpeedOptionCookies(
   bool clear_cookies = false;
 
   if (options_->allow_options_to_be_set_by_cookies() &&
-      !required_token.empty() &&
-      required_token == provided_token) {
+      !required_token.empty() && required_token == provided_token) {
     // Make the current options sticky if we allow options to be set by
     // cookies (otherwise why bother?), there is a token specified in the
     // configuration, and the token specified in the request matches the
     // one in the configuration.
     set_cookies = true;
-  } else if (!pagespeed_option_cookies_.empty() &&
-             !required_token.empty() && !provided_token.empty() &&
-             required_token != provided_token) {
+  } else if (!pagespeed_option_cookies_.empty() && !required_token.empty() &&
+             !provided_token.empty() && required_token != provided_token) {
     // Clear the current option cookies if there are any, there is a token
     // specified in the configuration, there is a token in the request, and
     // the token specified in the request does NOT match the one in the
@@ -3451,11 +3388,9 @@ bool RewriteDriver::SetOrClearPageSpeedOptionCookies(
 
   // We need to not set cookies for the option that triggered this.
   const GoogleString old_option_name(
-      StrCat(RewriteQuery::kPageSpeed,
-             RewriteOptions::kStickyQueryParameters));
-  const GoogleString new_option_name(
-      StrCat(RewriteQuery::kModPagespeed,
-             RewriteOptions::kStickyQueryParameters));
+      StrCat(RewriteQuery::kPageSpeed, RewriteOptions::kStickyQueryParameters));
+  const GoogleString new_option_name(StrCat(
+      RewriteQuery::kModPagespeed, RewriteOptions::kStickyQueryParameters));
   StringPieceVector exclusions;
   exclusions.push_back(old_option_name);
   exclusions.push_back(new_option_name);
@@ -3463,14 +3398,11 @@ bool RewriteDriver::SetOrClearPageSpeedOptionCookies(
   if (set_cookies) {
     int64 expiration_time_ms = (server_context()->timer()->NowMs() +
                                 options_->option_cookies_duration_ms());
-    result = response_headers->SetQueryParamsAsCookies(gurl,
-                                                       pagespeed_query_params_,
-                                                       exclusions,
-                                                       expiration_time_ms);
+    result = response_headers->SetQueryParamsAsCookies(
+        gurl, pagespeed_query_params_, exclusions, expiration_time_ms);
   } else /* ASSERT: clear_cookies == true */ {
-    result = response_headers->ClearOptionCookies(gurl,
-                                                  pagespeed_option_cookies_,
-                                                  exclusions);
+    result = response_headers->ClearOptionCookies(
+        gurl, pagespeed_option_cookies_, exclusions);
   }
   if (result) {
     response_headers->ComputeCaching();
@@ -3520,8 +3452,7 @@ bool RewriteDriver::LookupMetadataForOutputResource(
   }
 
   return RewriteContext::LookupMetadataForOutputResourceImpl(
-             output_resource, gurl, context.release(),
-             this, error_out, callback);
+      output_resource, gurl, context.release(), this, error_out, callback);
 }
 
 void RewriteDriver::RunTasksOnRequestThread() {
@@ -3558,8 +3489,8 @@ void RewriteDriver::SetIsAmpDocument(bool is_amp) {
   set_buffer_events(false);
 }
 
-bool RewriteDriver::IsLoadPermittedByCsp(
-    const GoogleUrl& url, CspDirective role) {
+bool RewriteDriver::IsLoadPermittedByCsp(const GoogleUrl& url,
+                                         CspDirective role) {
   if (csp_context_.empty()) {
     return true;
   }

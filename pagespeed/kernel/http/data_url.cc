@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/http/data_url.h"
 
@@ -29,10 +28,8 @@
 
 namespace net_instaweb {
 
-void DataUrl(const ContentType& content_type,
-             const Encoding encoding,
-             const StringPiece& content,
-             GoogleString* result) {
+void DataUrl(const ContentType& content_type, const Encoding encoding,
+             const StringPiece& content, GoogleString* result) {
   result->assign("data:");
   result->append(content_type.mime_type());
   switch (encoding) {
@@ -43,17 +40,17 @@ void DataUrl(const ContentType& content_type,
       result->append(encoded);
       break;
     }
-// TODO(jmaessen): Figure out if we ever need non-BASE64 encodings,
-// and if so actually write them.  Here are the stubs.
-//     case UTF8:
-//       result->append(";charset=\"utf-8\",");
-//       // TODO(jmaessen): find %-encoding code to use here.
-//       //   jmarantz has one pending.
-//       result.append(content);
-//     case LATIN1:
-//       result->append(";charset=\"\",");
-//       // TODO(jmaessen): find %-encoding code to use here.
-//       //   Not the UTF-8 one!
+      // TODO(jmaessen): Figure out if we ever need non-BASE64 encodings,
+      // and if so actually write them.  Here are the stubs.
+      //     case UTF8:
+      //       result->append(";charset=\"utf-8\",");
+      //       // TODO(jmaessen): find %-encoding code to use here.
+      //       //   jmarantz has one pending.
+      //       result.append(content);
+      //     case LATIN1:
+      //       result->append(";charset=\"\",");
+      //       // TODO(jmaessen): find %-encoding code to use here.
+      //       //   Not the UTF-8 one!
     default: {
       // either UNKNOWN or PLAIN.  No special encoding or alphabet.  We're in a
       // context where we don't want to fail, so we try to give sensible output
@@ -74,10 +71,8 @@ bool IsDataImageUrl(const StringPiece url) {
   return strings::StartsWith(url, "data:image/");
 }
 
-bool ParseDataUrl(const StringPiece& url,
-                  const ContentType** content_type,
-                  Encoding* encoding,
-                  StringPiece* encoded_content) {
+bool ParseDataUrl(const StringPiece& url, const ContentType** content_type,
+                  Encoding* encoding, StringPiece* encoded_content) {
   const char kData[] = "data:";
   const size_t kDataSize = STATIC_STRLEN(kData);
   const char kBase64[] = ";base64";
@@ -110,8 +105,7 @@ bool ParseDataUrl(const StringPiece& url,
   return true;
 }
 
-bool DecodeDataUrlContent(Encoding encoding,
-                          const StringPiece& encoded_content,
+bool DecodeDataUrlContent(Encoding encoding, const StringPiece& encoded_content,
                           GoogleString* decoded_content) {
   switch (encoding) {
     case PLAIN:

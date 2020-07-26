@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
 
@@ -47,21 +46,17 @@ class CssInlineImportToLinkFilterTest : public RewriteTestBase {
   // Test general situations.
   void ValidateStyleToLink(const GoogleString& input_style,
                            const GoogleString& expected_style) {
-    const GoogleString html_input =
-        "<head>\n" +
-        input_style +
-        "</head>\n"
-        "<body>Hello, world!</body>\n";
+    const GoogleString html_input = "<head>\n" + input_style +
+                                    "</head>\n"
+                                    "<body>Hello, world!</body>\n";
 
     // Rewrite the HTML page.
     ParseUrl("http://test.com/test.html", html_input);
 
     // Check the output HTML.
-    const GoogleString expected_output =
-        "<head>\n" +
-        expected_style +
-        "</head>\n"
-        "<body>Hello, world!</body>\n";
+    const GoogleString expected_output = "<head>\n" + expected_style +
+                                         "</head>\n"
+                                         "<body>Hello, world!</body>\n";
     EXPECT_EQ(AddHtmlBody(expected_output), output_buffer_);
   }
 
@@ -118,8 +113,9 @@ TEST_F(CssInlineImportToLinkFilterTest, DoNotConvertScoped) {
   // <style scoped> can't be converted to a link.
   // (https://github.com/apache/incubator-pagespeed-mod/issues/918)
   AddFilter(RewriteOptions::kInlineImportToLink);
-  ValidateStyleUnchanged("<style type=\"text/css\" scoped>"
-                         "@import url(assets/styles.css);</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/css\" scoped>"
+      "@import url(assets/styles.css);</style>");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithMultipleImports) {
@@ -212,82 +208,94 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithMultipleImports) {
 
   // Variations where there's more than just valid @imports.
   // We do not convert because of the invalid @import.
-  ValidateStyleUnchanged("<style>"
-                         "@import \"first.css\" all;\n"
-                         "@import url( );\n"
-                         "@import \"third.css\";\n"
-                         "</style>");
+  ValidateStyleUnchanged(
+      "<style>"
+      "@import \"first.css\" all;\n"
+      "@import url( );\n"
+      "@import \"third.css\";\n"
+      "</style>");
   // We do not convert because of the @charset
-  ValidateStyleUnchanged("<style>"
-                         "@charset \"ISO-8859-1\";\n"
-                         "@import \"first.css\" all;\n"
-                         "@import url('second.css' );\n"
-                         "@import \"third.css\";\n"
-                         "</style>");
+  ValidateStyleUnchanged(
+      "<style>"
+      "@charset \"ISO-8859-1\";\n"
+      "@import \"first.css\" all;\n"
+      "@import url('second.css' );\n"
+      "@import \"third.css\";\n"
+      "</style>");
 
   // These could be handled as it's "obvious" what the right thing is, but
   // at the moment we don't handle all perms-and-combs of media [queries].
   // The first 4 could "ignore" the style's media as it includes the imports.
-  ValidateStyleUnchanged("<style>"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n"
-                         "</style>");
-  ValidateStyleUnchanged("<style media=\"all\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" print;\n"
-                         "</style>");
-  ValidateStyleUnchanged("<style media=\"all\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n");
-  ValidateStyleUnchanged("<style media=\"screen, not screen\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n"
-                         "</style>");
+  ValidateStyleUnchanged(
+      "<style>"
+      "@import \"first.css\" screen;\n"
+      "@import \"third.css\" not screen;\n"
+      "</style>");
+  ValidateStyleUnchanged(
+      "<style media=\"all\">"
+      "@import \"first.css\" screen;\n"
+      "@import \"third.css\" print;\n"
+      "</style>");
+  ValidateStyleUnchanged(
+      "<style media=\"all\">"
+      "@import \"first.css\" screen;\n"
+      "@import \"third.css\" not screen;\n");
+  ValidateStyleUnchanged(
+      "<style media=\"screen, not screen\">"
+      "@import \"first.css\" screen;\n"
+      "@import \"third.css\" not screen;\n"
+      "</style>");
   // This one could determine that the intersection of screen & not screen
   // is the empty set and therefore drop the 2nd import/link completely.
-  ValidateStyleUnchanged("<style media=\"screen\">"
-                         "@import \"first.css\" screen;\n"
-                         "@import \"third.css\" not screen;\n"
-                         "</style>");
+  ValidateStyleUnchanged(
+      "<style media=\"screen\">"
+      "@import \"first.css\" screen;\n"
+      "@import \"third.css\" not screen;\n"
+      "</style>");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, OnlyConvertPrefix) {
   AddFilter(RewriteOptions::kInlineImportToLink);
 
   // Trailing content.
-  ValidateStyleToLink("<style>@import url(assets/styles.css);\n"
-                      "a { color: red; }</style>",
+  ValidateStyleToLink(
+      "<style>@import url(assets/styles.css);\n"
+      "a { color: red; }</style>",
 
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\">"
-                      "<style>a { color: red; }</style>");
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\">"
+      "<style>a { color: red; }</style>");
 
   // Nonsense @-rule.
-  ValidateStyleToLink("<style>@import url(assets/styles.css);\n"
-                      "@foobar</style>",
+  ValidateStyleToLink(
+      "<style>@import url(assets/styles.css);\n"
+      "@foobar</style>",
 
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\">"
-                      "<style>@foobar</style>");
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\">"
+      "<style>@foobar</style>");
 
   // @import later in the CSS.
-  ValidateStyleToLink("<style>@import url(a.css);\n"
-                      "@font-face { src: url(b.woff) }\n"
-                      "@import url(c.css);</style>",
+  ValidateStyleToLink(
+      "<style>@import url(a.css);\n"
+      "@font-face { src: url(b.woff) }\n"
+      "@import url(c.css);</style>",
 
-                      "<link rel=\"stylesheet\" href=\"a.css\">"
-                      "<style>@font-face { src: url(b.woff) }\n"
-                      "@import url(c.css);</style>");
+      "<link rel=\"stylesheet\" href=\"a.css\">"
+      "<style>@font-face { src: url(b.woff) }\n"
+      "@import url(c.css);</style>");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithAttributes) {
   AddFilter(RewriteOptions::kInlineImportToLink);
-  ValidateStyleToLink("<style type=\"text/css\">"
-                      "@import url(assets/styles.css);</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\">");
-  ValidateStyleToLink("<style type=\"text/css\" media=\"screen\">"
-                      "@import url(assets/styles.css);</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\"screen\">");
+  ValidateStyleToLink(
+      "<style type=\"text/css\">"
+      "@import url(assets/styles.css);</style>",
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
+      " type=\"text/css\">");
+  ValidateStyleToLink(
+      "<style type=\"text/css\" media=\"screen\">"
+      "@import url(assets/styles.css);</style>",
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
+      " type=\"text/css\" media=\"screen\">");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithSameMedia) {
@@ -295,54 +303,66 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithSameMedia) {
   ValidateStyleToLink("<style>@import url(assets/styles.css) all</style>",
                       "<link rel=\"stylesheet\" href=\"assets/styles.css\""
                       " media=\"all\">");
-  ValidateStyleToLink("<style type=\"text/css\">"
-                      "@import url(assets/styles.css) all;</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\"all\">");
-  ValidateStyleToLink("<style type=\"text/css\" media=\"screen\">"
-                      "@import url(assets/styles.css) screen;</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\"screen\">");
-  ValidateStyleToLink("<style type=\"text/css\" media=\"screen,printer\">"
-                      "@import url(assets/styles.css) printer,screen;</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\"screen,printer\">");
-  ValidateStyleToLink("<style type=\"text/css\" media=\" screen , printer \">"
-                      "@import 'assets/styles.css' printer, screen ;</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\" screen , printer \">");
+  ValidateStyleToLink(
+      "<style type=\"text/css\">"
+      "@import url(assets/styles.css) all;</style>",
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
+      " type=\"text/css\" media=\"all\">");
+  ValidateStyleToLink(
+      "<style type=\"text/css\" media=\"screen\">"
+      "@import url(assets/styles.css) screen;</style>",
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
+      " type=\"text/css\" media=\"screen\">");
+  ValidateStyleToLink(
+      "<style type=\"text/css\" media=\"screen,printer\">"
+      "@import url(assets/styles.css) printer,screen;</style>",
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
+      " type=\"text/css\" media=\"screen,printer\">");
+  ValidateStyleToLink(
+      "<style type=\"text/css\" media=\" screen , printer \">"
+      "@import 'assets/styles.css' printer, screen ;</style>",
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
+      " type=\"text/css\" media=\" screen , printer \">");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, ConvertStyleWithDifferentMedia) {
   AddFilter(RewriteOptions::kInlineImportToLink);
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"screen\">"
-                         "@import url(assets/styles.css) all;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"screen,printer\">"
-                         "@import url(assets/styles.css) screen;</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/css\" media=\"screen\">"
+      "@import url(assets/styles.css) all;</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/css\" media=\"screen,printer\">"
+      "@import url(assets/styles.css) screen;</style>");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, MediaQueries) {
   AddFilter(RewriteOptions::kInlineImportToLink);
   // If @import has no media, we'll keep the complex media query in the
   // media attribute.
-  ValidateStyleToLink("<style type=\"text/css\" media=\"not screen\">"
-                      "@import url(assets/styles.css);</style>",
-                      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
-                      " type=\"text/css\" media=\"not screen\">");
+  ValidateStyleToLink(
+      "<style type=\"text/css\" media=\"not screen\">"
+      "@import url(assets/styles.css);</style>",
+      "<link rel=\"stylesheet\" href=\"assets/styles.css\""
+      " type=\"text/css\" media=\"not screen\">");
 
   // Generally we just give up on complex media queries. Note, these could
   // be rewritten in the future, just change the tests to produce sane results.
-  ValidateStyleUnchanged("<style type=\"text/css\">"
-                         "@import url(assets/styles.css) not screen;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"not screen\">"
-                         "@import url(assets/styles.css) not screen;</style>");
-  ValidateStyleUnchanged("<style media=\"not screen and (color), only print\">"
-                         "@import url(assets/styles.css)"
-                         " not screen and (color), only print;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"not screen\">"
-                         "@import url(assets/styles.css) screen;</style>");
-  ValidateStyleUnchanged("<style type=\"text/css\" media=\"screen and (x)\">"
-                         "@import url(assets/styles.css) screen;</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/css\">"
+      "@import url(assets/styles.css) not screen;</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/css\" media=\"not screen\">"
+      "@import url(assets/styles.css) not screen;</style>");
+  ValidateStyleUnchanged(
+      "<style media=\"not screen and (color), only print\">"
+      "@import url(assets/styles.css)"
+      " not screen and (color), only print;</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/css\" media=\"not screen\">"
+      "@import url(assets/styles.css) screen;</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/css\" media=\"screen and (x)\">"
+      "@import url(assets/styles.css) screen;</style>");
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, DoNotConvertBadStyle) {
@@ -357,27 +377,30 @@ TEST_F(CssInlineImportToLinkFilterTest, DoNotConvertBadStyle) {
   ValidateStyleUnchanged("<style>@import url (assets/styles.css);</style>");
   ValidateStyleUnchanged("<style>@ import url(assets/styles.css)</style>");
   ValidateStyleUnchanged("<style>*border: 0px</style>");
-  ValidateStyleUnchanged("<style>@charset \"ISO-8859-1\";\n"
-                         "@import \"mystyle.css\" all;</style>");
+  ValidateStyleUnchanged(
+      "<style>@charset \"ISO-8859-1\";\n"
+      "@import \"mystyle.css\" all;</style>");
   ValidateStyleUnchanged("<style><p/>@import url(assets/styles.css)</style>");
   ValidateStyleUnchanged("<style><![CDATA[@import url(assets/styles.css);]]\n");
-  ValidateStyleUnchanged("<style><![CDATA[\njunky junk junk!\n]]\\>\n"
-                         "@import url(assets/styles.css);</style>");
-  ValidateStyleUnchanged("<style><!-- comment -->"
-                         "@import url(assets/styles.css);</style>");
+  ValidateStyleUnchanged(
+      "<style><![CDATA[\njunky junk junk!\n]]\\>\n"
+      "@import url(assets/styles.css);</style>");
+  ValidateStyleUnchanged(
+      "<style><!-- comment -->"
+      "@import url(assets/styles.css);</style>");
   ValidateStyleUnchanged("<style href='x'>@import url(styles.css);</style>");
   ValidateStyleUnchanged("<style rel='x'>@import url(styles.css);</style>");
-  ValidateStyleUnchanged("<style type=\"text/javascript\">"
-                         "@import url(assets/styles.css);</style>");
+  ValidateStyleUnchanged(
+      "<style type=\"text/javascript\">"
+      "@import url(assets/styles.css);</style>");
   ValidateStyleUnchanged("<style>@import url(styles.css)<style/></style>");
 
   // These are fine to convert. These have errors, but only after valid
   // @import statements. Turning them into links is safe.
-  ValidateStyleToLink(
-      "<style>@import url(assets/styles.css);<p/</style>",
+  ValidateStyleToLink("<style>@import url(assets/styles.css);<p/</style>",
 
-      "<link rel=\"stylesheet\" href=\"assets/styles.css\">"
-      "<style><p/</style>");
+                      "<link rel=\"stylesheet\" href=\"assets/styles.css\">"
+                      "<style><p/</style>");
 
   ValidateStyleToLink(
       "<style>@import url(assets/styles.css);\n"
@@ -403,8 +426,7 @@ class CssInlineImportToLinkFilterTestNoTags
 TEST_F(CssInlineImportToLinkFilterTestNoTags, UnclosedStyleGetsConverted) {
   options()->EnableFilter(RewriteOptions::kInlineImportToLink);
   rewrite_driver()->AddFilters();
-  ValidateExpected("unclosed_style",
-                   "<style>@import url(assets/styles.css)",
+  ValidateExpected("unclosed_style", "<style>@import url(assets/styles.css)",
                    "<link rel=\"stylesheet\" href=\"assets/styles.css\">");
 }
 
@@ -415,11 +437,11 @@ TEST_F(CssInlineImportToLinkFilterTest, ConvertThenCacheExtend) {
   // Cache for 100s.
   SetResponseWithDefaultHeaders(kCssFile, kContentTypeCss, kCssData, 100);
 
-  ValidateExpected("script_to_link_then_cache_extend",
-                   StrCat("<style>@import url(", kCssFile, ");</style>"),
-                   StrCat("<link rel=\"stylesheet\" href=\"",
-                          Encode(kCssSubdir, "ce", "0", kCssTail, "css"),
-                          "\">"));
+  ValidateExpected(
+      "script_to_link_then_cache_extend",
+      StrCat("<style>@import url(", kCssFile, ");</style>"),
+      StrCat("<link rel=\"stylesheet\" href=\"",
+             Encode(kCssSubdir, "ce", "0", kCssTail, "css"), "\">"));
 }
 
 TEST_F(CssInlineImportToLinkFilterTest, DontConvertOrCacheExtend) {
@@ -430,11 +452,11 @@ TEST_F(CssInlineImportToLinkFilterTest, DontConvertOrCacheExtend) {
   SetResponseWithDefaultHeaders(kCssFile, kContentTypeCss, kCssData, 100);
 
   // Note: This @import is not converted because it is preceded by a @foobar.
-  const GoogleString kStyleElement = StrCat("<style>\n"
-                                            "@foobar ;\n"
-                                            "@import url(", kCssFile, ");\n",
-                                            "body { color: red; }\n",
-                                            "</style>");
+  const GoogleString kStyleElement = StrCat(
+      "<style>\n"
+      "@foobar ;\n"
+      "@import url(",
+      kCssFile, ");\n", "body { color: red; }\n", "</style>");
 
   ValidateNoChanges("dont_touch_script_but_cache_extend", kStyleElement);
 }

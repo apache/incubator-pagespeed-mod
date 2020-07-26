@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 
@@ -35,13 +34,12 @@ class WaitUrlAsyncFetcher::DelayedFetch {
  public:
   DelayedFetch(UrlAsyncFetcher* base_fetcher, const GoogleString& url,
                MessageHandler* handler, AsyncFetch* base_fetch)
-      : base_fetcher_(base_fetcher), url_(url), handler_(handler),
-        base_fetch_(base_fetch) {
-  }
+      : base_fetcher_(base_fetcher),
+        url_(url),
+        handler_(handler),
+        base_fetch_(base_fetch) {}
 
-  void FetchNow() {
-    base_fetcher_->Fetch(url_, handler_, base_fetch_);
-  }
+  void FetchNow() { base_fetcher_->Fetch(url_, handler_, base_fetch_); }
 
  private:
   UrlAsyncFetcher* base_fetcher_;

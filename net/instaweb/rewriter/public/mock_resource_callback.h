@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_MOCK_RESOURCE_CALLBACK_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_MOCK_RESOURCE_CALLBACK_H_
@@ -38,7 +37,7 @@ class MockResourceCallback : public Resource::AsyncCallback {
         done_(false),
         notify_(thread_system) {
     CHECK(thread_system);
-}
+  }
   ~MockResourceCallback() override;
 
   void Done(bool lock_failure, bool resource_ok) override {
@@ -50,9 +49,7 @@ class MockResourceCallback : public Resource::AsyncCallback {
 
   bool success() const { return success_; }
   bool done() const { return done_; }
-  void Wait() {
-    notify_.Wait();
-  }
+  void Wait() { notify_.Wait(); }
 
  private:
   bool success_;

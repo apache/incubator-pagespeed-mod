@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_TEST_BASE_H_
@@ -59,24 +58,24 @@ class SharedMemLockManagerTestBase : public testing::Test {
   std::unique_ptr<SharedMemTestEnv> test_env_;
   std::unique_ptr<AbstractSharedMem> shmem_runtime_;
   std::unique_ptr<ThreadSystem> thread_system_;
-  MockTimer timer_;   // Note: if we are running in a process-based environment
-                      // this object is not shared at all; therefore all time
-                      // advancement must be done in either parent or kid but
-                      // not both.
+  MockTimer timer_;  // Note: if we are running in a process-based environment
+                     // this object is not shared at all; therefore all time
+                     // advancement must be done in either parent or kid but
+                     // not both.
   MockMessageHandler handler_;
   MockScheduler scheduler_;
   MD5Hasher hasher_;
-  std::unique_ptr<SharedMemLockManager> root_lock_manager_;  // used for init only.
+  std::unique_ptr<SharedMemLockManager>
+      root_lock_manager_;  // used for init only.
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemLockManagerTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemLockManagerTestTemplate : public SharedMemLockManagerTestBase {
  public:
   SharedMemLockManagerTestTemplate()
-      : SharedMemLockManagerTestBase(new ConcreteTestEnv) {
-  }
+      : SharedMemLockManagerTestBase(new ConcreteTestEnv) {}
 };
 
 TYPED_TEST_SUITE_P(SharedMemLockManagerTestTemplate);
@@ -94,7 +93,7 @@ TYPED_TEST_P(SharedMemLockManagerTestTemplate, TestSteal) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(SharedMemLockManagerTestTemplate, TestBasic,
-                           TestDestructorUnlock, TestSteal);
+                            TestDestructorUnlock, TestSteal);
 
 }  // namespace net_instaweb
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_APACHE_APACHE_WRITER_H_
 #define PAGESPEED_APACHE_APACHE_WRITER_H_
@@ -65,9 +64,7 @@ class ApacheWriter : public Writer {
   // Removes 'Set-Cookie' and 'Set-Cookie2' from the response headers
   // once they are complete.  Default is false.
   // TODO(jefftk): Doesn't actually do anything, because of an old bug.
-  void set_strip_cookies(bool x) {
-    strip_cookies_ = x;
-  }
+  void set_strip_cookies(bool x) { strip_cookies_ = x; }
 
  private:
   request_rec* request_;

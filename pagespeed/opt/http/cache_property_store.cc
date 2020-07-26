@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/opt/http/cache_property_store.h"
 
@@ -41,16 +40,14 @@ namespace net_instaweb {
 const char CachePropertyStore::kPagePropertyCacheKeyPrefix[] = "prop_page/";
 
 CachePropertyStore::CachePropertyStore(const GoogleString& cache_key_prefix,
-                                       CacheInterface* cache,
-                                       Timer* timer,
+                                       CacheInterface* cache, Timer* timer,
                                        Statistics* stats,
                                        ThreadSystem* thread_system)
     : cache_key_prefix_(cache_key_prefix),
       default_cache_(cache),
       timer_(timer),
       stats_(stats),
-      thread_system_(thread_system) {
-}
+      thread_system_(thread_system) {}
 
 CachePropertyStore::~CachePropertyStore() {
   STLDeleteValues(&cohort_cache_map_);
@@ -60,31 +57,20 @@ namespace {
 
 class CachePropertyStoreGetCallback : public PropertyStoreGetCallback {
  public:
-  CachePropertyStoreGetCallback(
-      AbstractMutex* mutex,
-      PropertyPage* page,
-      bool is_cancellable,
-      BoolCallback* done,
-      Timer* timer)
-      : PropertyStoreGetCallback(
-          mutex, page, is_cancellable, done, timer) {
-  }
-  ~CachePropertyStoreGetCallback() override {
-  }
+  CachePropertyStoreGetCallback(AbstractMutex* mutex, PropertyPage* page,
+                                bool is_cancellable, BoolCallback* done,
+                                Timer* timer)
+      : PropertyStoreGetCallback(mutex, page, is_cancellable, done, timer) {}
+  ~CachePropertyStoreGetCallback() override {}
 
-  void SetStateInPropertyPage(
-      const PropertyCache::Cohort* cohort,
-      CacheInterface::KeyState state,
-      bool valid) {
+  void SetStateInPropertyPage(const PropertyCache::Cohort* cohort,
+                              CacheInterface::KeyState state, bool valid) {
     ScopedMutex lock(mutex());
     if (page() == nullptr) {
       return;
     }
     page()->log_record()->SetCacheStatusForCohortInfo(
-        page()->page_type(),
-        cohort->name(),
-        valid,
-        state);
+        page()->page_type(), cohort->name(), valid, state);
     page()->SetCacheState(cohort, state);
   }
 
@@ -100,14 +86,12 @@ class CachePropertyStoreGetCallback : public PropertyStoreGetCallback {
 class CachePropertyStoreCallbackCollector {
  public:
   CachePropertyStoreCallbackCollector(
-      CachePropertyStoreGetCallback* property_store_callback,
-      int num_pending,
+      CachePropertyStoreGetCallback* property_store_callback, int num_pending,
       AbstractMutex* mutex)
       : property_store_callback_(property_store_callback),
         pending_(num_pending),
         success_(false),
-        mutex_(mutex) {
-  }
+        mutex_(mutex) {}
 
   void Done(bool success) {
     {
@@ -141,8 +125,7 @@ class CachePropertyStoreCacheCallback : public CacheInterface::Callback {
       CachePropertyStoreCallbackCollector* callback_collector)
       : cohort_(cohort),
         property_store_callback_(property_store_callback),
-        callback_collector_(callback_collector) {
-  }
+        callback_collector_(callback_collector) {}
   ~CachePropertyStoreCacheCallback() override {}
 
   void Done(CacheInterface::KeyState state) override {
@@ -170,9 +153,9 @@ class CachePropertyStoreCacheCallback : public CacheInterface::Callback {
         } else {
           for (int i = 0; i < values.value_size(); ++i) {
             const PropertyValueProtobuf& pcache_value = values.value(i);
-            valid = property_store_callback_->
-                AddPropertyValueProtobufToPropertyPage(
-                    cohort_, pcache_value, min_write_timestamp_ms);
+            valid = property_store_callback_
+                        ->AddPropertyValueProtobufToPropertyPage(
+                            cohort_, pcache_value, min_write_timestamp_ms);
           }
         }
       }
@@ -193,55 +176,43 @@ class CachePropertyStoreCacheCallback : public CacheInterface::Callback {
 }  // namespace
 
 GoogleString CachePropertyStore::CacheKey(
-    const StringPiece& url,
-    const StringPiece& options_signature_hash,
+    const StringPiece& url, const StringPiece& options_signature_hash,
     const StringPiece& cache_key_suffix,
     const PropertyCache::Cohort* cohort) const {
-  return StrCat(
-      cache_key_prefix_,
-      url, "_",
-      options_signature_hash,
-      cache_key_suffix, "@",
-      cohort->name());
+  return StrCat(cache_key_prefix_, url, "_", options_signature_hash,
+                cache_key_suffix, "@", cohort->name());
 }
 
-void CachePropertyStore::Get(
-    const GoogleString& url,
-    const GoogleString& options_signature_hash,
-    const GoogleString& cache_key_suffix,
-    const PropertyCache::CohortVector& cohort_list,
-    PropertyPage* page,
-    BoolCallback* done,
-    AbstractPropertyStoreGetCallback** callback) {
+void CachePropertyStore::Get(const GoogleString& url,
+                             const GoogleString& options_signature_hash,
+                             const GoogleString& cache_key_suffix,
+                             const PropertyCache::CohortVector& cohort_list,
+                             PropertyPage* page, BoolCallback* done,
+                             AbstractPropertyStoreGetCallback** callback) {
   if (cohort_list.empty()) {
     *callback = nullptr;
     done->Run(true);
     return;
   }
   CachePropertyStoreGetCallback* property_store_get_callback =
-      new CachePropertyStoreGetCallback(
-          thread_system_->NewMutex(),
-          page,
-          enable_get_cancellation(),
-          done,
-          timer_);
+      new CachePropertyStoreGetCallback(thread_system_->NewMutex(), page,
+                                        enable_get_cancellation(), done,
+                                        timer_);
   *callback = property_store_get_callback;
   CachePropertyStoreCallbackCollector* collector =
-      new CachePropertyStoreCallbackCollector(
-          property_store_get_callback,
-          cohort_list.size(),
-          thread_system_->NewMutex());
+      new CachePropertyStoreCallbackCollector(property_store_get_callback,
+                                              cohort_list.size(),
+                                              thread_system_->NewMutex());
   for (int j = 0, n = cohort_list.size(); j < n; ++j) {
     const PropertyCache::Cohort* cohort = cohort_list[j];
     CohortCacheMap::iterator cohort_itr =
         cohort_cache_map_.find(cohort->name());
     CHECK(cohort_itr != cohort_cache_map_.end());
-    const GoogleString cache_key = CacheKey(
-        url, options_signature_hash, cache_key_suffix, cohort);
+    const GoogleString cache_key =
+        CacheKey(url, options_signature_hash, cache_key_suffix, cohort);
     cohort_itr->second->Get(
-        cache_key,
-        new CachePropertyStoreCacheCallback(
-            cohort, property_store_get_callback, collector));
+        cache_key, new CachePropertyStoreCacheCallback(
+                       cohort, property_store_get_callback, collector));
   }
 }
 
@@ -256,8 +227,8 @@ void CachePropertyStore::Put(const GoogleString& url,
   values->SerializeToZeroCopyStream(&sstream);
   CohortCacheMap::iterator cohort_itr = cohort_cache_map_.find(cohort->name());
   CHECK(cohort_itr != cohort_cache_map_.end());
-  const GoogleString cache_key = CacheKey(
-      url, options_signature_hash, cache_key_suffix, cohort);
+  const GoogleString cache_key =
+      CacheKey(url, options_signature_hash, cache_key_suffix, cohort);
   cohort_itr->second->PutSwappingString(cache_key, &value);
   if (done != nullptr) {
     done->Run(true);
@@ -268,26 +239,25 @@ void CachePropertyStore::AddCohort(const GoogleString& cohort) {
   AddCohortWithCache(cohort, default_cache_);
 }
 
-void CachePropertyStore::AddCohortWithCache(
-    const GoogleString& cohort, CacheInterface* cache) {
+void CachePropertyStore::AddCohortWithCache(const GoogleString& cohort,
+                                            CacheInterface* cache) {
   std::pair<CohortCacheMap::iterator, bool> insertions =
       cohort_cache_map_.insert(
-        make_pair(cohort, static_cast<CacheInterface*>(nullptr)));
+          make_pair(cohort, static_cast<CacheInterface*>(nullptr)));
   CHECK(insertions.second) << cohort << " is added twice.";
   // Create a new CacheStats for every cohort so that we can track cache
   // statistics independently for every cohort.
   CacheInterface* cache_stats = new CacheStats(
-        PropertyCache::GetStatsPrefix(cohort), cache, timer_, stats_);
+      PropertyCache::GetStatsPrefix(cohort), cache, timer_, stats_);
   insertions.first->second = cache_stats;
 }
 
 GoogleString CachePropertyStore::Name() const {
   GoogleString out;
   for (CohortCacheMap::const_iterator p = cohort_cache_map_.begin(),
-           e = cohort_cache_map_.end(); p != e; ++p) {
-    StrAppend(&out,
-              out.empty() ? "" : "\n",
-              p->first, ":", p->second->Name());
+                                      e = cohort_cache_map_.end();
+       p != e; ++p) {
+    StrAppend(&out, out.empty() ? "" : "\n", p->first, ":", p->second->Name());
   }
   return out;
 }
@@ -298,11 +268,8 @@ GoogleString CachePropertyStore::FormatName3(StringPiece cohort_name1,
                                              StringPiece cohort_cache2,
                                              StringPiece cohort_name3,
                                              StringPiece cohort_cache3) {
-  return StrCat(cohort_name1, ":", cohort_cache1,
-                "\n",
-                cohort_name2, ":", cohort_cache2,
-                "\n",
-                cohort_name3, ":", cohort_cache3);
+  return StrCat(cohort_name1, ":", cohort_cache1, "\n", cohort_name2, ":",
+                cohort_cache2, "\n", cohort_name3, ":", cohort_cache3);
 }
 
 }  // namespace net_instaweb

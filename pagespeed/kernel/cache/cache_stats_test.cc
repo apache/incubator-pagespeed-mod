@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,11 +22,9 @@
 // as well though they are not used yet in the test.  The intent is to make sure
 // the latency histogram looks sane.
 
-#include <memory>
-
-
-
 #include "pagespeed/kernel/cache/cache_stats.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -58,8 +56,8 @@ class CacheStatsTest : public testing::Test {
         timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
         stats_(thread_system_.get()) {
     CacheStats::InitStats("test", &stats_);
-    cache_stats_ = std::make_unique<CacheStats>("test", delay_cache_.get(), &timer_,
-                                      &stats_);
+    cache_stats_ = std::make_unique<CacheStats>("test", delay_cache_.get(),
+                                                &timer_, &stats_);
   }
 
   LRUCache lru_cache_;

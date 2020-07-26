@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,14 +18,15 @@
  */
 
 #include "pagespeed/controller/central_controller_callback.h"
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
+#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -50,8 +51,8 @@ class MockCentralControllerCallback
   MockCentralControllerCallback(Sequence* sequence, struct CallCounts* counts)
       : CentralControllerCallback<
             MockCallbackHandle>::CentralControllerCallback(sequence),
-        counts_(counts), steal_pointer_(false) {
-  }
+        counts_(counts),
+        steal_pointer_(false) {}
 
   ~MockCentralControllerCallback() override {}
 
@@ -89,9 +90,7 @@ class MockCallbackHandle {
     }
   }
 
-  void CallRun() {
-    callback_->CallRun();
-  }
+  void CallRun() { callback_->CallRun(); }
 
   void CallCancel() {
     counts_ = nullptr;

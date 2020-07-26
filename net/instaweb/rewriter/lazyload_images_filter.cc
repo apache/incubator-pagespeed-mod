@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/lazyload_images_filter.h"
 
@@ -65,8 +64,7 @@ LazyloadImagesFilter::LazyloadImagesFilter(RewriteDriver* driver)
     : CommonFilter(driver) {
   Clear();
   blank_image_url_ = GetBlankImageSrc(
-      driver->options(),
-      driver->server_context()->static_asset_manager());
+      driver->options(), driver->server_context()->static_asset_manager());
 }
 LazyloadImagesFilter::~LazyloadImagesFilter() {}
 
@@ -74,20 +72,16 @@ void LazyloadImagesFilter::DetermineEnabled(GoogleString* disabled_reason) {
   RewriterHtmlApplication::Status should_apply = ShouldApply(driver());
   set_is_enabled(should_apply == RewriterHtmlApplication::ACTIVE);
   driver()->log_record()->LogRewriterHtmlStatus(
-      RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-      should_apply);
+      RewriteOptions::FilterId(RewriteOptions::kLazyloadImages), should_apply);
 }
 
-void LazyloadImagesFilter::StartDocumentImpl() {
-  Clear();
-}
+void LazyloadImagesFilter::StartDocumentImpl() { Clear(); }
 
 void LazyloadImagesFilter::EndDocument() {
   // TODO(jmaessen): Fix filter to insert this script
   // conditionally.
   driver()->UpdatePropertyValueInDomCohort(
-      driver()->fallback_property_page(),
-      kIsLazyloadScriptInsertedPropertyName,
+      driver()->fallback_property_page(), kIsLazyloadScriptInsertedPropertyName,
       main_script_inserted_ ? "1" : "0");
 }
 
@@ -152,16 +146,15 @@ void LazyloadImagesFilter::StartElementImpl(HtmlElement* element) {
     }
     // Check if lazyloading is enabled for the given class name. If not,
     // skip rewriting all images till we reach the end of this element.
-    HtmlElement::Attribute* class_attribute = element->FindAttribute(
-        HtmlName::kClass);
+    HtmlElement::Attribute* class_attribute =
+        element->FindAttribute(HtmlName::kClass);
     if (class_attribute != nullptr) {
       StringPiece class_value(class_attribute->DecodedValueOrNull());
       if (!class_value.empty()) {
         GoogleString class_string;
         class_value.CopyToString(&class_string);
         LowerString(&class_string);
-        if (!driver()->options()->IsLazyloadEnabledForClassName(
-            class_string)) {
+        if (!driver()->options()->IsLazyloadEnabledForClassName(class_string)) {
           skip_rewrite_ = element;
           return;
         }
@@ -201,8 +194,8 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
       // script to load all previously rewritten images.
       HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
       driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
-      HtmlNode* script_code = driver()->NewCharactersNode(
-          script, kLoadAllImages);
+      HtmlNode* script_code =
+          driver()->NewCharactersNode(script, kLoadAllImages);
       driver()->InsertNodeAfterNode(element, script);
       driver()->AppendChild(script, script_code);
       abort_script_inserted_ = true;
@@ -292,8 +285,7 @@ void LazyloadImagesFilter::EndElementImpl(HtmlElement* element) {
   // Replace the src with data-pagespeed-lazy-src.
   driver()->SetAttributeName(src, HtmlName::kDataPagespeedLazySrc);
   // Rename srcset -> data-pagespeed-high-res-srcset
-  HtmlElement::Attribute* srcset =
-      element->FindAttribute(HtmlName::kSrcset);
+  HtmlElement::Attribute* srcset = element->FindAttribute(HtmlName::kSrcset);
   if (srcset != nullptr) {
     driver()->SetAttributeName(srcset, HtmlName::kDataPagespeedLazySrcset);
   }
@@ -337,8 +329,8 @@ void LazyloadImagesFilter::InsertLazyloadJsCode(HtmlElement* element) {
     }
     StaticAssetManager* static_asset_manager =
         driver()->server_context()->static_asset_manager();
-    GoogleString lazyload_js = GetLazyloadJsSnippet(
-        driver()->options(), static_asset_manager);
+    GoogleString lazyload_js =
+        GetLazyloadJsSnippet(driver()->options(), static_asset_manager);
     AddJsToElement(lazyload_js, script);
     driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                            StringPiece());
@@ -353,8 +345,8 @@ void LazyloadImagesFilter::InsertOverrideAttributesScript(
     driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
     driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                            StringPiece());
-    HtmlNode* script_code = driver()->NewCharactersNode(
-        script, kOverrideAttributeFunctions);
+    HtmlNode* script_code =
+        driver()->NewCharactersNode(script, kOverrideAttributeFunctions);
     if (is_before_script) {
       driver()->InsertNodeBeforeNode(element, script);
     } else {
@@ -378,18 +370,16 @@ GoogleString LazyloadImagesFilter::GetBlankImageSrc(
 }
 
 GoogleString LazyloadImagesFilter::GetLazyloadJsSnippet(
-    const RewriteOptions* options,
-    StaticAssetManager* static_asset_manager) {
+    const RewriteOptions* options, StaticAssetManager* static_asset_manager) {
   const GoogleString& load_onload =
       options->lazyload_images_after_onload() ? kTrue : kFalse;
-  StringPiece lazyload_images_js =
-      static_asset_manager->GetAsset(
-          StaticAssetEnum::LAZYLOAD_IMAGES_JS, options);
+  StringPiece lazyload_images_js = static_asset_manager->GetAsset(
+      StaticAssetEnum::LAZYLOAD_IMAGES_JS, options);
   const GoogleString& blank_image_url =
       GetBlankImageSrc(options, static_asset_manager);
   GoogleString lazyload_js =
-      StrCat(lazyload_images_js, "\npagespeed.lazyLoadInit(",
-             load_onload, ", \"", blank_image_url, "\");\n");
+      StrCat(lazyload_images_js, "\npagespeed.lazyLoadInit(", load_onload,
+             ", \"", blank_image_url, "\");\n");
   return lazyload_js;
 }
 

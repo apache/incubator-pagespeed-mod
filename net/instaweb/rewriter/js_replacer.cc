@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-
 
 #include "net/instaweb/rewriter/public/js_replacer.h"
 
@@ -154,9 +152,9 @@ bool JsReplacer::Transform(StringPiece in, GoogleString* out) {
   }
 }
 
-bool JsReplacer::HandleCandidate(
-    const GoogleString& object, const GoogleString& field,
-    StringPiece value, GoogleString* out) {
+bool JsReplacer::HandleCandidate(const GoogleString& object,
+                                 const GoogleString& field, StringPiece value,
+                                 GoogleString* out) {
   // Note that the token still has the quotes; we strip them before invoking
   // the callback and then restore them when serializing.
   CHECK_GE(value.length(), 2) << value;

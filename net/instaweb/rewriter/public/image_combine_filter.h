@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_COMBINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_COMBINE_FILTER_H_
@@ -75,12 +74,9 @@ class ImageCombineFilter : public RewriteFilter {
   // * original_url is not on an authorized domain.
   // * There is already a slot for original_url.
   bool AddCssBackgroundContext(const GoogleUrl& original_url,
-                               const GoogleUrl& base_url,
-                               Css::Values* values,
-                               int value_index,
-                               CssFilter::Context* parent,
-                               Css::Declarations* decls,
-                               bool* is_authorized,
+                               const GoogleUrl& base_url, Css::Values* values,
+                               int value_index, CssFilter::Context* parent,
+                               Css::Declarations* decls, bool* is_authorized,
                                MessageHandler* handler);
 
   // Create the combination with the current combiner.
@@ -111,8 +107,8 @@ class ImageCombineFilter : public RewriteFilter {
   RewriteContext* MakeRewriteContext() override;
   Context* MakeNestedContext(RewriteContext* parent, const GoogleUrl& css_url,
                              const StringPiece& css_text);
-  bool GetDeclarationDimensions(Css::Declarations* declarations,
-                                int* width, int* height);
+  bool GetDeclarationDimensions(Css::Declarations* declarations, int* width,
+                                int* height);
   void AddFilesReducedStat(int reduced);
 
   Variable* image_file_count_reduction_;

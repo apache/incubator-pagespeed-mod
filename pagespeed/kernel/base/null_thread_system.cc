@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/null_thread_system.h"
 
@@ -50,9 +49,7 @@ class NullRWLock : public ThreadSystem::RWLock {
 class NullThreadId : public ThreadSystem::ThreadId {
  public:
   explicit NullThreadId(const NullThreadSystem* system)
-      : id_(system->current_thread()),
-        system_(system) {
-  }
+      : id_(system->current_thread()), system_(system) {}
 
   ~NullThreadId() override {}
 
@@ -73,22 +70,17 @@ class NullThreadId : public ThreadSystem::ThreadId {
 
 }  // namespace
 
-NullCondvarCapableMutex::~NullCondvarCapableMutex() {
-}
+NullCondvarCapableMutex::~NullCondvarCapableMutex() {}
 
-NullRWLock::~NullRWLock() {
-}
+NullRWLock::~NullRWLock() {}
 
-NullThreadSystem::~NullThreadSystem() {
-}
+NullThreadSystem::~NullThreadSystem() {}
 
 NullCondvarCapableMutex* NullThreadSystem::NewMutex() {
   return new NullCondvarCapableMutex();
 }
 
-ThreadSystem::RWLock* NullThreadSystem::NewRWLock() {
-  return new NullRWLock;
-}
+ThreadSystem::RWLock* NullThreadSystem::NewRWLock() { return new NullRWLock; }
 
 Timer* NullThreadSystem::NewTimer() {
   // TODO(jmarantz): consider removing the responsibility of creating timers

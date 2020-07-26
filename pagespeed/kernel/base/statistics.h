@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_STATISTICS_H_
 #define PAGESPEED_KERNEL_BASE_STATISTICS_H_
@@ -205,9 +204,7 @@ class Histogram {
     ScopedMutex hold(lock());
     return MinimumInternal();
   }
-  double Median() {
-    return Percentile(50);
-  }
+  double Median() { return Percentile(50); }
 
   // Formats the histogram statistics as an HTML table row.  This
   // is intended for use in Statistics::RenderHistograms.
@@ -222,9 +219,7 @@ class Histogram {
   // [0, NumBuckets()+1].
   virtual double BucketStart(int index) = 0;
   // Upper bound of a bucket.
-  virtual double BucketLimit(int index) {
-    return BucketStart(index + 1);
-  }
+  virtual double BucketLimit(int index) { return BucketStart(index + 1); }
   // Value of a bucket.
   virtual double BucketCount(int index) = 0;
 
@@ -268,10 +263,10 @@ class CountHistogram : public Histogram {
     count_ = 0;
   }
   int NumBuckets() override { return 0; }
-  void EnableNegativeBuckets() override { }
-  void SetMinValue(double value) override { }
-  void SetMaxValue(double value) override { }
-  void SetSuggestedNumBuckets(int i) override { }
+  void EnableNegativeBuckets() override {}
+  void SetMinValue(double value) override {}
+  void SetMaxValue(double value) override {}
+  void SetSuggestedNumBuckets(int i) override {}
   virtual GoogleString GetName() const { return ""; }
 
  protected:
@@ -317,9 +312,7 @@ class FakeTimedVariable : public TimedVariable {
   FakeTimedVariable(StringPiece name, Statistics* stats);
   ~FakeTimedVariable() override;
   // Update the stat value. delta is in milliseconds.
-  void IncBy(int64 delta) override {
-    var_->Add(delta);
-  }
+  void IncBy(int64 delta) override { var_->Add(delta); }
   // Get the amount added over the last time interval
   // specified by "level".
   int64 Get(int level) override {
@@ -332,9 +325,7 @@ class FakeTimedVariable : public TimedVariable {
     return 0;
   }
   // Throw away all data.
-  void Clear() override {
-    return var_->Clear();
-  }
+  void Clear() override { return var_->Clear(); }
 
  protected:
   Variable* var_;
@@ -384,7 +375,6 @@ class Statistics {
     return var;
   }
 
-
   // Add a new histogram, or returns an existing one of that name.
   // The Histogram* is owned by the Statistics class -- it should not
   // be deleted by the caller.
@@ -402,14 +392,12 @@ class Statistics {
   // The TimedVariable* is owned by the Statistics class -- it should
   // not be deleted by the caller. Each stat belongs to a group, such as
   // "Statistics", "Disk Statistics", etc.
-  virtual TimedVariable* AddTimedVariable(
-      const StringPiece& name, const StringPiece& group) = 0;
+  virtual TimedVariable* AddTimedVariable(const StringPiece& name,
+                                          const StringPiece& group) = 0;
   // Find a TimedVariable from a name, returning NULL if not found.
-  virtual TimedVariable* FindTimedVariable(
-      const StringPiece& name) const = 0;
+  virtual TimedVariable* FindTimedVariable(const StringPiece& name) const = 0;
   // Find a TimedVariable from a name, aborting if not found.
-  TimedVariable* GetTimedVariable(
-      const StringPiece& name) const {
+  TimedVariable* GetTimedVariable(const StringPiece& name) const {
     TimedVariable* stat = FindTimedVariable(name);
     CHECK(stat != NULL) << "TimedVariable not found: " << name;
     return stat;
@@ -422,8 +410,7 @@ class Statistics {
   virtual void Dump(Writer* writer, MessageHandler* handler) = 0;
   // Dump the variable-values in JSON format to a writer.
   virtual void DumpJson(Writer* writer, MessageHandler* message_handler) = 0;
-  virtual void RenderTimedVariables(Writer* writer,
-                                    MessageHandler* handler);
+  virtual void RenderTimedVariables(Writer* writer, MessageHandler* handler);
   // Write all the histograms in this Statistic object to a writer.
   virtual void RenderHistograms(Writer* writer, MessageHandler* handler);
   // Set all variables to 0.

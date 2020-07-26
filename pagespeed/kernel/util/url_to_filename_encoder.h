@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -89,11 +89,9 @@ class UrlToFilenameEncoder {
   // escaped characters (like %21 for !).
   // |dir_separator| is "/" on Unix, "\" on Windows.
   // |encoded_filename| is the resultant filename.
-  static void EncodeSegment(
-      const StringPiece& filename_prefix,
-      const StringPiece& escaped_ending,
-      char dir_separator,
-      GoogleString* encoded_filename);
+  static void EncodeSegment(const StringPiece& filename_prefix,
+                            const StringPiece& escaped_ending,
+                            char dir_separator, GoogleString* encoded_filename);
 
   // Decodes a filename that was encoded with EncodeSegment with
   // dir_separator = '/', yielding back the original URL.
@@ -103,7 +101,6 @@ class UrlToFilenameEncoder {
   // into account a prefix.
   static bool Decode(const StringPiece& encoded_filename,
                      GoogleString* decoded_url);
-
 
   static const char kEscapeChar;
   static const char kTruncationChar;
@@ -119,9 +116,7 @@ class UrlToFilenameEncoder {
   // it can be used in the next iteration.
   // |segment| is a read/write parameter containing segment to write
   // Note: this should not be called with empty segment.
-  static void AppendSegment(
-      GoogleString* segment,
-      GoogleString* dest);
+  static void AppendSegment(GoogleString* segment, GoogleString* dest);
 };
 
 }  // namespace net_instaweb

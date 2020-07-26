@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_PIXEL_FORMAT_OPTIMIZER_H_
 #define PAGESPEED_KERNEL_IMAGE_PIXEL_FORMAT_OPTIMIZER_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -59,40 +59,28 @@ class PixelFormatOptimizer : public ScanlineReaderInterface {
   bool Reset() override;
 
   // Returns number of bytes required to store a scanline.
-  size_t GetBytesPerScanline() override {
-    return bytes_per_row_;
-  }
+  size_t GetBytesPerScanline() override { return bytes_per_row_; }
 
   // Returns true if there are more scanlines to read. Returns false if the
   // object has not been initialized or all of the scanlines have been read.
-  bool HasMoreScanLines() override {
-    return (output_row_ < GetImageHeight());
-  }
+  bool HasMoreScanLines() override { return (output_row_ < GetImageHeight()); }
 
   // Returns the height of the image.
-  size_t GetImageHeight() override {
-    return reader_->GetImageHeight();
-  }
+  size_t GetImageHeight() override { return reader_->GetImageHeight(); }
 
   // Returns the width of the image.
-  size_t GetImageWidth() override {
-    return reader_->GetImageWidth();
-  }
+  size_t GetImageWidth() override { return reader_->GetImageWidth(); }
 
   // Returns the pixel format of the image.
-  PixelFormat GetPixelFormat() override {
-    return pixel_format_;
-  }
+  PixelFormat GetPixelFormat() override { return pixel_format_; }
 
   // Returns true if the image is encoded in progressive / interlacing format.
-  bool IsProgressive() override {
-    return reader_->IsProgressive();
-  }
+  bool IsProgressive() override { return reader_->IsProgressive(); }
 
   // This method should not be called. If it does get called, in DEBUG mode it
   // will throw a FATAL error and in RELEASE mode it does nothing.
   ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length) override;
+                                      size_t buffer_length) override;
 
  private:
   std::unique_ptr<ScanlineReaderInterface> reader_;

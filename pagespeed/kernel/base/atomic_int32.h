@@ -20,10 +20,10 @@
 #ifndef PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_
 #define PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_
 
+#include <atomic>
+
 #include "pagespeed/kernel/base/atomicops.h"
 #include "pagespeed/kernel/base/basictypes.h"
-
-#include <atomic>
 
 namespace net_instaweb {
 
@@ -74,16 +74,20 @@ namespace net_instaweb {
 // (increment, CompareAndSwap) occur as atomic actions.
 
 class AtomicInt32 {
-public:
+ public:
   explicit AtomicInt32(int32 value) { set_value(value); }
   AtomicInt32() { set_value(0); }
   ~AtomicInt32() {}
 
   // Return the value currently stored.  Has acquire semantics (see above).
-  int32 value() const { return value_.load(std::memory_order::memory_order_acquire); }
+  int32 value() const {
+    return value_.load(std::memory_order::memory_order_acquire);
+  }
 
   // Store value.  Has release semantics (see above).
-  void set_value(int32 value) { value_.store(value, std::memory_order_release); }
+  void set_value(int32 value) {
+    value_.store(value, std::memory_order_release);
+  }
 
   // Atomically add an amount to the value currently stored, return the new
   // value. Has *no ordering semantics* with respect to operations on other
@@ -94,7 +98,9 @@ public:
 
   // Atomically add an amount to the value stored, return the new value.
   // Provides a full barrier --- both acquire and release.
-  int32 BarrierIncrement(int32 amount) { return amount + value_.fetch_add(amount); }
+  int32 BarrierIncrement(int32 amount) {
+    return amount + value_.fetch_add(amount);
+  }
 
   // Atomic compare and swap.  If current value == expected_value, atomically
   // replace it with new_value.  Return the original value regardless of whether
@@ -107,16 +113,17 @@ public:
   // semantics, use the value() method and validate its result when you
   // CompareAndSwap.
   int32 CompareAndSwap(int32 expected_value, int32 new_value) {
-    value_.compare_exchange_strong(expected_value, new_value, std::memory_order_release,
-                                          std::memory_order_relaxed);
+    value_.compare_exchange_strong(expected_value, new_value,
+                                   std::memory_order_release,
+                                   std::memory_order_relaxed);
     return expected_value;
   }
 
-private:
+ private:
   std::atomic<int32> value_;
   DISALLOW_COPY_AND_ASSIGN(AtomicInt32);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb
 
-#endif // PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_
+#endif  // PAGESPEED_KERNEL_BASE_ATOMIC_INT32_H_

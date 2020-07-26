@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,16 +53,11 @@ int DelayMs() { return (WaitMs() + StealMs()) / 2; }  // 1500ms or 150ms.
 
 namespace net_instaweb {
 
-LockManagerSpammer::LockManagerSpammer(Scheduler* scheduler,
-                                       ThreadSystem::ThreadFlags flags,
-                                       const StringVector& lock_names,
-                                       ThreadSafeLockManager* lock_manager,
-                                       bool expecting_denials,
-                                       bool delay_unlocks,
-                                       int index,
-                                       int num_iters,
-                                       int num_names,
-                                       CountDown* pending_threads)
+LockManagerSpammer::LockManagerSpammer(
+    Scheduler* scheduler, ThreadSystem::ThreadFlags flags,
+    const StringVector& lock_names, ThreadSafeLockManager* lock_manager,
+    bool expecting_denials, bool delay_unlocks, int index, int num_iters,
+    int num_names, CountDown* pending_threads)
     : Thread(scheduler->thread_system(), "lock_manager_spammer", flags),
       scheduler_(scheduler),
       lock_names_(lock_names),
@@ -76,20 +71,15 @@ LockManagerSpammer::LockManagerSpammer(Scheduler* scheduler,
       condvar_(mutex_->NewCondvar()),
       grants_(0),
       denials_(0),
-      pending_threads_(pending_threads) {
-}
+      pending_threads_(pending_threads) {}
 
-LockManagerSpammer::~LockManagerSpammer() {
-}
+LockManagerSpammer::~LockManagerSpammer() {}
 
 LockManagerSpammer::CountDown::CountDown(Scheduler* scheduler,
                                          int initial_value)
-    : scheduler_(scheduler),
-      value_(initial_value) {
-}
+    : scheduler_(scheduler), value_(initial_value) {}
 
-LockManagerSpammer::CountDown::~CountDown() {
-}
+LockManagerSpammer::CountDown::~CountDown() {}
 
 void LockManagerSpammer::CountDown::RunAlarmsTillThreadsComplete() {
   ScopedMutex lock(scheduler_->mutex());
@@ -107,11 +97,8 @@ void LockManagerSpammer::CountDown::Decrement() {
   }
 }
 
-void LockManagerSpammer::RunTests(int num_threads,
-                                  int num_iters,
-                                  int num_names,
-                                  bool expecting_denials,
-                                  bool delay_unlocks,
+void LockManagerSpammer::RunTests(int num_threads, int num_iters, int num_names,
+                                  bool expecting_denials, bool delay_unlocks,
                                   ThreadSafeLockManager* lock_manager,
                                   Scheduler* scheduler) {
   std::vector<LockManagerSpammer*> spammers(num_threads);
@@ -120,17 +107,15 @@ void LockManagerSpammer::RunTests(int num_threads,
   StringVector lock_names;
   const char name_pattern[] = "name%d";
   for (int i = 0; i < num_names; ++i) {
-    lock_names.push_back (absl::StrFormat(name_pattern, i));
+    lock_names.push_back(absl::StrFormat(name_pattern, i));
   }
 
   // First, create all the threads.
   for (int i = 0; i < num_threads; ++i) {
-    spammers[i] = new LockManagerSpammer(
-        scheduler, ThreadSystem::kJoinable, lock_names,
-        lock_manager,
-        expecting_denials, delay_unlocks, i, num_iters,
-        num_names,
-        &pending_threads);
+    spammers[i] =
+        new LockManagerSpammer(scheduler, ThreadSystem::kJoinable, lock_names,
+                               lock_manager, expecting_denials, delay_unlocks,
+                               i, num_iters, num_names, &pending_threads);
   }
 
   // Then, start them.
@@ -155,9 +140,8 @@ void LockManagerSpammer::Run() {
   for (int i = 0; i < num_iters_; ++i) {
     for (int j = 0; j < num_names_; ++j) {
       NamedLock* lock = lock_manager_->CreateNamedLock(lock_names_[j]);
-      Function* callback = MakeFunction(
-          this, &LockManagerSpammer::Granted, &LockManagerSpammer::Denied,
-          lock);
+      Function* callback = MakeFunction(this, &LockManagerSpammer::Granted,
+                                        &LockManagerSpammer::Denied, lock);
       lock->LockTimedWaitStealOld(WaitMs(), StealMs(), callback);
       locks.push_back(lock);
     }
@@ -191,10 +175,10 @@ void LockManagerSpammer::Granted(NamedLock* lock) {
   if (delay_unlocks_) {
     // Schedule the unlocking for some future point in time that's
     // beyond the steal-time but smaller than the wait time.
-    int64 wakeup_time_us = scheduler_->timer()->NowUs() +
-        DelayMs() * Timer::kMsUs;
-    Function* callback = MakeFunction(
-        this, &LockManagerSpammer::UnlockAfterGrant, lock);
+    int64 wakeup_time_us =
+        scheduler_->timer()->NowUs() + DelayMs() * Timer::kMsUs;
+    Function* callback =
+        MakeFunction(this, &LockManagerSpammer::UnlockAfterGrant, lock);
     scheduler_->AddAlarmAtUs(wakeup_time_us, callback);
   } else {
     lock->Unlock();

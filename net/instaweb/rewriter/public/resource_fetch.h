@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -46,30 +46,23 @@ class Timer;
 class ResourceFetch : public SharedAsyncFetch {
  public:
   // For StartWithDriver().
-  enum CleanupMode {
-    kAutoCleanupDriver,
-    kDontAutoCleanupDriver
-  };
+  enum CleanupMode { kAutoCleanupDriver, kDontAutoCleanupDriver };
 
   // Start an async fetch for pagespeed resource. Response will be streamed
   // to async_fetch.
   //
   // If custom_options it not NULL, takes ownership of it and and can mutate it.
-  static void Start(const GoogleUrl& url,
-                    RewriteOptions* custom_options,
-                    ServerContext* server_context,
-                    AsyncFetch* async_fetch);
+  static void Start(const GoogleUrl& url, RewriteOptions* custom_options,
+                    ServerContext* server_context, AsyncFetch* async_fetch);
 
   // Same as Start(), but takes the RewriteDriver to use.
   // cleanup_mode determines whether ResourceFetch will call Cleanup()
   // on the driver itself. If it's set to kAutoCleanupDriver, the driver should
   // not be used by the caller after this call. Otherwise, it may be used by
   // the caller, but it's responsible for calling Cleanup() once done with it.
-  static void StartWithDriver(const GoogleUrl& url,
-                              CleanupMode cleanup_mode,
+  static void StartWithDriver(const GoogleUrl& url, CleanupMode cleanup_mode,
                               ServerContext* server_context,
-                              RewriteDriver* driver,
-                              AsyncFetch* async_fetch);
+                              RewriteDriver* driver, AsyncFetch* async_fetch);
 
   // Fetch a pagespeed resource in a blocking fashion. Response will be
   // streamed back to async_fetch, but this function will not return until
@@ -81,8 +74,7 @@ class ResourceFetch : public SharedAsyncFetch {
   //
   // Returns true iff the fetch succeeded and thus response headers and
   // contents were sent to async_fetch.
-  static bool BlockingFetch(const GoogleUrl& url,
-                            ServerContext* server_context,
+  static bool BlockingFetch(const GoogleUrl& url, ServerContext* server_context,
                             RewriteDriver* driver,
                             SyncFetcherAdapterCallback* async_fetch);
 
@@ -105,8 +97,8 @@ class ResourceFetch : public SharedAsyncFetch {
 
  private:
   ResourceFetch(const GoogleUrl& url, CleanupMode cleanup_mode,
-                RewriteDriver* driver, Timer* timer,
-                MessageHandler* handler, AsyncFetch* async_fetch);
+                RewriteDriver* driver, Timer* timer, MessageHandler* handler,
+                AsyncFetch* async_fetch);
   ~ResourceFetch() override;
 
   // If we're running an experiment and the url specifies an experiment spec,

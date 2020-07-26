@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,9 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/queued_alarm.h"
 
+#include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
@@ -27,14 +27,10 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/sequence.h"
 
-#include "base/logging.h"
-
 namespace net_instaweb {
 
-QueuedAlarm::QueuedAlarm(Scheduler* scheduler,
-                         Sequence* sequence,
-                         int64 wakeup_time_us,
-                         Function* callback)
+QueuedAlarm::QueuedAlarm(Scheduler* scheduler, Sequence* sequence,
+                         int64 wakeup_time_us, Function* callback)
     : mutex_(scheduler->thread_system()->NewMutex()),
       scheduler_(scheduler),
       sequence_(sequence),
@@ -68,7 +64,7 @@ void QueuedAlarm::CancelAlarm() {
   ScopedMutex hold_scheduler_mutex(scheduler_->mutex());
   if (scheduler_->CancelAlarm(alarm_)) {
     // Everything canceled nice and clean, so we can go home.
-    hold_our_mutex.Release();  // before deleting self
+    hold_our_mutex.Release();        // before deleting self
     hold_scheduler_mutex.Release();  // so we don't hold it during CallCancel
     delete this;
   } else {
@@ -87,8 +83,7 @@ void QueuedAlarm::Run() {
     delete this;
   } else {
     queued_sequence_portion_ = true;
-    sequence_->Add(MakeFunction(this,
-                                &QueuedAlarm::SequencePortionOfRun,
+    sequence_->Add(MakeFunction(this, &QueuedAlarm::SequencePortionOfRun,
                                 &QueuedAlarm::SequencePortionOfRunCancelled));
   }
 }

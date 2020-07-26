@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/opt/http/property_store.h"
 
@@ -34,24 +33,20 @@ Histogram* fast_finish_lookup_latency_ms_ = nullptr;
 
 }  // namespace
 
-PropertyStore::PropertyStore()
-    : enable_get_cancellation_(false) {
-}
+PropertyStore::PropertyStore() : enable_get_cancellation_(false) {}
 
-PropertyStore::~PropertyStore() {
-}
+PropertyStore::~PropertyStore() {}
 
 void PropertyStoreGetCallback::InitStats(Statistics* statistics) {
   fast_finish_lookup_latency_ms_ =
       statistics->AddHistogram("PropertyStoreLatencyAfterFastFinishCalledMs");
 }
 
-PropertyStoreGetCallback::PropertyStoreGetCallback(
-    AbstractMutex* mutex,
-    PropertyPage* page,
-    bool is_cancellable,
-    BoolCallback* done,
-    Timer* timer)
+PropertyStoreGetCallback::PropertyStoreGetCallback(AbstractMutex* mutex,
+                                                   PropertyPage* page,
+                                                   bool is_cancellable,
+                                                   BoolCallback* done,
+                                                   Timer* timer)
     : mutex_(mutex),
       page_(page),
       is_cancellable_(is_cancellable),
@@ -59,11 +54,9 @@ PropertyStoreGetCallback::PropertyStoreGetCallback(
       delete_when_done_(false),
       done_called_(false),
       timer_(timer),
-      fast_finish_time_ms_(0) {
-}
+      fast_finish_time_ms_(0) {}
 
-PropertyStoreGetCallback::~PropertyStoreGetCallback() {
-}
+PropertyStoreGetCallback::~PropertyStoreGetCallback() {}
 
 void PropertyStoreGetCallback::FastFinishLookup() {
   if (!is_cancellable_) {
@@ -138,9 +131,8 @@ void PropertyStoreGetCallback::DeleteWhenDone() {
 }
 
 bool PropertyStoreGetCallback::AddPropertyValueProtobufToPropertyPage(
-      const PropertyCache::Cohort* cohort,
-      const PropertyValueProtobuf& pcache_value,
-      int64 min_write_timestamp_ms) {
+    const PropertyCache::Cohort* cohort,
+    const PropertyValueProtobuf& pcache_value, int64 min_write_timestamp_ms) {
   ScopedMutex lock(mutex());
   if (page() == nullptr || !page()->IsCacheValid(min_write_timestamp_ms)) {
     return false;

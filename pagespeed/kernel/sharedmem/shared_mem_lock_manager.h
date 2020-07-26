@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_H_
@@ -54,9 +53,9 @@ class SharedMemLockManager : public NamedLockManager {
   // child processes to finish the initialization.
   //
   // Locks created by this object must not live after it dies.
-  SharedMemLockManager(
-      AbstractSharedMem* shm, const GoogleString& path, Scheduler* scheduler,
-      Hasher* hasher, MessageHandler* handler);
+  SharedMemLockManager(AbstractSharedMem* shm, const GoogleString& path,
+                       Scheduler* scheduler, Hasher* hasher,
+                       MessageHandler* handler);
   ~SharedMemLockManager() override;
 
   // Sets up our shared state for use of all child processes. Returns

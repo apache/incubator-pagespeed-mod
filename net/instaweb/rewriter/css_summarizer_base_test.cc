@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_summarizer_base.h"
 
@@ -62,7 +61,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
   }
 
   void Summarize(Css::Stylesheet* stylesheet,
-                         GoogleString* out) const override {
+                 GoogleString* out) const override {
     StringWriter write_out(out);
     CssMinify::Stylesheet(*stylesheet, &write_out, driver()->message_handler());
     if (out->length() > 10) {
@@ -87,10 +86,9 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     }
   }
 
-  void RenderSummary(int pos,
-                             HtmlElement* element,
-                             HtmlCharactersNode* char_node,
-                             bool* is_element_deleted) override {
+  void RenderSummary(int pos, HtmlElement* element,
+                     HtmlCharactersNode* char_node,
+                     bool* is_element_deleted) override {
     if (!render_summaries_in_place_) {
       return;
     }
@@ -102,7 +100,8 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     } else {
       // Replace link with style. Note: real one should also keep media,
       // test code does not have to.
-      HtmlElement* style_element = driver()->NewElement(nullptr, HtmlName::kStyle);
+      HtmlElement* style_element =
+          driver()->NewElement(nullptr, HtmlName::kStyle);
       driver()->InsertNodeBeforeNode(element, style_element);
 
       HtmlCharactersNode* content =
@@ -113,8 +112,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     }
   }
 
-  void WillNotRenderSummary(int pos,
-                            HtmlElement* element,
+  void WillNotRenderSummary(int pos, HtmlElement* element,
                             HtmlCharactersNode* char_node) override {
     // Note that these should not normally mutate the DOM, we only
     // get away with this because the tests we use this in don't really do
@@ -137,8 +135,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
       StrAppend(&result_, EncodeState(sum.state), "/", sum.data,
                 (sum.is_inside_noscript ? "/noscr" : ""),
                 (sum.rel.empty() ? "" : StrCat("/rel=", sum.rel)),
-                (include_base_ ? StrCat("/base=", sum.base) : ""),
-                "|");
+                (include_base_ ? StrCat("/base=", sum.base) : ""), "|");
     }
     InsertNodeAtBodyEnd(driver()->NewCommentNode(nullptr, result_));
   }
@@ -146,9 +143,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
   const GoogleString& result() { return result_; }
 
   // Whether we should note the RenderSummary calls in place.
-  void set_render_summaries_in_place(bool x) {
-    render_summaries_in_place_ = x;
-  }
+  void set_render_summaries_in_place(bool x) { render_summaries_in_place_ = x; }
 
   // Whether we should note the WillNotRenderSummary calls in place.
   void set_will_not_render_summaries_in_place(bool x) {
@@ -156,9 +151,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
   }
 
   // Whether we should include the base URL in the output string we compute.
-  void set_include_base(bool x) {
-    include_base_ = x;
-  }
+  void set_include_base(bool x) { include_base_ = x; }
 
  private:
   GoogleString result_;
@@ -170,15 +163,14 @@ class MinifyExcerptFilter : public CssSummarizerBase {
 class CssSummarizerBaseTest : public RewriteTestBase {
  public:
   CssSummarizerBaseTest()
-      : head_(StrCat("<html>\n",
-                     "<style>* {display: none; }</style>",
+      : head_(StrCat("<html>\n", "<style>* {display: none; }</style>",
                      CssLinkHref("a.css"),  // ok
                      CssLinkHref("b.css"),  // parse error
                      CssLinkHref("c.css"),  // parse error due to bad URL
                      CssLinkHref("close_style_tag.css"),  // closing style tag
-                     CssLinkHref("404.css"),  // fetch error
-                     CssLinkHref("http://evil.com/d.css"))) { }
-  ~CssSummarizerBaseTest() override { }
+                     CssLinkHref("404.css"),              // fetch error
+                     CssLinkHref("http://evil.com/d.css"))) {}
+  ~CssSummarizerBaseTest() override {}
 
  protected:
   void SetUp() override {
@@ -193,15 +185,13 @@ class CssSummarizerBaseTest : public RewriteTestBase {
                                   "div { display: block; }", 100);
 
     // Parse error.
-    SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
-                                  "div { ", 100);
-    SetResponseWithDefaultHeaders(
-        "c.css", kContentTypeCss,
-        ".z{background-image:url(\"</style>\");", 100);
+    SetResponseWithDefaultHeaders("b.css", kContentTypeCss, "div { ", 100);
+    SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
+                                  ".z{background-image:url(\"</style>\");",
+                                  100);
 
     // Contents that include a closing style tag.
-    SetResponseWithDefaultHeaders("close_style_tag.css",
-                                  kContentTypeCss,
+    SetResponseWithDefaultHeaders("close_style_tag.css", kContentTypeCss,
                                   ".x </style> {color: white }", 100);
 
     // Permit testing a 404.
@@ -220,8 +210,8 @@ class CssSummarizerBaseTest : public RewriteTestBase {
     rewrite_driver()->ParseText(pre_comment);
   }
 
-  const GoogleString FinishTest(
-      StringPiece pre_comment, StringPiece post_comment) {
+  const GoogleString FinishTest(StringPiece pre_comment,
+                                StringPiece post_comment) {
     const GoogleString expected_html = StrCat(
         head_, pre_comment, "<!--", kExpectedResult, "-->", post_comment);
     rewrite_driver()->ParseText(post_comment);
@@ -229,15 +219,15 @@ class CssSummarizerBaseTest : public RewriteTestBase {
     return expected_html;
   }
 
-  const GoogleString FullTest(
-      StringPiece name, StringPiece pre_comment, StringPiece post_comment) {
+  const GoogleString FullTest(StringPiece name, StringPiece pre_comment,
+                              StringPiece post_comment) {
     StartTest(name, pre_comment);
     return FinishTest(pre_comment, post_comment);
   }
 
-  const GoogleString FlushTest(
-      StringPiece name, StringPiece pre_flush,
-      StringPiece pre_comment, StringPiece post_comment) {
+  const GoogleString FlushTest(StringPiece name, StringPiece pre_flush,
+                               StringPiece pre_comment,
+                               StringPiece post_comment) {
     StartTest(name, pre_flush);
     rewrite_driver()->Flush();
     rewrite_driver()->ParseText(pre_comment);
@@ -252,17 +242,16 @@ class CssSummarizerBaseTest : public RewriteTestBase {
                "<style>* {display: none; }</style>",
                CssLinkHref("a.css"),
                StrCat("<!--WillNotRender:2 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("b.css"),
+                      CssLinkHref("b.css"),
                       "<!--WillNotRender:3 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("c.css")),
+                      CssLinkHref("c.css")),
                StrCat("<!--WillNotRender:4 --- ParseOrCloseStyleTagError-->",
-                       CssLinkHref("close_style_tag.css"),
+                      CssLinkHref("close_style_tag.css"),
                       "<!--WillNotRender:5 --- FetchError-->",
-                       CssLinkHref("404.css")),
+                      CssLinkHref("404.css")),
                StrCat("<!--WillNotRender:6 --- ResourceError-->",
-                       CssLinkHref("http://evil.com/d.css")),
-               summary_comment,
-               StrCat("<!--", kExpectedResult, "-->")),
+                      CssLinkHref("http://evil.com/d.css")),
+               summary_comment, StrCat("<!--", kExpectedResult, "-->")),
         output_buffer_);
   }
 
@@ -287,11 +276,13 @@ TEST_F(CssSummarizerBaseTest, BasicOperation) {
 
 TEST_F(CssSummarizerBaseTest, RenderSummary) {
   filter_->set_render_summaries_in_place(true);
-  Parse("link", StrCat(CssLinkHref("a.css"),
-                       "<style>* { background: blue; }</style>"));
-  EXPECT_STREQ("<html>\n<style>div{displa</style><style>*{backgrou</style>"
-               "<!--OK/div{displa/rel=stylesheet|"
-                   "OK/*{backgrou|--></html>", output_buffer_);
+  Parse("link",
+        StrCat(CssLinkHref("a.css"), "<style>* { background: blue; }</style>"));
+  EXPECT_STREQ(
+      "<html>\n<style>div{displa</style><style>*{backgrou</style>"
+      "<!--OK/div{displa/rel=stylesheet|"
+      "OK/*{backgrou|--></html>",
+      output_buffer_);
 }
 
 TEST_F(CssSummarizerBaseTest, WillNotRenderSummary) {
@@ -335,10 +326,8 @@ TEST_F(CssSummarizerBaseTest, WillNotRenderSummaryWait) {
   filter_->set_will_not_render_summaries_in_place(true);
   SetupWaitFetcher();
   Parse("link", CssLinkHref("a.css"));
-  EXPECT_STREQ(StrCat("<html>\n",
-                      "<!--WillNotRender:0 --- Pending-->",
-                      CssLinkHref("a.css"),
-                      "</html>"),
+  EXPECT_STREQ(StrCat("<html>\n", "<!--WillNotRender:0 --- Pending-->",
+                      CssLinkHref("a.css"), "</html>"),
                output_buffer_);
   CallFetcherCallbacks();
 }
@@ -350,8 +339,8 @@ TEST_F(CssSummarizerBaseTest, Base) {
   Parse("base", css);
   EXPECT_STREQ(
       StrCat("<html>\n", css,
-             StrCat("<!--OK/div{displa/rel=stylesheet/base=",
-                    kTestDomain, "a.css"),
+             StrCat("<!--OK/div{displa/rel=stylesheet/base=", kTestDomain,
+                    "a.css"),
              StrCat("|OK/*{display:/base=", kTestDomain, "base.html|-->"),
              "</html>"),
       output_buffer_);
@@ -365,11 +354,12 @@ TEST_F(CssSummarizerBaseTest, AlternateHandling) {
 }
 
 TEST_F(CssSummarizerBaseTest, NoScriptHandling) {
-  Parse("ns", StrCat(CssLinkHref("a.css"),
-                     "<noscript>", CssLinkHref("a.css"), "</noscript>"));
-  EXPECT_STREQ("OK/div{displa/rel=stylesheet|"
-                   "OK/div{displa/noscr/rel=stylesheet|",
-               filter_->result());
+  Parse("ns", StrCat(CssLinkHref("a.css"), "<noscript>", CssLinkHref("a.css"),
+                     "</noscript>"));
+  EXPECT_STREQ(
+      "OK/div{displa/rel=stylesheet|"
+      "OK/div{displa/noscr/rel=stylesheet|",
+      filter_->result());
 }
 
 TEST_F(CssSummarizerBaseTest, IgnoreNonSummarizable) {
@@ -380,14 +370,15 @@ TEST_F(CssSummarizerBaseTest, IgnoreNonSummarizable) {
         "<style scoped>p {display:none;}</style>"
         "<link rel=stylesheet href='b.css' data-pagespeed-no-defer>"
         "<link rel=stylesheet href='a.css'>");
-  EXPECT_STREQ("<html>\n"
-               "<style>*{backgrou</style>"
-               "<style data-pagespeed-no-defer>div {display:none;}</style>"
-               "<style scoped>p {display:none;}</style>"
-               "<link rel=stylesheet href='b.css' data-pagespeed-no-defer>"
-               "<style>div{displa</style>"
-               "<!--OK/*{backgrou|OK/div{displa/rel=stylesheet|--></html>",
-               output_buffer_);
+  EXPECT_STREQ(
+      "<html>\n"
+      "<style>*{backgrou</style>"
+      "<style data-pagespeed-no-defer>div {display:none;}</style>"
+      "<style scoped>p {display:none;}</style>"
+      "<link rel=stylesheet href='b.css' data-pagespeed-no-defer>"
+      "<style>div{displa</style>"
+      "<!--OK/*{backgrou|OK/div{displa/rel=stylesheet|--></html>",
+      output_buffer_);
 }
 
 class CssSummarizerBaseWithCombinerFilterTest : public CssSummarizerBaseTest {
@@ -401,9 +392,9 @@ class CssSummarizerBaseWithCombinerFilterTest : public CssSummarizerBaseTest {
 
 TEST_F(CssSummarizerBaseWithCombinerFilterTest, Interaction) {
   SetResponseWithDefaultHeaders("a2.css", kContentTypeCss,
-                                 "span { display: inline; }", 100);
-  GoogleString combined_url = Encode("", "cc", "0",
-                                     MultiUrl("a.css", "a2.css"), "css");
+                                "span { display: inline; }", 100);
+  GoogleString combined_url =
+      Encode("", "cc", "0", MultiUrl("a.css", "a2.css"), "css");
 
   Parse("with_combine", StrCat(CssLinkHref("a.css"), CssLinkHref("a2.css")));
   EXPECT_EQ(StrCat("<html>\n", CssLinkHref(combined_url),
@@ -416,9 +407,9 @@ TEST_F(CssSummarizerBaseWithCombinerFilterTest, InteractionWithFlush) {
   // Make sure that SummariesDone is called once only, at the actual end of the
   // document, and not for every flush window.
   SetResponseWithDefaultHeaders("a2.css", kContentTypeCss,
-                                 "span { display: inline; }", 100);
-  GoogleString combined_url = Encode("", "cc", "0",
-                                     MultiUrl("a.css", "a2.css"), "css");
+                                "span { display: inline; }", 100);
+  GoogleString combined_url =
+      Encode("", "cc", "0", MultiUrl("a.css", "a2.css"), "css");
   GoogleString css = StrCat(CssLinkHref("a.css"), CssLinkHref("a2.css"));
 
   SetupWriter();
@@ -431,12 +422,10 @@ TEST_F(CssSummarizerBaseWithCombinerFilterTest, InteractionWithFlush) {
   // Should only see the comment once, since SummariesDone is supposed to be
   // called only at document end.
   EXPECT_EQ(StrCat(CssLinkHref(combined_url), CssLinkHref(combined_url),
-                   StrCat("<!--",
-                          "OK/div{displa/rel=stylesheet|",
+                   StrCat("<!--", "OK/div{displa/rel=stylesheet|",
                           "SlotRemoved//rel=stylesheet|",
                           "OK/div{displa/rel=stylesheet|",
-                          "SlotRemoved//rel=stylesheet|",
-                          "-->")),
+                          "SlotRemoved//rel=stylesheet|", "-->")),
             output_buffer_);
 }
 
@@ -445,17 +434,18 @@ TEST_F(CssSummarizerBaseWithCombinerFilterTest, BaseAcrossPaths) {
   // directories.
   filter_->set_include_base(true);
   SetResponseWithDefaultHeaders("b/a2.css", kContentTypeCss,
-                                 "span { display: inline; }", 100);
+                                "span { display: inline; }", 100);
   GoogleString combined_url = "b,_a2.css+a.css.pagespeed.cc.0.css";
 
   Parse("base_accross_paths",
         StrCat(CssLinkHref("b/a2.css"), CssLinkHref("a.css")));
-  EXPECT_EQ(StrCat(
-      "<html>\n", CssLinkHref(combined_url),
-      "<!--OK/span{displ/rel=stylesheet/base=", kTestDomain, combined_url,
-      "|SlotRemoved//rel=stylesheet/base=", kTestDomain, "a.css"
-      "|--></html>"),
-            output_buffer_);
+  EXPECT_EQ(
+      StrCat("<html>\n", CssLinkHref(combined_url),
+             "<!--OK/span{displ/rel=stylesheet/base=", kTestDomain,
+             combined_url, "|SlotRemoved//rel=stylesheet/base=", kTestDomain,
+             "a.css"
+             "|--></html>"),
+      output_buffer_);
 }
 
 }  // namespace

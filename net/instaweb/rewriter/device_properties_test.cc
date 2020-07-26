@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/device_properties.h"
 
@@ -28,10 +27,9 @@
 
 namespace net_instaweb {
 
-class DevicePropertiesTest: public testing::Test {
+class DevicePropertiesTest : public testing::Test {
  protected:
-  DevicePropertiesTest()
-      : device_properties_(&user_agent_matcher_) { }
+  DevicePropertiesTest() : device_properties_(&user_agent_matcher_) {}
 
   void ParseAndVerifySaveData(const char* header_value, bool expected_value) {
     RequestHeaders headers;
@@ -124,8 +122,7 @@ TEST_F(DevicePropertiesTest, WebpRequireAcceptHeaderExceptAndroid) {
   EXPECT_FALSE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_FALSE(device_properties_.SupportsWebpLosslessAlpha());
 
-  device_properties_.SetUserAgent(
-      UserAgentMatcherTestBase::kCriOS48UserAgent);
+  device_properties_.SetUserAgent(UserAgentMatcherTestBase::kCriOS48UserAgent);
   EXPECT_FALSE(device_properties_.SupportsWebpInPlace());
   EXPECT_FALSE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_FALSE(device_properties_.SupportsWebpLosslessAlpha());
@@ -146,8 +143,7 @@ TEST_F(DevicePropertiesTest, WebpRequireAcceptHeaderExceptAndroid) {
   EXPECT_TRUE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_FALSE(device_properties_.SupportsWebpLosslessAlpha());
 
-  device_properties_.SetUserAgent(
-      UserAgentMatcherTestBase::kCriOS48UserAgent);
+  device_properties_.SetUserAgent(UserAgentMatcherTestBase::kCriOS48UserAgent);
   EXPECT_TRUE(device_properties_.SupportsWebpInPlace());
   EXPECT_TRUE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_TRUE(device_properties_.SupportsWebpLosslessAlpha());
@@ -199,8 +195,7 @@ TEST_F(DevicePropertiesTest, ProcessViaHeader) {
 
   RequestHeaders headers2;
   DeviceProperties device_properties2(&user_agent_matcher_);
-  headers2.Add(HttpAttributes::kVia,
-               "1.0 fred, 1.1 example.com (Apache/1.1)");
+  headers2.Add(HttpAttributes::kVia, "1.0 fred, 1.1 example.com (Apache/1.1)");
   device_properties2.ParseRequestHeaders(headers2);
   EXPECT_TRUE(device_properties2.HasViaHeader());
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,7 +26,6 @@
 #include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/http_names.h"
-
 #include "util_filter.h"  // NOLINT
 
 namespace {
@@ -51,8 +50,7 @@ void MockApache::Initialize() {
 void MockApache::Terminate() {
   CHECK(recorded_actions != nullptr);
   if (!recorded_actions->empty()) {
-    LOG(FATAL) << "MockApache: unprocessed actions: "
-               << ActionsSinceLastCall();
+    LOG(FATAL) << "MockApache: unprocessed actions: " << ActionsSinceLastCall();
   }
   delete recorded_actions;
   recorded_actions = nullptr;
@@ -68,9 +66,7 @@ void MockApache::PrepareRequest(request_rec* request) {
   // removed.
   int n_fake_filters = 3;
   ap_filter_t** filter = &request->output_filters;
-  for (int i = 0;
-       i < n_fake_filters;
-       ++i, filter = &(*filter)->next) {
+  for (int i = 0; i < n_fake_filters; ++i, filter = &(*filter)->next) {
     *filter = static_cast<ap_filter_t*>(
         apr_palloc(request->pool, sizeof(ap_filter_t)));
     (*filter)->frec = static_cast<ap_filter_rec_t*>(
@@ -99,8 +95,8 @@ void MockApache::CleanupRequest(request_rec* request) {
 }
 
 GoogleString MockApache::ActionsSinceLastCall() {
-  CHECK(recorded_actions != nullptr) <<
-      "Must call MockApache::Initialize() first";
+  CHECK(recorded_actions != nullptr)
+      << "Must call MockApache::Initialize() first";
   GoogleString response = JoinCollection(*recorded_actions, " ");
   recorded_actions->clear();
   return response;
@@ -111,8 +107,8 @@ GoogleString MockApache::ActionsSinceLastCall() {
 namespace {
 
 void log_action(StringPiece action) {
-  CHECK(recorded_actions != nullptr) <<
-      "Must call MockApache::Initialize() first";
+  CHECK(recorded_actions != nullptr)
+      << "Must call MockApache::Initialize() first";
   recorded_actions->push_back(action.as_string());
 }
 
@@ -124,9 +120,9 @@ void log_fatal(StringPiece function) {
 
 extern "C" {
 
-int ap_rwrite(const void *buf, int nbyte, request_rec *r) {
-  log_action(StrCat(
-      "ap_rwrite(", StringPiece(static_cast<const char*>(buf), nbyte), ")"));
+int ap_rwrite(const void* buf, int nbyte, request_rec* r) {
+  log_action(StrCat("ap_rwrite(",
+                    StringPiece(static_cast<const char*>(buf), nbyte), ")"));
   return 1;
 }
 
@@ -136,23 +132,20 @@ int ap_rflush(request_rec* r) {
 }
 
 void ap_set_content_length(request_rec* r, apr_off_t length) {
-  log_action(StrCat(
-      "ap_set_content_length(", net_instaweb::IntegerToString(length), ")"));
+  log_action(StrCat("ap_set_content_length(",
+                    net_instaweb::IntegerToString(length), ")"));
 }
 
 void ap_set_content_type(request_rec* r, const char* ct) {
-  log_action(StrCat(
-      "ap_set_content_type(", StringPiece(ct), ")"));
+  log_action(StrCat("ap_set_content_type(", StringPiece(ct), ")"));
   // Incomplete implementation, but enough to be testing.
-  apr_table_set(
-      r->headers_out, net_instaweb::HttpAttributes::kContentType, ct);
+  apr_table_set(r->headers_out, net_instaweb::HttpAttributes::kContentType, ct);
 }
 
 void ap_remove_output_filter(ap_filter_t* filter) {
   CHECK(filter != nullptr);
   CHECK(filter->frec != nullptr);
-  log_action(StrCat(
-      "ap_remove_output_filter(", filter->frec->name, ")"));
+  log_action(StrCat("ap_remove_output_filter(", filter->frec->name, ")"));
 }
 
 ap_filter_t* ap_add_output_filter(const char*, void*, request_rec*, conn_rec*) {
@@ -160,8 +153,8 @@ ap_filter_t* ap_add_output_filter(const char*, void*, request_rec*, conn_rec*) {
   return nullptr;
 }
 
-apr_status_t ap_get_brigade(ap_filter_t*, apr_bucket_brigade*,
-                            ap_input_mode_t, apr_read_type_e, apr_off_t) {
+apr_status_t ap_get_brigade(ap_filter_t*, apr_bucket_brigade*, ap_input_mode_t,
+                            apr_read_type_e, apr_off_t) {
   log_fatal("ap_get_brigade");
   return 0;
 }
@@ -171,8 +164,9 @@ apr_status_t ap_pass_brigade(ap_filter_t*, apr_bucket_brigade*) {
   return 0;
 }
 
-ap_filter_rec_t* ap_register_output_filter(
-    const char*, ap_out_filter_func, ap_init_filter_func, ap_filter_type) {
+ap_filter_rec_t* ap_register_output_filter(const char*, ap_out_filter_func,
+                                           ap_init_filter_func,
+                                           ap_filter_type) {
   log_fatal("ap_register_output_filter");
   return nullptr;
 }

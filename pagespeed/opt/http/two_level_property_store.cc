@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/opt/http/two_level_property_store.h"
 
@@ -58,13 +57,10 @@ class TwoLevelPropertyStoreGetCallback
  public:
   typedef Callback1<bool> BoolCallback;
   TwoLevelPropertyStoreGetCallback(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
+      const GoogleString& url, const GoogleString& options_signature_hash,
       const GoogleString& cache_key_suffix,
-      const PropertyCache::CohortVector& cohort_list,
-      PropertyPage* page,
-      BoolCallback* done,
-      AbstractMutex* mutex,
+      const PropertyCache::CohortVector& cohort_list, PropertyPage* page,
+      BoolCallback* done, AbstractMutex* mutex,
       PropertyStore* primary_property_store,
       PropertyStore* secondary_property_store)
       : url_(url),
@@ -203,13 +199,9 @@ class TwoLevelPropertyStoreGetCallback
         const PropertyCache::Cohort* cohort = secondary_lookup_cohort_list_[j];
         PropertyCacheValues values;
         if (page_->EncodePropertyCacheValues(cohort, &values)) {
-          primary_property_store_->Put(
-              url_,
-              options_signature_hash_,
-              cache_key_suffix_,
-              cohort,
-              &values,
-              nullptr);
+          primary_property_store_->Put(url_, options_signature_hash_,
+                                       cache_key_suffix_, cohort, &values,
+                                       nullptr);
         }
       }
     }
@@ -227,11 +219,8 @@ class TwoLevelPropertyStoreGetCallback
     AbstractPropertyStoreGetCallback* secondary_property_store_get_callback =
         nullptr;
     secondary_property_store_->Get(
-        url_,
-        options_signature_hash_,
-        cache_key_suffix_,
-        secondary_lookup_cohort_list_,
-        page_,
+        url_, options_signature_hash_, cache_key_suffix_,
+        secondary_lookup_cohort_list_, page_,
         NewCallback(this,
                     &TwoLevelPropertyStoreGetCallback::SecondaryLookupDone),
         &secondary_property_store_get_callback);
@@ -318,8 +307,7 @@ class TwoLevelPropertyStoreGetCallback
 
 TwoLevelPropertyStore::TwoLevelPropertyStore(
     PropertyStore* primary_property_store,
-    PropertyStore* secondary_property_store,
-    ThreadSystem* thread_system)
+    PropertyStore* secondary_property_store, ThreadSystem* thread_system)
     : primary_property_store_(primary_property_store),
       secondary_property_store_(secondary_property_store),
       thread_system_(thread_system) {
@@ -328,37 +316,25 @@ TwoLevelPropertyStore::TwoLevelPropertyStore(
   secondary_property_store_->set_enable_get_cancellation(true);
 }
 
-TwoLevelPropertyStore::~TwoLevelPropertyStore() {
-}
+TwoLevelPropertyStore::~TwoLevelPropertyStore() {}
 
-void TwoLevelPropertyStore::Get(
-    const GoogleString& url,
-    const GoogleString& options_signature_hash,
-    const GoogleString& cache_key_suffix,
-    const PropertyCache::CohortVector& cohort_list,
-    PropertyPage* page,
-    BoolCallback* done,
-    AbstractPropertyStoreGetCallback** callback) {
+void TwoLevelPropertyStore::Get(const GoogleString& url,
+                                const GoogleString& options_signature_hash,
+                                const GoogleString& cache_key_suffix,
+                                const PropertyCache::CohortVector& cohort_list,
+                                PropertyPage* page, BoolCallback* done,
+                                AbstractPropertyStoreGetCallback** callback) {
   TwoLevelPropertyStoreGetCallback* two_level_property_store_get_callback =
       new TwoLevelPropertyStoreGetCallback(
-          url,
-          options_signature_hash,
-          cache_key_suffix,
-          cohort_list,
-          page,
-          done,
-          thread_system_->NewMutex(),
-          primary_property_store_,
+          url, options_signature_hash, cache_key_suffix, cohort_list, page,
+          done, thread_system_->NewMutex(), primary_property_store_,
           secondary_property_store_);
   *callback = two_level_property_store_get_callback;
 
-  AbstractPropertyStoreGetCallback* primary_property_store_get_callback = nullptr;
+  AbstractPropertyStoreGetCallback* primary_property_store_get_callback =
+      nullptr;
   primary_property_store_->Get(
-      url,
-      options_signature_hash,
-      cache_key_suffix,
-      cohort_list,
-      page,
+      url, options_signature_hash, cache_key_suffix, cohort_list, page,
       NewCallback(two_level_property_store_get_callback,
                   &TwoLevelPropertyStoreGetCallback::PrimaryLookupDone),
       &primary_property_store_get_callback);
@@ -370,27 +346,25 @@ void TwoLevelPropertyStore::Get(
   }
 }
 
-void TwoLevelPropertyStore::Put(
-    const GoogleString& url,
-    const GoogleString& options_signature_hash,
-    const GoogleString& cache_key_suffix,
-    const PropertyCache::Cohort* cohort,
-    const PropertyCacheValues* values,
-    BoolCallback* done) {
+void TwoLevelPropertyStore::Put(const GoogleString& url,
+                                const GoogleString& options_signature_hash,
+                                const GoogleString& cache_key_suffix,
+                                const PropertyCache::Cohort* cohort,
+                                const PropertyCacheValues* values,
+                                BoolCallback* done) {
   // TODO(pulkitg): Pass actual callback instead of NULL.
-  primary_property_store_->Put(
-      url, options_signature_hash, cache_key_suffix, cohort, values, nullptr);
-  secondary_property_store_->Put(
-      url, options_signature_hash, cache_key_suffix, cohort, values, nullptr);
+  primary_property_store_->Put(url, options_signature_hash, cache_key_suffix,
+                               cohort, values, nullptr);
+  secondary_property_store_->Put(url, options_signature_hash, cache_key_suffix,
+                                 cohort, values, nullptr);
   if (done != nullptr) {
     done->Run(true);
   }
 }
 
 GoogleString TwoLevelPropertyStore::Name() const {
-  return StrCat(
-      "1:", primary_property_store_->Name(),
-      ",2:", secondary_property_store_->Name());
+  return StrCat("1:", primary_property_store_->Name(),
+                ",2:", secondary_property_store_->Name());
 }
 
 }  // namespace net_instaweb

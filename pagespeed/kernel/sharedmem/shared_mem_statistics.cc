@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics.h"
 
 #include <algorithm>
@@ -25,7 +24,6 @@
 #include <cstddef>
 #include <limits>
 #include <memory>
-
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -62,9 +60,7 @@ const char kTimestampVariable[] = "timestamp_";
 
 // Our shared memory storage format is an array of (mutex, int64).
 SharedMemVariable::SharedMemVariable(StringPiece name, Statistics* stats)
-    : name_(name.as_string()),
-      value_ptr_(nullptr) {
-}
+    : name_(name.as_string()), value_ptr_(nullptr) {}
 
 SharedMemStatistics::Var* SharedMemStatistics::NewVariable(StringPiece name) {
   if (frozen_) {
@@ -85,8 +81,7 @@ SharedMemStatistics::UpDown* SharedMemStatistics::NewUpDownCounter(
   return new UpDown(name, this);
 }
 
-SharedMemStatistics::Hist* SharedMemStatistics::NewHistogram(
-    StringPiece name) {
+SharedMemStatistics::Hist* SharedMemStatistics::NewHistogram(StringPiece name) {
   if (frozen_) {
     LOG(ERROR) << "Cannot add histogram " << name
                << " after SharedMemStatistics is frozen!";
@@ -95,9 +90,7 @@ SharedMemStatistics::Hist* SharedMemStatistics::NewHistogram(
   return new Hist(name, this);
 }
 
-int64 SharedMemVariable::GetLockHeld() const {
-  return *value_ptr_;
-}
+int64 SharedMemVariable::GetLockHeld() const { return *value_ptr_; }
 
 int64 SharedMemVariable::SetReturningPreviousValueLockHeld(int64 new_value) {
   int64 previous_value = *value_ptr_;
@@ -105,9 +98,9 @@ int64 SharedMemVariable::SetReturningPreviousValueLockHeld(int64 new_value) {
   return previous_value;
 }
 
-void SharedMemVariable::AttachTo(
-    AbstractSharedMemSegment* segment, size_t offset,
-    MessageHandler* message_handler) {
+void SharedMemVariable::AttachTo(AbstractSharedMemSegment* segment,
+                                 size_t offset,
+                                 MessageHandler* message_handler) {
   mutex_.reset(segment->AttachToSharedMutex(offset));
   if (mutex_.get() == nullptr) {
     message_handler->Message(
@@ -115,25 +108,19 @@ void SharedMemVariable::AttachTo(
         name_.c_str());
   }
 
-  value_ptr_ = reinterpret_cast<volatile int64*>(
-      segment->Base() + offset + segment->SharedMutexSize());
+  value_ptr_ = reinterpret_cast<volatile int64*>(segment->Base() + offset +
+                                                 segment->SharedMutexSize());
 }
 
-void SharedMemVariable::Reset() {
-  mutex_.reset();
-}
+void SharedMemVariable::Reset() { mutex_.reset(); }
 
-AbstractMutex* SharedMemVariable::mutex() const {
-  return mutex_.get();
-}
+AbstractMutex* SharedMemVariable::mutex() const { return mutex_.get(); }
 
 SharedMemHistogram::SharedMemHistogram(StringPiece name, Statistics* stats)
     : num_buckets_(kDefaultNumBuckets + kOutOfBoundsCatcherBuckets),
-      buffer_(nullptr) {
-}
+      buffer_(nullptr) {}
 
-SharedMemHistogram::~SharedMemHistogram() {
-}
+SharedMemHistogram::~SharedMemHistogram() {}
 
 void SharedMemHistogram::Init() {
   if (buffer_ == nullptr) {
@@ -151,9 +138,9 @@ void SharedMemHistogram::DCheckRanges() const {
   DCHECK_LT(buffer_->min_value_, buffer_->max_value_);
 }
 
-void SharedMemHistogram::AttachTo(
-    AbstractSharedMemSegment* segment, size_t offset,
-    MessageHandler* message_handler) {
+void SharedMemHistogram::AttachTo(AbstractSharedMemSegment* segment,
+                                  size_t offset,
+                                  MessageHandler* message_handler) {
   mutex_.reset(segment->AttachToSharedMutex(offset));
   if (mutex_.get() == nullptr) {
     message_handler->Message(
@@ -161,8 +148,8 @@ void SharedMemHistogram::AttachTo(
     Reset();
     return;
   }
-  buffer_ = reinterpret_cast<HistogramBody*>(const_cast<char*>(
-      segment->Base() + offset + segment->SharedMutexSize()));
+  buffer_ = reinterpret_cast<HistogramBody*>(
+      const_cast<char*>(segment->Base() + offset + segment->SharedMutexSize()));
 }
 
 void SharedMemHistogram::Reset() {
@@ -260,16 +247,14 @@ void SharedMemHistogram::ClearInternal() {
   }
 }
 
-int SharedMemHistogram::NumBuckets() {
-  return num_buckets_;
-}
+int SharedMemHistogram::NumBuckets() { return num_buckets_; }
 
 void SharedMemHistogram::EnableNegativeBuckets() {
   if (buffer_ == nullptr) {
     return;
   }
   DCHECK_EQ(0, buffer_->min_value_) << "Cannot call EnableNegativeBuckets and"
-                                        "SetMinValue on the same histogram.";
+                                       "SetMinValue on the same histogram.";
 
   ScopedMutex hold_lock(mutex_.get());
   if (!buffer_->enable_negative_) {
@@ -282,10 +267,12 @@ void SharedMemHistogram::SetMinValue(double value) {
   if (buffer_ == nullptr) {
     return;
   }
-  DCHECK_EQ(false, buffer_->enable_negative_) << "Cannot call"
-      "EnableNegativeBuckets and SetMinValue on the same histogram.";
-  DCHECK_LT(value, buffer_->max_value_) << "Lower-bound of a histogram "
-      "should be smaller than its upper-bound.";
+  DCHECK_EQ(false, buffer_->enable_negative_)
+      << "Cannot call"
+         "EnableNegativeBuckets and SetMinValue on the same histogram.";
+  DCHECK_LT(value, buffer_->max_value_)
+      << "Lower-bound of a histogram "
+         "should be smaller than its upper-bound.";
 
   ScopedMutex hold_lock(mutex_.get());
   if (buffer_->min_value_ != value) {
@@ -300,7 +287,7 @@ void SharedMemHistogram::SetMaxValue(double value) {
   }
   DCHECK_LT(0, value) << "Upper-bound of a histogram should be larger than 0.";
   DCHECK_LT(buffer_->min_value_, value) << "Upper-bound of a histogram should "
-      "be larger than its lower-bound.";
+                                           "be larger than its lower-bound.";
   ScopedMutex hold_lock(mutex_.get());
   if (buffer_->max_value_ != value) {
     buffer_->max_value_ = value;
@@ -346,7 +333,7 @@ double SharedMemHistogram::PercentileInternal(const double perc) {
       if (count == count_below) {
         // The first number in (i+1)th bucket is the number we want. Its
         // estimated value is the lower-bound of (i+1)th bucket.
-        return BucketStart(i+1);
+        return BucketStart(i + 1);
       }
     } else {
       break;
@@ -369,7 +356,7 @@ double SharedMemHistogram::StandardDeviationInternal() {
     return 0.0;
   }
   const double v = (buffer_->sum_of_squares_ * buffer_->count_ -
-                   buffer_->sum_ * buffer_->sum_) /
+                    buffer_->sum_ * buffer_->sum_) /
                    (buffer_->count_ * buffer_->count_);
   if (v < buffer_->sum_of_squares_ * std::numeric_limits<double>::epsilon()) {
     return 0.0;
@@ -402,8 +389,8 @@ double SharedMemHistogram::BucketStart(int index) {
   if (buffer_ == nullptr) {
     return -1.0;
   }
-  DCHECK(index >= 0 && index <= num_buckets_) <<
-      "Queried index is out of boundary.";
+  DCHECK(index >= 0 && index <= num_buckets_)
+      << "Queried index is out of boundary.";
   if (index == num_buckets_) {
     // BucketLimit(i) = BucketStart(i+1).
     // Bucket index goes from 0 to num_buckets -1.
@@ -459,7 +446,8 @@ SharedMemStatistics::SharedMemStatistics(
     const StringPiece& logging_file, bool logging,
     const GoogleString& filename_prefix, AbstractSharedMem* shm_runtime,
     MessageHandler* message_handler, FileSystem* file_system, Timer* timer)
-    : shm_runtime_(shm_runtime), filename_prefix_(filename_prefix),
+    : shm_runtime_(shm_runtime),
+      filename_prefix_(filename_prefix),
       frozen_(false) {
   if (logging) {
     if (logging_file.size() > 0) {
@@ -469,15 +457,15 @@ SharedMemStatistics::SharedMemStatistics(
           logging_interval_ms, max_logfile_size_kb, logging_file,
           timestamp_impl, message_handler, this, file_system, timer);
     } else {
-      message_handler->Message(kError,
+      message_handler->Message(
+          kError,
           "Error: ModPagespeedStatisticsLoggingFile is required if "
           "ModPagespeedStatisticsLogging is enabled.");
     }
   }
 }
 
-SharedMemStatistics::~SharedMemStatistics() {
-}
+SharedMemStatistics::~SharedMemStatistics() {}
 
 bool SharedMemStatistics::InitMutexes(size_t per_var,
                                       MessageHandler* message_handler) {
@@ -514,8 +502,7 @@ bool SharedMemStatistics::InitMutexes(size_t per_var,
   return true;
 }
 
-bool SharedMemStatistics::Init(bool parent,
-                               MessageHandler* message_handler) {
+bool SharedMemStatistics::Init(bool parent, MessageHandler* message_handler) {
   frozen_ = true;
 
   // Compute size of shared memory
@@ -551,9 +538,9 @@ bool SharedMemStatistics::Init(bool parent,
   }
 
   if (!ok) {
-    message_handler->Message(
-        kWarning, "Problem during shared memory setup; "
-                  "statistics functionality unavailable.");
+    message_handler->Message(kWarning,
+                             "Problem during shared memory setup; "
+                             "statistics functionality unavailable.");
   }
 
   // Now make the variable objects actually point to the right things.

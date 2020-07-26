@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_CONTEXT_REGISTRY_H_
 #define PAGESPEED_CONTROLLER_CONTEXT_REGISTRY_H_
 
 #include <unistd.h>
+
 #include <memory>
 #include <unordered_set>
 
@@ -91,8 +91,7 @@ template <typename ContextT>
 ContextRegistry<ContextT>::ContextRegistry(ThreadSystem* thread_system)
     : mutex_(thread_system->NewMutex()),
       condvar_(mutex_->NewCondvar()),
-      shutdown_(false) {
-}
+      shutdown_(false) {}
 
 template <typename ContextT>
 ContextRegistry<ContextT>::~ContextRegistry() {

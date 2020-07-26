@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_FILTER_H_
@@ -84,15 +83,11 @@ class JavascriptFilter : public RewriteFilter {
  private:
   class Context;
 
-  typedef enum {
-    kNoScript,
-    kExternalScript,
-    kInlineScript
-  } ScriptType;
+  typedef enum { kNoScript, kExternalScript, kInlineScript } ScriptType;
 
   inline void RewriteInlineScript(HtmlCharactersNode* body_node);
-  inline void RewriteExternalScript(
-      HtmlElement* script_in_progress, HtmlElement::Attribute* script_src);
+  inline void RewriteExternalScript(HtmlElement* script_in_progress,
+                                    HtmlElement::Attribute* script_src);
 
   // Set up config_ if it has not already been initialized.  We must do this
   // lazily because at filter creation time many of the options have not yet

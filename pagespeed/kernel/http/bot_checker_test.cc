@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the caching fetcher, using a mock fetcher, and an async
 // wrapper around that.
@@ -33,16 +32,16 @@ TEST_F(BotCheckerTest, DetectUserAgents) {
   // Spider.
   EXPECT_TRUE(BotChecker::Lookup(
       "Baiduspider+(+http://www.baidu.com/search/spider.htm)"));
-  EXPECT_TRUE(BotChecker::Lookup(
-      "Baiduspider+(+http://help.baidu.jp/system/05.html)"));
+  EXPECT_TRUE(
+      BotChecker::Lookup("Baiduspider+(+http://help.baidu.jp/system/05.html)"));
   EXPECT_TRUE(BotChecker::Lookup(
       "BaidusSpIDER+(+http://help.baidu.jp/system/05.html)"));
 
   // Bot.
   EXPECT_TRUE(BotChecker::Lookup("msnbot-UDiscovery/2.0b"));
-  EXPECT_TRUE(BotChecker::Lookup(
-      "Mozilla/5.0 (compatible; bingbot/2.0;"
-      "+http://www.bing.com/bingbot.htm)"));
+  EXPECT_TRUE(
+      BotChecker::Lookup("Mozilla/5.0 (compatible; bingbot/2.0;"
+                         "+http://www.bing.com/bingbot.htm)"));
   EXPECT_TRUE(BotChecker::Lookup("bitlybot"));
   EXPECT_TRUE(BotChecker::Lookup("bitlyBoT"));
 
@@ -51,9 +50,9 @@ TEST_F(BotCheckerTest, DetectUserAgents) {
 
   // In map.
   EXPECT_TRUE(BotChecker::Lookup("Mediapartners-Google"));
-  EXPECT_TRUE(BotChecker::Lookup(
-      "Mozilla/5.0 (compatible; Yahoo! Slurp;"
-      "http://help.yahoo.com/help/us/ysearch/slurp)"));
+  EXPECT_TRUE(
+      BotChecker::Lookup("Mozilla/5.0 (compatible; Yahoo! Slurp;"
+                         "http://help.yahoo.com/help/us/ysearch/slurp)"));
   EXPECT_TRUE(BotChecker::Lookup(
       "Mozilla/5.0 (compatible; Ask Jeeves/Teoma;"
       "+http://about.ask.com/en/docs/about/webmasters.shtml"));

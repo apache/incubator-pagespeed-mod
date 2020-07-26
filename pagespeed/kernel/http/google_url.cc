@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,7 +21,7 @@
 
 #include "pagespeed/kernel/http/google_url.h"
 
-#include <algorithm>                    // for std::find
+#include <algorithm>  // for std::find
 #include <cstddef>
 #include <string>
 
@@ -35,30 +35,15 @@ namespace net_instaweb {
 
 const size_t GoogleUrl::npos = std::string::npos;
 
-GoogleUrl::GoogleUrl()
-    : gurl_() {
-  Init();
-}
+GoogleUrl::GoogleUrl() : gurl_() { Init(); }
 
-GoogleUrl::GoogleUrl(const GURL& gurl)
-    : gurl_(gurl) {
-  Init();
-}
+GoogleUrl::GoogleUrl(const GURL& gurl) : gurl_(gurl) { Init(); }
 
-GoogleUrl::GoogleUrl(const GoogleString& spec)
-    : gurl_(spec) {
-  Init();
-}
+GoogleUrl::GoogleUrl(const GoogleString& spec) : gurl_(spec) { Init(); }
 
-GoogleUrl::GoogleUrl(StringPiece sp)
-    : gurl_(sp.as_string()) {
-  Init();
-}
+GoogleUrl::GoogleUrl(StringPiece sp) : gurl_(sp.as_string()) { Init(); }
 
-GoogleUrl::GoogleUrl(const char* str)
-    : gurl_(str) {
-  Init();
-}
+GoogleUrl::GoogleUrl(const char* str) : gurl_(str) { Init(); }
 
 // The following three constructors create a new GoogleUrl by resolving the
 // String(Piece) against the base.
@@ -66,9 +51,7 @@ GoogleUrl::GoogleUrl(const GoogleUrl& base, const GoogleString& str) {
   Reset(base, str);
 }
 
-GoogleUrl::GoogleUrl(const GoogleUrl& base, StringPiece sp) {
-  Reset(base, sp);
-}
+GoogleUrl::GoogleUrl(const GoogleUrl& base, StringPiece sp) { Reset(base, sp); }
 
 GoogleUrl::GoogleUrl(const GoogleUrl& base, const char* str) {
   Reset(base, str);
@@ -133,17 +116,15 @@ bool GoogleUrl::IsWebValid() const {
 
 bool GoogleUrl::IsWebOrDataValid() const {
   DCHECK(is_web_or_data_valid_ ==
-         (gurl_.is_valid() && (SchemeIs("http") || SchemeIs("https") ||
-                               SchemeIs("data"))));
+         (gurl_.is_valid() &&
+          (SchemeIs("http") || SchemeIs("https") || SchemeIs("data"))));
   return is_web_or_data_valid_;
 }
 
-bool GoogleUrl::IsAnyValid() const {
-  return gurl_.is_valid();
-}
+bool GoogleUrl::IsAnyValid() const { return gurl_.is_valid(); }
 
-GoogleUrl* GoogleUrl::CopyAndAddQueryParam(
-    StringPiece unescaped_name, StringPiece unescaped_value) const {
+GoogleUrl* GoogleUrl::CopyAndAddQueryParam(StringPiece unescaped_name,
+                                           StringPiece unescaped_value) const {
   if (unescaped_value.data() == nullptr) {
     return CopyAndAddEscapedQueryParam(EscapeQueryParam(unescaped_name),
                                        StringPiece());
@@ -192,9 +173,7 @@ size_t GoogleUrl::LeafEndPosition(const GURL& gurl) {
 
 // Returns the offset at which the leaf ends in valid url spec.
 // If there is no path, steps backward until valid end is found.
-size_t GoogleUrl::LeafEndPosition() const {
-  return LeafEndPosition(gurl_);
-}
+size_t GoogleUrl::LeafEndPosition() const { return LeafEndPosition(gurl_); }
 
 size_t GoogleUrl::LeafStartPosition(const GURL& gurl) {
   url::Parsed parsed = gurl.parsed_for_possibly_invalid_spec();
@@ -209,9 +188,7 @@ size_t GoogleUrl::LeafStartPosition(const GURL& gurl) {
 
 // Returns the offset at which the leaf starts in the fully
 // qualified spec.
-size_t GoogleUrl::LeafStartPosition() const {
-  return LeafStartPosition(gurl_);
-}
+size_t GoogleUrl::LeafStartPosition() const { return LeafStartPosition(gurl_); }
 
 size_t GoogleUrl::PathStartPosition(const GURL& gurl) {
   const std::string& spec = gurl.spec();
@@ -226,9 +203,7 @@ size_t GoogleUrl::PathStartPosition(const GURL& gurl) {
 }
 
 // Find the start of the path, includes '/'
-size_t GoogleUrl::PathStartPosition() const {
-  return PathStartPosition(gurl_);
-}
+size_t GoogleUrl::PathStartPosition() const { return PathStartPosition(gurl_); }
 
 StringPiece GoogleUrl::AllExceptQuery() const {
   if (!gurl_.is_valid()) {
@@ -420,8 +395,7 @@ StringPiece GoogleUrl::Host() const {
   }
   url::Parsed parsed = gurl_.parsed_for_possibly_invalid_spec();
   // Just remove scheme and : from beginning of URL.
-  return StringPiece(gurl_.spec().data() + parsed.host.begin,
-                     parsed.host.len);
+  return StringPiece(gurl_.spec().data() + parsed.host.begin, parsed.host.len);
 }
 
 StringPiece GoogleUrl::HostAndPort() const {
@@ -630,8 +604,8 @@ GoogleString GoogleUrl::UnescapeHelper(StringPiece escaped,
 
 GoogleString GoogleUrl::EscapeQueryParam(StringPiece unescaped) {
   GoogleString escaped;
-  for (const char* p = unescaped.data(), *e = p + unescaped.size();
-       p < e; ++p) {
+  for (const char *p = unescaped.data(), *e = p + unescaped.size(); p < e;
+       ++p) {
     // See http://en.wikipedia.org/wiki/Query_string#URL_encoding
     char c = *p;
     if (IsAsciiAlphaNumeric(c) || (c == '.') || (c == '~') || (c == '_') ||
@@ -643,8 +617,9 @@ GoogleString GoogleUrl::EscapeQueryParam(StringPiece unescaped) {
       escaped.push_back('+');
     } else {
       // Escape both reserved chars (ex: '/') and uncategorized chars (ex: ' ').
-      StrAppend(&escaped, absl::StrFormat(
-          "%%%02x", static_cast<unsigned int>(static_cast<unsigned char>(c))));
+      StrAppend(&escaped,
+                absl::StrFormat("%%%02x", static_cast<unsigned int>(
+                                              static_cast<unsigned char>(c))));
     }
   }
   return escaped;
@@ -661,13 +636,13 @@ const char GoogleUrl::kReservedChars[] = ":/?#[]@!$&'()*+,;=";
 
 bool GoogleUrl::IsReservedChar(char c) {
   const char* start = kReservedChars;
-  const char* end   = kReservedChars + STATIC_STRLEN(kReservedChars);
+  const char* end = kReservedChars + STATIC_STRLEN(kReservedChars);
   return (std::find(start, end, c) != end);
 }
 
 GoogleString GoogleUrl::Sanitize(StringPiece url) {
   GoogleString escaped;
-  for (const char* p = url.data(), *e = p + url.size(); p < e; ++p) {
+  for (const char *p = url.data(), *e = p + url.size(); p < e; ++p) {
     char c = *p;
     if (IsAsciiAlphaNumeric(c) || (c == '.') || (c == '~') || (c == '_') ||
         (c == '-') || (c == '%') || IsReservedChar(c)) {
@@ -676,8 +651,9 @@ GoogleString GoogleUrl::Sanitize(StringPiece url) {
       escaped.push_back(c);
     } else {
       // Escape uncategorized chars (ex: ' ', '^', '"')
-      StrAppend(&escaped, absl::StrFormat(
-          "%%%02X", static_cast<unsigned int>(static_cast<unsigned char>(c))));
+      StrAppend(&escaped,
+                absl::StrFormat("%%%02X", static_cast<unsigned int>(
+                                              static_cast<unsigned char>(c))));
     }
   }
   return escaped;

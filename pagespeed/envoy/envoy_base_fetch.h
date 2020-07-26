@@ -19,10 +19,9 @@
 
 #pragma once
 
-#include "pagespeed/envoy/envoy_server_context.h"
-
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "pagespeed/envoy/envoy_server_context.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/http/headers.h"
 
@@ -30,21 +29,22 @@ namespace Envoy {
 namespace Http {
 class HttpPageSpeedDecoderFilter;
 }
-} // namespace Envoy
+}  // namespace Envoy
 
 namespace net_instaweb {
 
 enum PreserveCachingHeaders {
-  kPreserveAllCachingHeaders, // Cache-Control, ETag, Last-Modified, etc
-  kPreserveOnlyCacheControl,  // Only Cache-Control.
+  kPreserveAllCachingHeaders,  // Cache-Control, ETag, Last-Modified, etc
+  kPreserveOnlyCacheControl,   // Only Cache-Control.
   kDontPreserveHeaders,
 };
 
 class EnvoyBaseFetch : public AsyncFetch {
-public:
+ public:
   EnvoyBaseFetch(StringPiece url, EnvoyServerContext* server_context,
                  const RequestContextPtr& request_ctx,
-                 PreserveCachingHeaders preserve_caching_headers, const RewriteOptions* options,
+                 PreserveCachingHeaders preserve_caching_headers,
+                 const RewriteOptions* options,
                  Envoy::Http::HttpPageSpeedDecoderFilter* decoder);
 
   // Called by Envoy to decrement the refcount.
@@ -53,7 +53,7 @@ public:
   int IncrementRefCount();
   bool IsCachedResultValid(const ResponseHeaders& headers) override;
 
-private:
+ private:
   bool HandleWrite(const StringPiece& sp, MessageHandler* handler) override;
   bool HandleFlush(MessageHandler* handler) override;
   void HandleHeadersComplete() override;
@@ -74,4 +74,4 @@ private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyBaseFetch);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

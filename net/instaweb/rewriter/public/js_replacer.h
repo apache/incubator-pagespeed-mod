@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -54,8 +54,7 @@ class JsReplacer {
   //
   // Note that this may not work right if the pattern uses a reserved keyword
   // (e.g. things like 'class').
-  void AddPattern(const GoogleString& object,
-                  const GoogleString& field,
+  void AddPattern(const GoogleString& object, const GoogleString& field,
                   StringRewriter* rewriter);
 
   // Transforms the JS by applying any patterns added by calls to

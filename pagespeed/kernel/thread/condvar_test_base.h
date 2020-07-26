@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_CONDVAR_TEST_BASE_H_
 #define PAGESPEED_KERNEL_THREAD_CONDVAR_TEST_BASE_H_
-
-#include "pagespeed/kernel/base/condvar.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
@@ -46,8 +44,7 @@ class CondvarTestBase : public testing::Test {
         signal_method_(&ThreadSystem::Condvar::Signal),
         wait_after_signal_(false),
         helper_increments_(0),
-        init_called_(false) {
-  }
+        init_called_(false) {}
 
   // Init is intended to be called from the constructor of the derived class.
   // Ownership of the objects remains with the caller.

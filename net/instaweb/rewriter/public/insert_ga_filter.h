@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -54,7 +54,7 @@ extern inline constexpr char kGAExperimentSnippet[] =
 extern inline constexpr char kGAJsSnippet[] =
     "if (window.parent == window) {"
     "var _gaq = _gaq || [];"
-    "_gaq.push(['_setAccount', '%s']);"  // %s is the GA account number.
+    "_gaq.push(['_setAccount', '%s']);"     // %s is the GA account number.
     "_gaq.push(['_setDomainName', '%s']);"  // %s is the domain name
     "_gaq.push(['_setAllowLinker', true]);"
     "%s"  // Optional snippet to increase site speed tracking.
@@ -123,7 +123,6 @@ extern inline constexpr char kContentExperimentsSetExpAndVariantSnippet[] =
 // TODO(nforman): Allow this to be configurable through RewriteOptions.
 extern inline constexpr char kGASpeedTracking[] =
     "_gaq.push(['_setSiteSpeedSampleRate', 100]);";
-
 
 // This class is the implementation of the insert_ga filter, which handles:
 // * Adding a Google Analytics snippet to html pages.

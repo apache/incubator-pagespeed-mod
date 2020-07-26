@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/controller/named_lock_schedule_rewrite_controller.h"
 
@@ -51,8 +50,7 @@ NamedLockScheduleRewriteController::NamedLockScheduleRewriteController(
       locks_stolen_(stats->GetTimedVariable(kLocksStolen)),
       locks_released_when_not_held_(
           stats->GetTimedVariable(kLocksReleasedWhenNotHeld)),
-      locks_currently_held_(stats->GetUpDownCounter(kLocksCurrentlyHeld)) {
-}
+      locks_currently_held_(stats->GetUpDownCounter(kLocksCurrentlyHeld)) {}
 
 NamedLockScheduleRewriteController::~NamedLockScheduleRewriteController() {
   // We shouldn't actually have any locks held, but free any that are.
@@ -82,8 +80,8 @@ NamedLockScheduleRewriteController::GetLockInfo(const GoogleString& key) {
 void NamedLockScheduleRewriteController::DeleteInfoIfUnused(
     LockInfo* info, const GoogleString& key) {
   DCHECK_GE(info->pin_count, 0);
-  if (info->lock.get() == nullptr && info->pin_count <= 0
-      && info->pending_callbacks.empty()) {
+  if (info->lock.get() == nullptr && info->pin_count <= 0 &&
+      info->pending_callbacks.empty()) {
     size_t num_erased = locks_.erase(key);
     CHECK_EQ(1u, num_erased);
     delete info;
@@ -165,10 +163,9 @@ void NamedLockScheduleRewriteController::ScheduleRewrite(
       0 /* wait_ms */, kStealMs,
       MakeFunction<NamedLockScheduleRewriteController, Function*,
                    const GoogleString, NamedLock*>(
-          this,
-          &NamedLockScheduleRewriteController::LockObtained,
-          &NamedLockScheduleRewriteController::LockFailed,
-          callback, key, named_lock));
+          this, &NamedLockScheduleRewriteController::LockObtained,
+          &NamedLockScheduleRewriteController::LockFailed, callback, key,
+          named_lock));
 }
 
 void NamedLockScheduleRewriteController::NotifyRewriteComplete(
@@ -212,7 +209,6 @@ void NamedLockScheduleRewriteController::NotifyRewriteFailed(
   // Complete.
   this->NotifyRewriteComplete(key);
 }
-
 
 void NamedLockScheduleRewriteController::ShutDown() {
   // After ShutDown, all existing callbacks will be cancelled, requests for

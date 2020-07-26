@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,13 @@
  * under the License.
  */
 
-
-
 #include "webutil/css/property.h"
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/gtest.h"
 
 namespace {
 
-class PropertyTest : public testing::Test {
-};
+class PropertyTest : public testing::Test {};
 
 TEST_F(PropertyTest, PropFromText) {
   string s("border-width");
@@ -41,7 +37,7 @@ TEST_F(PropertyTest, TextFromProp) {
 }
 
 TEST_F(PropertyTest, Inverses) {
-  for(int i = 0; i < Css::Property::OTHER; ++i) {
+  for (int i = 0; i < Css::Property::OTHER; ++i) {
     string s(Css::Property::TextFromProp(static_cast<Css::Property::Prop>(i)));
     EXPECT_EQ(static_cast<Css::Property::Prop>(i),
               Css::Property::PropFromText(s.c_str(), s.length()));

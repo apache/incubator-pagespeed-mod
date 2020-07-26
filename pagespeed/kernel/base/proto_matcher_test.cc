@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 // Using the _impl header so we always get the open source version.
-#include "pagespeed/kernel/base/proto_matcher_impl.h"
-
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/base/proto_matcher_impl.h"
 #include "pagespeed/kernel/base/proto_matcher_test.pb.h"
 #include "pagespeed/kernel/base/string.h"
 

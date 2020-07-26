@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 #ifndef UTIL_UTF8_PUBLIC_UNILIB_UTF8_UTILS_H_
 #define UTIL_UTF8_PUBLIC_UNILIB_UTF8_UTILS_H_
 
 // These definitions are self-contained and have no dependencies.
 // They are also exported from unilib.h for legacy reasons.
 
-#include "base/integral_types.h"        // for char32, uint32
+#include "base/integral_types.h"  // for char32, uint32
 
 namespace UniLib {
 
@@ -32,8 +31,7 @@ namespace UniLib {
 // (i.e., is not a surrogate codepoint). See also
 // IsValidCodepoint(const char* src) in util/utf8/public/unilib.h.
 inline bool IsValidCodepoint(char32 c) {
-  return (static_cast<uint32_t>(c) < 0xD800)
-    || (c >= 0xE000 && c <= 0x10FFFF);
+  return (static_cast<uint32_t>(c) < 0xD800) || (c >= 0xE000 && c <= 0x10FFFF);
 }
 
 // Returns the length (number of bytes) of the Unicode code point

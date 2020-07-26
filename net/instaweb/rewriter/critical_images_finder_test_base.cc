@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -58,12 +58,19 @@ CriticalImagesFinderTestBase::GetCriticalImagesUpdatedValue() {
 
 void CriticalImagesFinderTestBase::CheckCriticalImageFinderStats(
     int hits, int expiries, int not_found) {
-  EXPECT_EQ(hits, statistics()->GetVariable(
-      CriticalImagesFinder::kCriticalImagesValidCount)->Get());
-  EXPECT_EQ(expiries, statistics()->GetVariable(
-      CriticalImagesFinder::kCriticalImagesExpiredCount)->Get());
-  EXPECT_EQ(not_found, statistics()->GetVariable(
-      CriticalImagesFinder::kCriticalImagesNotFoundCount)->Get());
+  EXPECT_EQ(hits,
+            statistics()
+                ->GetVariable(CriticalImagesFinder::kCriticalImagesValidCount)
+                ->Get());
+  EXPECT_EQ(expiries,
+            statistics()
+                ->GetVariable(CriticalImagesFinder::kCriticalImagesExpiredCount)
+                ->Get());
+  EXPECT_EQ(
+      not_found,
+      statistics()
+          ->GetVariable(CriticalImagesFinder::kCriticalImagesNotFoundCount)
+          ->Get());
 }
 
 bool CriticalImagesFinderTestBase::IsHtmlCriticalImage(StringPiece url) {

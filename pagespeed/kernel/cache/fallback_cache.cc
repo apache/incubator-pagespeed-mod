@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/cache/fallback_cache.h"
 
@@ -54,11 +53,9 @@ class FallbackCallback : public CacheInterface::Callback {
                    CacheInterface* large_object_cache)
       : callback_(callback),
         large_object_cache_(large_object_cache),
-        validate_candidate_called_(false) {
-  }
+        validate_candidate_called_(false) {}
 
-  ~FallbackCallback() override {
-  }
+  ~FallbackCallback() override {}
 
   void Done(CacheInterface::KeyState state) override {
     DCHECK(validate_candidate_called_);
@@ -72,7 +69,7 @@ class FallbackCallback : public CacheInterface::Callback {
   // the value and decide whether to unwrap the small value, or forward the
   // request to the large_object_cache_.
   bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) override {
+                         CacheInterface::KeyState state) override {
     validate_candidate_called_ = true;
     size_t size = value().size();
     const char* val = value().data();
@@ -109,17 +106,14 @@ class FallbackCallback : public CacheInterface::Callback {
 
 FallbackCache::FallbackCache(CacheInterface* small_object_cache,
                              CacheInterface* large_object_cache,
-                             int threshold_bytes,
-                             MessageHandler* handler)
+                             int threshold_bytes, MessageHandler* handler)
     : small_object_cache_(small_object_cache),
       large_object_cache_(large_object_cache),
       threshold_bytes_(threshold_bytes),
       account_for_key_size_(true),
-      message_handler_(handler) {
-}
+      message_handler_(handler) {}
 
-FallbackCache::~FallbackCache() {
-}
+FallbackCache::~FallbackCache() {}
 
 GoogleString FallbackCache::FormatName(StringPiece small, StringPiece large) {
   return StrCat("Fallback(small=", small, ",large=", large, ")");
@@ -133,8 +127,8 @@ void FallbackCache::Get(const GoogleString& key, Callback* callback) {
 void FallbackCache::MultiGet(MultiGetRequest* request) {
   for (int i = 0, n = request->size(); i < n; ++i) {
     KeyCallback& key_callback = (*request)[i];
-    key_callback.callback = new FallbackCallback(key_callback.callback,
-                                                 large_object_cache_);
+    key_callback.callback =
+        new FallbackCallback(key_callback.callback, large_object_cache_);
   }
   small_object_cache_->MultiGet(request);
 }

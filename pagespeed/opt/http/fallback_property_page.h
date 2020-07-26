@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -46,21 +46,19 @@ class FallbackPropertyPage : public AbstractPropertyPage {
 
   // Gets a property given the property name. It returns the property
   // from fallback property cache if actual property page has no value.
-  PropertyValue* GetProperty(
-      const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name) override;
+  PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
+                             const StringPiece& property_name) override;
 
   // Gets the property from property page with fallback values. It can return
   // NULL if property page with fallback values is NULL.
-  PropertyValue* GetFallbackProperty(
-        const PropertyCache::Cohort* cohort,
-        const StringPiece& property_name);
+  PropertyValue* GetFallbackProperty(const PropertyCache::Cohort* cohort,
+                                     const StringPiece& property_name);
 
   // Updates the value of a property for both actual property page and fallback
   // property page.
-  void UpdateValue(
-      const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-      const StringPiece& value) override;
+  void UpdateValue(const PropertyCache::Cohort* cohort,
+                   const StringPiece& property_name,
+                   const StringPiece& value) override;
 
   // Updates a Cohort of properties into the cache. It will also update for
   // fallback property cache.
@@ -72,11 +70,11 @@ class FallbackPropertyPage : public AbstractPropertyPage {
 
   // Gets the cache state of the property page with fallback values.
   virtual CacheInterface::KeyState GetFallbackCacheState(
-        const PropertyCache::Cohort* cohort);
+      const PropertyCache::Cohort* cohort);
 
   // Deletes a property given the property name from both the pages.
   void DeleteProperty(const PropertyCache::Cohort* cohort,
-                              const StringPiece& property_name) override;
+                      const StringPiece& property_name) override;
 
   PropertyPage* actual_property_page() { return actual_property_page_.get(); }
   PropertyPage* property_page_with_fallback_values() {

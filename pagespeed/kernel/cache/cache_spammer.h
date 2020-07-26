@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -47,8 +47,7 @@ class CacheSpammer : public ThreadSystem::Thread {
   // num_iters will be divided down by 100 when running on valgrind.
   static void RunTests(int num_threads, int num_iters, int num_inserts,
                        bool expecting_evictions, bool do_deletes,
-                       const char* value_prefix,
-                       CacheInterface* cache,
+                       const char* value_prefix, CacheInterface* cache,
                        ThreadSystem* thread_runtime);
 
   // Called when a Get completes.
@@ -58,14 +57,9 @@ class CacheSpammer : public ThreadSystem::Thread {
   void Run() override;
 
  private:
-  CacheSpammer(ThreadSystem* runtime,
-               ThreadSystem::ThreadFlags flags,
-               CacheInterface* cache,
-               bool expecting_evictions,
-               bool do_deletes,
-               const char* value_prefix,
-               int index,
-               int num_iters,
+  CacheSpammer(ThreadSystem* runtime, ThreadSystem::ThreadFlags flags,
+               CacheInterface* cache, bool expecting_evictions, bool do_deletes,
+               const char* value_prefix, int index, int num_iters,
                int num_inserts);
 
   CacheInterface* cache_;
@@ -77,7 +71,7 @@ class CacheSpammer : public ThreadSystem::Thread {
   int num_inserts_;
   std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
   std::unique_ptr<ThreadSystem::Condvar> condvar_;
-  int pending_gets_  GUARDED_BY(mutex_);
+  int pending_gets_ GUARDED_BY(mutex_);
 
   DISALLOW_COPY_AND_ASSIGN(CacheSpammer);
 };

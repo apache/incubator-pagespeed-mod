@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 
@@ -38,7 +37,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
   }
 
   bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) override {
+                   MessageHandler* handler) override {
     {
       ScopedMutex lock(counter_->mutex_.get());
       counter_->byte_count_ += content.size();
@@ -64,8 +63,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(CountingFetch);
 };
 
-CountingUrlAsyncFetcher::~CountingUrlAsyncFetcher() {
-}
+CountingUrlAsyncFetcher::~CountingUrlAsyncFetcher() {}
 
 void CountingUrlAsyncFetcher::Fetch(const GoogleString& url,
                                     MessageHandler* message_handler,

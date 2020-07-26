@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -127,10 +127,8 @@ void InsertGAFilter::StartDocumentImpl() {
 
 // Start looking for ga snippet.
 void InsertGAFilter::StartElementImpl(HtmlElement* element) {
-  if (!ga_id_.empty() &&
-      !found_snippet_ &&
-      element->keyword() == HtmlName::kScript &&
-      script_element_ == nullptr) {
+  if (!ga_id_.empty() && !found_snippet_ &&
+      element->keyword() == HtmlName::kScript && script_element_ == nullptr) {
     script_element_ = element;
   }
 }
@@ -162,8 +160,7 @@ InsertGAFilter::AnalyticsStatus InsertGAFilter::FindSnippetInScript(
     // (using [.google-analytics.com/ga.js], with initial dot) and then has the
     // ga_id (which we checked for above).
     return kGaJs;  // Asynchronous ga.js
-  } else if (seen_sync_ga_js_ &&
-             s.find("_getTracker") != GoogleString::npos &&
+  } else if (seen_sync_ga_js_ && s.find("_getTracker") != GoogleString::npos &&
              s.find("_trackPageview") != GoogleString::npos) {
     // Synchronous ga.js was split over two script tags: first one to do the
     // loading then one to do the initialization and page tracking.  We want to
@@ -195,7 +192,7 @@ GoogleString InsertGAFilter::GaJsExperimentSnippet() const {
   } else {
     // Variant ID was non-numeric, so inject a warning.
     return absl::StrFormat(kContentExperimentsNonNumericVariantComment,
-                        variant_id);
+                           variant_id);
   }
 }
 
@@ -228,17 +225,14 @@ void InsertGAFilter::EndDocument() {
     if (ShouldInsertExperimentTracking(true /* analytics.js */)) {
       experiment_snippet = AnalyticsJsExperimentSnippet();
     }
-    js_text = absl::StrFormat(
-        kAnalyticsJsSnippet,
-        ga_id_.c_str(),
-        speed_tracking,
-        experiment_snippet.c_str());
+    js_text = absl::StrFormat(kAnalyticsJsSnippet, ga_id_.c_str(),
+                              speed_tracking, experiment_snippet.c_str());
   } else {
     if (ShouldInsertExperimentTracking(false /* ga.js */)) {
       if (driver()->options()->is_content_experiment()) {
         HtmlElement* cxapi = driver()->NewElement(nullptr, HtmlName::kScript);
-        driver()->AddAttribute(
-            cxapi, HtmlName::kSrc, kContentExperimentsJsClientUrl);
+        driver()->AddAttribute(cxapi, HtmlName::kSrc,
+                               kContentExperimentsJsClientUrl);
         InsertNodeAtBodyEnd(cxapi);
         experiment_snippet = GaJsExperimentSnippet();
       } else {
@@ -256,13 +250,12 @@ void InsertGAFilter::EndDocument() {
       speed_tracking = kGASpeedTracking;
     }
     js_text = StrCat(experiment_snippet,
-                     absl::StrFormat(kGAJsSnippet,
-                                  ga_id_.c_str(),
-                                  domain.c_str(),
-                                  speed_tracking));
+                     absl::StrFormat(kGAJsSnippet, ga_id_.c_str(),
+                                     domain.c_str(), speed_tracking));
   }
 
-  HtmlElement* script_element = driver()->NewElement(nullptr, HtmlName::kScript);
+  HtmlElement* script_element =
+      driver()->NewElement(nullptr, HtmlName::kScript);
   InsertNodeAtBodyEnd(script_element);
   HtmlNode* snippet = driver()->NewCharactersNode(script_element, js_text);
   driver()->AppendChild(script_element, snippet);
@@ -274,8 +267,9 @@ void InsertGAFilter::EndDocument() {
 bool InsertGAFilter::ShouldInsertExperimentTracking(bool is_analytics_js) {
   if (driver()->options()->running_experiment()) {
     if (is_analytics_js && !driver()->options()->is_content_experiment()) {
-      driver()->WarningHere("Experiment framework requires a content experiment"
-                            " when used with analytics.js.");
+      driver()->WarningHere(
+          "Experiment framework requires a content experiment"
+          " when used with analytics.js.");
       return false;
     }
 
@@ -302,8 +296,9 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
   }
 
   if (analytics_status == kUnusableSnippetFound) {
-    driver()->InfoHere("Page contains unusual Google Analytics snippet that"
-                       " we're not able to modify to add experiment tracking.");
+    driver()->InfoHere(
+        "Page contains unusual Google Analytics snippet that"
+        " we're not able to modify to add experiment tracking.");
     return;
   }
 
@@ -439,11 +434,10 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
     } else {
       const char* speed_tracking =
           increase_speed_tracking_ ? kGASpeedTracking : "";
-      GoogleString snippet_text = absl::StrFormat(
-          kGAExperimentSnippet,
-          speed_tracking,
-          driver()->options()->experiment_ga_slot(),
-          driver()->options()->ToExperimentString().c_str());
+      GoogleString snippet_text =
+          absl::StrFormat(kGAExperimentSnippet, speed_tracking,
+                          driver()->options()->experiment_ga_slot(),
+                          driver()->options()->ToExperimentString().c_str());
       GoogleString* script = characters->mutable_contents();
       // Prepend snippet_text to the script block.
       script->insert(0, snippet_text);
@@ -457,8 +451,8 @@ void InsertGAFilter::RewriteInlineScript(HtmlCharactersNode* characters) {
 void InsertGAFilter::HandleEndScript(HtmlElement* script) {
   if (!postponed_script_body_.empty()) {
     DCHECK(script == script_element_);
-    driver()->InsertScriptAfterCurrent(
-        kContentExperimentsJsClientUrl, true /* external */);
+    driver()->InsertScriptAfterCurrent(kContentExperimentsJsClientUrl,
+                                       true /* external */);
     driver()->InsertScriptAfterCurrent(
         StrCat(GaJsExperimentSnippet(), postponed_script_body_),
         false /* inline */);

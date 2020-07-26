@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/threadsafe_lock_manager.h"
 
@@ -50,7 +49,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   friend class ScopedLockRunningDelayedCallbacks;
   friend class Lock;  // Needed by thread annotation for mutex_.
   typedef std::set<Lock*> LockSet;
-  using DelayedCall = std::pair<Function *, bool>;
+  using DelayedCall = std::pair<Function*, bool>;
   using DelayedCalls = std::vector<DelayedCall>;
 
  public:
@@ -59,8 +58,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
 
   static const int64 kWakeupNotSet = -1;
 
-  NamedLock* CreateNamedLock(const StringPiece& name)
-      LOCKS_EXCLUDED(mutex_);
+  NamedLock* CreateNamedLock(const StringPiece& name) LOCKS_EXCLUDED(mutex_);
 
   // Called when the ThreadSafeLockManager is destructed.  This results
   // in instant-destruction of the owned MemLockManager, but the rest of
@@ -124,20 +122,17 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   // queue up the user-callbacks so they can be called when the scheduler mutex
   // is dropped, rather than while holding it.
   Function* MakeDelayCallback(Function* callback) {
-    return MakeFunction(
-        this, &LockHolder::RunWhenSchedulerUnlocked,
-        &LockHolder::CancelWhenSchedulerUnlocked, callback);
+    return MakeFunction(this, &LockHolder::RunWhenSchedulerUnlocked,
+                        &LockHolder::CancelWhenSchedulerUnlocked, callback);
   }
 
   // Runs the callback once the currently-active lock has been released.
-  void EnqueueRun(Function* callback)
-      EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+  void EnqueueRun(Function* callback) EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     delayed_calls_.push_back(DelayedCall(callback, true));
   }
 
   // Cancels the callback once the currently-active lock has been released.
-  void EnqueueCancel(Function* callback)
-      EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+  void EnqueueCancel(Function* callback) EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     delayed_calls_.push_back(DelayedCall(callback, false));
   }
 
@@ -165,7 +160,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
 // mutex-release happens on destruction, followed by calling all the
 // callback Run/Cancel methods.
 class SCOPED_LOCKABLE
-ThreadSafeLockManager::LockHolder::ScopedLockRunningDelayedCallbacks {
+    ThreadSafeLockManager::LockHolder::ScopedLockRunningDelayedCallbacks {
  public:
   explicit ScopedLockRunningDelayedCallbacks(LockHolder* lock_holder)
       EXCLUSIVE_LOCK_FUNCTION(lock_holder->mutex_)
@@ -201,10 +196,7 @@ ThreadSafeLockManager::LockHolder::ScopedLockRunningDelayedCallbacks {
 class ThreadSafeLockManager::Lock : public NamedLock {
  public:
   Lock(NamedLock* lock, LockHolder* lock_holder)
-      : lock_holder_(lock_holder),
-        lock_(lock),
-        manager_destroyed_(false) {
-  }
+      : lock_holder_(lock_holder), lock_(lock), manager_destroyed_(false) {}
 
   ~Lock() override {
     LockHolder::ScopedLockRunningDelayedCallbacks lock(lock_holder_.get());
@@ -219,7 +211,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
 
   // API implementation:
   void LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
-                                     Function* callback) override {
+                             Function* callback) override {
     LockHolder::ScopedLockRunningDelayedCallbacks lock(lock_holder_.get());
     if (manager_destroyed_) {
       lock_holder_->EnqueueCancel(callback);
@@ -262,8 +254,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
 
   // Helper methods for self & for the manager:
 
-  void ManagerDestroyed()
-      EXCLUSIVE_LOCKS_REQUIRED(lock_holder_->mutex_) {
+  void ManagerDestroyed() EXCLUSIVE_LOCKS_REQUIRED(lock_holder_->mutex_) {
     manager_destroyed_ = true;
   }
 
@@ -274,9 +265,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
 };
 
 ThreadSafeLockManager::ThreadSafeLockManager(Scheduler* scheduler)
-    : lock_holder_(new LockHolder(scheduler)) {
-}
-
+    : lock_holder_(new LockHolder(scheduler)) {}
 
 ThreadSafeLockManager::~ThreadSafeLockManager() {
   lock_holder_->ManagerDestroyed();
@@ -291,8 +280,7 @@ ThreadSafeLockManager::LockHolder::LockHolder(Scheduler* scheduler)
       manager_(new MemLockManager(scheduler->timer())),
       alarm_(nullptr),
       alarm_time_us_(kWakeupNotSet),
-      mutex_(scheduler->thread_system()->NewMutex()) {
-}
+      mutex_(scheduler->thread_system()->NewMutex()) {}
 
 ThreadSafeLockManager::LockHolder::~LockHolder() {
   ScopedMutex lock(scheduler_->mutex());

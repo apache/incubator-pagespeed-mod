@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_TEST_BASE_H_
@@ -96,12 +95,11 @@ class SharedMemStatisticsTestBase : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatisticsTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemStatisticsTestTemplate : public SharedMemStatisticsTestBase {
  public:
   SharedMemStatisticsTestTemplate()
-      : SharedMemStatisticsTestBase(new ConcreteTestEnv) {
-  }
+      : SharedMemStatisticsTestBase(new ConcreteTestEnv) {}
 };
 
 TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate);
@@ -147,12 +145,11 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate, TestCreate,
-                           TestSet, TestClear, TestAdd,
-                           TestSetReturningPrevious,
-                           TestHistogram, TestHistogramRender,
-                           TestHistogramNoExtraClear,
-                           TestHistogramExtremeBuckets,
-                           TestTimedVariableEmulation);
+                            TestSet, TestClear, TestAdd,
+                            TestSetReturningPrevious, TestHistogram,
+                            TestHistogramRender, TestHistogramNoExtraClear,
+                            TestHistogramExtremeBuckets,
+                            TestTimedVariableEmulation);
 
 }  // namespace net_instaweb
 

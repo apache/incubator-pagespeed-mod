@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-
 
 #ifndef WEBUTIL_CSS_VALUE_H__
 #define WEBUTIL_CSS_VALUE_H__
@@ -53,15 +51,46 @@ class Values;
 // various accessors.
 class Value {
  public:
-  enum ValueType { NUMBER, URI, FUNCTION, RECT, COLOR, STRING, IDENT, COMMA,
-                   UNKNOWN, DEFAULT };
-  enum Unit { EM, EX, PX, CM, MM, IN, PT, PC,
-              DEG, RAD, GRAD, MS, S, HZ, KHZ, PERCENT, VH, VM, VW, OTHER,
-              NO_UNIT, NUM_UNITS };
+  enum ValueType {
+    NUMBER,
+    URI,
+    FUNCTION,
+    RECT,
+    COLOR,
+    STRING,
+    IDENT,
+    COMMA,
+    UNKNOWN,
+    DEFAULT
+  };
+  enum Unit {
+    EM,
+    EX,
+    PX,
+    CM,
+    MM,
+    IN,
+    PT,
+    PC,
+    DEG,
+    RAD,
+    GRAD,
+    MS,
+    S,
+    HZ,
+    KHZ,
+    PERCENT,
+    VH,
+    VM,
+    VW,
+    OTHER,
+    NO_UNIT,
+    NUM_UNITS
+  };
 
   // These constructors generate Values of various types.
 
-  Value() : type_(DEFAULT), color_(0, 0, 0) { }
+  Value() : type_(DEFAULT), color_(0, 0, 0) {}
 
   // COMMA, UNKNOWN or DEFAULT
   Value(ValueType ty);  // NOLINT
@@ -122,10 +151,10 @@ class Value {
   // Each of these accessors is only valid for certain types.  The
   // comment indicates for which types they are valid; we DCHECK this
   // precondition.
-  string    GetDimensionUnitText() const;  // NUMBER: the unit as a string.
-  Unit      GetDimension() const;          // NUMBER: the unit.
-  int       GetIntegerValue() const;       // NUMBER: the integer value.
-  double    GetFloatValue() const;         // NUMBER: the float value.
+  string GetDimensionUnitText() const;  // NUMBER: the unit as a string.
+  Unit GetDimension() const;            // NUMBER: the unit.
+  int GetIntegerValue() const;          // NUMBER: the integer value.
+  double GetFloatValue() const;         // NUMBER: the float value.
   // FUNCTION: the function parameter values (ignoring separators).
   const Values* GetParameters() const;
   // FUNCITON: the function parameters with separator information.
@@ -134,7 +163,7 @@ class Value {
   const UnicodeText& GetStringValue() const;   // URI, STRING: the string value
   UnicodeText GetIdentifierText() const;       // IDENT: the ident as a string.
   const Identifier& GetIdentifier() const;     // IDENT: identifier.
-  const HtmlColor&   GetColorValue() const;    // COLOR: the color value
+  const HtmlColor& GetColorValue() const;      // COLOR: the color value
 
   // Verbatim bytes parsed for the declaration. Only stored for some Values.
   // Only available using preservation-mode parsing and only stored for things
@@ -150,12 +179,12 @@ class Value {
 
  private:
   ValueType type_;  // indicates the type of value.  Always valid.
-  double num_;            // for NUMBER (integer values are stored as doubles)
+  double num_;      // for NUMBER (integer values are stored as doubles)
   std::unique_ptr<FunctionParameters> params_;  // FUNCTION and RECT params
-  Unit unit_;             // for NUMBER
-  HtmlColor color_;           // COLOR
-  Identifier identifier_;   // for IDENT
-  UnicodeText str_;    // for NUMBER (OTHER unit_), URI, STRING, FUNCTION
+  Unit unit_;                                   // for NUMBER
+  HtmlColor color_;                             // COLOR
+  Identifier identifier_;                       // for IDENT
+  UnicodeText str_;  // for NUMBER (OTHER unit_), URI, STRING, FUNCTION
 
   string bytes_in_original_buffer_;
 
@@ -170,7 +199,7 @@ class Value {
 // deleted as a Values.
 class Values : public std::vector<Value*> {
  public:
-  Values() : std::vector<Value*>() { }
+  Values() : std::vector<Value*>() {}
   ~Values();
 
   // We provide syntactic sugar for accessing elements.
@@ -178,6 +207,7 @@ class Values : public std::vector<Value*> {
   const Value* get(int i) const { return (*this)[i]; }
 
   string ToString() const;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Values);
 };
@@ -228,6 +258,6 @@ class FunctionParameters {
   DISALLOW_COPY_AND_ASSIGN(FunctionParameters);
 };
 
-}  // namespace
+}  // namespace Css
 
 #endif  // WEBUTIL_CSS_VALUE_H__

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 
@@ -31,8 +30,7 @@ namespace net_instaweb {
 
 class RewriteContext;
 
-RewriteFilter::~RewriteFilter() {
-}
+RewriteFilter::~RewriteFilter() {}
 
 void RewriteFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(true);
@@ -45,13 +43,9 @@ const UrlSegmentEncoder* RewriteFilter::encoder() const {
   return driver()->default_encoder();
 }
 
-bool RewriteFilter::ComputeOnTheFly() const {
-  return false;
-}
+bool RewriteFilter::ComputeOnTheFly() const { return false; }
 
-RewriteContext* RewriteFilter::MakeRewriteContext() {
-  return nullptr;
-}
+RewriteContext* RewriteFilter::MakeRewriteContext() { return nullptr; }
 
 RewriteContext* RewriteFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
@@ -59,8 +53,7 @@ RewriteContext* RewriteFilter::MakeNestedRewriteContext(
 }
 
 StringPiece RewriteFilter::GetCharsetForScript(
-    const Resource* script,
-    const StringPiece attribute_charset,
+    const Resource* script, const StringPiece attribute_charset,
     const StringPiece enclosing_charset) {
   // 1. If the script has a Content-Type with a charset, use that.
   if (!script->charset().empty()) {
@@ -89,8 +82,7 @@ StringPiece RewriteFilter::GetCharsetForScript(
 }
 
 GoogleString RewriteFilter::GetCharsetForStylesheet(
-    const Resource* stylesheet,
-    const StringPiece attribute_charset,
+    const Resource* stylesheet, const StringPiece attribute_charset,
     const StringPiece enclosing_charset) {
   // 1. If the stylesheet has a Content-Type with a charset, use that, else
   if (!stylesheet->charset().empty()) {

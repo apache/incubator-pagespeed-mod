@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
 // Base-class & helper classes for testing RewriteContext and its
 // interaction with various subsystems.
 
-#include <memory>
-
-
-
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -54,8 +51,7 @@ const char CombiningFilter::kFilterId[] = "cr";
 // RewriteContextTest::TrimFetchHashFailedShortTtl.
 const int64 RewriteContextTestBase::kLowOriginTtlMs;
 
-TrimWhitespaceRewriter::~TrimWhitespaceRewriter() {
-}
+TrimWhitespaceRewriter::~TrimWhitespaceRewriter() {}
 
 bool TrimWhitespaceRewriter::RewriteText(const StringPiece& url,
                                          const StringPiece& in,
@@ -75,8 +71,7 @@ HtmlElement::Attribute* TrimWhitespaceRewriter::FindResourceAttribute(
   return nullptr;
 }
 
-TrimWhitespaceSyncFilter::~TrimWhitespaceSyncFilter() {
-}
+TrimWhitespaceSyncFilter::~TrimWhitespaceSyncFilter() {}
 
 void TrimWhitespaceSyncFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kLink) {
@@ -88,18 +83,14 @@ void TrimWhitespaceSyncFilter::StartElementImpl(HtmlElement* element) {
   }
 }
 
-UpperCaseRewriter::~UpperCaseRewriter() {
-}
+UpperCaseRewriter::~UpperCaseRewriter() {}
 
-NestedFilter::~NestedFilter() {
-}
+NestedFilter::~NestedFilter() {}
 
-NestedFilter::Context::~Context() {
-  STLDeleteElements(&strings_);
-}
+NestedFilter::Context::~Context() { STLDeleteElements(&strings_); }
 
-void NestedFilter::Context::RewriteSingle(
-    const ResourcePtr& input, const OutputResourcePtr& output) {
+void NestedFilter::Context::RewriteSingle(const ResourcePtr& input,
+                                          const OutputResourcePtr& output) {
   ++filter_->num_top_rewrites_;
   // Assume that this file just has nested CSS URLs one per line,
   // which we will rewrite.
@@ -126,8 +117,7 @@ void NestedFilter::Context::RewriteSingle(
           // Test chaining of a 2nd rewrite on the same slot, if asked.
           if (chain_) {
             RewriteContext* nested_context2 =
-                filter_->upper_filter()->MakeNestedRewriteContext(this,
-                                                                  slot);
+                filter_->upper_filter()->MakeNestedRewriteContext(this, slot);
             AddNestedContext(nested_context2);
           }
         }
@@ -161,11 +151,9 @@ void NestedFilter::Context::Harvest() {
   // Warning: this uses input's content-type for simplicity, but real
   // filters should not do that --- see comments in
   // CacheExtender::RewriteLoadedResource as to why.
-  if (Driver()->Write(ResourceVector(1, slot(0)->resource()),
-                      new_content,
+  if (Driver()->Write(ResourceVector(1, slot(0)->resource()), new_content,
                       slot(0)->resource()->type(),
-                      slot(0)->resource()->charset(),
-                      output(0).get())) {
+                      slot(0)->resource()->charset(), output(0).get())) {
     result = kRewriteOk;
   }
   RewriteDone(result, 0);
@@ -175,9 +163,9 @@ void NestedFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kHref);
   if (attr != nullptr) {
     bool unused;
-    ResourcePtr resource = CreateInputResource(
-        attr->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
-        &unused);
+    ResourcePtr resource =
+        CreateInputResource(attr->DecodedValueOrNull(),
+                            RewriteDriver::InputRole::kUnknown, &unused);
     if (resource.get() != nullptr) {
       ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
 
@@ -207,8 +195,7 @@ CombiningFilter::CombiningFilter(RewriteDriver* driver,
   ClearStats();
 }
 
-CombiningFilter::~CombiningFilter() {
-}
+CombiningFilter::~CombiningFilter() {}
 
 CombiningFilter::Context::Context(RewriteDriver* driver,
                                   CombiningFilter* filter,
@@ -232,8 +219,8 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
     }
     // This should be called after checking IsSafeToRewrite, since
     // AddInputInfoToPartition requires the resource to be loaded()
-    slot(i)->resource()->AddInputInfoToPartition(
-        Resource::kIncludeInputHash, i, partition);
+    slot(i)->resource()->AddInputInfoToPartition(Resource::kIncludeInputHash, i,
+                                                 partition);
   }
   OutputResourcePtr combination(combiner_.MakeOutput());
   // MakeOutput can fail if for example there is only one input resource.
@@ -264,10 +251,10 @@ void CombiningFilter::Context::Rewrite(int partition_index,
   if (filter_->rewrite_delay_ms() == 0) {
     DoRewrite(partition_index, partition, output);
   } else {
-    int64 wakeup_us = time_at_start_of_rewrite_us_ +
-        1000 * filter_->rewrite_delay_ms();
-    Function* closure = MakeFunction(
-        this, &Context::DoRewrite, partition_index, partition, output);
+    int64 wakeup_us =
+        time_at_start_of_rewrite_us_ + 1000 * filter_->rewrite_delay_ms();
+    Function* closure = MakeFunction(this, &Context::DoRewrite, partition_index,
+                                     partition, output);
     scheduler_->AddAlarmAtUs(wakeup_us, closure);
   }
 }
@@ -306,9 +293,7 @@ void CombiningFilter::Context::WillNotRender() {
   ++filter_->num_will_not_render_;
 }
 
-void CombiningFilter::Context::Cancel() {
-  ++filter_->num_cancel_;
-}
+void CombiningFilter::Context::Cancel() { ++filter_->num_cancel_; }
 
 void CombiningFilter::Context::DisableRemovedSlots(
     const CachedResult* partition) {
@@ -326,9 +311,9 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
     if (href != nullptr) {
       bool unused;
-      ResourcePtr resource(CreateInputResource(
-          href->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
-          &unused));
+      ResourcePtr resource(
+          CreateInputResource(href->DecodedValueOrNull(),
+                              RewriteDriver::InputRole::kUnknown, &unused));
       if (resource.get() != nullptr) {
         if (context_.get() == nullptr) {
           context_ = std::make_unique<Context>(driver(), this, scheduler_);
@@ -341,8 +326,7 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
 
 const int64 RewriteContextTestBase::kRewriteDeadlineMs;
 
-RewriteContextTestBase::~RewriteContextTestBase() {
-}
+RewriteContextTestBase::~RewriteContextTestBase() {}
 
 void RewriteContextTestBase::SetUp() {
   trim_filter_ = nullptr;
@@ -407,9 +391,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   private_css_header.Add(HttpAttributes::kContentType, "text/css");
   private_css_header.ComputeCaching();
 
-  SetFetchResponse(StrCat(domain, "a_private.css"),
-                   private_css_header,
-                   " a ");
+  SetFetchResponse(StrCat(domain, "a_private.css"), private_css_header, " a ");
 
   // trimmable, no-cache
   ResponseHeaders no_cache_css_header;
@@ -420,8 +402,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   no_cache_css_header.Add(HttpAttributes::kContentType, "text/css");
   no_cache_css_header.ComputeCaching();
 
-  SetFetchResponse(StrCat(domain, "a_no_cache.css"),
-                   no_cache_css_header,
+  SetFetchResponse(StrCat(domain, "a_no_cache.css"), no_cache_css_header,
                    " a ");
 
   // trimmable, no-transform
@@ -435,8 +416,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   no_transform_css_header.ComputeCaching();
 
   SetFetchResponse(StrCat(domain, "a_no_transform.css"),
-                   no_transform_css_header,
-                   " a ");
+                   no_transform_css_header, " a ");
 
   // trimmable, no-cache, no-store
   ResponseHeaders no_store_css_header;
@@ -447,8 +427,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   no_store_css_header.Add(HttpAttributes::kContentType, "text/css");
   no_store_css_header.ComputeCaching();
 
-  SetFetchResponse(StrCat(domain, "a_no_store.css"),
-                   no_store_css_header,
+  SetFetchResponse(StrCat(domain, "a_no_store.css"), no_store_css_header,
                    " a ");
 }
 
@@ -461,8 +440,8 @@ void RewriteContextTestBase::InitUpperFilter(OutputResourceKind kind,
 
 void RewriteContextTestBase::InitCombiningFilter(int64 rewrite_delay_ms) {
   RewriteDriver* driver = rewrite_driver();
-  combining_filter_ = new CombiningFilter(driver, mock_scheduler(),
-                                          rewrite_delay_ms);
+  combining_filter_ =
+      new CombiningFilter(driver, mock_scheduler(), rewrite_delay_ms);
   driver->AppendRewriteFilter(combining_filter_);
   driver->AddFilters();
 }
@@ -476,8 +455,7 @@ void RewriteContextTestBase::InitNestedFilter(
   // NestedFilter gets to them.
   UpperCaseRewriter* upper_rewriter;
   SimpleTextFilter* upper_filter =
-      UpperCaseRewriter::MakeFilter(kOnTheFlyResource, driver,
-                                    &upper_rewriter);
+      UpperCaseRewriter::MakeFilter(kOnTheFlyResource, driver, &upper_rewriter);
   AddFetchOnlyRewriteFilter(upper_filter);
   nested_filter_ = new NestedFilter(driver, upper_filter, upper_rewriter,
                                     expected_nested_rewrite_result);

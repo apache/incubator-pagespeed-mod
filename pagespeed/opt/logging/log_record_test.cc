@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "pagespeed/opt/logging/log_record.h"
 
 #include <memory>
-
-
-
-#include "pagespeed/opt/logging/log_record.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/null_mutex.h"
@@ -42,8 +39,8 @@ class LogRecordTest : public testing::Test {
   void TestRewriterInfo(int size, GoogleString last_id, int last_status) {
     LoggingInfo* l = log_record_->logging_info();
     EXPECT_EQ(size, l->rewriter_info_size());
-    EXPECT_EQ(last_id, l->rewriter_info(size-1).id());
-    EXPECT_EQ(last_status, l->rewriter_info(size-1).status());
+    EXPECT_EQ(last_id, l->rewriter_info(size - 1).id());
+    EXPECT_EQ(last_status, l->rewriter_info(size - 1).status());
   }
 
   std::unique_ptr<AbstractLogRecord> log_record_;
@@ -62,7 +59,7 @@ TEST_F(LogRecordTest, SimpleAppliedRewriters) {
   TestRewriterInfo(1, "zz", RewriterApplication::APPLIED_OK);
   log_record_->SetRewriterLoggingStatus("aa", RewriterApplication::APPLIED_OK);
   TestRewriterInfo(2, "aa", RewriterApplication::APPLIED_OK);
-  EXPECT_EQ("aa,zz",  log_record_->AppliedRewritersString());
+  EXPECT_EQ("aa,zz", log_record_->AppliedRewritersString());
 }
 
 TEST_F(LogRecordTest, DuplicateAppliedRewriters) {
@@ -143,7 +140,6 @@ TEST_F(LogRecordTest, DoNotLogUrlsOrIndices) {
   EXPECT_FALSE(logging_info->rewriter_info(0).has_rewrite_resource_info());
 }
 
-
 TEST_F(LogRecordTest, LogOnlyUrlIndices) {
   LoggingInfo* logging_info = log_record_->logging_info();
   log_record_->SetLogUrlIndices(true);
@@ -159,16 +155,18 @@ TEST_F(LogRecordTest, LogOnlyUrlIndices) {
                                         RewriterApplication::APPLIED_OK);
   EXPECT_EQ(0, logging_info->resource_url_info().url_size());
   EXPECT_TRUE(logging_info->rewriter_info(1).has_rewrite_resource_info());
-  EXPECT_EQ(0, logging_info->rewriter_info(1).rewrite_resource_info().
-            original_resource_url_index());
+  EXPECT_EQ(0, logging_info->rewriter_info(1)
+                   .rewrite_resource_info()
+                   .original_resource_url_index());
 
   // NOT_APPLIED case.
   log_record_->SetRewriterLoggingStatus("z2", "url",
                                         RewriterApplication::NOT_APPLIED);
   EXPECT_EQ(0, logging_info->resource_url_info().url_size());
   EXPECT_TRUE(logging_info->rewriter_info(2).has_rewrite_resource_info());
-  EXPECT_EQ(0, logging_info->rewriter_info(1).rewrite_resource_info().
-            original_resource_url_index());
+  EXPECT_EQ(0, logging_info->rewriter_info(1)
+                   .rewrite_resource_info()
+                   .original_resource_url_index());
 }
 
 TEST_F(LogRecordTest, LogUrls) {
@@ -180,22 +178,25 @@ TEST_F(LogRecordTest, LogUrls) {
                                         RewriterApplication::APPLIED_OK);
   EXPECT_EQ(1, logging_info->resource_url_info().url_size());
   EXPECT_EQ("url", logging_info->resource_url_info().url(0));
-  EXPECT_EQ(0, logging_info->rewriter_info(0).rewrite_resource_info().
-            original_resource_url_index());
+  EXPECT_EQ(0, logging_info->rewriter_info(0)
+                   .rewrite_resource_info()
+                   .original_resource_url_index());
 
   // Another record with same url.
   log_record_->SetRewriterLoggingStatus("z2", "url",
                                         RewriterApplication::APPLIED_OK);
   EXPECT_EQ(1, logging_info->resource_url_info().url_size());
-  EXPECT_EQ(0, logging_info->rewriter_info(1).rewrite_resource_info().
-            original_resource_url_index());
+  EXPECT_EQ(0, logging_info->rewriter_info(1)
+                   .rewrite_resource_info()
+                   .original_resource_url_index());
 
   // Record with different url
   log_record_->SetRewriterLoggingStatus("z3", "url3",
                                         RewriterApplication::APPLIED_OK);
   EXPECT_EQ(2, logging_info->resource_url_info().url_size());
-  EXPECT_EQ(1, logging_info->rewriter_info(2).rewrite_resource_info().
-            original_resource_url_index());
+  EXPECT_EQ(1, logging_info->rewriter_info(2)
+                   .rewrite_resource_info()
+                   .original_resource_url_index());
   EXPECT_EQ("url3", logging_info->resource_url_info().url(1));
 }
 

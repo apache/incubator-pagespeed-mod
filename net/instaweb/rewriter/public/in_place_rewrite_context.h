@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IN_PLACE_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IN_PLACE_REWRITE_CONTEXT_H_
@@ -89,15 +88,15 @@ class InPlaceRewriteContext : public SingleRewriteContext {
 
   // Implements SingleRewriteContext::RewriteSingle().
   void RewriteSingle(const ResourcePtr& input,
-                      const OutputResourcePtr& output) override;
+                     const OutputResourcePtr& output) override;
   // Implements RewriteContext::id().
   const char* id() const override { return RewriteOptions::kInPlaceRewriteId; }
   // Implements RewriteContext::kind().
   OutputResourceKind kind() const override { return kRewrittenResource; }
   // Implements RewriteContext::DecodeFetchUrls().
   bool DecodeFetchUrls(const OutputResourcePtr& output_resource,
-                        MessageHandler* message_handler,
-                        GoogleUrlStarVector* url_vector) override;
+                       MessageHandler* message_handler,
+                       GoogleUrlStarVector* url_vector) override;
   // Implements RewriteContext::StartFetchReconstruction().
   void StartFetchReconstruction() override;
 
@@ -130,10 +129,10 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   void StartFetchReconstructionParent();
   // Implements RewriteContext::FixFetchFallbackHeaders().
   void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                                       ResponseHeaders* headers) override;
+                               ResponseHeaders* headers) override;
   // Implements RewriteContext::FetchTryFallback().
   void FetchTryFallback(const GoogleString& url,
-                                const StringPiece& hash) override;
+                        const StringPiece& hash) override;
   // Implements RewriteContext::FetchCallbackDone().
   void FetchCallbackDone(bool success) override;
 
@@ -189,19 +188,17 @@ class InPlaceRewriteContext : public SingleRewriteContext {
 // underlying writer, response headers and callback.
 class RecordingFetch : public SharedAsyncFetch {
  public:
-  RecordingFetch(bool proxy_mode,
-                 AsyncFetch* async_fetch,
-                 const ResourcePtr& resource,
-                 InPlaceRewriteContext* context,
-                 int desired_s_maxage_sec,
-                 MessageHandler* handler);
+  RecordingFetch(bool proxy_mode, AsyncFetch* async_fetch,
+                 const ResourcePtr& resource, InPlaceRewriteContext* context,
+                 int desired_s_maxage_sec, MessageHandler* handler);
 
   ~RecordingFetch() override;
 
   // Implements SharedAsyncFetch::HandleHeadersComplete().
   void HandleHeadersComplete() override;
   // Implements SharedAsyncFetch::HandleWrite().
-  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   // Implements SharedAsyncFetch::HandleFlush().
   bool HandleFlush(MessageHandler* handler) override;
   // Implements SharedAsyncFetch::HandleDone().

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_TEST_URL_NAMER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_TEST_URL_NAMER_H_
 
 #include "net/instaweb/rewriter/public/url_namer.h"
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -42,8 +40,8 @@ class TestUrlNamer : public UrlNamer {
   ~TestUrlNamer() override;
 
   GoogleString Encode(const RewriteOptions* rewrite_options,
-                              const OutputResource& output_resource,
-                              EncodeOption encode_option) const override;
+                      const OutputResource& output_resource,
+                      EncodeOption encode_option) const override;
 
   bool Decode(const GoogleUrl& request_url,
               const RewriteOptions* rewrite_options,
@@ -66,9 +64,7 @@ class TestUrlNamer : public UrlNamer {
 
   // If a test needs normal encoding, even when TestUrlNamer is wired in,
   // they can set this on and Encode() will redirect to UrlNamer::Encode().
-  static void UseNormalEncoding(bool yes) {
-    use_normal_encoding_ = yes;
-  }
+  static void UseNormalEncoding(bool yes) { use_normal_encoding_ = yes; }
 
   static bool UseNormalEncoding() { return use_normal_encoding_; }
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_IMAGE_GIF_READER_H_
 #define PAGESPEED_KERNEL_IMAGE_GIF_READER_H_
@@ -35,7 +34,7 @@ extern "C" {
 #include "external/giflib/gif_lib.h"
 
 #ifdef USE_SYSTEM_LIBPNG
-#include "png.h"                                               // NOLINT
+#include "png.h"  // NOLINT
 #else
 #include "external/libpng/png.h"
 #endif
@@ -59,17 +58,12 @@ class GifReader : public PngReaderInterface {
   explicit GifReader(MessageHandler* handler);
   ~GifReader() override;
 
-  bool ReadPng(const GoogleString& body,
-                       png_structp png_ptr,
-                       png_infop info_ptr,
-                       int transforms,
-                       bool require_opaque) const override;
+  bool ReadPng(const GoogleString& body, png_structp png_ptr,
+               png_infop info_ptr, int transforms,
+               bool require_opaque) const override;
 
-  bool GetAttributes(const GoogleString& body,
-                             int* out_width,
-                             int* out_height,
-                             int* out_bit_depth,
-                             int* out_color_type) const override;
+  bool GetAttributes(const GoogleString& body, int* out_width, int* out_height,
+                     int* out_bit_depth, int* out_color_type) const override;
 
  private:
   MessageHandler* message_handler_;
@@ -125,8 +119,7 @@ class GifFrameReader : public MultipleFrameReader {
   ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const override {
     if (frame_spec == NULL) {
       return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                              SCANLINE_STATUS_INVOCATION_ERROR,
-                              FRAME_GIFREADER,
+                              SCANLINE_STATUS_INVOCATION_ERROR, FRAME_GIFREADER,
                               "Unexpected NULL pointer.");
     }
     *frame_spec = frame_spec_;
@@ -136,8 +129,7 @@ class GifFrameReader : public MultipleFrameReader {
   ScanlineStatus GetImageSpec(ImageSpec* image_spec) const override {
     if (image_spec == NULL) {
       return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                              SCANLINE_STATUS_INVOCATION_ERROR,
-                              FRAME_GIFREADER,
+                              SCANLINE_STATUS_INVOCATION_ERROR, FRAME_GIFREADER,
                               "Unexpected NULL pointer.");
     }
     *image_spec = image_spec_;
@@ -164,9 +156,7 @@ class GifFrameReader : public MultipleFrameReader {
   // Clients should call this function to instantiate
   // GifFrameReader. This function is defined in read_image.cc.
   friend MultipleFrameReader* InstantiateImageFrameReader(
-      ImageFormat image_type,
-      MessageHandler* handler,
-      ScanlineStatus* status);
+      ImageFormat image_type, MessageHandler* handler, ScanlineStatus* status);
 
   // Used in gif_reader_test.cc and frame_interface_integration_test.cc.
   friend class TestGifFrameReader;
@@ -180,7 +170,6 @@ class GifFrameReader : public MultipleFrameReader {
   // case the GIF file does not employ transparency, we store the
   // special "index" value kNoTransparentIndex instead.
   static const int kNoTransparentIndex;
-
 
   // Decodes a progressive image.
   ScanlineStatus DecodeProgressiveGif();

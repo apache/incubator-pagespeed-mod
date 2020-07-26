@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/html/html_parse.h"
 
@@ -47,9 +46,9 @@
 namespace net_instaweb {
 
 HtmlParse::HtmlParse(MessageHandler* message_handler)
-    : lexer_(nullptr),  // Can't initialize here, since "this" should not be used
-                     // in the initializer list (it generates an error in
-                     // Visual Studio builds).
+    : lexer_(nullptr),  // Can't initialize here, since "this" should not be
+                        // used in the initializer list (it generates an error
+                        // in Visual Studio builds).
       current_(queue_.end()),
       message_handler_(message_handler),
       line_number_(1),
@@ -129,7 +128,7 @@ void HtmlParse::AddEvent(HtmlEvent* event) {
   if (!event_listeners_.empty()) {
     running_filters_ = true;
     for (FilterVector::iterator it = event_listeners_.begin();
-        it != event_listeners_.end(); ++it) {
+         it != event_listeners_.end(); ++it) {
       event->Run(*it);
     }
     running_filters_ = false;
@@ -321,9 +320,7 @@ void HtmlParse::EndFinishParse() {
   }
 }
 
-void HtmlParse::Clear() {
-  string_table_.Clear();
-}
+void HtmlParse::Clear() { string_table_.Clear(); }
 
 void HtmlParse::ParseTextInternal(const char* text, int size) {
   DCHECK(url_valid_) << "Invalid to call ParseText with invalid url";
@@ -430,7 +427,7 @@ void HtmlParse::NextEvent() {
 void HtmlParse::CoalesceAdjacentCharactersNodes() {
   ShowProgress("CoalesceAdjacentCharactersNodes");
   HtmlCharactersNode* prev = nullptr;
-  for (current_ = queue_.begin(); current_ != queue_.end(); ) {
+  for (current_ = queue_.begin(); current_ != queue_.end();) {
     HtmlEvent* event = *current_;
     HtmlCharactersNode* node = event->GetCharactersNode();
     if ((node != nullptr) && (prev != nullptr)) {
@@ -476,10 +473,11 @@ void HtmlParse::CheckEventParent(HtmlEvent* event, HtmlElement* expect,
     }
     GoogleString expect_buf = expect->ToString();
     GoogleString event_buf = event->ToString();
-    FatalErrorHere("HtmlElement Parents of %s do not match:\n"
-                   "Actual:   %s\n"
-                   "Expected: %s\n",
-                   event_buf.c_str(), actual_buf.c_str(), expect_buf.c_str());
+    FatalErrorHere(
+        "HtmlElement Parents of %s do not match:\n"
+        "Actual:   %s\n"
+        "Expected: %s\n",
+        event_buf.c_str(), actual_buf.c_str(), expect_buf.c_str());
   }
 }
 
@@ -515,8 +513,7 @@ void HtmlParse::SanityCheck() {
       if (end_element != nullptr) {
         message_handler_->Check(end_element->end() == current_,
                                 "end_element->end() != current_");
-        message_handler_->Check(end_element->live(),
-                                "!end_element->live()");
+        message_handler_->Check(end_element->live(), "!end_element->live()");
         if (!element_stack.empty()) {
           // The element stack can be empty on End can happen due
           // to this sequence:
@@ -533,7 +530,7 @@ void HtmlParse::SanityCheck() {
         // We only know for sure what the parents are once we have seen
         // a start_element.
         HtmlLeafNode* leaf_node = event->GetLeafNode();
-        if (leaf_node != nullptr) {   // Start/EndDocument are not leaf nodes
+        if (leaf_node != nullptr) {  // Start/EndDocument are not leaf nodes
           message_handler_->Check(leaf_node->live(), "!leaf_node->live()");
           message_handler_->Check(leaf_node->end() == current_,
                                   "leaf_node->end() != current_");
@@ -556,7 +553,7 @@ void HtmlParse::Flush() {
   DetermineFiltersBehavior();
 
   for (FilterVector::iterator it = event_listeners_.begin();
-      it != event_listeners_.end(); ++it) {
+       it != event_listeners_.end(); ++it) {
     (*it)->Flush();
   }
 
@@ -605,9 +602,7 @@ void HtmlParse::ClearEvents() {
   need_coalesce_characters_ = false;
 }
 
-size_t HtmlParse::GetEventQueueSize() {
-  return queue_.size();
-}
+size_t HtmlParse::GetEventQueueSize() { return queue_.size(); }
 
 void HtmlParse::InsertNodeBeforeNode(const HtmlNode* existing_node,
                                      HtmlNode* new_node) {
@@ -650,8 +645,9 @@ void HtmlParse::AppendChild(const HtmlElement* existing_parent,
 
 void HtmlParse::InsertNodeBeforeCurrent(HtmlNode* new_node) {
   if (skip_increment_) {
-    FatalErrorHere("InsertNodeBeforeCurrent after current has been "
-                   "deleted.");
+    FatalErrorHere(
+        "InsertNodeBeforeCurrent after current has been "
+        "deleted.");
   }
   if ((new_node->parent() == nullptr) && (current_ != queue_.end())) {
     // Add a parent if one was not provided in new_node.  We figure out
@@ -691,11 +687,11 @@ void HtmlParse::InsertNodeAfterEvent(const HtmlEventListIterator& event,
   InsertNodeBeforeEvent(next_event, new_node);
 }
 
-
 void HtmlParse::InsertNodeAfterCurrent(HtmlNode* new_node) {
   if (skip_increment_) {
-    FatalErrorHere("InsertNodeAfterCurrent after current has been "
-                   "deleted.");
+    FatalErrorHere(
+        "InsertNodeAfterCurrent after current has been "
+        "deleted.");
   }
   if (current_ == queue_.end()) {
     FatalErrorHere("InsertNodeAfterCurrent called with queue at end.");
@@ -872,7 +868,7 @@ bool HtmlParse::DeleteNode(HtmlNode* node) {
   if (IsRewritable(node)) {
     bool done = false;
     // If node is an HtmlLeafNode, then begin() and end() might be the same.
-    for (HtmlEventListIterator p = node->begin(); !done; ) {
+    for (HtmlEventListIterator p = node->begin(); !done;) {
       // We want to include end, so once p == end we still have to do one more
       // iteration.
       done = (p == node->end());
@@ -911,8 +907,8 @@ bool HtmlParse::DeleteNode(HtmlNode* node) {
     // to a flush window, by simply deferring it.  We just want to
     // keep track of which deferred nodes we don't expect to restore.
     HtmlEvent* event = *current_;
-    if ((event->GetNode() == node) &&
-        (event->GetElementIfEndEvent() == nullptr)) {  // leaf or StartElement OK
+    if ((event->GetNode() == node) && (event->GetElementIfEndEvent() ==
+                                       nullptr)) {  // leaf or StartElement OK
       DeferCurrentNode();
       deferred_deleted_nodes_.insert(node);
       deleted = true;
@@ -990,8 +986,8 @@ HtmlElement* HtmlParse::CloneElement(HtmlElement* in_element) {
   out_element->set_style(in_element->style());
 
   const HtmlElement::AttributeList& attrs = in_element->attributes();
-  for (HtmlElement::AttributeConstIterator i(attrs.begin());
-       i != attrs.end(); ++i) {
+  for (HtmlElement::AttributeConstIterator i(attrs.begin()); i != attrs.end();
+       ++i) {
     out_element->AddAttribute(*i);
   }
   return out_element;
@@ -999,8 +995,7 @@ HtmlElement* HtmlParse::CloneElement(HtmlElement* in_element) {
 
 bool HtmlParse::IsRewritableIgnoringDeferral(const HtmlNode* node) const {
   return (node->live() &&  // Avoid dereferencing NULL data for closed elements.
-          IsInEventWindow(node->begin()) &&
-          IsInEventWindow(node->end()));
+          IsInEventWindow(node->begin()) && IsInEventWindow(node->end()));
 }
 
 bool HtmlParse::IsRewritableIgnoringEnd(const HtmlNode* node) const {
@@ -1031,19 +1026,15 @@ void HtmlParse::ClearElements() {
 }
 
 void HtmlParse::EmitQueue(MessageHandler* handler) {
-  for (HtmlEventList::iterator p = queue_.begin(), e = queue_.end();
-       p != e; ++p) {
+  for (HtmlEventList::iterator p = queue_.begin(), e = queue_.end(); p != e;
+       ++p) {
     HtmlEvent* event = *p;
-    handler->Message(kInfo, "%c %s (%p)\n",
-                     p == current_ ? '*' : ' ',
-                     event->ToString().c_str(),
-                     event->GetNode());
+    handler->Message(kInfo, "%c %s (%p)\n", p == current_ ? '*' : ' ',
+                     event->ToString().c_str(), event->GetNode());
   }
 }
 
-void HtmlParse::DebugLogQueue() {
-  EmitQueue(message_handler_);
-}
+void HtmlParse::DebugLogQueue() { EmitQueue(message_handler_); }
 
 void HtmlParse::DebugPrintQueue() {
   PrintMessageHandler handler;
@@ -1070,27 +1061,25 @@ bool HtmlParse::TagAllowsBriefTermination(HtmlName::Keyword keyword) const {
   return lexer_->TagAllowsBriefTermination(keyword);
 }
 
-const DocType& HtmlParse::doctype() const {
-  return lexer_->doctype();
-}
+const DocType& HtmlParse::doctype() const { return lexer_->doctype(); }
 
-void HtmlParse::InfoV(
-    const char* file, int line, const char *msg, va_list args) {
+void HtmlParse::InfoV(const char* file, int line, const char* msg,
+                      va_list args) {
   message_handler_->InfoV(file, line, msg, args);
 }
 
-void HtmlParse::WarningV(
-    const char* file, int line, const char *msg, va_list args) {
+void HtmlParse::WarningV(const char* file, int line, const char* msg,
+                         va_list args) {
   message_handler_->WarningV(file, line, msg, args);
 }
 
-void HtmlParse::ErrorV(
-    const char* file, int line, const char *msg, va_list args) {
+void HtmlParse::ErrorV(const char* file, int line, const char* msg,
+                       va_list args) {
   message_handler_->ErrorV(file, line, msg, args);
 }
 
-void HtmlParse::FatalErrorV(
-    const char* file, int line, const char* msg, va_list args) {
+void HtmlParse::FatalErrorV(const char* file, int line, const char* msg,
+                            va_list args) {
   message_handler_->FatalErrorV(file, line, msg, args);
 }
 
@@ -1150,8 +1139,8 @@ void HtmlParse::FatalErrorHere(const char* msg, ...) {
   va_end(args);
 }
 
-void HtmlParse::CloseElement(
-    HtmlElement* element, HtmlElement::Style style, int line_number) {
+void HtmlParse::CloseElement(HtmlElement* element, HtmlElement::Style style,
+                             int line_number) {
   if (delayed_start_literal_.get() != nullptr) {
     HtmlElement* element = delayed_start_literal_->GetElementIfStartEvent();
     DCHECK(element != nullptr);
@@ -1231,9 +1220,7 @@ void HtmlParse::add_event_listener(HtmlFilter* listener) {
   event_listeners_.push_back(listener);
 }
 
-void HtmlParse::set_size_limit(int64 x) {
-  lexer_->set_size_limit(x);
-}
+void HtmlParse::set_size_limit(int64 x) { lexer_->set_size_limit(x); }
 
 bool HtmlParse::size_limit_exceeded() const {
   return lexer_->size_limit_exceeded();
@@ -1328,10 +1315,10 @@ void HtmlParse::DeferCurrentNode() {
     // so as we lex in new child nodes we can put them onto the correct
     // node-list, rather than the queue_, until it's closed.
     HtmlElement* element = (*node->begin())->GetElementIfStartEvent();
-    CHECK(element != nullptr) << "Only HtmlElements can cut across flush windows.";
+    CHECK(element != nullptr)
+        << "Only HtmlElements can cut across flush windows.";
     DCHECK(current_filter_ != nullptr);
-    open_deferred_nodes_[current_filter_] = DeferredNode(
-        node, node_events);
+    open_deferred_nodes_[current_filter_] = DeferredNode(node, node_events);
   }
 
   current_ = node_last;
@@ -1359,7 +1346,8 @@ void HtmlParse::RestoreDeferredNode(HtmlNode* deferred_node) {
   }
 
   DCHECK(deferred_deleted_nodes_.find(deferred_node) ==
-         deferred_deleted_nodes_.end()) << "You cannot restore a deleted node";
+         deferred_deleted_nodes_.end())
+      << "You cannot restore a deleted node";
 
   // Remove the previously deferred node from the list of deferred nodes.
   NodeToEventListMap::iterator p = deferred_nodes_.find(deferred_node);
@@ -1381,8 +1369,7 @@ void HtmlParse::RestoreDeferredNode(HtmlNode* deferred_node) {
   deferred_node->set_parent(new_parent);
 
   NextEvent();
-  queue_.splice(current_, *event_list,
-                event_list->begin(), event_list->end());
+  queue_.splice(current_, *event_list, event_list->begin(), event_list->end());
   delete event_list;
   current_ = deferred_node->begin();
   DCHECK(!skip_increment_) << "Always false coming out of NextEvent()";
@@ -1396,12 +1383,13 @@ void HtmlParse::RestoreDeferredNode(HtmlNode* deferred_node) {
 
 void HtmlParse::ClearDeferredNodes() {
   for (NodeToEventListMap::iterator p = deferred_nodes_.begin(),
-           e = deferred_nodes_.end(); p != e; ++p) {
+                                    e = deferred_nodes_.end();
+       p != e; ++p) {
     const HtmlNode* node = p->first;
     HtmlEventList* events = p->second;
     if (deferred_deleted_nodes_.find(node) == deferred_deleted_nodes_.end()) {
-      message_handler_->Message(
-          kWarning, "Removed node %s never replaced", node->ToString().c_str());
+      message_handler_->Message(kWarning, "Removed node %s never replaced",
+                                node->ToString().c_str());
     }
     STLDeleteElements(events);
     delete events;

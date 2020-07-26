@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,10 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/image_util.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
 namespace {
@@ -43,23 +43,23 @@ using pagespeed::image_compression::ImageFormat;
 using pagespeed::image_compression::PixelFormat;
 
 // Image formats.
-using pagespeed::image_compression::IMAGE_UNKNOWN;
+using pagespeed::image_compression::IMAGE_GIF;
 using pagespeed::image_compression::IMAGE_JPEG;
 using pagespeed::image_compression::IMAGE_PNG;
-using pagespeed::image_compression::IMAGE_GIF;
+using pagespeed::image_compression::IMAGE_UNKNOWN;
 using pagespeed::image_compression::IMAGE_WEBP;
 
 // Pixel formats.
-using pagespeed::image_compression::UNSUPPORTED;
+using pagespeed::image_compression::GRAY_8;
 using pagespeed::image_compression::RGB_888;
 using pagespeed::image_compression::RGBA_8888;
-using pagespeed::image_compression::GRAY_8;
+using pagespeed::image_compression::UNSUPPORTED;
 
 // WebP formats.
-using pagespeed::image_compression::WEBP_NONE;
-using pagespeed::image_compression::WEBP_LOSSY;
-using pagespeed::image_compression::WEBP_LOSSLESS;
 using pagespeed::image_compression::WEBP_ANIMATED;
+using pagespeed::image_compression::WEBP_LOSSLESS;
+using pagespeed::image_compression::WEBP_LOSSY;
+using pagespeed::image_compression::WEBP_NONE;
 
 // Folders for testing images.
 using pagespeed::image_compression::kGifTestDir;
@@ -126,8 +126,7 @@ TEST(ImageUtilTest, ImageFormat) {
             ComputeImageType(buffer));
 
   ASSERT_TRUE(ReadTestFileWithExt(kWebpTestDir, kWebpAnimatedImage, &buffer));
-  EXPECT_EQ(net_instaweb::IMAGE_WEBP_ANIMATED,
-            ComputeImageType(buffer));
+  EXPECT_EQ(net_instaweb::IMAGE_WEBP_ANIMATED, ComputeImageType(buffer));
 
   ASSERT_TRUE(ReadTestFileWithExt(kWebpTestDir, kWebpIccXmpImage, &buffer));
   EXPECT_EQ(net_instaweb::IMAGE_WEBP, ComputeImageType(buffer));

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,37 +53,30 @@ class CachePropertyStore : public PropertyStore {
   // L2-only caches should be used for CachePropertyStore.  We cannot use the L1
   // cache because this data can get stale quickly.
   CachePropertyStore(const GoogleString& cache_key_prefix,
-                     CacheInterface* cache,
-                     Timer* timer,
-                     Statistics* stats,
+                     CacheInterface* cache, Timer* timer, Statistics* stats,
                      ThreadSystem* thread_system);
   ~CachePropertyStore() override;
 
   // Cache lookup is initiated for the given cohort and results are populated
   // in PropertyPage if it is valid.
   // callback parameter can be set to NULL if cohort_list is empty.
-  void Get(const GoogleString& url,
-                   const GoogleString& options_signature_hash,
-                   const GoogleString& cache_key_suffix,
-                   const PropertyCache::CohortVector& cohort_list,
-                   PropertyPage* page,
-                   BoolCallback* done,
-                   AbstractPropertyStoreGetCallback** callback) override;
+  void Get(const GoogleString& url, const GoogleString& options_signature_hash,
+           const GoogleString& cache_key_suffix,
+           const PropertyCache::CohortVector& cohort_list, PropertyPage* page,
+           BoolCallback* done,
+           AbstractPropertyStoreGetCallback** callback) override;
 
   // Write to cache.
-  void Put(const GoogleString& url,
-                   const GoogleString& options_signature_hash,
-                   const GoogleString& cache_key_suffix,
-                   const PropertyCache::Cohort* cohort,
-                   const PropertyCacheValues* values,
-                   BoolCallback* done) override;
+  void Put(const GoogleString& url, const GoogleString& options_signature_hash,
+           const GoogleString& cache_key_suffix,
+           const PropertyCache::Cohort* cohort,
+           const PropertyCacheValues* values, BoolCallback* done) override;
 
   // Establishes a Cohort backed by the CacheInteface passed to the constructor.
   void AddCohort(const GoogleString& cohort);
   // Establishes a Cohort to be backed by the specified CacheInterface.
   // Does not take the ownership of cache.
-  void AddCohortWithCache(const GoogleString& cohort,
-                          CacheInterface* cache);
+  void AddCohortWithCache(const GoogleString& cohort, CacheInterface* cache);
 
   // Gets the underlying key associated with cache_key and a Cohort.
   // This is the key used for the CacheInterface provided to the

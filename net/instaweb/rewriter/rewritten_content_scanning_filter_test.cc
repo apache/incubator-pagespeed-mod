@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 
 #include <memory>
-
-
-
-#include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -51,9 +48,8 @@ class RewrittenContentScanningFilterTest : public RewriteTestBase {
     RewriteTestBase::SetUp();
     rewrite_driver()->AddOwnedPostRenderFilter(
         new RewrittenContentScanningFilter(rewrite_driver_));
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(server_context()->page_property_cache(),
-                    RewriteDriver::kDomCohort);
+    const PropertyCache::Cohort* dom_cohort = SetupCohort(
+        server_context()->page_property_cache(), RewriteDriver::kDomCohort);
     server_context()->set_dom_cohort(dom_cohort);
     server_context()->page_property_cache()->set_enabled(true);
     MockPropertyPage* page = NewMockPage(kRequestUrl);

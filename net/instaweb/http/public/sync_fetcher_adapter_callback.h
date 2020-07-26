@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 //         lsong@google.com (Libo Song)
 
@@ -88,14 +87,13 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
  protected:
   void HandleDone(bool success) LOCKS_EXCLUDED(mutex_) override;
   bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) override {
+                   MessageHandler* handler) override {
     return writer_->Write(content, handler);
   }
   bool HandleFlush(MessageHandler* handler) override {
     return writer_->Flush(handler);
   }
-  void HandleHeadersComplete() override {
-  }
+  void HandleHeadersComplete() override {}
 
  private:
   // This class wraps around an external Writer and passes through calls to that
@@ -107,10 +105,10 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
     ProtectedWriter(SyncFetcherAdapterCallback* callback, Writer* orig_writer)
         : callback_(callback), orig_writer_(orig_writer) {}
 
-    bool Write(const StringPiece& buf, MessageHandler* handler)
-        override LOCKS_EXCLUDED(callback_->mutex_);
-    bool Flush(MessageHandler* handler)
-        override LOCKS_EXCLUDED(callback_->mutex_);
+    bool Write(const StringPiece& buf, MessageHandler* handler) override
+        LOCKS_EXCLUDED(callback_->mutex_);
+    bool Flush(MessageHandler* handler) override
+        LOCKS_EXCLUDED(callback_->mutex_);
 
    private:
     SyncFetcherAdapterCallback* callback_;

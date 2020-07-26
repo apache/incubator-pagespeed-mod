@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 
@@ -49,12 +48,11 @@ const char* CriticalImagesBeaconFilter::kImageOnloadCode =
     "pagespeed.CriticalImages.checkImageForCriticality(this);";
 
 CriticalImagesBeaconFilter::CriticalImagesBeaconFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
-      added_beacon_js_(false) {
+    : CommonFilter(driver), added_beacon_js_(false) {
   Clear();
   Statistics* stats = driver->server_context()->statistics();
-  critical_images_beacon_added_count_ = stats->GetVariable(
-      kCriticalImagesBeaconAddedCount);
+  critical_images_beacon_added_count_ =
+      stats->GetVariable(kCriticalImagesBeaconAddedCount);
 }
 
 CriticalImagesBeaconFilter::~CriticalImagesBeaconFilter() {}
@@ -118,8 +116,7 @@ void CriticalImagesBeaconFilter::MaybeAddBeaconJavascript(
   const GoogleString* beacon_url =
       driver()->IsHttps() ? &beacons.https : &beacons.http;
   GoogleString html_url;
-  EscapeToJsStringLiteral(driver()->google_url().Spec(),
-                          false, /* no quotes */
+  EscapeToJsStringLiteral(driver()->google_url().Spec(), false, /* no quotes */
                           &html_url);
   GoogleString options_signature_hash =
       driver()->server_context()->hasher()->Hash(
@@ -134,10 +131,8 @@ void CriticalImagesBeaconFilter::MaybeAddBeaconJavascript(
   GoogleString resize_rendered_image_dimensions_enabled =
       BoolToString(driver()->options()->Enabled(
           RewriteOptions::kResizeToRenderedImageDimensions));
-  StrAppend(&js,
-            "\npagespeed.CriticalImages.Run('",
-            *beacon_url, "','", html_url, "','",
-            options_signature_hash, "',");
+  StrAppend(&js, "\npagespeed.CriticalImages.Run('", *beacon_url, "','",
+            html_url, "','", options_signature_hash, "',");
   StrAppend(&js, send_beacon_at_onload, ",",
             resize_rendered_image_dimensions_enabled, ",'",
             beacon_metadata_.nonce, "');");
@@ -181,14 +176,14 @@ void CriticalImagesBeaconFilter::EndElementImpl(HtmlElement* element) {
         GoogleString hash_str = UintToString(hash_val);
         image_url_hashes_.insert(hash_str);
         if (insert_beacon_js_) {
-          driver()->AddAttribute(
-              element, HtmlName::kDataPagespeedUrlHash, hash_str);
+          driver()->AddAttribute(element, HtmlName::kDataPagespeedUrlHash,
+                                 hash_str);
           if (element->keyword() == HtmlName::kImg &&
               CanAddPagespeedOnloadToImage(*element)) {
             // Add an onload handler only if one is not already specified on the
             // non-rewritten page.
-            driver()->AddAttribute(
-                element, HtmlName::kOnload, kImageOnloadCode);
+            driver()->AddAttribute(element, HtmlName::kOnload,
+                                   kImageOnloadCode);
             // TODO(sligocki): Should we add onerror handler here too?
             // If beacon javascript has not been added yet, we need to add it
             // before the current node because we are going to use the js for

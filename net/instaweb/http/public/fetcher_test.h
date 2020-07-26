@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test framework for wget fetcher
 
@@ -61,9 +60,7 @@ class FetcherTest : public testing::Test {
   // We set up a chain of fetchers:
   // Counting -> Wait -> Mock, where the mock will only fetch
   // kGoodUrl and kNotCachedUrl, returning kHtmlContent.
-  WaitUrlAsyncFetcher* wait_fetcher() {
-      return &wait_url_async_fetcher_;
-  }
+  WaitUrlAsyncFetcher* wait_fetcher() { return &wait_url_async_fetcher_; }
 
   CountingUrlAsyncFetcher* counting_fetcher() { return &counting_fetcher_; }
 
@@ -72,19 +69,17 @@ class FetcherTest : public testing::Test {
   class CheckCallback : public StringAsyncFetch {
    public:
     CheckCallback(const RequestContextPtr& ctx, bool expect_success,
-                  bool check_error_message,
-                  bool* callback_called)
+                  bool check_error_message, bool* callback_called)
         : StringAsyncFetch(ctx),
           expect_success_(expect_success),
           check_error_message_(check_error_message),
-          callback_called_(callback_called) {
-    }
+          callback_called_(callback_called) {}
 
     void HandleDone(bool success) override {
       *callback_called_ = true;
       CHECK_EQ(expect_success_, success);
-      ValidateMockFetcherResponse(
-          success, check_error_message_, buffer(), *response_headers());
+      ValidateMockFetcherResponse(success, check_error_message_, buffer(),
+                                  *response_headers());
       delete this;
     }
 
@@ -122,8 +117,7 @@ class FetcherTest : public testing::Test {
   };
 
   GoogleString TestFilename() {
-    return (GTestSrcDir() +
-            "/net/instaweb/http/testdata/google.http");
+    return (GTestSrcDir() + "/net/instaweb/http/testdata/google.http");
   }
 
   // This validation code is hard-coded to the http request capture in
@@ -139,8 +133,7 @@ class FetcherTest : public testing::Test {
   SimpleStats statistics_;
 
  private:
-  void Populate(const char* cache_control,
-                ResponseHeaders* response_headers,
+  void Populate(const char* cache_control, ResponseHeaders* response_headers,
                 GoogleString* content);
 
   DISALLOW_COPY_AND_ASSIGN(FetcherTest);

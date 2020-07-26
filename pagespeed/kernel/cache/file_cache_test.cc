@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
 // Unit-test the file cache
 #include "pagespeed/kernel/cache/file_cache.h"
 
 #include <unistd.h>
 
-
 #include <memory>
-
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/condvar.h"
@@ -69,8 +66,8 @@ class FileCacheTest : public CacheTestBase {
     evictions_ = stats_.GetVariable(FileCache::kEvictions);
     skipped_cleanups_ = stats_.GetVariable(FileCache::kSkippedCleanups);
     started_cleanups_ = stats_.GetVariable(FileCache::kStartedCleanups);
-    bytes_freed_in_cleanup_ = stats_.GetVariable(
-        FileCache::kBytesFreedInCleanup);
+    bytes_freed_in_cleanup_ =
+        stats_.GetVariable(FileCache::kBytesFreedInCleanup);
 
     // TODO(jmarantz): consider using mock_thread_system if we want
     // explicit control of time.
@@ -88,7 +85,7 @@ class FileCacheTest : public CacheTestBase {
   void CheckCleanTimestamp(int64 min_time_ms) {
     GoogleString buffer;
     file_system_.ReadFile(cache_->clean_time_path_.c_str(), &buffer,
-                           &message_handler_);
+                          &message_handler_);
     int64 clean_time_ms;
     StringToInt64(buffer, &clean_time_ms);
     EXPECT_LT(min_time_ms, clean_time_ms);
@@ -101,17 +98,18 @@ class FileCacheTest : public CacheTestBase {
   }
 
   CacheInterface* Cache() override { return cache_.get(); }
-  void PostOpCleanup() override { }
+  void PostOpCleanup() override {}
 
   bool Clean(int64 size, int64 inode_count) {
     // Cache expects to be locked when cleaning.
-    EXPECT_TRUE(file_system_.TryLock(
-        cache_->clean_lock_path_, &message_handler_).is_true());
+    EXPECT_TRUE(
+        file_system_.TryLock(cache_->clean_lock_path_, &message_handler_)
+            .is_true());
 
     bool success = cache_->Clean(size, inode_count);
 
-    EXPECT_TRUE(file_system_.Unlock(
-        cache_->clean_lock_path_, &message_handler_));
+    EXPECT_TRUE(
+        file_system_.Unlock(cache_->clean_lock_path_, &message_handler_));
 
     return success;
   }
@@ -129,10 +127,10 @@ class FileCacheTest : public CacheTestBase {
 
   class StallingNotifier : public FileSystem::ProgressNotifier {
    public:
-    StallingNotifier(ThreadSystem* thread_system) :
-        stall_on_next_use_(false),
-        stall_(thread_system),
-        resume_(thread_system) {}
+    StallingNotifier(ThreadSystem* thread_system)
+        : stall_on_next_use_(false),
+          stall_(thread_system),
+          resume_(thread_system) {}
 
     void Notify() override {
       if (stall_on_next_use_) {
@@ -147,13 +145,9 @@ class FileCacheTest : public CacheTestBase {
       stall_on_next_use_ = true;
     }
 
-    void WaitUntilStall() {
-      resume_.Wait();
-    }
+    void WaitUntilStall() { resume_.Wait(); }
 
-    void Unstall() {
-      stall_.Notify();
-    }
+    void Unstall() { stall_.Notify(); }
 
    private:
     bool stall_on_next_use_;
@@ -226,12 +220,10 @@ TEST_F(FileCacheTest, Clean) {
   const char* names1[] = {"a1", "a2", "a/3"};
   const char* values1[] = {"a2", "a234", "a2345678"};
   // Less common keys
-  const char* names2[] = {"b/1", "b2", "b3",
-                          "b4", "b5", "b6",
-                          "b7", "b8", "b9"};
-  const char* values2[] = {"b2", "b234", "b2345678",
-                           "b2", "b234", "b2345678",
-                           "b2", "b234", "b2345678"};
+  const char* names2[] = {"b/1", "b2", "b3", "b4", "b5",
+                          "b6",  "b7", "b8", "b9"};
+  const char* values2[] = {"b2",       "b234", "b2345678", "b2",      "b234",
+                           "b2345678", "b2",   "b234",     "b2345678"};
   for (int i = 0; i < 3; i++) {
     CheckPut(names1[i], values1[i]);
   }
@@ -283,8 +275,8 @@ TEST_F(FileCacheTest, Clean) {
   for (int i = 0; i < 3; i++) {
     CheckGet(names1[i], values1[i]);
     CheckNotFound(names2[i]);
-    CheckGet(names2[i+3], values2[i+3]);
-    CheckGet(names2[i+6], values2[i+6]);
+    CheckGet(names2[i + 3], values2[i + 3]);
+    CheckGet(names2[i + 6], values2[i + 6]);
   }
 
   file_system_.GetDirInfo(GTestTempDir(), &dir_info, &message_handler_);
@@ -333,10 +325,10 @@ TEST_F(FileCacheTest, CheckCleanNotifier) {
   SetNotifier(&notifier);
   EXPECT_TRUE(Clean(0 /* delete everything */, 0));
 
-  int expected_notifications = (
-      1 /* for getDirInfo considering the parent directory */ +
-      3 /* for getDirInfo considering the three entries */ +
-      3 /* for deleting the three entries */);
+  int expected_notifications =
+      (1 /* for getDirInfo considering the parent directory */ +
+       3 /* for getDirInfo considering the three entries */ +
+       3 /* for deleting the three entries */);
 
   EXPECT_EQ(expected_notifications, notifier.get_count());
   CheckNotFound("Name1");
@@ -378,8 +370,7 @@ TEST_F(FileCacheTest, CheckPartialClean) {
   // Set the cache capacity to be big enough to hold two entries.  We clean down
   // to something like 75% full, though, so after cleaning only one entry will
   // be left.
-  const int target_size = StrCat("Name1", "Value1",
-                                 "Name2", "Value2").length();
+  const int target_size = StrCat("Name1", "Value1", "Name2", "Value2").length();
   ResetFileCache(kCleanIntervalMs, target_size);
 
   CheckPut("Name1", "Value1");
@@ -403,8 +394,7 @@ TEST_F(FileCacheTest, CheckPartialCleanWithCleaningDisabled) {
   // Set the cache capacity to be big enough to hold two entries.  We clean down
   // to something like 75% full, though, so after cleaning only one entry will
   // be left.
-  const int target_size = StrCat("Name1", "Value1",
-                                 "Name2", "Value2").length();
+  const int target_size = StrCat("Name1", "Value1", "Name2", "Value2").length();
   ResetFileCache(FileCache::kDisableCleaning, target_size);
 
   CheckPut("Name1", "Value1");
@@ -461,10 +451,10 @@ TEST_F(FileCacheTest, MultipleSimultaneousCacheCleans) {
   // size, so always deletes everything if it cleans succesfully.
   SlowWorker worker2("cleaner2", thread_system_.get());
   FileCache cache2(
-      GTestTempDir(), &file_system_, thread_system_.get(),
-      &worker2, new FileCache::CachePolicy(
-          &mock_timer_, &hasher_, kCleanIntervalMs,
-          1 /* target_size, very small */, kTargetInodeLimit),
+      GTestTempDir(), &file_system_, thread_system_.get(), &worker2,
+      new FileCache::CachePolicy(&mock_timer_, &hasher_, kCleanIntervalMs,
+                                 1 /* target_size, very small */,
+                                 kTargetInodeLimit),
       &stats_, &message_handler_);
 
   // First cleaning is still stalled.  Advance time, bump the lock, trigger the

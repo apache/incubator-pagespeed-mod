@@ -17,13 +17,12 @@
  * under the License.
  */
 
+#include "pagespeed/envoy/envoy_url_async_fetcher.h"
+
 #include <memory>
-
-
 
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
-#include "pagespeed/envoy/envoy_url_async_fetcher.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/dynamic_annotations.h"
@@ -61,23 +60,21 @@ const char kFetchHost[] = "selfsigned.modpagespeed.com";
 const int kFetcherTimeoutMs = 5 * 1000;
 const int kFetcherTimeoutValgrindMs = 20 * 1000;
 
-// const int kModpagespeedSite = 0; // TODO(matterbury): These should be an enum?
-// const int kGoogleFavicon = 1;
-// const int kGoogleLogo = 2;
-// const int kCgiSlowJs = 3;
-// const int kModpagespeedBeacon = 4;
-// const int kConnectionRefused = 5;
-// const int kNoContent = 6;
-// const int kNextTestcaseIndex = 7; // Should always be last.
+// const int kModpagespeedSite = 0; // TODO(matterbury): These should be an
+// enum? const int kGoogleFavicon = 1; const int kGoogleLogo = 2; const int
+// kCgiSlowJs = 3; const int kModpagespeedBeacon = 4; const int
+// kConnectionRefused = 5; const int kNoContent = 6; const int
+// kNextTestcaseIndex = 7; // Should always be last.
 
 // Note: We do not subclass StringAsyncFetch because we want to lock access
 // to done_.
 class EnvoyTestFetch : public AsyncFetch {
-public:
+ public:
   explicit EnvoyTestFetch(const RequestContextPtr& ctx, AbstractMutex* mutex)
       : AsyncFetch(ctx), mutex_(mutex), success_(false), done_(false) {}
 
-  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override {
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override {
     content.AppendToString(&buffer_);
     return true;
   }
@@ -105,7 +102,7 @@ public:
     response_headers()->Clear();
   }
 
-private:
+ private:
   AbstractMutex* mutex_;
   GoogleString buffer_;
   bool success_;
@@ -114,13 +111,14 @@ private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyTestFetch);
 };
 
-} // namespace
+}  // namespace
 
 class EnvoyUrlAsyncFetcherTest : public ::testing::Test {
-protected:
+ protected:
   EnvoyUrlAsyncFetcherTest()
       : thread_system_(Platform::CreateThreadSystem()),
-        message_handler_(thread_system_->NewMutex()), flaky_retries_(0),
+        message_handler_(thread_system_->NewMutex()),
+        flaky_retries_(0),
         fetcher_timeout_ms_(FetcherTimeoutMs()) {}
 
   void SetUp() override { SetUpWithProxy(""); }
@@ -142,8 +140,8 @@ protected:
     statistics_ = std::make_unique<SimpleStats>(thread_system_.get());
     EnvoyUrlAsyncFetcher::InitStats(statistics_.get());
     envoy_url_async_fetcher_ = std::make_unique<EnvoyUrlAsyncFetcher>(
-        proxy, thread_system_.get(), statistics_.get(), timer_.get(), fetcher_timeout_ms_,
-        &message_handler_);
+        proxy, thread_system_.get(), statistics_.get(), timer_.get(),
+        fetcher_timeout_ms_, &message_handler_);
     mutex_.reset(thread_system_->NewMutex());
 
     // Set initial timestamp so we don't roll-over monitoring stats right after
@@ -165,13 +163,15 @@ protected:
     content_starts_.push_back(content_start);
     int index = fetches_.size();
     fetches_.push_back(new EnvoyTestFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get()), mutex_.get()));
+        RequestContext::NewTestRequestContext(thread_system_.get()),
+        mutex_.get()));
     return index;
   }
 
   void StartFetch(int idx) {
     fetches_[idx]->Reset();
-    envoy_url_async_fetcher_->Fetch(urls_[idx], &message_handler_, fetches_[idx]);
+    envoy_url_async_fetcher_->Fetch(urls_[idx], &message_handler_,
+                                    fetches_[idx]);
   }
 
   void StartFetches(size_t first, size_t last) {
@@ -187,7 +187,7 @@ protected:
   MockMessageHandler message_handler_;
   int64 flaky_retries_;
 
-private:
+ private:
   std::vector<EnvoyTestFetch*> fetches_;
   std::vector<GoogleString> content_starts_;
   std::vector<GoogleString> urls_;
@@ -201,11 +201,13 @@ private:
 TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
   GoogleString starts_with = "<!DOCTYPE HTML";
   envoy_fetch_ = std::make_unique<EnvoyTestFetch>(
-      RequestContext::NewTestRequestContext(thread_system_.get()), mutex_.get());
+      RequestContext::NewTestRequestContext(thread_system_.get()),
+      mutex_.get());
   envoy_url_async_fetcher_->Fetch(
-      "http://selfsigned.modpagespeed.com/mod_pagespeed_example/index.html", &message_handler_,
-      envoy_fetch_.get());
-  EXPECT_STREQ(starts_with, envoy_fetch_->buffer().substr(0, starts_with.size()));
+      "http://selfsigned.modpagespeed.com/mod_pagespeed_example/index.html",
+      &message_handler_, envoy_fetch_.get());
+  EXPECT_STREQ(starts_with,
+               envoy_fetch_->buffer().substr(0, starts_with.size()));
 }
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

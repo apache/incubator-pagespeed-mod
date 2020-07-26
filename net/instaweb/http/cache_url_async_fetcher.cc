@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 
@@ -41,7 +40,6 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/thread/sequence.h"
 #include "pagespeed/opt/logging/log_record.h"  // for AbstractLogRecord
-
 
 namespace net_instaweb {
 
@@ -95,7 +93,8 @@ class CachePutFetch : public SharedAsyncFetch {
         // of just checking for the existence of 2 headers.
         (cache_control == nullptr || cache_control == StringPiece("public")) &&
         !headers->Has(HttpAttributes::kExpires)) {
-      headers->Add(HttpAttributes::kCacheControl,
+      headers->Add(
+          HttpAttributes::kCacheControl,
           "max-age=" + Integer64ToString(headers->implicit_cache_ttl_ms()));
     }
     headers->ComputeCaching();
@@ -111,7 +110,7 @@ class CachePutFetch : public SharedAsyncFetch {
   }
 
   bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) override {
+                   MessageHandler* handler) override {
     bool ret = true;
     ret &= SharedAsyncFetch::HandleWrite(content, handler);
     if (cacheable_) {
@@ -132,9 +131,7 @@ class CachePutFetch : public SharedAsyncFetch {
     const bool empty_200 =
         (response_headers()->status_code() == HttpStatus::kOK &&
          cache_value_.contents_size() == 0);
-    const bool insert_into_cache = (success &&
-                                    cacheable_ &&
-                                    !empty_200 &&
+    const bool insert_into_cache = (success && cacheable_ && !empty_200 &&
                                     cache_value_writer_.has_buffered());
 
     if (insert_into_cache) {
@@ -198,34 +195,26 @@ class CacheFindCallback : public HTTPCache::Callback {
   class BackgroundFreshenFetch : public AsyncFetchWithLock {
    public:
     explicit BackgroundFreshenFetch(
-        const Hasher* lock_hasher,
-        const RequestContextPtr& request_context,
-        const GoogleString& url,
-        NamedLockManager* lock_manager,
-        MessageHandler* message_handler,
-        CacheFindCallback* callback,
+        const Hasher* lock_hasher, const RequestContextPtr& request_context,
+        const GoogleString& url, NamedLockManager* lock_manager,
+        MessageHandler* message_handler, CacheFindCallback* callback,
         CacheUrlAsyncFetcher::AsyncOpHooks* async_op_hooks)
-        : AsyncFetchWithLock(
-              lock_hasher, request_context, url, url /* cache_key*/,
-              lock_manager, message_handler),
+        : AsyncFetchWithLock(lock_hasher, request_context, url,
+                             url /* cache_key*/, lock_manager, message_handler),
           callback_(callback),
           async_op_hooks_(async_op_hooks) {
       async_op_hooks_->StartAsyncOp();
     }
 
-    ~BackgroundFreshenFetch() override {
-      async_op_hooks_->FinishAsyncOp();
-    }
+    ~BackgroundFreshenFetch() override { async_op_hooks_->FinishAsyncOp(); }
 
-    void StartFetch(
-        UrlAsyncFetcher* fetcher, MessageHandler* handler) override {
+    void StartFetch(UrlAsyncFetcher* fetcher,
+                    MessageHandler* handler) override {
       AsyncFetch* fetch = callback_->WrapCachePutFetchAndConditionalFetch(this);
       fetcher->Fetch(url(), handler, fetch);
     }
 
-    bool ShouldYieldToRedundantFetchInProgress() override {
-      return true;
-    }
+    bool ShouldYieldToRedundantFetchInProgress() override { return true; }
 
     bool IsBackgroundFetch() const override { return true; }
 
@@ -236,12 +225,9 @@ class CacheFindCallback : public HTTPCache::Callback {
     DISALLOW_COPY_AND_ASSIGN(BackgroundFreshenFetch);
   };
 
-  CacheFindCallback(const Hasher* lock_hasher,
-                    NamedLockManager* lock_manager,
-                    const GoogleString& url,
-                    const GoogleString& fragment,
-                    AsyncFetch* base_fetch,
-                    CacheUrlAsyncFetcher* owner,
+  CacheFindCallback(const Hasher* lock_hasher, NamedLockManager* lock_manager,
+                    const GoogleString& url, const GoogleString& fragment,
+                    AsyncFetch* base_fetch, CacheUrlAsyncFetcher* owner,
                     CacheUrlAsyncFetcher::AsyncOpHooks* async_op_hooks,
                     MessageHandler* handler)
       : HTTPCache::Callback(base_fetch->request_context(),
@@ -284,8 +270,8 @@ class CacheFindCallback : public HTTPCache::Callback {
     if (response_sequence_ == nullptr) {
       Finish(find_result);
     } else {
-      response_sequence_->Add(MakeFunction(
-          this, &CacheFindCallback::Finish, find_result));
+      response_sequence_->Add(
+          MakeFunction(this, &CacheFindCallback::Finish, find_result));
     }
   }
 
@@ -331,10 +317,8 @@ class CacheFindCallback : public HTTPCache::Callback {
           is_imminently_expiring = IsImminentlyExpiring(*response_headers());
         }
 
-        if (fetcher_ != nullptr &&
-            proactively_freshen_user_facing_request_ &&
-            async_op_hooks_ != nullptr &&
-            is_imminently_expiring) {
+        if (fetcher_ != nullptr && proactively_freshen_user_facing_request_ &&
+            async_op_hooks_ != nullptr && is_imminently_expiring) {
           // Triggers the background fetch to freshen the value in cache if
           // resource is about to expire.
           if (num_proactively_freshen_user_facing_request_ != nullptr) {
@@ -350,8 +334,8 @@ class CacheFindCallback : public HTTPCache::Callback {
       // will be marked RememberFetchFailedOrNotCacheable.
       // TODO(sligocki): Should we mark resources as such in this class?
       case HTTPCache::kRecentFailure:
-        VLOG(1) << "RecentFetchFailed, NotCacheable or Empty: "
-                << url_ << " (" << fragment_ << ")";
+        VLOG(1) << "RecentFetchFailed, NotCacheable or Empty: " << url_ << " ("
+                << fragment_ << ")";
         if (!ignore_recent_fetch_failed_) {
           base_fetch_->Done(false);
           break;
@@ -363,8 +347,8 @@ class CacheFindCallback : public HTTPCache::Callback {
           FALLTHROUGH_INTENDED;
         }
       case HTTPCache::kNotFound: {
-        VLOG(1) << "Did not find in cache: "
-                << url_ << " (" << fragment_ << ")";
+        VLOG(1) << "Did not find in cache: " << url_ << " (" << fragment_
+                << ")";
         if (fetcher_ == nullptr) {
           // Set status code to indicate reason we failed Fetch.
           DCHECK(!base_fetch_->headers_complete());
@@ -388,8 +372,8 @@ class CacheFindCallback : public HTTPCache::Callback {
               // fetch fails. Note that this is only populated if the
               // response in cache is stale.
               FallbackSharedAsyncFetch* fallback_fetch =
-                  new FallbackSharedAsyncFetch(
-                      base_fetch_, fallback_http_value(), handler_);
+                  new FallbackSharedAsyncFetch(base_fetch_,
+                                               fallback_http_value(), handler_);
               fallback_fetch->set_fallback_responses_served(
                   fallback_responses_served_);
               base_fetch = fallback_fetch;
@@ -408,7 +392,7 @@ class CacheFindCallback : public HTTPCache::Callback {
   }
 
   bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) override {
+                    const ResponseHeaders& headers) override {
     // base_fetch_ already has the key (URL + fragment).
     return base_fetch_->IsCachedResultValid(headers);
   }
@@ -424,8 +408,7 @@ class CacheFindCallback : public HTTPCache::Callback {
  private:
   bool ServedStaleContentWhileRevalidate(AsyncFetch* base_fetch) {
     if (serve_stale_while_revalidate_threshold_sec_ == 0 ||
-        fallback_http_value() == nullptr ||
-        fallback_http_value()->Empty()) {
+        fallback_http_value() == nullptr || fallback_http_value()->Empty()) {
       return false;
     }
     ResponseHeaders* response_headers = base_fetch->response_headers();
@@ -439,7 +422,7 @@ class CacheFindCallback : public HTTPCache::Callback {
     const int64 now_ms = cache_->timer()->NowMs();
     const int64 serve_stale_threshold_ms =
         serve_stale_while_revalidate_threshold_sec_ * 1000;
-    if (now_ms > expiry_ms +  serve_stale_threshold_ms ||
+    if (now_ms > expiry_ms + serve_stale_threshold_ms ||
         response_headers->IsHtmlLike()) {
       // Serve non-html request with fallback http value if resource
       // was expired within serve_stale_while_revalidate_threshold_ms_.
@@ -471,13 +454,8 @@ class CacheFindCallback : public HTTPCache::Callback {
 
   void TriggerBackgroundFreshenFetch() {
     AsyncFetchWithLock* fetch = new BackgroundFreshenFetch(
-        lock_hasher_,
-        base_fetch_->request_context(),
-        url_,
-        lock_manager_,
-        handler_,
-        this,
-        async_op_hooks_);
+        lock_hasher_, base_fetch_->request_context(), url_, lock_manager_,
+        handler_, this, async_op_hooks_);
     RequestHeaders* request_headers = fetch->request_headers();
     request_headers->CopyFrom(*base_fetch_->request_headers());
     DCHECK(request_headers->method() == RequestHeaders::kGet ||
@@ -498,9 +476,10 @@ class CacheFindCallback : public HTTPCache::Callback {
     // Otherwise, return a 304 only if there was no If-None-Match header in the
     // request and the last modified timestamp matches.
     // (from http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html)
-    return request_headers()->Lookup1(HttpAttributes::kIfNoneMatch) == nullptr &&
-        ConditionalHeadersMatch(HttpAttributes::kIfModifiedSince,
-                                HttpAttributes::kLastModified);
+    return request_headers()->Lookup1(HttpAttributes::kIfNoneMatch) ==
+               nullptr &&
+           ConditionalHeadersMatch(HttpAttributes::kIfModifiedSince,
+                                   HttpAttributes::kLastModified);
   }
 
   bool ConditionalHeadersMatch(const StringPiece& request_header,
@@ -509,8 +488,9 @@ class CacheFindCallback : public HTTPCache::Callback {
         request_headers()->Lookup1(request_header);
     const char* response_header_value =
         response_headers()->Lookup1(response_header);
-    return request_header_value != nullptr && response_header_value != nullptr &&
-        strcmp(request_header_value, response_header_value) == 0;
+    return request_header_value != nullptr &&
+           response_header_value != nullptr &&
+           strcmp(request_header_value, response_header_value) == 0;
   }
 
   const RequestHeaders* request_headers() const {
@@ -520,10 +500,8 @@ class CacheFindCallback : public HTTPCache::Callback {
 
   bool IsImminentlyExpiring(const ResponseHeaders& headers) const {
     return ResponseHeaders::IsImminentlyExpiring(
-        headers.date_ms(),
-        headers.CacheExpirationTimeMs(),
-        cache_->timer()->NowMs(),
-        headers.http_options());
+        headers.date_ms(), headers.CacheExpirationTimeMs(),
+        cache_->timer()->NowMs(), headers.http_options());
   }
 
   AsyncFetch* WrapCachePutFetchAndConditionalFetch(AsyncFetch* base_fetch) {
@@ -535,17 +513,14 @@ class CacheFindCallback : public HTTPCache::Callback {
     // Remove any Etags added by us before sending the request out. This is the
     // etags generated by server and upstream original code would not
     // understand them.
-    const char* etag = request_headers()->Lookup1(
-        HttpAttributes::kIfNoneMatch);
-    if (etag != nullptr &&
-        StringCaseStartsWith(etag, HTTPCache::kEtagPrefix)) {
-      put_fetch->request_headers()->RemoveAll(
-          HttpAttributes::kIfNoneMatch);
+    const char* etag = request_headers()->Lookup1(HttpAttributes::kIfNoneMatch);
+    if (etag != nullptr && StringCaseStartsWith(etag, HTTPCache::kEtagPrefix)) {
+      put_fetch->request_headers()->RemoveAll(HttpAttributes::kIfNoneMatch);
     }
 
     ConditionalSharedAsyncFetch* conditional_fetch =
-        new ConditionalSharedAsyncFetch(
-            put_fetch, fallback_http_value(), handler_);
+        new ConditionalSharedAsyncFetch(put_fetch, fallback_http_value(),
+                                        handler_);
     conditional_fetch->set_num_conditional_refreshes(
         num_conditional_refreshes_);
     return conditional_fetch;
@@ -606,8 +581,7 @@ CacheUrlAsyncFetcher::CacheUrlAsyncFetcher(const Hasher* lock_hasher,
       proactively_freshen_user_facing_request_(false),
       own_fetcher_(false),
       serve_stale_while_revalidate_threshold_sec_(0),
-      response_sequence_(nullptr) {
-}
+      response_sequence_(nullptr) {}
 
 CacheUrlAsyncFetcher::~CacheUrlAsyncFetcher() {
   if (own_fetcher_) {
@@ -616,8 +590,9 @@ CacheUrlAsyncFetcher::~CacheUrlAsyncFetcher() {
   }
 }
 
-void CacheUrlAsyncFetcher::Fetch(
-    const GoogleString& url, MessageHandler* handler, AsyncFetch* base_fetch) {
+void CacheUrlAsyncFetcher::Fetch(const GoogleString& url,
+                                 MessageHandler* handler,
+                                 AsyncFetch* base_fetch) {
   switch (base_fetch->request_headers()->method()) {
     case RequestHeaders::kHead:
       // HEAD is identical to GET, with the body trimmed.  Even though we are
@@ -626,21 +601,13 @@ void CacheUrlAsyncFetcher::Fetch(
       // the origin, so mark the "original" resource as uncacheable.
       base_fetch->log_record()->SetIsOriginalResourceCacheable(false);
       FALLTHROUGH_INTENDED;
-    case RequestHeaders::kGet:
-      {
-        CacheFindCallback* find_callback =
-            new CacheFindCallback(
-                lock_hasher_,
-                lock_manager_,
-                url,
-                fragment_,
-                base_fetch,
-                this,
-                async_op_hooks_,
-                handler);
-        find_callback->set_response_sequence(response_sequence_);
-        http_cache_->Find(url, fragment_, handler, find_callback);
-      }
+    case RequestHeaders::kGet: {
+      CacheFindCallback* find_callback =
+          new CacheFindCallback(lock_hasher_, lock_manager_, url, fragment_,
+                                base_fetch, this, async_op_hooks_, handler);
+      find_callback->set_response_sequence(response_sequence_);
+      http_cache_->Find(url, fragment_, handler, find_callback);
+    }
       return;
 
     default:
@@ -662,7 +629,6 @@ void CacheUrlAsyncFetcher::Fetch(
   }
 }
 
-CacheUrlAsyncFetcher::AsyncOpHooks::~AsyncOpHooks() {
-}
+CacheUrlAsyncFetcher::AsyncOpHooks::~AsyncOpHooks() {}
 
 }  // namespace net_instaweb

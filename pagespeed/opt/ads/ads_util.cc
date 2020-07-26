@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,13 +21,15 @@
 
 #include <cstddef>
 
-#include "pagespeed/opt/ads/ads_attribute.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
+#include "pagespeed/opt/ads/ads_attribute.h"
 
 // Separator used in publisher code.
-namespace { const char kAdsPublisherCodeSeparator[] = "-"; }
+namespace {
+const char kAdsPublisherCodeSeparator[] = "-";
+}
 
 namespace net_instaweb {
 
@@ -46,16 +48,15 @@ const char kShowAdsApiCallJSSrc[] =
 StringPiece GetPublisherIdWithoutProductPrefix(StringPiece publisher_code) {
   // TODO(chenyu): Modify this search to support Direct publishers
   // ("partner-aol-in" is a valid Direct AFS property code).
-  stringpiece_ssize_type last_separator_pos = publisher_code.find_last_of(
-      kAdsPublisherCodeSeparator);
+  stringpiece_ssize_type last_separator_pos =
+      publisher_code.find_last_of(kAdsPublisherCodeSeparator);
   if (last_separator_pos != StringPiece::npos) {
     publisher_code.remove_prefix(last_separator_pos + 1);
   }
   return publisher_code;
 }
 
-bool IsValidAdsByGoogle(
-    const HtmlElement& element, StringPiece publisher_id) {
+bool IsValidAdsByGoogle(const HtmlElement& element, StringPiece publisher_id) {
   // An adsbygoogle element must be an <Ins> element.
   if (element.keyword() != HtmlName::kIns) {
     return false;
@@ -72,9 +73,8 @@ bool IsValidAdsByGoogle(
   const HtmlElement::Attribute* ad_client_attribute =
       element.FindAttribute(ads_attribute::kDataAdClient);
   if (ad_client_attribute == nullptr ||
-      FindIgnoreCase(
-          ad_client_attribute->DecodedValueOrNull(),
-          publisher_id) == StringPiece::npos) {
+      FindIgnoreCase(ad_client_attribute->DecodedValueOrNull(), publisher_id) ==
+          StringPiece::npos) {
     return false;
   }
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,9 +21,9 @@
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/thread/scheduler.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/thread/scheduler.h"
 #include "pagespeed/kernel/thread/scheduler_based_abstract_lock.h"
 
 namespace net_instaweb {
@@ -40,8 +40,9 @@ class FileSystemLock : public SchedulerBasedAbstractLock {
 
   bool TryLock() override {
     bool result = false;
-    if (manager_->file_system()->
-        TryLock(name_, manager_->handler()).is_true()) {
+    if (manager_->file_system()
+            ->TryLock(name_, manager_->handler())
+            .is_true()) {
       held_ = result = true;
     }
     return result;
@@ -49,9 +50,10 @@ class FileSystemLock : public SchedulerBasedAbstractLock {
 
   bool TryLockStealOld(int64 timeout_ms) override {
     bool result = false;
-    if (manager_->file_system()->
-        TryLockWithTimeout(name_, timeout_ms, scheduler()->timer(),
-                           manager_->handler()).is_true()) {
+    if (manager_->file_system()
+            ->TryLockWithTimeout(name_, timeout_ms, scheduler()->timer(),
+                                 manager_->handler())
+            .is_true()) {
       held_ = result = true;
     }
     return result;
@@ -61,27 +63,19 @@ class FileSystemLock : public SchedulerBasedAbstractLock {
     held_ = !manager_->file_system()->Unlock(name_, manager_->handler());
   }
 
-  GoogleString name() const override {
-    return name_;
-  }
+  GoogleString name() const override { return name_; }
 
-  bool Held() override {
-    return held_;
-  }
+  bool Held() override { return held_; }
 
  protected:
-  Scheduler* scheduler() const override {
-    return manager_->scheduler();
-  }
+  Scheduler* scheduler() const override { return manager_->scheduler(); }
 
  private:
   friend class FileSystemLockManager;
 
   // ctor should only be called by CreateNamedLock below.
   FileSystemLock(const StringPiece& name, FileSystemLockManager* manager)
-      : name_(name.data(), name.size()),
-        manager_(manager),
-        held_(false) { }
+      : name_(name.data(), name.size()), manager_(manager), held_(false) {}
 
   GoogleString name_;
   FileSystemLockManager* manager_;
@@ -93,9 +87,10 @@ class FileSystemLock : public SchedulerBasedAbstractLock {
   DISALLOW_COPY_AND_ASSIGN(FileSystemLock);
 };
 
-FileSystemLockManager::FileSystemLockManager(
-    FileSystem* file_system, const StringPiece& base_path, Scheduler* scheduler,
-    MessageHandler* handler)
+FileSystemLockManager::FileSystemLockManager(FileSystem* file_system,
+                                             const StringPiece& base_path,
+                                             Scheduler* scheduler,
+                                             MessageHandler* handler)
     : file_system_(file_system),
       base_path_(base_path.as_string()),
       scheduler_(scheduler),
@@ -103,7 +98,7 @@ FileSystemLockManager::FileSystemLockManager(
   EnsureEndsInSlash(&base_path_);
 }
 
-FileSystemLockManager::~FileSystemLockManager() { }
+FileSystemLockManager::~FileSystemLockManager() {}
 
 SchedulerBasedAbstractLock* FileSystemLockManager::CreateNamedLock(
     const StringPiece& name) {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/grpc_server_test.h"
 
+#include <grpc++/alarm.h>
 #include <sys/stat.h>
+
 #include <memory>
 
 #include "base/logging.h"
@@ -34,8 +35,6 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/grpc.h"
 #include "pagespeed/kernel/util/platform.h"
-
-#include <grpc++/alarm.h>
 
 namespace net_instaweb {
 
@@ -61,8 +60,8 @@ void GrpcServerTest::SetUp() {
   // Unix sockets are 1 on success. gRPC sets -1 on failure.
   CHECK_GT(bound_port, 0);
 
-  server_thread_ = std::make_unique<GrpcServerThread>(
-      queue_.get(), thread_system_.get());
+  server_thread_ =
+      std::make_unique<GrpcServerThread>(queue_.get(), thread_system_.get());
   CHECK(server_thread_->Start());
 }
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Do not use this file directly! Instead include proto_matcher.h
 
@@ -26,16 +25,13 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "gmock/gmock-matchers.h"
+#include "google/protobuf/util/message_differencer.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/string.h"
 
-
-#include "gmock/gmock-matchers.h"
-#include "google/protobuf/util/message_differencer.h"
-
 using google::protobuf::util::MessageDifferencer;
-
 
 namespace net_instaweb {
 
@@ -65,8 +61,8 @@ class EqualsProtoMatcher {
   const GoogleString expected_proto_str_;
 };
 
-inline testing::PolymorphicMatcher<EqualsProtoMatcher>
-EqualsProto(const GoogleString& x) {
+inline testing::PolymorphicMatcher<EqualsProtoMatcher> EqualsProto(
+    const GoogleString& x) {
   return testing::MakePolymorphicMatcher(EqualsProtoMatcher(x));
 }
 

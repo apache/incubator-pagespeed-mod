@@ -48,33 +48,31 @@
 static const int32 kint32max = 0x7FFFFFFF;
 static const int32 kint32min = -kint32max - 1;
 
-using absl::StrCat;
 using absl::StrAppend;
+using absl::StrCat;
 
 class StringPiece : public absl::string_view {
-public:
+ public:
   // We accept nullptr for historical reasons.
-  StringPiece(const char* c) : absl::string_view(absl::NullSafeStringView(c)) {}
-  StringPiece(const absl::string_view& s) : absl::string_view(s) {}
-  StringPiece(const GoogleString& s) : absl::string_view(s.data(), s.size()) {}
+  StringPiece(const char *c) : absl::string_view(absl::NullSafeStringView(c)) {}
+  StringPiece(const absl::string_view &s) : absl::string_view(s) {}
+  StringPiece(const GoogleString &s) : absl::string_view(s.data(), s.size()) {}
 
   using absl::string_view::string_view;
 
   // We accept nullptr for historical reasons.
-  constexpr bool operator==(const char* rhs) const noexcept {
+  constexpr bool operator==(const char *rhs) const noexcept {
     return absl::NullSafeStringView(rhs) == *this;
   }
-  
+
   // We accept nullptr for historical reasons.
-  constexpr bool operator!=(const char* rhs) const noexcept {
+  constexpr bool operator!=(const char *rhs) const noexcept {
     return absl::NullSafeStringView(rhs) != *this;
   }
 
-  void CopyToString(GoogleString* dest) const {
-    *dest = std::string(*this);
-  }
+  void CopyToString(GoogleString *dest) const { *dest = std::string(*this); }
 
-  void AppendToString(GoogleString* dest) const {
+  void AppendToString(GoogleString *dest) const {
     (*dest).append(this->data(), this->size());
   }
 
@@ -103,15 +101,15 @@ public:
   }
 };
 
-void StringAppendV(std::string* dst, const char* format, va_list ap);
+void StringAppendV(std::string *dst, const char *format, va_list ap);
 
 // XXX(oschaaf): check(!!)
 typedef size_t stringpiece_ssize_type;
 
 namespace strings {
-using absl::StartsWith;
 using absl::EndsWith;
-} // namespace strings
+using absl::StartsWith;
+}  // namespace strings
 
 // Quick macro to get the size of a static char[] without trailing '\0'.
 // Note: Cannot be used for char*, std::string, etc.
@@ -150,11 +148,11 @@ inline bool StringToInt(StringPiece in, int *out) {
   return absl::SimpleAtoi<int>(in, out);
 }
 
-inline bool StringToInt(const char* in, int *out) {
+inline bool StringToInt(const char *in, int *out) {
   return absl::SimpleAtoi<int>(in, out);
 }
 
-inline bool StringToInt64(const char* in, int64 *out) {
+inline bool StringToInt64(const char *in, int64 *out) {
   return absl::SimpleAtoi<int64>(StringPiece(in), out);
 }
 
@@ -326,8 +324,8 @@ inline void TrimWhitespace(StringPiece in, GoogleString *output) {
   DCHECK((in.data() < output->data()) ||
          (in.data() >= (output->data() + output->length())))
       << "Illegal argument aliasing in TrimWhitespace";
-  StringPiece temp(in);  // Mutable copy
-  TrimWhitespace(&temp); // Modifies temp
+  StringPiece temp(in);   // Mutable copy
+  TrimWhitespace(&temp);  // Modifies temp
   *output = GoogleString(temp);
 }
 
@@ -387,9 +385,7 @@ bool SplitStringPieceToIntegerVector(StringPiece src, StringPiece separators,
                                      std::vector<int> *ints);
 
 // Does a path end in slash?
-inline bool EndsInSlash(StringPiece path) {
-  return absl::EndsWith(path, "/");
-}
+inline bool EndsInSlash(StringPiece path) { return absl::EndsWith(path, "/"); }
 
 // Make sure directory's path ends in '/'.
 inline void EnsureEndsInSlash(GoogleString *dir) {
@@ -424,7 +420,7 @@ void AppendJoinIterator(GoogleString *dest, I start, I end, StringPiece sep) {
     return;
   }
   size_t size = dest->size();
-  size_t sep_size = 0; // No separator before initial element
+  size_t sep_size = 0;  // No separator before initial element
   for (I str = start; str != end; ++str) {
     size += str->size() + sep_size;
     sep_size = sep.size();
@@ -464,6 +460,6 @@ inline bool IsAscii(char c) { return isascii(static_cast<unsigned char>(c)); }
 // Note: This does not include TAB (0x09), LF (0x0A) or CR (0x0D).
 inline bool IsNonControlAscii(char c) { return ('\x20' <= c) && (c <= '\x7E'); }
 
-} // namespace net_instaweb
+}  // namespace net_instaweb
 
-#endif // PAGESPEED_KERNEL_BASE_STRING_UTIL_H_
+#endif  // PAGESPEED_KERNEL_BASE_STRING_UTIL_H_

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/critical_selector_filter.h"
 
@@ -54,9 +53,7 @@ const char kRequestUrl[] = "http://www.example.com/";
 
 class CriticalSelectorFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUpBeforeSelectorsFilter() {
-    rewrite_driver()->AddFilters();
-  }
+  virtual void SetUpBeforeSelectorsFilter() { rewrite_driver()->AddFilters(); }
 
   virtual void SetUpAfterSelectorsFilter() {
     server_context()->ComputeSignature(options());
@@ -97,14 +94,16 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     // Some weird but valid CSS.
     SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
                                   "div,span,*::first-letter { display: block; }"
-                                  "p { display: inline; }", 100);
+                                  "p { display: inline; }",
+                                  100);
     SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
                                   "@media screen,print { * { margin: 0px; } }",
                                   100);
     SetResponseWithDefaultHeaders("http://unauthorized.com/unauth.css",
                                   kContentTypeCss,
                                   "div { background-color: blue }"
-                                  "random { color: white }", 100);
+                                  "random { color: white }",
+                                  100);
   }
 
   void ResetDriver() {
@@ -121,12 +120,13 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     factory()->mock_timer()->AdvanceMs(
         options()->beacon_reinstrument_time_sec() * Timer::kSecondMs);
     last_beacon_metadata_ =
-        server_context()->critical_selector_finder()->
-            PrepareForBeaconInsertion(candidates_, rewrite_driver());
+        server_context()->critical_selector_finder()->PrepareForBeaconInsertion(
+            candidates_, rewrite_driver());
     ASSERT_EQ(kBeaconWithNonce, last_beacon_metadata_.status);
     ResetDriver();
-    server_context()->critical_selector_finder()->
-        WriteCriticalSelectorsToPropertyCache(
+    server_context()
+        ->critical_selector_finder()
+        ->WriteCriticalSelectorsToPropertyCache(
             selectors, last_beacon_metadata_.nonce, rewrite_driver());
     page_->WriteCohort(server_context()->beacon_cohort());
   }
@@ -150,8 +150,7 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
   }
 
   GoogleString CssLinkHrefMedia(StringPiece url, StringPiece media) {
-    return StrCat("<link rel=stylesheet href=", url,
-                  " media=\"", media, "\">");
+    return StrCat("<link rel=stylesheet href=", url, " media=\"", media, "\">");
   }
 
   bool AddHtmlTags() const override { return false; }
@@ -175,117 +174,112 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
 };
 
 TEST_F(CriticalSelectorFilterTest, BasicOperation) {
-  GoogleString css = StrCat(
-      "<style>*,p {display: none; } span {display: inline; }</style>",
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
+  GoogleString css =
+      StrCat("<style>*,p {display: none; } span {display: inline; }</style>",
+             CssLinkHref("a.css"), CssLinkHref("b.css"));
 
   GoogleString critical_css =
-      "<style>*{display:none}</style>"  // from the inline
+      "<style>*{display:none}</style>"                     // from the inline
       "<style>div,*::first-letter{display:block}</style>"  // from a.css
-      "<style>@media screen{*{margin:0}}</style>";  // from b.css
+      "<style>@media screen{*{margin:0}}</style>";         // from b.css
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
   ValidateExpected(
       "basic", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div>",
+      StrCat("<head>", critical_css, "</head>", "<body><div>Stuff</div>",
              LoadRestOfCss(css), "</body>"));
   ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
 }
 
 TEST_F(CriticalSelectorFilterTest, UnauthorizedCss) {
-  GoogleString css = StrCat(
-      "<style>*,p {display: none; } span {display: inline; }</style>",
-      CssLinkHref("http://unauthorized.com/unauth.css"),
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
+  GoogleString css =
+      StrCat("<style>*,p {display: none; } span {display: inline; }</style>",
+             CssLinkHref("http://unauthorized.com/unauth.css"),
+             CssLinkHref("a.css"), CssLinkHref("b.css"));
 
   GoogleString critical_css =
       "<style>*{display:none}</style>"  // from the inline
       "<link rel=stylesheet href=http://unauthorized.com/unauth.css>"
       "<style>div,*::first-letter{display:block}</style>"  // from a.css
-      "<style>@media screen{*{margin:0}}</style>";  // from b.css
+      "<style>@media screen{*{margin:0}}</style>";         // from b.css
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
   ValidateExpected(
       "basic", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div>",
+      StrCat("<head>", critical_css, "</head>", "<body><div>Stuff</div>",
              LoadRestOfCss(css), "</body>"));
   ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
-  EXPECT_EQ(3, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(1, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
+  EXPECT_EQ(3, statistics()
+                   ->GetVariable(
+                       CssSummarizerBase::kNumCssUsedForCriticalCssComputation)
+                   ->Get());
+  EXPECT_EQ(1,
+            statistics()
+                ->GetVariable(
+                    CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)
+                ->Get());
 }
 
 TEST_F(CriticalSelectorFilterTest, AllowUnauthorizedCss) {
   options()->ClearSignatureForTesting();
   options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
   options()->ComputeSignature();
-  GoogleString css = StrCat(
-      "<style>*,p {display: none; } span {display: inline; }</style>",
-      CssLinkHref("http://unauthorized.com/unauth.css"),
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
+  GoogleString css =
+      StrCat("<style>*,p {display: none; } span {display: inline; }</style>",
+             CssLinkHref("http://unauthorized.com/unauth.css"),
+             CssLinkHref("a.css"), CssLinkHref("b.css"));
 
   GoogleString critical_css =
-      "<style>*{display:none}</style>"  // from the inline
-      "<style>div{background-color:#00f}</style>"  // from unauth.css
+      "<style>*{display:none}</style>"                     // from the inline
+      "<style>div{background-color:#00f}</style>"          // from unauth.css
       "<style>div,*::first-letter{display:block}</style>"  // from a.css
-      "<style>@media screen{*{margin:0}}</style>";  // from b.css
+      "<style>@media screen{*{margin:0}}</style>";         // from b.css
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
   ValidateExpected(
       "basic", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div>",
+      StrCat("<head>", critical_css, "</head>", "<body><div>Stuff</div>",
              LoadRestOfCss(css), "</body>"));
   ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
-  EXPECT_EQ(4, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(0, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
+  EXPECT_EQ(4, statistics()
+                   ->GetVariable(
+                       CssSummarizerBase::kNumCssUsedForCriticalCssComputation)
+                   ->Get());
+  EXPECT_EQ(0,
+            statistics()
+                ->GetVariable(
+                    CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)
+                ->Get());
 }
 
 TEST_F(CriticalSelectorFilterTest, StylesInBody) {
-  GoogleString css_a = StrCat(
-      "<style>*,p {display: none; } span {display: inline; }</style>",
-      CssLinkHref("a.css"));
+  GoogleString css_a =
+      StrCat("<style>*,p {display: none; } span {display: inline; }</style>",
+             CssLinkHref("a.css"));
   GoogleString css_b = CssLinkHref("b.css");
 
   GoogleString critical_css_a =
-      "<style>*{display:none}</style>"  // from the inline
+      "<style>*{display:none}</style>"                      // from the inline
       "<style>div,*::first-letter{display:block}</style>";  // from a.css
   GoogleString critical_css_b =
       "<style>@media screen{*{margin:0}}</style>";  // from b.css
 
-  GoogleString html = StrCat(
-      "<head></head><body>", css_a,
-      "<div>Stuff</div>", css_b,
-      "</body>");
+  GoogleString html = StrCat("<head></head><body>", css_a, "<div>Stuff</div>",
+                             css_b, "</body>");
 
   ValidateExpected(
       "style_in_body", html,
-      StrCat("<head></head><body>", critical_css_a,
-             "<div>Stuff</div>", critical_css_b,
-             LoadRestOfCss(css_a + css_b), "</body>"));
+      StrCat("<head></head><body>", critical_css_a, "<div>Stuff</div>",
+             critical_css_b, LoadRestOfCss(css_a + css_b), "</body>"));
   ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
 }
 
@@ -294,31 +288,25 @@ TEST_F(CriticalSelectorFilterTest, EmptyBlock) {
   // talk about 'i' so this should do nothing..
   GoogleString css = "<style>i { font-style:italic; }</style>";
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
-  ValidateExpected(
-      "empty_block", html,
-      StrCat("<head></head>"
-             "<body><div>Stuff</div>",
-             LoadRestOfCss(css), "</body>"));
+  ValidateExpected("empty_block", html,
+                   StrCat("<head></head>"
+                          "<body><div>Stuff</div>",
+                          LoadRestOfCss(css), "</body>"));
   ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
 }
 
 TEST_F(CriticalSelectorFilterTest, DisabledForIE) {
   SetCurrentUserAgent(UserAgentMatcherTestBase::kIe7UserAgent);
-  GoogleString css = StrCat(
-      "<style>*,p {display: none; } span {display: inline; }</style>",
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString css =
+      StrCat("<style>*,p {display: none; } span {display: inline; }</style>",
+             CssLinkHref("a.css"), CssLinkHref("b.css"));
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
   ValidateNoChanges("on_ie", html);
   ValidateRewriterLogging(RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED);
 }
@@ -326,111 +314,98 @@ TEST_F(CriticalSelectorFilterTest, DisabledForIE) {
 TEST_F(CriticalSelectorFilterTest, NoScript) {
   GoogleString css1 =
       "<style>*,p {display: none; } span {display: inline; }</style>";
-  GoogleString css2 =
-      StrCat("<noscript>", CssLinkHref("a.css"), "</noscript>");
-  GoogleString css3 =
-      CssLinkHref("b.css");
+  GoogleString css2 = StrCat("<noscript>", CssLinkHref("a.css"), "</noscript>");
+  GoogleString css3 = CssLinkHref("b.css");
   GoogleString css = StrCat(css1, css2, css3);
 
   GoogleString critical_css =
-      "<style>*{display:none}</style>"  // from the inline
-      "<noscript></noscript>"  // from a.css
+      "<style>*{display:none}</style>"              // from the inline
+      "<noscript></noscript>"                       // from a.css
       "<style>@media screen{*{margin:0}}</style>";  // from b.css
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
-  ValidateExpected(
-      "noscript", html,
-      StrCat("<head>", critical_css, "</head>"
-             "<body><div>Stuff</div>",
-             WrapForJsLoad(css1),
-             css2,  // noscript, so not marked for JS load.
-             WrapForJsLoad(css3),
-             JsLoader(), "</body>"));
+  ValidateExpected("noscript", html,
+                   StrCat("<head>", critical_css,
+                          "</head>"
+                          "<body><div>Stuff</div>",
+                          WrapForJsLoad(css1),
+                          css2,  // noscript, so not marked for JS load.
+                          WrapForJsLoad(css3), JsLoader(), "</body>"));
   ValidateRewriterLogging(RewriterHtmlApplication::ACTIVE);
 }
 
 TEST_F(CriticalSelectorFilterTest, Alternate) {
-  GoogleString css = StrCat(
-    "<link rel=\"alternate stylesheet\" href=\"a.css\">",
-    CssLinkHref("b.css"));
+  GoogleString css =
+      StrCat("<link rel=\"alternate stylesheet\" href=\"a.css\">",
+             CssLinkHref("b.css"));
 
   GoogleString critical_css =
-    "<style>@media screen{*{margin:0}}</style>";  // from b.css
+      "<style>@media screen{*{margin:0}}</style>";  // from b.css
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
-  ValidateExpected(
-      "alternate", html,
-      StrCat("<head>", critical_css, "</head>"
-             "<body><div>Stuff</div>",
-             LoadRestOfCss(css), "</body>"));
+  ValidateExpected("alternate", html,
+                   StrCat("<head>", critical_css,
+                          "</head>"
+                          "<body><div>Stuff</div>",
+                          LoadRestOfCss(css), "</body>"));
 }
 
 TEST_F(CriticalSelectorFilterTest, Media) {
   GoogleString css = StrCat(
       "<style media=screen,print>*,p {display: none; } "
-          "span {display: inline; }</style>",
+      "span {display: inline; }</style>",
       CssLinkHrefMedia("a.css", "screen"),
       CssLinkHrefMedia("b.css", "screen and (color), aural"));
 
   GoogleString critical_css =
       "<style media=\"screen\">"
-          "*{display:none}"  // from the inline
+      "*{display:none}"  // from the inline
       "</style>"
       "<style media=\"screen\">"
-          "div,*::first-letter{display:block}"  // from a.css
+      "div,*::first-letter{display:block}"  // from a.css
       "</style>"
       "<style media=\"screen and (color)\">"
-          "@media screen{*{margin:0}}"  // from b.css
+      "@media screen{*{margin:0}}"  // from b.css
       "</style>";
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
   ValidateExpected(
       "foo", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div>",
+      StrCat("<head>", critical_css, "</head>", "<body><div>Stuff</div>",
              LoadRestOfCss(css), "</body>"));
 }
 
 TEST_F(CriticalSelectorFilterTest, NonScreenMedia) {
   GoogleString css = StrCat(
       "<style media=print>*,p {display: none; } "
-          "span {display: inline; }</style>",
+      "span {display: inline; }</style>",
       CssLinkHrefMedia("a.css", "screen"),
       CssLinkHrefMedia("b.css", "screen and (color), aural"));
 
   GoogleString critical_css =
       "<style media=\"screen\">"
-          "div,*::first-letter{display:block}"  // from a.css
+      "div,*::first-letter{display:block}"  // from a.css
       "</style>"
       "<style media=\"screen and (color)\">"
-          "@media screen{*{margin:0}}"  // from b.css
+      "@media screen{*{margin:0}}"  // from b.css
       "</style>";
 
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
   ValidateExpected(
       "non_screen_media", html,
-      StrCat("<head>", critical_css, "</head>",
-             "<body><div>Stuff</div>",
+      StrCat("<head>", critical_css, "</head>", "<body><div>Stuff</div>",
              LoadRestOfCss(css), "</body>"));
 }
 
@@ -485,8 +460,7 @@ TEST_F(CriticalSelectorFilterTest, SameCssDifferentSelectors) {
 TEST_F(CriticalSelectorFilterTest, RetainPseudoOnly) {
   // Make sure we handle things like :hover OK.
   GoogleString css = ":hover { border: 2px solid red; }";
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                css, 100);
+  SetResponseWithDefaultHeaders("c.css", kContentTypeCss, css, 100);
   ValidateExpected("hover", CssLinkHref("c.css"),
                    StrCat("<style>:hover{border:2px solid red}</style>",
                           LoadRestOfCss(CssLinkHref("c.css"))));
@@ -496,8 +470,7 @@ TEST_F(CriticalSelectorFilterTest, RetainUnparseable) {
   // Make sure we keep unparseable fragments around, particularly when
   // the problem is with the selector, as well as with the entire region.
   GoogleString css = "!huh! {background: white; } @huh { display: block; }";
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                css, 100);
+  SetResponseWithDefaultHeaders("c.css", kContentTypeCss, css, 100);
   ValidateExpected(
       "partly_unparseable", CssLinkHref("c.css"),
       StrCat("<style>!huh! {background:#fff}@huh { display: block; }</style>",
@@ -509,9 +482,8 @@ TEST_F(CriticalSelectorFilterTest, NoSelectorInfo) {
   GoogleString css = "<style>div,span { display: inline-block; }</style>";
 
   // We shouldn't change things when there is no info on selectors available.
-  page_->DeleteProperty(
-      server_context()->beacon_cohort(),
-      CriticalSelectorFinder::kCriticalSelectorsPropertyName);
+  page_->DeleteProperty(server_context()->beacon_cohort(),
+                        CriticalSelectorFinder::kCriticalSelectorsPropertyName);
   page_->WriteCohort(server_context()->beacon_cohort());
 
   ResetDriver();
@@ -533,8 +505,8 @@ TEST_F(CriticalSelectorFilterTest, DoNotLazyLoadIfNothingRewritten) {
   // Make sure we don't do the whole 'lazy load rest of CSS' schpiel if we
   // did not end up changing the main CSS.
   SetupWaitFetcher();
-  ValidateNoChanges("not_loaded", StrCat(CssLinkHref("a.css"),
-                                         CssLinkHref("b.css")));
+  ValidateNoChanges("not_loaded",
+                    StrCat(CssLinkHref("a.css"), CssLinkHref("b.css")));
   CallFetcherCallbacks();
   // Skip ValidateRewriterLogging because fetcher interferes with WriteLog.
 }
@@ -551,26 +523,22 @@ class CriticalSelectorWithRewriteCssFilterTest
 TEST_F(CriticalSelectorWithRewriteCssFilterTest, ProperlyUsedOptimized) {
   // Make sure that the lazy loading code for rest of CSS actually uses
   // optimized resources.
-  GoogleString css = StrCat(
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
+  GoogleString css = StrCat(CssLinkHref("a.css"), CssLinkHref("b.css"));
 
   GoogleString critical_css =
       "<style>div,*::first-letter{display:block}</style>"  // from a.css
-      "<style>@media screen{*{margin:0}}</style>";  // from b.css
+      "<style>@media screen{*{margin:0}}</style>";         // from b.css
 
-  GoogleString optimized_css = StrCat(
-      CssLinkHref(Encode("", "cf", "0", "a.css", "css")),
-      CssLinkHref(Encode("", "cf", "0", "b.css", "css")));
-  GoogleString html = StrCat(
-      "<head>",
-      css,
-      "</head>"
-      "<body><div>Stuff</div></body>");
+  GoogleString optimized_css =
+      StrCat(CssLinkHref(Encode("", "cf", "0", "a.css", "css")),
+             CssLinkHref(Encode("", "cf", "0", "b.css", "css")));
+  GoogleString html = StrCat("<head>", css,
+                             "</head>"
+                             "<body><div>Stuff</div></body>");
 
-  ValidateExpected("with_rewrite_css",
-                   html,
-                   StrCat("<head>", critical_css, "</head>"
+  ValidateExpected("with_rewrite_css", html,
+                   StrCat("<head>", critical_css,
+                          "</head>"
                           "<body><div>Stuff</div>",
                           LoadRestOfCss(optimized_css), "</body>"));
 }
@@ -585,22 +553,19 @@ class CriticalSelectorWithCombinerFilterTest
 };
 
 TEST_F(CriticalSelectorWithCombinerFilterTest, Interaction) {
-  GoogleString css = StrCat(
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
+  GoogleString css = StrCat(CssLinkHref("a.css"), CssLinkHref("b.css"));
 
   // Only one <style> element since combine_css ran before us.
   GoogleString critical_css =
       "<style>div,*::first-letter{display:block}"  // from a.css
-      "@media screen{*{margin:0}}</style>";  // from b.css
+      "@media screen{*{margin:0}}</style>";        // from b.css
 
-  GoogleString combined_url = Encode("", "cc", "0",
-                                     MultiUrl("a.css", "b.css"), "css");
+  GoogleString combined_url =
+      Encode("", "cc", "0", MultiUrl("a.css", "b.css"), "css");
 
-  ValidateExpected("with_combiner",
-                   css,
-                   StrCat(critical_css,
-                          LoadRestOfCss(CssLinkHref(combined_url))));
+  ValidateExpected(
+      "with_combiner", css,
+      StrCat(critical_css, LoadRestOfCss(CssLinkHref(combined_url))));
 }
 
 TEST_F(CriticalSelectorWithCombinerFilterTest, ResolveWhenCombineAcrossPaths) {
@@ -608,21 +573,18 @@ TEST_F(CriticalSelectorWithCombinerFilterTest, ResolveWhenCombineAcrossPaths) {
   SetResponseWithDefaultHeaders("dir/a.css", kContentTypeCss,
                                 "* { background-image: url(/dir/d.png); }",
                                 100);
-  GoogleString css = StrCat(
-      CssLinkHref("dir/a.css"),
-      CssLinkHref("b.css"));
+  GoogleString css = StrCat(CssLinkHref("dir/a.css"), CssLinkHref("b.css"));
 
-    // Only one <style> element since combine_css ran before us.
+  // Only one <style> element since combine_css ran before us.
   GoogleString critical_css =
       "<style>*{background-image:url(dir/d.png)}"  // from dir/a.css
-      "@media screen{*{margin:0}}</style>";  // from b.css
+      "@media screen{*{margin:0}}</style>";        // from b.css
 
   GoogleString combined_url = "dir,_a.css+b.css.pagespeed.cc.0.css";
 
-  ValidateExpected("with_combiner_rel",
-                   css,
-                   StrCat(critical_css,
-                          LoadRestOfCss(CssLinkHref(combined_url))));
+  ValidateExpected(
+      "with_combiner_rel", css,
+      StrCat(critical_css, LoadRestOfCss(CssLinkHref(combined_url))));
 }
 
 class CriticalSelectorWithInlineCssFilterTest
@@ -641,19 +603,18 @@ class CriticalSelectorWithInlineCssFilterTest
 // When CriticalSelectorFilter and InlineCss are both enabled, only
 // CriticalSelectorFilter will be applied.
 TEST_F(CriticalSelectorWithInlineCssFilterTest, AvoidTryingToInlineTwice) {
-  GoogleString css = StrCat(
-      CssLinkHref("a.css"),
-      CssLinkHref("b.css"));
+  GoogleString css = StrCat(CssLinkHref("a.css"), CssLinkHref("b.css"));
   GoogleString critical_css =
       "<style>div,*::first-letter{display:block}</style>"  // from a.css
-      "<style>@media screen{*{margin:0}}</style>";  // from b.css
+      "<style>@media screen{*{margin:0}}</style>";         // from b.css
 
-  GoogleString input_html = StrCat(
-      "<head>", css, "</head>"
-      "<body><div>Stuff</div></body>");
-  GoogleString expected_html = StrCat(
-      "<head>", critical_css, "</head>"
-      "<body><div>Stuff</div>", LoadRestOfCss(css), "</body>");
+  GoogleString input_html = StrCat("<head>", css,
+                                   "</head>"
+                                   "<body><div>Stuff</div></body>");
+  GoogleString expected_html = StrCat("<head>", critical_css,
+                                      "</head>"
+                                      "<body><div>Stuff</div>",
+                                      LoadRestOfCss(css), "</body>");
   ValidateExpected("with_inline_css", input_html, expected_html);
 }
 
@@ -681,43 +642,43 @@ TEST_F(CriticalSelectorWithBackgroundImageCacheExtensionTest,
                                 "Dummy contents", 100);
   SetResponseWithDefaultHeaders("extern.css", kContentTypeCss,
                                 "* {background: url(background.png)}\n"
-                                ".not-critical { margin: 0 }", 100);
+                                ".not-critical { margin: 0 }",
+                                100);
 
   GoogleString input_css = StrCat(
       "  <style>div { background: url(background.png) }"
       ".not-critical { color: red; }</style>\n"
-      "  ", CssLinkHref("extern.css"), "\n");
+      "  ",
+      CssLinkHref("extern.css"), "\n");
 
-  GoogleString critical_css = StrCat(
-      "  <style>div{background:url(",
-      Encode("", "ce", "0", "background.png", "png"), ")}</style>\n"
-      "  <style>*{background:url(",
-      Encode("", "ce", "0", "background.png", "png"), ")}</style>\n");
+  GoogleString critical_css =
+      StrCat("  <style>div{background:url(",
+             Encode("", "ce", "0", "background.png", "png"),
+             ")}</style>\n"
+             "  <style>*{background:url(",
+             Encode("", "ce", "0", "background.png", "png"), ")}</style>\n");
 
   // Both inline and external CSS should be rewritten here.
-  GoogleString rewritten_css = StrCat(
-      "<style>div{background:url(",
-      Encode("", "ce", "0", "background.png", "png"), ")}"
-      ".not-critical{color:red}</style>",
-      CssLinkHref(Encode("", "cf", "0", "extern.css", "css")));
+  GoogleString rewritten_css =
+      StrCat("<style>div{background:url(",
+             Encode("", "ce", "0", "background.png", "png"),
+             ")}"
+             ".not-critical{color:red}</style>",
+             CssLinkHref(Encode("", "cf", "0", "extern.css", "css")));
 
-  GoogleString input_html = StrCat(
-      "<head>\n",
-      input_css,
-      "</head>\n"
-      "<body>\n"
-      "  <div>Foo</div>\n"
-      "  <span>Bar</span>\n"
-      "</body>\n");
-  GoogleString expected_html = StrCat(
-      "<head>\n",
-      critical_css,
-      "</head>\n"
-      "<body>\n"
-      "  <div>Foo</div>\n"
-      "  <span>Bar</span>\n",
-      LoadRestOfCss(rewritten_css),
-      "</body>\n");
+  GoogleString input_html = StrCat("<head>\n", input_css,
+                                   "</head>\n"
+                                   "<body>\n"
+                                   "  <div>Foo</div>\n"
+                                   "  <span>Bar</span>\n"
+                                   "</body>\n");
+  GoogleString expected_html =
+      StrCat("<head>\n", critical_css,
+             "</head>\n"
+             "<body>\n"
+             "  <div>Foo</div>\n"
+             "  <span>Bar</span>\n",
+             LoadRestOfCss(rewritten_css), "</body>\n");
   ValidateExpected("dont_mix_unopt_and_opt", input_html, expected_html);
 }
 

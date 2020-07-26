@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/lru_cache.h"
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
@@ -28,14 +28,11 @@
 namespace net_instaweb {
 
 LRUCache::LRUCache(size_t max_size)
-    : base_(max_size, &value_helper_),
-      is_healthy_(true) {
+    : base_(max_size, &value_helper_), is_healthy_(true) {
   ClearStats();
 }
 
-LRUCache::~LRUCache() {
-  Clear();
-}
+LRUCache::~LRUCache() { Clear(); }
 
 void LRUCache::Get(const GoogleString& key, Callback* callback) {
   if (!is_healthy_) {

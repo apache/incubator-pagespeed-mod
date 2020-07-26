@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/apache/apache_config.h"
 
@@ -62,8 +61,7 @@ ApacheConfig::ApacheConfig(ThreadSystem* thread_system)
   Init();
 }
 
-ApacheConfig::~ApacheConfig() {
-}
+ApacheConfig::~ApacheConfig() {}
 
 void ApacheConfig::Init() {
   DCHECK(apache_properties_ != nullptr)
@@ -73,8 +71,7 @@ void ApacheConfig::Init() {
 
 void ApacheConfig::AddProperties() {
   AddApacheProperty(
-      "", &ApacheConfig::proxy_auth_, "prxa",
-      kProxyAuth,
+      "", &ApacheConfig::proxy_auth_, "prxa", kProxyAuth,
       "CookieName[=Value][:RedirectUrl] -- checks proxy requests for "
       "CookieName.  If CookieValue is specified, checks for that.  If "
       "Redirect is specified, a failure results in a redirection to that URL "
@@ -82,8 +79,7 @@ void ApacheConfig::AddProperties() {
       false /* safe_to_print */);
 
   AddApacheProperty(
-      false, &ApacheConfig::force_buffering_, "afb",
-      kForceBuffering,
+      false, &ApacheConfig::force_buffering_, "afb", kForceBuffering,
       "Force buffering of non-html fetch responses rather than streaming",
       true /* safe_to_print */);
 
@@ -103,14 +99,10 @@ void ApacheConfig::AddProperties() {
                         RewriteOptions::kDirectoryScope);
   AddDeprecatedProperty("StatisticsLoggingFile",
                         RewriteOptions::kDirectoryScope);
-  AddDeprecatedProperty("DisableForBots",
-                        RewriteOptions::kDirectoryScope);
-  AddDeprecatedProperty("GeneratedFilePrefix",
-                        RewriteOptions::kServerScope);
-  AddDeprecatedProperty("InheritVHostConfig",
-                        RewriteOptions::kServerScope);
-  AddDeprecatedProperty("FetchFromModSpdy",
-                        RewriteOptions::kServerScope);
+  AddDeprecatedProperty("DisableForBots", RewriteOptions::kDirectoryScope);
+  AddDeprecatedProperty("GeneratedFilePrefix", RewriteOptions::kServerScope);
+  AddDeprecatedProperty("InheritVHostConfig", RewriteOptions::kServerScope);
+  AddDeprecatedProperty("FetchFromModSpdy", RewriteOptions::kServerScope);
   AddDeprecatedProperty("NumShards", RewriteOptions::kServerScope);
   AddDeprecatedProperty("UrlPrefix", RewriteOptions::kServerScope);
 
@@ -164,8 +156,8 @@ void ApacheConfig::Merge(const RewriteOptions& src) {
 }
 
 RewriteOptions::OptionSettingResult ApacheConfig::ParseAndSetOptionFromName2(
-    StringPiece name, StringPiece arg1, StringPiece arg2,
-    GoogleString* msg, MessageHandler* handler) {
+    StringPiece name, StringPiece arg1, StringPiece arg2, GoogleString* msg,
+    MessageHandler* handler) {
   OptionSettingResult result = SystemRewriteOptions::ParseAndSetOptionFromName2(
       name, arg1, arg2, msg, handler);
   if (result == RewriteOptions::kOptionNameUnknown) {

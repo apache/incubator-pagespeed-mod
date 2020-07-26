@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/fake_filter.h"
+
 #include <memory>
 
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -122,8 +122,7 @@ RewriteContext* FakeFilter::MakeNestedRewriteContext(
   if (parent != nullptr && parent->resource_context() != nullptr) {
     resource_context->CopyFrom(*parent->resource_context());
   }
-  RewriteContext* context =
-      MakeFakeContext(nullptr, parent, resource_context);
+  RewriteContext* context = MakeFakeContext(nullptr, parent, resource_context);
   context->AddSlot(slot);
   return context;
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-
 
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_ASYNC_FETCH_WITH_LOCK_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_ASYNC_FETCH_WITH_LOCK_H_
@@ -64,8 +62,7 @@ class AsyncFetchWithLock : public AsyncFetch {
  public:
   AsyncFetchWithLock(const Hasher* hasher,
                      const RequestContextPtr& request_context,
-                     const GoogleString& url,
-                     const GoogleString& cache_key,
+                     const GoogleString& url, const GoogleString& cache_key,
                      NamedLockManager* lock_manager,
                      MessageHandler* message_handler);
   ~AsyncFetchWithLock() override;
@@ -93,8 +90,8 @@ class AsyncFetchWithLock : public AsyncFetch {
 
   // StartFetch() will be called after the lock is acquired. The subclass
   // implements this function and is responsible for UrlAsyncFetcher::Fetch().
-  virtual void StartFetch(
-     UrlAsyncFetcher* fetcher, MessageHandler* handler) = 0;
+  virtual void StartFetch(UrlAsyncFetcher* fetcher,
+                          MessageHandler* handler) = 0;
 
   // Releases the lock.
   // If subclass overrides the function, then, it should also call
@@ -105,16 +102,15 @@ class AsyncFetchWithLock : public AsyncFetch {
   // functions and any special handling can be done in subclass and must call
   // the superclass function before returning.
   void HandleHeadersComplete() override;
-  bool HandleWrite(
-      const StringPiece& content, MessageHandler* handler) override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   bool HandleFlush(MessageHandler* handler) override;
 
  private:
   // Makes a lock used for fetching.
   NamedLock* MakeInputLock(const GoogleString& url);
   // Used only for testing.
-  static NamedLock* MakeInputLock(const GoogleString& url,
-                                  const Hasher* hasher,
+  static NamedLock* MakeInputLock(const GoogleString& url, const Hasher* hasher,
                                   NamedLockManager* lock_manager);
 
   void LockFailed(UrlAsyncFetcher* fetcher);

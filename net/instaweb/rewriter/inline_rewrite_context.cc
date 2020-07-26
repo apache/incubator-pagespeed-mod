@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/inline_rewrite_context.h"
 
@@ -40,11 +39,9 @@ InlineRewriteContext::InlineRewriteContext(CommonFilter* filter,
     : RewriteContext(filter->driver(), nullptr, nullptr),
       filter_(filter),
       element_(element),
-      src_(src) {
-}
+      src_(src) {}
 
-InlineRewriteContext::~InlineRewriteContext() {
-}
+InlineRewriteContext::~InlineRewriteContext() {}
 
 bool InlineRewriteContext::StartInlining() {
   RewriteDriver* driver = filter_->driver();
@@ -63,8 +60,10 @@ bool InlineRewriteContext::StartInlining() {
       driver->InsertUnauthorizedDomainDebugComment(url, InputRole(), element_);
     }
   } else if (driver->DebugMode()) {
-    driver->InsertDebugComment("Following resource not rewritten because its "
-                               "src attribute cannot be decoded", element_);
+    driver->InsertDebugComment(
+        "Following resource not rewritten because its "
+        "src attribute cannot be decoded",
+        element_);
   }
   delete this;
   return false;
@@ -104,8 +103,7 @@ bool InlineRewriteContext::Partition(OutputPartitions* partitions,
   return true;
 }
 
-void InlineRewriteContext::Rewrite(int partition_index,
-                                   CachedResult* partition,
+void InlineRewriteContext::Rewrite(int partition_index, CachedResult* partition,
                                    const OutputResourcePtr& output_resource) {
   CHECK(output_resource.get() == nullptr);
   CHECK_EQ(0, partition_index);
@@ -121,15 +119,14 @@ void InlineRewriteContext::Rewrite(int partition_index,
 }
 
 void InlineRewriteContext::Render() {
-  if (num_output_partitions() == 1 &&
-      output_partition(0)->has_inlined_data() &&
+  if (num_output_partitions() == 1 && output_partition(0)->has_inlined_data() &&
       !slot(0)->should_delete_element()) {
     // We've decided to inline, and no one destroyed our element before us.
     // Set disable_rendering = true because we will render directly here.
     slot(0)->set_disable_rendering(true);
     ResourceSlotPtr our_slot = slot(0);
-    RenderInline(
-        our_slot->resource(), output_partition(0)->inlined_data(), element_);
+    RenderInline(our_slot->resource(), output_partition(0)->inlined_data(),
+                 element_);
   }
 }
 

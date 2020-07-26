@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/resource_namer.h"
 
@@ -112,9 +111,8 @@ bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
   if ((system_id_index >= 1) &&      // at least 1 segment before the system ID.
       (n - system_id_index >= 4)) {  // at least 3 segments after the system ID.
     name_.clear();
-    AppendJoinIterator(&name_,
-                       segments.begin(), segments.begin() + system_id_index,
-                       kSeparatorString);
+    AppendJoinIterator(&name_, segments.begin(),
+                       segments.begin() + system_id_index, kSeparatorString);
     // Looking from the right, we should see ext, hash[signature], id
     // If the hash/signature segment is not of the exact length specified, we
     // take the entire segment as the hash and set the signature to an empty
@@ -137,11 +135,9 @@ bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
     int experiment_or_options_start = system_id_index + 1;
     if (experiment_or_options_start < n) {
       GoogleString experiment_or_options;
-      AppendJoinIterator(
-          &experiment_or_options,
-          segments.begin() + experiment_or_options_start,
-          segments.begin() + n,
-          kSeparatorString);
+      AppendJoinIterator(&experiment_or_options,
+                         segments.begin() + experiment_or_options_start,
+                         segments.begin() + n, kSeparatorString);
       if (experiment_or_options.size() == 1) {
         if ((experiment_or_options[0] >= 'a') &&
             (experiment_or_options[0] <= 'z')) {

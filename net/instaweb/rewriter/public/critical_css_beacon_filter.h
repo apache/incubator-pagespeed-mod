@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_CSS_BEACON_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_CSS_BEACON_FILTER_H_
@@ -73,9 +72,9 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
   RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
       const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
-               semantic_type::kStylesheet) ?
-           RewriteDriver::kInlineUnauthorizedResources :
-           RewriteDriver::kInlineOnlyAuthorizedResources;
+               semantic_type::kStylesheet)
+               ? RewriteDriver::kInlineUnauthorizedResources
+               : RewriteDriver::kInlineOnlyAuthorizedResources;
   }
 
   // Selectors are inlined into javascript.
@@ -84,8 +83,7 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
 
  protected:
   bool MustSummarize(HtmlElement* element) const override;
-  void Summarize(Css::Stylesheet* stylesheet,
-                         GoogleString* out) const override;
+  void Summarize(Css::Stylesheet* stylesheet, GoogleString* out) const override;
   void SummariesDone() override;
 
   void DetermineEnabled(GoogleString* disabled_reason) override;

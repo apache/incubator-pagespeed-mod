@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,7 +23,7 @@
 #include "net/instaweb/http/public/external_url_fetcher.h"
 
 #include <cerrno>
-#include <cstdio>                      // for pclose, popen, FILE
+#include <cstdio>  // for pclose, popen, FILE
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -77,8 +77,8 @@ void ExternalUrlFetcher::AppendHeaders(const RequestHeaders& request_headers,
   }
 }
 
-void ExternalUrlFetcher::Fetch(
-    const GoogleString& url, MessageHandler* handler, AsyncFetch* fetch) {
+void ExternalUrlFetcher::Fetch(const GoogleString& url, MessageHandler* handler,
+                               AsyncFetch* fetch) {
   const RequestHeaders& request_headers = *fetch->request_headers();
   ResponseHeaders* response_headers = fetch->response_headers();
 
@@ -92,10 +92,8 @@ void ExternalUrlFetcher::Fetch(
 
   GoogleString escaped_url;
   BackslashEscape(url, kEscapeChars, &escaped_url);
-  GoogleString cmd = ConstructFetchCommand(escaped_url,
-                                           user_agent,
-                                           escaped_headers);
-
+  GoogleString cmd =
+      ConstructFetchCommand(escaped_url, user_agent, escaped_headers);
 
   handler->Message(kInfo, "%s --... %s\n", GetFetchLabel(), url.c_str());
   VLOG(2) << "Running: " << cmd;

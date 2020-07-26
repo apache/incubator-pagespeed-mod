@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_INFLATING_FETCH_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_INFLATING_FETCH_H_
@@ -60,8 +59,7 @@ class InflatingFetch : public SharedAsyncFetch {
   // Notes: dest and src should not be the same object.  If the
   // unzip fails, you may need to link src into dest.
   static bool UnGzipValueIfCompressed(const HTTPValue& src,
-                                      ResponseHeaders* headers,
-                                      HTTPValue* dest,
+                                      ResponseHeaders* headers, HTTPValue* dest,
                                       MessageHandler* handler);
   // GZip compress HTTPValue, updating the headers reflect the new
   // state, output to compressed_value. Returns true if the value is

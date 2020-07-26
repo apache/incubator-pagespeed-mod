@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_SYSTEM_SYSTEM_REWRITE_DRIVER_FACTORY_H_
 #define PAGESPEED_SYSTEM_SYSTEM_REWRITE_DRIVER_FACTORY_H_
@@ -135,8 +134,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // - global_statistics is lazily initialized to a shared memory statistics
   //   owned by this factory if any of the server contexts require it.
   void PostConfig(const std::vector<SystemServerContext*>& server_contexts,
-                  GoogleString* error_message,
-                  int* error_index,
+                  GoogleString* error_message, int* error_index,
                   Statistics** global_statistics);
 
   // Initialize SharedCircularBuffer and pass it to SystemMessageHandler and
@@ -155,27 +153,18 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // kOptionValueInvalid or kOptionOk is returned: invalid if the parser should
   // abort with an error, ok if parsing should continue past the error.
   virtual RewriteOptions::OptionSettingResult ParseAndSetOption1(
-      StringPiece option,
-      StringPiece arg,
-      bool process_scope,
-      GoogleString* msg,
-      MessageHandler* handler);
+      StringPiece option, StringPiece arg, bool process_scope,
+      GoogleString* msg, MessageHandler* handler);
   virtual RewriteOptions::OptionSettingResult ParseAndSetOption2(
-      StringPiece option,
-      StringPiece arg1,
-      StringPiece arg2,
-      bool process_scope,
-      GoogleString* msg,
-      MessageHandler* handler);
+      StringPiece option, StringPiece arg1, StringPiece arg2,
+      bool process_scope, GoogleString* msg, MessageHandler* handler);
 
   Hasher* NewHasher() override;
   Timer* DefaultTimer() override;
   ServerContext* NewServerContext() override;
 
   // Hook so implementations may disable the property cache.
-  virtual bool enable_property_cache() const {
-    return true;
-  }
+  virtual bool enable_property_cache() const { return true; }
 
   GoogleString hostname_identifier() { return hostname_identifier_; }
 
@@ -187,9 +176,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
 
   SystemCaches* caches() { return caches_.get(); }
 
-  virtual void set_message_buffer_size(int x) {
-    message_buffer_size_ = x;
-  }
+  virtual void set_message_buffer_size(int x) { message_buffer_size_ = x; }
 
   // Finds a fetcher for the settings in this config, sharing with
   // existing fetchers if possible, otherwise making a new one (and
@@ -233,24 +220,14 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   void set_num_expensive_rewrite_threads(int x) {
     num_expensive_rewrite_threads_ = x;
   }
-  bool use_per_vhost_statistics() const {
-    return use_per_vhost_statistics_;
-  }
-  void set_use_per_vhost_statistics(bool x) {
-    use_per_vhost_statistics_ = x;
-  }
-  bool install_crash_handler() const {
-    return install_crash_handler_;
-  }
-  void set_install_crash_handler(bool x) {
-    install_crash_handler_ = x;
-  }
+  bool use_per_vhost_statistics() const { return use_per_vhost_statistics_; }
+  void set_use_per_vhost_statistics(bool x) { use_per_vhost_statistics_ = x; }
+  bool install_crash_handler() const { return install_crash_handler_; }
+  void set_install_crash_handler(bool x) { install_crash_handler_ = x; }
 
   // mod_pagespeed uses a beacon handler to collect data for critical images,
   // css, etc., so filters should be configured accordingly.
-  bool UseBeaconResultsInFilters() const override {
-    return true;
-  }
+  bool UseBeaconResultsInFilters() const override { return true; }
 
   // Check whether the server is threaded.  For example, Nginx uses an event
   // loop and can keep with the default of false, while Apache with a threaded
@@ -261,9 +238,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
 
   // Threaded implementing servers should return the maximum number of threads
   // that might be used for handling user requests.
-  virtual int LookupThreadLimit() {
-    return 1;
-  }
+  virtual int LookupThreadLimit() { return 1; }
 
   // By default this uses the ControllerManager to fork off some processes to
   // handle the Controller.  If you're on a system where fork doesn't make
@@ -292,7 +267,8 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   static void InitStats(Statistics* statistics);
 
   // Initializes the StaticAssetManager.
-  void InitStaticAssetManager(StaticAssetManager* static_asset_manager) override;
+  void InitStaticAssetManager(
+      StaticAssetManager* static_asset_manager) override;
 
   void SetupCaches(ServerContext* server_context) override;
   QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,

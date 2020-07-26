@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/htmlparse/public/file_driver.h"
 
@@ -40,9 +39,8 @@ class MessageHandler;
 
 namespace {
 
-bool GenerateFilename(
-    const char* extension, const bool keep_old_extension,
-    const char* infilename, GoogleString* outfilename) {
+bool GenerateFilename(const char* extension, const bool keep_old_extension,
+                      const char* infilename, GoogleString* outfilename) {
   bool ret = false;
   const char* dot = strrchr(infilename, '.');
   if (dot != nullptr) {
@@ -70,6 +68,7 @@ class Rewriter : public Writer {
     parser_->ParseText(str);
     return true;
   }
+
  private:
   HtmlParse* parser_;
 
@@ -85,21 +84,19 @@ FileDriver::FileDriver(HtmlParse* html_parse, FileSystem* file_system)
       html_write_filter_(html_parse_),
       filters_added_(false),
       file_system_(file_system),
-      flush_byte_count_(0) {
-}
+      flush_byte_count_(0) {}
 
-bool FileDriver::GenerateOutputFilename(
-    const char* infilename, GoogleString* outfilename) {
+bool FileDriver::GenerateOutputFilename(const char* infilename,
+                                        GoogleString* outfilename) {
   return GenerateFilename(".out", true, infilename, outfilename);
 }
 
-bool FileDriver::GenerateStatsFilename(
-    const char* infilename, GoogleString* outfilename) {
+bool FileDriver::GenerateStatsFilename(const char* infilename,
+                                       GoogleString* outfilename) {
   return GenerateFilename(".stats", false, infilename, outfilename);
 }
 
-bool FileDriver::ParseFile(const char* infilename,
-                           const char* outfilename,
+bool FileDriver::ParseFile(const char* infilename, const char* outfilename,
                            const char* statsfilename,
                            MessageHandler* message_handler) {
   FileSystem::OutputFile* outf =

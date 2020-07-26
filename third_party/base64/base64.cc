@@ -35,17 +35,18 @@
 */
 
 #include "base64.h"
+
 #include <cassert>
 
 static const char base64_chars[] =
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-             "abcdefghijklmnopqrstuvwxyz"
-             "0123456789+/";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
 
 static const char web64_chars[] =
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-             "abcdefghijklmnopqrstuvwxyz"
-             "0123456789-_";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789-_";
 
 static unsigned int base64_char_map[256], web64_char_map[256];
 static bool initialized = false;
@@ -70,9 +71,9 @@ void base64_init() {
   }
 }
 
-static inline std::string encode(
-    const char* char_set, unsigned char const* bytes_to_encode,
-    unsigned int in_len) {
+static inline std::string encode(const char* char_set,
+                                 unsigned char const* bytes_to_encode,
+                                 unsigned int in_len) {
   base64_init();
   std::string ret;
   int i = 0;
@@ -84,14 +85,13 @@ static inline std::string encode(
     char_array_3[i++] = *(bytes_to_encode++);
     if (i == 3) {
       char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-      char_array_4[1] = ((char_array_3[0] & 0x03) << 4) +
-          ((char_array_3[1] & 0xf0) >> 4);
-      char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) +
-          ((char_array_3[2] & 0xc0) >> 6);
+      char_array_4[1] =
+          ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+      char_array_4[2] =
+          ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
       char_array_4[3] = char_array_3[2] & 0x3f;
 
-      for (i = 0; i < 4 ; i++)
-        ret += char_set[char_array_4[i]];
+      for (i = 0; i < 4; i++) ret += char_set[char_array_4[i]];
       i = 0;
     }
   }
@@ -102,14 +102,13 @@ static inline std::string encode(
     }
 
     char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-    char_array_4[1] = ((char_array_3[0] & 0x03) << 4) +
-        ((char_array_3[1] & 0xf0) >> 4);
-    char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) +
-        ((char_array_3[2] & 0xc0) >> 6);
+    char_array_4[1] =
+        ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+    char_array_4[2] =
+        ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
     char_array_4[3] = char_array_3[2] & 0x3f;
 
-    for (j = 0; (j < i + 1); j++)
-      ret += char_set[char_array_4[j]];
+    for (j = 0; (j < i + 1); j++) ret += char_set[char_array_4[j]];
 
     while ((i++ < 3)) {
       ret += kPadChar;
@@ -119,9 +118,9 @@ static inline std::string encode(
   return ret;
 }
 
-static inline bool decode(
-    unsigned int* char_map, const std::string& encoded_string,
-    std::string* output) {
+static inline bool decode(unsigned int* char_map,
+                          const std::string& encoded_string,
+                          std::string* output) {
   base64_init();
   int in_len = encoded_string.size();
   int i = 0;
@@ -134,7 +133,7 @@ static inline bool decode(
     char_array_4[i++] = encoded_string[in_];
     in_++;
     if (i == 4) {
-      for (i = 0; i <4; i++) {
+      for (i = 0; i < 4; i++) {
         unsigned int char_index = char_map[char_array_4[i]];
         if (char_index == kInvalidChar) {
           return false;
@@ -142,21 +141,19 @@ static inline bool decode(
         char_array_4[i] = char_index;
       }
 
-      char_array_3[0] = (char_array_4[0] << 2) +
-          ((char_array_4[1] & 0x30) >> 4);
-      char_array_3[1] = ((char_array_4[1] & 0xf) << 4) +
-          ((char_array_4[2] & 0x3c) >> 2);
+      char_array_3[0] =
+          (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+      char_array_3[1] =
+          ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
       char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
 
-      for (i = 0; (i < 3); i++)
-        *output += char_array_3[i];
+      for (i = 0; (i < 3); i++) *output += char_array_3[i];
       i = 0;
     }
   }
 
   if (i) {
-    for (j = i; j < 4; j++)
-      char_array_4[j] = 0;
+    for (j = i; j < 4; j++) char_array_4[j] = 0;
 
     for (j = 0; j < i; j++) {
       unsigned int char_index = char_map[char_array_4[j]];
@@ -167,8 +164,8 @@ static inline bool decode(
     }
 
     char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) +
-        ((char_array_4[2] & 0x3c) >> 2);
+    char_array_3[1] =
+        ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
     char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
 
     for (j = 0; (j < i - 1); j++) {
@@ -178,7 +175,6 @@ static inline bool decode(
 
   return true;
 }
-
 
 std::string base64_encode(unsigned char const* bytes_to_encode,
                           unsigned int in_len) {

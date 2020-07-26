@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -42,8 +42,8 @@ const char kGoogleAdOutput[] = "google_ad_output";
 GoogleString LookupAdsByGoogleAttributeName(
     StringPiece show_ads_attribute_name) {
   StringPieceVector items;
-  SplitStringPieceToVector(
-      show_ads_attribute_name, "_", &items, false); /* don't omit empty */
+  SplitStringPieceToVector(show_ads_attribute_name, "_", &items,
+                           false); /* don't omit empty */
   // TODO(chenyu): check if 'show_ads_attribute_name' is valid.
   if (items.size() < 2 || items.at(0) != "google") {
     return "";

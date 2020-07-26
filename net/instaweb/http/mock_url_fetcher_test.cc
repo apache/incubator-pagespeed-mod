@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 
@@ -122,14 +121,12 @@ TEST_F(MockUrlFetcherTest, GetsCorrectMappedResponse) {
   // Check that we can fetch the same URL multiple times.
   TestResponse(url1, header1, body1);
 
-
   // Check that fetches fail after disabling the fetcher_.
   fetcher_.Disable();
   TestFetchFail(url1);
   // And then work again when re-enabled.
   fetcher_.Enable();
   TestResponse(url1, header1, body1);
-
 
   // Change the response. Test both editability and memory management.
   fetcher_.SetResponse(url1, header2, body2);
@@ -175,8 +172,7 @@ TEST_F(MockUrlFetcherTest, ConditionalFetchTest) {
   // But conditional GET with current time gets 304 Not Modified response.
   {
     MockFetchContainer fetch(&fetcher_, thread_system_.get());
-    fetch.request_headers_.Add(HttpAttributes::kIfModifiedSince,
-                               now_string);
+    fetch.request_headers_.Add(HttpAttributes::kIfModifiedSince, now_string);
     EXPECT_TRUE(fetch.Fetch(url));
     EXPECT_EQ(HttpStatus::kNotModified, fetch.response_headers_.status_code());
   }

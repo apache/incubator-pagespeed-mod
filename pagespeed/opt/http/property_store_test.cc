@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit test for PropertyStore.
 
@@ -53,11 +52,8 @@ class PropertyStoreTest : public testing::Test {
 
   PropertyStoreGetCallback* GetCallback(bool is_cancellable) {
     return new PropertyStoreGetCallback(
-        thread_system_->NewMutex(),
-        nullptr,
-        is_cancellable,
-        NewCallback(this, &PropertyStoreTest::ExpectCallback),
-        &timer_);
+        thread_system_->NewMutex(), nullptr, is_cancellable,
+        NewCallback(this, &PropertyStoreTest::ExpectCallback), &timer_);
   }
 
  protected:
@@ -151,8 +147,7 @@ TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupAfterDoneWithTrue) {
   EXPECT_EQ(1, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestCancellableFastFinishLookupAfterDoneWithFalse) {
+TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupAfterDoneWithFalse) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->Done(false);
   callback->FastFinishLookup();
@@ -161,8 +156,7 @@ TEST_F(PropertyStoreTest,
   EXPECT_EQ(0, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestCancellableFastFinishLookupBeforeDoneWithTrue) {
+TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupBeforeDoneWithTrue) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->FastFinishLookup();
   callback->Done(true);
@@ -171,8 +165,7 @@ TEST_F(PropertyStoreTest,
   EXPECT_EQ(0, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestCancellableFastFinishLookupBeforeDoneWithFalse) {
+TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupBeforeDoneWithFalse) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->FastFinishLookup();
   callback->Done(false);
@@ -181,8 +174,7 @@ TEST_F(PropertyStoreTest,
   EXPECT_EQ(0, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestDeleteWhenDoneBeforeDoneWithFalse) {
+TEST_F(PropertyStoreTest, TestDeleteWhenDoneBeforeDoneWithFalse) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->DeleteWhenDone();
   callback->Done(false);

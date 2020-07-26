@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the http dump fetcher, using a mock fetcher.  Note that
 // the HTTP Dump Fetcher is, in essence, a caching fetcher except that:
@@ -54,11 +53,8 @@ class HttpDumpUrlFetcherTest : public testing::Test {
   HttpDumpUrlFetcherTest()
       : thread_system_(Platform::CreateThreadSystem()),
         mock_timer_(thread_system_->NewMutex(), 0),
-        http_dump_fetcher_(
-            GTestSrcDir() + "/net/instaweb/http/testdata",
-            &file_system_,
-            &mock_timer_) {
-  }
+        http_dump_fetcher_(GTestSrcDir() + "/net/instaweb/http/testdata",
+                           &file_system_, &mock_timer_) {}
 
  protected:
   std::unique_ptr<ThreadSystem> thread_system_;
@@ -81,8 +77,7 @@ TEST_F(HttpDumpUrlFetcherTest, TestReadWithGzip) {
   fetch.set_response_headers(&response);
   fetch.set_request_headers(&request);
 
-  http_dump_fetcher_.Fetch(
-      "http://www.google.com", &message_handler_, &fetch);
+  http_dump_fetcher_.Fetch("http://www.google.com", &message_handler_, &fetch);
   ASSERT_TRUE(fetch.done());
   ASSERT_TRUE(fetch.success());
   ConstStringStarVector v;
@@ -101,8 +96,7 @@ TEST_F(HttpDumpUrlFetcherTest, TestReadUncompressedFromGzippedDump) {
       RequestContext::NewTestRequestContext(thread_system_.get()), &content_);
   fetch.set_response_headers(&response);
 
-  http_dump_fetcher_.Fetch(
-      "http://www.google.com", &message_handler_, &fetch);
+  http_dump_fetcher_.Fetch("http://www.google.com", &message_handler_, &fetch);
   ASSERT_TRUE(fetch.done());
   ASSERT_TRUE(fetch.success());
   ConstStringStarVector v;
@@ -121,7 +115,8 @@ class CheckDateHeaderFetch : public StringAsyncFetch {
  public:
   CheckDateHeaderFetch(const MockTimer* timer, ThreadSystem* threads)
       : StringAsyncFetch(RequestContext::NewTestRequestContext(threads)),
-        headers_complete_called_(false), timer_(timer) {}
+        headers_complete_called_(false),
+        timer_(timer) {}
   ~CheckDateHeaderFetch() override {}
 
   void HandleHeadersComplete() override {
@@ -137,7 +132,6 @@ class CheckDateHeaderFetch : public StringAsyncFetch {
   const MockTimer* timer_;
   DISALLOW_COPY_AND_ASSIGN(CheckDateHeaderFetch);
 };
-
 
 TEST_F(HttpDumpUrlFetcherTest, TestDateAdjustment) {
   // Set a time in 2030s, which should be bigger than the time of the slurp,

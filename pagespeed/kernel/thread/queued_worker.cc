@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,19 +29,15 @@ namespace net_instaweb {
 class Function;
 
 QueuedWorker::QueuedWorker(StringPiece thread_name, ThreadSystem* runtime)
-    : Worker(thread_name, runtime) {
-}
+    : Worker(thread_name, runtime) {}
 
-QueuedWorker::~QueuedWorker() {
-}
+QueuedWorker::~QueuedWorker() {}
 
 void QueuedWorker::RunInWorkThread(Function* closure) {
   bool ok = QueueIfPermitted(closure);
   CHECK(ok);
 }
 
-bool QueuedWorker::IsPermitted(Function* closure) {
-  return true;
-}
+bool QueuedWorker::IsPermitted(Function* closure) { return true; }
 
 }  // namespace net_instaweb

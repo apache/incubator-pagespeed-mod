@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/statistics_logger.h"
 
@@ -80,9 +79,7 @@ class StatisticsLoggerTest : public ::testing::Test {
 
   ~StatisticsLoggerTest() override {}
 
-  static void SetUpTestCase() {
-    HtmlKeywords::Init();
-  }
+  static void SetUpTestCase() { HtmlKeywords::Init(); }
 
   void DumpConsoleVarsToWriter(int64 current_time_ms, Writer* writer) {
     logger_.DumpConsoleVarsToWriter(current_time_ms, writer);
@@ -92,12 +89,14 @@ class StatisticsLoggerTest : public ::testing::Test {
                                           bool first) {
     GoogleString var_data;
     if (first) {
-      var_data = "num_flushes: 300\n"
+      var_data =
+          "num_flushes: 300\n"
           "cache_hits: 400\n"
           "cache_misses: 500\n"
           "slurp_404_count: 600\n";
     } else {
-      var_data = "num_flushes: 310\n"
+      var_data =
+          "num_flushes: 310\n"
           "cache_hits: 410\n"
           "cache_misses: 510\n"
           "slurp_404_count: 610\n";
@@ -148,8 +147,8 @@ class StatisticsLoggerTest : public ::testing::Test {
     logger_.ParseVarDataIntoMap(logfile_var_data, parsed_var_data);
   }
   void PrintJSON(const std::vector<int64>& list_of_timestamps,
-                 const VarMap& parsed_var_data,
-                 Writer* writer, MessageHandler* message_handler) {
+                 const VarMap& parsed_var_data, Writer* writer,
+                 MessageHandler* message_handler) {
     logger_.PrintJSON(list_of_timestamps, parsed_var_data, writer,
                       message_handler);
   }
@@ -170,8 +169,8 @@ TEST_F(StatisticsLoggerTest, TestParseDataFromReader) {
   FileSystem::InputFile* log_file =
       file_system_.OpenInputFile(kStatsLogFile, &handler_);
   GoogleString output;
-  StatisticsLogfileReader reader(log_file, start_time, end_time,
-                                 granularity_ms, &handler_);
+  StatisticsLogfileReader reader(log_file, start_time, end_time, granularity_ms,
+                                 &handler_);
   std::vector<int64> list_of_timestamps;
   VarMap parsed_var_data;
   ParseDataFromReader(var_titles, &reader, &list_of_timestamps,
@@ -189,8 +188,8 @@ TEST_F(StatisticsLoggerTest, TestParseDataForGraphs) {
   CreateFakeLogfile(&var_titles, &start_time, &end_time, &granularity_ms);
   FileSystem::InputFile* log_file =
       file_system_.OpenInputFile(kStatsLogFile, &handler_);
-  StatisticsLogfileReader reader(log_file, start_time, end_time,
-                                 granularity_ms, &handler_);
+  StatisticsLogfileReader reader(log_file, start_time, end_time, granularity_ms,
+                                 &handler_);
   std::vector<int64> list_of_timestamps;
   VarMap parsed_var_data;
   ParseDataForGraphs(&reader, &list_of_timestamps, &parsed_var_data);
@@ -224,37 +223,32 @@ TEST_F(StatisticsLoggerTest, TestNextDataBlock) {
   // Add two working cases.
   // Test without histogram.
   GoogleString first_var_data = "num_flushes: 300\n";
-  StrAppend(&input,
-            "timestamp: ", Integer64ToString(initial_timestamp), "\n",
+  StrAppend(&input, "timestamp: ", Integer64ToString(initial_timestamp), "\n",
             first_var_data);
   // Test with histogram.
   GoogleString second_var_data = StrCat("num_flushes: 305\n", histogram_data);
-  StrAppend(&input,
-            "timestamp: ", Integer64ToString(initial_timestamp + 20), "\n",
-            second_var_data);
+  StrAppend(&input, "timestamp: ", Integer64ToString(initial_timestamp + 20),
+            "\n", second_var_data);
 
   // Add case that purposefully fails granularity requirements (The difference
   // between this timestamp and the previous one is only 2ms, whereas the
   // desired granularity is 5ms).
   const GoogleString third_var_data =
       StrCat("num_flushes: 310\n", histogram_data);
-  StrAppend(&input,
-            "timestamp: ", Integer64ToString(initial_timestamp + 22), "\n",
-            third_var_data);
+  StrAppend(&input, "timestamp: ", Integer64ToString(initial_timestamp + 22),
+            "\n", third_var_data);
 
   // Add case that purposefully fails start_time requirements.
   StrAppend(&input,
             "timestamp: ", Integer64ToString(start_time - Timer::kDayMs), "\n",
             third_var_data);
   // Add case that purposefully fails end_time requirements.
-  StrAppend(&input,
-            "timestamp: ", Integer64ToString(end_time + Timer::kDayMs), "\n",
-            third_var_data);
+  StrAppend(&input, "timestamp: ", Integer64ToString(end_time + Timer::kDayMs),
+            "\n", third_var_data);
   // Add working case to make sure data output continues despite previous
   // requirements failing.
-  StrAppend(&input,
-            "timestamp: ", Integer64ToString(initial_timestamp + 50), "\n",
-            third_var_data);
+  StrAppend(&input, "timestamp: ", Integer64ToString(initial_timestamp + 50),
+            "\n", third_var_data);
   StringPiece input_piece(input);
   GoogleString file_name;
 
@@ -265,8 +259,8 @@ TEST_F(StatisticsLoggerTest, TestNextDataBlock) {
   FileSystem::InputFile* log_file =
       file_system_.OpenInputFile(file_name.c_str(), &handler_);
   GoogleString output;
-  StatisticsLogfileReader reader(log_file, start_time, end_time,
-                                 granularity_ms, &handler_);
+  StatisticsLogfileReader reader(log_file, start_time, end_time, granularity_ms,
+                                 &handler_);
   int64 timestamp = -1;
   // Test that the first data block is read correctly.
   success = reader.ReadNextDataBlock(&timestamp, &output);
@@ -338,8 +332,8 @@ TEST_F(StatisticsLoggerTest, NoMalformedJson) {
   Json::Value complete_json;
   Json::Reader json_reader;
   EXPECT_TRUE(json_reader.parse(json_dump.c_str(), complete_json)) << json_dump;
-  EXPECT_TRUE(json_reader.parse(json_dump_graphs.c_str(), complete_json)) <<
-      json_dump_graphs;
+  EXPECT_TRUE(json_reader.parse(json_dump_graphs.c_str(), complete_json))
+      << json_dump_graphs;
 }
 
 TEST_F(StatisticsLoggerTest, Escaping) {
@@ -349,13 +343,12 @@ TEST_F(StatisticsLoggerTest, Escaping) {
   std::set<GoogleString> var_titles;
   var_titles.insert("<bo_o>\\");
   int64 start_time, end_time, granularity_ms;
-  CreateFakeLogfile(&var_titles, &start_time, &end_time,
-                    &granularity_ms);
+  CreateFakeLogfile(&var_titles, &start_time, &end_time, &granularity_ms);
 
   GoogleString json_dump;
   StringWriter writer(&json_dump);
-  logger_.DumpJSON(false, var_titles, start_time, end_time,
-                   granularity_ms, &writer, &handler_);
+  logger_.DumpJSON(false, var_titles, start_time, end_time, granularity_ms,
+                   &writer, &handler_);
   EXPECT_NE(GoogleString::npos, json_dump.find("&lt;bo_o&gt;\\\\"))
       << json_dump;
 }
@@ -387,18 +380,20 @@ TEST_F(StatisticsLoggerTest, ConsistentNumberArgs) {
   logger_.DumpJSON(false, var_titles, 1000, 4000, 1000, &writer, &handler_);
 
   // The notable check here is that all the arrays are the same length.
-  EXPECT_EQ("{\"timestamps\": [1000, 2000, 3000, 4000],\"variables\": {"
-            "\"bar\": [0, 20, 30, 0],"
-            "\"foo\": [0, 2, 0, 4]}}", json_dump);
+  EXPECT_EQ(
+      "{\"timestamps\": [1000, 2000, 3000, 4000],\"variables\": {"
+      "\"bar\": [0, 20, 30, 0],"
+      "\"foo\": [0, 2, 0, 4]}}",
+      json_dump);
 
   GoogleString json_dump_graphs;
   StringWriter writer_graphs(&json_dump_graphs);
   logger_.DumpJSON(true, var_titles, 1000, 4000, 1000, &writer_graphs,
                    &handler_);
-  EXPECT_THAT(json_dump_graphs, ::testing::HasSubstr(
-      "\"timestamps\": [1000, 2000, 3000, 4000]"));
-  EXPECT_THAT(json_dump_graphs, ::testing::HasSubstr(
-      "\"cache_hits\": [5, 0, 1, 0]"));
+  EXPECT_THAT(json_dump_graphs,
+              ::testing::HasSubstr("\"timestamps\": [1000, 2000, 3000, 4000]"));
+  EXPECT_THAT(json_dump_graphs,
+              ::testing::HasSubstr("\"cache_hits\": [5, 0, 1, 0]"));
 }
 
 TEST_F(StatisticsLoggerTest, FromStats) {

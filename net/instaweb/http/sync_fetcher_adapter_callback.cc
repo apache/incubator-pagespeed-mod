@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 //         lsong@google.com (Libo Song)
 
@@ -69,11 +68,9 @@ SyncFetcherAdapterCallback::SyncFetcherAdapterCallback(
       done_(false),
       success_(false),
       released_(false),
-      writer_(new ProtectedWriter(this, writer)) {
-}
+      writer_(new ProtectedWriter(this, writer)) {}
 
-SyncFetcherAdapterCallback::~SyncFetcherAdapterCallback() {
-}
+SyncFetcherAdapterCallback::~SyncFetcherAdapterCallback() {}
 
 void SyncFetcherAdapterCallback::HandleDone(bool success) {
   mutex_->Lock();
@@ -130,9 +127,7 @@ bool SyncFetcherAdapterCallback::LockIfNotReleased() {
   }
 }
 
-void SyncFetcherAdapterCallback::Unlock() {
-  mutex_->Unlock();
-}
+void SyncFetcherAdapterCallback::Unlock() { mutex_->Unlock(); }
 
 void SyncFetcherAdapterCallback::TimedWait(int64 timeout_ms) {
   mutex_->DCheckLocked();

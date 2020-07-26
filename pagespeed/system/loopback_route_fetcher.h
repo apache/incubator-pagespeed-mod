@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -47,8 +47,7 @@ class LoopbackRouteFetcher : public UrlAsyncFetcher {
   // (As this fetcher may produce requests that need to connect to some IP
   //  but have a Host: and URL from somewhere else).
   LoopbackRouteFetcher(const RewriteOptions* options,
-                       const GoogleString& own_ip,
-                       int own_port,
+                       const GoogleString& own_ip, int own_port,
                        UrlAsyncFetcher* backend_fetcher);
   ~LoopbackRouteFetcher() override;
 
@@ -56,9 +55,8 @@ class LoopbackRouteFetcher : public UrlAsyncFetcher {
     return backend_fetcher_->SupportsHttps();
   }
 
-  void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch) override;
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
   // Returns true if the given address is an IPv4 or IPv6 loopback.
   static bool IsLoopbackAddr(const apr_sockaddr_t* addr);

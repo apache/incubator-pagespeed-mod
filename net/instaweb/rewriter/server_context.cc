@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,20 +17,19 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/server_context.h"
 
-#include <algorithm>                   // for std::binary_search
-#include <cstddef>                     // for size_t
+#include <algorithm>  // for std::binary_search
+#include <cstddef>    // for size_t
 #include <set>
 
-#include "base/logging.h"               // for operator<<, etc
-#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
+#include "base/logging.h"  // for operator<<, etc
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/rewriter/input_info.pb.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
@@ -60,7 +59,7 @@
 #include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
-#include "pagespeed/kernel/base/stl_util.h"          // for STLDeleteElements
+#include "pagespeed/kernel/base/stl_util.h"  // for STLDeleteElements
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
@@ -95,21 +94,14 @@ const char kBeaconNonceQueryParam[] = "n";
 
 // Attributes that should not be automatically copied from inputs to outputs
 const char* kExcludedAttributes[] = {
-  HttpAttributes::kCacheControl,
-  HttpAttributes::kContentEncoding,
-  HttpAttributes::kContentLength,
-  HttpAttributes::kContentType,
-  HttpAttributes::kDate,
-  HttpAttributes::kEtag,
-  HttpAttributes::kExpires,
-  HttpAttributes::kLastModified,
-  // Rewritten resources are publicly cached, so we should avoid cookies
-  // which are generally meant for private data.
-  HttpAttributes::kSetCookie,
-  HttpAttributes::kSetCookie2,
-  HttpAttributes::kTransferEncoding,
-  HttpAttributes::kVary
-};
+    HttpAttributes::kCacheControl, HttpAttributes::kContentEncoding,
+    HttpAttributes::kContentLength, HttpAttributes::kContentType,
+    HttpAttributes::kDate, HttpAttributes::kEtag, HttpAttributes::kExpires,
+    HttpAttributes::kLastModified,
+    // Rewritten resources are publicly cached, so we should avoid cookies
+    // which are generally meant for private data.
+    HttpAttributes::kSetCookie, HttpAttributes::kSetCookie2,
+    HttpAttributes::kTransferEncoding, HttpAttributes::kVary};
 
 StringSet* CommaSeparatedStringToSet(StringPiece str) {
   StringPieceVector str_values;
@@ -153,9 +145,8 @@ class BeaconPropertyCallback : public PropertyPage {
 
   const PropertyCache::CohortVector CohortList() {
     PropertyCache::CohortVector cohort_list;
-    cohort_list.push_back(
-         server_context_->page_property_cache()->GetCohort(
-             RewriteDriver::kBeaconCohort));
+    cohort_list.push_back(server_context_->page_property_cache()->GetCohort(
+        RewriteDriver::kBeaconCohort));
     return cohort_list;
   }
 
@@ -228,8 +219,7 @@ const char ServerContext::kResourceEtagValue[] = "W/\"0\"";
 class GlobalOptionsRewriteDriverPool : public RewriteDriverPool {
  public:
   explicit GlobalOptionsRewriteDriverPool(ServerContext* context)
-      : server_context_(context) {
-  }
+      : server_context_(context) {}
 
   const RewriteOptions* TargetOptions() const override {
     return server_context_->global_options();
@@ -315,7 +305,8 @@ ServerContext::~ServerContext() {
         static_cast<int>(active_rewrite_drivers_.size()));
 #ifndef NDEBUG
     for (RewriteDriverSet::iterator p = active_rewrite_drivers_.begin(),
-             e = active_rewrite_drivers_.end(); p != e; ++p) {
+                                    e = active_rewrite_drivers_.end();
+         p != e; ++p) {
       RewriteDriver* driver = *p;
       // During load-test, print some detail about leaked drivers.  It
       // appears that looking deep into the leaked driver's detached
@@ -334,19 +325,18 @@ ServerContext::~ServerContext() {
 // TODO(gee): These methods are out of order with respect to the .h #tech-debt
 void ServerContext::InitWorkers() {
   html_workers_ = factory_->WorkerPool(RewriteDriverFactory::kHtmlWorkers);
-  rewrite_workers_ = factory_->WorkerPool(
-      RewriteDriverFactory::kRewriteWorkers);
-  low_priority_rewrite_workers_ = factory_->WorkerPool(
-      RewriteDriverFactory::kLowPriorityRewriteWorkers);
+  rewrite_workers_ =
+      factory_->WorkerPool(RewriteDriverFactory::kRewriteWorkers);
+  low_priority_rewrite_workers_ =
+      factory_->WorkerPool(RewriteDriverFactory::kLowPriorityRewriteWorkers);
 }
 
-void ServerContext::PostInitHook() {
-  InitWorkers();
-}
+void ServerContext::PostInitHook() { InitWorkers(); }
 
-void ServerContext::SetDefaultLongCacheHeaders(
-    const ContentType* content_type, StringPiece charset,
-    StringPiece suffix, ResponseHeaders* header) const {
+void ServerContext::SetDefaultLongCacheHeaders(const ContentType* content_type,
+                                               StringPiece charset,
+                                               StringPiece suffix,
+                                               ResponseHeaders* header) const {
   header->set_major_version(1);
   header->set_minor_version(1);
   header->SetStatusAndReason(HttpStatus::kOK);
@@ -394,8 +384,7 @@ void ServerContext::SetDefaultLongCacheHeaders(
 }
 
 void ServerContext::MergeNonCachingResponseHeaders(
-    const ResponseHeaders& input_headers,
-    ResponseHeaders* output_headers) {
+    const ResponseHeaders& input_headers, ResponseHeaders* output_headers) {
   for (int i = 0, n = input_headers.NumAttributes(); i < n; ++i) {
     const GoogleString& name = input_headers.Name(i);
     if (!IsExcludedAttribute(name.c_str())) {
@@ -421,8 +410,7 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
   // Vary headers from inputs to output, or converting them to
   // cache-control:private if needed.
   bool proxy_cacheable = headers->IsProxyCacheable(
-      RequestHeaders::Properties(),
-      ResponseHeaders::kIgnoreVaryOnResources,
+      RequestHeaders::Properties(), ResponseHeaders::kIgnoreVaryOnResources,
       ResponseHeaders::kHasValidator);
 
   bool browser_cacheable = headers->IsBrowserCacheable();
@@ -439,20 +427,20 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
         max_age = input_headers->cache_ttl_ms();
       }
       bool resource_cacheable = input_headers->IsProxyCacheable(
-          RequestHeaders::Properties(),
-          ResponseHeaders::kIgnoreVaryOnResources,
+          RequestHeaders::Properties(), ResponseHeaders::kIgnoreVaryOnResources,
           ResponseHeaders::kHasValidator);
       proxy_cacheable &= resource_cacheable;
       browser_cacheable &= input_headers->IsBrowserCacheable();
-      no_store |= input_headers->HasValue(HttpAttributes::kCacheControl,
-                                          "no-store");
-      is_public &= input_headers->HasValue(HttpAttributes::kCacheControl,
-                                           "public");
+      no_store |=
+          input_headers->HasValue(HttpAttributes::kCacheControl, "no-store");
+      is_public &=
+          input_headers->HasValue(HttpAttributes::kCacheControl, "public");
       saw_nonempty_resource = true;
     }
   }
-  DCHECK(!(proxy_cacheable && !browser_cacheable)) <<
-      "You can't have a proxy-cacheable result that is not browser-cacheable";
+  DCHECK(!(proxy_cacheable && !browser_cacheable))
+      << "You can't have a proxy-cacheable result that is not "
+         "browser-cacheable";
   if (proxy_cacheable) {
     if (is_public && saw_nonempty_resource) {
       headers->SetCacheControlPublic();
@@ -471,8 +459,8 @@ void ServerContext::ApplyInputCacheControl(const ResourceVector& inputs,
   }
 }
 
-void ServerContext::AddOriginalContentLengthHeader(
-    const ResourceVector& inputs, ResponseHeaders* headers) {
+void ServerContext::AddOriginalContentLengthHeader(const ResourceVector& inputs,
+                                                   ResponseHeaders* headers) {
   // Determine the total original content length for input resource, and
   // use this to set the X-Original-Content-Length header in the output.
   int64 input_size = 0;
@@ -480,8 +468,8 @@ void ServerContext::AddOriginalContentLengthHeader(
   for (int i = 0, n = inputs.size(); i < n; ++i) {
     const ResourcePtr& input_resource(inputs[i]);
     ResponseHeaders* input_headers = input_resource->response_headers();
-    const char* original_content_length_header = input_headers->Lookup1(
-        HttpAttributes::kXOriginalContentLength);
+    const char* original_content_length_header =
+        input_headers->Lookup1(HttpAttributes::kXOriginalContentLength);
     int64 original_content_length;
     if (original_content_length_header != nullptr &&
         StringToInt64(original_content_length_header,
@@ -538,12 +526,11 @@ const int64 kBlockLockMs = 5 * Timer::kSecondMs;
 
 void ServerContext::TryLockForCreation(NamedLock* creation_lock,
                                        Function* callback) {
-  return creation_lock->LockTimedWaitStealOld(
-      0 /* wait_ms */, kBreakLockMs, callback);
+  return creation_lock->LockTimedWaitStealOld(0 /* wait_ms */, kBreakLockMs,
+                                              callback);
 }
 
-void ServerContext::LockForCreation(NamedLock* creation_lock,
-                                    Sequence* worker,
+void ServerContext::LockForCreation(NamedLock* creation_lock, Sequence* worker,
                                     Function* callback) {
   // TODO(jmaessen): It occurs to me that we probably ought to be
   // doing something like this if we *really* care about lock aging:
@@ -558,8 +545,7 @@ void ServerContext::LockForCreation(NamedLock* creation_lock,
       new QueuedWorkerPool::Sequence::AddFunction(worker, callback));
 }
 
-bool ServerContext::HandleBeacon(StringPiece params,
-                                 StringPiece user_agent,
+bool ServerContext::HandleBeacon(StringPiece params, StringPiece user_agent,
                                  const RequestContextPtr& request_context) {
   // Beacons are of the form ets=load:xxx&url=.... and can be sent in either the
   // query params of a GET or the body of a POST.
@@ -585,8 +571,7 @@ bool ServerContext::HandleBeacon(StringPiece params,
     url_query_param.Reset(query_param_str);
 
     if (!url_query_param.IsWebValid()) {
-      message_handler_->Message(kWarning,
-                                "Invalid URL parameter in beacon: %s",
+      message_handler_->Message(kWarning, "Invalid URL parameter in beacon: %s",
                                 query_param_str.c_str());
       return false;
     }
@@ -636,23 +621,20 @@ bool ServerContext::HandleBeacon(StringPiece params,
   std::unique_ptr<StringSet> css_critical_images_set;
   if (query_params.Lookup1Unescaped(kBeaconCriticalImagesQueryParam,
                                     &query_param_str)) {
-    html_critical_images_set.reset(
-        CommaSeparatedStringToSet(query_param_str));
+    html_critical_images_set.reset(CommaSeparatedStringToSet(query_param_str));
   }
 
   std::unique_ptr<StringSet> critical_css_selector_set;
   if (query_params.Lookup1Unescaped(kBeaconCriticalCssQueryParam,
                                     &query_param_str)) {
-    critical_css_selector_set.reset(
-        CommaSeparatedStringToSet(query_param_str));
+    critical_css_selector_set.reset(CommaSeparatedStringToSet(query_param_str));
   }
 
   std::unique_ptr<RenderedImages> rendered_images;
   if (query_params.Lookup1Unescaped(kBeaconRenderedDimensionsQueryParam,
                                     &query_param_str)) {
-    rendered_images.reset(
-        critical_images_finder_->JsonMapToRenderedImagesMap(
-            query_param_str, global_options()));
+    rendered_images.reset(critical_images_finder_->JsonMapToRenderedImagesMap(
+        query_param_str, global_options()));
   }
 
   StringPiece nonce;
@@ -664,22 +646,17 @@ bool ServerContext::HandleBeacon(StringPiece params,
   // looking up the property page for the URL specified in the beacon, and
   // performing the page update and cohort write in
   // BeaconPropertyCallback::Done(). Done() is called when the read completes.
-  if (html_critical_images_set != nullptr || css_critical_images_set != nullptr ||
+  if (html_critical_images_set != nullptr ||
+      css_critical_images_set != nullptr ||
       critical_css_selector_set != nullptr || rendered_images != nullptr) {
     UserAgentMatcher::DeviceType device_type =
         user_agent_matcher()->GetDeviceTypeForUA(user_agent);
 
     BeaconPropertyCallback* beacon_property_cb = new BeaconPropertyCallback(
-        this,
-        url_query_param.Spec(),
-        options_hash_param,
-        device_type,
-        request_context,
-        html_critical_images_set.release(),
-        css_critical_images_set.release(),
-        critical_css_selector_set.release(),
-        rendered_images.release(),
-        nonce);
+        this, url_query_param.Spec(), options_hash_param, device_type,
+        request_context, html_critical_images_set.release(),
+        css_critical_images_set.release(), critical_css_selector_set.release(),
+        rendered_images.release(), nonce);
     page_property_cache()->ReadWithCohorts(beacon_property_cb->CohortList(),
                                            beacon_property_cb);
   }
@@ -704,9 +681,7 @@ bool ServerContext::HandleBeacon(StringPiece params,
 RewriteDriver* ServerContext::NewCustomRewriteDriver(
     RewriteOptions* options, const RequestContextPtr& request_ctx) {
   RewriteDriver* rewrite_driver = NewUnmanagedRewriteDriver(
-      nullptr /* no pool as custom*/,
-      options,
-      request_ctx);
+      nullptr /* no pool as custom*/, options, request_ctx);
   {
     ScopedMutex lock(rewrite_drivers_mutex_.get());
     active_rewrite_drivers_.insert(rewrite_driver);
@@ -772,8 +747,8 @@ RewriteDriver* ServerContext::NewRewriteDriverFromPool(
   }
 
   if (rewrite_driver == nullptr) {
-    rewrite_driver = NewUnmanagedRewriteDriver(
-        pool, options->Clone(), request_ctx);
+    rewrite_driver =
+        NewUnmanagedRewriteDriver(pool, options->Clone(), request_ctx);
     if (factory_ != nullptr) {
       factory_->ApplyPlatformSpecificConfiguration(rewrite_driver);
     }
@@ -897,8 +872,7 @@ void ServerContext::GetRemoteOptions(RewriteOptions* remote_options,
     return;
   }
   HttpOptions fetch_options;
-  fetch_options.implicit_cache_ttl_ms =
-      remote_options->implicit_cache_ttl_ms();
+  fetch_options.implicit_cache_ttl_ms = remote_options->implicit_cache_ttl_ms();
   fetch_options.respect_vary = false;
   if (!remote_options->remote_configuration_url().empty()) {
     RequestContextPtr request_ctx(new RequestContext(
@@ -913,11 +887,12 @@ void ServerContext::GetRemoteOptions(RewriteOptions* remote_options,
   }
 }
 
-bool ServerContext::GetQueryOptions(
-    const RequestContextPtr& request_context,
-    const RewriteOptions* domain_options, GoogleUrl* request_url,
-    RequestHeaders* request_headers, ResponseHeaders* response_headers,
-    RewriteQuery* rewrite_query) {
+bool ServerContext::GetQueryOptions(const RequestContextPtr& request_context,
+                                    const RewriteOptions* domain_options,
+                                    GoogleUrl* request_url,
+                                    RequestHeaders* request_headers,
+                                    ResponseHeaders* response_headers,
+                                    RewriteQuery* rewrite_query) {
   if (!request_url->IsWebValid()) {
     message_handler_->Message(kError, "GetQueryOptions: Invalid URL: %s",
                               request_url->spec_c_str());
@@ -1003,11 +978,8 @@ void ServerContext::set_enable_property_cache(bool enabled) {
 }
 
 void ServerContext::MakePagePropertyCache(PropertyStore* property_store) {
-  PropertyCache* pcache = new PropertyCache(
-      property_store,
-      timer(),
-      statistics(),
-      thread_system_);
+  PropertyCache* pcache =
+      new PropertyCache(property_store, timer(), statistics(), thread_system_);
   // TODO(pulkitg): Remove set_enabled method from property_cache.
   pcache->set_enabled(enable_property_cache_);
   page_property_cache_.reset(pcache);
@@ -1023,8 +995,7 @@ void ServerContext::set_critical_selector_finder(
 }
 
 void ServerContext::ApplySessionFetchers(const RequestContextPtr& req,
-                                         RewriteDriver* driver) {
-}
+                                         RewriteDriver* driver) {}
 
 RequestProperties* ServerContext::NewRequestProperties() {
   RequestProperties* request_properties =
@@ -1037,17 +1008,15 @@ void ServerContext::DeleteCacheOnDestruction(CacheInterface* cache) {
 }
 
 const PropertyCache::Cohort* ServerContext::AddCohort(
-    const GoogleString& cohort_name,
-    PropertyCache* pcache) {
+    const GoogleString& cohort_name, PropertyCache* pcache) {
   return AddCohortWithCache(cohort_name, nullptr, pcache);
 }
 
 const PropertyCache::Cohort* ServerContext::AddCohortWithCache(
-    const GoogleString& cohort_name,
-    CacheInterface* cache,
+    const GoogleString& cohort_name, CacheInterface* cache,
     PropertyCache* pcache) {
-  CHECK(pcache->GetCohort(cohort_name) == nullptr) << cohort_name
-                                                << " is added twice.";
+  CHECK(pcache->GetCohort(cohort_name) == nullptr)
+      << cohort_name << " is added twice.";
   if (cache_property_store_ != nullptr) {
     if (cache != nullptr) {
       cache_property_store_->AddCohortWithCache(cohort_name, cache);
@@ -1064,12 +1033,9 @@ void ServerContext::set_cache_property_store(CachePropertyStore* p) {
 
 PropertyStore* ServerContext::CreatePropertyStore(
     CacheInterface* cache_backend) {
-  CachePropertyStore* cache_property_store =
-      new CachePropertyStore(CachePropertyStore::kPagePropertyCacheKeyPrefix,
-                             cache_backend,
-                             timer(),
-                             statistics(),
-                             thread_system_);
+  CachePropertyStore* cache_property_store = new CachePropertyStore(
+      CachePropertyStore::kPagePropertyCacheKeyPrefix, cache_backend, timer(),
+      statistics(), thread_system_);
   set_cache_property_store(cache_property_store);
   return cache_property_store;
 }
@@ -1083,10 +1049,8 @@ const CacheInterface* ServerContext::pcache_cache_backend() {
 
 namespace {
 
-void FormatResponse(ServerContext::Format format,
-                    const GoogleString& html,
-                    const GoogleString& text,
-                    AsyncFetch* fetch,
+void FormatResponse(ServerContext::Format format, const GoogleString& html,
+                    const GoogleString& text, AsyncFetch* fetch,
                     MessageHandler* handler) {
   ResponseHeaders* response_headers = fetch->response_headers();
   response_headers->SetStatusAndReason(HttpStatus::kOK);
@@ -1099,8 +1063,8 @@ void FormatResponse(ServerContext::Format format,
     fetch->Write(html, handler);
     HtmlKeywords::WritePre(text, "", fetch, handler);
   } else {
-    response_headers->Add(
-        HttpAttributes::kContentType, "application/javascript; charset=utf-8");
+    response_headers->Add(HttpAttributes::kContentType,
+                          "application/javascript; charset=utf-8");
     response_headers->Add("X-Content-Type-Options", "nosniff");
     // Prevent some cases of improper embedding of data, which risks
     // misinterpreting it.
@@ -1119,13 +1083,10 @@ class MetadataCacheResultCallback
     : public RewriteContext::CacheLookupResultCallback {
  public:
   // Will cleanup the driver
-  MetadataCacheResultCallback(ServerContext::Format format,
-                              bool should_delete,
-                              StringPiece url,
-                              StringPiece ua,
+  MetadataCacheResultCallback(ServerContext::Format format, bool should_delete,
+                              StringPiece url, StringPiece ua,
                               ServerContext* server_context,
-                              RewriteDriver* driver,
-                              AsyncFetch* fetch,
+                              RewriteDriver* driver, AsyncFetch* fetch,
                               MessageHandler* handler)
       : format_(format),
         should_delete_(should_delete),
@@ -1134,13 +1095,12 @@ class MetadataCacheResultCallback
         server_context_(server_context),
         driver_(driver),
         fetch_(fetch),
-        handler_(handler) {
-  }
+        handler_(handler) {}
 
   ~MetadataCacheResultCallback() override {}
 
   void Done(const GoogleString& cache_key,
-                    RewriteContext::CacheLookupResult* in_result) override {
+            RewriteContext::CacheLookupResult* in_result) override {
     std::unique_ptr<RewriteContext::CacheLookupResult> result(in_result);
     driver_->Cleanup();
 
@@ -1173,12 +1133,13 @@ class MetadataCacheResultCallback
     StringWriter cache_writer(&cache_dump);
     cache_writer.Write(StrCat("Metadata cache key:", cache_key, "\n"),
                        handler_);
-    cache_writer.Write(StrCat("cache_ok:",
-                              (result->cache_ok ? "true" : "false"),
-                         "\n"), handler_);
+    cache_writer.Write(
+        StrCat("cache_ok:", (result->cache_ok ? "true" : "false"), "\n"),
+        handler_);
     cache_writer.Write(
         StrCat("can_revalidate:", (result->can_revalidate ? "true" : "false"),
-        "\n"), handler_);
+               "\n"),
+        handler_);
     if (result->partitions.get() != nullptr) {
       // Display the input info which has the minimum expiration time of all
       // the inputs.
@@ -1191,7 +1152,7 @@ class MetadataCacheResultCallback
     for (int i = 0, n = result->revalidate.size(); i < n; ++i) {
       cache_writer.Write(StrCat("Revalidate entry ", IntegerToString(i), " ",
                                 result->revalidate[i]->DebugString(), "\n"),
-                    handler_);
+                         handler_);
     }
     FormatResponse(format_, html, cache_dump, fetch_, handler_);
     delete this;
@@ -1210,17 +1171,18 @@ class MetadataCacheResultCallback
 
 }  // namespace
 
-void ServerContext::ShowCacheHandler(
-    Format format,  StringPiece url, StringPiece ua, bool should_delete,
-    AsyncFetch* fetch, RewriteOptions* options_arg) {
+void ServerContext::ShowCacheHandler(Format format, StringPiece url,
+                                     StringPiece ua, bool should_delete,
+                                     AsyncFetch* fetch,
+                                     RewriteOptions* options_arg) {
   std::unique_ptr<RewriteOptions> options(options_arg);
   if (url.empty()) {
     FormatResponse(format, "", "Empty URL", fetch, message_handler_);
   } else if (!GoogleUrl(url).IsWebValid()) {
     FormatResponse(format, "", "Invalid URL", fetch, message_handler_);
   } else {
-    RewriteDriver* driver = NewCustomRewriteDriver(
-        options.release(), fetch->request_context());
+    RewriteDriver* driver =
+        NewCustomRewriteDriver(options.release(), fetch->request_context());
     fetch->request_headers()->Replace(HttpAttributes::kUserAgent, ua);
     driver->SetRequestHeaders(*fetch->request_headers());
 
@@ -1236,8 +1198,7 @@ void ServerContext::ShowCacheHandler(
 }
 
 GoogleString ServerContext::FetchRemoteConfig(const GoogleString& url,
-                                              int64 timeout_ms,
-                                              bool on_startup,
+                                              int64 timeout_ms, bool on_startup,
                                               RequestContextPtr request_ctx) {
   CHECK(!url.empty());
   // Set up the fetcher.
@@ -1348,8 +1309,8 @@ GoogleString ServerContext::ShowCacheForm(StringPiece user_agent) {
   GoogleString ua_default;
   if (!user_agent.empty()) {
     GoogleString buf;
-    ua_default = StrCat("value=\"", HtmlKeywords::Escape(user_agent, &buf),
-                        "\" ");
+    ua_default =
+        StrCat("value=\"", HtmlKeywords::Escape(user_agent, &buf), "\" ");
   }
   // The styling on this form could use some love, but the 110/103 sizing
   // is to make those input fields decently wide to fit large URLs and UAs
@@ -1358,8 +1319,7 @@ GoogleString ServerContext::ShowCacheForm(StringPiece user_agent) {
       "<form>\n",
       "  URL: <input id=metadata_text type=text name=url size=110 /><br>\n"
       "  User-Agent: <input id=user_agent type=text size=103 name=user_agent ",
-      ua_default,
-      "/><br> \n",
+      ua_default, "/><br> \n",
       "  <input id=metadata_submit type=submit "
       "   value='Show Metadata Cache Entry' />"
       "  <input id=metadata_clear type=reset value='Clear' />",
@@ -1376,12 +1336,7 @@ CacheUrlAsyncFetcher* ServerContext::CreateCustomCacheFetcher(
     const RewriteOptions* options, const GoogleString& fragment,
     CacheUrlAsyncFetcher::AsyncOpHooks* hooks, UrlAsyncFetcher* fetcher) {
   CacheUrlAsyncFetcher* cache_fetcher = new CacheUrlAsyncFetcher(
-      lock_hasher(),
-      lock_manager(),
-      http_cache(),
-      fragment,
-      hooks,
-      fetcher);
+      lock_hasher(), lock_manager(), http_cache(), fragment, hooks, fetcher);
   RewriteStats* stats = rewrite_stats();
   cache_fetcher->set_respect_vary(options->respect_vary());
   cache_fetcher->set_default_cache_html(options->default_cache_html());

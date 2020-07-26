@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,13 +37,9 @@ namespace net_instaweb {
 
 CacheSpammer::CacheSpammer(ThreadSystem* runtime,
                            ThreadSystem::ThreadFlags flags,
-                           CacheInterface* cache,
-                           bool expecting_evictions,
-                           bool do_deletes,
-                           const char* value_prefix,
-                           int index,
-                           int num_iters,
-                           int num_inserts)
+                           CacheInterface* cache, bool expecting_evictions,
+                           bool do_deletes, const char* value_prefix, int index,
+                           int num_iters, int num_inserts)
     : Thread(runtime, "cache_spammer", flags),
       cache_(cache),
       expecting_evictions_(expecting_evictions),
@@ -54,11 +50,9 @@ CacheSpammer::CacheSpammer(ThreadSystem* runtime,
       num_inserts_(num_inserts),
       mutex_(runtime->NewMutex()),
       condvar_(mutex_->NewCondvar()),
-      pending_gets_(0) {
-}
+      pending_gets_(0) {}
 
-CacheSpammer::~CacheSpammer() {
-}
+CacheSpammer::~CacheSpammer() {}
 
 namespace {
 
@@ -68,11 +62,9 @@ class SpammerCallback : public CacheInterface::Callback {
       : spammer_(spammer),
         validate_candidate_called_(false),
         key_(key.data(), key.size()),
-        expected_(expected.data(), expected.size()) {
-  }
+        expected_(expected.data(), expected.size()) {}
 
-  ~SpammerCallback() override {
-  }
+  ~SpammerCallback() override {}
 
   void Done(CacheInterface::KeyState state) override {
     DCHECK(validate_candidate_called_);
@@ -85,7 +77,7 @@ class SpammerCallback : public CacheInterface::Callback {
   }
 
   bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) override {
+                         CacheInterface::KeyState state) override {
     validate_candidate_called_ = true;
     return true;
   }
@@ -101,22 +93,19 @@ class SpammerCallback : public CacheInterface::Callback {
 
 }  // namespace
 
-void CacheSpammer::RunTests(int num_threads,
-                            int num_iters,
-                            int num_inserts,
+void CacheSpammer::RunTests(int num_threads, int num_iters, int num_inserts,
                             bool expecting_evictions, bool do_deletes,
-                            const char* value_prefix,
-                            CacheInterface* cache,
+                            const char* value_prefix, CacheInterface* cache,
                             ThreadSystem* thread_runtime) {
   std::vector<CacheSpammer*> spammers(num_threads);
 
   // First, create all the threads.
   for (int i = 0; i < num_threads; ++i) {
-    spammers[i] = new CacheSpammer(
-        thread_runtime, ThreadSystem::kJoinable,
-        cache,  // lru_cache_.get() will make this fail.
-        expecting_evictions, do_deletes, value_prefix, i, num_iters,
-        num_inserts);
+    spammers[i] =
+        new CacheSpammer(thread_runtime, ThreadSystem::kJoinable,
+                         cache,  // lru_cache_.get() will make this fail.
+                         expecting_evictions, do_deletes, value_prefix, i,
+                         num_iters, num_inserts);
   }
 
   // Then, start them.
@@ -135,13 +124,13 @@ void CacheSpammer::Run() {
   const char name_pattern[] = "name%d";
   std::vector<SharedString> inserts(num_inserts_);
   for (int j = 0; j < num_inserts_; ++j) {
-    inserts[j].Assign (absl::StrFormat("%s%d", value_prefix_, j));
+    inserts[j].Assign(absl::StrFormat("%s%d", value_prefix_, j));
   }
 
   int iter_limit = RunningOnValgrind() ? num_iters_ / 100 : num_iters_;
   for (int i = 0; i < iter_limit; ++i) {
     for (int j = 0; j < num_inserts_; ++j) {
-      cache_->Put (absl::StrFormat(name_pattern, j), inserts[j]);
+      cache_->Put(absl::StrFormat(name_pattern, j), inserts[j]);
     }
     {
       ScopedMutex lock(mutex_.get());
@@ -161,7 +150,7 @@ void CacheSpammer::Run() {
     }
     if (do_deletes_) {
       for (int j = 0; j < num_inserts_; ++j) {
-        cache_->Delete (absl::StrFormat(name_pattern, j));
+        cache_->Delete(absl::StrFormat(name_pattern, j));
       }
     }
   }

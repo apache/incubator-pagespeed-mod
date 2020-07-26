@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
@@ -82,10 +81,10 @@ class CacheExtender : public RewriteFilter {
                                       const OutputResourcePtr& output_resource,
                                       CachedResult* result);
 
-  bool ShouldRewriteResource(
-      const ResponseHeaders* headers, int64 now_ms,
-      const ResourcePtr& input_resource, const StringPiece& url,
-      CachedResult* result) const;
+  bool ShouldRewriteResource(const ResponseHeaders* headers, int64 now_ms,
+                             const ResourcePtr& input_resource,
+                             const StringPiece& url,
+                             CachedResult* result) const;
 
   Variable* extension_count_;
   Variable* not_cacheable_count_;

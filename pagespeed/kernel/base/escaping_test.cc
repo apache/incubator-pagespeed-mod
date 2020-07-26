@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/escaping.h"
 
@@ -50,19 +49,18 @@ TEST_F(EscapingTest, JsAvoidCloseScript) {
 }
 
 TEST_F(EscapingTest, JsAvoidCloseScriptSpace) {
-  ExpectEscape("avoid_close_script2",
-               "Foo<\\/script  >Bar", "Foo</script  >Bar");
+  ExpectEscape("avoid_close_script2", "Foo<\\/script  >Bar",
+               "Foo</script  >Bar");
 }
 
 TEST_F(EscapingTest, JsAvoidCloseScriptCase) {
-  ExpectEscape("avoid_close_script3",
-               "Foo<\\/scrIpt>Bar", "Foo</scrIpt>Bar");
+  ExpectEscape("avoid_close_script3", "Foo<\\/scrIpt>Bar", "Foo</scrIpt>Bar");
 }
 
 TEST_F(EscapingTest, JsCloseScriptConservativeBehavior) {
   // We don't need to escape </scripty>, but it's safe to do so.
-  ExpectEscape("close_script_conservative",
-               "Foo<\\/scripty>Bar", "Foo</scripty>Bar");
+  ExpectEscape("close_script_conservative", "Foo<\\/scripty>Bar",
+               "Foo</scripty>Bar");
 }
 
 TEST_F(EscapingTest, JsSingleQuotes) {

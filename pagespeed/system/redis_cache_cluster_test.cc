@@ -17,14 +17,10 @@
  * under the License.
  */
 
-
 // Unit-test the redis interface in conjunction with Redis Cluster
-
-#include "pagespeed/system/redis_cache.h"
 
 #include <cstddef>
 #include <memory>
-
 #include <vector>
 
 #include "base/logging.h"
@@ -32,44 +28,45 @@
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/mock_timer.h"
+#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/thread_system.h"
+#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
+#include "pagespeed/system/redis_cache.h"
 #include "pagespeed/system/redis_cache_cluster_setup.h"
 #include "pagespeed/system/tcp_connection_for_testing.h"
 
 namespace net_instaweb {
 
 namespace {
-  static const int kReconnectionDelayMs = 10;
-  static const int kTimeoutUs = 100 * Timer::kMsUs;
-  static const int kSlaveNodesFlushingTimeoutMs = 1000;
-  static const int kDatabaseIndex = 0;
-  static const int kTTLSec = -1;
+static const int kReconnectionDelayMs = 10;
+static const int kTimeoutUs = 100 * Timer::kMsUs;
+static const int kSlaveNodesFlushingTimeoutMs = 1000;
+static const int kDatabaseIndex = 0;
+static const int kTTLSec = -1;
 
-  // One can check following constants with CLUSTER KEYSLOT command.
-  // For testing purposes, both KEY and {}KEY should be in the same slot range.
-  // Implementation may or may not prepend {} to all keys processed to avoid
-  // keys distribution due to hash tags. We want tests to work in both
-  // situations. See http://redis.io/topics/cluster-spec#keys-hash-tags.
-  //
-  // TODO(yeputons): add static assertion that these keys really belong to
-  // corresponding slots.
-  static const char kKeyOnNode1[] = "Foobar";        // Slots 0-5499
-  static const char kKeyOnNode1b[] = "Coolkey";      // Slots 0-5499
-  static const char kKeyOnNode2[] = "SomeOtherKey";  // Slots 5500-10999
-  static const char kKeyOnNode3[] = "Key";           // Slots 11000-16383
-  static const char kValue1[] = "Value1";
-  static const char kValue2[] = "Value2";
-  static const char kValue3[] = "Value3";
-  static const char kValue4[] = "Value4";
+// One can check following constants with CLUSTER KEYSLOT command.
+// For testing purposes, both KEY and {}KEY should be in the same slot range.
+// Implementation may or may not prepend {} to all keys processed to avoid
+// keys distribution due to hash tags. We want tests to work in both
+// situations. See http://redis.io/topics/cluster-spec#keys-hash-tags.
+//
+// TODO(yeputons): add static assertion that these keys really belong to
+// corresponding slots.
+static const char kKeyOnNode1[] = "Foobar";        // Slots 0-5499
+static const char kKeyOnNode1b[] = "Coolkey";      // Slots 0-5499
+static const char kKeyOnNode2[] = "SomeOtherKey";  // Slots 5500-10999
+static const char kKeyOnNode3[] = "Key";           // Slots 11000-16383
+static const char kValue1[] = "Value1";
+static const char kValue2[] = "Value2";
+static const char kValue3[] = "Value3";
+static const char kValue4[] = "Value4";
 }  // namespace
 
 typedef std::vector<std::unique_ptr<TcpConnectionForTesting>> ConnectionList;
@@ -95,9 +92,7 @@ class RedisCacheClusterTest : public CacheTestBase {
     }
   }
 
-  void TearDown() override {
-    RedisCluster::FlushAll(&connections_);
-  }
+  void TearDown() override { RedisCluster::FlushAll(&connections_); }
 
   bool InitRedisClusterOrSkip() {
     if (!RedisCluster::LoadConfiguration(&node_ids_, &ports_, &connections_)) {
@@ -105,10 +100,10 @@ class RedisCacheClusterTest : public CacheTestBase {
     }
 
     // Setting up cache.
-    cache_ = std::make_unique<RedisCache>("localhost", ports_[0], thread_system_.get(),
-                                &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_, kDatabaseIndex,
-                                kTTLSec);
+    cache_ = std::make_unique<RedisCache>(
+        "localhost", ports_[0], thread_system_.get(), &handler_, &timer_,
+        kReconnectionDelayMs, kTimeoutUs, &statistics_, kDatabaseIndex,
+        kTTLSec);
     cache_->StartUp();
     return true;
   }
@@ -142,10 +137,10 @@ TEST_F(RedisCacheClusterTest, HashSlot) {
   // Only take the first such section.
   EXPECT_EQ(7855, RedisCache::HashSlot("hello {curly} world {ignored}"));
   // Any other junk doesn't matter.
+  EXPECT_EQ(7855,
+            RedisCache::HashSlot("hello {curly} world {nothing here matters"));
   EXPECT_EQ(7855, RedisCache::HashSlot(
-      "hello {curly} world {nothing here matters"));
-  EXPECT_EQ(7855, RedisCache::HashSlot(
-      "}}} hello {curly} world {nothing else matters"));
+                      "}}} hello {curly} world {nothing else matters"));
   // Incomplete curlies are ignored.
   EXPECT_EQ(8673, RedisCache::HashSlot("hello {curly world"));
   EXPECT_EQ(950, RedisCache::HashSlot("hello }curly{ world"));
@@ -243,7 +238,7 @@ int CountSubstring(const GoogleString& haystack, const GoogleString& needle) {
   size_t pos = -1;
   int count = 0;
   while (true) {
-    pos = haystack.find(needle, pos+1);
+    pos = haystack.find(needle, pos + 1);
     if (pos == haystack.npos) {
       return count;
     }
@@ -383,7 +378,7 @@ TEST_F(RedisCacheClusterTestWithReconfiguration, HandlesMigrations) {
 
   LOG(INFO) << "Ending migration";
   for (int c = 0; c < 3; c++) {
-    auto &conn = connections_[c];
+    auto& conn = connections_[c];
     for (int i = 0; i < 5000; i++) {
       conn->Send(StrCat("CLUSTER SETSLOT ", IntegerToString(i), " NODE ",
                         node_ids_[1], "\r\n"));

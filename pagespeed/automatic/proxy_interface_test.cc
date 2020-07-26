@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,11 @@
  * under the License.
  */
 
-
 // Unit-tests for ProxyInterface.
 
-#include <memory>
-
-
-
 #include "pagespeed/automatic/proxy_interface.h"
+
+#include <memory>
 
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -118,9 +115,8 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     sync->EnableForPrefix(ProxyFetch::kCollectorDetachFinish);
     sync->EnableForPrefix(ProxyFetch::kCollectorConnectProxyFetchFinish);
     server_context_->set_enable_property_cache(true);
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(server_context_->page_property_cache(),
-                    RewriteDriver::kDomCohort);
+    const PropertyCache::Cohort* dom_cohort = SetupCohort(
+        server_context_->page_property_cache(), RewriteDriver::kDomCohort);
     server_context()->set_dom_cohort(dom_cohort);
     RewriteOptions* options = server_context()->global_options();
     options->ClearSignatureForTesting();
@@ -131,8 +127,9 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     server_context()->ComputeSignature(options);
     ProxyInterfaceTestBase::SetUp();
     // The original url_async_fetcher() is still owned by RewriteDriverFactory.
-    background_fetch_fetcher_ = std::make_unique<BackgroundFetchCheckingUrlAsyncFetcher>(
-        factory()->ComputeUrlAsyncFetcher());
+    background_fetch_fetcher_ =
+        std::make_unique<BackgroundFetchCheckingUrlAsyncFetcher>(
+            factory()->ComputeUrlAsyncFetcher());
     server_context()->set_default_system_fetcher(
         background_fetch_fetcher_.get());
 
@@ -155,7 +152,7 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
   void CheckBackgroundFetch(const ResponseHeaders& headers,
                             bool is_background_fetch) {
     EXPECT_STREQ(is_background_fetch ? "1" : "0",
-              headers.Lookup1(kBackgroundFetchHeader));
+                 headers.Lookup1(kBackgroundFetchHeader));
   }
 
   void CheckNumBackgroundFetches(int num) {
@@ -190,17 +187,16 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
 
   int GetStatusCodeInPropertyCache(const GoogleString& url) {
     PropertyCache* pcache = page_property_cache();
-    std::unique_ptr<MockPropertyPage> page(NewMockPage(
-        url,
-        server_context()->GetRewriteOptionsSignatureHash(
-            server_context()->global_options()),
-        UserAgentMatcher::kDesktop));
-    const PropertyCache::Cohort* cohort = pcache->GetCohort(
-        RewriteDriver::kDomCohort);
+    std::unique_ptr<MockPropertyPage> page(
+        NewMockPage(url,
+                    server_context()->GetRewriteOptionsSignatureHash(
+                        server_context()->global_options()),
+                    UserAgentMatcher::kDesktop));
+    const PropertyCache::Cohort* cohort =
+        pcache->GetCohort(RewriteDriver::kDomCohort);
     PropertyValue* value;
     pcache->Read(page.get());
-    value = page->GetProperty(
-        cohort, RewriteDriver::kStatusCodePropertyName);
+    value = page->GetProperty(cohort, RewriteDriver::kStatusCodePropertyName);
     int status_code;
     EXPECT_TRUE(StringToInt(value->value(), &status_code));
     return status_code;
@@ -231,8 +227,8 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     server_context()->ComputeSignature(options);
   }
 
-  void TestFallbackPageProperties(
-      const GoogleString& url, const GoogleString& fallback_url) {
+  void TestFallbackPageProperties(const GoogleString& url,
+                                  const GoogleString& fallback_url) {
     GoogleUrl gurl(url);
     GoogleString kPropertyName("prop");
     GoogleString kValue("value");
@@ -240,14 +236,13 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     // No fallback value is present.
     const PropertyCache::Cohort* cohort =
         page_property_cache()->GetCohort(RewriteDriver::kDomCohort);
-    StringAsyncFetch callback(
-        RequestContext::NewTestRequestContext(
-            server_context()->thread_system()));
+    StringAsyncFetch callback(RequestContext::NewTestRequestContext(
+        server_context()->thread_system()));
     RequestHeaders request_headers;
     callback.set_request_headers(&request_headers);
     std::unique_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
-        proxy_interface_->InitiatePropertyCacheLookup(
-            false, gurl, options(), &callback));
+        proxy_interface_->InitiatePropertyCacheLookup(false, gurl, options(),
+                                                      &callback));
 
     FallbackPropertyPage* fallback_page =
         callback_collector->fallback_property_page();
@@ -259,8 +254,9 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     callback_collector.reset(proxy_interface_->InitiatePropertyCacheLookup(
         false, new_gurl, options(), &callback));
     fallback_page = callback_collector->fallback_property_page();
-    EXPECT_FALSE(fallback_page->actual_property_page()->GetProperty(
-        cohort, kPropertyName)->has_value());
+    EXPECT_FALSE(fallback_page->actual_property_page()
+                     ->GetProperty(cohort, kPropertyName)
+                     ->has_value());
     EXPECT_EQ(kValue,
               fallback_page->GetProperty(cohort, kPropertyName)->value());
 
@@ -269,9 +265,10 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     options()->ClearSignatureForTesting();
     options()->set_use_fallback_property_cache_values(false);
     callback_collector.reset(proxy_interface_->InitiatePropertyCacheLookup(
-          false, new_gurl, options(), &callback));
-    EXPECT_FALSE(callback_collector->fallback_property_page()->GetProperty(
-        cohort, kPropertyName)->has_value());
+        false, new_gurl, options(), &callback));
+    EXPECT_FALSE(callback_collector->fallback_property_page()
+                     ->GetProperty(cohort, kPropertyName)
+                     ->has_value());
   }
 
   void TestQueryParameters(StringPiece original_domain,
@@ -281,16 +278,16 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     // Test to check if we re-add our query params when we get a redirect.
     const char kParams[] = "PageSpeedCssInlineMaxBytes=99";
     GoogleString original_url = StrCat(original_domain, "a/?x=y");
-    GoogleString redirect_url = StrCat(redirect_domain, "b/",
-                                       add_params_to_redirect ? "?x=y" : "");
+    GoogleString redirect_url =
+        StrCat(redirect_domain, "b/", add_params_to_redirect ? "?x=y" : "");
     GoogleString set_text, get_text;
     RequestHeaders request_headers;
     ResponseHeaders set_headers, get_headers;
     NullMessageHandler handler;
     GoogleString expected_location(redirect_url);
     if (add_params_to_location) {
-      StrAppend(&expected_location,
-                add_params_to_redirect ? "&" : "?", kParams);
+      StrAppend(&expected_location, add_params_to_redirect ? "&" : "?",
+                kParams);
     }
 
     set_headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
@@ -303,7 +300,9 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
 
     EXPECT_STREQ(StrCat("HTTP/1.0 302 Found\r\n"
                         "Content-Type: text/html\r\n"
-                        "Location: ", expected_location, "\r\n"
+                        "Location: ",
+                        expected_location,
+                        "\r\n"
                         "X-Background-Fetch: 0\r\n"
                         "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
                         "Expires: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
@@ -313,7 +312,8 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
                  get_headers.ToString());
   }
 
-  std::unique_ptr<BackgroundFetchCheckingUrlAsyncFetcher> background_fetch_fetcher_;
+  std::unique_ptr<BackgroundFetchCheckingUrlAsyncFetcher>
+      background_fetch_fetcher_;
   int64 start_time_ms_;
   GoogleString start_time_string_;
   GoogleString start_time_plus_300s_string_;
@@ -362,12 +362,9 @@ TEST_F(ProxyInterfaceTest, LoggingInfo) {
   // Fetch blacklisted url.
   url = "http://www.blacklist.com/";
   mock_url_fetcher_.SetResponse(url, headers, "<html></html>");
-  FetchFromProxy(url,
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(url, request_headers, true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(logging_info()->is_html_response());
   EXPECT_TRUE(logging_info()->is_url_disallowed());
   EXPECT_FALSE(logging_info()->is_request_disabled());
@@ -376,18 +373,16 @@ TEST_F(ProxyInterfaceTest, LoggingInfo) {
   url = "http://www.example.com/?PageSpeed=off";
   mock_url_fetcher_.SetResponse("http://www.example.com/", headers,
                                 "<html></html>");
-  FetchFromProxy(url,
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(url, request_headers, true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(logging_info()->is_html_response());
   EXPECT_FALSE(logging_info()->is_url_disallowed());
   EXPECT_TRUE(logging_info()->is_request_disabled());
 }
 
-// Regression test for https://github.com/apache/incubator-pagespeed-mod/issues/1553
+// Regression test for
+// https://github.com/apache/incubator-pagespeed-mod/issues/1553
 TEST_F(ProxyInterfaceTest, TestNoDebugAbortAfterMoreThenOneYear) {
   GoogleString text;
   RequestHeaders request_headers;
@@ -404,35 +399,28 @@ TEST_F(ProxyInterfaceTest, TestNoDebugAbortAfterMoreThenOneYear) {
                        kContentTypeHtml.mime_type());
   response_headers.SetStatusAndReason(HttpStatus::kOK);
 
-  mock_url_fetcher_.SetResponse("http://test.com/flush_subresources.html",
-                                response_headers,
-                                "<html><head><link rel='stylesheet' "
-                                "type='text/css' href='test.css'></head></html>");
+  mock_url_fetcher_.SetResponse(
+      "http://test.com/flush_subresources.html", response_headers,
+      "<html><head><link rel='stylesheet' "
+      "type='text/css' href='test.css'></head></html>");
 
   response_headers.Replace(HttpAttributes::kContentType,
                            kContentTypeCss.mime_type());
   mock_url_fetcher_.SetResponse("http://test.com/test.css", response_headers,
                                 kCssContent);
 
-  FetchFromProxy(kUrl,
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(kUrl, request_headers, true, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
 
   SetTimeMs(MockTimer::kApr_5_2010_ms + 2 * Timer::kYearMs);
 
   // This second fetch would run into a VLOG(DFATAL) prior to changing that to a
   // TODO.
-  FetchFromProxy(kUrl,
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(kUrl, request_headers, true, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
 }
-
 
 TEST_F(ProxyInterfaceTest, SkipPropertyCacheLookupIfOptionsNotEnabled) {
   GoogleString url = "http://www.example.com/";
@@ -446,12 +434,9 @@ TEST_F(ProxyInterfaceTest, SkipPropertyCacheLookupIfOptionsNotEnabled) {
   url = "http://www.example.com/?PageSpeed=off";
   mock_url_fetcher_.SetResponse("http://www.example.com/", headers,
                                 "<html></html>");
-  FetchFromProxy(url,
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(url, request_headers, true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(logging_info()->is_html_response());
   EXPECT_FALSE(logging_info()->is_url_disallowed());
   EXPECT_TRUE(logging_info()->is_request_disabled());
@@ -504,14 +489,16 @@ TEST_F(ProxyInterfaceTest, HeadRequest) {
   FetchFromProxy(url, request_headers, true, &get_text, &get_headers);
 
   // Headers and body are correct for a Get request.
-  EXPECT_EQ("HTTP/1.0 200 OK\r\n"
-            "Content-Type: text/html\r\n"
-            "X-Background-Fetch: 0\r\n"
-            "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
-            "Expires: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
-            "Cache-Control: max-age=0, private\r\n"
-            "X-Page-Speed: \r\n"
-            "HeadersComplete: 1\r\n\r\n", get_headers.ToString());
+  EXPECT_EQ(
+      "HTTP/1.0 200 OK\r\n"
+      "Content-Type: text/html\r\n"
+      "X-Background-Fetch: 0\r\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
+      "Expires: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
+      "Cache-Control: max-age=0, private\r\n"
+      "X-Page-Speed: \r\n"
+      "HeadersComplete: 1\r\n\r\n",
+      get_headers.ToString());
   EXPECT_EQ(set_text, get_text);
 
   // Remove from the cache so we can actually test a HEAD fetch.
@@ -521,20 +508,19 @@ TEST_F(ProxyInterfaceTest, HeadRequest) {
 
   // Headers and body are correct for a Head request.
   request_headers.set_method(RequestHeaders::kHead);
-  FetchFromProxy(url,
-                 request_headers,
-                 true,  /* expect_success */
-                 &get_text,
-                 &get_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(url, request_headers, true, /* expect_success */
+                 &get_text, &get_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
 
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
 
-  EXPECT_EQ("HTTP/1.0 200 OK\r\n"
-            "Content-Type: text/html\r\n"
-            "X-Background-Fetch: 0\r\n"
-            "X-Page-Speed: \r\n"
-            "HeadersComplete: 1\r\n\r\n", get_headers.ToString());
+  EXPECT_EQ(
+      "HTTP/1.0 200 OK\r\n"
+      "Content-Type: text/html\r\n"
+      "X-Background-Fetch: 0\r\n"
+      "X-Page-Speed: \r\n"
+      "HeadersComplete: 1\r\n\r\n",
+      get_headers.ToString());
   EXPECT_TRUE(get_text.empty());
 }
 
@@ -562,16 +548,17 @@ TEST_F(ProxyInterfaceTest, RedirectRequestWhenDomainRewriterEnabled) {
   FetchFromProxy(url, request_headers, true, &get_text, &get_headers);
 
   // Headers and body are correct for a Get request.
-  EXPECT_STREQ("HTTP/1.0 302 Found\r\n"
-               "Content-Type: text/html\r\n"
-               "Location: http://m.example.com\r\n"
-               "X-Background-Fetch: 0\r\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
-               "Expires: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
-               "Cache-Control: max-age=0, private\r\n"
-               "X-Page-Speed: \r\n"
-               "HeadersComplete: 1\r\n\r\n",
-               get_headers.ToString());
+  EXPECT_STREQ(
+      "HTTP/1.0 302 Found\r\n"
+      "Content-Type: text/html\r\n"
+      "Location: http://m.example.com\r\n"
+      "X-Background-Fetch: 0\r\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
+      "Expires: Tue, 02 Feb 2010 18:51:26 GMT\r\n"
+      "Cache-Control: max-age=0, private\r\n"
+      "X-Page-Speed: \r\n"
+      "HeadersComplete: 1\r\n\r\n",
+      get_headers.ToString());
 }
 
 TEST_F(ProxyInterfaceTest, RewriteDomainForRedirectsAndCookiesWithEmptyBody) {
@@ -653,7 +640,8 @@ TEST_F(ProxyInterfaceTest, HeadResourceRequest) {
   GoogleString text;
   RequestHeaders request_headers;
   ResponseHeaders response_headers;
-  GoogleString expected_response_headers_string = "HTTP/1.1 200 OK\r\n"
+  GoogleString expected_response_headers_string =
+      "HTTP/1.1 200 OK\r\n"
       "Content-Type: text/css\r\n"
       "X-Background-Fetch: 0\r\n"
       "X-Content-Type-Options: nosniff\r\n"
@@ -667,9 +655,10 @@ TEST_F(ProxyInterfaceTest, HeadResourceRequest) {
   // to really be an image.
   SetResponseWithDefaultHeaders(kBackgroundImage, kContentTypePng, "image",
                                 kHtmlCacheTimeSec * 2);
-  GoogleString orig_css = absl::StrFormat(kCssWithEmbeddedImage, kBackgroundImage);
-  SetResponseWithDefaultHeaders("embedded.css", kContentTypeCss,
-                                orig_css, kHtmlCacheTimeSec * 2);
+  GoogleString orig_css =
+      absl::StrFormat(kCssWithEmbeddedImage, kBackgroundImage);
+  SetResponseWithDefaultHeaders("embedded.css", kContentTypeCss, orig_css,
+                                kHtmlCacheTimeSec * 2);
 
   // By default, cache extension is off in the default options.
   server_context()->global_options()->SetDefaultRewriteLevel(
@@ -677,26 +666,23 @@ TEST_F(ProxyInterfaceTest, HeadResourceRequest) {
 
   // Because cache-extension was turned off, the image in the CSS file
   // will not be changed.
-  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css",
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css", request_headers,
+                 true, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(logging_info()->is_pagespeed_resource());
   EXPECT_EQ(expected_response_headers_string, response_headers.ToString());
   EXPECT_EQ(orig_css, text);
   // Headers and body are correct for a Head request.
   request_headers.set_method(RequestHeaders::kHead);
-  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css",
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css", request_headers,
+                 true, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
 
   // This leads to a conditional refresh of the original resource.
-  expected_response_headers_string = "HTTP/1.1 200 OK\r\n"
+  expected_response_headers_string =
+      "HTTP/1.1 200 OK\r\n"
       "Content-Type: text/css\r\n"
       "X-Background-Fetch: 0\r\n"
       "Vary: Accept-Encoding\r\n"
@@ -729,8 +715,7 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedUrls) {
   response_headers.SetStatusAndReason(HttpStatus::kOK);
   mock_url_fetcher_.SetResponse(AbsolutifyUrl("blocked"), response_headers,
                                 "<html></html>");
-  FetchFromProxy("blocked", true,
-                 &text, &response_headers);
+  FetchFromProxy("blocked", true, &text, &response_headers);
   EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
 
   text.clear();
@@ -742,13 +727,9 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedUrls) {
   custom_options->AddRejectedUrlWildcard(AbsolutifyUrl("block*"));
   SetRewriteOptions(custom_options.get());
   RequestHeaders request_headers;
-  FetchFromProxy(
-      "blocked",
-      request_headers,
-      false,  /* expect_success */
-      &text,
-      &response_headers,
-      false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy("blocked", request_headers, false, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_EQ(HttpStatus::kProxyDeclinedRequest, response_headers.status_code());
 }
 
@@ -769,8 +750,7 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedHeaders) {
 
   request_headers.Add(HttpAttributes::kUserAgent, "Firefox");
   request_headers.Add(HttpAttributes::kXForwardedFor, "10.0.0.11");
-  FetchFromProxy(kTestDomain, request_headers, true,
-                 &text, &response_headers);
+  FetchFromProxy(kTestDomain, request_headers, true, &text, &response_headers);
   EXPECT_EQ(HttpStatus::kOK, response_headers.status_code());
 
   request_headers.Clear();
@@ -778,24 +758,18 @@ TEST_F(ProxyInterfaceTest, ReturnUnavailableForBlockedHeaders) {
 
   request_headers.Add(HttpAttributes::kUserAgent, "abc");
   request_headers.Add(HttpAttributes::kUserAgent, "xyz Chrome abc");
-  FetchFromProxy(kTestDomain,
-                 request_headers,
-                 false,  /* expect_success */
-                 &text,
-                 &response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(kTestDomain, request_headers, false, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_EQ(HttpStatus::kProxyDeclinedRequest, response_headers.status_code());
 
   request_headers.Clear();
   response_headers.Clear();
 
   request_headers.Add(HttpAttributes::kXForwardedFor, "10.3.4.32");
-  FetchFromProxy(kTestDomain,
-                 request_headers,
-                 false,  /* expect_success */
-                 &text,
-                 &response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(kTestDomain, request_headers, false, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_EQ(HttpStatus::kProxyDeclinedRequest, response_headers.status_code());
 }
 
@@ -945,8 +919,8 @@ TEST_F(ProxyInterfaceTest, NotCachedIfAuthorizedAndNotPublic) {
   ResponseHeaders out_headers;
   GoogleString out_text;
   // Using .txt here so we don't try any AJAX rewriting.
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
+  FetchFromProxy("http://test.com/file.txt", request_headers, true, &out_text,
+                 &out_headers);
   // We should see the request headers we sent back as the response headers
   // as we're using a ReflectingTestFetcher.
   EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
@@ -964,8 +938,8 @@ TEST_F(ProxyInterfaceTest, NotCachedIfAuthorizedAndNotPublic) {
   request_headers.Replace("Was", "There");
   request_headers.RemoveAll(HttpAttributes::kAuthorization);
 
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
+  FetchFromProxy("http://test.com/file.txt", request_headers, true, &out_text,
+                 &out_headers);
   // Should get different headers since we should not be cached.
   EXPECT_STREQ("There", out_headers.Lookup1("Was"));
   EXPECT_FALSE(out_headers.Has(HttpAttributes::kAuthorization));
@@ -994,8 +968,8 @@ TEST_F(ProxyInterfaceTest, CachedIfAuthorizedAndPublic) {
   ResponseHeaders out_headers;
   GoogleString out_text;
   // Using .txt here so we don't try any AJAX rewriting.
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
+  FetchFromProxy("http://test.com/file.txt", request_headers, true, &out_text,
+                 &out_headers);
   EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
 
   // Not cross-domain, so should propagate out header.
@@ -1011,8 +985,8 @@ TEST_F(ProxyInterfaceTest, CachedIfAuthorizedAndPublic) {
   request_headers.Replace("Was", "There");
   request_headers.RemoveAll(HttpAttributes::kAuthorization);
 
-  FetchFromProxy("http://test.com/file.txt",
-                 request_headers,  true, &out_text, &out_headers);
+  FetchFromProxy("http://test.com/file.txt", request_headers, true, &out_text,
+                 &out_headers);
   // Should get old headers, since original was cacheable.
   EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
 
@@ -1042,8 +1016,8 @@ TEST_F(ProxyInterfaceTest, ImplicitCachingHeadersForCss) {
   ResponseHeaders response_headers;
   FetchFromProxy("text.css", true, &text, &response_headers);
 
-  EXPECT_STREQ(max_age_300_s_maxage_10_, response_headers.LookupJoined(
-      HttpAttributes::kCacheControl));
+  EXPECT_STREQ(max_age_300_s_maxage_10_,
+               response_headers.LookupJoined(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_plus_300s_string_,
                response_headers.Lookup1(HttpAttributes::kExpires));
   EXPECT_STREQ(start_time_string_,
@@ -1193,13 +1167,10 @@ TEST_F(ProxyInterfaceTest, CacheableSizeResource) {
   http_cache()->set_max_cacheable_response_content_length(0);
   // Fetch fails as original is not accessible.
 
-  FetchFromProxy(
-      Encode("", "cf", "0", "a.css", "css"),
-      request_headers,
-      false,  /* expect_success */
-      &text,
-      &headers,
-      false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "cf", "0", "a.css", "css"), request_headers,
+                 false, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
 }
 
 TEST_F(ProxyInterfaceTest, InvalidationForCacheableHtml) {
@@ -1369,12 +1340,11 @@ TEST_F(ProxyInterfaceTest, UrlInvalidationForCacheableHtml) {
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
   EXPECT_EQ(2, lru_cache()->num_misses());
 
-
   // Invalidate the cache for some URL other than 'text.html'.
   std::unique_ptr<RewriteOptions> custom_options_1(
       server_context()->global_options()->Clone());
-  custom_options_1->AddUrlCacheInvalidationEntry(
-      AbsolutifyUrl("foo.bar"), timer()->NowMs(), true);
+  custom_options_1->AddUrlCacheInvalidationEntry(AbsolutifyUrl("foo.bar"),
+                                                 timer()->NowMs(), true);
   SetRewriteOptions(custom_options_1.get());
 
   ClearStats();
@@ -1396,15 +1366,14 @@ TEST_F(ProxyInterfaceTest, UrlInvalidationForCacheableHtml) {
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
   EXPECT_EQ(2, lru_cache()->num_misses());
 
-
   // Invalidate the cache.
   std::unique_ptr<RewriteOptions> custom_options_2(
       server_context()->global_options()->Clone());
   // Strictness of URL cache invalidation entry (last argument below) does not
   // matter in this test since there is nothing cached in metadata or property
   // caches.
-  custom_options_2->AddUrlCacheInvalidationEntry(
-      AbsolutifyUrl("text.html"), timer()->NowMs(), true);
+  custom_options_2->AddUrlCacheInvalidationEntry(AbsolutifyUrl("text.html"),
+                                                 timer()->NowMs(), true);
   SetRewriteOptions(custom_options_2.get());
 
   ClearStats();
@@ -1444,7 +1413,8 @@ TEST_F(ProxyInterfaceTest, NoImplicitCachingHeadersForHtml) {
   GoogleString text;
   ResponseHeaders response_headers;
   FetchFromProxy("text.html", true, &text, &response_headers);
-  EXPECT_STREQ(nullptr, response_headers.Lookup1(HttpAttributes::kCacheControl));
+  EXPECT_STREQ(nullptr,
+               response_headers.Lookup1(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_string_,
                response_headers.Lookup1(HttpAttributes::kDate));
   EXPECT_EQ(kContent, text);
@@ -1495,8 +1465,8 @@ TEST_F(ProxyInterfaceTest, ModifiedImplicitCachingHeadersForCss) {
   GoogleString start_time_plus_500s_string;
   ConvertTimeToString(MockTimer::kApr_5_2010_ms + 500 * Timer::kSecondMs,
                       &start_time_plus_500s_string);
-  EXPECT_STREQ("max-age=500, s-maxage=10", response_headers.LookupJoined(
-      HttpAttributes::kCacheControl));
+  EXPECT_STREQ("max-age=500, s-maxage=10",
+               response_headers.LookupJoined(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_plus_500s_string,
                response_headers.Lookup1(HttpAttributes::kExpires));
   EXPECT_STREQ(start_time_string_,
@@ -1700,7 +1670,8 @@ TEST_F(ProxyInterfaceTest, LastModifiedMatch) {
   request_headers.Add(HttpAttributes::kIfModifiedSince, start_time_string_);
   FetchFromProxy("text.txt", request_headers, true, &text3, &response_headers3);
   EXPECT_EQ(HttpStatus::kNotModified, response_headers3.status_code());
-  EXPECT_STREQ(nullptr, response_headers3.Lookup1(HttpAttributes::kLastModified));
+  EXPECT_STREQ(nullptr,
+               response_headers3.Lookup1(HttpAttributes::kLastModified));
   EXPECT_EQ("", text3);
   // One lookup for ajax metadata and one for the HTTP response. The metadata is
   // not found but the HTTP response is found.
@@ -1743,8 +1714,8 @@ TEST_F(ProxyInterfaceTest, AjaxRewritingForCss) {
   GoogleString text;
   ResponseHeaders response_headers;
   FetchFromProxy("text.css", true, &text, &response_headers);
-  EXPECT_STREQ(max_age_300_s_maxage_10_, response_headers.LookupJoined(
-      HttpAttributes::kCacheControl));
+  EXPECT_STREQ(max_age_300_s_maxage_10_,
+               response_headers.LookupJoined(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_plus_300s_string_,
                response_headers.Lookup1(HttpAttributes::kExpires));
   EXPECT_STREQ(start_time_string_,
@@ -1831,8 +1802,7 @@ TEST_F(ProxyInterfaceTest, FallbackNoAcceptGzip) {
   RewriteOptions* options = server_context()->global_options();
   options->ClearSignatureForTesting();
   options->set_http_cache_compression_level(9);
-  options->set_serve_stale_while_revalidate_threshold_sec(
-      1000 * Timer::kDayMs);
+  options->set_serve_stale_while_revalidate_threshold_sec(1000 * Timer::kDayMs);
   server_context()->ComputeSignature(options);
   ResponseHeaders headers;
   SetTimeMs(MockTimer::kApr_5_2010_ms);
@@ -1848,8 +1818,8 @@ TEST_F(ProxyInterfaceTest, FallbackNoAcceptGzip) {
   ResponseHeaders response_headers;
   FetchFromProxy("text.css", true, &text, &response_headers);
 
-  EXPECT_STREQ(max_age_300_s_maxage_10_, response_headers.LookupJoined(
-      HttpAttributes::kCacheControl));
+  EXPECT_STREQ(max_age_300_s_maxage_10_,
+               response_headers.LookupJoined(HttpAttributes::kCacheControl));
   EXPECT_STREQ(start_time_plus_300s_string_,
                response_headers.Lookup1(HttpAttributes::kExpires));
   EXPECT_STREQ(start_time_string_,
@@ -2037,12 +2007,10 @@ TEST_F(ProxyInterfaceTest, EatCookiesOnReconstructFailure) {
   ResponseHeaders out_response_headers;
   RequestHeaders request_headers;
   GoogleString text;
-  FetchFromProxy(Encode("", "cf", "0", "a.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &out_response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "cf", "0", "a.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &text, &out_response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_EQ(nullptr, out_response_headers.Lookup1(HttpAttributes::kSetCookie));
   EXPECT_EQ(nullptr, out_response_headers.Lookup1(HttpAttributes::kSetCookie2));
 }
@@ -2088,12 +2056,10 @@ TEST_F(ProxyInterfaceTest, RewriteHtml) {
   headers.Clear();
   ClearStats();
   RequestHeaders request_headers;
-  FetchFromProxy(Encode("", "cf", "0", "a.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "cf", "0", "a.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   CheckHeaders(headers, kContentTypeCss);
   // Note that the fetch for the original resource was triggered as a result of
   // the initial HTML request. Hence, its headers indicate that it is a
@@ -2116,18 +2082,14 @@ TEST_F(ProxyInterfaceTest, LogChainedResourceRewrites) {
   SetResponseWithDefaultHeaders("2.js", kContentTypeJavascript, "var abcd=2;",
                                 kHtmlCacheTimeSec * 2);
 
-  GoogleString combined_js_url = Encode(
-      kTestDomain, "jc", "0",
-      "1.js.pagespeed.jm.0.jsX2.js.pagespeed.jm.0.js", "js");
+  GoogleString combined_js_url =
+      Encode(kTestDomain, "jc", "0",
+             "1.js.pagespeed.jm.0.jsX2.js.pagespeed.jm.0.js", "js");
   combined_js_url[combined_js_url.find('X')] = '+';
   RequestHeaders request_headers;
-  FetchFromProxy(
-      combined_js_url,
-      request_headers,
-      true,  /* expect_success */
-      &text,
-      &headers,
-      false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(combined_js_url, request_headers, true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_STREQ("jc,jm", AppliedRewriterStringFromLog());
 }
 
@@ -2157,8 +2119,7 @@ TEST_F(ProxyInterfaceTest, FlushHugeHtml) {
   server_context()->ComputeSignature(options);
 
   FetchFromProxyLoggingFlushes("page.html", true /*success*/, &out);
-  EXPECT_EQ(
-      "<a/><b/><c/>|Flush|<d/><e/><f/>|Flush|<g/><h/>|Flush|", out);
+  EXPECT_EQ("<a/><b/><c/>|Flush|<d/><e/><f/>|Flush|<g/><h/>|Flush|", out);
 
   // And now with 2.5. This means we will flush 2 (as that many are complete),
   // then 5, and 7.
@@ -2167,8 +2128,8 @@ TEST_F(ProxyInterfaceTest, FlushHugeHtml) {
   server_context()->ComputeSignature(options);
 
   FetchFromProxyLoggingFlushes("page.html", true /*success*/, &out);
-  EXPECT_EQ(
-      "<a/><b/>|Flush|<c/><d/><e/>|Flush|<f/><g/>|Flush|<h/>|Flush|", out);
+  EXPECT_EQ("<a/><b/>|Flush|<c/><d/><e/>|Flush|<f/><g/>|Flush|<h/>|Flush|",
+            out);
 
   // Now 9 bytes, e.g. 2 1/4 of a self-closing tag. Looks almost the same as
   // every 2 self-closing tags (8 bytes), but we don't get an extra flush
@@ -2177,17 +2138,16 @@ TEST_F(ProxyInterfaceTest, FlushHugeHtml) {
   options->set_flush_buffer_limit_bytes(9);
   server_context()->ComputeSignature(options);
   FetchFromProxyLoggingFlushes("page.html", true /*success*/, &out);
-  EXPECT_EQ(
-      "<a/><b/>|Flush|<c/><d/>|Flush|<e/><f/>|Flush|<g/><h/>|Flush|",
-      out);
+  EXPECT_EQ("<a/><b/>|Flush|<c/><d/>|Flush|<e/><f/>|Flush|<g/><h/>|Flush|",
+            out);
 }
 
 TEST_F(ProxyInterfaceTest, DontRewriteDisallowedHtml) {
   // Blacklisted URL should not be rewritten.
   SetResponseWithDefaultHeaders("blacklist.html", kContentTypeHtml,
                                 CssLinkHref("a.css"), kHtmlCacheTimeSec * 2),
-  SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent,
-                                kHtmlCacheTimeSec * 2);
+      SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent,
+                                    kHtmlCacheTimeSec * 2);
 
   GoogleString text;
   ResponseHeaders headers;
@@ -2202,8 +2162,8 @@ TEST_F(ProxyInterfaceTest, DontRewriteDisallowedHtmlRejectMode) {
   RejectBlacklisted();
   SetResponseWithDefaultHeaders("blacklistCoffee.html", kContentTypeHtml,
                                 CssLinkHref("a.css"), kHtmlCacheTimeSec * 2),
-  SetResponseWithDefaultHeaders("tea.html", kContentTypeHtml,
-                                "tasty", kHtmlCacheTimeSec * 2);
+      SetResponseWithDefaultHeaders("tea.html", kContentTypeHtml, "tasty",
+                                    kHtmlCacheTimeSec * 2);
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent,
                                 kHtmlCacheTimeSec * 2);
 
@@ -2244,12 +2204,10 @@ TEST_F(ProxyInterfaceTest, ReconstructResource) {
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent,
                                 kHtmlCacheTimeSec * 2);
   RequestHeaders request_headers;
-  FetchFromProxy(Encode("", "cf", "0", "a.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "cf", "0", "a.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   CheckHeaders(headers, kContentTypeCss);
   headers.ComputeCaching();
   CheckBackgroundFetch(headers, false);
@@ -2269,9 +2227,10 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   // to really be an image.
   SetResponseWithDefaultHeaders(kBackgroundImage, kContentTypePng, "image",
                                 kHtmlCacheTimeSec * 2);
-  GoogleString orig_css = absl::StrFormat(kCssWithEmbeddedImage, kBackgroundImage);
-  SetResponseWithDefaultHeaders("embedded.css", kContentTypeCss,
-                                orig_css, kHtmlCacheTimeSec * 2);
+  GoogleString orig_css =
+      absl::StrFormat(kCssWithEmbeddedImage, kBackgroundImage);
+  SetResponseWithDefaultHeaders("embedded.css", kContentTypeCss, orig_css,
+                                kHtmlCacheTimeSec * 2);
 
   // By default, cache extension is off in the default options.
   server_context()->global_options()->SetDefaultRewriteLevel(
@@ -2285,18 +2244,17 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   // Because cache-extension was turned off, the image in the CSS file
   // will not be changed.
   RequestHeaders request_headers;
-  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css",
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css", request_headers,
+                 true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_EQ(orig_css, text);
 
   // Now turn on cache-extension for custom options.  Invalidate cache entries
   // up to and including the current timestamp and advance by 1ms, otherwise
   // the previously stored embedded.css.pagespeed.cf.0.css will get re-used.
-  std::unique_ptr<RewriteOptions> custom_options(factory()->NewRewriteOptions());
+  std::unique_ptr<RewriteOptions> custom_options(
+      factory()->NewRewriteOptions());
   custom_options->EnableFilter(RewriteOptions::kExtendCacheCss);
   custom_options->EnableFilter(RewriteOptions::kExtendCacheImages);
   custom_options->EnableFilter(RewriteOptions::kExtendCacheScripts);
@@ -2314,15 +2272,13 @@ TEST_F(ProxyInterfaceTest, ReconstructResourceCustomOptions) {
   // Now when we fetch the options, we'll find the image in the CSS
   // cache-extended.
   text.clear();
-  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css",
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
-  EXPECT_EQ (absl::StrFormat(kCssWithEmbeddedImage,
-                         kExtendedBackgroundImage.c_str()),
-            text);
+  FetchFromProxy("I.embedded.css.pagespeed.cf.0.css", request_headers,
+                 true, /* expect_success */
+                 &text, &headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
+  EXPECT_EQ(
+      absl::StrFormat(kCssWithEmbeddedImage, kExtendedBackgroundImage.c_str()),
+      text);
 }
 
 TEST_F(ProxyInterfaceTest, MinResourceTimeZero) {
@@ -2330,8 +2286,8 @@ TEST_F(ProxyInterfaceTest, MinResourceTimeZero) {
   options->ClearSignatureForTesting();
   options->SetRewriteLevel(RewriteOptions::kPassThrough);
   options->EnableFilter(RewriteOptions::kRewriteCss);
-  options->set_min_resource_cache_time_to_rewrite_ms(
-      kHtmlCacheTimeSec * Timer::kSecondMs);
+  options->set_min_resource_cache_time_to_rewrite_ms(kHtmlCacheTimeSec *
+                                                     Timer::kSecondMs);
   SetRewriteOptions(options);
 
   SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml,
@@ -2350,8 +2306,8 @@ TEST_F(ProxyInterfaceTest, MinResourceTimeLarge) {
   options->ClearSignatureForTesting();
   options->SetRewriteLevel(RewriteOptions::kPassThrough);
   options->EnableFilter(RewriteOptions::kRewriteCss);
-  options->set_min_resource_cache_time_to_rewrite_ms(
-      4 * kHtmlCacheTimeSec * Timer::kSecondMs);
+  options->set_min_resource_cache_time_to_rewrite_ms(4 * kHtmlCacheTimeSec *
+                                                     Timer::kSecondMs);
   server_context()->ComputeSignature(options);
 
   SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml,
@@ -2410,14 +2366,13 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnProxy) {
   GoogleString out_text;
 
   // We should not cache while fetching via kProxyHost.
-  FetchFromProxy(
-      StrCat("http://", ProxyUrlNamer::kProxyHost,
-             "/test.com/test.com/style.css"),
-      true, &out_text, &out_headers);
+  FetchFromProxy(StrCat("http://", ProxyUrlNamer::kProxyHost,
+                        "/test.com/test.com/style.css"),
+                 true, &out_text, &out_headers);
   EXPECT_EQ("a", out_text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(2, lru_cache()->num_misses());  // mapping, input resource
+  EXPECT_EQ(2, lru_cache()->num_misses());            // mapping, input resource
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());  // input resource
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
@@ -2429,7 +2384,7 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnProxy) {
   EXPECT_EQ("a", out_text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(2, lru_cache()->num_misses());  // mapping, input resource
+  EXPECT_EQ(2, lru_cache()->num_misses());            // mapping, input resource
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());  // input resource
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
@@ -2443,7 +2398,7 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnProxy) {
   EXPECT_EQ("b", out_text);
   EXPECT_EQ(0, lru_cache()->num_hits());
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
-  EXPECT_EQ(2, lru_cache()->num_misses());  // mapping, input resource
+  EXPECT_EQ(2, lru_cache()->num_misses());            // mapping, input resource
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());  // input resource
   EXPECT_EQ(0, lru_cache()->num_inserts());
   EXPECT_EQ(0, http_cache()->cache_inserts()->Get());
@@ -2470,12 +2425,10 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnResourceFetch) {
   GoogleString out_text;
 
   // cf is not on-the-fly, and we can reconstruct it while keeping it private.
-  FetchFromProxy(Encode("", "cf", "0", "style.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &out_text,
-                 &out_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "cf", "0", "style.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &out_text, &out_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(out_headers.HasValue(HttpAttributes::kCacheControl, "private"));
   EXPECT_EQ("a", out_text);
   EXPECT_EQ(0, lru_cache()->num_hits());
@@ -2488,30 +2441,26 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnResourceFetch) {
   out_text.clear();
   ClearStats();
   // ce is on-the-fly, and we can recover even though style.css is private.
-  FetchFromProxy(Encode("", "ce", "0", "style.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &out_text,
-                 &out_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "ce", "0", "style.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &out_text, &out_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(out_headers.HasValue(HttpAttributes::kCacheControl, "private"));
   EXPECT_EQ("a", out_text);
   EXPECT_EQ(1, lru_cache()->num_hits());  // input uncacheable memo
   EXPECT_EQ(0, http_cache()->cache_hits()->Get());
   EXPECT_EQ(1, lru_cache()->num_misses());
   EXPECT_EQ(1, http_cache()->cache_misses()->Get());  // input uncacheable memo
-  EXPECT_EQ(1, lru_cache()->num_inserts());  // mapping
+  EXPECT_EQ(1, lru_cache()->num_inserts());           // mapping
   EXPECT_EQ(1, lru_cache()->num_identical_reinserts());  // uncacheable memo
-  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());  // uncacheable memo
+  EXPECT_EQ(1, http_cache()->cache_inserts()->Get());    // uncacheable memo
 
   out_text.clear();
   ClearStats();
-  FetchFromProxy(Encode("", "ce", "0", "style.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &out_text,
-                 &out_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "ce", "0", "style.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &out_text, &out_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(out_headers.HasValue(HttpAttributes::kCacheControl, "private"));
   EXPECT_EQ("a", out_text);
   EXPECT_EQ(2, lru_cache()->num_hits());  // uncacheable memo & modified check
@@ -2527,12 +2476,10 @@ TEST_F(ProxyInterfaceTest, UncacheableResourcesNotCachedOnResourceFetch) {
   SetFetchResponse(AbsolutifyUrl("style.css"), resource_headers, "b");
   out_text.clear();
   ClearStats();
-  FetchFromProxy(Encode("", "ce", "0", "style.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &out_text,
-                 &out_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "ce", "0", "style.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &out_text, &out_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_TRUE(out_headers.HasValue(HttpAttributes::kCacheControl, "private"));
   EXPECT_EQ("b", out_text);
   EXPECT_EQ(2, lru_cache()->num_hits());  // uncacheable memo & modified-check
@@ -2740,10 +2687,9 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeaders) {
   server_context()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
-  FetchFromProxy(
-      StrCat("http://", ProxyUrlNamer::kProxyHost,
-             "/test.com/test.com/file.css"),
-      true, &out_text, &out_headers);
+  FetchFromProxy(StrCat("http://", ProxyUrlNamer::kProxyHost,
+                        "/test.com/test.com/file.css"),
+                 true, &out_text, &out_headers);
   EXPECT_STREQ(kText, out_text);
   EXPECT_STREQ(nullptr, out_headers.Lookup1(HttpAttributes::kSetCookie));
 }
@@ -2753,10 +2699,9 @@ TEST_F(ProxyInterfaceTest, CrossDomainRedirectIfBlacklisted) {
   server_context()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
-  FetchFromProxy(
-      StrCat("http://", ProxyUrlNamer::kProxyHost,
-             "/test.com/test1.com/blacklist.css"),
-      false, &out_text, &out_headers);
+  FetchFromProxy(StrCat("http://", ProxyUrlNamer::kProxyHost,
+                        "/test.com/test1.com/blacklist.css"),
+                 false, &out_text, &out_headers);
   EXPECT_STREQ("", out_text);
   EXPECT_EQ(HttpStatus::kFound, out_headers.status_code());
   EXPECT_STREQ("http://test1.com/blacklist.css",
@@ -2784,7 +2729,7 @@ TEST_F(ProxyInterfaceTest, CrossDomainAuthorization) {
   // Using .txt here so we don't try any AJAX rewriting.
   FetchFromProxy(StrCat("http://", ProxyUrlNamer::kProxyHost,
                         "/test.com/test.com/file.txt"),
-                 request_headers,  true, &out_text, &out_headers);
+                 request_headers, true, &out_text, &out_headers);
   EXPECT_STREQ("Here", out_headers.Lookup1("Was"));
   EXPECT_FALSE(out_headers.Has(HttpAttributes::kAuthorization));
   EXPECT_FALSE(out_headers.Has(HttpAttributes::kProxyAuthorization));
@@ -2809,10 +2754,9 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnProxy) {
   server_context()->set_url_namer(&url_namer);
   ResponseHeaders out_headers;
   GoogleString out_text;
-  FetchFromProxy(
-      StrCat("http://", ProxyUrlNamer::kProxyHost,
-             "/test.com/test.com/file.css"),
-      true, &out_text, &out_headers);
+  FetchFromProxy(StrCat("http://", ProxyUrlNamer::kProxyHost,
+                        "/test.com/test.com/file.css"),
+                 true, &out_text, &out_headers);
 
   // Check that we ate the cookies.
   EXPECT_STREQ(kText, out_text);
@@ -2849,12 +2793,8 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch) {
   ResponseHeaders out_headers;
   GoogleString out_text;
   RequestHeaders request_headers;
-  FetchFromProxy(Encode("", "ce", "0", "file.css", "css"),
-                 request_headers,
-                 true,
-                 &out_text,
-                 &out_headers,
-                 false);
+  FetchFromProxy(Encode("", "ce", "0", "file.css", "css"), request_headers,
+                 true, &out_text, &out_headers, false);
 
   // Check that we passed through the CSS.
   EXPECT_STREQ(kText, out_text);
@@ -2867,8 +2807,8 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch) {
   // max-age actually gets smaller, though, since this also triggers
   // a rewrite failure.
   values.clear();
-  EXPECT_STREQ("max-age=300, private", out_headers.LookupJoined(
-      HttpAttributes::kCacheControl));
+  EXPECT_STREQ("max-age=300, private",
+               out_headers.LookupJoined(HttpAttributes::kCacheControl));
 }
 
 TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch2) {
@@ -2888,18 +2828,16 @@ TEST_F(ProxyInterfaceTest, CrossDomainHeadersWithUncacheableResourceOnFetch2) {
   ResponseHeaders out_headers;
   GoogleString out_text;
   RequestHeaders request_headers;
-  FetchFromProxy(Encode("", "cf", "0", "file.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &out_text,
-                 &out_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "cf", "0", "file.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &out_text, &out_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   // Proper output
   EXPECT_STREQ("*{pretty}", out_text);
 
   // Private.
-  EXPECT_STREQ("max-age=400, private", out_headers.LookupJoined(
-      HttpAttributes::kCacheControl));
+  EXPECT_STREQ("max-age=400, private",
+               out_headers.LookupJoined(HttpAttributes::kCacheControl));
 
   // Check that we ate the cookies.
   EXPECT_FALSE(out_headers.Has(HttpAttributes::kSetCookie));
@@ -2919,14 +2857,11 @@ TEST_F(ProxyInterfaceTest, ProxyResourceQueryOnly) {
   GoogleString out_text;
   RequestHeaders request_headers;
   FetchFromProxy(
-      StrCat("http://", ProxyUrlNamer::kProxyHost,
-             "/test.com/test.com/",
+      StrCat("http://", ProxyUrlNamer::kProxyHost, "/test.com/test.com/",
              EncodeNormal("", "jm", "0", kUrl, "css")),
-      request_headers,
-      true,  /* expect_success */
-      &out_text,
-      &out_headers,
-      false  /* proxy_fetch_property_callback_collector_created */);
+      request_headers, true, /* expect_success */
+      &out_text, &out_headers,
+      false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_STREQ("var a=2;", out_text);
   CheckBackgroundFetch(out_headers, false);
 }
@@ -2946,14 +2881,11 @@ TEST_F(ProxyInterfaceTest, NoRehostIncompatMPS) {
   GoogleString out_text;
   RequestHeaders request_headers;
   FetchFromProxy(
-      StrCat("http://", ProxyUrlNamer::kProxyHost,
-             "/test.com/test.com/",
+      StrCat("http://", ProxyUrlNamer::kProxyHost, "/test.com/test.com/",
              EncodeNormal("", "ce", "0", kOldName, "css")),
-      request_headers,
-      true,  /* expect_success */
-      &out_text,
-      &out_headers,
-      false  /* proxy_fetch_property_callback_collector_created */);
+      request_headers, true, /* expect_success */
+      &out_text, &out_headers,
+      false /* proxy_fetch_property_callback_collector_created */);
   EXPECT_EQ(HttpStatus::kOK, out_headers.status_code());
   EXPECT_STREQ(kContent, out_text);
 }
@@ -2966,8 +2898,7 @@ TEST_F(ProxyInterfaceTest, NoStore) {
   server_context()->ComputeSignature(options);
 
   // Most headers get converted to "no-cache, max-age=0".
-  EXPECT_STREQ("max-age=0, no-cache",
-               RewriteHtmlCacheHeader("empty", ""));
+  EXPECT_STREQ("max-age=0, no-cache", RewriteHtmlCacheHeader("empty", ""));
   EXPECT_STREQ("max-age=0, no-cache",
                RewriteHtmlCacheHeader("private", "private, max-age=100"));
   EXPECT_STREQ("max-age=0, no-cache",
@@ -3080,8 +3011,8 @@ TEST_F(ProxyInterfaceTest, StatusCodePropertyWritten) {
             GetStatusCodeInPropertyCache(StrCat(kTestDomain, kPageUrl)));
 
   // Status code 200 gets written when page is available.
-  SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml,
-                                "<html></html>", kHtmlCacheTimeSec);
+  SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml, "<html></html>",
+                                kHtmlCacheTimeSec);
   lru_cache()->Clear();
   FetchFromProxy(kPageUrl, true, &text_out, &headers_out);
   EXPECT_EQ(HttpStatus::kOK,
@@ -3241,8 +3172,8 @@ TEST_F(ProxyInterfaceTest, HeadersSetupRace) {
   {
     // Trigger the idle-callback, if it has been queued.
     ScopedMutex lock(mock_scheduler()->mutex());
-    mock_scheduler()->ProcessAlarmsOrWaitUs(
-        kIdleCallbackTimeoutMs * Timer::kMsUs);
+    mock_scheduler()->ProcessAlarmsOrWaitUs(kIdleCallbackTimeoutMs *
+                                            Timer::kMsUs);
   }
   sync->Wait(ProxyFetch::kHeadersSetupRaceDone);
   sync_point.Wait();
@@ -3264,11 +3195,12 @@ TEST_F(ProxyInterfaceTest, ExperimentTest) {
   options->AddExperimentSpec("id=2;enable=extend_cache;percent=100", &handler);
   server_context()->ComputeSignature(options);
 
-  SetResponseWithDefaultHeaders("example.jpg", kContentTypeJpeg,
-                                "image data", 300);
+  SetResponseWithDefaultHeaders("example.jpg", kContentTypeJpeg, "image data",
+                                300);
 
   ResponseHeaders headers;
-  const char kContent[] = "<html><head></head><body>A very compelling "
+  const char kContent[] =
+      "<html><head></head><body>A very compelling "
       "article with an image: <img src=example.jpg></body></html>";
   headers.Add(HttpAttributes::kContentType, kContentTypeHtml.mime_type());
   headers.SetStatusAndReason(HttpStatus::kOK);
@@ -3333,15 +3265,15 @@ TEST_F(ProxyInterfaceTest, UrlAttributeTest) {
   NullMessageHandler handler;
   options->WriteableDomainLawyer()->AddRewriteDomainMapping(
       "http://dst.example.com", "http://src.example.com", &handler);
-  options->AddUrlValuedAttribute(
-      "span", "src", semantic_type::kHyperlink);
+  options->AddUrlValuedAttribute("span", "src", semantic_type::kHyperlink);
   options->AddUrlValuedAttribute("hr", "imgsrc", semantic_type::kImage);
   server_context()->ComputeSignature(options);
 
-  SetResponseWithDefaultHeaders(
-      "http://src.example.com/null", kContentTypeHtml, "", 0);
+  SetResponseWithDefaultHeaders("http://src.example.com/null", kContentTypeHtml,
+                                "", 0);
   ResponseHeaders headers;
-  const char kContent[] = "<html><head></head><body>"
+  const char kContent[] =
+      "<html><head></head><body>"
       "<img src=\"http://src.example.com/null\">"
       "<hr imgsrc=\"http://src.example.com/null\">"
       "<span src=\"http://src.example.com/null\"></span>"
@@ -3388,16 +3320,15 @@ TEST_F(ProxyInterfaceTest, TestNoFallbackCallWithNoLeaf) {
   GoogleUrl gurl("http://www.test.com/");
   options()->set_use_fallback_property_cache_values(true);
   StringAsyncFetch callback(
-      RequestContext::NewTestRequestContext(
-          server_context()->thread_system()));
+      RequestContext::NewTestRequestContext(server_context()->thread_system()));
   RequestHeaders request_headers;
   callback.set_request_headers(&request_headers);
   std::unique_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
-      proxy_interface_->InitiatePropertyCacheLookup(
-          false, gurl, options(), &callback));
+      proxy_interface_->InitiatePropertyCacheLookup(false, gurl, options(),
+                                                    &callback));
 
   PropertyPage* fallback_page = callback_collector->fallback_property_page()
-      ->property_page_with_fallback_values();
+                                    ->property_page_with_fallback_values();
   // No PropertyPage with fallback values.
   EXPECT_EQ(nullptr, fallback_page);
 }
@@ -3409,8 +3340,8 @@ TEST_F(ProxyInterfaceTest, TestSkipBlinkCohortLookUp) {
   RequestHeaders request_headers;
   callback.set_request_headers(&request_headers);
   std::unique_ptr<ProxyFetchPropertyCallbackCollector> callback_collector(
-      proxy_interface_->InitiatePropertyCacheLookup(
-          false, gurl, options(), &callback));
+      proxy_interface_->InitiatePropertyCacheLookup(false, gurl, options(),
+                                                    &callback));
 
   // Cache lookup only for dom cohort.
   EXPECT_EQ(0, lru_cache()->num_hits());
@@ -3429,7 +3360,8 @@ TEST_F(ProxyInterfaceTest, BailOutOfParsing) {
                                 "image", kHtmlCacheTimeSec * 2);
 
   // This is larger than 60 bytes.
-  const char kContent[] = "<html><head></head><body>"
+  const char kContent[] =
+      "<html><head></head><body>"
       "<img src=\"1.jpg\">"
       "<p>Some very long and very boring text</p>"
       "</body></html>";
@@ -3453,8 +3385,9 @@ TEST_F(ProxyInterfaceTest, BailOutOfParsing) {
   EXPECT_EQ(kContent, text);
 
   // This is smaller than 60 bytes.
-  const char kNewContent[] = "<html><head></head><body>"
-       "<img src=\"1.jpg\"></body></html>";
+  const char kNewContent[] =
+      "<html><head></head><body>"
+      "<img src=\"1.jpg\"></body></html>";
 
   SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml, kNewContent, 0);
   headers.Clear();
@@ -3469,9 +3402,11 @@ TEST_F(ProxyInterfaceTest, BailOutOfParsing) {
   text.clear();
   // This request is rewritten.
   FetchFromProxy(kPageUrl, true, &text, &headers);
-  EXPECT_EQ("<html><head></head><body>"
-            "<img src=\"1.jpg.pagespeed.ce.0.jpg\">"
-            "</body></html>", text);
+  EXPECT_EQ(
+      "<html><head></head><body>"
+      "<img src=\"1.jpg.pagespeed.ce.0.jpg\">"
+      "</body></html>",
+      text);
 }
 
 TEST_F(ProxyInterfaceTest, LoggingInfoRewriteInfoMaxSize) {
@@ -3487,7 +3422,7 @@ TEST_F(ProxyInterfaceTest, LoggingInfoRewriteInfoMaxSize) {
   for (int i = 0; i < 50; ++i) {
     StrAppend(&content, "<img src=\"1.jpg\">");
   }
-  StrAppend(&content,  "</body></html>");
+  StrAppend(&content, "</body></html>");
 
   SetResponseWithDefaultHeaders(kPageUrl, kContentTypeHtml, content, 0);
   ResponseHeaders headers;
@@ -3518,32 +3453,26 @@ TEST_F(ProxyInterfaceTest, WebpImageReconstruction) {
 
   const GoogleString kWebpUrl = Encode("", "ic", "0", "1.jpg", "webp");
 
-  FetchFromProxy(
-      kWebpUrl,
-      request_headers,
-      true,  /* expect_success */
-      &text,
-      &response_headers,
-      false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(kWebpUrl, request_headers, true, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   response_headers.ComputeCaching();
   EXPECT_STREQ(kContentTypeWebp.mime_type(),
                response_headers.Lookup1(HttpAttributes::kContentType));
   EXPECT_EQ(ServerContext::kGeneratedMaxAgeMs, response_headers.cache_ttl_ms());
 
   const char kCssWithEmbeddedImage[] = "*{background-image:url(%s)}";
-  SetResponseWithDefaultHeaders(
-      "embedded.css", kContentTypeCss,
-      absl::StrFormat(kCssWithEmbeddedImage, "1.jpg"), kHtmlCacheTimeSec * 2);
+  SetResponseWithDefaultHeaders("embedded.css", kContentTypeCss,
+                                absl::StrFormat(kCssWithEmbeddedImage, "1.jpg"),
+                                kHtmlCacheTimeSec * 2);
 
-  FetchFromProxy(Encode("", "cf", "0", "embedded.css", "css"),
-                 request_headers,
-                 true,  /* expect_success */
-                 &text,
-                 &response_headers,
-                 false  /* proxy_fetch_property_callback_collector_created */);
+  FetchFromProxy(Encode("", "cf", "0", "embedded.css", "css"), request_headers,
+                 true, /* expect_success */
+                 &text, &response_headers,
+                 false /* proxy_fetch_property_callback_collector_created */);
   response_headers.ComputeCaching();
   EXPECT_EQ(ServerContext::kGeneratedMaxAgeMs, response_headers.cache_ttl_ms());
-  EXPECT_EQ (absl::StrFormat(kCssWithEmbeddedImage, kWebpUrl.c_str()), text);
+  EXPECT_EQ(absl::StrFormat(kCssWithEmbeddedImage, kWebpUrl.c_str()), text);
 }
 
 class ProxyInterfaceOriginPropertyPageTest : public ProxyInterfaceTest {

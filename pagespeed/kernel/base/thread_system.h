@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -47,7 +47,7 @@ class ThreadSystem {
 
   class LOCKABLE CondvarCapableMutex : public AbstractMutex {
    public:
-    CondvarCapableMutex() { }
+    CondvarCapableMutex() {}
     ~CondvarCapableMutex() override;
 
     // Creates a new condition variable associated with 'this' mutex.
@@ -126,10 +126,7 @@ class ThreadSystem {
     DISALLOW_COPY_AND_ASSIGN(ThreadId);
   };
 
-  enum ThreadFlags {
-    kDetached = 0,
-    kJoinable = 1
-  };
+  enum ThreadFlags { kDetached = 0, kJoinable = 1 };
 
   virtual ~ThreadSystem();
   ThreadSystem() {}

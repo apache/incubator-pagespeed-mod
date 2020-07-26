@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/frame_interface_optimizer.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,7 +28,6 @@
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/frame_interface_optimizer.h"
 #include "pagespeed/kernel/image/image_frame_interface.h"
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/test_utils.h"
@@ -39,13 +39,12 @@ using net_instaweb::NullMutex;
 using pagespeed::image_compression::FrameSpec;
 using pagespeed::image_compression::GRAY_8;
 using pagespeed::image_compression::ImageSpec;
+using pagespeed::image_compression::kAlphaTransparent;
 using pagespeed::image_compression::MultipleFramePaddingReader;
 using pagespeed::image_compression::MultipleFrameReader;
 using pagespeed::image_compression::PixelFormat;
 using pagespeed::image_compression::PixelRgbaChannels;
 using pagespeed::image_compression::PixelRgbaChannelsToString;
-using pagespeed::image_compression::RgbaChannels;
-using pagespeed::image_compression::RgbaToPackedRgba;
 using pagespeed::image_compression::RGB_888;
 using pagespeed::image_compression::RGBA_8888;
 using pagespeed::image_compression::RGBA_ALPHA;
@@ -53,11 +52,12 @@ using pagespeed::image_compression::RGBA_BLUE;
 using pagespeed::image_compression::RGBA_GREEN;
 using pagespeed::image_compression::RGBA_NUM_CHANNELS;
 using pagespeed::image_compression::RGBA_RED;
-using pagespeed::image_compression::ScanlineStatus;
+using pagespeed::image_compression::RgbaChannels;
+using pagespeed::image_compression::RgbaToPackedRgba;
 using pagespeed::image_compression::SCANLINE_STATUS_INVOCATION_ERROR;
 using pagespeed::image_compression::SCANLINE_STATUS_SUCCESS;
 using pagespeed::image_compression::SCANLINE_UNKNOWN;
-using pagespeed::image_compression::kAlphaTransparent;
+using pagespeed::image_compression::ScanlineStatus;
 using pagespeed::image_compression::size_px;
 
 // Fake reader class that synthesizes a series of frames whose specs are
@@ -65,13 +65,12 @@ using pagespeed::image_compression::size_px;
 // bit-wise inverse of the image background color.
 class FakeReader : public MultipleFrameReader {
  public:
-  FakeReader(const ImageSpec& image_spec,
-             const std::vector<FrameSpec>& frames,
-             MessageHandler* handler) :
-      MultipleFrameReader(handler),
-      image_spec_(image_spec),
-      frames_(frames),
-      state_(UNINITIALIZED) {
+  FakeReader(const ImageSpec& image_spec, const std::vector<FrameSpec>& frames,
+             MessageHandler* handler)
+      : MultipleFrameReader(handler),
+        image_spec_(image_spec),
+        frames_(frames),
+        state_(UNINITIALIZED) {
     Reset();
   }
 
@@ -86,13 +85,9 @@ class FakeReader : public MultipleFrameReader {
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  ScanlineStatus Initialize() override {
-    return Reset();
-  }
+  ScanlineStatus Initialize() override { return Reset(); }
 
-  bool HasMoreFrames() const override {
-    return (next_frame_ < frames_.size());
-  }
+  bool HasMoreFrames() const override { return (next_frame_ < frames_.size()); }
 
   bool HasMoreScanlines() const override {
     return (current_scanline_ < frames_[current_frame_].height);
@@ -100,8 +95,7 @@ class FakeReader : public MultipleFrameReader {
 
   static void GetForegroundColor(const PixelRgbaChannels bg_color,
                                  PixelRgbaChannels fg_color) {
-    for (int channel = 0;
-         channel < static_cast<int>(RGBA_NUM_CHANNELS);
+    for (int channel = 0; channel < static_cast<int>(RGBA_NUM_CHANNELS);
          ++channel) {
       fg_color[channel] = ~bg_color[channel];
     }
@@ -109,8 +103,7 @@ class FakeReader : public MultipleFrameReader {
 
   ScanlineStatus PrepareNextFrame() override {
     if ((state_ < INITIALIZED) || !HasMoreFrames()) {
-      return ScanlineStatus(SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_UNKNOWN,
+      return ScanlineStatus(SCANLINE_STATUS_INVOCATION_ERROR, SCANLINE_UNKNOWN,
                             "FakeReader::PrepareNextFrame called unexpectedly");
     }
 
@@ -124,8 +117,7 @@ class FakeReader : public MultipleFrameReader {
     PixelRgbaChannels foreground_color;
     GetForegroundColor(image_spec_.bg_color, foreground_color);
     for (int i = 0; i < frame.width; ++i) {
-      memcpy(&scanline_[i * bytes_per_pixel],
-             foreground_color,
+      memcpy(&scanline_[i * bytes_per_pixel], foreground_color,
              bytes_per_pixel);
     }
 
@@ -136,8 +128,7 @@ class FakeReader : public MultipleFrameReader {
   ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override {
     if (((state_ != FRAME_PREPARED) && (state_ != SCANLINE_READ)) ||
         (!HasMoreScanlines())) {
-      return ScanlineStatus(SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_UNKNOWN,
+      return ScanlineStatus(SCANLINE_STATUS_INVOCATION_ERROR, SCANLINE_UNKNOWN,
                             "FakeReader::ReadNextScanline called unexpectedly");
     }
 
@@ -158,12 +149,7 @@ class FakeReader : public MultipleFrameReader {
   }
 
  private:
-  enum State {
-    UNINITIALIZED = 0,
-    INITIALIZED,
-    FRAME_PREPARED,
-    SCANLINE_READ
-  };
+  enum State { UNINITIALIZED = 0, INITIALIZED, FRAME_PREPARED, SCANLINE_READ };
   ImageSpec image_spec_;
   std::vector<FrameSpec> frames_;
 
@@ -186,14 +172,12 @@ void VerifyPixels(const void* const scanline, size_px start, size_px end,
   for (size_px idx = start; idx < end; ++idx) {
     // We ASSERT rather than EXPECT here because, in case of failure,
     // we don't want a log message for every single pixel.
-    ASSERT_EQ(0,
-              memcmp(
-                  static_cast<const uint8_t*>(scanline) + idx * bytes_per_pixel,
-                  color,
-                  bytes_per_pixel))
+    ASSERT_EQ(
+        0, memcmp(static_cast<const uint8_t*>(scanline) + idx * bytes_per_pixel,
+                  color, bytes_per_pixel))
         << "[" << start << "," << end << "](bpp:" << bytes_per_pixel << ") "
         << "got: "
-        << PixelRgbaChannelsToString(static_cast<const uint8_t *>(scanline) +
+        << PixelRgbaChannelsToString(static_cast<const uint8_t*>(scanline) +
                                      idx * bytes_per_pixel)
         << "want: " << PixelRgbaChannelsToString(color);
   }
@@ -201,9 +185,7 @@ void VerifyPixels(const void* const scanline, size_px start, size_px end,
 
 class MultipleFramePaddingReaderTest : public testing::Test {
  public:
-  MultipleFramePaddingReaderTest()
-      : message_handler_(new NullMutex) {
-  }
+  MultipleFramePaddingReaderTest() : message_handler_(new NullMutex) {}
 
  protected:
   // Tests that an image with 'image_spec' and a series of frames
@@ -214,9 +196,8 @@ class MultipleFramePaddingReaderTest : public testing::Test {
                            const std::vector<FrameSpec>& all_frames) {
     static const PixelRgbaChannels kTransparent = {0, 0, 0, kAlphaTransparent};
 
-    std::unique_ptr<MultipleFrameReader> padder(
-        new MultipleFramePaddingReader(
-            new FakeReader(image_spec, all_frames, &message_handler_)));
+    std::unique_ptr<MultipleFrameReader> padder(new MultipleFramePaddingReader(
+        new FakeReader(image_spec, all_frames, &message_handler_)));
 
     PixelRgbaChannels fg_color;
     FakeReader::GetForegroundColor(image_spec.bg_color, fg_color);
@@ -249,23 +230,23 @@ class MultipleFramePaddingReaderTest : public testing::Test {
         size_px foreground_start = 0;
         size_px foreground_end = 0;
 
-        if ((line_idx >=frame_orig.top) &&
+        if ((line_idx >= frame_orig.top) &&
             (line_idx < (frame_orig.top + frame_orig.height))) {
           foreground_start = image_spec.TruncateXIndex(frame_orig.left);
-          foreground_end = image_spec.TruncateXIndex(frame_orig.left +
-                                                     frame_orig.width);
+          foreground_end =
+              image_spec.TruncateXIndex(frame_orig.left + frame_orig.width);
         }
 
-        VerifyPixels(scanline, 0, foreground_start,
-                     (image_spec.use_bg_color ?
-                      image_spec.bg_color : kTransparent),
+        VerifyPixels(
+            scanline, 0, foreground_start,
+            (image_spec.use_bg_color ? image_spec.bg_color : kTransparent),
+            frame_spec.pixel_format);
+        VerifyPixels(scanline, foreground_start, foreground_end, fg_color,
                      frame_spec.pixel_format);
-        VerifyPixels(scanline, foreground_start, foreground_end,
-                     fg_color, frame_spec.pixel_format);
-        VerifyPixels(scanline, foreground_end, image_spec.width,
-                     (image_spec.use_bg_color ?
-                      image_spec.bg_color : kTransparent),
-                     frame_spec.pixel_format);
+        VerifyPixels(
+            scanline, foreground_end, image_spec.width,
+            (image_spec.use_bg_color ? image_spec.bg_color : kTransparent),
+            frame_spec.pixel_format);
       }
       EXPECT_FALSE(padder->HasMoreScanlines());
     }
@@ -337,7 +318,6 @@ class MultipleFramePaddingReaderTest : public testing::Test {
  private:
   DISALLOW_COPY_AND_ASSIGN(MultipleFramePaddingReaderTest);
 };
-
 
 TEST_F(MultipleFramePaddingReaderTest, ReaderPadsRGBA_8888) {
   TestReaderPadsAllFrames(RGBA_8888, true);

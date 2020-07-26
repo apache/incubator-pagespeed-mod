@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_STATIC_ASSET_MANAGER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_STATIC_ASSET_MANAGER_H_
 
+#include <cstddef>  // for size_t
 #include <map>
 #include <vector>
-#include <cstddef>                     // for size_t
 
 #include "net/instaweb/rewriter/static_asset_config.pb.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -52,15 +51,11 @@ class StaticAssetManager {
   static const char kGStaticBase[];
   static const char kDefaultLibraryUrlPrefix[];
 
-  enum ConfigurationMode {
-    kInitialConfiguration,
-    kUpdateConfiguration
-  };
+  enum ConfigurationMode { kInitialConfiguration, kUpdateConfiguration };
 
   // static_asset_base is path on this host we serve resources from.
   StaticAssetManager(const GoogleString& static_asset_base,
-                     ThreadSystem* threads,
-                     Hasher* hasher,
+                     ThreadSystem* threads, Hasher* hasher,
                      MessageHandler* message_handler);
 
   ~StaticAssetManager();
@@ -164,7 +159,6 @@ class StaticAssetManager {
 
   void InitializeAssetStrings();
   void InitializeAssetUrls() EXCLUSIVE_LOCKS_REQUIRED(lock_);
-
 
   // Backend for ApplyGStaticConfiguration and ResetGStaticConfiguration;
   // the 'config' parameter is the appropriate composition of initial

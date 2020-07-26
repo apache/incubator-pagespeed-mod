@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,9 @@
  * under the License.
  */
 
-#include <memory>
-
-
-
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
+
+#include <memory>
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -37,11 +35,13 @@ namespace net_instaweb {
 class DeterministicJsFilterTest : public RewriteTestBase {
  public:
   DeterministicJsFilterTest() {}
+
  protected:
   void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
-    deterministic_js_filter_ = std::make_unique<DeterministicJsFilter>(rewrite_driver());
+    deterministic_js_filter_ =
+        std::make_unique<DeterministicJsFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(deterministic_js_filter_.get());
   }
 
@@ -55,17 +55,16 @@ TEST_F(DeterministicJsFilterTest, DeterministicJsInjection) {
   StringPiece deterministic_js_code =
       server_context()->static_asset_manager()->GetAsset(
           StaticAssetEnum::DETERMINISTIC_JS, options());
-  GoogleString expected_str = StrCat("<head><script type=\"text/javascript\" "
-                                     "data-pagespeed-no-defer>",
-                                     deterministic_js_code,
-                                     "</script></head><body></body>");
+  GoogleString expected_str = StrCat(
+      "<head><script type=\"text/javascript\" "
+      "data-pagespeed-no-defer>",
+      deterministic_js_code, "</script></head><body></body>");
 
   // Check if StaticAssetManager populated the script correctly.
   EXPECT_NE(GoogleString::npos, deterministic_js_code.find("Date"));
   EXPECT_NE(GoogleString::npos, deterministic_js_code.find("Math.random"));
   // Check if the deterministic js is inserted correctly.
-  ValidateExpected("deterministicJs_injection",
-                   "<head></head><body></body>",
+  ValidateExpected("deterministicJs_injection", "<head></head><body></body>",
                    expected_str);
 }
 
@@ -73,12 +72,13 @@ TEST_F(DeterministicJsFilterTest, DeterministicJsInjectionWithSomeHeadContent) {
   StringPiece deterministic_js_code =
       server_context()->static_asset_manager()->GetAsset(
           StaticAssetEnum::DETERMINISTIC_JS, options());
-  GoogleString expected_str = StrCat("<head><script type=\"text/javascript\" "
-                                     "data-pagespeed-no-defer>",
-                                     deterministic_js_code,
-                                     "</script>"
-                                     "<link rel=\"stylesheet\" href=\"a.css\">"
-                                     "</head><body></body>");
+  GoogleString expected_str = StrCat(
+      "<head><script type=\"text/javascript\" "
+      "data-pagespeed-no-defer>",
+      deterministic_js_code,
+      "</script>"
+      "<link rel=\"stylesheet\" href=\"a.css\">"
+      "</head><body></body>");
 
   // Check if StaticAssetManager populated the script correctly.
   EXPECT_NE(GoogleString::npos, deterministic_js_code.find("Date"));

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/base/chunking_writer.h"
 
 #include <memory>
-
-
-
-#include "pagespeed/kernel/base/chunking_writer.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -46,9 +43,8 @@ namespace {
 // trigger failures on a given operation.
 class TracingWriter : public Writer {
  public:
-  explicit TracingWriter(MessageHandler* expected_handler) :
-      expected_handler_(expected_handler), ops_(0), fail_on_op_(-1) {
-  }
+  explicit TracingWriter(MessageHandler* expected_handler)
+      : expected_handler_(expected_handler), ops_(0), fail_on_op_(-1) {}
 
   bool Write(const StringPiece& str, MessageHandler* handler) override {
     EXPECT_EQ(expected_handler_, handler);
@@ -90,7 +86,6 @@ class TracingWriter : public Writer {
   int ops_;
   int fail_on_op_;
 };
-
 
 class ChunkingWriterTest : public testing::Test {
  public:

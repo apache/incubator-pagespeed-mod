@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -75,9 +75,7 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
   CHECK(server_context_ != nullptr);
 }
 
-ResourceCombiner::~ResourceCombiner() {
-  Clear();
-}
+ResourceCombiner::~ResourceCombiner() { Clear(); }
 
 TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
                                                MessageHandler* handler) {
@@ -99,9 +97,9 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
   // unable to combine it safely
   GoogleString failure_reason;
   if (!ResourceCombinable(resource.get(), &failure_reason, handler)) {
-    handler->Message(
-        kInfo, "Cannot combine %s: resource not combinable, reason: %s",
-        resource->url().c_str(), failure_reason.c_str());
+    handler->Message(kInfo,
+                     "Cannot combine %s: resource not combinable, reason: %s",
+                     resource->url().c_str(), failure_reason.c_str());
     return ret;
   }
 
@@ -133,9 +131,8 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
       failure_reason = "combined url too long.";
     }
     if (failure_reason != nullptr) {
-      handler->Message(
-          kInfo, "Cannot combine %s: %s",
-          resource->url().c_str(), failure_reason);
+      handler->Message(kInfo, "Cannot combine %s: %s", resource->url().c_str(),
+                       failure_reason);
       RemoveLastResource();
       added = false;
     }
@@ -164,8 +161,8 @@ GoogleString ResourceCombiner::UrlSafeId() const {
 
 void ResourceCombiner::ComputeLeafSize() {
   GoogleString segment = UrlSafeId();
-  accumulated_leaf_size_ = segment.size() + url_overhead_
-      + server_context_->hasher()->HashSizeInChars();
+  accumulated_leaf_size_ = segment.size() + url_overhead_ +
+                           server_context_->hasher()->HashSizeInChars();
 }
 
 void ResourceCombiner::AccumulateLeafSize(const StringPiece& url) {
@@ -191,10 +188,9 @@ bool ResourceCombiner::UrlTooBig() {
   return false;
 }
 
-bool ResourceCombiner::ResourceCombinable(
-    Resource* /*resource*/,
-    GoogleString* /*failure_reason*/,
-    MessageHandler* /*handler*/) {
+bool ResourceCombiner::ResourceCombinable(Resource* /*resource*/,
+                                          GoogleString* /*failure_reason*/,
+                                          MessageHandler* /*handler*/) {
   return true;
 }
 
@@ -241,8 +237,8 @@ OutputResourcePtr ResourceCombiner::Combine(MessageHandler* handler) {
       // on what the output would be, so we'll just use that.
       return combination;
     }
-    if (WriteCombination(resources_, combination, handler)
-        && combination->IsWritten()) {
+    if (WriteCombination(resources_, combination, handler) &&
+        combination->IsWritten()) {
       // Otherwise, we have to compute it.
       return combination;
     }
@@ -252,10 +248,9 @@ OutputResourcePtr ResourceCombiner::Combine(MessageHandler* handler) {
   return combination;
 }
 
-bool ResourceCombiner::WriteCombination(
-    const ResourceVector& combine_resources,
-    const OutputResourcePtr& combination,
-    MessageHandler* handler) {
+bool ResourceCombiner::WriteCombination(const ResourceVector& combine_resources,
+                                        const OutputResourcePtr& combination,
+                                        MessageHandler* handler) {
   bool written = true;
   // TODO(sligocki): Write directly to a temp file rather than doing the extra
   // string copy.
@@ -263,8 +258,8 @@ bool ResourceCombiner::WriteCombination(
   StringWriter writer(&combined_contents);
   for (int i = 0, n = combine_resources.size(); written && (i < n); ++i) {
     ResourcePtr input(combine_resources[i]);
-    written = WritePiece(i, n, input.get(),
-                         combination.get(), &writer, handler);
+    written =
+        WritePiece(i, n, input.get(), combination.get(), &writer, handler);
   }
   if (written) {
     // Intersect the response headers from each input.
@@ -282,21 +277,17 @@ bool ResourceCombiner::WriteCombination(
     }
 
     // TODO(morlovich): Fix combiners to deal with charsets.
-    written =
-        rewrite_driver_->Write(
-            combine_resources, combined_contents, CombinationContentType(),
-            StringPiece() /* not computing charset for now */,
-            combination.get());
+    written = rewrite_driver_->Write(
+        combine_resources, combined_contents, CombinationContentType(),
+        StringPiece() /* not computing charset for now */, combination.get());
   }
   return written;
 }
 
-bool ResourceCombiner::WritePiece(int index,
-                                  int num_pieces,
+bool ResourceCombiner::WritePiece(int index, int num_pieces,
                                   const Resource* input,
                                   OutputResource* /*combination*/,
-                                  Writer* writer,
-                                  MessageHandler* handler) {
+                                  Writer* writer, MessageHandler* handler) {
   return writer->Write(input->ExtractUncompressedContents(), handler);
 }
 

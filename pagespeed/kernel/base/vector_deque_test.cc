@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,18 +17,17 @@
  * under the License.
  */
 
-
 // Unit-test a custom implementation of deque.
 
 #include "pagespeed/kernel/base/vector_deque.h"
+
 #include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 
 namespace {
 
-class VectorDequeTest : public testing::Test {
-};
+class VectorDequeTest : public testing::Test {};
 
 TEST_F(VectorDequeTest, Queue) {
   VectorDeque<int> dv;

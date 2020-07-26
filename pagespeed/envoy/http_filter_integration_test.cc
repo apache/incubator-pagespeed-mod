@@ -4,9 +4,10 @@ namespace Envoy {
 class HttpFilterPageSpeedIntegrationTest
     : public HttpIntegrationTest,
       public testing::TestWithParam<Network::Address::IpVersion> {
-public:
+ public:
   HttpFilterPageSpeedIntegrationTest()
-      : HttpIntegrationTest(Http::CodecClient::Type::HTTP1, GetParam(), realTime()) {}
+      : HttpIntegrationTest(Http::CodecClient::Type::HTTP1, GetParam(),
+                            realTime()) {}
   /**
    * Initializer for an individual integration test.
    */
@@ -20,16 +21,19 @@ typed_config:
   key: "via"
   val: "pagespeed-filter"
 )EOF");
-    //config_helper_.addFilter("{ name: pagespeed, config: { key: via, val: pagespeed-filter } }");
+    // config_helper_.addFilter("{ name: pagespeed, config: { key: via, val:
+    // pagespeed-filter } }");
     HttpIntegrationTest::initialize();
   }
 };
 
-INSTANTIATE_TEST_SUITE_P(IpVersions, HttpFilterPageSpeedIntegrationTest,
-                         testing::ValuesIn(TestEnvironment::getIpVersionsForTest()));
+INSTANTIATE_TEST_SUITE_P(
+    IpVersions, HttpFilterPageSpeedIntegrationTest,
+    testing::ValuesIn(TestEnvironment::getIpVersionsForTest()));
 
 TEST_P(HttpFilterPageSpeedIntegrationTest, Test1) {
-  Envoy::Http::TestRequestHeaderMapImpl headers{{":method", "GET"}, {":path", "/"}, {":authority", "host"}};
+  Envoy::Http::TestRequestHeaderMapImpl headers{
+      {":method", "GET"}, {":path", "/"}, {":authority", "host"}};
 
   IntegrationCodecClientPtr codec_client;
   FakeHttpConnectionPtr fake_upstream_connection;
@@ -37,9 +41,10 @@ TEST_P(HttpFilterPageSpeedIntegrationTest, Test1) {
 
   codec_client = makeHttpConnection(lookupPort("http"));
   auto response = codec_client->makeHeaderOnlyRequest(headers);
-  ASSERT_TRUE(fake_upstreams_[0]->waitForHttpConnection(*dispatcher_, fake_upstream_connection,
-                                                        std::chrono::milliseconds(1000)));
-  ASSERT_TRUE(fake_upstream_connection->waitForNewStream(*dispatcher_, request_stream));
+  ASSERT_TRUE(fake_upstreams_[0]->waitForHttpConnection(
+      *dispatcher_, fake_upstream_connection, std::chrono::milliseconds(1000)));
+  ASSERT_TRUE(
+      fake_upstream_connection->waitForNewStream(*dispatcher_, request_stream));
   ASSERT_TRUE(request_stream->waitForEndStream(*dispatcher_));
   response->waitForEndStream();
 
@@ -48,4 +53,4 @@ TEST_P(HttpFilterPageSpeedIntegrationTest, Test1) {
 
   codec_client->close();
 }
-} // namespace Envoy
+}  // namespace Envoy

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -187,9 +187,7 @@ class PropertyCache {
   // them.  The data only arrives when we do a lookup.
   class Cohort {
    public:
-    explicit Cohort(StringPiece name) {
-      name.CopyToString(&name_);
-    }
+    explicit Cohort(StringPiece name) { name.CopyToString(&name_); }
     const GoogleString& name() const { return name_; }
 
    private:
@@ -202,9 +200,7 @@ class PropertyCache {
 
   // Does not take ownership of the property_store, timer, stats, or threads
   // objects.
-  PropertyCache(PropertyStore* property_store,
-                Timer* timer,
-                Statistics* stats,
+  PropertyCache(PropertyStore* property_store, Timer* timer, Statistics* stats,
                 ThreadSystem* threads);
   ~PropertyCache();
 
@@ -295,15 +291,14 @@ class AbstractPropertyPage {
   virtual ~AbstractPropertyPage();
   // Gets a property given the property name.  The property can then be
   // mutated, prior to the PropertyPage being written back to the cache.
-  virtual PropertyValue* GetProperty(
-      const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name) = 0;
+  virtual PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
+                                     const StringPiece& property_name) = 0;
 
   // Updates the value of a property, tracking stability & discarding
   // writes when the existing data is more up-to-date.
-  virtual void UpdateValue(
-     const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-     const StringPiece& value) = 0;
+  virtual void UpdateValue(const PropertyCache::Cohort* cohort,
+                           const StringPiece& property_name,
+                           const StringPiece& value) = 0;
 
   // Updates a Cohort of properties into the cache.  It is a
   // programming error (dcheck-fail) to Write a PropertyPage that
@@ -312,13 +307,12 @@ class AbstractPropertyPage {
 
   // This function returns the cache state for a given cohort.
   virtual CacheInterface::KeyState GetCacheState(
-     const PropertyCache::Cohort* cohort) = 0;
+      const PropertyCache::Cohort* cohort) = 0;
 
   // Deletes a property given the property name.
   virtual void DeleteProperty(const PropertyCache::Cohort* cohort,
                               const StringPiece& property_name) = 0;
 };
-
 
 // Holds the property values associated with a single key.  See more
 // extensive comment for PropertyPage above.
@@ -350,13 +344,13 @@ class PropertyPage : public AbstractPropertyPage {
   // batching to do so on the read.  However, properties are written back to
   // cache one Cohort at a time, via PropertyCache::WriteCohort.
   PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
-                                     const StringPiece& property_name) override;
+                             const StringPiece& property_name) override;
 
   // Updates the value of a property, tracking stability & discarding
   // writes when the existing data is more up-to-date.
-  void UpdateValue(
-      const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-      const StringPiece& value) override;
+  void UpdateValue(const PropertyCache::Cohort* cohort,
+                   const StringPiece& property_name,
+                   const StringPiece& value) override;
 
   // Updates a Cohort of properties into the cache.  It is a
   // programming error (dcheck-fail) to Write a PropertyPage that
@@ -370,7 +364,8 @@ class PropertyPage : public AbstractPropertyPage {
   //
   // It is a programming error to call GetCacheState on a PropertyPage
   // that has not yet been read.
-  CacheInterface::KeyState GetCacheState(const PropertyCache::Cohort* cohort) override;
+  CacheInterface::KeyState GetCacheState(
+      const PropertyCache::Cohort* cohort) override;
 
   // This function set the cache state for a given cohort. This is used by test
   // code and CacheCallback to populate the state.
@@ -389,9 +384,7 @@ class PropertyPage : public AbstractPropertyPage {
   void DeleteProperty(const PropertyCache::Cohort* cohort,
                       const StringPiece& property_name) override;
 
-  AbstractLogRecord* log_record() {
-    return request_context_->log_record();
-  }
+  AbstractLogRecord* log_record() { return request_context_->log_record(); }
 
   // Read the property page from cache.
   void Read(const PropertyCache::CohortVector& cohort_list);
@@ -431,12 +424,9 @@ class PropertyPage : public AbstractPropertyPage {
   // The Page takes ownership of the mutex.
   // TODO(pulkitg): Instead of passing full PropertyCache object, just pass
   // objects which PropertyPage needs.
-  PropertyPage(PageType page_type,
-               StringPiece url,
-               StringPiece options_signature_hash,
-               StringPiece cache_key_suffix,
-               const RequestContextPtr& request_context,
-               AbstractMutex* mutex,
+  PropertyPage(PageType page_type, StringPiece url,
+               StringPiece options_signature_hash, StringPiece cache_key_suffix,
+               const RequestContextPtr& request_context, AbstractMutex* mutex,
                PropertyCache* property_cache);
 
   // Called as a result of PropertyCache::Read when the data is available.
@@ -457,9 +447,7 @@ class PropertyPage : public AbstractPropertyPage {
 
   struct PropertyMapStruct {
     explicit PropertyMapStruct(AbstractLogRecord* log)
-        : has_deleted_property(false),
-          log_record(log),
-          has_value(false) {}
+        : has_deleted_property(false), log_record(log), has_value(false) {}
     PropertyMap pmap;
     bool has_deleted_property;
     AbstractLogRecord* log_record;

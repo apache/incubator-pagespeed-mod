@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -69,9 +69,7 @@ class ProxyFetchFactory {
   // Convenience method that calls CreateNewProxyFetch and then StartFetch() on
   // the resulting fetch.
   void StartNewProxyFetch(
-      const GoogleString& url,
-      AsyncFetch* async_fetch,
-      RewriteDriver* driver,
+      const GoogleString& url, AsyncFetch* async_fetch, RewriteDriver* driver,
       ProxyFetchPropertyCallbackCollector* property_callback,
       AsyncFetch* original_content_fetch);
 
@@ -85,19 +83,15 @@ class ProxyFetchFactory {
   // not be calling StartFetch() and instead will call HeadersComplete(),
   // Write(), Flush(), and Done() as they get data in from another source.
   ProxyFetch* CreateNewProxyFetch(
-      const GoogleString& url,
-      AsyncFetch* async_fetch,
-      RewriteDriver* driver,
+      const GoogleString& url, AsyncFetch* async_fetch, RewriteDriver* driver,
       ProxyFetchPropertyCallbackCollector* property_callback,
       AsyncFetch* original_content_fetch);
 
   // Initiates the PropertyCache lookup.  See ngx_pagespeed.cc or
   // proxy_interface.cc for example usage.
   static ProxyFetchPropertyCallbackCollector* InitiatePropertyCacheLookup(
-      bool is_resource_fetch,
-      const GoogleUrl& request_url,
-      ServerContext* server_context,
-      RewriteOptions* options,
+      bool is_resource_fetch, const GoogleUrl& request_url,
+      ServerContext* server_context, RewriteOptions* options,
       AsyncFetch* async_fetch);
 
   MessageHandler* message_handler() const { return handler_; }
@@ -132,8 +126,7 @@ class ProxyFetchFactory {
 // to complete.
 class ProxyFetchPropertyCallback : public PropertyPage {
  public:
-  ProxyFetchPropertyCallback(PageType page_type,
-                             PropertyCache* property_cache,
+  ProxyFetchPropertyCallback(PageType page_type, PropertyCache* property_cache,
                              const StringPiece& url,
                              const StringPiece& options_signature_hash,
                              UserAgentMatcher::DeviceType device_type,
@@ -210,8 +203,9 @@ class ProxyFetchPropertyCallbackCollector {
 
   // Returns the actual property page.
   PropertyPage* property_page() {
-    return fallback_property_page_ == NULL ?
-        NULL : fallback_property_page_->actual_property_page();
+    return fallback_property_page_ == NULL
+               ? NULL
+               : fallback_property_page_->actual_property_page();
   }
 
   // Returns the fallback property page.
@@ -273,15 +267,14 @@ class ProxyFetchPropertyCallbackCollector {
   void UpdateStatusCodeInPropertyCache();
 
   std::set<ProxyFetchPropertyCallback*> pending_callbacks_;
-  std::map<ProxyFetchPropertyCallback::PageType, PropertyPage*>
-  property_pages_;
+  std::map<ProxyFetchPropertyCallback::PageType, PropertyPage*> property_pages_;
   std::unique_ptr<AbstractMutex> mutex_;
   ServerContext* const server_context_;
   QueuedWorkerPool::Sequence* const sequence_;
   const GoogleString url_;
   const RequestContextPtr request_context_;
   const UserAgentMatcher::DeviceType device_type_;
-  bool is_options_valid_;     // protected by mutex_.
+  bool is_options_valid_;  // protected by mutex_.
   // Unless guarded by mutex_, the fields are only accessed by code serialized
   // via sequence_.
   bool detached_;
@@ -290,7 +283,7 @@ class ProxyFetchPropertyCallbackCollector {
   ProxyFetch* proxy_fetch_;
   std::vector<Function*> post_lookup_task_vector_;
   const RewriteOptions* options_;  // protected by mutex_;
-  HttpStatus::Code status_code_;  // status_code_ of the response.
+  HttpStatus::Code status_code_;   // status_code_ of the response.
   std::unique_ptr<FallbackPropertyPage> fallback_property_page_;
   std::unique_ptr<PropertyPage> origin_property_page_;
 
@@ -349,7 +342,8 @@ class ProxyFetch : public SharedAsyncFetch {
  protected:
   // protected interface from AsyncFetch.
   void HandleHeadersComplete() override;
-  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   bool HandleFlush(MessageHandler* handler) override;
   void HandleDone(bool success) override;
   bool IsCachedResultValid(const ResponseHeaders& headers) override;
@@ -368,14 +362,10 @@ class ProxyFetch : public SharedAsyncFetch {
 
   // If cross_domain is true, we're requested under a domain different from
   // the underlying host, using proxy mode in UrlNamer.
-  ProxyFetch(const GoogleString& url,
-             bool cross_domain,
+  ProxyFetch(const GoogleString& url, bool cross_domain,
              ProxyFetchPropertyCallbackCollector* property_cache_callback,
-             AsyncFetch* async_fetch,
-             AsyncFetch* original_content_fetch,
-             RewriteDriver* driver,
-             ServerContext* server_context,
-             Timer* timer,
+             AsyncFetch* async_fetch, AsyncFetch* original_content_fetch,
+             RewriteDriver* driver, ServerContext* server_context, Timer* timer,
              ProxyFetchFactory* factory);
   ~ProxyFetch() override;
 

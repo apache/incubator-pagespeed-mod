@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -35,7 +35,9 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
 
-namespace Css { class Values; }
+namespace Css {
+class Values;
+}
 
 namespace net_instaweb {
 
@@ -58,9 +60,9 @@ class CssResourceSlot : public ResourceSlot {
   bool CanDirectSetUrl() override { return true; }
 
  protected:
-  CssResourceSlot(const ResourcePtr& resource,
-                  const GoogleUrl& trim_url, const RewriteOptions* options,
-                  Css::Values* values, size_t value_index);
+  CssResourceSlot(const ResourcePtr& resource, const GoogleUrl& trim_url,
+                  const RewriteOptions* options, Css::Values* values,
+                  size_t value_index);
 
   REFCOUNT_FRIEND_DECLARATION(CssResourceSlot);
   ~CssResourceSlot() override;
@@ -91,8 +93,8 @@ class CssResourceSlotFactory {
   // not modified while this exists.
   CssResourceSlotPtr GetSlot(const ResourcePtr& resource,
                              const GoogleUrl& trim_url,
-                             const RewriteOptions* options,
-                             Css::Values* values, size_t value_index);
+                             const RewriteOptions* options, Css::Values* values,
+                             size_t value_index);
   CssResourceSlotPtr UniquifySlot(CssResourceSlotPtr slot);
 
  private:

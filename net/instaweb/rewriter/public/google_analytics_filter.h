@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Search for synchronous loads of Google Analytics similar to the following:
 //
@@ -69,7 +68,6 @@ class HtmlParse;
 class Statistics;
 class Variable;
 
-
 // Edit a substring in a script element.
 class ScriptEditor {
  public:
@@ -79,10 +77,8 @@ class ScriptEditor {
     kGaJsInit,
   };
   ScriptEditor(HtmlElement* script_element_,
-               HtmlCharactersNode* characters_node,
-               GoogleString::size_type pos,
-               GoogleString::size_type len,
-               Type editor_type);
+               HtmlCharactersNode* characters_node, GoogleString::size_type pos,
+               GoogleString::size_type len, Type editor_type);
 
   HtmlElement* GetScriptElement() const { return script_element_; }
   HtmlCharactersNode* GetScriptCharactersNode() const {
@@ -90,7 +86,7 @@ class ScriptEditor {
   }
   Type GetType() const { return editor_type_; }
 
-  void NewContents(const StringPiece &replacement,
+  void NewContents(const StringPiece& replacement,
                    GoogleString* contents) const;
 
  private:
@@ -104,20 +100,17 @@ class ScriptEditor {
   DISALLOW_COPY_AND_ASSIGN(ScriptEditor);
 };
 
-
 // Filter <script> tags.
 // Rewrite qualifying sync loads of Google Analytics as async loads.
 class GoogleAnalyticsFilter : public EmptyHtmlFilter {
  public:
   typedef StringPieceVector MethodVector;
 
-  explicit GoogleAnalyticsFilter(HtmlParse* html_parse,
-                                 Statistics* statistics);
+  explicit GoogleAnalyticsFilter(HtmlParse* html_parse, Statistics* statistics);
   ~GoogleAnalyticsFilter() override;
 
   // The filter will take ownership of the method vectors.
-  explicit GoogleAnalyticsFilter(HtmlParse* html_parse,
-                                 Statistics* statistics,
+  explicit GoogleAnalyticsFilter(HtmlParse* html_parse, Statistics* statistics,
                                  MethodVector* glue_methods,
                                  MethodVector* unhandled_methods);
 
@@ -147,11 +140,9 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
  private:
   void ResetFilter();
 
-  bool MatchSyncLoad(StringPiece contents,
-                     GoogleString::size_type* pos,
+  bool MatchSyncLoad(StringPiece contents, GoogleString::size_type* pos,
                      GoogleString::size_type* len) const;
-  bool MatchSyncInit(StringPiece contents,
-                     GoogleString::size_type start_pos,
+  bool MatchSyncInit(StringPiece contents, GoogleString::size_type start_pos,
                      GoogleString::size_type* pos,
                      GoogleString::size_type* len) const;
   bool MatchUnhandledCalls(StringPiece contents,
@@ -164,11 +155,12 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
   bool is_init_found_;
   std::vector<ScriptEditor*> script_editors_;
 
-  std::unique_ptr<MethodVector> glue_methods_;  // methods to forward to async api
+  std::unique_ptr<MethodVector>
+      glue_methods_;  // methods to forward to async api
   std::unique_ptr<MethodVector> unhandled_methods_;  // if found, skip rewrite
 
   HtmlParse* html_parse_;
-  HtmlElement* script_element_;  // NULL if not in script element
+  HtmlElement* script_element_;                 // NULL if not in script element
   HtmlCharactersNode* script_characters_node_;  // NULL if not found in script
 
   Variable* page_load_count_;

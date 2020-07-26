@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_hierarchy.h"
 
@@ -79,8 +78,7 @@ class CssHierarchyTest : public RewriteTestBase {
         top_child1_url_(top_url_, "nested1.css"),
         top_child2_url_(top_url_, "nested2.css"),
         top_child1_child1_url_(top_url_, "nested/nested1.css"),
-        top_child2_child1_url_(top_url_, "nested/nested2.css") {
-  }
+        top_child2_child1_url_(top_url_, "nested/nested2.css") {}
 
   // Initialize our CSS contents with the given, optional, media.
   void InitializeCss(const StringPiece top_media,
@@ -91,8 +89,8 @@ class CssHierarchyTest : public RewriteTestBase {
     InitializeCss("", "");
     top->InitializeRoot(top_url_, top_url_, flat_top_css_,
                         false /* has_unparseables */,
-                        0 /* flattened_result_limit */, nullptr /* stylesheet */,
-                        message_handler());
+                        0 /* flattened_result_limit */,
+                        nullptr /* stylesheet */, message_handler());
   }
 
   // Initialize a nested root - top-level CSS with @imports.
@@ -100,8 +98,8 @@ class CssHierarchyTest : public RewriteTestBase {
     InitializeCss("", "");
     top->InitializeRoot(top_url_, top_url_, nested_top_css_,
                         false /* has_unparseables */,
-                        0 /* flattened_result_limit */, nullptr /* stylesheet */,
-                        message_handler());
+                        0 /* flattened_result_limit */,
+                        nullptr /* stylesheet */, message_handler());
   }
 
   // Initialize a nested root with the given media.
@@ -111,8 +109,8 @@ class CssHierarchyTest : public RewriteTestBase {
     InitializeCss(top_media, child_media);
     top->InitializeRoot(top_url_, top_url_, nested_top_css_,
                         false /* has_unparseables */,
-                        0 /* flattened_result_limit */, nullptr /* stylesheet */,
-                        message_handler());
+                        0 /* flattened_result_limit */,
+                        nullptr /* stylesheet */, message_handler());
   }
 
   // Expand the hierarchy using ExpandChildren. Expands the top then adds
@@ -164,7 +162,7 @@ class CssHierarchyTest : public RewriteTestBase {
   GoogleString nested_top_css_;  // top-level with @imports.
   GoogleString nested_child1_css_;
   GoogleString nested_child2_css_;
-  GoogleString flattened_css_;   // Flattened version of the entire hierarchy.
+  GoogleString flattened_css_;  // Flattened version of the entire hierarchy.
 
   DISALLOW_COPY_AND_ASSIGN(CssHierarchyTest);
 };
@@ -173,35 +171,27 @@ void CssHierarchyTest::InitializeCss(const StringPiece top_media,
                                      const StringPiece child_media) {
   if (flat_top_css_.empty()) {
     flat_top_css_ = kTopCss;
-    nested_top_css_ = StrCat(
-        MakeAtImport(top_child1_url_.Spec(), top_media),
-        MakeAtImport(top_child2_url_.Spec(), top_media),
-        kTopCss);
-    nested_child1_css_ = StrCat(
-        MakeAtImport(top_child1_child1_url_.Spec(), child_media),
-        kTopChild1Css);
-    nested_child2_css_ = StrCat(
-        MakeAtImport(top_child2_child1_url_.Spec(), child_media),
-        kTopChild2Css);
+    nested_top_css_ =
+        StrCat(MakeAtImport(top_child1_url_.Spec(), top_media),
+               MakeAtImport(top_child2_url_.Spec(), top_media), kTopCss);
+    nested_child1_css_ =
+        StrCat(MakeAtImport(top_child1_child1_url_.Spec(), child_media),
+               kTopChild1Css);
+    nested_child2_css_ =
+        StrCat(MakeAtImport(top_child2_child1_url_.Spec(), child_media),
+               kTopChild2Css);
     flattened_css_ = StrCat(kTopChild1Child1Css, kTopChild1Css,
-                            kTopChild2Child1Css, kTopChild2Css,
-                            kTopCss);
+                            kTopChild2Child1Css, kTopChild2Css, kTopCss);
   }
 }
-
 
 void CssHierarchyTest::ExpandHierarchy(CssHierarchy* top) {
   EXPECT_TRUE(top->Parse());
   EXPECT_TRUE(top->ExpandChildren());
 
-  GoogleString child_contents[] = {
-    nested_child1_css_,
-    nested_child2_css_
-  };
-  GoogleString grandchild_contents[] = {
-    kTopChild1Child1Css,
-    kTopChild2Child1Css
-  };
+  GoogleString child_contents[] = {nested_child1_css_, nested_child2_css_};
+  GoogleString grandchild_contents[] = {kTopChild1Child1Css,
+                                        kTopChild2Child1Css};
 
   for (int i = 0, n = top->children().size(); i < n && i < 2; ++i) {
     CssHierarchy* child = top->children()[i];
@@ -495,9 +485,10 @@ TEST_F(CssHierarchyTest, FailOnIndirectRecursion) {
 TEST_F(CssHierarchyTest, UnparseableSection) {
   InitializeCss("", "");  // to initialize top_url().
 
-  GoogleString unparseable_css = StrCat("@foobar { background: "
-                                        "url(", top_url().Spec(), "), ",
-                                        "url(", top_url().Spec(), ") }");
+  GoogleString unparseable_css = StrCat(
+      "@foobar { background: "
+      "url(",
+      top_url().Spec(), "), ", "url(", top_url().Spec(), ") }");
   CssHierarchy top(nullptr);
   top.InitializeRoot(top_url(), top_url(), unparseable_css,
                      false /* has_unparseables */,
@@ -534,10 +525,9 @@ TEST_F(CssHierarchyTest, ExpandElidesImportsWithNoMedia) {
   }
 
   top.RollUpContents();
-  GoogleString flattened_css = StrCat(
-      StrCat("@media screen{", kTopChild1Css, "}"),
-      StrCat("@media screen{", kTopChild2Css, "}"),
-      kTopCss);
+  GoogleString flattened_css =
+      StrCat(StrCat("@media screen{", kTopChild1Css, "}"),
+             StrCat("@media screen{", kTopChild2Css, "}"), kTopCss);
   EXPECT_EQ(flattened_css, top.minified_contents());
 }
 
@@ -573,8 +563,8 @@ TEST_F(CssHierarchyTest, CompatibleCharset) {
 
   // Now set both the charsets to something compatible.
   StringPiece charset("iso-8859-1");
-  response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
-                                            "; charset=", charset));
+  response_headers->MergeContentType(
+      StrCat(kContentTypeCss.mime_type(), "; charset=", charset));
   charset.CopyToString(top.mutable_charset());
   EXPECT_TRUE(child->CheckCharsetOk(resource, &failure_reason));
   EXPECT_EQ(charset, child->charset());
@@ -591,8 +581,8 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
   ResourcePtr resource(
       DataUrlInputResource::Make("data:text/css,test", rewrite_driver()));
   ResponseHeaders* response_headers = resource->response_headers();
-  response_headers->MergeContentType(StrCat(kContentTypeCss.mime_type(),
-                                            "; charset=utf-8"));
+  response_headers->MergeContentType(
+      StrCat(kContentTypeCss.mime_type(), "; charset=utf-8"));
 
   StringPiece charset("iso-8859-1");
   charset.CopyToString(top.mutable_charset());
@@ -600,9 +590,11 @@ TEST_F(CssHierarchyTest, IncompatibleCharset) {
   GoogleString failure_reason;
   EXPECT_FALSE(child->CheckCharsetOk(resource, &failure_reason));
   EXPECT_EQ("utf-8", child->charset());
-  EXPECT_EQ("The charset of http://test.com/nested1.css (utf-8 from headers) "
-            "is different from that of its parent (inline): "
-            "iso-8859-1 from unknown", failure_reason);
+  EXPECT_EQ(
+      "The charset of http://test.com/nested1.css (utf-8 from headers) "
+      "is different from that of its parent (inline): "
+      "iso-8859-1 from unknown",
+      failure_reason);
 }
 
 TEST_F(CssHierarchyTest, RollUpContentsNested) {

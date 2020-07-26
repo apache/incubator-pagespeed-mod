@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 //
 //
@@ -27,11 +26,10 @@
 #include <cmath>
 #include <cstring>
 
+#include "absl/strings/str_format.h"
 #include "strings/ascii_ctype.h"
 #include "strings/case.h"
 #include "strings/escaping.h"
-
-#include "absl/strings/str_format.h"
 
 typedef struct RgbValue {
   unsigned char r_;
@@ -1069,5 +1067,5 @@ string HtmlColorUtils::MaybeConvertToCssShorthand(const HtmlColor& color) {
     return color.ToString();
 
   return absl::StrFormat("#%01x%01x%01x", color.r() & 0xF, color.g() & 0xF,
-                      color.b() & 0xF);
+                         color.b() & 0xF);
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
 
@@ -44,10 +43,10 @@
 #include "webutil/css/parser.h"
 #include "webutil/css/selector.h"
 
-using Css::Selectors;
-using Css::Stylesheet;
 using Css::Ruleset;
 using Css::Rulesets;
+using Css::Selectors;
+using Css::Stylesheet;
 
 namespace net_instaweb {
 
@@ -65,12 +64,12 @@ const char CriticalCssBeaconFilter::kCriticalCssSkippedDueToCharset[] =
 CriticalCssBeaconFilter::CriticalCssBeaconFilter(RewriteDriver* driver)
     : CssSummarizerBase(driver) {
   Statistics* stats = driver->server_context()->statistics();
-  critical_css_beacon_added_count_ = stats->GetVariable(
-      kCriticalCssBeaconAddedCount);
-  critical_css_no_beacon_due_to_missing_data_ = stats->GetVariable(
-      kCriticalCssNoBeaconDueToMissingData);
-  critical_css_skipped_due_to_charset_ = stats->GetVariable(
-      kCriticalCssSkippedDueToCharset);
+  critical_css_beacon_added_count_ =
+      stats->GetVariable(kCriticalCssBeaconAddedCount);
+  critical_css_no_beacon_due_to_missing_data_ =
+      stats->GetVariable(kCriticalCssNoBeaconDueToMissingData);
+  critical_css_skipped_due_to_charset_ =
+      stats->GetVariable(kCriticalCssSkippedDueToCharset);
 }
 
 CriticalCssBeaconFilter::~CriticalCssBeaconFilter() {}
@@ -93,7 +92,8 @@ bool CriticalCssBeaconFilter::MustSummarize(HtmlElement* element) const {
   // spend doing that is better devoted to summarizing CSS selectors we will
   // actually consider critical.
   return (noscript_element() == nullptr) &&
-      css_util::CanMediaAffectScreen(element->AttributeValue(HtmlName::kMedia));
+         css_util::CanMediaAffectScreen(
+             element->AttributeValue(HtmlName::kMedia));
 }
 
 void CriticalCssBeaconFilter::Summarize(Stylesheet* stylesheet,
@@ -110,8 +110,8 @@ void CriticalCssBeaconFilter::Summarize(Stylesheet* stylesheet,
 void CriticalCssBeaconFilter::AppendSelectorsInitJs(
     GoogleString* script, const StringSet& selectors) {
   StrAppend(script, "pagespeed.selectors=[");
-  for (StringSet::const_iterator i = selectors.begin();
-       i != selectors.end(); ++i) {
+  for (StringSet::const_iterator i = selectors.begin(); i != selectors.end();
+       ++i) {
     if (i != selectors.begin()) {
       StrAppend(script, ",");
     }
@@ -124,20 +124,19 @@ void CriticalCssBeaconFilter::AppendSelectorsInitJs(
 // Right now the result looks like:
 //   pagespeed.criticalCssBeaconInit('beacon_url','page_url','options_hash',
 //        pagespeed.selectors);
-void CriticalCssBeaconFilter::AppendBeaconInitJs(
-    const BeaconMetadata& metadata, GoogleString* script) {
-  GoogleString beacon_url = driver()->IsHttps() ?
-      driver()->options()->beacon_url().https :
-      driver()->options()->beacon_url().http;
+void CriticalCssBeaconFilter::AppendBeaconInitJs(const BeaconMetadata& metadata,
+                                                 GoogleString* script) {
+  GoogleString beacon_url = driver()->IsHttps()
+                                ? driver()->options()->beacon_url().https
+                                : driver()->options()->beacon_url().http;
   GoogleString page_url;
   EscapeToJsStringLiteral(driver()->google_url().Spec(), false /* add_quotes */,
                           &page_url);
   Hasher* hasher = driver()->server_context()->hasher();
   GoogleString options_hash = hasher->Hash(driver()->options()->signature());
-  StrAppend(script,
-            "pagespeed.criticalCssBeaconInit('",
-            beacon_url, "','", page_url, "','",
-            options_hash, "','", metadata.nonce, "',pagespeed.selectors);");
+  StrAppend(script, "pagespeed.criticalCssBeaconInit('", beacon_url, "','",
+            page_url, "','", options_hash, "','", metadata.nonce,
+            "',pagespeed.selectors);");
 }
 
 void CriticalCssBeaconFilter::SummariesDone() {
@@ -163,7 +162,7 @@ void CriticalCssBeaconFilter::SummariesDone() {
         SplitStringPieceToVector(summary_info.data, ",", &temp,
                                  true /* omit_empty_strings */);
         for (StringPieceVector::const_iterator i = temp.begin(),
-                 end = temp.end();
+                                               end = temp.end();
              i != end; ++i) {
           selectors.insert(i->as_string());
         }
@@ -187,8 +186,10 @@ void CriticalCssBeaconFilter::SummariesDone() {
     }
   }
   BeaconMetadata metadata =
-      driver()->server_context()->critical_selector_finder()->
-          PrepareForBeaconInsertion(selectors, driver());
+      driver()
+          ->server_context()
+          ->critical_selector_finder()
+          ->PrepareForBeaconInsertion(selectors, driver());
   if (metadata.status == kDoNotBeacon) {
     // No beaconing required according to current pcache state and computed
     // selector set.
@@ -200,15 +201,16 @@ void CriticalCssBeaconFilter::SummariesDone() {
   StaticAssetManager* asset_manager =
       driver()->server_context()->static_asset_manager();
   if (driver()->server_context()->factory()->UseBeaconResultsInFilters()) {
-    script = asset_manager->GetAsset(
-        StaticAssetEnum::CRITICAL_CSS_BEACON_JS, driver()->options());
+    script = asset_manager->GetAsset(StaticAssetEnum::CRITICAL_CSS_BEACON_JS,
+                                     driver()->options());
     AppendSelectorsInitJs(&script, selectors);
     AppendBeaconInitJs(metadata, &script);
   } else {
     script = kInitializePageSpeedJs;
     AppendSelectorsInitJs(&script, selectors);
   }
-  HtmlElement* script_element = driver()->NewElement(nullptr, HtmlName::kScript);
+  HtmlElement* script_element =
+      driver()->NewElement(nullptr, HtmlName::kScript);
   driver()->AddAttribute(script_element, HtmlName::kDataPagespeedNoDefer,
                          StringPiece());
   InsertNodeAtBodyEnd(script_element);
@@ -223,8 +225,8 @@ void CriticalCssBeaconFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(driver()->request_properties()->SupportsCriticalCssBeacon());
 }
 
-void CriticalCssBeaconFilter::FindSelectorsFromRuleset(
-    const Ruleset& ruleset, StringSet* selectors) {
+void CriticalCssBeaconFilter::FindSelectorsFromRuleset(const Ruleset& ruleset,
+                                                       StringSet* selectors) {
   const Selectors& rule_selectors = ruleset.selectors();
   for (int i = 0, n = rule_selectors.size(); i < n; ++i) {
     GoogleString trimmed(css_util::JsDetectableSelector(*rule_selectors[i]));

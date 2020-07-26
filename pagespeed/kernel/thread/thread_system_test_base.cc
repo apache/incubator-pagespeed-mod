@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -36,9 +36,7 @@ class SuccessThread : public ThreadSystem::Thread {
       : Thread(owner->thread_system(), "success", ThreadSystem::kJoinable),
         owner_(owner) {}
 
-  void Run() override {
-    owner_->set_ok_flag(true);
-  }
+  void Run() override { owner_->set_ok_flag(true); }
 
  private:
   ThreadSystemTestBase* owner_;
@@ -47,8 +45,7 @@ class SuccessThread : public ThreadSystem::Thread {
 // See TestSync below for what this does
 class ToggleThread : public ThreadSystem::Thread {
  public:
-  ToggleThread(ThreadSystemTestBase* owner,
-               AbstractMutex* lock,
+  ToggleThread(ThreadSystemTestBase* owner, AbstractMutex* lock,
                ThreadSystem::Condvar* notify_true,
                ThreadSystem::Condvar* notify_false)
       : Thread(owner->thread_system(), "toggle", ThreadSystem::kDetached),
@@ -56,8 +53,7 @@ class ToggleThread : public ThreadSystem::Thread {
         lock_(lock),
         notify_true_(notify_true),
         notify_false_(notify_false),
-        parent_id_(owner->thread_system()->GetThreadId()) {
-  }
+        parent_id_(owner->thread_system()->GetThreadId()) {}
 
   void Run() override {
     // Check whether our ID is not the same as our parent, and
@@ -109,8 +105,7 @@ class ToggleThread : public ThreadSystem::Thread {
 ThreadSystemTestBase::ThreadSystemTestBase(ThreadSystem* thread_system)
     : ok_flag_(false),
       thread_system_(thread_system),
-      handler_(thread_system_->NewMutex()) {
-}
+      handler_(thread_system_->NewMutex()) {}
 
 void ThreadSystemTestBase::TestStartJoin() {
   SuccessThread test_thread(this);

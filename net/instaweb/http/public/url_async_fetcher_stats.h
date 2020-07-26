@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -48,10 +48,8 @@ class UrlAsyncFetcherStats : public UrlAsyncFetcher {
   //
   // Does not own base_fetcher (so you can have multiple UrlAsyncFetcherStats
   // objects around a single UrlAsyncFetcher object).
-  UrlAsyncFetcherStats(StringPiece prefix,
-                       UrlAsyncFetcher* base_fetcher,
-                       Timer* timer,
-                       Statistics* statistics);
+  UrlAsyncFetcherStats(StringPiece prefix, UrlAsyncFetcher* base_fetcher,
+                       Timer* timer, Statistics* statistics);
   ~UrlAsyncFetcherStats() override;
 
   // This must be called once for every unique prefix used with
@@ -61,9 +59,8 @@ class UrlAsyncFetcherStats : public UrlAsyncFetcher {
   // Reimplementation of UrlAsyncFetcher methods. See base class
   // for API specifications.
   bool SupportsHttps() const override;
-  void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch) override;
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
   int64 timeout_ms() override;
   void ShutDown() override;
 

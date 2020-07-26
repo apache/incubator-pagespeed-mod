@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_absolutify.h"
 
@@ -63,9 +62,9 @@ bool CssAbsolutify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
                                    bool handle_unparseable_sections,
                                    RewriteDriver* driver,
                                    MessageHandler* handler) {
-  RewriteDomainTransformer transformer(
-      &base, &base, driver->server_context(), driver->options(),
-      driver->message_handler());
+  RewriteDomainTransformer transformer(&base, &base, driver->server_context(),
+                                       driver->options(),
+                                       driver->message_handler());
   transformer.set_trim_urls(false);
   bool urls_modified = false;
 
@@ -75,9 +74,9 @@ bool CssAbsolutify::AbsolutifyUrls(Css::Stylesheet* stylesheet,
     Css::FontFace* font_face = *font_face_iter;
     if (AbsolutifyDeclarations(
             &font_face->mutable_declarations(), &transformer,
-            true,  /* Must handle parseable sections in @font-face. */
+            true, /* Must handle parseable sections in @font-face. */
             handle_unparseable_sections, handler)) {
-        urls_modified = true;
+      urls_modified = true;
     }
   }
 
@@ -148,8 +147,8 @@ bool CssAbsolutify::AbsolutifyDeclarations(
         StringPiece original_bytes(tmp.data(), tmp.size());
         GoogleString rewritten_bytes;
         StringWriter writer(&rewritten_bytes);
-        if (CssTagScanner::TransformUrls(original_bytes, &writer,
-                                         transformer, handler)) {
+        if (CssTagScanner::TransformUrls(original_bytes, &writer, transformer,
+                                         handler)) {
           urls_modified = true;
           decl->set_bytes_in_original_buffer(rewritten_bytes);
         }

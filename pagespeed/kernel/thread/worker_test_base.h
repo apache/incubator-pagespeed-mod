@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -56,13 +56,9 @@ class WorkerTestBase::CountFunction : public Function {
  public:
   explicit CountFunction(int* variable) : variable_(variable) {}
 
-  void Run() override {
-    ++*variable_;
-  }
+  void Run() override { ++*variable_; }
 
-  void Cancel() override {
-    *variable_ -= 100;
-  }
+  void Cancel() override { *variable_ -= 100; }
 
  private:
   int* variable_;
@@ -111,13 +107,9 @@ class DeleteNotifyFunction : public Function {
  public:
   explicit DeleteNotifyFunction(WorkerTestBase::SyncPoint* sync)
       : sync_(sync) {}
-  ~DeleteNotifyFunction() override {
-    sync_->Notify();
-  }
+  ~DeleteNotifyFunction() override { sync_->Notify(); }
 
-  void Run() override {
-    LOG(FATAL) << "DeleteNotifyFunction ran.";
-  }
+  void Run() override { LOG(FATAL) << "DeleteNotifyFunction ran."; }
 
  private:
   WorkerTestBase::SyncPoint* sync_;

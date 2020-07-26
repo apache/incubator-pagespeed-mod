@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/cache/fallback_cache.h"
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -24,7 +25,6 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
-#include "pagespeed/kernel/cache/fallback_cache.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
 
 namespace net_instaweb {
@@ -46,9 +46,8 @@ class FallbackCacheTest : public CacheTestBase {
   FallbackCacheTest()
       : small_cache_(kFallbackCacheSize),
         large_cache_(kFallbackCacheSize),
-        fallback_cache_(&small_cache_, &large_cache_,
-                        kTestValueSizeThreshold, &handler_) {
-  }
+        fallback_cache_(&small_cache_, &large_cache_, kTestValueSizeThreshold,
+                        &handler_) {}
 
   CacheInterface* Cache() override { return &fallback_cache_; }
 
@@ -235,8 +234,7 @@ TEST_F(FallbackCacheTest, LargeKeyOverThreshold) {
   const char kValue[] = "value";
   CheckPut(kKey, kValue);
   CheckGet(kKey, kValue);
-  EXPECT_EQ(kKey.size() + STATIC_STRLEN(kValue),
-            large_cache_.size_bytes());
+  EXPECT_EQ(kKey.size() + STATIC_STRLEN(kValue), large_cache_.size_bytes());
 }
 
 // Tests what happens when we read an empty value, lacking the trailing L

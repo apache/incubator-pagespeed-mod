@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_JPEG_READER_H_
 #define PAGESPEED_KERNEL_IMAGE_JPEG_READER_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
@@ -61,13 +61,13 @@ class JpegReader {
   explicit JpegReader(MessageHandler* handler);
   ~JpegReader();
 
-  jpeg_decompress_struct *decompress_struct() const { return jpeg_decompress_; }
+  jpeg_decompress_struct* decompress_struct() const { return jpeg_decompress_; }
 
   void PrepareForRead(const void* image_data, size_t image_length);
 
  private:
-  jpeg_decompress_struct *jpeg_decompress_;
-  jpeg_error_mgr *decompress_error_;
+  jpeg_decompress_struct* jpeg_decompress_;
+  jpeg_error_mgr* decompress_error_;
   MessageHandler* message_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(JpegReader);
@@ -85,7 +85,7 @@ class JpegScanlineReader : public ScanlineReaderInterface {
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the last call to ReadNextScanline().
   ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length) override;
+                                      size_t buffer_length) override;
 
   // Return the next row of pixels.
   ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
@@ -96,11 +96,11 @@ class JpegScanlineReader : public ScanlineReaderInterface {
   bool HasMoreScanLines() override { return (row_ < height_); }
   PixelFormat GetPixelFormat() override { return pixel_format_; }
   size_t GetImageHeight() override { return height_; }
-  size_t GetImageWidth() override {  return width_; }
+  size_t GetImageWidth() override { return width_; }
   bool IsProgressive() override { return is_progressive_; }
 
  private:
-  JpegEnv* jpeg_env_;  // State of libjpeg
+  JpegEnv* jpeg_env_;              // State of libjpeg
   unsigned char* row_pointer_[1];  // Pointer for a row buffer
   PixelFormat pixel_format_;
   size_t height_;

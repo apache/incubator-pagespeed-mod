@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_AUTOMATIC_STATIC_REWRITER_H_
 #define PAGESPEED_AUTOMATIC_STATIC_REWRITER_H_
@@ -49,8 +48,7 @@ class UrlAsyncFetcher;
 class FileRewriter : public RewriteDriverFactory {
  public:
   FileRewriter(const ProcessContext& process_context,
-               const RewriteGflags* gflags,
-               bool echo_errors_to_stdout);
+               const RewriteGflags* gflags, bool echo_errors_to_stdout);
   virtual ~FileRewriter();
   virtual NamedLockManager* DefaultLockManager();
   virtual RewriteOptions* NewRewriteOptions();
@@ -77,15 +75,13 @@ class FileRewriter : public RewriteDriverFactory {
 // interface to rewrite some HTML text.
 class StaticRewriter {
  public:
-  StaticRewriter(const ProcessContext& process_context,
-                 int* argc, char*** argv);
+  StaticRewriter(const ProcessContext& process_context, int* argc,
+                 char*** argv);
   explicit StaticRewriter(const ProcessContext& process_context);
   ~StaticRewriter();
 
-  bool ParseText(const StringPiece& text,
-                 const StringPiece& url,
-                 const StringPiece& id,
-                 const StringPiece& output_dir,
+  bool ParseText(const StringPiece& text, const StringPiece& url,
+                 const StringPiece& id, const StringPiece& output_dir,
                  Writer* writer);
 
   FileSystem* file_system();

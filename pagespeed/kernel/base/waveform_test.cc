@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/waveform.h"
 
@@ -47,8 +46,7 @@ class WaveformTest : public testing::Test {
       : thread_system_(Platform::CreateThreadSystem()),
         timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
         stats_(thread_system_.get()),
-        handler_(thread_system_->NewMutex()) {
-  }
+        handler_(thread_system_->NewMutex()) {}
 
   GoogleString Format(int time_ms, int value) {
     return absl::StrFormat(kCoordinateFormat, 1.0 * time_ms, 1.0 * value);
@@ -63,7 +61,6 @@ class WaveformTest : public testing::Test {
   SimpleStats stats_;
   MockMessageHandler handler_;
 };
-
 
 // A basic sanity test showing that the header loads the jsapi.
 TEST_F(WaveformTest, Header) {

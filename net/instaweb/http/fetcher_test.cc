@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/http/public/fetcher_test.h"
 
@@ -62,8 +61,7 @@ FetcherTest::FetcherTest()
 }
 
 void FetcherTest::ValidateMockFetcherResponse(
-    bool success, bool check_error_message,
-    const GoogleString& content,
+    bool success, bool check_error_message, const GoogleString& content,
     const ResponseHeaders& response_headers) {
   if (success) {
     EXPECT_EQ(GoogleString(kHtmlContent), content);
@@ -76,15 +74,17 @@ void FetcherTest::ValidateMockFetcherResponse(
   }
 }
 
-int FetcherTest::CountFetchesAsync(
-    const StringPiece& url, bool expect_success, bool* callback_called) {
-  return CountFetchesAsync(url, async_fetcher(),
-                           expect_success, true, callback_called);
+int FetcherTest::CountFetchesAsync(const StringPiece& url, bool expect_success,
+                                   bool* callback_called) {
+  return CountFetchesAsync(url, async_fetcher(), expect_success, true,
+                           callback_called);
 }
 
-int FetcherTest::CountFetchesAsync(
-    const StringPiece& url, UrlAsyncFetcher* fetcher,
-    bool expect_success, bool check_error_message, bool* callback_called) {
+int FetcherTest::CountFetchesAsync(const StringPiece& url,
+                                   UrlAsyncFetcher* fetcher,
+                                   bool expect_success,
+                                   bool check_error_message,
+                                   bool* callback_called) {
   CHECK(fetcher != nullptr);
   *callback_called = false;
   int starting_fetches = counting_fetcher_.fetch_start_count();
@@ -102,8 +102,7 @@ void FetcherTest::ValidateOutput(const GoogleString& content,
   // and the last header here, and make sure we got the content.
   EXPECT_EQ(200, response_headers.status_code());
   ASSERT_EQ(11, response_headers.NumAttributes());
-  EXPECT_EQ(GoogleString("P3P"),
-            GoogleString(response_headers.Name(6)));
+  EXPECT_EQ(GoogleString("P3P"), GoogleString(response_headers.Name(6)));
   EXPECT_STREQ(
       "CP=\"This is not a P3P policy! See https://www.google.com/support/"
       "accounts/answer/151657?hl=en for more info.\"",
@@ -112,8 +111,8 @@ void FetcherTest::ValidateOutput(const GoogleString& content,
   // Verifies that after the headers, we see the content.  Note that this
   // currently assumes 'wget' style output.  Wget takes care of any unzipping.
   static const char start_of_doc[] = "<!doctype html>";
-  EXPECT_EQ(0, strncmp(start_of_doc, content.c_str(),
-                       STATIC_STRLEN(start_of_doc)));
+  EXPECT_EQ(
+      0, strncmp(start_of_doc, content.c_str(), STATIC_STRLEN(start_of_doc)));
 }
 
 void FetcherTest::Populate(const char* cache_control,

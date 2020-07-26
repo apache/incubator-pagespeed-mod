@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 
@@ -26,7 +25,7 @@
 
 namespace net_instaweb {
 
-ExperimentMatcher::~ExperimentMatcher() { }
+ExperimentMatcher::~ExperimentMatcher() {}
 
 bool ExperimentMatcher::ClassifyIntoExperiment(
     const RequestHeaders& headers, const UserAgentMatcher& agent_matcher,
@@ -42,9 +41,9 @@ bool ExperimentMatcher::ClassifyIntoExperiment(
     experiment_value =
         experiment::DetermineExperimentState(options, headers, agent_matcher);
     need_cookie = true;
-  } else if (
-      options->enroll_experiment_id() == experiment::kNoExperiment ||
-      options->GetExperimentSpec(options->enroll_experiment_id()) != nullptr) {
+  } else if (options->enroll_experiment_id() == experiment::kNoExperiment ||
+             options->GetExperimentSpec(options->enroll_experiment_id()) !=
+                 nullptr) {
     // Only allow people to force experiment ids that are actually defined
     // plus kNoExperiment.
     experiment_value = options->enroll_experiment_id();
@@ -82,11 +81,10 @@ bool ExperimentMatcher::ClassifyIntoExperiment(
   return need_cookie;
 }
 
-void ExperimentMatcher::StoreExperimentData(
-    int state, const StringPiece& url, int64 expiration_time_ms,
-    ResponseHeaders* headers) {
+void ExperimentMatcher::StoreExperimentData(int state, const StringPiece& url,
+                                            int64 expiration_time_ms,
+                                            ResponseHeaders* headers) {
   experiment::SetExperimentCookie(headers, state, url, expiration_time_ms);
 }
-
 
 }  // namespace net_instaweb

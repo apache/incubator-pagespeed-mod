@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_CONTROLLER_POPULARITY_CONTEST_SCHEDULE_REWRITE_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_POPULARITY_CONTEST_SCHEDULE_REWRITE_CONTROLLER_H_
@@ -35,7 +34,6 @@
 #include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
-
 
 // Implementation of ScheduleRewriteController that uses priority queue to
 // process rewrites in the order of most requested. Gurantees that at most one
@@ -139,8 +137,8 @@ class PopularityContestScheduleRewriteController
     }
   };
 
-  typedef std::unordered_map<const GoogleString*, Rewrite*,
-                             StringPtrHash, StringPtrEq>
+  typedef std::unordered_map<const GoogleString*, Rewrite*, StringPtrHash,
+                             StringPtrEq>
       RewriteMap;
 
   // Consider starting the next rewrite in queue_, depending on available

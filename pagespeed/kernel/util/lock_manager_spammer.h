@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -77,16 +77,11 @@ class LockManagerSpammer : public ThreadSystem::Thread {
 
   typedef std::vector<NamedLock*> LockVector;
 
-  LockManagerSpammer(Scheduler* scheduler,
-                     ThreadSystem::ThreadFlags flags,
+  LockManagerSpammer(Scheduler* scheduler, ThreadSystem::ThreadFlags flags,
                      const StringVector& lock_names,
                      ThreadSafeLockManager* lock_manager,
-                     bool expecting_denials,
-                     bool delay_unlocks,
-                     int index,
-                     int num_iters,
-                     int num_names,
-                     CountDown* pending_threads);
+                     bool expecting_denials, bool delay_unlocks, int index,
+                     int num_iters, int num_names, CountDown* pending_threads);
 
   Scheduler* scheduler_;
   const StringVector& lock_names_;

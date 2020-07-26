@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-
 
 #include "webutil/css/string_util.h"
 
@@ -53,17 +51,15 @@ bool ParseDouble(const char* str, int len, double* dest) {
 
 namespace {
 
-inline bool IsAscii(char32 c) {
-  return c < 0x80 && c >= 0;
-}
+inline bool IsAscii(char32 c) { return c < 0x80 && c >= 0; }
 
 }  // namespace
 
 UnicodeText LowercaseAscii(const UnicodeText& in_text) {
   UnicodeText out_text;
   // TODO(sligocki): out_text.reserve(in_text.utf8_length())
-  for (UnicodeText::const_iterator iter = in_text.begin();
-       iter < in_text.end(); ++iter) {
+  for (UnicodeText::const_iterator iter = in_text.begin(); iter < in_text.end();
+       ++iter) {
     char32 c = *iter;
     if (IsAscii(c)) {
       out_text.push_back(ascii_tolower(c));
@@ -84,7 +80,8 @@ bool StringCaseEquals(const UnicodeText& ident, const CssStringPiece& str) {
           (memcasecmp(str.data(), ident.utf8_data(), str.size()) == 0));
 }
 
-std::vector<CssStringPiece> SplitSkippingEmpty(CssStringPiece full, char delim) {
+std::vector<CssStringPiece> SplitSkippingEmpty(CssStringPiece full,
+                                               char delim) {
   std::vector<CssStringPiece> result;
 
   CssStringPiece::size_type begin_index, end_index;

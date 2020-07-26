@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/http/caching_headers.h"
 
 #include <memory>
-
-
-
-#include "pagespeed/kernel/http/caching_headers.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -36,8 +33,7 @@ class TestCachingHeaders : public CachingHeaders {
       : CachingHeaders(HttpStatus::kOK),
         cache_control_(cache_control),
         likely_static_resource_type_(true),
-        cacheable_resource_status_code_(true) {
-  }
+        cacheable_resource_status_code_(true) {}
 
   bool Lookup(const StringPiece& key, StringPieceVector* values) override {
     if (key == HttpAttributes::kCacheControl) {
@@ -110,16 +106,14 @@ TEST_F(CachingHeadersTest, DisablePublicCaching) {
 
 TEST_F(CachingHeadersTest, DisableNostore) {
   SetCacheControl("must-revalidate, private, no-store");
-  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
-                      ", must-revalidate, ",
+  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0, ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                DisableCacheControl());
 }
 
 TEST_F(CachingHeadersTest, DisableNostoreRetainNoCache) {
   SetCacheControl("no-cache, must-revalidate, private, no-store");
-  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
-                      ", must-revalidate, ",
+  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0, ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                DisableCacheControl());
 }

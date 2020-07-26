@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "envoy_logger.h"
 #include "external/envoy/source/common/access_log/access_log_manager_impl.h"
 #include "external/envoy/source/common/common/random_generator.h"
 #include "external/envoy/source/common/event/real_time_system.h"
@@ -37,14 +38,13 @@
 #include "external/envoy/source/server/config_validation/admin.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "envoy_logger.h"
 
 namespace net_instaweb {
 
 // Implementation to create and manage envoy cluster configuration
 // Cluster manager gets created from manager factory for every url to be fetched
 class EnvoyClusterManager {
-public:
+ public:
   EnvoyClusterManager();
   ~EnvoyClusterManager();
 
@@ -53,7 +53,8 @@ public:
    * @param str_url_ url to be fetched
    * @return Envoy::Upstream::ClusterManager& Cluster manager reference
    */
-  Envoy::Upstream::ClusterManager& getClusterManager(const GoogleString str_url_);
+  Envoy::Upstream::ClusterManager& getClusterManager(
+      const GoogleString str_url_);
 
   /**
    * This function gets envoy dispatcher which is a event dispatching loop
@@ -69,7 +70,7 @@ public:
 
   void ShutDown();
 
-private:
+ private:
   Envoy::ThreadLocal::InstanceImpl tls_;
   Envoy::Upstream::ClusterManagerPtr cluster_manager_{};
   Envoy::Stats::SymbolTableImpl symbol_table_;
@@ -97,18 +98,18 @@ private:
   envoy::config::bootstrap::v3::Bootstrap bootstrap;
   envoy::config::core::v3::Node envoy_node_{};
 
-  std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory> cluster_manager_factory_;
+  std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory>
+      cluster_manager_factory_;
   std::unique_ptr<Envoy::Runtime::ScopedLoaderSingleton> runtime_singleton_;
   std::unique_ptr<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>
       ssl_context_manager_;
   bool shutdown_{false};
 
-
   void initClusterManager();
 
-  const envoy::config::bootstrap::v3::Bootstrap
-  createBootstrapConfiguration(const std::string scheme, const std::string host_name,
-                               const int port) const;
+  const envoy::config::bootstrap::v3::Bootstrap createBootstrapConfiguration(
+      const std::string scheme, const std::string host_name,
+      const int port) const;
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

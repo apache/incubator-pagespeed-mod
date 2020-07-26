@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -47,8 +47,8 @@ class AddHeadersFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
         options_(thread_system_.get()) {
     options_.AddCustomFetchHeader("Custom", "custom-header");
     options_.AddCustomFetchHeader("Extra", "extra-header");
-    add_headers_fetcher_.reset(new AddHeadersFetcher(
-        &options_, &reflecting_fetcher_));
+    add_headers_fetcher_.reset(
+        new AddHeadersFetcher(&options_, &reflecting_fetcher_));
   }
 
  protected:
@@ -88,4 +88,3 @@ TEST_F(AddHeadersFetcherTest, ReplacesHeaders) {
 }  // namespace
 
 }  // namespace net_instaweb
-

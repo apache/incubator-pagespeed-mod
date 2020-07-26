@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,14 +25,11 @@
 
 namespace net_instaweb {
 
-ApacheRequestContext::ApacheRequestContext(
-    AbstractMutex* logging_mutex, Timer* timer, request_rec* req)
-    : SystemRequestContext(
-          logging_mutex,
-          timer,
-          req->hostname,
-          req->connection->local_addr->port,
-          req->connection->local_ip) {
+ApacheRequestContext::ApacheRequestContext(AbstractMutex* logging_mutex,
+                                           Timer* timer, request_rec* req)
+    : SystemRequestContext(logging_mutex, timer, req->hostname,
+                           req->connection->local_addr->port,
+                           req->connection->local_ip) {
   // Note that at the time we create a RequestContext we have full
   // access to the Apache request_rec.  However, due to Cloning and (I
   // believe) Detaching, we can initiate fetches after the Apache
@@ -49,17 +46,17 @@ ApacheRequestContext::ApacheRequestContext(
   }
 }
 
-ApacheRequestContext::~ApacheRequestContext() {
-}
+ApacheRequestContext::~ApacheRequestContext() {}
 
 ApacheRequestContext* ApacheRequestContext::DynamicCast(RequestContext* rc) {
   if (rc == nullptr) {
     return nullptr;
   }
   ApacheRequestContext* out = dynamic_cast<ApacheRequestContext*>(rc);
-  DCHECK(out != nullptr) << "Invalid request conversion. Do not rely on RTTI for "
-                      << "functional behavior. Apache handling flows must use "
-                      << "ApacheRequestContexts.";
+  DCHECK(out != nullptr)
+      << "Invalid request conversion. Do not rely on RTTI for "
+      << "functional behavior. Apache handling flows must use "
+      << "ApacheRequestContexts.";
   return out;
 }
 

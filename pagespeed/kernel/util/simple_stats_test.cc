@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the simple statistics implementation.
 
@@ -42,8 +41,7 @@ class SimpleStatsTest : public testing::Test {
  public:
   SimpleStatsTest()
       : thread_system_(Platform::CreateThreadSystem()),
-        stats_(thread_system_.get()) {
-  }
+        stats_(thread_system_.get()) {}
 
  protected:
   std::unique_ptr<ThreadSystem> thread_system_;
@@ -100,7 +98,7 @@ TEST_F(SimpleStatsTest, TestSetReturningPrevious) {
 TEST_F(SimpleStatsTest, CounterHugeValues) {
   UpDownCounter* var = stats_.AddUpDownCounter("c0");
   EXPECT_EQ(kTenBillion, var->Add(kTenBillion));
-  EXPECT_EQ(2*kTenBillion, var->Add(kTenBillion));
+  EXPECT_EQ(2 * kTenBillion, var->Add(kTenBillion));
   EXPECT_EQ(kTenBillion, var->Add(-kTenBillion));
   EXPECT_EQ(0, var->Add(-kTenBillion));
   EXPECT_EQ(-kTenBillion, var->Add(-kTenBillion));
@@ -109,7 +107,7 @@ TEST_F(SimpleStatsTest, CounterHugeValues) {
 TEST_F(SimpleStatsTest, VariableHugeValues) {
   Variable* var = stats_.AddVariable("v0");
   EXPECT_EQ(kTenBillion, var->Add(kTenBillion));
-  EXPECT_EQ(2*kTenBillion, var->Add(kTenBillion));
+  EXPECT_EQ(2 * kTenBillion, var->Add(kTenBillion));
 }
 
 }  // namespace net_instaweb

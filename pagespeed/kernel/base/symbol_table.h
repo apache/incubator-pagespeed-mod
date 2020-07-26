@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -52,7 +52,8 @@ namespace net_instaweb {
 // TODO(jmarantz): Symbol tables are not currently thread-safe.  We
 // should consider whether it's worth making them thread-safe, or
 // whether it's better to use separate symbol tables in each thread.
-template<class CharTransform> class SymbolTable {
+template <class CharTransform>
+class SymbolTable {
  public:
   SymbolTable();
   ~SymbolTable() { Clear(); }
@@ -96,8 +97,7 @@ template<class CharTransform> class SymbolTable {
     }
   };
 
-  typedef dense_hash_map<StringPiece, StringPiece*,
-                         Hash, Comparator> SymbolMap;
+  typedef dense_hash_map<StringPiece, StringPiece*, Hash, Comparator> SymbolMap;
   SymbolMap string_map_;
 
   // Since we don't want to have Atom include both base and size, it keeps

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the RewriteContext class.  This is made simplest by
 // setting up some dummy rewriters in our test framework.
@@ -56,9 +55,7 @@ class ResourceUpdateTest : public RewriteContextTestBase {
  protected:
   static const char kOriginalUrl[];
 
-  ResourceUpdateTest() {
-    FetcherUpdateDateHeaders();
-  }
+  ResourceUpdateTest() { FetcherUpdateDateHeaders(); }
 
   // Rewrite supplied HTML, search find rewritten resource URL (EXPECT only 1),
   // and return the fetched contents of that resource.
@@ -124,8 +121,7 @@ class ResourceUpdateTest : public RewriteContextTestBase {
     return subresources;
   }
 
-  void ReconfigureNestedFilter(
-      bool expected_nested_rewrite_result) {
+  void ReconfigureNestedFilter(bool expected_nested_rewrite_result) {
     nested_filter_->set_expected_nested_rewrite_result(
         expected_nested_rewrite_result);
   }
@@ -158,8 +154,8 @@ TEST_F(ResourceUpdateTest, OnTheFly) {
   int64 ttl_ms = 5 * Timer::kMinuteMs;
 
   // 1) Set first version of resource.
-  SetResponseWithDefaultHeaders(kOriginalUrl, kContentTypeCss,
-                                " init ", ttl_ms / 1000);
+  SetResponseWithDefaultHeaders(kOriginalUrl, kContentTypeCss, " init ",
+                                ttl_ms / 1000);
   ClearStats();
   EXPECT_EQ("init", RewriteSingleResource("first_load"));
   // TODO(sligocki): Why are we rewriting twice here?
@@ -178,8 +174,8 @@ TEST_F(ResourceUpdateTest, OnTheFly) {
   EXPECT_EQ(0, file_system()->num_input_file_opens());
 
   // 3) Change resource.
-  SetResponseWithDefaultHeaders(kOriginalUrl, kContentTypeCss,
-                                " new ", ttl_ms / 1000);
+  SetResponseWithDefaultHeaders(kOriginalUrl, kContentTypeCss, " new ",
+                                ttl_ms / 1000);
   ClearStats();
   // Rewrite should still be the same, because it's found in cache.
   EXPECT_EQ("init", RewriteSingleResource("stale_content"));
@@ -234,8 +230,8 @@ TEST_F(ResourceUpdateTest, Rewritten) {
 
   // 3) Change resource.
   response_headers.Replace(HttpAttributes::kEtag, "new");
-  mock_url_fetcher()->SetConditionalResponse(
-      "http://test.com/a.css", -1, "new", response_headers, " new ");
+  mock_url_fetcher()->SetConditionalResponse("http://test.com/a.css", -1, "new",
+                                             response_headers, " new ");
 
   ClearStats();
   // Rewrite should still be the same, because it's found in cache.
@@ -265,8 +261,7 @@ TEST_F(ResourceUpdateTest, Rewritten) {
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_EQ(0, counting_url_async_fetcher()->byte_count());
   EXPECT_EQ(
-      1,
-      server_context()->rewrite_stats()->num_conditional_refreshes()->Get());
+      1, server_context()->rewrite_stats()->num_conditional_refreshes()->Get());
   EXPECT_EQ(0, file_system()->num_input_file_opens());
 }
 
@@ -420,7 +415,7 @@ TEST_F(CombineResourceUpdateTest, CombineDifferentTTLs) {
   EXPECT_EQ(" a1  b2  c2  d2 ", CombineResources("short_updated"));
   EXPECT_EQ(1, combining_filter_->num_rewrites());  // Because inputs updated.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());  // One expired.
-  EXPECT_EQ(2, file_system()->num_input_file_opens());  // Re-read files.
+  EXPECT_EQ(2, file_system()->num_input_file_opens());        // Re-read files.
   // 2 file reads + stat of b, which we get to as a has long TTL,
   // as well as as of d (for figuring out revalidation strategy).
   EXPECT_EQ(4, file_system()->num_input_file_stats());
@@ -432,7 +427,7 @@ TEST_F(CombineResourceUpdateTest, CombineDifferentTTLs) {
   EXPECT_EQ(" a2  b2  c2  d2 ", CombineResources("all_updated"));
   EXPECT_EQ(1, combining_filter_->num_rewrites());  // Because inputs updated.
   EXPECT_EQ(2, counting_url_async_fetcher()->fetch_count());  // Both expired.
-  EXPECT_EQ(2, file_system()->num_input_file_opens());  // Re-read files.
+  EXPECT_EQ(2, file_system()->num_input_file_opens());        // Re-read files.
   // 2 read-induced stats, 2 stats to figure out how to deal with
   // c + d for invalidation.
   EXPECT_EQ(4, file_system()->num_input_file_stats());
@@ -446,8 +441,8 @@ TEST_F(ResourceUpdateTest, NestedTestExpireNested404) {
   const int64 kDecadeMs = 10 * Timer::kYearMs;
 
   // Have the nested one have a 404...
-  const GoogleString kOutUrl = Encode("", "nf", "sdUklQf3sx",
-                                      "main.txt", "css");
+  const GoogleString kOutUrl =
+      Encode("", "nf", "sdUklQf3sx", "main.txt", "css");
   SetResponseWithDefaultHeaders("http://test.com/main.txt", kContentTypeCss,
                                 "a.css\n", 4 * kDecadeMs / 1000);
   SetFetchResponse404("a.css");
@@ -467,8 +462,8 @@ TEST_F(ResourceUpdateTest, NestedTestExpireNested404) {
   ReconfigureNestedFilter(NestedFilter::kExpectNestedRewritesSucceed);
   const GoogleString kFullOutUrl =
       Encode("", "nf", "G60oQsKZ9F", "main.txt", "css");
-  const GoogleString kInnerUrl = StrCat(Encode("", "uc", "N4LKMOq9ms",
-                                               "a.css", "css"), "\n");
+  const GoogleString kInnerUrl =
+      StrCat(Encode("", "uc", "N4LKMOq9ms", "a.css", "css"), "\n");
   ValidateExpected("nested_404", CssLinkHref("main.txt"),
                    CssLinkHref(kFullOutUrl));
   EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, kFullOutUrl), &contents));
@@ -489,7 +484,8 @@ TEST_F(ResourceUpdateTest, NestedDifferentTTLs) {
   SetResponseWithDefaultHeaders("http://test.com/main.txt", kContentTypeCss,
                                 "web/a.css\n"
                                 "file/b.css\n"
-                                "web/c.css\n", kExtraLongTtlMs / 1000);
+                                "web/c.css\n",
+                                kExtraLongTtlMs / 1000);
   SetResponseWithDefaultHeaders("http://test.com/web/a.css", kContentTypeCss,
                                 " a1 ", kLongTtlMs / 1000);
   WriteFile("/test/b.css", " b1 ");

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/url_to_filename_encoder.h"
 
@@ -32,8 +31,7 @@ namespace {
 
 class UrlToFilenameEncoderTest : public ::testing::Test {
  protected:
-  UrlToFilenameEncoderTest() : escape_(1, UrlToFilenameEncoder::kEscapeChar) {
-  }
+  UrlToFilenameEncoderTest() : escape_(1, UrlToFilenameEncoder::kEscapeChar) {}
 
   void CheckSegmentLength(const StringPiece& escaped_word) {
     StringPieceVector components;
@@ -101,8 +99,9 @@ TEST_F(UrlToFilenameEncoderTest, DoesNotEscape) {
   ValidateNoChange("ZYXWVUTSRQPONMLKJIHGFEDCBA");
   ValidateNoChange("01234567689");
   ValidateNoChange("_.=+-");
-  ValidateNoChange("abcdefghijklmnopqrstuvwxyzZYXWVUTSRQPONMLKJIHGFEDCBA"
-                   "01234567689_.=+-");
+  ValidateNoChange(
+      "abcdefghijklmnopqrstuvwxyzZYXWVUTSRQPONMLKJIHGFEDCBA"
+      "01234567689_.=+-");
   ValidateNoChange("index.html");
   ValidateNoChange("/");
   ValidateNoChange("/.");
@@ -137,15 +136,14 @@ TEST_F(UrlToFilenameEncoderTest, DoesEscapeCorrectly) {
   Validate("/./leaf", "/" + escape_ + "./leaf" + escape_);
   Validate("/../leaf", "/" + escape_ + "../leaf" + escape_);
   Validate("//leaf", "/" + escape_ + "2Fleaf" + escape_);
-  Validate("mysite/u?param1=x&param2=y",
-           "mysite/u" + escape_ + "3Fparam1=x" + escape_ + "26param2=y" +
-           escape_);
+  Validate("mysite/u?param1=x&param2=y", "mysite/u" + escape_ + "3Fparam1=x" +
+                                             escape_ + "26param2=y" + escape_);
   Validate("search?q=dogs&go=&form=QBLH&qs=n",
            "search" + escape_ + "3Fq=dogs" + escape_ + "26go=" + escape_ +
-           "26form=QBLH" + escape_ + "26qs=n" + escape_);
+               "26form=QBLH" + escape_ + "26qs=n" + escape_);
   Validate("~joebob/my_neeto-website+with_stuff.asp?id=138&content=true",
            "" + escape_ + "7Ejoebob/my_neeto-website+with_stuff.asp" + escape_ +
-           "3Fid=138" + escape_ + "26content=true" + escape_);
+               "3Fid=138" + escape_ + "26content=true" + escape_);
   Validate("embedded space", "embedded,20space,");
   Validate("embedded+plus", "embedded+plus,");
 
@@ -173,17 +171,22 @@ TEST_F(UrlToFilenameEncoderTest, LongTail) {
   // the long lines in the string below are 64 characters, so we can see
   // the slashes every 128.
   GoogleString gold_long_word =
-      escape_ + "7Ejoebob/briggs/"
+      escape_ +
+      "7Ejoebob/briggs/"
       "1234567890123456789012345678901234567890123456789012345678901234"
       "56789012345678901234567890123456789012345678901234567890123456" +
-      escape_ + "-/"
+      escape_ +
+      "-/"
       "7890123456789012345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890123456789012" +
-      escape_ + "-/"
+      escape_ +
+      "-/"
       "3456789012345678901234567890123456789012345678901234567890123456"
       "78901234567890123456789012345678901234567890123456789012345678" +
-      escape_ + "-/"
-      "9012345678901234567890" + escape_;
+      escape_ +
+      "-/"
+      "9012345678901234567890" +
+      escape_;
   EXPECT_LT(UrlToFilenameEncoder::kMaximumSubdirectoryLength,
             sizeof(long_word));
   Validate(long_word, gold_long_word);
@@ -206,19 +209,23 @@ TEST_F(UrlToFilenameEncoderTest, LongTailQuestion) {
   // only 127 characters.
   GoogleString pattern = "1234567" + escape_ + "3F";  // 10 characters
   GoogleString gold_long_word =
-      escape_ + "7Ejoebob/briggs/" +
-      pattern + pattern + pattern + pattern + pattern + pattern + "1234"
-      "567" + escape_ + "3F" + pattern + pattern + pattern + pattern + pattern +
-       "123456" + escape_ + "-/"
-      "7" + escape_ + "3F" + pattern + pattern + pattern + pattern + pattern +
+      escape_ + "7Ejoebob/briggs/" + pattern + pattern + pattern + pattern +
+      pattern + pattern +
+      "1234"
+      "567" +
+      escape_ + "3F" + pattern + pattern + pattern + pattern + pattern +
+      "123456" + escape_ +
+      "-/"
+      "7" +
+      escape_ + "3F" + pattern + pattern + pattern + pattern + pattern +
       pattern + pattern + pattern + pattern + pattern + pattern + pattern +
-      "12" +
-      escape_ + "-/"
-      "34567" + escape_ + "3F" + pattern + pattern + pattern + pattern + pattern
-      + "1234567" + escape_ + "3F" + pattern + pattern + pattern + pattern
-      + pattern + "1234567" +
-      escape_ + "-/" +
-      escape_ + "3F" + pattern + pattern + escape_;
+      "12" + escape_ +
+      "-/"
+      "34567" +
+      escape_ + "3F" + pattern + pattern + pattern + pattern + pattern +
+      "1234567" + escape_ + "3F" + pattern + pattern + pattern + pattern +
+      pattern + "1234567" + escape_ + "-/" + escape_ + "3F" + pattern +
+      pattern + escape_;
   EXPECT_LT(UrlToFilenameEncoder::kMaximumSubdirectoryLength,
             sizeof(long_word));
   Validate(long_word, gold_long_word);
@@ -254,7 +261,6 @@ TEST_F(UrlToFilenameEncoderTest, LeafBranchAlias) {
   Validate("/a/b/c/d/", "/a/b/c/d/" + escape_);
 }
 
-
 TEST_F(UrlToFilenameEncoderTest, BackslashSeparator) {
   GoogleString long_word;
   GoogleString escaped_word;
@@ -266,8 +272,8 @@ TEST_F(UrlToFilenameEncoderTest, BackslashSeparator) {
   ASSERT_LT(UrlToFilenameEncoder::kMaximumSubdirectoryLength,
             escaped_word.size());
   // Check that the backslash got inserted at the correct spot.
-  EXPECT_EQ('\\', escaped_word[
-      UrlToFilenameEncoder::kMaximumSubdirectoryLength]);
+  EXPECT_EQ('\\',
+            escaped_word[UrlToFilenameEncoder::kMaximumSubdirectoryLength]);
 }
 
 TEST_F(UrlToFilenameEncoderTest, DoesNotEscapeAlphanum) {

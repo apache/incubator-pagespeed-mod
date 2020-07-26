@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the HTML escaper.
 
@@ -31,14 +30,12 @@ namespace net_instaweb {
 
 class HtmlKeywordsTest : public testing::Test {
  protected:
-  static void SetUpTestCase() {
-    HtmlKeywords::Init();
-  }
+  static void SetUpTestCase() { HtmlKeywords::Init(); }
 
   StringPiece Unescape(const StringPiece& escaped, GoogleString* buf) {
     bool decoding_error;
-    StringPiece unescaped = HtmlKeywords::Unescape(escaped, buf,
-                                                   &decoding_error);
+    StringPiece unescaped =
+        HtmlKeywords::Unescape(escaped, buf, &decoding_error);
     EXPECT_FALSE(decoding_error);
     return unescaped;
   }
@@ -67,8 +64,8 @@ class HtmlKeywordsTest : public testing::Test {
 
   void TestEscape(const GoogleString& symbolic_code, char value) {
     GoogleString symbolic_escaped = StrCat("&", symbolic_code, ";");
-    GoogleString numeric_escaped = absl::StrFormat(
-        "&#%02d;", static_cast<unsigned char>(value));
+    GoogleString numeric_escaped =
+        absl::StrFormat("&#%02d;", static_cast<unsigned char>(value));
     GoogleString unescaped(&value, 1), buf;
     BiTest(symbolic_escaped, unescaped);
     EXPECT_EQ(unescaped, Unescape(numeric_escaped, &buf));
@@ -215,12 +212,12 @@ TEST_F(HtmlKeywordsTest, DetectEncodingErrors) {
   EXPECT_FALSE(UnescapeEncodingError("&#127;"));
   EXPECT_FALSE(UnescapeEncodingError("&#128;"));
   EXPECT_FALSE(UnescapeEncodingError("&#255;"));
-  EXPECT_FALSE(UnescapeEncodingError("&apos;"));   // Ignore invalid code.
+  EXPECT_FALSE(UnescapeEncodingError("&apos;"));  // Ignore invalid code.
   EXPECT_FALSE(UnescapeEncodingError("&acute;"));
   EXPECT_FALSE(UnescapeEncodingError("&ACUTE;"));  // sloppy case OK.
-  EXPECT_FALSE(UnescapeEncodingError("&yuml;"));  // lower-case is 255.
-  EXPECT_TRUE(UnescapeEncodingError("&YUML;"));   // sloppy-case OK.
-  EXPECT_TRUE(UnescapeEncodingError("&Yuml;"));   // upper-case is 376; no good.
+  EXPECT_FALSE(UnescapeEncodingError("&yuml;"));   // lower-case is 255.
+  EXPECT_TRUE(UnescapeEncodingError("&YUML;"));    // sloppy-case OK.
+  EXPECT_TRUE(UnescapeEncodingError("&Yuml;"));  // upper-case is 376; no good.
   EXPECT_TRUE(UnescapeEncodingError("&#256;"));
   EXPECT_TRUE(UnescapeEncodingError("&#2560;"));
   EXPECT_TRUE(UnescapeEncodingError("\200"));

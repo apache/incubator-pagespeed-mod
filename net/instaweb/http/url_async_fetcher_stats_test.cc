@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,18 +53,15 @@ class StatsMaker {
         timer_(threads_->NewMutex(), MockTimer::kApr_5_2010_ms),
         fs_(threads_.get(), &timer_),
         mem_runtime_(new InProcessSharedMem(threads_.get())),
-        stats_(new SharedMemStatistics(3000 /* log dump interval */,
-                                       100000 /* max log size kb */,
-                                       "/stats.log", false /* no log */,
-                                       "in_mem", mem_runtime_.get(),
-                                       &message_handler_, &fs_, &timer_)) {
+        stats_(new SharedMemStatistics(
+            3000 /* log dump interval */, 100000 /* max log size kb */,
+            "/stats.log", false /* no log */, "in_mem", mem_runtime_.get(),
+            &message_handler_, &fs_, &timer_)) {
     UrlAsyncFetcherStats::InitStats("test", stats_.get());
     stats_->Init(true, &message_handler_);
   }
 
-  ~StatsMaker() {
-    stats_->GlobalCleanup(&message_handler_);
-  }
+  ~StatsMaker() { stats_->GlobalCleanup(&message_handler_); }
 
   Statistics* stats() { return stats_.get(); }
 

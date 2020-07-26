@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // This file provides two sets of adapters for use by
 // {Scanline, MultipleFrame} clients wishing to use code provided by the
@@ -34,6 +33,7 @@
 #define PAGESPEED_KERNEL_IMAGE_SCANLINE_INTERFACE_FRAME_ADAPTER_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -54,7 +54,6 @@ namespace image_compression {
 
 ////////// MultipleFrame API to Scanline API adapters.
 
-
 // The class FrameToScanlineReaderAdapter takes ownership of a
 // MultipleFrameReader and exposes ScanlineReaderInterface methods.
 class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
@@ -71,9 +70,8 @@ class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
   // Will return an error status if the underlying MultipleFrameReader
   // is processing an animated image.
   ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length) override;
-  ScanlineStatus ReadNextScanlineWithStatus(
-      void** out_scanline_bytes) override;
+                                      size_t buffer_length) override;
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
   size_t GetImageHeight() override;
   size_t GetImageWidth() override;
   PixelFormat GetPixelFormat() override;
@@ -96,11 +94,11 @@ class FrameToScanlineWriterAdapter : public ScanlineWriterInterface {
   ~FrameToScanlineWriterAdapter() override {}
 
   ScanlineStatus InitWithStatus(size_t width, size_t height,
-                                        PixelFormat pixel_format) override;
+                                PixelFormat pixel_format) override;
   ScanlineStatus InitializeWriteWithStatus(const void* config,
-                                                   GoogleString* out) override;
+                                           GoogleString* out) override;
   ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes) override;
+      const void* scanline_bytes) override;
   ScanlineStatus FinalizeWriteWithStatus() override;
 
  private:
@@ -112,7 +110,6 @@ class FrameToScanlineWriterAdapter : public ScanlineWriterInterface {
 
   DISALLOW_COPY_AND_ASSIGN(FrameToScanlineWriterAdapter);
 };
-
 
 ////////// Scanline API to MultipleFrame API adapters.
 
@@ -157,11 +154,10 @@ class ScanlineToFrameWriterAdapter : public MultipleFrameWriter {
   ScanlineToFrameWriterAdapter(ScanlineWriterInterface* scanline_writer,
                                MessageHandler* handler);
 
-  ScanlineStatus Initialize(const void* config,
-                                    GoogleString* out) override;
+  ScanlineStatus Initialize(const void* config, GoogleString* out) override;
   ScanlineStatus PrepareImage(const ImageSpec* image_spec) override;
   ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec) override;
-  ScanlineStatus WriteNextScanline(const void *scanline_bytes) override;
+  ScanlineStatus WriteNextScanline(const void* scanline_bytes) override;
   ScanlineStatus FinalizeWrite() override;
 
  private:

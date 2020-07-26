@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -42,8 +42,7 @@ const char kConvertedMetaTags[] = "converted_meta_tags";
 namespace net_instaweb {
 
 MetaTagFilter::MetaTagFilter(RewriteDriver* rewrite_driver)
-    : CommonFilter(rewrite_driver),
-      response_headers_(nullptr) {
+    : CommonFilter(rewrite_driver), response_headers_(nullptr) {
   Statistics* stats = driver()->statistics();
   converted_meta_tag_count_ = stats->GetVariable(kConvertedMetaTags);
 }
@@ -60,7 +59,6 @@ void MetaTagFilter::StartDocumentImpl() {
   response_headers_ = driver()->mutable_response_headers();
 }
 
-
 void MetaTagFilter::EndElementImpl(HtmlElement* element) {
   // If response_headers_ are null, they got reset due to a flush, so don't
   // try to convert any tags into response_headers_ (which were already
@@ -76,15 +74,14 @@ void MetaTagFilter::EndElementImpl(HtmlElement* element) {
 }
 
 bool MetaTagFilter::ExtractAndUpdateMetaTagDetails(
-    HtmlElement* element,
-    ResponseHeaders* response_headers) {
+    HtmlElement* element, ResponseHeaders* response_headers) {
   if (response_headers == nullptr) {
     return false;
   }
   GoogleString content, mime_type, charset;
 
-  if (ExtractMetaTagDetails(*element, response_headers,
-                            &content, &mime_type, &charset)) {
+  if (ExtractMetaTagDetails(*element, response_headers, &content, &mime_type,
+                            &charset)) {
     if (!content.empty()) {
       // Yes content => it has http-equiv and content attributes,
       // and a mime_type and/or a charset, but we need a mime_type.
@@ -111,8 +108,6 @@ bool MetaTagFilter::ExtractAndUpdateMetaTagDetails(
   return false;
 }
 
-void MetaTagFilter::Flush() {
-  response_headers_ = nullptr;
-}
+void MetaTagFilter::Flush() { response_headers_ = nullptr; }
 
 }  // namespace net_instaweb

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/http/property_cache.h"
 
 #include <algorithm>
 #include <memory>
-
 #include <utility>
 
 #include "base/logging.h"
@@ -63,22 +61,17 @@ inline int NumberOfSetBits64(uint64 i) {
 
 }  // namespace
 
-PropertyCache::PropertyCache(PropertyStore* property_store,
-                             Timer* timer,
-                             Statistics* stats,
-                             ThreadSystem* threads)
+PropertyCache::PropertyCache(PropertyStore* property_store, Timer* timer,
+                             Statistics* stats, ThreadSystem* threads)
     : property_store_(property_store),
       timer_(timer),
       stats_(stats),
       thread_system_(threads),
       mutations_per_1000_writes_threshold_(
           kDefaultMutationsPer1000WritesThreshold),
-      enabled_(true) {
-}
+      enabled_(true) {}
 
-PropertyCache::~PropertyCache() {
-  STLDeleteValues(&cohorts_);
-}
+PropertyCache::~PropertyCache() { STLDeleteValues(&cohorts_); }
 
 void PropertyPage::AddValueFromProtobuf(
     const PropertyCache::Cohort* cohort,
@@ -92,8 +85,8 @@ void PropertyPage::AddValueFromProtobuf(
   if (property == nullptr) {
     property = new PropertyValue;
     (*pmap)[pcache_value.name()] = property;
-    log_record()->AddFoundPropertyToCohortInfo(
-        page_type_, cohort->name(), pcache_value.name());
+    log_record()->AddFoundPropertyToCohortInfo(page_type_, cohort->name(),
+                                               pcache_value.name());
   }
   pmap_struct->has_value = true;
   property->InitFromProtobuf(pcache_value);
@@ -118,8 +111,7 @@ bool PropertyPage::EncodePropertyCacheValues(
 
   bool ret = false;
   PropertyMap* pmap = &p->second->pmap;
-  for (PropertyMap::iterator p = pmap->begin(), e = pmap->end();
-       p != e; ++p) {
+  for (PropertyMap::iterator p = pmap->begin(), e = pmap->end(); p != e; ++p) {
     PropertyValue* property = p->second;
     PropertyValueProtobuf* pcache_value = property->protobuf();
     if (pcache_value->name().empty()) {
@@ -139,11 +131,11 @@ bool PropertyPage::EncodePropertyCacheValues(
 
 StringPiece PropertyPage::PageTypeSuffix(PageType type) {
   switch (type) {
-  case kPropertyCachePage:
-  case kPropertyCacheFallbackPage:
-    return "";
-  case kPropertyCachePerOriginPage:
-    return "@PerSite";
+    case kPropertyCachePage:
+    case kPropertyCacheFallbackPage:
+      return "";
+    case kPropertyCachePerOriginPage:
+      return "@PerSite";
   }
   LOG(DFATAL) << "Weird property page type:" << type;
   return "";
@@ -163,14 +155,12 @@ bool PropertyPage::HasPropertyValueDeleted(
 }
 
 PropertyValue::PropertyValue()
-  : proto_(new PropertyValueProtobuf),
-    changed_(true),
-    valid_(false),
-    was_read_(false) {
-}
+    : proto_(new PropertyValueProtobuf),
+      changed_(true),
+      valid_(false),
+      was_read_(false) {}
 
-PropertyValue::~PropertyValue() {
-}
+PropertyValue::~PropertyValue() {}
 
 void PropertyValue::InitFromProtobuf(const PropertyValueProtobuf& value) {
   proto_ = std::make_unique<PropertyValueProtobuf>(value);
@@ -190,9 +180,7 @@ void PropertyValue::SetValue(const StringPiece& value, int64 now_ms) {
   proto_->set_write_timestamp_ms(now_ms);
 }
 
-StringPiece PropertyValue::value() const {
-  return StringPiece(proto_->body());
-}
+StringPiece PropertyValue::value() const { return StringPiece(proto_->body()); }
 
 int64 PropertyValue::write_timestamp_ms() const {
   return proto_->write_timestamp_ms();
@@ -213,22 +201,15 @@ void PropertyCache::ReadWithCohorts(const CohortVector& cohort_list,
   page->Read(cohort_list);
 }
 
-void PropertyPage::Abort() {
-  CallDone(false);
-}
+void PropertyPage::Abort() { CallDone(false); }
 
 void PropertyPage::Read(const PropertyCache::CohortVector& cohort_list) {
   DCHECK(!cohort_list.empty());
   DCHECK(property_store_callback_ == nullptr);
   SetupCohorts(cohort_list);
   property_cache_->property_store()->Get(
-      url_,
-      options_signature_hash_,
-      cache_key_suffix_,
-      cohort_list,
-      this,
-      NewCallback(this, &PropertyPage::CallDone),
-      &property_store_callback_);
+      url_, options_signature_hash_, cache_key_suffix_, cohort_list, this,
+      NewCallback(this, &PropertyPage::CallDone), &property_store_callback_);
 }
 
 bool PropertyValue::IsStable(int mutations_per_1000_threshold) const {
@@ -255,11 +236,11 @@ bool PropertyValue::IsRecentlyConstant(int num_writes_unchanged) const {
   if (num_writes_unchanged > num_pcache_writes) {
     num_writes_unchanged = num_pcache_writes;
   }
-  uint64 update_mask =  proto_->update_mask();
+  uint64 update_mask = proto_->update_mask();
   // Check if the index of least set bit for update_mask is >=
   // num_writes_unchanged. OR all writes are for the same value.
   return !IsIndexOfLeastSetBitSmaller(update_mask, num_writes_unchanged) ||
-      (update_mask == 0);
+         (update_mask == 0);
 }
 
 bool PropertyValue::IsIndexOfLeastSetBitSmaller(uint64 value, int index) {
@@ -277,8 +258,8 @@ bool PropertyCache::IsExpired(const PropertyValue* property_value,
 const PropertyCache::Cohort* PropertyCache::AddCohort(
     const StringPiece& cohort_name) {
   PropertyCache::Cohort* cohort = new PropertyCache::Cohort(cohort_name);
-  std::pair<CohortMap::iterator, bool> insertions = cohorts_.insert(
-        make_pair(cohort->name(), static_cast<Cohort*>(nullptr)));
+  std::pair<CohortMap::iterator, bool> insertions =
+      cohorts_.insert(make_pair(cohort->name(), static_cast<Cohort*>(nullptr)));
   CHECK(insertions.second) << cohort->name() << " is added twice.";
   insertions.first->second = cohort;
   cohort_list_.push_back(insertions.first->second);
@@ -306,28 +287,22 @@ void PropertyCache::InitCohortStats(const GoogleString& cohort,
   CacheStats::InitStats(GetStatsPrefix(cohort), statistics);
 }
 
-AbstractPropertyPage::~AbstractPropertyPage() {
-}
+AbstractPropertyPage::~AbstractPropertyPage() {}
 
-PropertyPage::PropertyPage(
-    PageType page_type,
-    StringPiece url,
-    StringPiece options_signature_hash,
-    StringPiece cache_key_suffix,
-    const RequestContextPtr& request_context,
-    AbstractMutex* mutex,
-    PropertyCache* property_cache)
+PropertyPage::PropertyPage(PageType page_type, StringPiece url,
+                           StringPiece options_signature_hash,
+                           StringPiece cache_key_suffix,
+                           const RequestContextPtr& request_context,
+                           AbstractMutex* mutex, PropertyCache* property_cache)
     : mutex_(mutex),
       url_(url.as_string()),
       options_signature_hash_(options_signature_hash.as_string()),
-      cache_key_suffix_(
-          StrCat(cache_key_suffix, PageTypeSuffix(page_type))),
+      cache_key_suffix_(StrCat(cache_key_suffix, PageTypeSuffix(page_type))),
       request_context_(request_context),
       was_read_(false),
       property_cache_(property_cache),
       property_store_callback_(nullptr),
-      page_type_(page_type) {
-}
+      page_type_(page_type) {}
 
 PropertyPage::~PropertyPage() {
   if (property_store_callback_ != nullptr) {
@@ -351,9 +326,8 @@ PropertyPage::~PropertyPage() {
   }
 }
 
-PropertyValue* PropertyPage::GetProperty(
-    const PropertyCache::Cohort* cohort,
-    const StringPiece& property_name) {
+PropertyValue* PropertyPage::GetProperty(const PropertyCache::Cohort* cohort,
+                                         const StringPiece& property_name) {
   ScopedMutex lock(mutex_.get());
   DCHECK(was_read_);
   DCHECK(cohort != nullptr);
@@ -364,8 +338,8 @@ PropertyValue* PropertyPage::GetProperty(
   PropertyMapStruct* pmap_struct = cohort_itr->second;
   PropertyMap* pmap = &pmap_struct->pmap;
   property = (*pmap)[property_name_str];
-  log_record()->AddRetrievedPropertyToCohortInfo(
-      page_type_, cohort->name(), property_name.as_string());
+  log_record()->AddRetrievedPropertyToCohortInfo(page_type_, cohort->name(),
+                                                 property_name.as_string());
   if (property == nullptr) {
     property = new PropertyValue;
     (*pmap)[property_name_str] = property;
@@ -374,9 +348,9 @@ PropertyValue* PropertyPage::GetProperty(
   return property;
 }
 
-void PropertyPage::UpdateValue(
-    const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-    const StringPiece& value) {
+void PropertyPage::UpdateValue(const PropertyCache::Cohort* cohort,
+                               const StringPiece& property_name,
+                               const StringPiece& value) {
   if (cohort == nullptr) {
     // TODO(pulkitg): Change LOG(WARNING) to LOG(DFATAL).
     LOG(WARNING) << "Cohort is NULL in PropertyPage::UpdateValue()";
@@ -405,13 +379,9 @@ void PropertyPage::WriteCohort(const PropertyCache::Cohort* cohort) {
     PropertyCacheValues values;
     if (EncodePropertyCacheValues(cohort, &values) ||
         HasPropertyValueDeleted(cohort)) {
-      property_cache_->property_store()->Put(
-          url_,
-          options_signature_hash_,
-          cache_key_suffix_,
-          cohort,
-          &values,
-          nullptr);
+      property_cache_->property_store()->Put(url_, options_signature_hash_,
+                                             cache_key_suffix_, cohort, &values,
+                                             nullptr);
     }
   }
 }
@@ -427,9 +397,8 @@ CacheInterface::KeyState PropertyPage::GetCacheState(
   return pmap_struct->cache_state;
 }
 
-void PropertyPage::SetCacheState(
-    const PropertyCache::Cohort* cohort,
-    CacheInterface::KeyState x) {
+void PropertyPage::SetCacheState(const PropertyCache::Cohort* cohort,
+                                 CacheInterface::KeyState x) {
   ScopedMutex lock(mutex_.get());
   DCHECK(cohort != nullptr);
   CohortDataMap::iterator cohort_itr = cohort_data_map_.find(cohort);
@@ -438,8 +407,8 @@ void PropertyPage::SetCacheState(
   pmap_struct->cache_state = x;
 }
 
-void PropertyPage::DeleteProperty(
-    const PropertyCache::Cohort* cohort, const StringPiece& property_name) {
+void PropertyPage::DeleteProperty(const PropertyCache::Cohort* cohort,
+                                  const StringPiece& property_name) {
   DCHECK(was_read_);
   DCHECK(cohort != nullptr);
   ScopedMutex lock(mutex_.get());

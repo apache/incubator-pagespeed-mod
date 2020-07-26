@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/system_server_context.h"
 
-
 #include <memory>
-
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
@@ -64,8 +61,8 @@ const char kStatistics404Count[] = "statistics_404_count";
 
 }  // namespace
 
-SystemServerContext::SystemServerContext(
-    RewriteDriverFactory* factory, StringPiece hostname, int port)
+SystemServerContext::SystemServerContext(RewriteDriverFactory* factory,
+                                         StringPiece hostname, int port)
     : ServerContext(factory),
       initialized_(false),
       use_per_vhost_statistics_(false),
@@ -113,8 +110,8 @@ void SystemServerContext::CheckLegacyGlobalCacheFlushFile() {
     bool check_cache_file = false;
     {
       ScopedMutex lock(cache_flush_mutex_.get());
-      if (now_sec >= (last_cache_flush_check_sec_ +
-                      cache_flush_poll_interval_sec)) {
+      if (now_sec >=
+          (last_cache_flush_check_sec_ + cache_flush_poll_interval_sec)) {
         last_cache_flush_check_sec_ = now_sec;
         check_cache_file = true;
       }
@@ -122,8 +119,8 @@ void SystemServerContext::CheckLegacyGlobalCacheFlushFile() {
         cache_flush_count_ = statistics()->GetVariable(kCacheFlushCount);
       }
       if (cache_flush_timestamp_ms_ == nullptr) {
-        cache_flush_timestamp_ms_ = statistics()->GetUpDownCounter(
-            kCacheFlushTimestampMs);
+        cache_flush_timestamp_ms_ =
+            statistics()->GetUpDownCounter(kCacheFlushTimestampMs);
       }
     }
 
@@ -138,14 +135,13 @@ void SystemServerContext::CheckLegacyGlobalCacheFlushFile() {
         // mod_pagespeed checks in mod_instaweb.cc:pagespeed_post_config while
         // ngx_pagespeed checks in ngx_pagespeed.cc:ps_merge_srv_conf.
         DCHECK_EQ('/', global_system_rewrite_options()->file_cache_path()[0]);
-        cache_flush_filename = StrCat(
-            global_system_rewrite_options()->file_cache_path(), "/",
-            cache_flush_filename);
+        cache_flush_filename =
+            StrCat(global_system_rewrite_options()->file_cache_path(), "/",
+                   cache_flush_filename);
       }
       int64 cache_flush_timestamp_sec;
       NullMessageHandler null_handler;
-      if (file_system()->Mtime(cache_flush_filename,
-                               &cache_flush_timestamp_sec,
+      if (file_system()->Mtime(cache_flush_filename, &cache_flush_timestamp_sec,
                                &null_handler)) {
         int64 timestamp_ms = cache_flush_timestamp_sec * Timer::kSecondMs;
 
@@ -157,10 +153,9 @@ void SystemServerContext::CheckLegacyGlobalCacheFlushFile() {
         //     http://github.com/apache/incubator-pagespeed-mod/issues/568
         // we should only bump the flush-count and print a warning to
         // the log once per new timestamp.
-        if (flushed &&
-            (timestamp_ms !=
-             cache_flush_timestamp_ms_->SetReturningPreviousValue(
-                 timestamp_ms))) {
+        if (flushed && (timestamp_ms !=
+                        cache_flush_timestamp_ms_->SetReturningPreviousValue(
+                            timestamp_ms))) {
           int count = cache_flush_count_->Add(1);
           message_handler()->Message(kWarning, "Cache Flush %d", count);
         }
@@ -211,16 +206,14 @@ SystemRewriteOptions* SystemServerContext::global_system_rewrite_options() {
 void SystemServerContext::PostInitHook() {
   ServerContext::PostInitHook();
   admin_site_ = std::make_unique<AdminSite>(static_asset_manager(), timer(),
-                                  message_handler());
+                                            message_handler());
 }
 
 void SystemServerContext::CreateLocalStatistics(
-    Statistics* global_statistics,
-    SystemRewriteDriverFactory* factory) {
-  local_statistics_ =
-      factory->AllocateAndInitSharedMemStatistics(
-          true /* local */, hostname_identifier(),
-          *global_system_rewrite_options());
+    Statistics* global_statistics, SystemRewriteDriverFactory* factory) {
+  local_statistics_ = factory->AllocateAndInitSharedMemStatistics(
+      true /* local */, hostname_identifier(),
+      *global_system_rewrite_options());
   split_statistics_ = std::make_unique<SplitStatistics>(
       factory->thread_system(), local_statistics_, global_statistics);
   // local_statistics_ was ::InitStat'd by AllocateAndInitSharedMemStatistics,
@@ -251,8 +244,8 @@ void SystemServerContext::ChildInit(SystemRewriteDriverFactory* factory) {
   if (!initialized_ && !global_options()->unplugged()) {
     initialized_ = true;
     system_caches_ = factory->caches();
-    set_lock_manager(factory->caches()->GetLockManager(
-        global_system_rewrite_options()));
+    set_lock_manager(
+        factory->caches()->GetLockManager(global_system_rewrite_options()));
     UrlAsyncFetcher* fetcher =
         factory->GetFetcher(global_system_rewrite_options());
     set_default_system_fetcher(fetcher);
@@ -279,8 +272,8 @@ void SystemServerContext::ChildInit(SystemRewriteDriverFactory* factory) {
         fetcher->set_fetch_with_gzip(false);
       }
       stats_fetcher_ = std::make_unique<UrlAsyncFetcherStats>(
-          kLocalFetcherStatsPrefix, fetcher,
-          factory->timer(), split_statistics_.get());
+          kLocalFetcherStatsPrefix, fetcher, factory->timer(),
+          split_statistics_.get());
       if (fetch_with_gzip) {
         stats_fetcher_->set_fetch_with_gzip(true);
       }
@@ -295,20 +288,19 @@ void SystemServerContext::ChildInit(SystemRewriteDriverFactory* factory) {
         thread_system()->NewRWLock());
     factory->InitServerContext(this);
 
-    html_rewrite_time_us_histogram_ = statistics()->GetHistogram(
-        kHtmlRewriteTimeUsHistogram);
+    html_rewrite_time_us_histogram_ =
+        statistics()->GetHistogram(kHtmlRewriteTimeUsHistogram);
     html_rewrite_time_us_histogram_->SetMaxValue(2 * Timer::kSecondUs);
   }
 }
 
-
-void SystemServerContext::ApplySessionFetchers(
-    const RequestContextPtr& request, RewriteDriver* driver) {
+void SystemServerContext::ApplySessionFetchers(const RequestContextPtr& request,
+                                               RewriteDriver* driver) {
   const SystemRewriteOptions* conf =
       SystemRewriteOptions::DynamicCast(driver->options());
   CHECK(conf != nullptr);
-  SystemRequestContext* system_request = SystemRequestContext::DynamicCast(
-      request.get());
+  SystemRequestContext* system_request =
+      SystemRequestContext::DynamicCast(request.get());
   if (system_request == nullptr) {
     return;  // decoding_driver has a null RequestContext.
   }
@@ -319,8 +311,7 @@ void SystemServerContext::ApplySessionFetchers(
   // Currently, we want AddHeadersFetcher running first, then
   // LoopbackRouteFetcher (and then Serf).
   SystemRewriteOptions* options = global_system_rewrite_options();
-  if (!options->disable_loopback_routing() &&
-      !options->slurping_enabled() &&
+  if (!options->disable_loopback_routing() && !options->slurping_enabled() &&
       !options->test_proxy()) {
     // Note the port here is our port, not from the request, since
     // LoopbackRouteFetcher may decide we should be talking to ourselves.
@@ -330,8 +321,8 @@ void SystemServerContext::ApplySessionFetchers(
   }
 
   if (driver->options()->num_custom_fetch_headers() > 0) {
-    driver->SetSessionFetcher(new AddHeadersFetcher(driver->options(),
-                                                    driver->async_fetcher()));
+    driver->SetSessionFetcher(
+        new AddHeadersFetcher(driver->options(), driver->async_fetcher()));
   }
 }
 
@@ -340,38 +331,36 @@ void SystemServerContext::CollapseConfigOverlaysAndComputeSignatures() {
 }
 
 // Handler which serves PSOL console.
-void SystemServerContext::ConsoleHandler(
-    const SystemRewriteOptions& options,
-    AdminSite::AdminSource source,
-    const QueryParams& query_params, AsyncFetch* fetch) {
-  admin_site_->ConsoleHandler(*global_system_rewrite_options(), options,
-                              source, query_params, fetch, statistics());
+void SystemServerContext::ConsoleHandler(const SystemRewriteOptions& options,
+                                         AdminSite::AdminSource source,
+                                         const QueryParams& query_params,
+                                         AsyncFetch* fetch) {
+  admin_site_->ConsoleHandler(*global_system_rewrite_options(), options, source,
+                              query_params, fetch, statistics());
 }
 
-void SystemServerContext::StatisticsHandler(
-    const RewriteOptions& options,
-    bool is_global_request,
-    AdminSite::AdminSource source,
-    AsyncFetch* fetch) {
+void SystemServerContext::StatisticsHandler(const RewriteOptions& options,
+                                            bool is_global_request,
+                                            AdminSite::AdminSource source,
+                                            AsyncFetch* fetch) {
   if (!use_per_vhost_statistics_) {
     is_global_request = true;
   }
-  Statistics* stats = is_global_request ? factory()->statistics()
-      : statistics();
+  Statistics* stats =
+      is_global_request ? factory()->statistics() : statistics();
   admin_site_->StatisticsHandler(options, source, fetch, stats);
 }
 
-void SystemServerContext::ConsoleJsonHandler(
-    const QueryParams& params, AsyncFetch* fetch) {
+void SystemServerContext::ConsoleJsonHandler(const QueryParams& params,
+                                             AsyncFetch* fetch) {
   admin_site_->ConsoleJsonHandler(params, fetch, statistics());
 }
 
-void SystemServerContext::PrintHistograms(
-    bool is_global_request,
-    AdminSite::AdminSource source,
-    AsyncFetch* fetch) {
-  Statistics* stats = is_global_request ? factory()->statistics()
-      : statistics();
+void SystemServerContext::PrintHistograms(bool is_global_request,
+                                          AdminSite::AdminSource source,
+                                          AsyncFetch* fetch) {
+  Statistics* stats =
+      is_global_request ? factory()->statistics() : statistics();
   admin_site_->PrintHistograms(source, fetch, stats);
 }
 
@@ -387,42 +376,40 @@ void SystemServerContext::PrintCaches(bool is_global,
                            metadata_cache(), page_property_cache(), this);
 }
 
-void SystemServerContext::PrintConfig(
-    AdminSite::AdminSource source, AsyncFetch* fetch) {
+void SystemServerContext::PrintConfig(AdminSite::AdminSource source,
+                                      AsyncFetch* fetch) {
   admin_site_->PrintConfig(source, fetch, global_system_rewrite_options());
 }
 
-void SystemServerContext::MessageHistoryHandler(
-    const RewriteOptions& options, AdminSite::AdminSource source,
-    AsyncFetch* fetch) {
+void SystemServerContext::MessageHistoryHandler(const RewriteOptions& options,
+                                                AdminSite::AdminSource source,
+                                                AsyncFetch* fetch) {
   admin_site_->MessageHistoryHandler(options, source, fetch);
 }
 
-void SystemServerContext::AdminPage(
-    bool is_global, const GoogleUrl& stripped_gurl,
-    const QueryParams& query_params,
-    const RewriteOptions* options,
-    AsyncFetch* fetch) {
-  Statistics* stats = is_global ? factory()->statistics()
-      : statistics();
+void SystemServerContext::AdminPage(bool is_global,
+                                    const GoogleUrl& stripped_gurl,
+                                    const QueryParams& query_params,
+                                    const RewriteOptions* options,
+                                    AsyncFetch* fetch) {
+  Statistics* stats = is_global ? factory()->statistics() : statistics();
   admin_site_->AdminPage(is_global, stripped_gurl, query_params, options,
                          cache_path(), fetch, system_caches_,
                          filesystem_metadata_cache(), http_cache(),
                          metadata_cache(), page_property_cache(), this,
-                         statistics(), stats,  global_system_rewrite_options());
+                         statistics(), stats, global_system_rewrite_options());
 }
 
 void SystemServerContext::StatisticsPage(bool is_global,
                                          const QueryParams& query_params,
                                          const RewriteOptions* options,
                                          AsyncFetch* fetch) {
-  Statistics* stats = is_global ? factory()->statistics()
-      : statistics();
-  admin_site_->StatisticsPage(
-      is_global, query_params, options, fetch,
-      system_caches_, filesystem_metadata_cache(), http_cache(),
-      metadata_cache(), page_property_cache(), this, statistics(), stats,
-      global_system_rewrite_options());
+  Statistics* stats = is_global ? factory()->statistics() : statistics();
+  admin_site_->StatisticsPage(is_global, query_params, options, fetch,
+                              system_caches_, filesystem_metadata_cache(),
+                              http_cache(), metadata_cache(),
+                              page_property_cache(), this, statistics(), stats,
+                              global_system_rewrite_options());
 }
 
 }  // namespace net_instaweb

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -70,8 +70,7 @@ const char CssCombineFilter::kCssFileCountReduction[] =
 // produce @import's in the middle and of URL absolutification.
 class CssCombineFilter::CssCombiner : public ResourceCombiner {
  public:
-  CssCombiner(RewriteDriver* driver,
-              CssCombineFilter* filter)
+  CssCombiner(RewriteDriver* driver, CssCombineFilter* filter)
       : ResourceCombiner(driver, kContentTypeCss.file_extension() + 1, filter),
         combined_css_size_(0) {
     Statistics* stats = server_context_->statistics();
@@ -90,9 +89,8 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
     return (parser.errors_seen_mask() == Css::Parser::kNoError);
   }
 
-  bool ResourceCombinable(Resource* resource,
-                                  GoogleString* failure_reason,
-                                  MessageHandler* handler) override {
+  bool ResourceCombinable(Resource* resource, GoogleString* failure_reason,
+                          MessageHandler* handler) override {
     // If this CSS file is not parseable it may have errors that will break
     // the rest of the files combined with this one. So we should not include
     // it in the combination.
@@ -141,7 +139,7 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
 
   bool ContentSizeTooBig() const override {
     int64 combined_css_max_size =
-      rewrite_driver_->options()->max_combined_css_bytes();
+        rewrite_driver_->options()->max_combined_css_bytes();
     return (combined_css_max_size >= 0 &&
             combined_css_max_size < combined_css_size_);
   }
@@ -161,8 +159,8 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
   }
 
   bool WritePiece(int index, int num_pieces, const Resource* input,
-                          OutputResource* combination, Writer* writer,
-                          MessageHandler* handler) override;
+                  OutputResource* combination, Writer* writer,
+                  MessageHandler* handler) override;
 
   GoogleString media_;
   Variable* css_file_count_reduction_;
@@ -175,8 +173,7 @@ class CssCombineFilter::Context : public RewriteContext {
       : RewriteContext(driver, nullptr, nullptr),
         filter_(filter),
         combiner_(driver, filter),
-        new_combination_(true) {
-  }
+        new_combination_(true) {}
 
   CssCombiner* combiner() { return &combiner_; }
 
@@ -208,7 +205,7 @@ class CssCombineFilter::Context : public RewriteContext {
 
  protected:
   bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs) override {
+                 OutputResourceVector* outputs) override {
     MessageHandler* handler = Driver()->message_handler();
     CachedResult* partition = nullptr;
     CHECK_EQ(static_cast<int>(elements_.size()), num_slots());
@@ -244,17 +241,16 @@ class CssCombineFilter::Context : public RewriteContext {
         if (partition == nullptr) {
           partition = partitions->add_partition();
         }
-        resource->AddInputInfoToPartition(
-            Resource::kIncludeInputHash, i, partition);
+        resource->AddInputInfoToPartition(Resource::kIncludeInputHash, i,
+                                          partition);
       }
     }
     FinalizePartition(partitions, partition, outputs);
     return (partitions->partition_size() != 0);
   }
 
-  void Rewrite(int partition_index,
-                       CachedResult* partition,
-                       const OutputResourcePtr& output) override {
+  void Rewrite(int partition_index, CachedResult* partition,
+               const OutputResourcePtr& output) override {
     // resource_combiner.cc calls WriteCombination as part
     // of Combine.  But if we are being called on behalf of a
     // fetch then the resource still needs to be written.
@@ -311,8 +307,7 @@ class CssCombineFilter::Context : public RewriteContext {
   OutputResourceKind kind() const override { return kRewrittenResource; }
 
  private:
-  void FinalizePartition(OutputPartitions* partitions,
-                         CachedResult* partition,
+  void FinalizePartition(OutputPartitions* partitions, CachedResult* partition,
                          OutputResourceVector* outputs) {
     if (partition != nullptr) {
       OutputResourcePtr combination_output(combiner_.MakeOutput());
@@ -363,12 +358,10 @@ CssCombineFilter::CssCombineFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       end_document_found_(false),
       css_links_(0),
-      css_combine_opportunities_(driver->statistics()->GetVariable(
-          kCssCombineOpportunities)) {
-}
+      css_combine_opportunities_(
+          driver->statistics()->GetVariable(kCssCombineOpportunities)) {}
 
-CssCombineFilter::~CssCombineFilter() {
-}
+CssCombineFilter::~CssCombineFilter() {}
 
 void CssCombineFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCssCombineOpportunities);
@@ -479,9 +472,9 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
       // thing?  sligocki thinks mdsteele looked into this and it
       // depended on HTML version.  In one display was default, in the
       // other screen was IIRC.
-      NextCombination(StrCat(
-          "media mismatch: looking for media '", combiner()->media(),
-          "' but found media='", media, "'."));
+      NextCombination(StrCat("media mismatch: looking for media '",
+                             combiner()->media(), "' but found media='", media,
+                             "'."));
       context_->SetMedia(media);
     }
     if (!context_->AddElement(element, href)) {
@@ -492,8 +485,8 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
     resource_tag_scanner::UrlCategoryVector attributes;
     // This includes checking for spec-defined ones, but any elements that would
     // match spec-defined ones would have hit the ParseCssElement case above.
-    resource_tag_scanner::ScanElement(
-        element, driver()->options(), &attributes);
+    resource_tag_scanner::ScanElement(element, driver()->options(),
+                                      &attributes);
     for (resource_tag_scanner::UrlCategoryPair uc : attributes) {
       if (uc.category == semantic_type::kStylesheet) {
         NextCombination("custom or alternate stylesheet attribute");
@@ -506,8 +499,10 @@ void CssCombineFilter::StartElementImpl(HtmlElement* element) {
 void CssCombineFilter::NextCombination(StringPiece debug_failure_reason) {
   if (!context_->empty()) {
     if (DebugMode() && !debug_failure_reason.empty()) {
-      driver()->InsertComment(StrCat("combine_css: Could not combine over "
-                                     "barrier: ", debug_failure_reason));
+      driver()->InsertComment(
+          StrCat("combine_css: Could not combine over "
+                 "barrier: ",
+                 debug_failure_reason));
     }
     driver()->InitiateRewrite(context_.release());
     context_.reset(MakeContext());
@@ -529,9 +524,11 @@ void CssCombineFilter::Flush() {
   NextCombination(end_document_found_ ? "" : "flush");
 }
 
-bool CssCombineFilter::CssCombiner::WritePiece(
-    int index, int num_pieces, const Resource* input,
-    OutputResource* combination, Writer* writer, MessageHandler* handler) {
+bool CssCombineFilter::CssCombiner::WritePiece(int index, int num_pieces,
+                                               const Resource* input,
+                                               OutputResource* combination,
+                                               Writer* writer,
+                                               MessageHandler* handler) {
   StringPiece contents = input->ExtractUncompressedContents();
   GoogleUrl input_url(input->url());
   // Strip the BOM off of the contents (if it's there) if this is not the
@@ -568,9 +565,7 @@ CssCombineFilter::Context* CssCombineFilter::MakeContext() {
   return new Context(driver(), this);
 }
 
-RewriteContext* CssCombineFilter::MakeRewriteContext() {
-  return MakeContext();
-}
+RewriteContext* CssCombineFilter::MakeRewriteContext() { return MakeContext(); }
 
 void CssCombineFilter::DetermineEnabled(GoogleString* disabled_reason) {
   if (driver()->options()->css_preserve_urls()) {

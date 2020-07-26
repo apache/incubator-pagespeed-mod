@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_LOCAL_STORAGE_CACHE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_LOCAL_STORAGE_CACHE_FILTER_H_
@@ -107,10 +106,8 @@ class LocalStorageCacheFilter : public RewriteFilter {
   //                   and adds the LSC's url attribute if LSC is enabled.
   // element is the element to add the attribute to.
   // state is where to save the computed values.
-  static bool AddStorableResource(const StringPiece& url,
-                                  RewriteDriver* driver,
-                                  bool skip_cookie_check,
-                                  HtmlElement* element,
+  static bool AddStorableResource(const StringPiece& url, RewriteDriver* driver,
+                                  bool skip_cookie_check, HtmlElement* element,
                                   InlineState* state);
 
   // Tell the LSC to add its attributes to the given element:
@@ -123,12 +120,10 @@ class LocalStorageCacheFilter : public RewriteFilter {
   // Returns true if the element was updated.
   static bool AddLscAttributes(const StringPiece url,
                                const CachedResult& cached,
-                               RewriteDriver* driver,
-                               HtmlElement* element);
+                               RewriteDriver* driver, HtmlElement* element);
 
   // Remove the LSC attributes from the given element.
-  static void RemoveLscAttributes(HtmlElement* element,
-                                  RewriteDriver* driver);
+  static void RemoveLscAttributes(HtmlElement* element, RewriteDriver* driver);
 
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 

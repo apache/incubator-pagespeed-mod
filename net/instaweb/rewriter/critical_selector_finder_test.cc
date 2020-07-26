@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -42,7 +42,7 @@ const char kRequestUrl[] = "http://www.example.com";
 
 class CriticalSelectorFinderTest : public RewriteTestBase {
  protected:
-  CriticalSelectorFinderTest() { }
+  CriticalSelectorFinderTest() {}
 
   void SetUp() override {
     RewriteTestBase::SetUp();
@@ -89,12 +89,14 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
   }
 
   void CheckCriticalSelectorFinderStats(int hits, int expiries, int not_found) {
-    EXPECT_EQ(hits, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsValidCount));
-    EXPECT_EQ(expiries, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsExpiredCount));
-    EXPECT_EQ(not_found, TimedValue(
-        CriticalSelectorFinder::kCriticalSelectorsNotFoundCount));
+    EXPECT_EQ(hits,
+              TimedValue(CriticalSelectorFinder::kCriticalSelectorsValidCount));
+    EXPECT_EQ(
+        expiries,
+        TimedValue(CriticalSelectorFinder::kCriticalSelectorsExpiredCount));
+    EXPECT_EQ(
+        not_found,
+        TimedValue(CriticalSelectorFinder::kCriticalSelectorsNotFoundCount));
   }
 
   GoogleString CriticalSelectorsString() {
@@ -120,9 +122,7 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
         selectors, last_beacon_metadata_.nonce, rewrite_driver());
   }
 
-  virtual BeaconStatus ExpectedBeaconStatus() {
-    return kBeaconWithNonce;
-  }
+  virtual BeaconStatus ExpectedBeaconStatus() { return kBeaconWithNonce; }
 
   // Simulate beacon insertion, with candidates_.
   void Beacon() {
@@ -133,14 +133,10 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
   }
 
   // Verify that no beacon injection occurs.
-  void VerifyNoBeaconing() {
-    VerifyBeaconStatus(kDoNotBeacon);
-  }
+  void VerifyNoBeaconing() { VerifyBeaconStatus(kDoNotBeacon); }
 
   // Verify that beacon injection occurs.
-  void VerifyBeaconing() {
-    VerifyBeaconStatus(kBeaconWithNonce);
-  }
+  void VerifyBeaconing() { VerifyBeaconStatus(kBeaconWithNonce); }
 
   // Helper method used for verifying beacon injection status.
   void VerifyBeaconStatus(BeaconStatus status) {
@@ -276,19 +272,19 @@ TEST_F(CriticalSelectorFinderTest, OutOfOrder) {
   // Now the first beacon result comes back out of order.  It should still work.
   selectors.clear();
   selectors.insert(".b");
-  finder_->WriteCriticalSelectorsToPropertyCache(
-      selectors, initial_nonce, rewrite_driver());
+  finder_->WriteCriticalSelectorsToPropertyCache(selectors, initial_nonce,
+                                                 rewrite_driver());
   EXPECT_STREQ(".a,.b", CriticalSelectorsString());
   // A duplicate beacon nonce will be dropped.
   selectors.clear();
   selectors.insert("#c");
-  finder_->WriteCriticalSelectorsToPropertyCache(
-      selectors, initial_nonce, rewrite_driver());
+  finder_->WriteCriticalSelectorsToPropertyCache(selectors, initial_nonce,
+                                                 rewrite_driver());
   EXPECT_STREQ(".a,.b", CriticalSelectorsString());
   // As will an entirely bogus nonce (here we use non-base64 characters).
   const char kBogusNonce[] = "*&*";
-  finder_->WriteCriticalSelectorsToPropertyCache(
-      selectors, kBogusNonce, rewrite_driver());
+  finder_->WriteCriticalSelectorsToPropertyCache(selectors, kBogusNonce,
+                                                 rewrite_driver());
   EXPECT_STREQ(".a,.b", CriticalSelectorsString());
 }
 
@@ -308,8 +304,8 @@ TEST_F(CriticalSelectorFinderTest, NonceTimeout) {
   // The first beacon arrives after its deadline, and is dropped.
   selectors.clear();
   selectors.insert(".b");
-  finder_->WriteCriticalSelectorsToPropertyCache(
-      selectors, initial_nonce, rewrite_driver());
+  finder_->WriteCriticalSelectorsToPropertyCache(selectors, initial_nonce,
+                                                 rewrite_driver());
   EXPECT_STREQ(".a", CriticalSelectorsString());
 }
 
@@ -420,8 +416,8 @@ TEST_F(CriticalSelectorFinderTest, RebeaconBeforeTimeoutWithHeader) {
   SetShouldBeaconHeader(kConfiguredBeaconingKey);
   VerifyNoBeaconing();
   // Advance the timer past the beacon interval.
-  factory()->mock_timer()->AdvanceMs(options()->beacon_reinstrument_time_sec() *
-                                     Timer::kSecondMs + 1);
+  factory()->mock_timer()->AdvanceMs(
+      options()->beacon_reinstrument_time_sec() * Timer::kSecondMs + 1);
   // When the reinstrumentation time interval is exceeded, beacon injection
   // should happen as usual.
   ResetDriver();
@@ -501,9 +497,7 @@ class UnverifiedCriticalSelectorFinder : public CriticalSelectorFinder {
 // Test that unverified results apply.
 class UnverifiedSelectorsTest : public CriticalSelectorFinderTest {
  protected:
-  BeaconStatus ExpectedBeaconStatus() override {
-    return kBeaconNoNonce;
-  }
+  BeaconStatus ExpectedBeaconStatus() override { return kBeaconNoNonce; }
   CriticalSelectorFinder* CreateFinder(
       const PropertyCache::Cohort* cohort) override {
     return new UnverifiedCriticalSelectorFinder(cohort, statistics());

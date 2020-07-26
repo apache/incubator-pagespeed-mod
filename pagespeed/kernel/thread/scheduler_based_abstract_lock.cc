@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/thread/scheduler_based_abstract_lock.h"
 
@@ -57,8 +56,8 @@ int64 Backoff(int64 interval_ms, int64 max_interval_ms) {
 
 // Compute new backoff time interval given current interval_ms, but don't exceed
 // max_interval_ms or have the interval continue much past end_time_ms.
-int64 IntervalWithEnd(Timer* timer, int64 interval_ms,
-                      int64 max_interval_ms, int64 end_time_ms) {
+int64 IntervalWithEnd(Timer* timer, int64 interval_ms, int64 max_interval_ms,
+                      int64 end_time_ms) {
   int64 now_ms = timer->NowMs();
   int64 remaining = end_time_ms - now_ms;
   interval_ms = Backoff(interval_ms, max_interval_ms);
@@ -78,11 +77,9 @@ class TimedWaitPollState : public Function {
  public:
   typedef bool (SchedulerBasedAbstractLock::*TryLockMethod)(int64 steal_ms);
 
-  TimedWaitPollState(
-      Scheduler* scheduler, Function* callback,
-      SchedulerBasedAbstractLock* lock, TryLockMethod try_lock,
-      int64 steal_ms, int64 end_time_ms,
-      int64 max_interval_ms)
+  TimedWaitPollState(Scheduler* scheduler, Function* callback,
+                     SchedulerBasedAbstractLock* lock, TryLockMethod try_lock,
+                     int64 steal_ms, int64 end_time_ms, int64 max_interval_ms)
       : scheduler_(scheduler),
         callback_(callback),
         lock_(lock),
@@ -91,13 +88,12 @@ class TimedWaitPollState : public Function {
         end_time_ms_(end_time_ms),
         max_interval_ms_(max_interval_ms),
         interval_ms_(0) {}
-  ~TimedWaitPollState() override { }
+  ~TimedWaitPollState() override {}
 
   // Note: doesn't actually clone interval_ms_.
   TimedWaitPollState* Clone() {
-    return new TimedWaitPollState(scheduler_, callback_, lock_,
-                                  try_lock_, steal_ms_, end_time_ms_,
-                                  max_interval_ms_);
+    return new TimedWaitPollState(scheduler_, callback_, lock_, try_lock_,
+                                  steal_ms_, end_time_ms_, max_interval_ms_);
   }
 
  protected:
@@ -133,10 +129,11 @@ class TimedWaitPollState : public Function {
 
 }  // namespace
 
-SchedulerBasedAbstractLock::~SchedulerBasedAbstractLock() { }
+SchedulerBasedAbstractLock::~SchedulerBasedAbstractLock() {}
 
-void SchedulerBasedAbstractLock::PollAndCallback(
-    TryLockMethod try_lock, int64 steal_ms, int64 wait_ms, Function* callback) {
+void SchedulerBasedAbstractLock::PollAndCallback(TryLockMethod try_lock,
+                                                 int64 steal_ms, int64 wait_ms,
+                                                 Function* callback) {
   // Measure ending time from immediately after failure of the fast path.
   int64 end_time_ms = scheduler()->timer()->NowMs() + wait_ms;
   if (BusySpin(try_lock, steal_ms)) {
@@ -146,8 +143,7 @@ void SchedulerBasedAbstractLock::PollAndCallback(
   // Slow path.  Allocate a TimedWaitPollState object and cede control to it.
   int64 max_interval_ms = (steal_ms + 1) / kMinTriesPerSteal;
   TimedWaitPollState* poller =
-      new TimedWaitPollState(scheduler(), callback, this,
-                             try_lock, steal_ms,
+      new TimedWaitPollState(scheduler(), callback, this, try_lock, steal_ms,
                              end_time_ms, max_interval_ms);
   poller->CallRun();
 }
@@ -175,8 +171,8 @@ bool SchedulerBasedAbstractLock::LockTimedWait(int64 wait_ms) {
   }
 }
 
-void SchedulerBasedAbstractLock::LockTimedWait(
-    int64 wait_ms, Function* callback) {
+void SchedulerBasedAbstractLock::LockTimedWait(int64 wait_ms,
+                                               Function* callback) {
   if (TryLock()) {
     // Fast path.
     callback->CallRun();
@@ -186,21 +182,22 @@ void SchedulerBasedAbstractLock::LockTimedWait(
   }
 }
 
-bool SchedulerBasedAbstractLock::LockTimedWaitStealOld(
-    int64 wait_ms, int64 steal_ms) {
+bool SchedulerBasedAbstractLock::LockTimedWaitStealOld(int64 wait_ms,
+                                                       int64 steal_ms) {
   if (TryLock()) {
     // Fast path.
     return true;
   } else {
     SchedulerBlockingFunction block(scheduler());
-    PollAndCallback(&SchedulerBasedAbstractLock::TryLockStealOld,
-                    steal_ms, wait_ms, &block);
+    PollAndCallback(&SchedulerBasedAbstractLock::TryLockStealOld, steal_ms,
+                    wait_ms, &block);
     return block.Block();
   }
 }
 
-void SchedulerBasedAbstractLock::LockTimedWaitStealOld(
-    int64 wait_ms, int64 steal_ms, Function* callback) {
+void SchedulerBasedAbstractLock::LockTimedWaitStealOld(int64 wait_ms,
+                                                       int64 steal_ms,
+                                                       Function* callback) {
   if (TryLock()) {
     // Fast path.
     callback->CallRun();
@@ -213,8 +210,8 @@ void SchedulerBasedAbstractLock::LockTimedWaitStealOld(
       callback->CallCancel();
     }
   } else {
-    PollAndCallback(&SchedulerBasedAbstractLock::TryLockStealOld,
-                    steal_ms, wait_ms, callback);
+    PollAndCallback(&SchedulerBasedAbstractLock::TryLockStealOld, steal_ms,
+                    wait_ms, callback);
   }
 }
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,14 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 
 #include <cstddef>
 #include <memory>
-
 #include <new>
 #include <vector>
 
 #include "base/logging.h"
-#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -40,6 +37,7 @@
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/public/global_constants.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 #include "net/instaweb/rewriter/public/css_url_encoder.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -106,11 +104,9 @@ RewriteTestBaseProcessContext rewrite_test_base_process_context;
 
 class TestRewriteOptionsManager : public RewriteOptionsManager {
  public:
-  TestRewriteOptionsManager()
-      : options_(nullptr) {}
+  TestRewriteOptionsManager() : options_(nullptr) {}
 
-  void GetRewriteOptions(const GoogleUrl& url,
-                         const RequestHeaders& headers,
+  void GetRewriteOptions(const GoogleUrl& url, const RequestHeaders& headers,
                          OptionsCallback* done) override {
     done->Run((options_ == nullptr) ? nullptr : options_->Clone());
   }
@@ -135,10 +131,9 @@ RewriteTestBase::RewriteTestBase()
       factory_(new TestRewriteDriverFactory(rewrite_test_base_process_context,
                                             GTestTempDir(),
                                             &mock_url_fetcher_)),
-      other_factory_(new TestRewriteDriverFactory(
-          rewrite_test_base_process_context,
-          GTestTempDir(),
-          &mock_url_fetcher_)),
+      other_factory_(
+          new TestRewriteDriverFactory(rewrite_test_base_process_context,
+                                       GTestTempDir(), &mock_url_fetcher_)),
       use_managed_rewrite_drivers_(false),
       options_(factory_->NewRewriteOptions()),
       other_options_(other_factory_->NewRewriteOptions()),
@@ -174,9 +169,7 @@ void RewriteTestBase::Init() {
   message_handler_.set_mutex(factory_->thread_system()->NewMutex());
 }
 
-RewriteTestBase::~RewriteTestBase() {
-  RewriteDriverFactory::Terminate();
-}
+RewriteTestBase::~RewriteTestBase() { RewriteDriverFactory::Terminate(); }
 
 // The Setup/Constructor split is designed so that test subclasses can
 // add options prior to calling RewriteTestBase::SetUp().
@@ -310,9 +303,9 @@ ResourcePtr RewriteTestBase::CreateResource(const StringPiece& base,
       resource_url, RewriteDriver::InputRole::kUnknown, &unused);
 }
 
-void RewriteTestBase::PopulateDefaultHeaders(
-    const ContentType& content_type, int64 original_content_length,
-    ResponseHeaders* headers) {
+void RewriteTestBase::PopulateDefaultHeaders(const ContentType& content_type,
+                                             int64 original_content_length,
+                                             ResponseHeaders* headers) {
   int64 time = timer()->NowUs();
   // Reset mock timer so synthetic headers match original.  This temporarily
   // fakes out the mock_scheduler, but we will repair the damage below.
@@ -326,8 +319,8 @@ void RewriteTestBase::PopulateDefaultHeaders(
   }
 }
 
-void RewriteTestBase::AppendDefaultHeaders(
-    const ContentType& content_type, GoogleString* text) {
+void RewriteTestBase::AppendDefaultHeaders(const ContentType& content_type,
+                                           GoogleString* text) {
   ResponseHeaders headers;
   PopulateDefaultHeaders(content_type, 0, &headers);
   StringWriter writer(text);
@@ -358,14 +351,12 @@ void RewriteTestBase::AppendDefaultHeadersWithCanonical(
 }
 
 void RewriteTestBase::ServeResourceFromManyContexts(
-    const GoogleString& resource_url,
-    const StringPiece& expected_content) {
+    const GoogleString& resource_url, const StringPiece& expected_content) {
   ServeResourceFromNewContext(resource_url, expected_content);
 }
 
 void RewriteTestBase::ServeResourceFromManyContextsWithUA(
-    const GoogleString& resource_url,
-    const StringPiece& expected_content,
+    const GoogleString& resource_url, const StringPiece& expected_content,
     const StringPiece& user_agent) {
   // TODO(sligocki): Serve the resource under several contexts. For example:
   //   1) With output-resource cached,
@@ -386,8 +377,7 @@ TestRewriteDriverFactory* RewriteTestBase::MakeTestFactory() {
 // Test that a resource can be served from a new server that has not yet
 // been constructed.
 void RewriteTestBase::ServeResourceFromNewContext(
-    const GoogleString& resource_url,
-    const StringPiece& expected_content) {
+    const GoogleString& resource_url, const StringPiece& expected_content) {
   // New objects for the new server.
   SimpleStats stats(factory_->thread_system());
   std::unique_ptr<TestRewriteDriverFactory> new_factory(MakeTestFactory());
@@ -398,8 +388,8 @@ void RewriteTestBase::ServeResourceFromNewContext(
   new_server_context->set_hasher(server_context_->hasher());
   RewriteOptions* new_options = options_->Clone();
   server_context_->ComputeSignature(new_options);
-  RewriteDriver* new_rewrite_driver = MakeDriver(new_server_context,
-                                                 new_options);
+  RewriteDriver* new_rewrite_driver =
+      MakeDriver(new_server_context, new_options);
   RequestHeaders request_headers;
   PopulateRequestHeaders(&request_headers);
   new_rewrite_driver->SetRequestHeaders(request_headers);
@@ -415,12 +405,12 @@ void RewriteTestBase::ServeResourceFromNewContext(
   // Check that we don't already have it in cache.
   HTTPValue value;
   ResponseHeaders response_headers;
-  EXPECT_EQ(kNotFoundResult, HttpBlockingFind(
-      resource_url, new_server_context->http_cache(), &value,
-      &response_headers));
+  EXPECT_EQ(kNotFoundResult,
+            HttpBlockingFind(resource_url, new_server_context->http_cache(),
+                             &value, &response_headers));
   // Initiate fetch.
-  EXPECT_TRUE(new_rewrite_driver->FetchResource(
-      resource_url, &response_contents));
+  EXPECT_TRUE(
+      new_rewrite_driver->FetchResource(resource_url, &response_contents));
 
   // Content should not be set until we call the callback.
   EXPECT_FALSE(response_contents.done());
@@ -449,8 +439,7 @@ void RewriteTestBase::ServeResourceFromNewContext(
   delete new_rewrite_driver;
 }
 
-GoogleString RewriteTestBase::AbsolutifyUrl(
-    const StringPiece& resource_name) {
+GoogleString RewriteTestBase::AbsolutifyUrl(const StringPiece& resource_name) {
   GoogleString name;
   if (resource_name.starts_with("http://") ||
       resource_name.starts_with("https://")) {
@@ -465,17 +454,15 @@ void RewriteTestBase::DefaultResponseHeaders(
     const ContentType& content_type, int64 ttl_sec,
     ResponseHeaders* response_headers) {
   SetDefaultLongCacheHeaders(&content_type, response_headers);
-  response_headers->SetDateAndCaching(
-      timer()->NowMs(), ttl_sec * Timer::kSecondMs);
+  response_headers->SetDateAndCaching(timer()->NowMs(),
+                                      ttl_sec * Timer::kSecondMs);
   response_headers->ComputeCaching();
 }
 
 // Initializes a resource for mock fetching.
 void RewriteTestBase::SetResponseWithDefaultHeaders(
-    const StringPiece& resource_name,
-    const ContentType& content_type,
-    const StringPiece& content,
-    int64 ttl_sec) {
+    const StringPiece& resource_name, const ContentType& content_type,
+    const StringPiece& content, int64 ttl_sec) {
   GoogleString url = AbsolutifyUrl(resource_name);
   ResponseHeaders response_headers;
   DefaultResponseHeaders(content_type, ttl_sec, &response_headers);
@@ -487,8 +474,7 @@ void RewriteTestBase::SetResponseWithDefaultHeaders(
   SetFetchResponse(url, response_headers, content);
 }
 
-void RewriteTestBase::SetFetchResponse404(
-    const StringPiece& resource_name) {
+void RewriteTestBase::SetFetchResponse404(const StringPiece& resource_name) {
   GoogleString name = AbsolutifyUrl(resource_name);
   ResponseHeaders response_headers;
   SetDefaultLongCacheHeaders(&kContentTypeText, &response_headers);
@@ -503,15 +489,14 @@ bool RewriteTestBase::LoadFile(const StringPiece& filename,
   // abstracted as a MemFileSystem instead.
   StdioFileSystem stdio_file_system;
   GoogleString filename_str = StrCat(GTestSrcDir(), kTestData, filename);
-  return stdio_file_system.ReadFile(
-      filename_str.c_str(), contents, message_handler());
+  return stdio_file_system.ReadFile(filename_str.c_str(), contents,
+                                    message_handler());
 }
 
-void RewriteTestBase::AddFileToMockFetcher(
-    const StringPiece& url,
-    const StringPiece& filename,
-    const ContentType& content_type,
-    int64 ttl_sec) {
+void RewriteTestBase::AddFileToMockFetcher(const StringPiece& url,
+                                           const StringPiece& filename,
+                                           const ContentType& content_type,
+                                           int64 ttl_sec) {
   // TODO(sligocki): There's probably a lot of wasteful copying here.
 
   GoogleString contents;
@@ -522,30 +507,34 @@ void RewriteTestBase::AddFileToMockFetcher(
 // Helper function to test resource fetching, returning true if the fetch
 // succeeded, and modifying content.  It is up to the caller to EXPECT_TRUE
 // on the status and EXPECT_EQ on the content.
-bool RewriteTestBase::FetchResource(
-    const StringPiece& path, const StringPiece& filter_id,
-    const StringPiece& name, const StringPiece& ext,
-    GoogleString* content, ResponseHeaders* response) {
+bool RewriteTestBase::FetchResource(const StringPiece& path,
+                                    const StringPiece& filter_id,
+                                    const StringPiece& name,
+                                    const StringPiece& ext,
+                                    GoogleString* content,
+                                    ResponseHeaders* response) {
   GoogleString url = Encode(path, filter_id, "0", name, ext);
   return FetchResourceUrl(url, content, response);
 }
 
-bool RewriteTestBase::FetchResource(
-    const StringPiece& path, const StringPiece& filter_id,
-    const StringPiece& name, const StringPiece& ext,
-    GoogleString* content) {
+bool RewriteTestBase::FetchResource(const StringPiece& path,
+                                    const StringPiece& filter_id,
+                                    const StringPiece& name,
+                                    const StringPiece& ext,
+                                    GoogleString* content) {
   ResponseHeaders response;
   return FetchResource(path, filter_id, name, ext, content, &response);
 }
 
-bool RewriteTestBase::FetchResourceUrl(
-    const StringPiece& url, GoogleString* content) {
+bool RewriteTestBase::FetchResourceUrl(const StringPiece& url,
+                                       GoogleString* content) {
   ResponseHeaders response;
   return FetchResourceUrl(url, content, &response);
 }
 
-bool RewriteTestBase::FetchResourceUrl(
-    const StringPiece& url, GoogleString* content, ResponseHeaders* response) {
+bool RewriteTestBase::FetchResourceUrl(const StringPiece& url,
+                                       GoogleString* content,
+                                       ResponseHeaders* response) {
   return FetchResourceUrl(url, nullptr, content, response);
 }
 
@@ -588,17 +577,15 @@ bool RewriteTestBase::FetchResourceUrl(const StringPiece& url,
   return fetched && async_fetch.success();
 }
 
-void RewriteTestBase::TestServeFiles(
-    const ContentType* content_type,
-    const StringPiece& filter_id,
-    const StringPiece& rewritten_ext,
-    const StringPiece& orig_name,
-    const StringPiece& orig_content,
-    const StringPiece& rewritten_name,
-    const StringPiece& rewritten_content) {
-
-  GoogleString expected_rewritten_path = Encode(kTestDomain, filter_id, "0",
-                                                rewritten_name, rewritten_ext);
+void RewriteTestBase::TestServeFiles(const ContentType* content_type,
+                                     const StringPiece& filter_id,
+                                     const StringPiece& rewritten_ext,
+                                     const StringPiece& orig_name,
+                                     const StringPiece& orig_content,
+                                     const StringPiece& rewritten_name,
+                                     const StringPiece& rewritten_content) {
+  GoogleString expected_rewritten_path =
+      Encode(kTestDomain, filter_id, "0", rewritten_name, rewritten_ext);
   GoogleString content;
 
   // When we start, there are no mock fetchers, so we'll need to get it
@@ -611,8 +598,8 @@ void RewriteTestBase::TestServeFiles(
                   ResponseHeaders::GetVaryOption(options()->respect_vary()),
                   &headers, rewritten_content, message_handler());
   EXPECT_EQ(0U, lru_cache()->num_hits());
-  EXPECT_TRUE(FetchResource(kTestDomain, filter_id,
-                            rewritten_name, rewritten_ext, &content));
+  EXPECT_TRUE(FetchResource(kTestDomain, filter_id, rewritten_name,
+                            rewritten_ext, &content));
   RewriteFilter* filter = rewrite_driver_->FindFilter(filter_id);
   if (lru_cache()->IsHealthy()) {
     if (filter->ComputeOnTheFly()) {
@@ -625,24 +612,24 @@ void RewriteTestBase::TestServeFiles(
 
   // Now nuke the cache, get it via a fetch.
   lru_cache()->Clear();
-  SetResponseWithDefaultHeaders(orig_name, *content_type,
-                                orig_content, 100 /* ttl in seconds */);
-  EXPECT_TRUE(FetchResource(kTestDomain, filter_id,
-                            rewritten_name, rewritten_ext, &content));
+  SetResponseWithDefaultHeaders(orig_name, *content_type, orig_content,
+                                100 /* ttl in seconds */);
+  EXPECT_TRUE(FetchResource(kTestDomain, filter_id, rewritten_name,
+                            rewritten_ext, &content));
   EXPECT_EQ(rewritten_content, content);
 
   // Now we expect the cache entry to be there.
   if (!filter->ComputeOnTheFly() && lru_cache()->IsHealthy()) {
     HTTPValue value;
     ResponseHeaders response_headers;
-    EXPECT_EQ(kFoundResult, HttpBlockingFind(
-        expected_rewritten_path, http_cache, &value, &response_headers));
+    EXPECT_EQ(kFoundResult,
+              HttpBlockingFind(expected_rewritten_path, http_cache, &value,
+                               &response_headers));
   }
 }
 
 void RewriteTestBase::ValidateFallbackHeaderSanitizationHelper(
     StringPiece filter_id, StringPiece origin_content_type, bool expect_load) {
-
   // Mangle the content type to make a url name by removing '/'s.
   GoogleString leafable(origin_content_type.as_string());
   GlobalReplaceSubstring("/", "-", &leafable);
@@ -664,11 +651,11 @@ void RewriteTestBase::ValidateFallbackHeaderSanitizationHelper(
                                             "; no-transform");
   origin_response_headers.ComputeCaching();
 
-  SetFetchResponse(
-      AbsolutifyUrl(leaf), origin_response_headers, origin_contents);
+  SetFetchResponse(AbsolutifyUrl(leaf), origin_response_headers,
+                   origin_contents);
 
-  GoogleString resource = AbsolutifyUrl(Encode(
-      "", filter_id, "0", leaf, "ignored"));
+  GoogleString resource =
+      AbsolutifyUrl(Encode("", filter_id, "0", leaf, "ignored"));
 
   GoogleString response_content;
   ResponseHeaders response_headers;
@@ -676,8 +663,7 @@ void RewriteTestBase::ValidateFallbackHeaderSanitizationHelper(
   if (expect_load) {
     ASSERT_TRUE(FetchResourceUrl(resource,
                                  nullptr /* use default request headers */,
-                                 &response_content,
-                                 &response_headers));
+                                 &response_content, &response_headers));
     EXPECT_EQ(origin_contents, response_content);
     const ContentType* content_type = response_headers.DetermineContentType();
     ASSERT_TRUE(nullptr != content_type);
@@ -689,11 +675,9 @@ void RewriteTestBase::ValidateFallbackHeaderSanitizationHelper(
   } else {
     ASSERT_FALSE(FetchResourceUrl(resource,
                                   nullptr /* use default request headers */,
-                                  &response_content,
-                                  &response_headers));
+                                  &response_content, &response_headers));
   }
 }
-
 
 void RewriteTestBase::ValidateFallbackHeaderSanitization(
     StringPiece filter_id) {
@@ -701,46 +685,28 @@ void RewriteTestBase::ValidateFallbackHeaderSanitization(
   server_context()->ComputeSignature(options());
 
   // These content types will all be preserved.
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "text/css", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "text/javascript", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "application/javascript", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "image/jpg", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "image/jpeg", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "image/png", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "image/gif", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "image/webp", true);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "application/pdf", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "text/css", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "text/javascript", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "application/javascript",
+                                           true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "image/jpg", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "image/jpeg", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "image/png", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "image/gif", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "image/webp", true);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "application/pdf", true);
 
   // All other content types will be stripped.
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "text/html", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "text/plain", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "text/xml", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "application/xml", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "image/svg", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "image/svg+xml", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "audio/mp3", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "video/mp4", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "", false);
-  ValidateFallbackHeaderSanitizationHelper(
-      filter_id, "invalid", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "text/html", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "text/plain", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "text/xml", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "application/xml", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "image/svg", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "image/svg+xml", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "audio/mp3", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "video/mp4", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "", false);
+  ValidateFallbackHeaderSanitizationHelper(filter_id, "invalid", false);
 }
 
 // Just check if we can fetch a resource successfully, ignore response.
@@ -750,29 +716,27 @@ bool RewriteTestBase::TryFetchResource(const StringPiece& url) {
   return FetchResourceUrl(url, &contents, &response);
 }
 
-
-RewriteTestBase::CssLink::CssLink(
-    const StringPiece& url, const StringPiece& content,
-    const StringPiece& media, bool supply_mock)
+RewriteTestBase::CssLink::CssLink(const StringPiece& url,
+                                  const StringPiece& content,
+                                  const StringPiece& media, bool supply_mock)
     : url_(url.data(), url.size()),
       content_(content.data(), content.size()),
       media_(media.data(), media.size()),
-      supply_mock_(supply_mock) {
-}
+      supply_mock_(supply_mock) {}
 
-RewriteTestBase::CssLink::Vector::~Vector() {
-  STLDeleteElements(this);
-}
+RewriteTestBase::CssLink::Vector::~Vector() { STLDeleteElements(this); }
 
-void RewriteTestBase::CssLink::Vector::Add(
-    const StringPiece& url, const StringPiece& content,
-    const StringPiece& media, bool supply_mock) {
+void RewriteTestBase::CssLink::Vector::Add(const StringPiece& url,
+                                           const StringPiece& content,
+                                           const StringPiece& media,
+                                           bool supply_mock) {
   push_back(new CssLink(url, content, media, supply_mock));
 }
 
-bool RewriteTestBase::CssLink::DecomposeCombinedUrl(
-    StringPiece base_url, GoogleString* base,
-    StringVector* segments, MessageHandler* handler) {
+bool RewriteTestBase::CssLink::DecomposeCombinedUrl(StringPiece base_url,
+                                                    GoogleString* base,
+                                                    StringVector* segments,
+                                                    MessageHandler* handler) {
   GoogleUrl base_gurl(base_url);
   GoogleUrl gurl(base_gurl, url_);
   bool ret = false;
@@ -796,8 +760,7 @@ class CssCollector : public EmptyHtmlFilter {
  public:
   CssCollector(HtmlParse* html_parse,
                RewriteTestBase::CssLink::Vector* css_links)
-      : css_links_(css_links) {
-  }
+      : css_links_(css_links) {}
 
   void EndElement(HtmlElement* element) override {
     HtmlElement::Attribute* href;
@@ -821,8 +784,9 @@ class CssCollector : public EmptyHtmlFilter {
 }  // namespace
 
 // Collects just the hrefs from CSS links into a string vector.
-void RewriteTestBase::CollectCssLinks(
-    const StringPiece& id, const StringPiece& html, StringVector* css_links) {
+void RewriteTestBase::CollectCssLinks(const StringPiece& id,
+                                      const StringPiece& html,
+                                      StringVector* css_links) {
   CssLink::Vector v;
   CollectCssLinks(id, html, &v);
   for (int i = 0, n = v.size(); i < n; ++i) {
@@ -831,9 +795,9 @@ void RewriteTestBase::CollectCssLinks(
 }
 
 // Collects all information about CSS links into a CssLink::Vector.
-void RewriteTestBase::CollectCssLinks(
-    const StringPiece& id, const StringPiece& html,
-    CssLink::Vector* css_links) {
+void RewriteTestBase::CollectCssLinks(const StringPiece& id,
+                                      const StringPiece& html,
+                                      CssLink::Vector* css_links) {
   HtmlParse html_parse(message_handler());
   CssCollector collector(&html_parse, css_links);
   html_parse.AddFilter(&collector);
@@ -872,9 +836,12 @@ void RewriteTestBase::EncodePathAndLeaf(const StringPiece& id,
   // TODO(jmarantz): Modify this to work with combining across paths.
   for (int i = 0, n = name_vector.size(); i < n; ++i) {
     const GoogleString& name = name_vector[i];
-    CHECK(name.find('/') == GoogleString::npos) << "No slashes should be "
-        "found in " << name << " but we found at least one.  "
-        "Put it in the path";
+    CHECK(name.find('/') == GoogleString::npos)
+        << "No slashes should be "
+           "found in "
+        << name
+        << " but we found at least one.  "
+           "Put it in the path";
   }
 
   // Note: This uses an empty context, so no custom parameters like image
@@ -902,28 +869,24 @@ GoogleString RewriteTestBase::Encode(const StringPiece& path,
   return EncodeWithBase(kTestDomain, path, id, hash, name_vector, ext);
 }
 
-GoogleString RewriteTestBase::EncodeNormal(
-    const StringPiece& path,
-    const StringPiece& id,
-    const StringPiece& hash,
-    const StringVector& name_vector,
-    const StringPiece& ext) {
+GoogleString RewriteTestBase::EncodeNormal(const StringPiece& path,
+                                           const StringPiece& id,
+                                           const StringPiece& hash,
+                                           const StringVector& name_vector,
+                                           const StringPiece& ext) {
   ResourceNamer namer;
   EncodePathAndLeaf(id, hash, name_vector, ext, &namer);
   return StrCat(path, namer.Encode());
 }
 
-GoogleString RewriteTestBase::EncodeWithBase(
-    const StringPiece& base,
-    const StringPiece& path,
-    const StringPiece& id,
-    const StringPiece& hash,
-    const StringVector& name_vector,
-    const StringPiece& ext) {
-  if (factory()->use_test_url_namer() &&
-      !TestUrlNamer::UseNormalEncoding() &&
-      !options()->domain_lawyer()->can_rewrite_domains() &&
-      !path.empty()) {
+GoogleString RewriteTestBase::EncodeWithBase(const StringPiece& base,
+                                             const StringPiece& path,
+                                             const StringPiece& id,
+                                             const StringPiece& hash,
+                                             const StringVector& name_vector,
+                                             const StringPiece& ext) {
+  if (factory()->use_test_url_namer() && !TestUrlNamer::UseNormalEncoding() &&
+      !options()->domain_lawyer()->can_rewrite_domains() && !path.empty()) {
     ResourceNamer namer;
     EncodePathAndLeaf(id, hash, name_vector, ext, &namer);
     GoogleUrl path_gurl(path);
@@ -943,9 +906,10 @@ GoogleString RewriteTestBase::AddOptionsToEncodedUrl(
   return namer.Encode();
 }
 
-GoogleString RewriteTestBase::EncodeImage(
-    int width, int height,
-    StringPiece filename, StringPiece hash, StringPiece rewritten_ext) {
+GoogleString RewriteTestBase::EncodeImage(int width, int height,
+                                          StringPiece filename,
+                                          StringPiece hash,
+                                          StringPiece rewritten_ext) {
   // filename starts as just the leaf filename, ex: foo.png
   ResourceContext params;
   // Use width, height < 0 to indicate none set.
@@ -991,9 +955,10 @@ GoogleString RewriteTestBase::EncodeCssName(const StringPiece& name,
   return encoded_url;
 }
 
-GoogleString RewriteTestBase::ChangeSuffix(
-    StringPiece old_url, bool append_new_suffix,
-    StringPiece old_suffix, StringPiece new_suffix) {
+GoogleString RewriteTestBase::ChangeSuffix(StringPiece old_url,
+                                           bool append_new_suffix,
+                                           StringPiece old_suffix,
+                                           StringPiece new_suffix) {
   if (!StringCaseEndsWith(old_url, old_suffix)) {
     ADD_FAILURE() << "Can't seem to find old extension!";
     return GoogleString();
@@ -1002,15 +967,12 @@ GoogleString RewriteTestBase::ChangeSuffix(
   if (append_new_suffix) {
     return StrCat(old_url, new_suffix);
   } else {
-    return StrCat(
-        old_url.substr(0, old_url.length() - old_suffix.length()),
-        new_suffix);
+    return StrCat(old_url.substr(0, old_url.length() - old_suffix.length()),
+                  new_suffix);
   }
 }
 
-void RewriteTestBase::SetupWaitFetcher() {
-  factory_->SetupWaitFetcher();
-}
+void RewriteTestBase::SetupWaitFetcher() { factory_->SetupWaitFetcher(); }
 
 void RewriteTestBase::CallFetcherCallbacks() {
   factory_->CallFetcherCallbacksForDriver(rewrite_driver_);
@@ -1041,8 +1003,8 @@ RequestContextPtr RewriteTestBase::CreateRequestContext() {
       factory_->thread_system(), timer());
 }
 
-RewriteDriver* RewriteTestBase::MakeDriver(
-    ServerContext* server_context, RewriteOptions* options) {
+RewriteDriver* RewriteTestBase::MakeDriver(ServerContext* server_context,
+                                           RewriteOptions* options) {
   // We use unmanaged drivers rather than NewCustomDriver here so
   // that _test.cc files can add options after the driver was created
   // and before the filters are added.
@@ -1055,17 +1017,16 @@ RewriteDriver* RewriteTestBase::MakeDriver(
         CreateRequestContext());
     rd->set_externally_managed(true);
   } else {
-    rd = server_context->NewCustomRewriteDriver(options,
-                                                CreateRequestContext());
+    rd =
+        server_context->NewCustomRewriteDriver(options, CreateRequestContext());
   }
 
   return rd;
 }
 
-void RewriteTestBase::TestRetainExtraHeaders(
-    const StringPiece& name,
-    const StringPiece& filter_id,
-    const StringPiece& ext) {
+void RewriteTestBase::TestRetainExtraHeaders(const StringPiece& name,
+                                             const StringPiece& filter_id,
+                                             const StringPiece& ext) {
   GoogleString url = AbsolutifyUrl(name);
 
   // Add some extra headers.
@@ -1077,8 +1038,8 @@ void RewriteTestBase::TestRetainExtraHeaders(
   ResponseHeaders response;
 
   GoogleString rewritten_url = Encode("", filter_id, "0", name, ext);
-  ASSERT_TRUE(FetchResourceUrl(StrCat(kTestDomain, rewritten_url),
-                               &content, &response));
+  ASSERT_TRUE(FetchResourceUrl(StrCat(kTestDomain, rewritten_url), &content,
+                               &response));
 
   // Extra non-blacklisted header is preserved.
   ConstStringStarVector v;
@@ -1134,10 +1095,7 @@ namespace {
 class BlockingResourceCallback : public Resource::AsyncCallback {
  public:
   explicit BlockingResourceCallback(const ResourcePtr& resource)
-      : Resource::AsyncCallback(resource),
-        done_(false),
-        success_(false) {
-  }
+      : Resource::AsyncCallback(resource), done_(false), success_(false) {}
   ~BlockingResourceCallback() override {}
   void Done(bool lock_failure, bool resource_ok) override {
     done_ = true;
@@ -1154,8 +1112,7 @@ class BlockingResourceCallback : public Resource::AsyncCallback {
 class DeferredResourceCallback : public Resource::AsyncCallback {
  public:
   explicit DeferredResourceCallback(const ResourcePtr& resource)
-      : Resource::AsyncCallback(resource) {
-  }
+      : Resource::AsyncCallback(resource) {}
   ~DeferredResourceCallback() override {}
   void Done(bool lock_failure, bool resource_ok) override {
     CHECK(!lock_failure && resource_ok);
@@ -1168,11 +1125,10 @@ class HttpCallback : public HTTPCache::Callback {
   explicit HttpCallback(const RequestContextPtr& request_context)
       : HTTPCache::Callback(request_context, RequestHeaders::Properties()),
         done_(false),
-        options_(nullptr) {
-  }
+        options_(nullptr) {}
   ~HttpCallback() override {}
   bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) override {
+                    const ResponseHeaders& headers) override {
     if (options_ == nullptr) {
       return true;
     }
@@ -1201,8 +1157,8 @@ class HttpCallback : public HTTPCache::Callback {
 
 bool RewriteTestBase::ReadIfCached(const ResourcePtr& resource) {
   BlockingResourceCallback callback(resource);
-  resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
-                      request_context(), &callback);
+  resource->LoadAsync(Resource::kReportFailureIfNotCacheable, request_context(),
+                      &callback);
   CHECK(callback.done());
   if (callback.success()) {
     CHECK(resource->loaded());
@@ -1210,24 +1166,22 @@ bool RewriteTestBase::ReadIfCached(const ResourcePtr& resource) {
   return callback.success();
 }
 
-void RewriteTestBase::InitiateResourceRead(
-    const ResourcePtr& resource) {
+void RewriteTestBase::InitiateResourceRead(const ResourcePtr& resource) {
   DeferredResourceCallback* callback = new DeferredResourceCallback(resource);
-  resource->LoadAsync(Resource::kReportFailureIfNotCacheable,
-                      request_context(), callback);
+  resource->LoadAsync(Resource::kReportFailureIfNotCacheable, request_context(),
+                      callback);
 }
 
 HTTPCache::FindResult RewriteTestBase::HttpBlockingFindWithOptions(
-    const RewriteOptions* options,
-    const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
-    ResponseHeaders* headers) {
+    const RewriteOptions* options, const GoogleString& key,
+    HTTPCache* http_cache, HTTPValue* value_out, ResponseHeaders* headers) {
   HttpCallback callback(CreateRequestContext());
   if (options != nullptr) {
     callback.set_options(options);
   }
   callback.set_response_headers(headers);
-  http_cache->Find(
-      key, rewrite_driver_->CacheFragment(), message_handler(), &callback);
+  http_cache->Find(key, rewrite_driver_->CacheFragment(), message_handler(),
+                   &callback);
   CHECK(callback.done());
   value_out->Link(callback.http_value());
   return callback.result();
@@ -1236,7 +1190,8 @@ HTTPCache::FindResult RewriteTestBase::HttpBlockingFindWithOptions(
 HTTPCache::FindResult RewriteTestBase::HttpBlockingFind(
     const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
     ResponseHeaders* headers) {
-  return HttpBlockingFindWithOptions(nullptr, key, http_cache, value_out, headers);
+  return HttpBlockingFindWithOptions(nullptr, key, http_cache, value_out,
+                                     headers);
 }
 
 HTTPCache::FindResult RewriteTestBase::HttpBlockingFindStatus(
@@ -1261,10 +1216,9 @@ void RewriteTestBase::SetupSharedCache() {
   other_server_context_->set_timer(server_context_->timer());
 }
 
-void RewriteTestBase::CheckFetchFromHttpCache(
-    StringPiece url,
-    StringPiece expected_contents,
-    int64 expected_expiration_ms) {
+void RewriteTestBase::CheckFetchFromHttpCache(StringPiece url,
+                                              StringPiece expected_contents,
+                                              int64 expected_expiration_ms) {
   GoogleString contents;
   ResponseHeaders response;
   ClearStats();
@@ -1298,7 +1252,8 @@ void RewriteTestBase::SetActiveServer(ActiveServerFlag server_to_use) {
     // the output_ data member, causing ValidateExpected calls to fail horribly.
     if (html_writer_filter_.get() != nullptr &&
         other_html_writer_filter_.get() == nullptr) {
-      other_html_writer_filter_ = std::make_unique<HtmlWriterFilter>(html_parse());
+      other_html_writer_filter_ =
+          std::make_unique<HtmlWriterFilter>(html_parse());
       other_html_writer_filter_->set_writer(&write_to_string_);
       html_parse()->AddFilter(other_html_writer_filter_.get());
     }
@@ -1351,18 +1306,19 @@ void RewriteTestBase::VerifyRewriterInfoEntry(
       log_record->logging_info()->rewriter_info(rewriter_info_index);
   EXPECT_STREQ(id, rewriter_info.id());
   EXPECT_TRUE(rewriter_info.has_rewrite_resource_info());
-  EXPECT_EQ(url_index,
+  EXPECT_EQ(
+      url_index,
       rewriter_info.rewrite_resource_info().original_resource_url_index());
   EXPECT_EQ(url_list_size,
             log_record->logging_info()->resource_url_info().url_size());
   EXPECT_EQ(url,
-      log_record->logging_info()->resource_url_info().url(url_index));
+            log_record->logging_info()->resource_url_info().url(url_index));
 }
 
 bool RewriteTestBase::AddDomain(StringPiece domain) {
   bool frozen = options_->ClearSignatureForTesting();
-  bool ret = options_->WriteableDomainLawyer()->AddDomain(
-      domain, message_handler());
+  bool ret =
+      options_->WriteableDomainLawyer()->AddDomain(domain, message_handler());
   if (frozen) {
     server_context()->ComputeSignature(options_);
   }
@@ -1393,8 +1349,8 @@ bool RewriteTestBase::AddRewriteDomainMapping(StringPiece to_domain,
 
 bool RewriteTestBase::AddShard(StringPiece domain, StringPiece shards) {
   bool frozen = options_->ClearSignatureForTesting();
-  bool ret = options_->WriteableDomainLawyer()->AddShard(
-      domain, shards, message_handler());
+  bool ret = options_->WriteableDomainLawyer()->AddShard(domain, shards,
+                                                         message_handler());
   if (frozen) {
     server_context()->ComputeSignature(options_);
   }
@@ -1402,9 +1358,8 @@ bool RewriteTestBase::AddShard(StringPiece domain, StringPiece shards) {
 }
 
 void RewriteTestBase::SetMockLogRecord() {
-  rewrite_driver_->set_request_context(
-      RequestContext::NewTestRequestContext(new MockLogRecord(
-          factory()->thread_system()->NewMutex())));
+  rewrite_driver_->set_request_context(RequestContext::NewTestRequestContext(
+      new MockLogRecord(factory()->thread_system()->NewMutex())));
 }
 
 MockLogRecord* RewriteTestBase::mock_log_record() {
@@ -1412,18 +1367,15 @@ MockLogRecord* RewriteTestBase::mock_log_record() {
 }
 
 GoogleString RewriteTestBase::GetLazyloadScriptHtml() {
-  return StrCat(
-      "<script type=\"text/javascript\" data-pagespeed-no-defer>",
-      LazyloadImagesFilter::GetLazyloadJsSnippet(
-          options(), server_context()->static_asset_manager()),
-      "</script>");
+  return StrCat("<script type=\"text/javascript\" data-pagespeed-no-defer>",
+                LazyloadImagesFilter::GetLazyloadJsSnippet(
+                    options(), server_context()->static_asset_manager()),
+                "</script>");
 }
 
 GoogleString RewriteTestBase::GetLazyloadPostscriptHtml() {
-  return StrCat(
-      "<script type=\"text/javascript\" data-pagespeed-no-defer>",
-        LazyloadImagesFilter::kOverrideAttributeFunctions,
-      "</script>");
+  return StrCat("<script type=\"text/javascript\" data-pagespeed-no-defer>",
+                LazyloadImagesFilter::kOverrideAttributeFunctions, "</script>");
 }
 
 void RewriteTestBase::SetCacheInvalidationTimestamp() {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/sharedmem/shared_dynamic_string_map_test_base.h"
 
@@ -37,7 +36,7 @@ namespace net_instaweb {
 
 namespace {
 
-const int kIntSize = sizeof(int); // NOLINT
+const int kIntSize = sizeof(int);  // NOLINT
 // Should be a multiple of 4
 const int kTableSize = 1024;
 // +1 for string that causes overflow
@@ -90,23 +89,15 @@ bool SharedDynamicStringMapTestBase::CreateFillChild(TestMethod2 method,
 }
 
 SharedDynamicStringMap* SharedDynamicStringMapTestBase::ChildInit() {
-  SharedDynamicStringMap* map =
-      new SharedDynamicStringMap(kTableSize,
-                                 kStringSize,
-                                 shmem_runtime_.get(),
-                                 kPrefix,
-                                 kSuffix);
+  SharedDynamicStringMap* map = new SharedDynamicStringMap(
+      kTableSize, kStringSize, shmem_runtime_.get(), kPrefix, kSuffix);
   map->InitSegment(false, &handler_);
   return map;
 }
 
 SharedDynamicStringMap* SharedDynamicStringMapTestBase::ParentInit() {
-  SharedDynamicStringMap* map =
-      new SharedDynamicStringMap(kTableSize,
-                                 kStringSize,
-                                 shmem_runtime_.get(),
-                                 kPrefix,
-                                 kSuffix);
+  SharedDynamicStringMap* map = new SharedDynamicStringMap(
+      kTableSize, kStringSize, shmem_runtime_.get(), kPrefix, kSuffix);
   map->InitSegment(true, &handler_);
   return map;
 }
@@ -169,8 +160,7 @@ void SharedDynamicStringMapTestBase::TestAdd() {
 
 void SharedDynamicStringMapTestBase::TestQuarterFull() {
   std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
-  ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild,
-                              0,
+  ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild, 0,
                               kTableSize / 4));
   test_env_->WaitForChildren();
   EXPECT_EQ(kTableSize / 4, map->GetNumberInserted());
@@ -192,8 +182,7 @@ void SharedDynamicStringMapTestBase::TestFillSingleThread() {
   std::unique_ptr<SharedDynamicStringMap> map(ParentInit());
   EXPECT_EQ(0, map->GetNumberInserted());
   // One child fills the entire table.
-  ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild,
-                              0,
+  ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild, 0,
                               kTableSize));
   test_env_->WaitForChildren();
   // Each entry should have been incremented once.
@@ -201,8 +190,7 @@ void SharedDynamicStringMapTestBase::TestFillSingleThread() {
     EXPECT_EQ(1, map->LookupElement(strings_[i]));
   EXPECT_EQ(kTableSize, map->GetNumberInserted());
   // One child increments the entire table.
-  ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild,
-                              0,
+  ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild, 0,
                               kTableSize));
   test_env_->WaitForChildren();
   // Each entry should have been incremented twice.
@@ -223,8 +211,7 @@ void SharedDynamicStringMapTestBase::TestFillMultipleNonOverlappingThreads() {
   // Each child will fill up 1/4 of the table.
   for (int i = 0; i < 4; i++)
     ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild,
-                                i * kTableSize / 4,
-                                kTableSize / 4));
+                                i * kTableSize / 4, kTableSize / 4));
   test_env_->WaitForChildren();
   for (int i = 0; i < kTableSize; i++)
     EXPECT_EQ(1, map->LookupElement(strings_[i]));
@@ -245,8 +232,7 @@ void SharedDynamicStringMapTestBase::TestFillMultipleOverlappingThreads() {
   // twice.
   for (int i = 0; i < 4; i++)
     ASSERT_TRUE(CreateFillChild(&SharedDynamicStringMapTestBase::AddFillChild,
-                                i * kTableSize / 4,
-                                kTableSize / 2));
+                                i * kTableSize / 4, kTableSize / 2));
   // In addition, the parent is going to fill up the entire table.
   for (int i = 0; i < kTableSize; i++)
     ASSERT_NE(0, map->IncrementElement(strings_[i]));

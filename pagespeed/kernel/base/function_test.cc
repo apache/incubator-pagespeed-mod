@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/function.h"
+
 #include "pagespeed/kernel/base/gtest.h"
 
 namespace {
@@ -34,9 +34,7 @@ namespace net_instaweb {
 
 class FunctionTest : public testing::Test {
  public:
-  FunctionTest() {
-    Clear();
-  }
+  FunctionTest() { Clear(); }
 
   void Clear() {
     char_ = '\0';
@@ -47,9 +45,7 @@ class FunctionTest : public testing::Test {
     was_cancelled_ = false;
   }
 
-  void Run0() {
-    was_run_ = true;
-  }
+  void Run0() { was_run_ = true; }
 
   void Run1(char c) {
     char_ = c;
@@ -77,25 +73,15 @@ class FunctionTest : public testing::Test {
     was_run_ = true;
   }
 
-  void Cancel0() {
-    was_cancelled_ = true;
-  }
+  void Cancel0() { was_cancelled_ = true; }
 
-  void Cancel1(char c) {
-    was_cancelled_ = true;
-  }
+  void Cancel1(char c) { was_cancelled_ = true; }
 
-  void Cancel2(char c, int i) {
-    was_cancelled_ = true;
-  }
+  void Cancel2(char c, int i) { was_cancelled_ = true; }
 
-  void Cancel3(char c, int i, double d) {
-    was_cancelled_ = true;
-  }
+  void Cancel3(char c, int i, double d) { was_cancelled_ = true; }
 
-  void Cancel4(char c, int i, double d, bool b) {
-    was_cancelled_ = true;
-  }
+  void Cancel4(char c, int i, double d, bool b) { was_cancelled_ = true; }
 
   bool Matches(char c, int i, double d, bool b) const {
     return ((c == char_) && (i == int_) && (d == double_) && (b == bool_));
@@ -132,15 +118,15 @@ TEST_F(FunctionTest, Run0NoCancelNoAutoDelete) {
 
 TEST_F(FunctionTest, Run0WithCancel) {
   FunctionTest* function_test = this;
-  MakeFunction(function_test, &FunctionTest::Run0,
-               &FunctionTest::Cancel0)->CallRun();
+  MakeFunction(function_test, &FunctionTest::Run0, &FunctionTest::Cancel0)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches('\0', 0, 0.0, false));
 
   Clear();
-  MakeFunction(function_test, &FunctionTest::Run0,
-               &FunctionTest::Cancel0)->CallCancel();
+  MakeFunction(function_test, &FunctionTest::Run0, &FunctionTest::Cancel0)
+      ->CallCancel();
   EXPECT_FALSE(was_run_);
   EXPECT_TRUE(was_cancelled_);
   EXPECT_TRUE(Matches('\0', 0, 0.0, false));
@@ -148,8 +134,7 @@ TEST_F(FunctionTest, Run0WithCancel) {
 
 TEST_F(FunctionTest, Run1NoCancel) {
   FunctionTest* function_test = this;
-  MakeFunction(function_test, &FunctionTest::Run1,
-               kCharData)->CallRun();
+  MakeFunction(function_test, &FunctionTest::Run1, kCharData)->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, 0, 0.0, false));
@@ -158,14 +143,16 @@ TEST_F(FunctionTest, Run1NoCancel) {
 TEST_F(FunctionTest, Run1WithCancel) {
   FunctionTest* function_test = this;
   MakeFunction(function_test, &FunctionTest::Run1, &FunctionTest::Cancel1,
-               kCharData)->CallRun();
+               kCharData)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, 0, 0.0, false));
 
   Clear();
   MakeFunction(function_test, &FunctionTest::Run1, &FunctionTest::Cancel1,
-               kCharData)->CallCancel();
+               kCharData)
+      ->CallCancel();
   EXPECT_FALSE(was_run_);
   EXPECT_TRUE(was_cancelled_);
   EXPECT_TRUE(Matches('\0', 0, 0.0, false));
@@ -173,8 +160,8 @@ TEST_F(FunctionTest, Run1WithCancel) {
 
 TEST_F(FunctionTest, Run2NoCancel) {
   FunctionTest* function_test = this;
-  MakeFunction(function_test, &FunctionTest::Run2,
-               kCharData, kIntData)->CallRun();
+  MakeFunction(function_test, &FunctionTest::Run2, kCharData, kIntData)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, kIntData, 0.0, false));
@@ -183,14 +170,16 @@ TEST_F(FunctionTest, Run2NoCancel) {
 TEST_F(FunctionTest, Run2WithCancel) {
   FunctionTest* function_test = this;
   MakeFunction(function_test, &FunctionTest::Run2, &FunctionTest::Cancel2,
-               kCharData, kIntData)->CallRun();
+               kCharData, kIntData)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, kIntData, 0.0, false));
 
   Clear();
   MakeFunction(function_test, &FunctionTest::Run2, &FunctionTest::Cancel2,
-               kCharData, kIntData)->CallCancel();
+               kCharData, kIntData)
+      ->CallCancel();
   EXPECT_FALSE(was_run_);
   EXPECT_TRUE(was_cancelled_);
   EXPECT_TRUE(Matches('\0', 0, 0.0, false));
@@ -198,8 +187,9 @@ TEST_F(FunctionTest, Run2WithCancel) {
 
 TEST_F(FunctionTest, Run3NoCancel) {
   FunctionTest* function_test = this;
-  MakeFunction(function_test, &FunctionTest::Run3,
-               kCharData, kIntData, kDoubleData)->CallRun();
+  MakeFunction(function_test, &FunctionTest::Run3, kCharData, kIntData,
+               kDoubleData)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, kIntData, kDoubleData, false));
@@ -208,14 +198,16 @@ TEST_F(FunctionTest, Run3NoCancel) {
 TEST_F(FunctionTest, Run3WithCancel) {
   FunctionTest* function_test = this;
   MakeFunction(function_test, &FunctionTest::Run3, &FunctionTest::Cancel3,
-               kCharData, kIntData, kDoubleData)->CallRun();
+               kCharData, kIntData, kDoubleData)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, kIntData, kDoubleData, false));
 
   Clear();
   MakeFunction(function_test, &FunctionTest::Run3, &FunctionTest::Cancel3,
-               kCharData, kIntData, kDoubleData)->CallCancel();
+               kCharData, kIntData, kDoubleData)
+      ->CallCancel();
   EXPECT_FALSE(was_run_);
   EXPECT_TRUE(was_cancelled_);
   EXPECT_TRUE(Matches('\0', 0, 0.0, false));
@@ -223,8 +215,9 @@ TEST_F(FunctionTest, Run3WithCancel) {
 
 TEST_F(FunctionTest, Run4NoCancel) {
   FunctionTest* function_test = this;
-  MakeFunction(function_test, &FunctionTest::Run4,
-               kCharData, kIntData, kDoubleData, kBoolData)->CallRun();
+  MakeFunction(function_test, &FunctionTest::Run4, kCharData, kIntData,
+               kDoubleData, kBoolData)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, kIntData, kDoubleData, kBoolData));
@@ -233,14 +226,16 @@ TEST_F(FunctionTest, Run4NoCancel) {
 TEST_F(FunctionTest, Run4WithCancel) {
   FunctionTest* function_test = this;
   MakeFunction(function_test, &FunctionTest::Run4, &FunctionTest::Cancel4,
-               kCharData, kIntData, kDoubleData, kBoolData)->CallRun();
+               kCharData, kIntData, kDoubleData, kBoolData)
+      ->CallRun();
   EXPECT_TRUE(was_run_);
   EXPECT_FALSE(was_cancelled_);
   EXPECT_TRUE(Matches(kCharData, kIntData, kDoubleData, kBoolData));
 
   Clear();
   MakeFunction(function_test, &FunctionTest::Run4, &FunctionTest::Cancel4,
-               kCharData, kIntData, kDoubleData, kBoolData)->CallCancel();
+               kCharData, kIntData, kDoubleData, kBoolData)
+      ->CallCancel();
   EXPECT_FALSE(was_run_);
   EXPECT_TRUE(was_cancelled_);
   EXPECT_TRUE(Matches('\0', 0, 0.0, false));

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_HTML_DOCTYPE_H_
 #define PAGESPEED_KERNEL_HTML_DOCTYPE_H_
@@ -68,8 +67,7 @@ class DocType {
   // it appears in, update this DocType to match that specified by the
   // directive and return true.  If the directive is not a doctype directive,
   // return false and don't alter the DocType.
-  bool Parse(const StringPiece& directive,
-             const ContentType& content_type);
+  bool Parse(const StringPiece& directive, const ContentType& content_type);
 
  private:
   enum DocTypeEnum {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/js_replacer.h"
 
@@ -36,13 +35,9 @@ class JsReplacerTest : public testing::Test {
  public:
   JsReplacerTest() : replacer_(&patterns_) {}
 
-  void AppendTail(GoogleString* str) {
-    StrAppend(str, " with tail");
-  }
+  void AppendTail(GoogleString* str) { StrAppend(str, " with tail"); }
 
-  void AppendHead(GoogleString* str) {
-    *str = "head with " + *str;
-  }
+  void AppendHead(GoogleString* str) { *str = "head with " + *str; }
 
  protected:
   JsTokenizerPatterns patterns_;
@@ -88,8 +83,7 @@ TEST_F(JsReplacerTest, RedundantPattern) {
 
 TEST_F(JsReplacerTest, TwoPatterns) {
   // Test two different patterns.
-  const char kIn[] =
-      "a.b.c = \"42\"; document.domain = 'whatever.com';";
+  const char kIn[] = "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"head with 42\"; document.domain = 'whatever.com with tail';";
   std::unique_ptr<JsReplacer::StringRewriter> rewriter(

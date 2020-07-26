@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_UTIL_MOCK_NONCE_GENERATOR_H_
 #define PAGESPEED_KERNEL_UTIL_MOCK_NONCE_GENERATOR_H_
 
-#include "pagespeed/kernel/util/nonce_generator.h"
-
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/util/nonce_generator.h"
 
 namespace net_instaweb {
 
@@ -33,7 +30,7 @@ namespace net_instaweb {
 class MockNonceGenerator : public NonceGenerator {
  public:
   explicit MockNonceGenerator(AbstractMutex* mutex)
-      : NonceGenerator(mutex), counter_(0) { }
+      : NonceGenerator(mutex), counter_(0) {}
   ~MockNonceGenerator() override;
 
  protected:

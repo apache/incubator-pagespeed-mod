@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,23 +17,23 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/instaweb_context.h"
-
 
 #include <memory>
 
-
+#include "apr_strings.h"
 #include "base/logging.h"
-#include "pagespeed/apache/apache_server_context.h"
-#include "pagespeed/apache/header_util.h"
-#include "pagespeed/apache/mod_instaweb.h"
+#include "http_config.h"
+#include "http_core.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/property_cache.h"
+#include "pagespeed/apache/apache_server_context.h"
+#include "pagespeed/apache/header_util.h"
+#include "pagespeed/apache/mod_instaweb.h"
 #include "pagespeed/kernel/base/atomic_bool.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -47,10 +47,6 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/util/gzip_inflater.h"
-
-#include "apr_strings.h"
-#include "http_config.h"
-#include "http_core.h"
 
 namespace net_instaweb {
 
@@ -66,17 +62,13 @@ class PropertyCallback : public PropertyPage {
   PropertyCallback(const StringPiece& url,
                    const StringPiece& options_signature_hash,
                    UserAgentMatcher::DeviceType device_type,
-                   RewriteDriver* driver,
-                   ThreadSystem* thread_system)
-    : PropertyPage(PropertyPage::kPropertyCachePage,
-                   url,
-                   options_signature_hash,
-                   UserAgentMatcher::DeviceTypeSuffix(device_type),
-                   driver->request_context(),
-                   thread_system->NewMutex(),
-                   driver->server_context()->page_property_cache()),
-      driver_(driver) {
-  }
+                   RewriteDriver* driver, ThreadSystem* thread_system)
+      : PropertyPage(PropertyPage::kPropertyCachePage, url,
+                     options_signature_hash,
+                     UserAgentMatcher::DeviceTypeSuffix(device_type),
+                     driver->request_context(), thread_system->NewMutex(),
+                     driver->server_context()->page_property_cache()),
+        driver_(driver) {}
 
   bool done() const { return done_.value(); }
 
@@ -94,16 +86,13 @@ class PropertyCallback : public PropertyPage {
 
 }  // namespace
 
-InstawebContext::InstawebContext(request_rec* request,
-                                 RequestHeaders* request_headers,
-                                 const ContentType& content_type,
-                                 ApacheServerContext* server_context,
-                                 const GoogleString& absolute_url,
-                                 const RequestContextPtr& request_context,
-                                 const QueryParams& pagespeed_query_params,
-                                 const QueryParams& pagespeed_option_cookies,
-                                 bool use_custom_options,
-                                 const RewriteOptions& options)
+InstawebContext::InstawebContext(
+    request_rec* request, RequestHeaders* request_headers,
+    const ContentType& content_type, ApacheServerContext* server_context,
+    const GoogleString& absolute_url, const RequestContextPtr& request_context,
+    const QueryParams& pagespeed_query_params,
+    const QueryParams& pagespeed_option_cookies, bool use_custom_options,
+    const RewriteOptions& options)
     : content_encoding_(kNone),
       content_type_(content_type),
       server_context_(server_context),
@@ -132,8 +121,8 @@ InstawebContext::InstawebContext(request_rec* request,
       SetExperimentStateAndCookie(request, custom_options);
     }
     server_context_->ComputeSignature(custom_options);
-    rewrite_driver_ = server_context_->NewCustomRewriteDriver(
-        custom_options, request_context);
+    rewrite_driver_ = server_context_->NewCustomRewriteDriver(custom_options,
+                                                              request_context);
   } else {
     rewrite_driver_ = server_context_->NewRewriteDriver(request_context);
   }
@@ -159,12 +148,12 @@ InstawebContext::InstawebContext(request_rec* request,
   rewrite_driver_->EnableBlockingRewrite(request_headers);
 
   ComputeContentEncoding(request);
-  apr_pool_cleanup_register(request->pool,
-                            this, apache_cleanup<InstawebContext>,
+  apr_pool_cleanup_register(request->pool, this,
+                            apache_cleanup<InstawebContext>,
                             apr_pool_cleanup_null);
 
-  bucket_brigade_ = apr_brigade_create(request->pool,
-                                       request->connection->bucket_alloc);
+  bucket_brigade_ =
+      apr_brigade_create(request->pool, request->connection->bucket_alloc);
 
   if (content_encoding_ == kGzip || content_encoding_ == kDeflate) {
     // TODO(jmarantz): consider keeping a pool of these if they are expensive
@@ -188,8 +177,7 @@ InstawebContext::InstawebContext(request_rec* request,
   rewrite_driver_->SetWriter(&string_writer_);
 }
 
-InstawebContext::~InstawebContext() {
-}
+InstawebContext::~InstawebContext() {}
 
 void InstawebContext::Rewrite(const char* input, int size) {
   if (inflater_.get() != nullptr) {
@@ -245,8 +233,8 @@ void InstawebContext::ProcessBytes(const char* input, int size) {
       if (html_detector_.probable_html()) {
         // Note that we use started_parse_ and not probable_html()
         // in all other spots as an error fallback.
-        started_parse_ = rewrite_driver_->StartParseWithType(absolute_url_,
-                                                             content_type_);
+        started_parse_ =
+            rewrite_driver_->StartParseWithType(absolute_url_, content_type_);
       }
 
       // If we buffered up any bytes in previous calls, make sure to
@@ -275,8 +263,8 @@ void InstawebContext::ProcessBytes(const char* input, int size) {
 
 void InstawebContext::ComputeContentEncoding(request_rec* request) {
   // Check if the content is gzipped. Steal from mod_deflate.
-  const char* encoding = apr_table_get(request->headers_out,
-                                       HttpAttributes::kContentEncoding);
+  const char* encoding =
+      apr_table_get(request->headers_out, HttpAttributes::kContentEncoding);
   if (encoding != nullptr) {
     const char* err_enc = apr_table_get(request->err_headers_out,
                                         HttpAttributes::kContentEncoding);
@@ -312,12 +300,9 @@ void InstawebContext::BlockingPropertyCacheLookup() {
         server_context_->GetRewriteOptionsSignatureHash(
             rewrite_driver_->options());
 
-    property_callback = new PropertyCallback(
-        absolute_url_,
-        options_signature_hash,
-        device_type,
-        rewrite_driver_,
-        server_context_->thread_system());
+    property_callback =
+        new PropertyCallback(absolute_url_, options_signature_hash, device_type,
+                             rewrite_driver_, server_context_->thread_system());
     pcache->ReadWithCohorts(
         RewriteDriver::GetCohortList(pcache, rewrite_driver_->options(),
                                      server_context_),
@@ -329,8 +314,8 @@ void InstawebContext::BlockingPropertyCacheLookup() {
 
 ApacheServerContext* InstawebContext::ServerContextFromServerRec(
     server_rec* server) {
-  return static_cast<ApacheServerContext*>
-      ap_get_module_config(server->module_config, &pagespeed_module);
+  return static_cast<ApacheServerContext*> ap_get_module_config(
+      server->module_config, &pagespeed_module);
 }
 
 // This function stores the request uri on the first call, and then
@@ -351,8 +336,9 @@ const char* InstawebContext::MakeRequestUrl(
     // chain more than once (MakeRequestUrl will already have been
     // called for request->prev, before this request is created).
     // However, max out at 5 iterations, just in case.
-    request_rec *prev = request->prev;
-    for (int i = 0; (url == nullptr) && (prev != nullptr) && (i < kRequestChainLimit);
+    request_rec* prev = request->prev;
+    for (int i = 0;
+         (url == nullptr) && (prev != nullptr) && (i < kRequestChainLimit);
          ++i, prev = prev->prev) {
       url = apr_table_get(prev->notes, kPagespeedOriginalUrl);
     }
@@ -367,8 +353,9 @@ const char* InstawebContext::MakeRequestUrl(
     // note that http_request.c:ap_internal_fast_redirect 'overlays'
     // the source r.notes onto the dest r.notes, which in this case would
     // work against us if we don't first propagate the OriginalUrl.
-    request_rec *main = request->main;
-    for (int i = 0; (url == nullptr) && (main != nullptr) && (i < kRequestChainLimit);
+    request_rec* main = request->main;
+    for (int i = 0;
+         (url == nullptr) && (main != nullptr) && (i < kRequestChainLimit);
          ++i, main = main->main) {
       url = apr_table_get(main->notes, kPagespeedOriginalUrl);
     }
@@ -379,8 +366,8 @@ const char* InstawebContext::MakeRequestUrl(
     // an absolute URL first. If so, use it as-is, otherwise ap_construct_url().
     if (url == nullptr) {
       if (request->unparsed_uri == nullptr) {
-        LOG(DFATAL) <<
-            "build_context_for_request should verify unparsed_uri is non-null.";
+        LOG(DFATAL) << "build_context_for_request should verify unparsed_uri "
+                       "is non-null.";
         return nullptr;
       }
 

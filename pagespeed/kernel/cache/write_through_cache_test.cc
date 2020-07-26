@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the write-through cache
 
@@ -34,8 +33,7 @@ class WriteThroughCacheTest : public CacheTestBase {
   WriteThroughCacheTest()
       : small_cache_(15),
         big_cache_(1000),
-        write_through_cache_(&small_cache_, &big_cache_) {
-  }
+        write_through_cache_(&small_cache_, &big_cache_) {}
 
   LRUCache small_cache_;
   LRUCache big_cache_;

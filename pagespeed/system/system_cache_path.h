@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_SYSTEM_SYSTEM_CACHE_PATH_H_
 #define PAGESPEED_SYSTEM_SYSTEM_CACHE_PATH_H_
@@ -56,8 +55,7 @@ class SystemCachePath {
   static const char kFileCache[];
   static const char kLruCache[];
 
-  SystemCachePath(const StringPiece& path,
-                  const SystemRewriteOptions* config,
+  SystemCachePath(const StringPiece& path, const SystemRewriteOptions* config,
                   RewriteDriverFactory* factory,
                   AbstractSharedMem* shm_runtime);
   ~SystemCachePath();
@@ -123,11 +121,9 @@ class SystemCachePath {
   //
   // 'name' is used in a warning message printed whenever resolution was
   // required.
-  void MergeEntries(int64 config_value, bool config_was_set,
-                    bool take_larger,
-                    const char* name,
-                    int64* policy_value, bool* has_explicit_policy);
-
+  void MergeEntries(int64 config_value, bool config_was_set, bool take_larger,
+                    const char* name, int64* policy_value,
+                    bool* has_explicit_policy);
 
   // Transmits cache-purge-set updates to all live server contexts.
   void UpdateCachePurgeSet(const CopyOnWrite<PurgeSet>& purge_set);

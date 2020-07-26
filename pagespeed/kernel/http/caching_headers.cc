@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/http/caching_headers.h"
 
@@ -43,11 +42,9 @@ CachingHeaders::CachingHeaders(int status_code)
       no_cache_(false),
       no_store_(false),
       cache_control_parse_error_(false),
-      expires_invalid_(false) {
-}
+      expires_invalid_(false) {}
 
-CachingHeaders::~CachingHeaders() {
-}
+CachingHeaders::~CachingHeaders() {}
 
 // Lazy getters
 
@@ -124,10 +121,8 @@ bool CachingHeaders::HasExplicitFreshnessLifetime() {
 }
 
 bool CachingHeaders::IsRedirectStatusCode() const {
-  return status_code_ == 301 ||
-      status_code_ == 302 ||
-      status_code_ == 303 ||
-      status_code_ == 307;
+  return status_code_ == 301 || status_code_ == 302 || status_code_ == 303 ||
+         status_code_ == 307;
 }
 
 // Actual compute logic
@@ -247,8 +242,7 @@ bool CachingHeaders::ComputeFreshnessLifetimeMillis(
 
   int64 date_value_ms = 0;
   StringPieceVector date;
-  if (!Lookup(HttpAttributes::kDate, &date) ||
-      (date.size() != 1) ||
+  if (!Lookup(HttpAttributes::kDate, &date) || (date.size() != 1) ||
       !ConvertStringToTime(date[0], &date_value_ms)) {
     // We have an Expires header, but no Date header to reference
     // from. Thus we assume that the resource is heuristically
@@ -336,8 +330,7 @@ bool CachingHeaders::ComputeHasExplicitNoCacheDirective() {
     return true;
   }
 
-  if (Lookup(HttpAttributes::kVary, &vary) &&
-      STLFind(vary, "*")) {
+  if (Lookup(HttpAttributes::kVary, &vary) && STLFind(vary, "*")) {
     return true;
   }
 

@@ -30,10 +30,11 @@ static constexpr char logger_str[] = "main";
  * SinkDelegate that redirects logs to pagespeed message handler.
  */
 class PagespeedLogSink : public Envoy::Logger::SinkDelegate {
-public:
-  PagespeedLogSink(Envoy::Logger::DelegatingLogSinkSharedPtr log_sink, MessageHandler* handler);
+ public:
+  PagespeedLogSink(Envoy::Logger::DelegatingLogSinkSharedPtr log_sink,
+                   MessageHandler* handler);
 
-private:
+ private:
   int getPagespeedLogLevel(spdlog::level::level_enum log_level);
   void log(absl::string_view msg) override;
   void flush() override;
@@ -42,4 +43,4 @@ private:
   spdlog::level::level_enum log_level_;
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

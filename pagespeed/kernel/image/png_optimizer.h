@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_IMAGE_PNG_OPTIMIZER_H_
 #define PAGESPEED_KERNEL_IMAGE_PNG_OPTIMIZER_H_
@@ -33,15 +32,16 @@ extern "C" {
 }  // extern "C"
 
 #include <setjmp.h>
+
 #include <cstddef>
 
+#include "external/optipng/src/opngreduc/opngreduc.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
-#include "external/optipng/src/opngreduc/opngreduc.h"
 
 namespace net_instaweb {
 class MessageHandler;
@@ -87,10 +87,7 @@ struct PngCompressParams : public ScanlineWriterConfig {
 // Helper that manages the lifetime of the png_ptr and info_ptr.
 class ScopedPngStruct {
  public:
-  enum Type {
-    READ,
-    WRITE
-  };
+  enum Type { READ, WRITE };
 
   ScopedPngStruct(Type type, MessageHandler* handler);
   ~ScopedPngStruct();
@@ -123,19 +120,15 @@ class PngReaderInterface {
   // is true, returns an image without an alpha channel if the
   // original image has no transparent pixels, and fails
   // otherwise. Returns true on success, false on failure.
-  virtual bool ReadPng(const GoogleString& body,
-                       png_structp png_ptr,
-                       png_infop info_ptr,
-                       int transforms,
+  virtual bool ReadPng(const GoogleString& body, png_structp png_ptr,
+                       png_infop info_ptr, int transforms,
                        bool require_opaque) const = 0;
 
   // Parse the contents of body, convert to a PNG, and populate the
   // PNG structures with the PNG representation. Returns true on
   // success, false on failure.
-  bool ReadPng(const GoogleString& body,
-               png_structp png_ptr,
-               png_infop info_ptr,
-               int transforms) const {
+  bool ReadPng(const GoogleString& body, png_structp png_ptr,
+               png_infop info_ptr, int transforms) const {
     return ReadPng(body, png_ptr, info_ptr, transforms, false);
   }
 
@@ -143,19 +136,16 @@ class PngReaderInterface {
   // number of bits per channel. out_color_type is one of the
   // PNG_COLOR_TYPE_* declared in png.h.
   // TODO(bmcquade): consider merging this with ImageAttributes.
-  virtual bool GetAttributes(const GoogleString& body,
-                             int* out_width,
-                             int* out_height,
-                             int* out_bit_depth,
+  virtual bool GetAttributes(const GoogleString& body, int* out_width,
+                             int* out_height, int* out_bit_depth,
                              int* out_color_type) const = 0;
 
   // Get the background color, in the form of 8-bit RGB triplets. Note
   // that if the underlying image uses a bit_depth other than 8, the
   // background color will be scaled to 8-bits per channel.
-  static bool GetBackgroundColor(
-      png_structp png_ptr, png_infop info_ptr,
-      unsigned char *red, unsigned char* green, unsigned char* blue,
-      MessageHandler* handler);
+  static bool GetBackgroundColor(png_structp png_ptr, png_infop info_ptr,
+                                 unsigned char* red, unsigned char* green,
+                                 unsigned char* blue, MessageHandler* handler);
 
   // Returns true if the alpha channel is actually a opaque. Returns
   // false otherwise. It is an error to call this method for an image
@@ -210,12 +200,12 @@ class PngScanlineReader : public ScanlineReaderInterface {
   void set_transform(int transform);
   void set_require_opaque(bool require_opaque);
   int GetColorType();
-  bool GetBackgroundColor(
-      unsigned char* red, unsigned char* green, unsigned char* blue);
+  bool GetBackgroundColor(unsigned char* red, unsigned char* green,
+                          unsigned char* blue);
 
   // This is a no-op and should not be called.
   ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length) override;
+                                      size_t buffer_length) override;
 
  private:
   ScopedPngStruct read_;
@@ -230,8 +220,7 @@ class PngScanlineReader : public ScanlineReaderInterface {
 class PngOptimizer {
  public:
   static bool OptimizePng(const PngReaderInterface& reader,
-                          const GoogleString& in,
-                          GoogleString* out,
+                          const GoogleString& in, GoogleString* out,
                           MessageHandler* handler);
 
   static bool OptimizePngBestCompression(const PngReaderInterface& reader,
@@ -249,8 +238,7 @@ class PngOptimizer {
   // all unnecessary chunks, and by choosing an optimal PNG encoding.
   // @return true on success, false on failure.
   bool CreateOptimizedPng(const PngReaderInterface& reader,
-                          const GoogleString& in,
-                          GoogleString* out,
+                          const GoogleString& in, GoogleString* out,
                           MessageHandler* handler);
 
   // Turn on best compression. Requires additional CPU but produces
@@ -278,17 +266,12 @@ class PngReader : public PngReaderInterface {
  public:
   explicit PngReader(MessageHandler* handler);
   ~PngReader() override;
-  bool ReadPng(const GoogleString& body,
-                       png_structp png_ptr,
-                       png_infop info_ptr,
-                       int transforms,
-                       bool require_opaque) const override;
+  bool ReadPng(const GoogleString& body, png_structp png_ptr,
+               png_infop info_ptr, int transforms,
+               bool require_opaque) const override;
 
-  bool GetAttributes(const GoogleString& body,
-                             int* out_width,
-                             int* out_height,
-                             int* out_bit_depth,
-                             int* out_color_type) const override;
+  bool GetAttributes(const GoogleString& body, int* out_width, int* out_height,
+                     int* out_bit_depth, int* out_color_type) const override;
 
  private:
   MessageHandler* message_handler_;
@@ -322,7 +305,7 @@ class PngScanlineReaderRaw : public ScanlineReaderInterface {
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the last call to ReadNextScanline().
   ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length) override;
+                                      size_t buffer_length) override;
 
   // Return the next row of pixels. For non-progressive PNG,
   // ReadNextScanlineWithStatus will decode one row of pixels each
@@ -337,7 +320,7 @@ class PngScanlineReaderRaw : public ScanlineReaderInterface {
   bool HasMoreScanLines() override { return (row_ < height_); }
   PixelFormat GetPixelFormat() override { return pixel_format_; }
   size_t GetImageHeight() override { return height_; }
-  size_t GetImageWidth() override {  return width_; }
+  size_t GetImageWidth() override { return width_; }
   bool IsProgressive() override { return is_progressive_; }
 
  private:
@@ -370,17 +353,17 @@ class PngScanlineWriter : public ScanlineWriterInterface {
   // Initialize the basic parameters for writing the image. Size of the image
   // must be 1-by-1 or larger.
   ScanlineStatus InitWithStatus(const size_t width, const size_t height,
-                                        PixelFormat pixel_format) override;
+                                PixelFormat pixel_format) override;
 
   // Initialize additional parameters for writing the image using
   // 'params', which should be a PngCompressParams*. You can set
   // 'params' to NULL to use the default compression configuration.
   ScanlineStatus InitializeWriteWithStatus(const void* params,
-                                                   GoogleString* png_image) override;
+                                           GoogleString* png_image) override;
 
   // Write a scanline with the data provided. Return false in case of error.
   ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes) override;
+      const void* scanline_bytes) override;
 
   // Finalize write structure once all scanlines are written.
   // If FinalizeWriter() is called before all of the scanlines have been
@@ -392,8 +375,7 @@ class PngScanlineWriter : public ScanlineWriterInterface {
   bool Reset();
 
   // Validate the input parameters.
-  bool Validate(const PngCompressParams* params,
-                GoogleString* png_image);
+  bool Validate(const PngCompressParams* params, GoogleString* png_image);
 
   bool DoBestCompression();
 

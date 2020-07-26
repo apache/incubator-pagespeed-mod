@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/sharedmem/shared_mem_cache_data_test_base.h"
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 #include <set>
 
 #include "pagespeed/kernel/base/function.h"
@@ -34,8 +33,8 @@ using SharedMemCacheData::BlockNum;
 using SharedMemCacheData::BlockVector;
 using SharedMemCacheData::CacheEntry;
 using SharedMemCacheData::EntryNum;
-using SharedMemCacheData::Sector;
 using SharedMemCacheData::kInvalidEntry;
+using SharedMemCacheData::Sector;
 
 namespace {
 
@@ -53,8 +52,7 @@ SharedMemCacheDataTestBase::SharedMemCacheDataTestBase(SharedMemTestEnv* env)
     : test_env_(env),
       shmem_runtime_(env->CreateSharedMemRuntime()),
       thread_system_(Platform::CreateThreadSystem()),
-      handler_(thread_system_->NewMutex()) {
-}
+      handler_(thread_system_->NewMutex()) {}
 
 bool SharedMemCacheDataTestBase::CreateChild(TestMethod method) {
   Function* callback =
@@ -78,7 +76,6 @@ void SharedMemCacheDataTestBase::SanityCheckBlockVector(
 void SharedMemCacheDataTestBase::ExtractAndSanityCheckLRU(
     Sector<SharedMemCacheDataTestBase::kBlockSize>* sector,
     std::vector<EntryNum>* out_lru) {
-
   // collect list starting form oldest.
   std::vector<EntryNum> backwards_lru;
   for (EntryNum e = sector->OldestEntryNum(); e != kInvalidEntry;
@@ -246,10 +243,8 @@ void SharedMemCacheDataTestBase::TestBlockLists() NO_THREAD_SAFETY_ANALYSIS {
   std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
 
   // First, let's sanity-check the computation routines
-  EXPECT_EQ(static_cast<size_t>(0),
-            Sector<kBlockSize>::DataBlocksForSize(0));
-  EXPECT_EQ(static_cast<size_t>(1),
-            Sector<kBlockSize>::DataBlocksForSize(1));
+  EXPECT_EQ(static_cast<size_t>(0), Sector<kBlockSize>::DataBlocksForSize(0));
+  EXPECT_EQ(static_cast<size_t>(1), Sector<kBlockSize>::DataBlocksForSize(1));
   EXPECT_EQ(static_cast<size_t>(1),
             Sector<kBlockSize>::DataBlocksForSize(kBlockSize));
   EXPECT_EQ(static_cast<size_t>(2),
@@ -279,8 +274,7 @@ void SharedMemCacheDataTestBase::TestBlockLists() NO_THREAD_SAFETY_ANALYSIS {
   // Now, let's allocate some blocks.
   const int kTestBlocks = 10;
   BlockVector blocks;
-  ASSERT_EQ(kTestBlocks,
-            sector->AllocBlocksFromFreeList(kTestBlocks, &blocks));
+  ASSERT_EQ(kTestBlocks, sector->AllocBlocksFromFreeList(kTestBlocks, &blocks));
 
   // Link them together, and add them to a test entry.
   sector->LinkBlockSuccessors(blocks);

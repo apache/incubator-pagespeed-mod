@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/image_combine_filter.h"
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 #include <iterator>
 #include <map>
 #include <set>
@@ -110,9 +109,7 @@ class SpriteFuture {
 
   // Bind this Future to a particular image.  Owns nothing; the inputs must
   // outlive this future.
-  void Initialize(Css::Value* url_value) {
-    url_value_ = url_value;
-  }
+  void Initialize(Css::Value* url_value) { url_value_ = url_value; }
 
   const GoogleString& old_url() { return old_url_; }
 
@@ -121,8 +118,8 @@ class SpriteFuture {
   // Set x_px and y_px to the alignment for this image/div combination
   // before spriting.
   bool SetAlignmentValues(Css::Value* x_value, Css::Value* y_value,
-                          int image_width, int image_height,
-                          int* x_px, int* y_px) {
+                          int image_width, int image_height, int* x_px,
+                          int* y_px) {
     bool ret = true;
     if (x_value->GetLexicalUnitType() == Css::Value::NUMBER) {
       if (IsValidNumberPosition(*x_value)) {
@@ -211,7 +208,7 @@ class SpriteFuture {
   // (3) If first value is a number, second value is vertical,
   //     first is horizontal.
   bool ReadTwoValues(Css::Values* values, int values_offset,
-                     Css::Value**x_value, Css::Value** y_value) {
+                     Css::Value** x_value, Css::Value** y_value) {
     Css::Value* value = values->at(values_offset);
     Css::Value* other_value = values->at(values_offset + 1);
     if (value->GetLexicalUnitType() == Css::Value::IDENT) {
@@ -296,8 +293,8 @@ class SpriteFuture {
     // values in px.
     int x_px = 0;
     int y_px = 0;
-    if (!SetAlignmentValues(x_value, y_value, image_width, image_height,
-                            &x_px, &y_px)) {
+    if (!SetAlignmentValues(x_value, y_value, image_width, image_height, &x_px,
+                            &y_px)) {
       return false;
     }
     // When sprited, these x_value_ and y_value_ will both be replaced
@@ -327,16 +324,16 @@ class SpriteFuture {
     if (value.GetLexicalUnitType() == Css::Value::NUMBER) {
       return true;
     } else if (value.GetLexicalUnitType() == Css::Value::IDENT) {
-        switch (value.GetIdentifier().ident()) {
-          case Css::Identifier::LEFT:
-          case Css::Identifier::RIGHT:
-          case Css::Identifier::TOP:
-          case Css::Identifier::BOTTOM:
-          case Css::Identifier::CENTER:
-            return true;
-          default:
-            return false;
-        }
+      switch (value.GetIdentifier().ident()) {
+        case Css::Identifier::LEFT:
+        case Css::Identifier::RIGHT:
+        case Css::Identifier::TOP:
+        case Css::Identifier::BOTTOM:
+        case Css::Identifier::CENTER:
+          return true;
+        default:
+          return false;
+      }
     }
     return false;
   }
@@ -365,13 +362,9 @@ class SpriteFuture {
     }
   }
 
-  int width() {
-    return div_width_;
-  }
+  int width() { return div_width_; }
 
-  int height() {
-    return div_height_;
-  }
+  int height() { return div_height_; }
 
   // Attempt to find the background position values, or create them if
   // necessary.  If we return true, we should be all set for a call to
@@ -385,8 +378,7 @@ class SpriteFuture {
     // Find the original background offsets (if any) so we can add to them.
     has_position_ = false;
     for (Css::Declarations::iterator decl_iter = declarations_->begin();
-         !has_position_ && (decl_iter != declarations_->end());
-         ++decl_iter) {
+         !has_position_ && (decl_iter != declarations_->end()); ++decl_iter) {
       Css::Declaration* decl = *decl_iter;
       switch (decl->prop()) {
         case Css::Property::BACKGROUND_POSITION: {
@@ -394,8 +386,8 @@ class SpriteFuture {
           if (decl_values->size() > 2 || decl_values->size() < 1) {
             return false;
           }
-          if (ReadBackgroundPosition(decl_values, 0,
-                                     image_width, image_height)) {
+          if (ReadBackgroundPosition(decl_values, 0, image_width,
+                                     image_height)) {
             has_position_ = true;
           } else {
             // Upon failure here, we abort the sprite.
@@ -416,8 +408,8 @@ class SpriteFuture {
           // which we don't support.)
           for (int i = 0, n = decl_values->size(); i < n; ++i) {
             if (IsPositionValue(*(decl_values->at(i)))) {
-              if (ReadBackgroundPosition(decl_values, i,
-                                         image_width, image_height)) {
+              if (ReadBackgroundPosition(decl_values, i, image_width,
+                                         image_height)) {
                 has_position_ = true;
                 break;
               } else {
@@ -472,8 +464,8 @@ class Library : public spriter::ImageLibraryInterface {
     // Owns nothing.  Image may not be null.  The library is expected to
     // maintain ownership of the image pointer.
     SpriterImage(net_instaweb::Image* image,
-                 spriter::ImageLibraryInterface* lib) :
-        Image(lib), image_(image) {
+                 spriter::ImageLibraryInterface* lib)
+        : Image(lib), image_(image) {
       DCHECK(image_ != nullptr) << "null image not allowed.";
     }
 
@@ -499,30 +491,28 @@ class Library : public spriter::ImageLibraryInterface {
   // Owns its own mutable image.
   class Canvas : public spriter::ImageLibraryInterface::Canvas {
    public:
-    Canvas(int width, int height, Library* lib,
-           const StringPiece& tmp_dir, Timer* timer, MessageHandler* handler) :
-        spriter::ImageLibraryInterface::Canvas(lib),
-        lib_(lib) {
+    Canvas(int width, int height, Library* lib, const StringPiece& tmp_dir,
+           Timer* timer, MessageHandler* handler)
+        : spriter::ImageLibraryInterface::Canvas(lib), lib_(lib) {
       DCHECK(lib != nullptr);
       net_instaweb::Image::CompressionOptions* options =
           new net_instaweb::Image::CompressionOptions();
       options->recompress_png = true;
-      image_.reset(BlankImageWithOptions(width, height,
-                                         net_instaweb::IMAGE_PNG,
+      image_.reset(BlankImageWithOptions(width, height, net_instaweb::IMAGE_PNG,
                                          tmp_dir, timer, handler, options));
     }
 
-    ~Canvas() override { }
+    ~Canvas() override {}
 
     bool DrawImage(const Image* image, int x, int y) override {
-      const SpriterImage* spriter_image
-          = static_cast<const SpriterImage*>(image);
+      const SpriterImage* spriter_image =
+          static_cast<const SpriterImage*>(image);
       return image_->DrawImage(spriter_image->image(), x, y);
     }
 
     // On successfully writing, we release our image.
-    bool WriteToFile(
-        const FilePath& write_path, spriter::ImageFormat format) override {
+    bool WriteToFile(const FilePath& write_path,
+                     spriter::ImageFormat format) override {
       if (format != spriter::PNG) {
         return false;
       }
@@ -537,16 +527,15 @@ class Library : public spriter::ImageLibraryInterface {
     DISALLOW_COPY_AND_ASSIGN(Canvas);
   };
 
-  Library(Delegate* delegate, const StringPiece& tmp_dir,
-          Timer* timer, MessageHandler* handler)
-      : spriter::ImageLibraryInterface(delegate), timer_(timer),
+  Library(Delegate* delegate, const StringPiece& tmp_dir, Timer* timer,
+          MessageHandler* handler)
+      : spriter::ImageLibraryInterface(delegate),
+        timer_(timer),
         handler_(handler) {
     tmp_dir.CopyToString(&tmp_dir_);
   }
 
-  ~Library() override {
-    STLDeleteValues(&fake_fs_);
-  }
+  ~Library() override { STLDeleteValues(&fake_fs_); }
 
   // Read an image from disk.  Return NULL (after calling delegate method) on
   // error.  Caller owns the returned pointer, which must not outlive this
@@ -604,7 +593,7 @@ class Library : public spriter::ImageLibraryInterface {
   }
 
  private:
-  using ImageMap = std::map<const GoogleString, net_instaweb::Image *>;
+  using ImageMap = std::map<const GoogleString, net_instaweb::Image*>;
   void RegisterImage(const StringPiece& key, net_instaweb::Image* image) {
     std::pair<ImageMap::iterator, bool> result(
         fake_fs_.insert(std::make_pair(key.as_string(), image)));
@@ -642,7 +631,7 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
       // make this convention consistent and fix all code.
       : ResourceCombiner(filter->driver(), kContentTypePng.file_extension() + 1,
                          filter),
-        library_(library) { }
+        library_(library) {}
 
   ~Combiner() override {
     // Note that the superclass's dtor will not call our overridden Clear.
@@ -650,10 +639,9 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
     Clear();
   }
 
-  bool WriteCombination(
-      const ResourceVector& combine_resources,
-      const OutputResourcePtr& combination,
-      MessageHandler* handler) override {
+  bool WriteCombination(const ResourceVector& combine_resources,
+                        const OutputResourcePtr& combination,
+                        MessageHandler* handler) override {
     spriter::ImageSpriter spriter(library_);
 
     spriter::SpriterInput input;
@@ -670,20 +658,19 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
 
     std::unique_ptr<spriter::SpriterResult> result(spriter.Sprite(input));
     if (result.get() == nullptr) {
-      handler->Error(UrlSafeId().c_str(), 0,
-                     "Could not sprite.");
+      handler->Error(UrlSafeId().c_str(), 0, "Could not sprite.");
       return false;
     }
     std::unique_ptr<Library::SpriterImage> result_image(
         library_->ReadFromFile(result->output_image_path()));
     if (result_image.get() == nullptr) {
-      handler->Error(UrlSafeId().c_str(), 0,
-                     "Could not read sprited image.");
+      handler->Error(UrlSafeId().c_str(), 0, "Could not read sprited image.");
       return false;
     }
 
-    combination->EnsureCachedResultCreated()->mutable_spriter_result()->
-        CopyFrom(*result);
+    combination->EnsureCachedResultCreated()
+        ->mutable_spriter_result()
+        ->CopyFrom(*result);
     if (!rewrite_driver_->Write(combine_resources,
                                 result_image->image()->Contents(),
                                 &kContentTypePng,
@@ -721,14 +708,12 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
 // Special resource slot that has a future_ pointer.
 class SpriteFutureSlot : public CssResourceSlot {
  public:
-  SpriteFutureSlot(const ResourcePtr& resource,
-                   const GoogleUrl& base_url, const RewriteOptions* options,
-                   Css::Values* values, size_t value_index,
-                   SpriteFuture* future)
+  SpriteFutureSlot(const ResourcePtr& resource, const GoogleUrl& base_url,
+                   const RewriteOptions* options, Css::Values* values,
+                   size_t value_index, SpriteFuture* future)
       : CssResourceSlot(resource, base_url, options, values, value_index),
         future_(future),
-        may_sprite_(false) {
-  }
+        may_sprite_(false) {}
 
   SpriteFuture* future() { return future_.get(); }
 
@@ -745,8 +730,7 @@ class SpriteFutureSlot : public CssResourceSlot {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(SpriteFutureSlot);
-  ~SpriteFutureSlot() override {
-  }
+  ~SpriteFutureSlot() override {}
 
  private:
   std::unique_ptr<SpriteFuture> future_;
@@ -761,25 +745,22 @@ class ImageCombineFilter::Context : public RewriteContext {
   Context(ImageCombineFilter* filter, RewriteContext* parent,
           const GoogleUrl& css_url, const StringPiece& css_text)
       : RewriteContext(nullptr, parent, nullptr),
-        library_(nullptr,
-                 filter->driver()->server_context()->filename_prefix(),
+        library_(nullptr, filter->driver()->server_context()->filename_prefix(),
                  filter->driver()->timer(),
                  filter->driver()->message_handler()),
         filter_(filter) {
     css_base_url_.Reset(css_url);
     MD5Hasher hasher;
-    key_suffix_ = StrCat("css-key=", hasher.Hash(css_text),
-                         "_", hasher.Hash(css_url.AllExceptLeaf()));
+    key_suffix_ = StrCat("css-key=", hasher.Hash(css_text), "_",
+                         hasher.Hash(css_url.AllExceptLeaf()));
   }
 
   Context(RewriteDriver* driver, ImageCombineFilter* filter)
       : RewriteContext(driver, nullptr, nullptr),
-        library_(nullptr,
-                 filter->driver()->server_context()->filename_prefix(),
+        library_(nullptr, filter->driver()->server_context()->filename_prefix(),
                  filter->driver()->timer(),
                  filter->driver()->message_handler()),
-        filter_(filter) {
-  }
+        filter_(filter) {}
 
   ~Context() override {}
 
@@ -791,9 +772,7 @@ class ImageCombineFilter::Context : public RewriteContext {
   // combination, in order to keep it short so it doesn't run up against
   // filename length limits on apache.
   // TODO(nforman): Figure out a way to test cache keys in general.
-  GoogleString CacheKeySuffix() const override {
-    return key_suffix_;
-  }
+  GoogleString CacheKeySuffix() const override { return key_suffix_; }
 
   bool AddFuture(CssResourceSlotPtr slot) {
     SpriteFutureSlot* future_slot = static_cast<SpriteFutureSlot*>(slot.get());
@@ -808,14 +787,12 @@ class ImageCombineFilter::Context : public RewriteContext {
   const char* id() const override { return filter_->id(); }
   OutputResourceKind kind() const override { return kRewrittenResource; }
 
-  void Reset() {
-    library_.Clear();
-  }
+  void Reset() { library_.Clear(); }
 
  protected:
   // Write the combination out.
   void Rewrite(int partition_index, CachedResult* partition,
-                       const OutputResourcePtr& output) override {
+               const OutputResourcePtr& output) override {
     RewriteResult result = kRewriteOk;
     if (!output->IsWritten()) {
       // Note that this method expects to do something for only the fetch path,
@@ -915,12 +892,12 @@ class ImageCombineFilter::Context : public RewriteContext {
   // that are too small for the context they're in.
   // TODO(nforman): Consider separating by color map to group things smarter.
   void PartitionAsync(OutputPartitions* partitions,
-                              OutputResourceVector* outputs) override {
+                      OutputResourceVector* outputs) override {
     // Partitioning here requires image decompression, so we want to
     // move it to a different thread.
-    Driver()->AddLowPriorityRewriteTask(MakeFunction(
-        this, &Context::PartitionImpl, &Context::PartitionCancel,
-        partitions, outputs));
+    Driver()->AddLowPriorityRewriteTask(
+        MakeFunction(this, &Context::PartitionImpl, &Context::PartitionCancel,
+                     partitions, outputs));
   }
 
   void PartitionImpl(OutputPartitions* partitions,
@@ -928,8 +905,8 @@ class ImageCombineFilter::Context : public RewriteContext {
     StringSet no_sprite;
     FindUnspritable(&no_sprite);
     CollectSlots(partitions, outputs, &no_sprite);
-    CrossThreadPartitionDone(partitions->partition_size() != 0 ?
-                                 kRewriteOk : kRewriteFailed);
+    CrossThreadPartitionDone(
+        partitions->partition_size() != 0 ? kRewriteOk : kRewriteFailed);
   }
 
   void PartitionCancel(OutputPartitions* partitions,
@@ -942,14 +919,13 @@ class ImageCombineFilter::Context : public RewriteContext {
   class ImageCombination : public ImageCombineFilter::Combiner {
    public:
     ImageCombination(ImageCombineFilter* filter, Library* library)
-        : ImageCombineFilter::Combiner(filter, library),
-          partition_(nullptr) { }
+        : ImageCombineFilter::Combiner(filter, library), partition_(nullptr) {}
 
-    ~ImageCombination() override { }
+    ~ImageCombination() override {}
 
     void AddResourceToPartition(Resource* resource, int index) {
-      resource->AddInputInfoToPartition(
-          Resource::kIncludeInputHash, index, partition_);
+      resource->AddInputInfoToPartition(Resource::kIncludeInputHash, index,
+                                        partition_);
     }
 
     void set_partition(CachedResult* partition) { partition_ = partition; }
@@ -961,7 +937,7 @@ class ImageCombineFilter::Context : public RewriteContext {
     DISALLOW_COPY_AND_ASSIGN(ImageCombination);
   };
 
-  using ImageCombinationVector = std::vector<ImageCombination *>;
+  using ImageCombinationVector = std::vector<ImageCombination*>;
 
   // Put this resource in the library.
   bool RegisterResource(Resource* resource) {
@@ -969,7 +945,8 @@ class ImageCombineFilter::Context : public RewriteContext {
   }
 
   bool EnsureLoaded(const GoogleString& url) {
-    std::unique_ptr<Library::SpriterImage> spriter_image(library_.ReadFromFile(url));
+    std::unique_ptr<Library::SpriterImage> spriter_image(
+        library_.ReadFromFile(url));
     if (spriter_image.get() == nullptr) {
       return false;
     }
@@ -1039,8 +1016,7 @@ class ImageCombineFilter::Context : public RewriteContext {
   // For each slot, try to add its resource to the current partition.
   // If we can't, then finalize the last combination, and then
   // move on to the next slot.
-  void CollectSlots(OutputPartitions* partitions,
-                    OutputResourceVector* outputs,
+  void CollectSlots(OutputPartitions* partitions, OutputResourceVector* outputs,
                     StringSet* no_sprite) {
     ImageCombinationVector combinations;
     MessageHandler* handler = filter_->driver()->message_handler();
@@ -1049,7 +1025,7 @@ class ImageCombineFilter::Context : public RewriteContext {
     for (int i = 0, n = num_slots(); i < n; ++i) {
       ResourcePtr resource(slot(i)->resource());
       SpriteFutureSlot* sprite_slot =
-              static_cast<SpriteFutureSlot*>(slot(i).get());
+          static_cast<SpriteFutureSlot*>(slot(i).get());
       SpriteFuture* future = sprite_slot->future();
       GoogleString resource_url = future->old_url();
       if (no_sprite->find(resource_url) != no_sprite->end()) {
@@ -1084,8 +1060,8 @@ class ImageCombineFilter::Context : public RewriteContext {
         // try making a new one and adding it there.  We may still not be able
         // to do that if the resource isn't spritable at all.
         if (!added) {
-          std::unique_ptr<ImageCombination> combo(new ImageCombination(
-              filter_, &library_));
+          std::unique_ptr<ImageCombination> combo(
+              new ImageCombination(filter_, &library_));
           if (combo->AddResourceNoFetch(resource, handler).value) {
             combo->set_partition(partitions->add_partition());
             combo->AddResourceToPartition(resource.get(), i);
@@ -1143,14 +1119,12 @@ class ImageCombineFilter::Context : public RewriteContext {
 };
 
 ImageCombineFilter::ImageCombineFilter(RewriteDriver* driver)
-    : RewriteFilter(driver),
-      context_(nullptr) {
+    : RewriteFilter(driver), context_(nullptr) {
   Statistics* stats = driver->server_context()->statistics();
   image_file_count_reduction_ = stats->GetVariable(kImageFileCountReduction);
 }
 
-ImageCombineFilter::~ImageCombineFilter() {
-}
+ImageCombineFilter::~ImageCombineFilter() {}
 
 void ImageCombineFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kImageFileCountReduction);
@@ -1171,9 +1145,8 @@ bool ImageCombineFilter::GetDeclarationDimensions(
 // parent passed here because it's private.
 bool ImageCombineFilter::AddCssBackgroundContext(
     const GoogleUrl& original_url, const GoogleUrl& base_url,
-    Css::Values* values, int value_index,
-    CssFilter::Context* parent, Css::Declarations* decls,
-    bool* is_authorized, MessageHandler* handler) {
+    Css::Values* values, int value_index, CssFilter::Context* parent,
+    Css::Declarations* decls, bool* is_authorized, MessageHandler* handler) {
   CHECK(context_ != nullptr);
   *is_authorized = true;  // Only false if original_url isn't authorized.
   int width, height;
@@ -1181,8 +1154,8 @@ bool ImageCombineFilter::AddCssBackgroundContext(
     return false;
   }
   StringPiece url_piece(original_url.Spec());
-  std::unique_ptr<SpriteFuture> future(new SpriteFuture(url_piece, width, height,
-                                                   decls));
+  std::unique_ptr<SpriteFuture> future(
+      new SpriteFuture(url_piece, width, height, decls));
   future->Initialize(values->at(value_index));
 
   ResourcePtr resource = CreateInputResource(
@@ -1192,9 +1165,9 @@ bool ImageCombineFilter::AddCssBackgroundContext(
   }
 
   // transfers ownership of future to slot_obj
-  SpriteFutureSlot* slot_obj = new SpriteFutureSlot(
-      resource, base_url, driver()->options(), values, value_index,
-      future.release());
+  SpriteFutureSlot* slot_obj =
+      new SpriteFutureSlot(resource, base_url, driver()->options(), values,
+                           value_index, future.release());
   CssResourceSlotPtr slot(slot_obj);
   parent->slot_factory()->UniquifySlot(slot);
   // Spriting must run before all other filters so that the slot for the
@@ -1206,8 +1179,7 @@ bool ImageCombineFilter::AddCssBackgroundContext(
   return true;
 }
 
-void ImageCombineFilter::Reset(RewriteContext* parent,
-                               const GoogleUrl& css_url,
+void ImageCombineFilter::Reset(RewriteContext* parent, const GoogleUrl& css_url,
                                const StringPiece& css_text) {
   context_ = MakeNestedContext(parent, css_url, css_text);
 }

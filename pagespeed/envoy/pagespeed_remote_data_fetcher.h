@@ -37,7 +37,7 @@ enum class FailureReason {
  * Callback used by remote data fetcher.
  */
 class PagespeedRemoteDataFetcherCallback {
-public:
+ public:
   virtual ~PagespeedRemoteDataFetcherCallback() = default;
 
   /**
@@ -56,9 +56,10 @@ public:
 /**
  * Remote data fetcher.
  */
-class PagespeedRemoteDataFetcher : public Envoy::Logger::Loggable<Envoy::Logger::Id::config>,
-                                   public Envoy::Http::AsyncClient::Callbacks {
-public:
+class PagespeedRemoteDataFetcher
+    : public Envoy::Logger::Loggable<Envoy::Logger::Id::config>,
+      public Envoy::Http::AsyncClient::Callbacks {
+ public:
   PagespeedRemoteDataFetcher(Envoy::Upstream::ClusterManager& cm,
                              const ::envoy::config::core::v3::HttpUri& uri,
                              PagespeedRemoteDataFetcherCallback& callback);
@@ -70,8 +71,9 @@ public:
                  Envoy::Http::ResponseMessagePtr&& response) override;
   void onFailure(const Envoy::Http::AsyncClient::Request&,
                  Envoy::Http::AsyncClient::FailureReason reason) override;
-  void onBeforeFinalizeUpstreamSpan(Envoy::Tracing::Span& span,
-                                    const Envoy::Http::ResponseHeaderMap* response_headers) override{};
+  void onBeforeFinalizeUpstreamSpan(
+      Envoy::Tracing::Span& span,
+      const Envoy::Http::ResponseHeaderMap* response_headers) override{};
 
   /**
    * Fetch data from remote.
@@ -83,7 +85,7 @@ public:
    */
   void cancel();
 
-private:
+ private:
   Envoy::Upstream::ClusterManager& cm_;
   const envoy::config::core::v3::HttpUri& uri_;
   PagespeedRemoteDataFetcherCallback& callback_;
@@ -91,6 +93,7 @@ private:
   Envoy::Http::AsyncClient::Request* request_{};
 };
 
-using pagespeed_remote_data_fetch_ptr = std::unique_ptr<PagespeedRemoteDataFetcher>;
+using pagespeed_remote_data_fetch_ptr =
+    std::unique_ptr<PagespeedRemoteDataFetcher>;
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

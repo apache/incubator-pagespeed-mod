@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,19 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/in_memory_cache.h"
 
 #include <map>
 #include <utility>
+
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
-InMemoryCache::InMemoryCache()
-    : is_shut_down_(false) {
-}
+InMemoryCache::InMemoryCache() : is_shut_down_(false) {}
 
 void InMemoryCache::Get(const GoogleString& key, Callback* callback) {
   if (is_shut_down_) {

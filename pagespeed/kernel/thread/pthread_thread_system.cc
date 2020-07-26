@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/thread/pthread_thread_system.h"
 
@@ -64,13 +63,9 @@ class PthreadThreadImpl : public ThreadSystem::ThreadImpl {
   PthreadThreadImpl(PthreadThreadSystem* thread_system,
                     ThreadSystem::Thread* wrapper,
                     ThreadSystem::ThreadFlags flags)
-      : thread_system_(thread_system),
-        wrapper_(wrapper),
-        flags_(flags) {
-  }
+      : thread_system_(thread_system), wrapper_(wrapper), flags_(flags) {}
 
-  ~PthreadThreadImpl() override {
-  }
+  ~PthreadThreadImpl() override {}
 
   bool StartImpl() override {
     int result;
@@ -132,11 +127,9 @@ class PthreadThreadImpl : public ThreadSystem::ThreadImpl {
   DISALLOW_COPY_AND_ASSIGN(PthreadThreadImpl);
 };
 
-PthreadThreadSystem::PthreadThreadSystem() {
-}
+PthreadThreadSystem::PthreadThreadSystem() {}
 
-PthreadThreadSystem::~PthreadThreadSystem() {
-}
+PthreadThreadSystem::~PthreadThreadSystem() {}
 
 ThreadSystem::CondvarCapableMutex* PthreadThreadSystem::NewMutex() {
   return new PthreadMutex;
@@ -146,17 +139,14 @@ ThreadSystem::RWLock* PthreadThreadSystem::NewRWLock() {
   return new PthreadRWLock;
 }
 
-void PthreadThreadSystem::BeforeThreadRunHook() {
-}
+void PthreadThreadSystem::BeforeThreadRunHook() {}
 
 ThreadSystem::ThreadImpl* PthreadThreadSystem::NewThreadImpl(
     ThreadSystem::Thread* wrapper, ThreadSystem::ThreadFlags flags) {
   return new PthreadThreadImpl(this, wrapper, flags);
 }
 
-Timer* PthreadThreadSystem::NewTimer() {
-  return new PosixTimer;
-}
+Timer* PthreadThreadSystem::NewTimer() { return new PosixTimer; }
 
 ThreadSystem::ThreadId* PthreadThreadSystem::GetThreadId() const {
   return new PthreadId;

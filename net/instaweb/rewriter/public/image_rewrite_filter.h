@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
@@ -65,6 +64,7 @@ enum InlineResult {
 //     rewritten urls, when in general those urls will be in a different domain.
 class ImageRewriteFilter : public RewriteFilter {
   class Context;
+
  public:
   typedef std::map<GoogleString, AssociatedImageInfo> AssociatedImageInfoMap;
 
@@ -123,7 +123,9 @@ class ImageRewriteFilter : public RewriteFilter {
   void StartElementImpl(HtmlElement* element) override;
   void EndElementImpl(HtmlElement* element) override {}
   const char* Name() const override { return "ImageRewrite"; }
-  const char* id() const override { return RewriteOptions::kImageCompressionId; }
+  const char* id() const override {
+    return RewriteOptions::kImageCompressionId;
+  }
   void EncodeUserAgentIntoResourceContext(
       ResourceContext* context) const override;
 
@@ -144,8 +146,9 @@ class ImageRewriteFilter : public RewriteFilter {
   // Can we inline resource?  If so, encode its contents into the data_url,
   // otherwise leave data_url alone.
   InlineResult TryInline(bool is_html, bool is_critical,
-      int64 image_inline_max_bytes, const CachedResult* cached_result,
-      ResourceSlot* slot, GoogleString* data_url);
+                         int64 image_inline_max_bytes,
+                         const CachedResult* cached_result, ResourceSlot* slot,
+                         GoogleString* data_url);
 
   // The valid contents of a dimension attribute on an image element have one of
   // the following forms: "45%" "45%px" "+45.0%" [45% of browser width; we can't
@@ -172,14 +175,13 @@ class ImageRewriteFilter : public RewriteFilter {
   // parent and slot, and returns it. The result is not registered with the
   // parent.
   RewriteContext* MakeNestedRewriteContextForCss(
-      int64 css_image_inline_max_bytes,
-      RewriteContext* parent,
+      int64 css_image_inline_max_bytes, RewriteContext* parent,
       const ResourceSlotPtr& slot);
 
   // Creates a nested rewrite for the given parent and slot and returns it. The
   // result is not registered with the parent.
-  RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
-                                        const ResourceSlotPtr& slot) override;
+  RewriteContext* MakeNestedRewriteContext(
+      RewriteContext* parent, const ResourceSlotPtr& slot) override;
 
   // Update desired image dimensions if necessary. Returns true if it is
   // updated.
@@ -190,16 +192,14 @@ class ImageRewriteFilter : public RewriteFilter {
   // Determines whether an image should be resized based on the current options.
   //
   // Returns the dimensions to resize to in *desired_dimensions.
-  bool ShouldResize(const ResourceContext& context,
-                    const GoogleString& url,
-                    Image* image,
-                    ImageDim* desired_dimensions);
+  bool ShouldResize(const ResourceContext& context, const GoogleString& url,
+                    Image* image, ImageDim* desired_dimensions);
 
   // Resize image if necessary, returning true if this resizing succeeds and
   // false if it's unnecessary or fails.
-  bool ResizeImageIfNecessary(
-      const Context* rewrite_context, const GoogleString& url,
-      ResourceContext* context, Image* image, CachedResult* cached);
+  bool ResizeImageIfNecessary(const Context* rewrite_context,
+                              const GoogleString& url, ResourceContext* context,
+                              Image* image, CachedResult* cached);
 
   // Allocate and initialize CompressionOptions object based on RewriteOptions
   // and ResourceContext.
@@ -240,20 +240,19 @@ class ImageRewriteFilter : public RewriteFilter {
                                           const OutputResourcePtr& result);
 
   // Returns true if it rewrote (ie inlined) the URL.
-  bool FinishRewriteCssImageUrl(
-      int64 css_image_inline_max_bytes,
-      const CachedResult* cached, ResourceSlot* slot,
-      InlineResult* inline_result);
+  bool FinishRewriteCssImageUrl(int64 css_image_inline_max_bytes,
+                                const CachedResult* cached, ResourceSlot* slot,
+                                InlineResult* inline_result);
 
   // Returns true if it rewrote the URL.
-  bool FinishRewriteImageUrl(
-      const CachedResult* cached, const ResourceContext* resource_context,
-      HtmlElement* element, HtmlElement::Attribute* src, int image_index,
-      HtmlResourceSlot* slot, InlineResult* inline_result);
+  bool FinishRewriteImageUrl(const CachedResult* cached,
+                             const ResourceContext* resource_context,
+                             HtmlElement* element, HtmlElement::Attribute* src,
+                             int image_index, HtmlResourceSlot* slot,
+                             InlineResult* inline_result);
 
   // Save image contents in cached if the image is inlinable.
-  void SaveIfInlinable(const StringPiece& contents,
-                       const ImageType image_type,
+  void SaveIfInlinable(const StringPiece& contents, const ImageType image_type,
                        CachedResult* cached);
 
   // Populates width and height from either the attributes specified in the
@@ -270,9 +269,9 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Resizes low quality image. It further reduces the size of inlined low
   // quality image for mobile.
-  void ResizeLowQualityImage(
-      Image* low_image, const ResourcePtr& input_resource,
-      CachedResult* cached);
+  void ResizeLowQualityImage(Image* low_image,
+                             const ResourcePtr& input_resource,
+                             CachedResult* cached);
 
   // Checks if image is critical to generate low res image for the given image.
   // An image is considered critical if it is in the critical list as determined

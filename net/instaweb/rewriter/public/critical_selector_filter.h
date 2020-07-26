@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -68,9 +68,9 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
       const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
-               semantic_type::kStylesheet) ?
-           RewriteDriver::kInlineUnauthorizedResources :
-           RewriteDriver::kInlineOnlyAuthorizedResources;
+               semantic_type::kStylesheet)
+               ? RewriteDriver::kInlineUnauthorizedResources
+               : RewriteDriver::kInlineOnlyAuthorizedResources;
   }
 
   // Selectors are inlined into the html.
@@ -83,14 +83,11 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   // write them out to the page. We also use this to pick up the output
   // of filters before us, like rewrite_css; so we run this even on things
   // that will not contain on-screen critical CSS.
-  void Summarize(Css::Stylesheet* stylesheet,
-                 GoogleString* out) const override;
-  void RenderSummary(int pos,
-                     HtmlElement* element,
+  void Summarize(Css::Stylesheet* stylesheet, GoogleString* out) const override;
+  void RenderSummary(int pos, HtmlElement* element,
                      HtmlCharactersNode* char_node,
                      bool* is_element_deleted) override;
-  void WillNotRenderSummary(int pos,
-                            HtmlElement* element,
+  void WillNotRenderSummary(int pos, HtmlElement* element,
                             HtmlCharactersNode* char_node) override;
 
   // Since our computation depends on the selectors that are relevant to the
@@ -110,8 +107,7 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   class CssStyleElement;
   typedef std::vector<CssElement*> CssElementVector;
 
-  void RememberFullCss(int pos,
-                       HtmlElement* element,
+  void RememberFullCss(int pos, HtmlElement* element,
                        HtmlCharactersNode* char_node);
 
   // Selectors that are critical for this page.

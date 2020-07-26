@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,36 +17,36 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/scanline_status.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/image/scanline_status.h"
 
 namespace pagespeed {
 
 namespace image_compression {
 TEST(ScanlineStatusTest, ComesFromReader) {
   const ScanlineStatusSource kAllSources[] = {
-    SCANLINE_UNKNOWN,
-    SCANLINE_PNGREADER,
-    SCANLINE_PNGREADERRAW,
-    SCANLINE_GIFREADER,
-    SCANLINE_GIFREADERRAW,
-    SCANLINE_JPEGREADER,
-    SCANLINE_WEBPREADER,
-    SCANLINE_RESIZER,
-    SCANLINE_PNGWRITER,
-    SCANLINE_JPEGWRITER,
-    SCANLINE_WEBPWRITER,
-    SCANLINE_UTIL,
-    SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-    FRAME_TO_SCANLINE_READER_ADAPTER,
-    FRAME_TO_SCANLINE_WRITER_ADAPTER,
-    SCANLINE_TO_FRAME_READER_ADAPTER,
-    SCANLINE_TO_FRAME_WRITER_ADAPTER,
-    FRAME_GIFREADER,
-    FRAME_WEBPWRITER,
-    FRAME_PADDING_READER,
+      SCANLINE_UNKNOWN,
+      SCANLINE_PNGREADER,
+      SCANLINE_PNGREADERRAW,
+      SCANLINE_GIFREADER,
+      SCANLINE_GIFREADERRAW,
+      SCANLINE_JPEGREADER,
+      SCANLINE_WEBPREADER,
+      SCANLINE_RESIZER,
+      SCANLINE_PNGWRITER,
+      SCANLINE_JPEGWRITER,
+      SCANLINE_WEBPWRITER,
+      SCANLINE_UTIL,
+      SCANLINE_PIXEL_FORMAT_OPTIMIZER,
+      FRAME_TO_SCANLINE_READER_ADAPTER,
+      FRAME_TO_SCANLINE_WRITER_ADAPTER,
+      SCANLINE_TO_FRAME_READER_ADAPTER,
+      SCANLINE_TO_FRAME_WRITER_ADAPTER,
+      FRAME_GIFREADER,
+      FRAME_WEBPWRITER,
+      FRAME_PADDING_READER,
   };
 
   EXPECT_EQ(NUM_SCANLINE_SOURCE, arraysize(kAllSources));

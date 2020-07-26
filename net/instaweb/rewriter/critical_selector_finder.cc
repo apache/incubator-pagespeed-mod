@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,16 +53,15 @@ CriticalSelectorFinder::CriticalSelectorFinder(
     const PropertyCache::Cohort* cohort, NonceGenerator* nonce_generator,
     Statistics* statistics)
     : cohort_(cohort), nonce_generator_(nonce_generator) {
-  critical_selectors_valid_count_ = statistics->GetTimedVariable(
-      kCriticalSelectorsValidCount);
-  critical_selectors_expired_count_ = statistics->GetTimedVariable(
-      kCriticalSelectorsExpiredCount);
-  critical_selectors_not_found_count_ = statistics->GetTimedVariable(
-      kCriticalSelectorsNotFoundCount);
+  critical_selectors_valid_count_ =
+      statistics->GetTimedVariable(kCriticalSelectorsValidCount);
+  critical_selectors_expired_count_ =
+      statistics->GetTimedVariable(kCriticalSelectorsExpiredCount);
+  critical_selectors_not_found_count_ =
+      statistics->GetTimedVariable(kCriticalSelectorsNotFoundCount);
 }
 
-CriticalSelectorFinder::~CriticalSelectorFinder() {
-}
+CriticalSelectorFinder::~CriticalSelectorFinder() {}
 
 void CriticalSelectorFinder::InitStats(Statistics* statistics) {
   statistics->AddTimedVariable(kCriticalSelectorsValidCount,
@@ -106,10 +105,9 @@ void CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCacheStatic(
     flags = kRequirePriorSupport;
   }
 
-  WriteCriticalKeysToPropertyCache(
-      selector_set, nonce, support_interval, flags,
-      kCriticalSelectorsPropertyName, cache, cohort, page, message_handler,
-      timer);
+  WriteCriticalKeysToPropertyCache(selector_set, nonce, support_interval, flags,
+                                   kCriticalSelectorsPropertyName, cache,
+                                   cohort, page, message_handler, timer);
 }
 
 void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
@@ -124,10 +122,11 @@ void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
   // alone will drive you nuts and take hours out of your life, thus DCHECKs.
   DCHECK(driver != nullptr);
   DCHECK(cohort_ != nullptr);
-  std::unique_ptr<CriticalKeys> critical_keys(DecodeFromPropertyCache<CriticalKeys>(
-      driver, cohort_, kCriticalSelectorsPropertyName,
-      driver->options()->finder_properties_cache_expiration_time_ms(),
-      &result));
+  std::unique_ptr<CriticalKeys> critical_keys(
+      DecodeFromPropertyCache<CriticalKeys>(
+          driver, cohort_, kCriticalSelectorsPropertyName,
+          driver->options()->finder_properties_cache_expiration_time_ms(),
+          &result));
   switch (result) {
     case kPropertyCacheDecodeNotFound:
       critical_selectors_not_found_count_->IncBy(1);
@@ -137,8 +136,10 @@ void CriticalSelectorFinder::UpdateCriticalSelectorInfoInDriver(
       break;
     case kPropertyCacheDecodeParseError:
       driver->message_handler()->Message(
-          kWarning, "Unable to parse Critical Selectors PropertyValue; "
-          "url: %s", driver->url());
+          kWarning,
+          "Unable to parse Critical Selectors PropertyValue; "
+          "url: %s",
+          driver->url());
       break;
     case kPropertyCacheDecodeOk:
       critical_selectors_valid_count_->IncBy(1);
@@ -188,11 +189,12 @@ BeaconMetadata CriticalSelectorFinder::PrepareForBeaconInsertion(
   return result;
 }
 
-void
-BeaconCriticalSelectorFinder::WriteCriticalSelectorsToPropertyCacheFromBeacon(
-    const StringSet& selector_set, StringPiece nonce,
-    const PropertyCache* cache, const PropertyCache::Cohort* cohort,
-    AbstractPropertyPage* page, MessageHandler* message_handler, Timer* timer) {
+void BeaconCriticalSelectorFinder::
+    WriteCriticalSelectorsToPropertyCacheFromBeacon(
+        const StringSet& selector_set, StringPiece nonce,
+        const PropertyCache* cache, const PropertyCache::Cohort* cohort,
+        AbstractPropertyPage* page, MessageHandler* message_handler,
+        Timer* timer) {
   return CriticalSelectorFinder::WriteCriticalSelectorsToPropertyCacheStatic(
       selector_set, nonce, kDefaultSupportInterval, false, cache, cohort, page,
       message_handler, timer);

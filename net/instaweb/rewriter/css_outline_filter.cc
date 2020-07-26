@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 
@@ -48,8 +47,7 @@ CssOutlineFilter::CssOutlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
       inline_element_(nullptr),
       inline_chars_(nullptr),
-      size_threshold_bytes_(driver->options()->css_outline_min_bytes()) {
-}
+      size_threshold_bytes_(driver->options()->css_outline_min_bytes()) {}
 
 CssOutlineFilter::~CssOutlineFilter() {}
 
@@ -112,8 +110,8 @@ bool CssOutlineFilter::WriteResource(const StringPiece& content,
   // from the page.
   // TODO(morlovich) check for proper behavior in case of embedded BOM.
   // TODO(matterbury) but AFAICT you cannot have a BOM in a <style> tag.
-  return driver()->Write(
-      ResourceVector(), content, &kContentTypeCss, StringPiece(), resource);
+  return driver()->Write(ResourceVector(), content, &kContentTypeCss,
+                         StringPiece(), resource);
 }
 
 // Create file with style content and remove that element from DOM.
@@ -144,8 +142,7 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
         bool content_valid = true;
         switch (driver()->ResolveCssUrls(base_url(),
                                          output_resource->resolved_base(),
-                                         content,
-                                         &writer, handler)) {
+                                         content, &writer, handler)) {
           case RewriteDriver::kNoResolutionNeeded:
             break;
           case RewriteDriver::kWriteFailed:
@@ -157,11 +154,11 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
         }
         if (content_valid &&
             WriteResource(content, output_resource.get(), handler)) {
-          HtmlElement* link_element = driver()->NewElement(
-              style_element->parent(), HtmlName::kLink);
+          HtmlElement* link_element =
+              driver()->NewElement(style_element->parent(), HtmlName::kLink);
           driver()->AddAttribute(link_element, HtmlName::kRel, kStylesheet);
-          driver()->AddAttribute(
-              link_element, HtmlName::kHref, output_resource->url());
+          driver()->AddAttribute(link_element, HtmlName::kHref,
+                                 output_resource->url());
           // Add all style attributes to link.
           const HtmlElement::AttributeList& attrs = style_element->attributes();
           for (HtmlElement::AttributeConstIterator i(attrs.begin());
@@ -178,8 +175,9 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
         }
       }
     } else {
-      driver()->InsertDebugComment(StrCat(
-          "Cannot outline stylesheet with non-CSS type=", type), style_element);
+      driver()->InsertDebugComment(
+          StrCat("Cannot outline stylesheet with non-CSS type=", type),
+          style_element);
       GoogleString element_string = style_element->ToString();
       driver()->InfoHere("Cannot outline non-css stylesheet %s",
                          element_string.c_str());

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -49,17 +49,13 @@ const char kUncompressedData[] = "Hello";
 
 // This was generated with 'xxd -i hello.gz' after gzipping a file with "Hello".
 const unsigned char kGzippedData[] = {
-  0x1f, 0x8b, 0x08, 0x08, 0x3b, 0x3a, 0xf3, 0x4e, 0x00, 0x03, 0x68, 0x65,
-  0x6c, 0x6c, 0x6f, 0x00, 0xf3, 0x48, 0xcd, 0xc9, 0xc9, 0x07, 0x00, 0x82,
-  0x89, 0xd1, 0xf7, 0x05, 0x00, 0x00, 0x00
-};
+    0x1f, 0x8b, 0x08, 0x08, 0x3b, 0x3a, 0xf3, 0x4e, 0x00, 0x03, 0x68,
+    0x65, 0x6c, 0x6c, 0x6f, 0x00, 0xf3, 0x48, 0xcd, 0xc9, 0xc9, 0x07,
+    0x00, 0x82, 0x89, 0xd1, 0xf7, 0x05, 0x00, 0x00, 0x00};
 
 class InPlaceResourceRecorderTest : public RewriteTestBase {
  protected:
-  enum GzipHeaderTime {
-    kPrelimGzipHeader,
-    kLateGzipHeader
-  };
+  enum GzipHeaderTime { kPrelimGzipHeader, kLateGzipHeader };
 
   void SetUp() override {
     RewriteTestBase::SetUp();
@@ -93,7 +89,6 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     }
     final_headers.ComputeCaching();
 
-
     std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
     recorder->ConsiderResponseHeaders(
         InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
@@ -101,14 +96,13 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     StringPiece gzipped(reinterpret_cast<const char*>(&kGzippedData[0]),
                         STATIC_STRLEN(kGzippedData));
     recorder->Write(gzipped, message_handler());
-    recorder.release()->DoneAndSetHeaders(
-        &final_headers, true /* complete response */);
+    recorder.release()->DoneAndSetHeaders(&final_headers,
+                                          true /* complete response */);
 
     HTTPValue value_out;
     ResponseHeaders headers_out;
-    EXPECT_EQ(kFoundResult,
-              HttpBlockingFind(kTestUrl, http_cache(),
-                               &value_out, &headers_out));
+    EXPECT_EQ(kFoundResult, HttpBlockingFind(kTestUrl, http_cache(), &value_out,
+                                             &headers_out));
     StringPiece contents;
     EXPECT_TRUE(value_out.ExtractContents(&contents));
     EXPECT_EQ(headers_out.IsGzipped() ? gzipped : kUncompressedData, contents);
@@ -125,8 +119,8 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     ResponseHeaders headers;
     SetDefaultLongCacheHeaders(content_type, &headers);
     std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
-    recorder->ConsiderResponseHeaders(
-        InPlaceResourceRecorder::kFullHeaders, &headers);
+    recorder->ConsiderResponseHeaders(InPlaceResourceRecorder::kFullHeaders,
+                                      &headers);
     EXPECT_FALSE(recorder->failed());
     HTTPValue value_out;
     ResponseHeaders headers_out;
@@ -139,8 +133,7 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
   // that is not cacheable.
   HTTPCache::FindResult NotCacheableContentType(
       const ContentType* content_type,
-      InPlaceResourceRecorder::HeadersKind headers_kind,
-      bool expect_failure) {
+      InPlaceResourceRecorder::HeadersKind headers_kind, bool expect_failure) {
     ResponseHeaders headers;
     SetDefaultLongCacheHeaders(content_type, &headers);
     std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
@@ -168,8 +161,8 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     if (recorder->failed()) {
       return "prelim";
     }
-    recorder->ConsiderResponseHeaders(
-        InPlaceResourceRecorder::kFullHeaders, &headers);
+    recorder->ConsiderResponseHeaders(InPlaceResourceRecorder::kFullHeaders,
+                                      &headers);
     if (recorder->failed()) {
       return "full";
     }
@@ -189,8 +182,8 @@ TEST_F(InPlaceResourceRecorderTest, BasicOperation) {
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
   recorder->Write(kHello, message_handler());
   recorder->Write(kBye, message_handler());
-  recorder.release()->DoneAndSetHeaders(
-      &ok_headers, true /* complete response */);
+  recorder.release()->DoneAndSetHeaders(&ok_headers,
+                                        true /* complete response */);
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -212,8 +205,8 @@ TEST_F(InPlaceResourceRecorderTest, IncompleteResponse) {
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
   recorder->Write(kHello, message_handler());
-  recorder.release()->DoneAndSetHeaders(
-      &ok_headers, false /* incomplete response */);
+  recorder.release()->DoneAndSetHeaders(&ok_headers,
+                                        false /* incomplete response */);
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -239,24 +232,22 @@ TEST_F(InPlaceResourceRecorderTest, NotCacheableContentTypeFull) {
 TEST_F(InPlaceResourceRecorderTest, NotCacheableContentTypePreliminary) {
   EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kNotFound, kFetchStatusNotSet),
             NotCacheableContentType(
-                &kContentTypePdf,
-                InPlaceResourceRecorder::kPreliminaryHeaders,
+                &kContentTypePdf, InPlaceResourceRecorder::kPreliminaryHeaders,
                 true /* expect_failure */));
 }
 
 TEST_F(InPlaceResourceRecorderTest, UnknownContentTypeFull) {
-  EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kRecentFailure,
-                                  kFetchStatusUncacheable200),
-            NotCacheableContentType(nullptr,
-                                    InPlaceResourceRecorder::kFullHeaders,
-                                    true /* expect_failure */));
+  EXPECT_EQ(
+      HTTPCache::FindResult(HTTPCache::kRecentFailure,
+                            kFetchStatusUncacheable200),
+      NotCacheableContentType(nullptr, InPlaceResourceRecorder::kFullHeaders,
+                              true /* expect_failure */));
 }
 
 TEST_F(InPlaceResourceRecorderTest, UnknownContentTypePreliminary) {
   EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kNotFound, kFetchStatusNotSet),
             NotCacheableContentType(
-                nullptr,
-                InPlaceResourceRecorder::kPreliminaryHeaders,
+                nullptr, InPlaceResourceRecorder::kPreliminaryHeaders,
                 false /* expect_failure */));
 }
 
@@ -266,12 +257,12 @@ TEST_F(InPlaceResourceRecorderTest, BasicOperationFullHeaders) {
   SetDefaultLongCacheHeaders(&kContentTypeCss, &ok_headers);
 
   std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
-  recorder->ConsiderResponseHeaders(
-      InPlaceResourceRecorder::kFullHeaders, &ok_headers);
+  recorder->ConsiderResponseHeaders(InPlaceResourceRecorder::kFullHeaders,
+                                    &ok_headers);
   recorder->Write(kHello, message_handler());
   recorder->Write(kBye, message_handler());
-  recorder.release()->DoneAndSetHeaders(
-      &ok_headers, true /* complete response */);
+  recorder.release()->DoneAndSetHeaders(&ok_headers,
+                                        true /* complete response */);
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -295,8 +286,8 @@ TEST_F(InPlaceResourceRecorderTest, DontRemember304) {
   std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
-  recorder.release()->DoneAndSetHeaders(
-      &not_modified_headers, true /* complete response */);
+  recorder.release()->DoneAndSetHeaders(&not_modified_headers,
+                                        true /* complete response */);
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
@@ -317,15 +308,15 @@ TEST_F(InPlaceResourceRecorderTest, Remember500AsFetchFailed) {
   std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   recorder->ConsiderResponseHeaders(
       InPlaceResourceRecorder::kPreliminaryHeaders, &prelim_headers);
-  recorder.release()->DoneAndSetHeaders(
-      &error_headers, true /* complete response */);
+  recorder.release()->DoneAndSetHeaders(&error_headers,
+                                        true /* complete response */);
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
   // For 500 we do remember fetch failed.
-  EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kRecentFailure,
-                                  kFetchStatusOtherError),
-            HttpBlockingFind(kTestUrl, http_cache(), &value_out, &headers_out));
+  EXPECT_EQ(
+      HTTPCache::FindResult(HTTPCache::kRecentFailure, kFetchStatusOtherError),
+      HttpBlockingFind(kTestUrl, http_cache(), &value_out, &headers_out));
 }
 
 TEST_F(InPlaceResourceRecorderTest, RememberEmpty) {
@@ -334,14 +325,13 @@ TEST_F(InPlaceResourceRecorderTest, RememberEmpty) {
 
   std::unique_ptr<InPlaceResourceRecorder> recorder(MakeRecorder(kTestUrl));
   // No contents written.
-  recorder.release()->DoneAndSetHeaders(
-      &ok_headers, true /* complete response */);
+  recorder.release()->DoneAndSetHeaders(&ok_headers,
+                                        true /* complete response */);
 
   HTTPValue value_out;
   ResponseHeaders headers_out;
   // Remember recent empty.
-  EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kRecentFailure,
-                                  kFetchStatusEmpty),
+  EXPECT_EQ(HTTPCache::FindResult(HTTPCache::kRecentFailure, kFetchStatusEmpty),
             HttpBlockingFind(kTestUrl, http_cache(), &value_out, &headers_out));
 }
 

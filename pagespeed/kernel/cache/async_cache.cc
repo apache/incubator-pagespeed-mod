@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/cache/async_cache.h"
 
@@ -40,9 +39,7 @@ AsyncCache::AsyncCache(CacheInterface* cache, QueuedWorkerPool* pool)
   sequence_->set_max_queue_size(kMaxQueueSize);
 }
 
-AsyncCache::~AsyncCache() {
-  DCHECK_EQ(0, outstanding_operations());
-}
+AsyncCache::~AsyncCache() { DCHECK_EQ(0, outstanding_operations()); }
 
 GoogleString AsyncCache::FormatName(StringPiece cache) {
   return StrCat("Async(", cache, ")");
@@ -52,8 +49,8 @@ void AsyncCache::Get(const GoogleString& key, Callback* callback) {
   if (IsHealthy()) {
     outstanding_operations_.NoBarrierIncrement(1);
     sequence_->Add(MakeFunction(this, &AsyncCache::DoGet,
-                                &AsyncCache::CancelGet,
-                                new GoogleString(key), callback));
+                                &AsyncCache::CancelGet, new GoogleString(key),
+                                callback));
   } else {
     ValidateAndReportResult(key, CacheInterface::kNotFound, callback);
   }
@@ -115,9 +112,9 @@ void AsyncCache::Put(const GoogleString& key, const SharedString& value) {
     }
 
     outstanding_operations_.NoBarrierIncrement(1);
-    sequence_->Add(
-        MakeFunction(this, &AsyncCache::DoPut, &AsyncCache::CancelPut,
-                     new GoogleString(key), value_to_put));
+    sequence_->Add(MakeFunction(this, &AsyncCache::DoPut,
+                                &AsyncCache::CancelPut, new GoogleString(key),
+                                value_to_put));
   }
 }
 

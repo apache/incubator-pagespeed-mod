@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,16 +17,15 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/scanline_interface_frame_adapter.h"
 
 #include "base/logging.h"
-
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/read_image.h"
-#include "pagespeed/kernel/image/scanline_interface_frame_adapter.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
 namespace pagespeed {
@@ -38,9 +37,7 @@ using net_instaweb::NullMutex;
 
 class ScanlineInterfaceFrameAdapterTest : public ::testing::Test {
  public:
-  ScanlineInterfaceFrameAdapterTest()
-    : message_handler_(new NullMutex) {
-  }
+  ScanlineInterfaceFrameAdapterTest() : message_handler_(new NullMutex) {}
 
  protected:
   void ReadGifFile(const char *filename) {
@@ -63,34 +60,32 @@ struct TestCase {
 
 TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
   const TestCase cases[] = {
-    { "animated.gif", IMAGE_JPEG, false, SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-      SCANLINE_TO_FRAME_WRITER_ADAPTER },
-    { "animated.gif", IMAGE_PNG, false, SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-      SCANLINE_TO_FRAME_WRITER_ADAPTER },
-    { "interlaced.gif", IMAGE_JPEG, true, SCANLINE_STATUS_SUCCESS },
-    { "interlaced.gif", IMAGE_PNG, true, SCANLINE_STATUS_SUCCESS },
+      {"animated.gif", IMAGE_JPEG, false, SCANLINE_STATUS_UNSUPPORTED_FEATURE,
+       SCANLINE_TO_FRAME_WRITER_ADAPTER},
+      {"animated.gif", IMAGE_PNG, false, SCANLINE_STATUS_UNSUPPORTED_FEATURE,
+       SCANLINE_TO_FRAME_WRITER_ADAPTER},
+      {"interlaced.gif", IMAGE_JPEG, true, SCANLINE_STATUS_SUCCESS},
+      {"interlaced.gif", IMAGE_PNG, true, SCANLINE_STATUS_SUCCESS},
   };
 
   for (size_t k = 0; k < arraysize(cases); ++k) {
-    const TestCase& test = cases[k];
+    const TestCase &test = cases[k];
     ScanlineStatus status;
     ImageSpec spec;
 
     const GoogleString test_info = GoogleString("in test case: ") +
-        test.input_gif + ", " + ImageFormatToString(test.output_format);
+                                   test.input_gif + ", " +
+                                   ImageFormatToString(test.output_format);
 
     // Read this GIF.
     ReadGifFile(test.input_gif);
     status = ScanlineStatus();
-    std::unique_ptr<MultipleFrameReader> reader(
-        CreateImageFrameReader(pagespeed::image_compression::IMAGE_GIF,
-                               original_image_.data(),
-                               original_image_.length(),
-                               &message_handler_,
-                               &status));
+    std::unique_ptr<MultipleFrameReader> reader(CreateImageFrameReader(
+        pagespeed::image_compression::IMAGE_GIF, original_image_.data(),
+        original_image_.length(), &message_handler_, &status));
 
     ASSERT_TRUE(status.Success()) << test_info;
-    ASSERT_NE(static_cast<void*>(nullptr), reader.get()) << test_info;
+    ASSERT_NE(static_cast<void *>(nullptr), reader.get()) << test_info;
 
     status = ScanlineStatus();
     EXPECT_TRUE(reader->GetImageSpec(&spec, &status)) << test_info;
@@ -98,12 +93,9 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
 
     // Setup a writer and check the return status of PrepareImage.
     std::unique_ptr<MultipleFrameWriter> writer(
-        CreateImageFrameWriter(test.output_format,
-                               nullptr,
-                               &converted_image_,
-                               &message_handler_,
-                               &status));
-    ASSERT_NE(static_cast<void*>(nullptr), reader.get()) << test_info;
+        CreateImageFrameWriter(test.output_format, nullptr, &converted_image_,
+                               &message_handler_, &status));
+    ASSERT_NE(static_cast<void *>(nullptr), reader.get()) << test_info;
 
     status = ScanlineStatus();
     EXPECT_EQ(test.success, writer->PrepareImage(&spec, &status)) << test_info;

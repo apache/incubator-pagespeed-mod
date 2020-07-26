@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_SUMMARIZER_BASE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_SUMMARIZER_BASE_H_
@@ -124,9 +123,7 @@ class CssSummarizerBase : public RewriteFilter {
   // summarization process (eg because it uses an inapplicable media type and
   // we'll just throw it away when we're done anyway).  By default all CSS
   // must be summarized.
-  virtual bool MustSummarize(HtmlElement* element) const {
-    return true;
-  }
+  virtual bool MustSummarize(HtmlElement* element) const { return true; }
 
   // This should be overridden to compute a per-resource summary.
   // The method should not modify the object state, and only
@@ -154,8 +151,7 @@ class CssSummarizerBase : public RewriteFilter {
   // to true if they delete the element.
   //
   // The default implementation does nothing.
-  virtual void RenderSummary(int pos,
-                             HtmlElement* element,
+  virtual void RenderSummary(int pos, HtmlElement* element,
                              HtmlCharactersNode* char_node,
                              bool* is_element_deleted);
 
@@ -166,8 +162,7 @@ class CssSummarizerBase : public RewriteFilter {
   // Like with RenderSummary, this corresponds to entry [pos] in the summary
   // table, and elements points to the <link> or <style> containing CSS,
   // with char_node being non-null in case it was a <style>.
-  virtual void WillNotRenderSummary(int pos,
-                                    HtmlElement* element,
+  virtual void WillNotRenderSummary(int pos, HtmlElement* element,
                                     HtmlCharactersNode* char_node);
 
   // This is called at the end of the document when all outstanding summary

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/url_multipart_encoder.h"
 
@@ -32,7 +31,7 @@ namespace {
 // see how we like this aesthetically.  We want to stay within legal
 // filename space as well so the filenames don't look too ugly.
 
-const char kEscape = '=';            // Nice if this is filename-legal
+const char kEscape = '=';  // Nice if this is filename-legal
 const char kEscapedEscape[] = "==";
 const char kSeparator = '+';
 const char kEscapedSeparator[] = "=+";
@@ -42,8 +41,7 @@ const char kEscapedSeparator[] = "=+";
 namespace net_instaweb {
 class ResourceContext;
 
-UrlMultipartEncoder::~UrlMultipartEncoder() {
-}
+UrlMultipartEncoder::~UrlMultipartEncoder() {}
 
 void UrlMultipartEncoder::Encode(const StringVector& urls,
                                  const ResourceContext* data,
@@ -76,8 +74,7 @@ void UrlMultipartEncoder::Encode(const StringVector& urls,
 }
 
 bool UrlMultipartEncoder::Decode(const StringPiece& encoding,
-                                 StringVector* urls,
-                                 ResourceContext* data,
+                                 StringVector* urls, ResourceContext* data,
                                  MessageHandler* handler) const {
   GoogleString buf;
 

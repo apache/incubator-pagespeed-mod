@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -57,8 +57,7 @@ namespace {
 // asynchronous interface, until we're changed to be fully asynchronous.
 class SyncCallback : public CacheInterface::Callback {
  public:
-  SyncCallback() : called_(false), state_(CacheInterface::kNotFound) {
-  }
+  SyncCallback() : called_(false), state_(CacheInterface::kNotFound) {}
 
   void Done(CacheInterface::KeyState state) override {
     called_ = true;
@@ -88,8 +87,8 @@ OutputResource::OutputResource(const RewriteDriver* driver,
       kind_(kind) {
   DCHECK(rewrite_options_ != nullptr);
   full_name_.CopyFrom(full_name);
-  CHECK(EndsInSlash(resolved_base)) <<
-      "resolved_base must end in a slash, was: " << resolved_base;
+  CHECK(EndsInSlash(resolved_base))
+      << "resolved_base must end in a slash, was: " << resolved_base;
   set_enable_cache_purge(rewrite_options_->enable_cache_purge());
   set_respect_vary(
       ResponseHeaders::GetVaryOption(rewrite_options_->respect_vary()));
@@ -97,9 +96,7 @@ OutputResource::OutputResource(const RewriteDriver* driver,
       rewrite_options_->proactive_resource_freshening());
 }
 
-OutputResource::~OutputResource() {
-  clear_cached_result();
-}
+OutputResource::~OutputResource() { clear_cached_result(); }
 
 void OutputResource::DumpToDisk(MessageHandler* handler) {
   GoogleString file_name = DumpFileName();
@@ -122,8 +119,8 @@ void OutputResource::DumpToDisk(MessageHandler* handler) {
   bool ok_body = output_file->Write(ExtractUncompressedContents(), handler);
 
   if (!ok_headers || !ok_body) {
-    handler->Message(kWarning,
-                     "Error writing dump file: %s", file_name.c_str());
+    handler->Message(kWarning, "Error writing dump file: %s",
+                     file_name.c_str());
   }
 
   file_system->Close(output_file, handler);
@@ -154,8 +151,8 @@ StringPiece OutputResource::suffix() const {
 
 GoogleString OutputResource::DumpFileName() const {
   GoogleString filename;
-  UrlToFilenameEncoder::EncodeSegment(
-      server_context_->filename_prefix(), url(), '/', &filename);
+  UrlToFilenameEncoder::EncodeSegment(server_context_->filename_prefix(), url(),
+                                      '/', &filename);
   return filename;
 }
 
@@ -181,9 +178,8 @@ GoogleString OutputResource::url() const {
 }
 
 GoogleString OutputResource::HttpCacheKey() const {
-  GoogleString canonical_url =
-      server_context()->url_namer()->Encode(rewrite_options_, *this,
-                                            UrlNamer::kUnsharded);
+  GoogleString canonical_url = server_context()->url_namer()->Encode(
+      rewrite_options_, *this, UrlNamer::kUnsharded);
   GoogleString mapped_domain_name;
   GoogleUrl resolved_request;
   const DomainLawyer* lawyer = rewrite_options()->domain_lawyer();
@@ -192,9 +188,9 @@ GoogleString OutputResource::HttpCacheKey() const {
   // as we're already absolute.
   GoogleUrl base(canonical_url);
   if (base.IsWebValid() &&
-      lawyer->MapRequestToDomain(
-          base, canonical_url, &mapped_domain_name, &resolved_request,
-          server_context()->message_handler())) {
+      lawyer->MapRequestToDomain(base, canonical_url, &mapped_domain_name,
+                                 &resolved_request,
+                                 server_context()->message_handler())) {
     resolved_request.Spec().CopyToString(&canonical_url);
   }
   return canonical_url;
@@ -204,8 +200,8 @@ GoogleString OutputResource::UrlEvenIfHashNotSet() {
   GoogleString result;
   if (!has_hash()) {
     full_name_.set_hash("0");
-    result = server_context()->url_namer()->Encode(
-        rewrite_options_, *this, UrlNamer::kSharded);
+    result = server_context()->url_namer()->Encode(rewrite_options_, *this,
+                                                   UrlNamer::kSharded);
     full_name_.ClearHash();
   } else {
     result = url();
@@ -224,9 +220,10 @@ void OutputResource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                      const RequestContextPtr& request_context,
                                      AsyncCallback* callback) {
   // TODO(oschaaf): Output resources shouldn't be loaded via LoadAsync, but
-  // rather through FetchResource. Yet 
+  // rather through FetchResource. Yet
   // ProxyInterfaceTest.TestNoDebugAbortAfterMoreThenOneYear does manage to hit
-  // this code. See https://github.com/apache/incubator-pagespeed-mod/issues/1553
+  // this code. See
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1553
   callback->Done(false /* lock_failure */, writing_complete_);
 }
 

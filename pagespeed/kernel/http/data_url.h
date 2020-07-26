@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_HTTP_DATA_URL_H_
 #define PAGESPEED_KERNEL_HTTP_DATA_URL_H_
@@ -30,8 +29,8 @@ struct ContentType;
 enum Encoding {
   UNKNOWN,  // Used only for output of ParseDataUrl.
   BASE64,
-//   LATIN1,  // TODO(jmaessen): implement non-BASE64 encodings.
-//   UTF8,
+  //   LATIN1,  // TODO(jmaessen): implement non-BASE64 encodings.
+  //   UTF8,
   PLAIN
 };
 
@@ -58,13 +57,10 @@ bool IsDataImageUrl(const StringPiece url);
 // Dismantle a data: url into its component pieces, but do not decode the
 // content.  Note that encoded_content will be a substring of the input url and
 // shares its lifetime.  Invalidates all outputs if url does not parse.
-bool ParseDataUrl(const StringPiece& url,
-                  const ContentType** content_type,
-                  Encoding* encoding,
-                  StringPiece* encoded_content);
+bool ParseDataUrl(const StringPiece& url, const ContentType** content_type,
+                  Encoding* encoding, StringPiece* encoded_content);
 
-bool DecodeDataUrlContent(Encoding encoding,
-                          const StringPiece& encoded_content,
+bool DecodeDataUrlContent(Encoding encoding, const StringPiece& encoded_content,
                           GoogleString* decoded_content);
 
 }  // namespace net_instaweb

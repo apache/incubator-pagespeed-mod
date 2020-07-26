@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -45,39 +45,46 @@
 #include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/vector_deque.h"
 
-
 // Implementation of deque subset interface using vector, with O(N)
 // mutations at front and no extra memory.  This is for benchmarking
 // comparison.  Surprisingly it beats List even @ 100 elements.
-template<class T>
+template <class T>
 class DequeUsingStdVector : public std::vector<T> {
  public:
   void push_front(const T& value) { this->insert(this->begin(), value); }
   void pop_front() { this->erase(this->begin()); }
 };
 
-template<class Deque> static void FourElementWorkout(benchmark::State& state,
-                                                     int num_elements) {
+template <class Deque>
+static void FourElementWorkout(benchmark::State& state, int num_elements) {
   for (int iter = 0; iter < state.iterations(); ++iter) {
     Deque deque;
 
     // Simple usage as pure stack or queue, but not at the same time.
-    for (int i = 0; i < num_elements; ++i) { deque.push_back(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_back(i);
+    }
     for (int i = 0; i < num_elements; ++i) {
       CHECK_EQ(i, deque.front());
       deque.pop_front();
     }
-    for (int i = 0; i < num_elements; ++i) { deque.push_front(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_front(i);
+    }
     for (int i = num_elements - 1; i >= 0; --i) {
       CHECK_EQ(i, deque.front());
       deque.pop_front();
     }
-    for (int i = 0; i < num_elements; ++i) { deque.push_front(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_front(i);
+    }
     for (int i = 0; i < num_elements; ++i) {
       CHECK_EQ(i, deque.back());
       deque.pop_back();
     }
-    for (int i = 0; i < num_elements; ++i) { deque.push_back(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_back(i);
+    }
     for (int i = num_elements - 1; i >= 0; --i) {
       CHECK_EQ(i, deque.back());
       deque.pop_back();
@@ -88,7 +95,9 @@ template<class Deque> static void FourElementWorkout(benchmark::State& state,
       deque.push_back(i);
       deque.push_front(i);
     }
-    for (int i = 0; i < num_elements; ++i) { deque.pop_back(); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.pop_back();
+    }
     for (int i = 0; i < num_elements / 2; ++i) {
       deque.push_back(i);
       deque.push_front(i);
@@ -100,12 +109,16 @@ template<class Deque> static void FourElementWorkout(benchmark::State& state,
       deque.push_front(i);
       deque.push_back(i);
     }
-    for (int i = 0; i < num_elements; ++i) { deque.pop_back(); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.pop_back();
+    }
     for (int i = 0; i < num_elements / 2; ++i) {
       deque.push_front(i);
       deque.push_back(i);
     }
-    for (int i = 0; i < num_elements; ++i) { deque.pop_front(); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.pop_front();
+    }
 
     // Chasing 1 value pushed onto the back and popped from front.
     for (int i = 0; i < 10 * num_elements; ++i) {

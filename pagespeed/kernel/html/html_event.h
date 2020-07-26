@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_HTML_HTML_EVENT_H_
 #define PAGESPEED_KERNEL_HTML_HTML_EVENT_H_
@@ -32,8 +31,7 @@ namespace net_instaweb {
 
 class HtmlEvent {
  public:
-  explicit HtmlEvent(int line_number) : line_number_(line_number) {
-  }
+  explicit HtmlEvent(int line_number) : line_number_(line_number) {}
   virtual ~HtmlEvent();
   virtual void Run(HtmlFilter* filter) = 0;
   virtual GoogleString ToString() const = 0;
@@ -59,7 +57,7 @@ class HtmlEvent {
   DISALLOW_COPY_AND_ASSIGN(HtmlEvent);
 };
 
-class HtmlStartDocumentEvent: public HtmlEvent {
+class HtmlStartDocumentEvent : public HtmlEvent {
  public:
   explicit HtmlStartDocumentEvent(int line_number) : HtmlEvent(line_number) {}
   void Run(HtmlFilter* filter) override { filter->StartDocument(); }
@@ -69,7 +67,7 @@ class HtmlStartDocumentEvent: public HtmlEvent {
   DISALLOW_COPY_AND_ASSIGN(HtmlStartDocumentEvent);
 };
 
-class HtmlEndDocumentEvent: public HtmlEvent {
+class HtmlEndDocumentEvent : public HtmlEvent {
  public:
   explicit HtmlEndDocumentEvent(int line_number) : HtmlEvent(line_number) {}
   void Run(HtmlFilter* filter) override { filter->EndDocument(); }
@@ -79,91 +77,85 @@ class HtmlEndDocumentEvent: public HtmlEvent {
   DISALLOW_COPY_AND_ASSIGN(HtmlEndDocumentEvent);
 };
 
-class HtmlStartElementEvent: public HtmlEvent {
+class HtmlStartElementEvent : public HtmlEvent {
  public:
   HtmlStartElementEvent(HtmlElement* element, int line_number)
-      : HtmlEvent(line_number),
-        element_(element) {
-  }
+      : HtmlEvent(line_number), element_(element) {}
   void Run(HtmlFilter* filter) override { filter->StartElement(element_); }
   GoogleString ToString() const override {
     return StrCat("StartElement ", element_->ToString());
   }
   HtmlElement* GetElementIfStartEvent() override { return element_; }
   HtmlElement* GetNode() override { return element_; }
+
  private:
   HtmlElement* element_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlStartElementEvent);
 };
 
-class HtmlEndElementEvent: public HtmlEvent {
+class HtmlEndElementEvent : public HtmlEvent {
  public:
   HtmlEndElementEvent(HtmlElement* element, int line_number)
-      : HtmlEvent(line_number),
-        element_(element) {
-  }
+      : HtmlEvent(line_number), element_(element) {}
   void Run(HtmlFilter* filter) override { filter->EndElement(element_); }
   GoogleString ToString() const override {
     return StrCat("EndElement ", element_->ToString());
   }
   HtmlElement* GetElementIfEndEvent() override { return element_; }
   HtmlElement* GetNode() override { return element_; }
+
  private:
   HtmlElement* element_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlEndElementEvent);
 };
 
-class HtmlLeafNodeEvent: public HtmlEvent {
+class HtmlLeafNodeEvent : public HtmlEvent {
  public:
-  explicit HtmlLeafNodeEvent(int line_number) : HtmlEvent(line_number) { }
+  explicit HtmlLeafNodeEvent(int line_number) : HtmlEvent(line_number) {}
   HtmlNode* GetNode() override { return GetLeafNode(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HtmlLeafNodeEvent);
 };
 
-class HtmlIEDirectiveEvent: public HtmlLeafNodeEvent {
+class HtmlIEDirectiveEvent : public HtmlLeafNodeEvent {
  public:
   HtmlIEDirectiveEvent(HtmlIEDirectiveNode* directive, int line_number)
-      : HtmlLeafNodeEvent(line_number),
-        directive_(directive) {
-  }
+      : HtmlLeafNodeEvent(line_number), directive_(directive) {}
   void Run(HtmlFilter* filter) override { filter->IEDirective(directive_); }
   GoogleString ToString() const override {
     return StrCat("IEDirective ", directive_->contents());
   }
   HtmlLeafNode* GetLeafNode() override { return directive_; }
+
  private:
   HtmlIEDirectiveNode* directive_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlIEDirectiveEvent);
 };
 
-class HtmlCdataEvent: public HtmlLeafNodeEvent {
+class HtmlCdataEvent : public HtmlLeafNodeEvent {
  public:
   HtmlCdataEvent(HtmlCdataNode* cdata, int line_number)
-      : HtmlLeafNodeEvent(line_number),
-        cdata_(cdata) {
-  }
+      : HtmlLeafNodeEvent(line_number), cdata_(cdata) {}
   void Run(HtmlFilter* filter) override { filter->Cdata(cdata_); }
   GoogleString ToString() const override {
     return StrCat("Cdata ", cdata_->contents());
   }
   HtmlLeafNode* GetLeafNode() override { return cdata_; }
+
  private:
   HtmlCdataNode* cdata_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlCdataEvent);
 };
 
-class HtmlCommentEvent: public HtmlLeafNodeEvent {
+class HtmlCommentEvent : public HtmlLeafNodeEvent {
  public:
   HtmlCommentEvent(HtmlCommentNode* comment, int line_number)
-      : HtmlLeafNodeEvent(line_number),
-        comment_(comment) {
-  }
+      : HtmlLeafNodeEvent(line_number), comment_(comment) {}
   void Run(HtmlFilter* filter) override { filter->Comment(comment_); }
   GoogleString ToString() const override {
     return StrCat("Comment ", comment_->contents());
@@ -176,35 +168,33 @@ class HtmlCommentEvent: public HtmlLeafNodeEvent {
   DISALLOW_COPY_AND_ASSIGN(HtmlCommentEvent);
 };
 
-class HtmlCharactersEvent: public HtmlLeafNodeEvent {
+class HtmlCharactersEvent : public HtmlLeafNodeEvent {
  public:
   HtmlCharactersEvent(HtmlCharactersNode* characters, int line_number)
-      : HtmlLeafNodeEvent(line_number),
-        characters_(characters) {
-  }
+      : HtmlLeafNodeEvent(line_number), characters_(characters) {}
   void Run(HtmlFilter* filter) override { filter->Characters(characters_); }
   GoogleString ToString() const override {
     return StrCat("Characters ", characters_->contents());
   }
   HtmlLeafNode* GetLeafNode() override { return characters_; }
   HtmlCharactersNode* GetCharactersNode() override { return characters_; }
+
  private:
   HtmlCharactersNode* characters_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlCharactersEvent);
 };
 
-class HtmlDirectiveEvent: public HtmlLeafNodeEvent {
+class HtmlDirectiveEvent : public HtmlLeafNodeEvent {
  public:
   HtmlDirectiveEvent(HtmlDirectiveNode* directive, int line_number)
-      : HtmlLeafNodeEvent(line_number),
-        directive_(directive) {
-  }
+      : HtmlLeafNodeEvent(line_number), directive_(directive) {}
   void Run(HtmlFilter* filter) override { filter->Directive(directive_); }
   GoogleString ToString() const override {
     return StrCat("Directive: ", directive_->contents());
   }
   HtmlLeafNode* GetLeafNode() override { return directive_; }
+
  private:
   HtmlDirectiveNode* directive_;
 

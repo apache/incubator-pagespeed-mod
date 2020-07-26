@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/common_filter.h"
 
@@ -49,8 +48,7 @@ CommonFilter::CommonFilter(RewriteDriver* driver)
       rewrite_options_(driver->options()),
       noscript_element_(nullptr),
       end_body_point_(nullptr),
-      seen_base_(false) {
-}
+      seen_base_(false) {}
 
 CommonFilter::~CommonFilter() {}
 
@@ -162,8 +160,8 @@ void CommonFilter::ResolveUrl(StringPiece input_url, GoogleUrl* out_url) {
   }
 }
 
-bool CommonFilter::IsRelativeUrlLoadPermittedByCsp(
-    StringPiece url, CspDirective role) {
+bool CommonFilter::IsRelativeUrlLoadPermittedByCsp(StringPiece url,
+                                                   CspDirective role) {
   GoogleUrl abs_url;
   ResolveUrl(url, &abs_url);
   if (abs_url.IsWebValid()) {
@@ -182,13 +180,10 @@ ResourcePtr CommonFilter::CreateInputResource(StringPiece input_url,
   ResolveUrl(input_url, &resource_url);
   if (resource_url.IsWebValid()) {
     resource = driver_->CreateInputResource(
-        resource_url,
-        AllowUnauthorizedDomain(),
-        (IntendedForInlining()
-         ? RewriteDriver::kIntendedForInlining
-         : RewriteDriver::kIntendedForGeneral),
-        role,
-        is_authorized);
+        resource_url, AllowUnauthorizedDomain(),
+        (IntendedForInlining() ? RewriteDriver::kIntendedForInlining
+                               : RewriteDriver::kIntendedForGeneral),
+        role, is_authorized);
   }
   return resource;
 }
@@ -208,9 +203,7 @@ ResourcePtr CommonFilter::CreateInputResourceOrInsertDebugComment(
   return input_resource;
 }
 
-const GoogleUrl& CommonFilter::base_url() const {
-  return driver_->base_url();
-}
+const GoogleUrl& CommonFilter::base_url() const { return driver_->base_url(); }
 
 const GoogleUrl& CommonFilter::decoded_base_url() const {
   return driver_->decoded_base_url();
@@ -256,7 +249,8 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
         if (result) {
           // No charset, see if we have a charset attribute to append.
           if (local_charset.empty() && *(content->rbegin()) == ';' &&
-              ((cs_attr = element.FindAttribute(HtmlName::kCharset)) != nullptr) &&
+              ((cs_attr = element.FindAttribute(HtmlName::kCharset)) !=
+               nullptr) &&
               (cs_attr->DecodedValueOrNull() != nullptr)) {
             StrAppend(content, " charset=", cs_attr->DecodedValueOrNull());
             have_parsed = false;
@@ -273,8 +267,9 @@ bool CommonFilter::ExtractMetaTagDetails(const HtmlElement& element,
         }
       }
     }
-  // charset case.
-  } else if (((cs_attr = element.FindAttribute(HtmlName::kCharset)) != nullptr) &&
+    // charset case.
+  } else if (((cs_attr = element.FindAttribute(HtmlName::kCharset)) !=
+              nullptr) &&
              (cs_attr->DecodedValueOrNull() != nullptr)) {
     *mime_type = "";
     *charset = cs_attr->DecodedValueOrNull();
@@ -315,7 +310,7 @@ void CommonFilter::AddJsToElement(StringPiece js, HtmlElement* script) {
 
   // is pedantic filter only check sufficient for adding type attribute?
   if (!driver_->doctype().IsVersion5() ||
-          driver_->options()->Enabled(RewriteOptions::kPedantic)) {
+      driver_->options()->Enabled(RewriteOptions::kPedantic)) {
     driver_->AddAttribute(script, HtmlName::kType, "text/javascript");
   }
   HtmlCharactersNode* script_content = driver_->NewCharactersNode(script, js);

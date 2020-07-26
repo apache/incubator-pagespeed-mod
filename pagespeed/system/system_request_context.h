@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -38,10 +38,8 @@ class SystemRequestContext : public RequestContext {
  public:
   // There are two ways a request may specify the hostname: with the Host
   // header or on the initial request line.  Callers need to check both places.
-  SystemRequestContext(AbstractMutex* logging_mutex,
-                       Timer* timer,
-                       StringPiece hostname,
-                       int local_port,
+  SystemRequestContext(AbstractMutex* logging_mutex, Timer* timer,
+                       StringPiece hostname, int local_port,
                        StringPiece local_ip);
 
   // Captures the original URL of the request, which is used to help

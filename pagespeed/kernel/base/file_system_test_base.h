@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_FILE_SYSTEM_TEST_BASE_H_
 #define PAGESPEED_KERNEL_BASE_FILE_SYSTEM_TEST_BASE_H_
@@ -73,15 +72,13 @@ class FileSystemTest : public testing::Test {
   // to calculate the on-disk size of the file.
   virtual int FileSize(StringPiece contents) const = 0;
 
-  int FileContentSize(StringPiece contents) const {
-    return contents.size();
-  }
+  int FileContentSize(StringPiece contents) const { return contents.size(); }
 
   // Calculate on-disk usage of contents by returning size rounded up to nearest
   // default block size.
   int FileBlockSize(StringPiece contents, int64 default_file_size) const {
     return ((contents.size() + kBlockSize - 1) / kBlockSize) * kBlockSize +
-        default_file_size;
+           default_file_size;
   }
 
   // Return the size of directories in the file system. This can vary depending

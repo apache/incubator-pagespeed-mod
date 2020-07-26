@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/simple_text_filter.h"
 
@@ -32,26 +31,19 @@
 
 namespace net_instaweb {
 
-SimpleTextFilter::Rewriter::~Rewriter() {
-}
+SimpleTextFilter::Rewriter::~Rewriter() {}
 
 SimpleTextFilter::SimpleTextFilter(Rewriter* rewriter, RewriteDriver* driver)
-    : RewriteFilter(driver),
-      rewriter_(rewriter) {
-}
+    : RewriteFilter(driver), rewriter_(rewriter) {}
 
-SimpleTextFilter::~SimpleTextFilter() {
-}
+SimpleTextFilter::~SimpleTextFilter() {}
 
 SimpleTextFilter::Context::Context(const RewriterPtr& rewriter,
                                    RewriteDriver* driver,
                                    RewriteContext* parent)
-    : SingleRewriteContext(driver, parent, nullptr),
-      rewriter_(rewriter) {
-}
+    : SingleRewriteContext(driver, parent, nullptr), rewriter_(rewriter) {}
 
-SimpleTextFilter::Context::~Context() {
-}
+SimpleTextFilter::Context::~Context() {}
 
 void SimpleTextFilter::Context::RewriteSingle(const ResourcePtr& input,
                                               const OutputResourcePtr& output) {
@@ -64,9 +56,8 @@ void SimpleTextFilter::Context::RewriteSingle(const ResourcePtr& input,
     if (output_type == nullptr) {
       output_type = &kContentTypeText;
     }
-    if (Driver()->Write(
-            ResourceVector(1, input), rewritten, output_type, input->charset(),
-            output.get())) {
+    if (Driver()->Write(ResourceVector(1, input), rewritten, output_type,
+                        input->charset(), output.get())) {
       result = kRewriteOk;
     }
   }

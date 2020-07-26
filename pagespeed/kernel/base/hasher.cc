@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/hasher.h"
 
@@ -29,12 +28,11 @@
 
 namespace net_instaweb {
 
-Hasher::Hasher(int max_chars): max_chars_(max_chars) {
+Hasher::Hasher(int max_chars) : max_chars_(max_chars) {
   CHECK_LE(0, max_chars);
 }
 
-Hasher::~Hasher() {
-}
+Hasher::~Hasher() {}
 
 GoogleString Hasher::Hash(const StringPiece& content) const {
   GoogleString raw_hash = RawHash(content);

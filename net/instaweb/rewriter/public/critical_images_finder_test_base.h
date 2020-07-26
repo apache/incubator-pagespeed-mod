@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,16 +37,12 @@ class TestCriticalImagesFinder : public CriticalImagesFinder {
  public:
   TestCriticalImagesFinder(const PropertyCache::Cohort* cohort,
                            Statistics* stats)
-      : CriticalImagesFinder(cohort, stats),
-        available_(kAvailable) {}
+      : CriticalImagesFinder(cohort, stats), available_(kAvailable) {}
   ~TestCriticalImagesFinder() override;
-  Availability Available(RewriteDriver* driver) override {
-    return available_;
-  }
-  void set_available(Availability available) {
-    available_ = available;
-  }
+  Availability Available(RewriteDriver* driver) override { return available_; }
+  void set_available(Availability available) { available_ = available; }
   void ComputeCriticalImages(RewriteDriver* driver) override {}
+
  private:
   Availability available_;
 };

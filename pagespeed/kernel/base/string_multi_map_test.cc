@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 // Unit-test StringMultiMap.
 
 #include "pagespeed/kernel/base/string_multi_map.h"
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
@@ -30,7 +30,7 @@ namespace net_instaweb {
 
 class StringMultiMapTest : public testing::Test {
  protected:
-  StringMultiMapTest() { }
+  StringMultiMapTest() {}
 
   void SetUp() override {
     string_map_.Add("a", "1");
@@ -69,8 +69,8 @@ TEST_F(StringMultiMapTest, AddFromNameValuePairs) {
   ConstStringStarVector v;
 
   // Test the case that omit_if_no_value is true.
-  string_map.AddFromNameValuePairs(
-      "iq=22,m=3m3,x= ,oo=,kk", ",", '=', true /* omit_if_no_value */);
+  string_map.AddFromNameValuePairs("iq=22,m=3m3,x= ,oo=,kk", ",", '=',
+                                   true /* omit_if_no_value */);
   EXPECT_EQ(4, string_map.num_names());
 
   EXPECT_TRUE(string_map.Lookup("iq", &v));
@@ -92,8 +92,8 @@ TEST_F(StringMultiMapTest, AddFromNameValuePairs) {
   EXPECT_FALSE(string_map.Lookup("kk", &v));
 
   // Test the case that omit_if_no_value is false.
-  string_map.AddFromNameValuePairs(
-      "a,b;a=:3", ";", ':', false /* omit_if_no_value */);
+  string_map.AddFromNameValuePairs("a,b;a=:3", ";", ':',
+                                   false /* omit_if_no_value */);
   EXPECT_EQ(6, string_map.num_names());
 
   EXPECT_TRUE(string_map.Lookup("a,b", &v));
@@ -185,8 +185,8 @@ TEST_F(StringMultiMapTest, TestEmbeddedNulsInKey) {
 
 TEST_F(StringMultiMapTest, TestRemoveFromSortedArray) {
   static const StringPiece kRemoveVector[] = {"c", "D"};
-  EXPECT_TRUE(string_map_.RemoveAllFromSortedArray(
-      kRemoveVector, arraysize(kRemoveVector)));
+  EXPECT_TRUE(string_map_.RemoveAllFromSortedArray(kRemoveVector,
+                                                   arraysize(kRemoveVector)));
   EXPECT_EQ(3, string_map_.num_names());
   EXPECT_TRUE(string_map_.Has("a"));
   EXPECT_TRUE(string_map_.Has("b"));

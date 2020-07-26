@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -50,19 +50,19 @@ TEST(WebpOptimizerTest, ReduceWebpImageQualityPreservesAlpha) {
                        &input_image));
 
   WebPBitstreamFeatures features;
-  EXPECT_EQ(VP8_STATUS_OK,
-            WebPGetFeatures(
-                reinterpret_cast<const uint8_t*>(input_image.c_str()),
-                input_image.length(), &features));
+  EXPECT_EQ(
+      VP8_STATUS_OK,
+      WebPGetFeatures(reinterpret_cast<const uint8_t*>(input_image.c_str()),
+                      input_image.length(), &features));
   EXPECT_TRUE(features.has_alpha);
 
   EXPECT_TRUE(ReduceWebpImageQuality(input_image, 50, &output_image));
   EXPECT_NE(input_image, output_image);
 
-  EXPECT_EQ(VP8_STATUS_OK,
-            WebPGetFeatures(
-                reinterpret_cast<const uint8_t*>(output_image.c_str()),
-                output_image.length(), &features));
+  EXPECT_EQ(
+      VP8_STATUS_OK,
+      WebPGetFeatures(reinterpret_cast<const uint8_t*>(output_image.c_str()),
+                      output_image.length(), &features));
   EXPECT_TRUE(features.has_alpha);
 }
 }  // namespace net_instaweb

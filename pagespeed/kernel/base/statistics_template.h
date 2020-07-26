@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_STATISTICS_TEMPLATE_H_
 #define PAGESPEED_KERNEL_BASE_STATISTICS_TEMPLATE_H_
@@ -39,9 +38,8 @@ class MessageHandler;
 // This class makes it easier to define new Statistics implementations
 // by providing a templatized implementation of variable registration and
 // management.
-template<class Var, class UpDown, class Hist,
-         class TimedVar> class StatisticsTemplate
-    : public Statistics {
+template <class Var, class UpDown, class Hist, class TimedVar>
+class StatisticsTemplate : public Statistics {
  public:
   StatisticsTemplate() {}
   ~StatisticsTemplate() override {
@@ -125,7 +123,7 @@ template<class Var, class UpDown, class Hist,
   }
 
   TimedVar* AddTimedVariable(const StringPiece& name,
-                                     const StringPiece& group) override {
+                             const StringPiece& group) override {
     TimedVar* timedvar = FindTimedVariable(name);
     if (timedvar == NULL) {
       timedvar = NewTimedVariable(name);
@@ -146,9 +144,7 @@ template<class Var, class UpDown, class Hist,
     return timedvar;
   }
 
-  const StringVector& HistogramNames() override {
-    return histogram_names_;
-  }
+  const StringVector& HistogramNames() override { return histogram_names_; }
 
   const std::map<GoogleString, StringVector>& TimedVariableMap() override {
     return timed_var_group_map_;
@@ -186,8 +182,8 @@ template<class Var, class UpDown, class Hist,
       GoogleString up_down_as_str = Integer64ToString(up_downs_[i]->Get());
       writer->Write(up_down_name, message_handler);
       writer->Write(": ", message_handler);
-      int num_spaces = longest_string - up_down_name.size() -
-          up_down_as_str.size();
+      int num_spaces =
+          longest_string - up_down_name.size() - up_down_as_str.size();
       writer->Write(spaces.substr(0, num_spaces), message_handler);
       writer->Write(up_down_as_str, message_handler);
       writer->Write("\n", message_handler);
@@ -312,7 +308,8 @@ template<class Var, class UpDown, class Hist,
 //      void Clear();
 // See ../util/simple_stats.h, class SimpleStatsVariable, for an example
 // of an Impl class.
-template<class Impl> class VarTemplate : public Variable {
+template <class Impl>
+class VarTemplate : public Variable {
  public:
   VarTemplate(StringPiece name, Statistics* stats) : impl_(name, stats) {}
   ~VarTemplate() override {}
@@ -333,10 +330,10 @@ template<class Impl> class VarTemplate : public Variable {
 // helper implementation class Impl.  Note that the same Impl class
 // can be used for VarTemplate, but UpDownCounter provides a
 // Set method, and will not DCHECK-fail on negative increments.
-template<class Impl> class UpDownTemplate : public UpDownCounter {
+template <class Impl>
+class UpDownTemplate : public UpDownCounter {
  public:
-  UpDownTemplate(StringPiece name, Statistics* stats)
-      : impl_(name, stats) {}
+  UpDownTemplate(StringPiece name, Statistics* stats) : impl_(name, stats) {}
   ~UpDownTemplate() override {}
   int64 Get() const override { return impl_.Get(); }
   StringPiece GetName() const override { return impl_.GetName(); }
@@ -354,12 +351,12 @@ template<class Impl> class UpDownTemplate : public UpDownCounter {
 
 // A specialization of StatisticsTemplate for implementations where the
 // Variable and UpDownCounter implementations can share a common Impl.
-template<class Impl,                       // See example in VarTemplate
-         class HistC = CountHistogram,     // Histogram
-         class TVarC = FakeTimedVariable>  // TimeDVariable
+template <class Impl,                       // See example in VarTemplate
+          class HistC = CountHistogram,     // Histogram
+          class TVarC = FakeTimedVariable>  // TimeDVariable
 class ScalarStatisticsTemplate
-    : public StatisticsTemplate<VarTemplate<Impl>, UpDownTemplate<Impl>,
-                                HistC, TVarC> {
+    : public StatisticsTemplate<VarTemplate<Impl>, UpDownTemplate<Impl>, HistC,
+                                TVarC> {
  public:
   // Add typedefs for template class args to make them visible to subclasses.
   typedef VarTemplate<Impl> Var;
@@ -371,9 +368,7 @@ class ScalarStatisticsTemplate
   ~ScalarStatisticsTemplate() override {}
 
  protected:
-  Var* NewVariable(StringPiece name) override {
-    return new Var(name, this);
-  }
+  Var* NewVariable(StringPiece name) override { return new Var(name, this); }
 
   UpDown* NewUpDownCounter(StringPiece name) override {
     return new UpDown(name, this);

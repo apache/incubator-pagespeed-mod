@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,15 +19,16 @@
 
 // Unit test for image_url_encoder.
 
+#include "net/instaweb/rewriter/public/image_url_encoder.h"
+
 #include <set>
 
 #include "net/instaweb/rewriter/cached_result.pb.h"
-#include "net/instaweb/rewriter/public/image_url_encoder.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 namespace {
@@ -51,8 +52,7 @@ class ImageUrlEncoderTest : public ::testing::Test {
     return out;
   }
 
-  bool DecodeUrlAndDimensions(const StringPiece& encoded,
-                              ImageDim* dim,
+  bool DecodeUrlAndDimensions(const StringPiece& encoded, ImageDim* dim,
                               GoogleString* url) {
     ResourceContext context;
     StringVector urls;
@@ -187,8 +187,8 @@ TEST_F(ImageUrlEncoderTest, NoDimsWebpLa) {
   const char kLegacyWebpLaNoMobileUrl[] = "v,hencoded.url,_with,_various.stuff";
   GoogleString origin_url;
   ImageDim dim;
-  EXPECT_TRUE(DecodeUrlAndDimensions(kLegacyWebpLaNoMobileUrl,
-                                     &dim, &origin_url));
+  EXPECT_TRUE(
+      DecodeUrlAndDimensions(kLegacyWebpLaNoMobileUrl, &dim, &origin_url));
   EXPECT_FALSE(ImageUrlEncoder::HasValidDimensions(dim));
   EXPECT_EQ(kActualUrl, origin_url);
   EXPECT_EQ(kNoDimsUrl, EncodeUrlAndDimensions(origin_url, dim));
@@ -198,8 +198,8 @@ TEST_F(ImageUrlEncoderTest, NoDimsWebpLaMobile) {
   const char kLegacyWebpLaMobileUrl[] = "mv,hencoded.url,_with,_various.stuff";
   GoogleString origin_url;
   ImageDim dim;
-  EXPECT_TRUE(DecodeUrlAndDimensions(
-      kLegacyWebpLaMobileUrl, &dim, &origin_url));
+  EXPECT_TRUE(
+      DecodeUrlAndDimensions(kLegacyWebpLaMobileUrl, &dim, &origin_url));
   EXPECT_FALSE(ImageUrlEncoder::HasValidDimensions(dim));
   EXPECT_EQ(kActualUrl, origin_url);
   EXPECT_EQ(kNoDimsUrl, EncodeUrlAndDimensions(origin_url, dim));
@@ -233,8 +233,8 @@ TEST_F(ImageUrlEncoderTest, HasDimsWebpLa) {
       "17x33v,hencoded.url,_with,_various.stuff";
   GoogleString origin_url;
   ImageDim dim;
-  EXPECT_TRUE(DecodeUrlAndDimensions(
-      kLegacyWebpLaNoMobileUrl, &dim, &origin_url));
+  EXPECT_TRUE(
+      DecodeUrlAndDimensions(kLegacyWebpLaNoMobileUrl, &dim, &origin_url));
   EXPECT_TRUE(ImageUrlEncoder::HasValidDimensions(dim));
   EXPECT_EQ(17, dim.width());
   EXPECT_EQ(33, dim.height());
@@ -272,8 +272,8 @@ TEST_F(ImageUrlEncoderTest, HasDimsWebpLaMobile) {
       "17x33mv,hencoded.url,_with,_various.stuff";
   GoogleString origin_url;
   ImageDim dim;
-  EXPECT_TRUE(DecodeUrlAndDimensions(
-      kLegacyWebpLaMobileUrl, &dim, &origin_url));
+  EXPECT_TRUE(
+      DecodeUrlAndDimensions(kLegacyWebpLaMobileUrl, &dim, &origin_url));
   EXPECT_TRUE(ImageUrlEncoder::HasValidDimensions(dim));
   EXPECT_EQ(17, dim.width());
   EXPECT_EQ(33, dim.height());
@@ -311,8 +311,8 @@ TEST_F(ImageUrlEncoderTest, HasWidthWebpLa) {
       "17xNv,hencoded.url,_with,_various.stuff";
   GoogleString origin_url;
   ImageDim dim;
-  EXPECT_TRUE(DecodeUrlAndDimensions(kLegacyWebpLaNoMobileUrl,
-                                     &dim, &origin_url));
+  EXPECT_TRUE(
+      DecodeUrlAndDimensions(kLegacyWebpLaNoMobileUrl, &dim, &origin_url));
   EXPECT_TRUE(ImageUrlEncoder::HasValidDimension(dim));
   EXPECT_EQ(17, dim.width());
   EXPECT_EQ(-1, dim.height());
@@ -351,62 +351,54 @@ TEST_F(ImageUrlEncoderTest, HasHeightWebpLa) {
       "Nx33v,hencoded.url,_with,_various.stuff";
   GoogleString origin_url;
   ImageDim dim;
-  EXPECT_TRUE(DecodeUrlAndDimensions(kLegacyWebpLaNoMobileUrl,
-                                     &dim, &origin_url));
+  EXPECT_TRUE(
+      DecodeUrlAndDimensions(kLegacyWebpLaNoMobileUrl, &dim, &origin_url));
   EXPECT_TRUE(ImageUrlEncoder::HasValidDimension(dim));
   EXPECT_EQ(-1, dim.width());
   EXPECT_EQ(33, dim.height());
   EXPECT_EQ(kActualUrl, origin_url);
   const char kHeightUrl[] = "Nx33x,hencoded.url,_with,_various.stuff";
-  EXPECT_EQ(kHeightUrl,
-            EncodeUrlAndDimensions(origin_url, dim));
+  EXPECT_EQ(kHeightUrl, EncodeUrlAndDimensions(origin_url, dim));
 }
 
 TEST_F(ImageUrlEncoderTest, CacheKey) {
   ResourceContext context;
 
-  EXPECT_EQ(".",
-            ImageUrlEncoder::CacheKeyFromResourceContext(context));
+  EXPECT_EQ(".", ImageUrlEncoder::CacheKeyFromResourceContext(context));
   context.Clear();
 
   context.set_may_use_small_screen_quality(true);
-  EXPECT_EQ(".ss",
-            ImageUrlEncoder::CacheKeyFromResourceContext(context));
+  EXPECT_EQ(".ss", ImageUrlEncoder::CacheKeyFromResourceContext(context));
   context.Clear();
 
   context.set_may_use_save_data_quality(true);
   context.set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_ONLY);
-  EXPECT_EQ("wd",
-            ImageUrlEncoder::CacheKeyFromResourceContext(context));
+  EXPECT_EQ("wd", ImageUrlEncoder::CacheKeyFromResourceContext(context));
   context.Clear();
 
   context.set_mobile_user_agent(true);
   context.set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA);
-  EXPECT_EQ("vm",
-            ImageUrlEncoder::CacheKeyFromResourceContext(context));
+  EXPECT_EQ("vm", ImageUrlEncoder::CacheKeyFromResourceContext(context));
   context.Clear();
 
   context.set_may_use_save_data_quality(true);
   context.set_mobile_user_agent(true);
   context.set_libwebp_level(ResourceContext::LIBWEBP_ANIMATED);
-  EXPECT_EQ("amd",
-            ImageUrlEncoder::CacheKeyFromResourceContext(context));
+  EXPECT_EQ("amd", ImageUrlEncoder::CacheKeyFromResourceContext(context));
   context.Clear();
 
   // When both may_use_small_screen_quality and may_use_save_data_quality are
   // set, may_use_save_data_quality takes precedence.
   context.set_may_use_small_screen_quality(true);
   context.set_may_use_save_data_quality(true);
-  EXPECT_EQ(".d",
-            ImageUrlEncoder::CacheKeyFromResourceContext(context));
+  EXPECT_EQ(".d", ImageUrlEncoder::CacheKeyFromResourceContext(context));
 }
 
 TEST_F(ImageUrlEncoderTest, DifferentWebpLevels) {
   // Make sure different levels of WebP support get different cache keys.
   std::set<GoogleString> seen;
   for (int webp_level = ResourceContext::LibWebpLevel_MIN;
-       webp_level <= ResourceContext::LibWebpLevel_MAX;
-       ++webp_level) {
+       webp_level <= ResourceContext::LibWebpLevel_MAX; ++webp_level) {
     if (ResourceContext::LibWebpLevel_IsValid(webp_level)) {
       ResourceContext ctx;
       ctx.set_libwebp_level(
@@ -590,18 +582,18 @@ TEST_F(ImageUrlEncoderTest, WebpDetection) {
   EXPECT_TRUE(IsPagespeedWebp("http://example.com/xa.jpg.pagespeed.ic.0.webp"));
   EXPECT_TRUE(IsPagespeedWebp("http://example.com/xa.png.pagespeed.ic.0.webp"));
   EXPECT_TRUE(IsPagespeedWebp("http://example.com/xa.gif.pagespeed.ic.0.webp"));
-  EXPECT_TRUE(IsPagespeedWebp(
-      "http://example.com/xa.webp.pagespeed.ic.0.webp"));
-  EXPECT_TRUE(IsPagespeedWebp(
-      "http://example.com/17x33a.jpg.pagespeed.ic.0.webp"));
+  EXPECT_TRUE(
+      IsPagespeedWebp("http://example.com/xa.webp.pagespeed.ic.0.webp"));
+  EXPECT_TRUE(
+      IsPagespeedWebp("http://example.com/17x33a.jpg.pagespeed.ic.0.webp"));
 
   // Invalid WebP URL.
   EXPECT_FALSE(IsPagespeedWebp("http://example.com/xa.jpg.XXXXXXXX.ic.0.webp"));
   EXPECT_FALSE(IsPagespeedWebp("http://example.com/xa.gif.pagespeed.ic.0.png"));
-  EXPECT_FALSE(IsPagespeedWebp(
-      "http://example.com/xa.png.pagespeed.ic.0.jpeg"));
-  EXPECT_FALSE(IsPagespeedWebp(
-      "http://example.com/xa.jpg.pagespeed.ic.0.jpeg"));
+  EXPECT_FALSE(
+      IsPagespeedWebp("http://example.com/xa.png.pagespeed.ic.0.jpeg"));
+  EXPECT_FALSE(
+      IsPagespeedWebp("http://example.com/xa.jpg.pagespeed.ic.0.jpeg"));
   EXPECT_FALSE(IsPagespeedWebp("http://example.com/foo.webp"));
   EXPECT_FALSE(IsPagespeedWebp("http://example.com/foo.jpg"));
   EXPECT_FALSE(IsPagespeedWebp("http://example.com/x.jpg.pagespeed.cd.0.jpeg"));

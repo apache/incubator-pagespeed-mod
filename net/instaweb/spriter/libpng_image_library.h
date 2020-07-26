@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -48,8 +48,7 @@ namespace spriter {
 class LibpngImageLibrary : public ImageLibraryInterface {
  public:
   LibpngImageLibrary(const FilePath& base_input_path,
-                     const FilePath& base_output_path,
-                     Delegate* delegate);
+                     const FilePath& base_output_path, Delegate* delegate);
   ~LibpngImageLibrary() override {}
 
  protected:
@@ -57,8 +56,8 @@ class LibpngImageLibrary : public ImageLibraryInterface {
   class Image : public ImageLibraryInterface::Image {
    public:
     // Takes ownership of rows.
-    Image(ImageLibraryInterface* lib,
-          png_structp png_struct, png_infop png_info, png_bytep* rows);
+    Image(ImageLibraryInterface* lib, png_structp png_struct,
+          png_infop png_info, png_bytep* rows);
     ~Image() override;
 
     bool GetDimensions(int* out_width, int* out_height) const override;
@@ -81,11 +80,10 @@ class LibpngImageLibrary : public ImageLibraryInterface {
   class Canvas : public ImageLibraryInterface::Canvas {
    public:
     Canvas(ImageLibraryInterface* lib, const Delegate* d,
-           const GoogleString& base_out_path,
-           int width, int height);
+           const GoogleString& base_out_path, int width, int height);
     ~Canvas() override;
     bool DrawImage(const ImageLibraryInterface::Image* image, int x,
-                           int y) override;
+                   int y) override;
     bool WriteToFile(const FilePath& write_path, ImageFormat format) override;
 
    private:

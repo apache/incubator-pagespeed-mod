@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -62,8 +62,7 @@ class HttpCacheFailure {
   // code doesn't have to worry about all the various knobs we have for
   // overriding TTL.
   static FetchResponseStatus ClassifyFailure(
-      const ResponseHeaders& headers,
-      StringPiece contents,
+      const ResponseHeaders& headers, StringPiece contents,
       bool physical_fetch_success, /* e.g. what Done() said */
       bool external_cacheable);
 

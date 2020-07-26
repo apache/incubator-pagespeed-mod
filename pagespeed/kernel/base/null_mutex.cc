@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,22 +17,16 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/null_mutex.h"
 
 namespace net_instaweb {
 
-NullMutex::~NullMutex() {
-}
+NullMutex::~NullMutex() {}
 
-bool NullMutex::TryLock() {
-  return true;
-}
+bool NullMutex::TryLock() { return true; }
 
-void NullMutex::Lock() {
-}
+void NullMutex::Lock() {}
 
-void NullMutex::Unlock() {
-}
+void NullMutex::Unlock() {}
 
 }  // namespace net_instaweb

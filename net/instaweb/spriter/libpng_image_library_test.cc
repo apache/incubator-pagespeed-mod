@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,10 @@
  * under the License.
  */
 
+#include "net/instaweb/spriter/libpng_image_library.h"
+
 #include <memory>
 
-
-
-#include "net/instaweb/spriter/libpng_image_library.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -47,10 +46,12 @@ class LibpngImageLibraryTest : public testing::Test {
   void SetUp() override {
     delegate_ = std::make_unique<LogDelegate>();
     mkdir(GTestTempDir().c_str(), 0777);
-    src_library_ = std::make_unique<LibpngImageLibrary>(StrCat(GTestSrcDir(), kTestData),
-        StrCat(GTestTempDir(), "/"), delegate_.get());
-    tmp_library_ = std::make_unique<LibpngImageLibrary>(StrCat(GTestTempDir(), "/"),
-        StrCat(GTestTempDir(), "/"), delegate_.get());
+    src_library_ = std::make_unique<LibpngImageLibrary>(
+        StrCat(GTestSrcDir(), kTestData), StrCat(GTestTempDir(), "/"),
+        delegate_.get());
+    tmp_library_ = std::make_unique<LibpngImageLibrary>(
+        StrCat(GTestTempDir(), "/"), StrCat(GTestTempDir(), "/"),
+        delegate_.get());
   }
   ImageLibraryInterface::Image* ReadFromFile(const StringPiece& filename) {
     return src_library_->ReadFromFile(filename.as_string());
@@ -70,12 +71,12 @@ class LibpngImageLibraryTest : public testing::Test {
   std::unique_ptr<LogDelegate> delegate_;
 };
 
-
 TEST_F(LibpngImageLibraryTest, TestCompose) {
   //  65x70
   std::unique_ptr<ImageLibraryInterface::Image> image1(ReadFromFile(kCuppa));
   // 100x100
-  std::unique_ptr<ImageLibraryInterface::Image> image2(ReadFromFile(kBikeCrash));
+  std::unique_ptr<ImageLibraryInterface::Image> image2(
+      ReadFromFile(kBikeCrash));
   ASSERT_TRUE(image1.get() != nullptr);
   ASSERT_TRUE(image2.get() != nullptr);
   std::unique_ptr<ImageLibraryInterface::Canvas> canvas(CreateCanvas(100, 170));
@@ -83,7 +84,8 @@ TEST_F(LibpngImageLibraryTest, TestCompose) {
   ASSERT_TRUE(canvas->DrawImage(image1.get(), 0, 0));
   ASSERT_TRUE(canvas->DrawImage(image2.get(), 0, 70));
   ASSERT_TRUE(canvas->WriteToFile("out.png", PNG));
-  std::unique_ptr<ImageLibraryInterface::Image> image3(WriteAndRead(canvas.get()));
+  std::unique_ptr<ImageLibraryInterface::Image> image3(
+      WriteAndRead(canvas.get()));
   ASSERT_TRUE(image3.get() != nullptr);
   int width, height;
   ASSERT_TRUE(image3->GetDimensions(&width, &height));

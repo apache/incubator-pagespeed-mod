@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_HTML_HTML_ATTRIBUTE_QUOTE_REMOVAL_H_
 #define PAGESPEED_KERNEL_HTML_HTML_ATTRIBUTE_QUOTE_REMOVAL_H_
@@ -46,12 +45,10 @@ class HtmlAttributeQuoteRemoval : public EmptyHtmlFilter {
   explicit HtmlAttributeQuoteRemoval(HtmlParse* html_parse);
   ~HtmlAttributeQuoteRemoval() override;
   // Given context in object, does attribute value val require quotes?
-  bool NeedsQuotes(const char *val);
+  bool NeedsQuotes(const char* val);
   void StartElement(HtmlElement* element) override;
   // # of quote pairs removed from attributes in *all* documents processed.
-  int total_quotes_removed() const {
-    return total_quotes_removed_;
-  }
+  int total_quotes_removed() const { return total_quotes_removed_; }
 
   const char* Name() const override { return "HtmlAttributeQuoteRemoval"; }
 

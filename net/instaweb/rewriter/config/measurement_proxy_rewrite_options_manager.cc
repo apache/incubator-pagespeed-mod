@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,7 +26,6 @@
 //    domains.
 // 3) The rewriting should be blocking.
 
-
 #include "net/instaweb/rewriter/config/measurement_proxy_rewrite_options_manager.h"
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -41,16 +40,14 @@
 namespace net_instaweb {
 
 MeasurementProxyRewriteOptionsManager::MeasurementProxyRewriteOptionsManager(
-    const ServerContext* server_context,
-    const GoogleString& root_domain,
+    const ServerContext* server_context, const GoogleString& root_domain,
     const GoogleString& password)
-    : server_context_(server_context), root_domain_(root_domain),
-      password_(password) {
-}
+    : server_context_(server_context),
+      root_domain_(root_domain),
+      password_(password) {}
 
 void MeasurementProxyRewriteOptionsManager::GetRewriteOptions(
-    const GoogleUrl& url,
-    const RequestHeaders& headers,
+    const GoogleUrl& url, const RequestHeaders& headers,
     OptionsCallback* done) {
   RewriteOptions* options = server_context_->global_options()->Clone();
 
@@ -78,8 +75,8 @@ void MeasurementProxyRewriteOptionsManager::Force403(RewriteOptions* options) {
 }
 
 void MeasurementProxyRewriteOptionsManager::ApplyConfig(
-    const GoogleUrl& decoded_url, StringPiece config,
-    StringPiece config_domain, RewriteOptions* options) {
+    const GoogleUrl& decoded_url, StringPiece config, StringPiece config_domain,
+    RewriteOptions* options) {
   if (!decoded_url.IsWebValid()) {
     Force403(options);
     return;
@@ -106,7 +103,7 @@ void MeasurementProxyRewriteOptionsManager::ApplyConfig(
   if (config_domain_suffix == actual_domain_suffix) {
     options->WriteableDomainLawyer()->AddDomain(
         StrCat("http*://", config_domain_suffix),
-               server_context_->message_handler());
+        server_context_->message_handler());
     options->WriteableDomainLawyer()->AddDomain(
         StrCat("http*://*.", config_domain_suffix),
         server_context_->message_handler());

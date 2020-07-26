@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/image/image_analysis.h"
 
@@ -67,7 +66,7 @@ namespace image_compression {
 //   [  1  2  1 ]        [ 1 0 -1 ]
 //   [  0  0  0 ]        [ 2 0 -2 ]
 //   [ -1 -2 -1 ]        [ 1 0 -1 ]
-template<class T>
+template <class T>
 void ComputeGradientFromLuminance(const T* luminance, int width, int height,
                                   int elements_per_line, float norm_factor,
                                   uint8_t* gradient) {
@@ -116,14 +115,14 @@ bool SobelGradient(const uint8_t* image, int width, int height,
     ComputeGradientFromLuminance(image, width, height, bytes_per_line,
                                  norm_factor, gradient);
   } else {
-    int32_t* luminance = static_cast<int32_t*>(malloc(width * height *
-                                                      sizeof(int32_t)));
+    int32_t* luminance =
+        static_cast<int32_t*>(malloc(width * height * sizeof(int32_t)));
     if (luminance == nullptr) {
       return false;
     }
 
     const int num_channels =
-      GetNumChannelsFromPixelFormat(pixel_format, handler);
+        GetNumChannelsFromPixelFormat(pixel_format, handler);
 
     // Compute the luminance which is simply the average of R, G, and B
     // after applying the normalization factor.
@@ -194,12 +193,12 @@ float WidestPeakWidth(const float* hist, float threshold) {
 }
 
 float PhotoMetric(const uint8_t* image, int width, int height,
-                  int bytes_per_line, PixelFormat pixel_format,
-                  float threshold, MessageHandler* handler) {
+                  int bytes_per_line, PixelFormat pixel_format, float threshold,
+                  MessageHandler* handler) {
   const float KMinMetric = 0;
 
-  uint8_t* gradient = static_cast<uint8_t*>(malloc(width * height *
-                                                   sizeof(uint8_t)));
+  uint8_t* gradient =
+      static_cast<uint8_t*>(malloc(width * height * sizeof(uint8_t)));
   if (gradient == nullptr) {
     return KMinMetric;
   }
@@ -213,7 +212,7 @@ float PhotoMetric(const uint8_t* image, int width, int height,
   }
 
   float hist[kNumColorHistogramBins];
-  Histogram(gradient, width-2, height-2, width, 1, 1, hist);
+  Histogram(gradient, width - 2, height - 2, width, 1, 1, hist);
   free(gradient);
   return WidestPeakWidth(hist, threshold);
 }
@@ -226,19 +225,19 @@ bool IsPhoto(ScanlineReaderInterface* reader, MessageHandler* handler) {
   // channel, return false (i.e., not a photo). Most (>99%) images with
   // non-opaque alpha channel are not photo.
   if (reader->GetPixelFormat() == UNSUPPORTED ||
-      reader->GetPixelFormat() == RGBA_8888 ||
-      reader->GetImageWidth() == 0 || reader->GetImageHeight() == 0) {
+      reader->GetPixelFormat() == RGBA_8888 || reader->GetImageWidth() == 0 ||
+      reader->GetImageHeight() == 0) {
     return kDefaultReturnValue;
   }
 
   const int width = reader->GetImageWidth();
   const int height = reader->GetImageHeight();
   const PixelFormat pixel_format = reader->GetPixelFormat();
-  const int bytes_per_line = width *
-      GetNumChannelsFromPixelFormat(pixel_format, handler);
+  const int bytes_per_line =
+      width * GetNumChannelsFromPixelFormat(pixel_format, handler);
 
-  uint8_t* image = static_cast<uint8_t*>(malloc(bytes_per_line * height *
-                                                sizeof(uint8_t)));
+  uint8_t* image =
+      static_cast<uint8_t*>(malloc(bytes_per_line * height * sizeof(uint8_t)));
   if (image == nullptr) {
     return kDefaultReturnValue;
   }
@@ -253,24 +252,17 @@ bool IsPhoto(ScanlineReaderInterface* reader, MessageHandler* handler) {
     memcpy(image + y * bytes_per_line, scanline, bytes_per_line);
   }
 
-  float metric = PhotoMetric(image, width, height, bytes_per_line,
-                             pixel_format, kHistogramThreshold, handler);
+  float metric = PhotoMetric(image, width, height, bytes_per_line, pixel_format,
+                             kHistogramThreshold, handler);
   free(image);
   return metric >= kPhotoMetricThreshold;
 }
 
-bool AnalyzeImage(ImageFormat image_type,
-                  const void* image_buffer,
-                  size_t buffer_length,
-                  int* width,
-                  int* height,
-                  bool* is_progressive,
-                  bool* is_animated,
-                  bool* has_transparency,
-                  bool* is_photo,
-                  int* quality,
-                  ScanlineReaderInterface** reader,
-                  MessageHandler* handler) {
+bool AnalyzeImage(ImageFormat image_type, const void* image_buffer,
+                  size_t buffer_length, int* width, int* height,
+                  bool* is_progressive, bool* is_animated,
+                  bool* has_transparency, bool* is_photo, int* quality,
+                  ScanlineReaderInterface** reader, MessageHandler* handler) {
   std::unique_ptr<ScanlineReaderInterface> sf_reader;
   std::unique_ptr<PixelFormatOptimizer> optimizer;
   bool image_is_animated = false;
@@ -284,8 +276,8 @@ bool AnalyzeImage(ImageFormat image_type,
 
     // TODO(huibao): Upgrade WebpScanlineReader to support multiple frame
     // WebP images.
-    sf_reader.reset(CreateScanlineReader(image_type, image_buffer,
-                                         buffer_length, handler));
+    sf_reader.reset(
+        CreateScanlineReader(image_type, image_buffer, buffer_length, handler));
     if (sf_reader == nullptr) {
       return false;
     }
@@ -294,9 +286,8 @@ bool AnalyzeImage(ImageFormat image_type,
     // frames, we can only get its width and height; if not, we can convert
     // it to a scanline reader and find out whether it is a photo and/or
     // transparent.
-    std::unique_ptr<MultipleFrameReader> mf_reader(
-        CreateImageFrameReader(image_type, image_buffer, buffer_length,
-                               handler, &status));
+    std::unique_ptr<MultipleFrameReader> mf_reader(CreateImageFrameReader(
+        image_type, image_buffer, buffer_length, handler, &status));
     if (mf_reader == nullptr) {
       return false;
     }
@@ -311,7 +302,8 @@ bool AnalyzeImage(ImageFormat image_type,
       image_width = image_spec.width;
       image_height = image_spec.height;
     } else {
-      sf_reader = std::make_unique<FrameToScanlineReaderAdapter>(mf_reader.release());
+      sf_reader =
+          std::make_unique<FrameToScanlineReaderAdapter>(mf_reader.release());
       if (sf_reader == nullptr) {
         return false;
       }
@@ -353,7 +345,8 @@ bool AnalyzeImage(ImageFormat image_type,
   // for each frame since the frames may have different values. IsPhoto() may
   // return a single value for all of the frames because it is unlikely that
   // the image consists of both photos and graphics.
-  if (sf_reader != nullptr && (has_transparency != nullptr || is_photo != nullptr)) {
+  if (sf_reader != nullptr &&
+      (has_transparency != nullptr || is_photo != nullptr)) {
     // Initialize the optimizer which will remove alpha channel if it is
     // completely opaque.
     optimizer = std::make_unique<PixelFormatOptimizer>(handler);

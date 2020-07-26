@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,12 @@
  * under the License.
  */
 
+#include "net/instaweb/spriter/public/image_spriter.h"
+
 #include <vector>
 
 #include "base/logging.h"
 #include "net/instaweb/spriter/image_library_interface.h"
-#include "net/instaweb/spriter/public/image_spriter.h"
 #include "net/instaweb/spriter/public/image_spriter.pb.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/stl_util.h"
@@ -32,8 +33,7 @@ namespace spriter {
 ImageSpriter::ImageSpriter(ImageLibraryInterface* image_lib)
     : image_lib_(image_lib) {}
 
-SpriterResult* ImageSpriter::Sprite(
-    const SpriterInput& spriter_input) {
+SpriterResult* ImageSpriter::Sprite(const SpriterInput& spriter_input) {
   std::unique_ptr<SpriterResult> spriter_result(new SpriterResult);
 
   spriter_result->set_id(spriter_input.id());
@@ -57,18 +57,18 @@ SpriterResult* ImageSpriter::Sprite(
 }
 
 // XXX(oschaaf):
-template<class T>
+template <class T>
 class STLElementDeleter {
  public:
   STLElementDeleter<T>(T* container) : container_(container) {}
   ~STLElementDeleter<T>() { STLDeleteElements(container_); }
+
  private:
   T* container_;
 };
 
-bool ImageSpriter::DrawImagesInVerticalStrip(
-    const SpriterInput& spriter_input,
-    SpriterResult* spriter_result) {
+bool ImageSpriter::DrawImagesInVerticalStrip(const SpriterInput& spriter_input,
+                                             SpriterResult* spriter_result) {
   typedef std::vector<ImageLibraryInterface::Image*> ImagePointerVector;
   ImagePointerVector images;
   STLElementDeleter<ImagePointerVector> images_deleter(&images);
@@ -99,15 +99,13 @@ bool ImageSpriter::DrawImagesInVerticalStrip(
     rect->set_y_pos(total_y_offset);
 
     total_y_offset += height;
-    if (max_image_width < width)
-      max_image_width = width;
+    if (max_image_width < width) max_image_width = width;
   }
 
   // Write all images into a canvas, and write the canvas to a file.
   std::unique_ptr<ImageLibraryInterface::Canvas> canvas(
       image_lib_->CreateCanvas(max_image_width, total_y_offset));
-  if (!canvas.get())
-    return false;
+  if (!canvas.get()) return false;
 
   for (int i = 0, ie = images.size(); i < ie; ++i) {
     const Rect& image_pos = spriter_result->image_position(i).clip_rect();

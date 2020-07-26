@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/http/data_url.h"
 
@@ -51,7 +50,7 @@ const char kGifBase64Prefix[] = "data:image/gif;base64,";
 class DataUrlTest : public testing::Test {
  public:
   DataUrlTest()
-      : mixed_data_(kMixedDataChars, STATIC_STRLEN(kMixedDataChars)) { }
+      : mixed_data_(kMixedDataChars, STATIC_STRLEN(kMixedDataChars)) {}
 
  protected:
   // Make a ContentType yield readable failure output.  Needed this to fix bugs
@@ -64,23 +63,19 @@ class DataUrlTest : public testing::Test {
     }
   }
 
-  void TestDecoding(const bool can_parse,
-                    const bool can_decode,
-                    const GoogleString& prefix,
-                    const GoogleString& encoded,
-                    const ContentType* type,
-                    Encoding encoding,
+  void TestDecoding(const bool can_parse, const bool can_decode,
+                    const GoogleString& prefix, const GoogleString& encoded,
+                    const ContentType* type, Encoding encoding,
                     const GoogleString& decoded) {
     GoogleString url = prefix + encoded;
     const ContentType* parsed_type;
     Encoding parsed_encoding = UNKNOWN;
     StringPiece parsed_encoded;
-    EXPECT_EQ(can_parse,
-              ParseDataUrl(url, &parsed_type,
-                           &parsed_encoding, &parsed_encoded));
+    EXPECT_EQ(can_parse, ParseDataUrl(url, &parsed_type, &parsed_encoding,
+                                      &parsed_encoded));
     EXPECT_EQ(encoding, parsed_encoding);
-    EXPECT_EQ(type, parsed_type) << "type '" << Mime(type) <<
-        "' didn't match '" << Mime(parsed_type) << "'\n";
+    EXPECT_EQ(type, parsed_type) << "type '" << Mime(type) << "' didn't match '"
+                                 << Mime(parsed_type) << "'\n";
     EXPECT_EQ(encoded, parsed_encoded);
     GoogleString parsed_decoded;
     EXPECT_EQ(can_decode,
@@ -119,44 +114,44 @@ TEST_F(DataUrlTest, TestData1Base64) {
 }
 
 TEST_F(DataUrlTest, ParseDataPlain) {
-  TestDecoding(true, true, kPlainPrefix, kAsciiData,
-               &kContentTypeText, PLAIN, kAsciiData);
+  TestDecoding(true, true, kPlainPrefix, kAsciiData, &kContentTypeText, PLAIN,
+               kAsciiData);
 }
 
 TEST_F(DataUrlTest, ParseDataBase64) {
-  TestDecoding(true, true, kBase64Prefix, kAsciiDataBase64,
-               &kContentTypeText, BASE64, kAsciiData);
+  TestDecoding(true, true, kBase64Prefix, kAsciiDataBase64, &kContentTypeText,
+               BASE64, kAsciiData);
 }
 
 TEST_F(DataUrlTest, ParseData1Plain) {
-  TestDecoding(true, true, kPlainPrefix, mixed_data_,
-               &kContentTypeText, PLAIN, mixed_data_);
+  TestDecoding(true, true, kPlainPrefix, mixed_data_, &kContentTypeText, PLAIN,
+               mixed_data_);
 }
 
 TEST_F(DataUrlTest, ParseData1Base64) {
-  TestDecoding(true, true, kBase64Prefix, kMixedDataBase64,
-               &kContentTypeText, BASE64, mixed_data_);
+  TestDecoding(true, true, kBase64Prefix, kMixedDataBase64, &kContentTypeText,
+               BASE64, mixed_data_);
 }
 
 TEST_F(DataUrlTest, ParseBadProtocol) {
-  TestDecoding(false, false, "http://www.google.com/", "",
-               nullptr, UNKNOWN, "");
+  TestDecoding(false, false, "http://www.google.com/", "", nullptr, UNKNOWN,
+               "");
 }
 
 TEST_F(DataUrlTest, ParseNoComma) {
   TestDecoding(false, false,
-               StrCat("data:text/plain;base64;", kMixedDataBase64), "",
-               nullptr, UNKNOWN, "");
+               StrCat("data:text/plain;base64;", kMixedDataBase64), "", nullptr,
+               UNKNOWN, "");
 }
 
 TEST_F(DataUrlTest, ParseNoMime) {
-  TestDecoding(true, true, "data:;base64,", kMixedDataBase64,
-               nullptr, BASE64, mixed_data_);
+  TestDecoding(true, true, "data:;base64,", kMixedDataBase64, nullptr, BASE64,
+               mixed_data_);
 }
 
 TEST_F(DataUrlTest, ParseCorruptMime) {
-  TestDecoding(true, true, "data:#$!;base64,", kMixedDataBase64,
-               nullptr, BASE64, mixed_data_);
+  TestDecoding(true, true, "data:#$!;base64,", kMixedDataBase64, nullptr,
+               BASE64, mixed_data_);
 }
 
 TEST_F(DataUrlTest, ParseBadEncodingIsPlain) {

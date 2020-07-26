@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/simple_stats.h"
 
@@ -27,11 +26,9 @@
 namespace net_instaweb {
 
 SimpleStats::SimpleStats(ThreadSystem* thread_system)
-    : thread_system_(thread_system) {
-}
+    : thread_system_(thread_system) {}
 
-SimpleStats::~SimpleStats() {
-}
+SimpleStats::~SimpleStats() {}
 
 CountHistogram* SimpleStats::NewHistogram(StringPiece /*name*/) {
   return new CountHistogram(thread_system_->NewMutex());
@@ -52,12 +49,9 @@ SimpleStats::UpDown* SimpleStats::NewUpDownCounter(StringPiece name) {
 SimpleStatsVariable::SimpleStatsVariable(StringPiece name, Statistics* stats)
     : value_(0) {}
 
-SimpleStatsVariable::~SimpleStatsVariable() {
-}
+SimpleStatsVariable::~SimpleStatsVariable() {}
 
-int64 SimpleStatsVariable::GetLockHeld() const {
-  return value_;
-}
+int64 SimpleStatsVariable::GetLockHeld() const { return value_; }
 
 int64 SimpleStatsVariable::SetReturningPreviousValueLockHeld(int64 value) {
   int64 previous_value = value_;

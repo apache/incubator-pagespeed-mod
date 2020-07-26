@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,9 @@
  * under the License.
  */
 
-
+#include "pagespeed/kernel/util/hashed_nonce_generator.h"
 
 #include <memory>
-
-
-
-#include "pagespeed/kernel/util/hashed_nonce_generator.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -53,9 +49,7 @@ class HashedNonceGeneratorTest : public NonceGeneratorTestBase {
   std::unique_ptr<NonceGenerator> duplicate_generator_;
 };
 
-TEST_F(HashedNonceGeneratorTest, DuplicateFreedom) {
-  DuplicateFreedom();
-}
+TEST_F(HashedNonceGeneratorTest, DuplicateFreedom) { DuplicateFreedom(); }
 
 // Show that two identically-constructed generators will produce duplicate
 // results.  Not a requirement, but an important caveat for this generator.
@@ -66,18 +60,14 @@ TEST_F(HashedNonceGeneratorTest, DuplicateGeneration) {
   }
 }
 
-TEST_F(HashedNonceGeneratorTest, DifferentNonOverlap) {
-  DifferentNonOverlap();
-}
+TEST_F(HashedNonceGeneratorTest, DifferentNonOverlap) { DifferentNonOverlap(); }
 
 // Show that all bits change state at some point reasonably early in the
 // generation of nonces.  We do this by making sure we see a 0 and a 1 in each
 // bit position.  We do that by setting bits in a pair of bit masks for each 0
 // and 1 found.  When we're done, any remaining clear bits correspond to bit
 // positions that didn't change.
-TEST_F(HashedNonceGeneratorTest, AllBitsUsed) {
-  AllBitsUsed();
-}
+TEST_F(HashedNonceGeneratorTest, AllBitsUsed) { AllBitsUsed(); }
 
 }  // namespace
 }  // namespace net_instaweb

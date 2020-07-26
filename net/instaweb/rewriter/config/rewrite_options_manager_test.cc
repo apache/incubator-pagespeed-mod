@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,19 +39,17 @@ namespace net_instaweb {
 
 namespace {
 
-template<class T>
+template <class T>
 void Copy(T* to, T from) {
   *to = from;
 }
 
-class RewriteOptionsManagerTest :
-      public RewriteOptionsTestBase<RewriteOptions> {
+class RewriteOptionsManagerTest
+    : public RewriteOptionsTestBase<RewriteOptions> {
  protected:
-  RewriteOptionsManagerTest()
-      : timer_(Platform::CreateTimer()) {
+  RewriteOptionsManagerTest() : timer_(Platform::CreateTimer()) {
     request_context_.reset(
-        new RequestContext(thread_system()->NewMutex(),
-                           timer_.get()));
+        new RequestContext(thread_system()->NewMutex(), timer_.get()));
   }
 
   void RunGetRewriteOptionsTest() {
@@ -71,8 +69,7 @@ class RewriteOptionsManagerTest :
 
   bool PrepareRequest(const RewriteOptions* rewrite_options,
                       const RequestContextPtr& request_context,
-                      GoogleString* url,
-                      RequestHeaders* request_headers) {
+                      GoogleString* url, RequestHeaders* request_headers) {
     prepare_done_ = false;
 
     options_manager_.PrepareRequest(
@@ -103,23 +100,24 @@ TEST_F(RewriteOptionsManagerTest, GetRewriteOptions) {
 TEST_F(RewriteOptionsManagerTest, Prepare_NULLOptions) {
   GoogleString url;
   RequestHeaders request_headers;
-  ASSERT_TRUE(PrepareRequest(nullptr, request_context_, &url, &request_headers));
+  ASSERT_TRUE(
+      PrepareRequest(nullptr, request_context_, &url, &request_headers));
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_InvalidUrl) {
   std::unique_ptr<RewriteOptions> default_options(NewOptions());
   GoogleString url("invalid_url");
   RequestHeaders request_headers;
-  ASSERT_FALSE(PrepareRequest(
-      default_options.get(), request_context_, &url, &request_headers));
+  ASSERT_FALSE(PrepareRequest(default_options.get(), request_context_, &url,
+                              &request_headers));
 }
 
 TEST_F(RewriteOptionsManagerTest, Prepare_NotProxy) {
   std::unique_ptr<RewriteOptions> default_options(NewOptions());
   GoogleString url("http://www.foo.com");
   RequestHeaders request_headers;
-  ASSERT_TRUE(PrepareRequest(
-      default_options.get(), request_context_, &url, &request_headers));
+  ASSERT_TRUE(PrepareRequest(default_options.get(), request_context_, &url,
+                             &request_headers));
 
   // Domains that aren't proxied should have the host header.
   const GoogleString host_header =
@@ -130,15 +128,12 @@ TEST_F(RewriteOptionsManagerTest, Prepare_NotProxy) {
 TEST_F(RewriteOptionsManagerTest, Prepare_Proxy) {
   std::unique_ptr<RewriteOptions> default_options(NewOptions());
   ASSERT_TRUE(default_options->WriteableDomainLawyer()->AddProxyDomainMapping(
-      "www.foo.com",
-      "www.origin.com",
-      "",
-      nullptr));
+      "www.foo.com", "www.origin.com", "", nullptr));
 
   GoogleString url("http://www.foo.com");
   RequestHeaders request_headers;
-  ASSERT_TRUE(PrepareRequest(
-      default_options.get(), request_context_, &url, &request_headers));
+  ASSERT_TRUE(PrepareRequest(default_options.get(), request_context_, &url,
+                             &request_headers));
   ASSERT_TRUE(nullptr == request_headers.Lookup1(HttpAttributes::kHost));
 }
 
@@ -149,18 +144,18 @@ TEST_F(RewriteOptionsManagerTest, Prepare_ProxySuffix) {
 
   GoogleString url("http://www.foo.com");
   RequestHeaders request_headers;
-  ASSERT_TRUE(PrepareRequest(
-      default_options.get(), request_context_, &url, &request_headers));
-  EXPECT_FALSE(request_context_->IsSessionAuthorizedFetchOrigin(
-      "http://www.foo.com"));
+  ASSERT_TRUE(PrepareRequest(default_options.get(), request_context_, &url,
+                             &request_headers));
+  EXPECT_FALSE(
+      request_context_->IsSessionAuthorizedFetchOrigin("http://www.foo.com"));
   EXPECT_STREQ("www.foo.com", request_headers.Lookup1(HttpAttributes::kHost));
 
   request_headers.Clear();
   url = "http://www.foo.com.suffix";
-  ASSERT_TRUE(PrepareRequest(
-      default_options.get(), request_context_, &url, &request_headers));
-  EXPECT_TRUE(request_context_->IsSessionAuthorizedFetchOrigin(
-      "http://www.foo.com"));
+  ASSERT_TRUE(PrepareRequest(default_options.get(), request_context_, &url,
+                             &request_headers));
+  EXPECT_TRUE(
+      request_context_->IsSessionAuthorizedFetchOrigin("http://www.foo.com"));
   EXPECT_STREQ("www.foo.com", request_headers.Lookup1(HttpAttributes::kHost));
 }
 

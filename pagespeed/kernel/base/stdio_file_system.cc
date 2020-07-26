@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/stdio_file_system.h"
 
-#include <cerrno>
 #include <sys/stat.h>
 #include <utime.h>
+
+#include <cerrno>
 #ifdef WIN32
 #include <direct.h>
 #include <io.h>
@@ -40,7 +40,6 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/debug.h"
 #include "pagespeed/kernel/base/file_system.h"
@@ -48,6 +47,7 @@
 #include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/timer.h"
 
 namespace {
 // The st_blocks field returned by stat is the number of 512B blocks allocated
@@ -68,15 +68,11 @@ namespace net_instaweb {
 class StdioFileHelper {
  public:
   StdioFileHelper(FILE* f, const StringPiece& filename, StdioFileSystem* fs)
-      : file_(f),
-        file_system_(fs),
-        start_us_(0) {
+      : file_(f), file_system_(fs), start_us_(0) {
     filename.CopyToString(&filename_);
   }
 
-  ~StdioFileHelper() {
-    CHECK(file_ == nullptr);
-  }
+  ~StdioFileHelper() { CHECK(file_ == nullptr); }
 
   void ReportError(MessageHandler* message_handler, const char* context) {
     message_handler->Message(kError, "%s: %s %d(%s)", filename_.c_str(),
@@ -95,14 +91,11 @@ class StdioFileHelper {
     return ret;
   }
 
-  void StartTimer() {
-    start_us_ = file_system_->StartTimer();
-  }
+  void StartTimer() { start_us_ = file_system_->StartTimer(); }
 
   void EndTimer(const char* operation) {
     file_system_->EndTimer(filename_.c_str(), operation, start_us_);
   }
-
 
   FILE* file_;
   GoogleString filename_;
@@ -116,8 +109,7 @@ class StdioFileHelper {
 class StdioInputFile : public FileSystem::InputFile {
  public:
   StdioInputFile(FILE* f, const StringPiece& filename, StdioFileSystem* fs)
-      : file_helper_(f, filename, fs) {
-  }
+      : file_helper_(f, filename, fs) {}
 
   bool ReadFile(GoogleString* buf, int64 max_file_size,
                 MessageHandler* message_handler) override {
@@ -165,8 +157,7 @@ class StdioInputFile : public FileSystem::InputFile {
 class StdioOutputFile : public FileSystem::OutputFile {
  public:
   StdioOutputFile(FILE* f, const StringPiece& filename, StdioFileSystem* fs)
-      : file_helper_(f, filename, fs) {
-  }
+      : file_helper_(f, filename, fs) {}
 
   bool Write(const StringPiece& buf, MessageHandler* handler) override {
     file_helper_.StartTimer();
@@ -222,11 +213,9 @@ StdioFileSystem::StdioFileSystem()
       statistics_(nullptr),
       outstanding_ops_(nullptr),
       slow_ops_(nullptr),
-      total_ops_(nullptr) {
-}
+      total_ops_(nullptr) {}
 
-StdioFileSystem::~StdioFileSystem() {
-}
+StdioFileSystem::~StdioFileSystem() {}
 
 void StdioFileSystem::InitStats(Statistics* stats) {
   stats->AddUpDownCounter(kOutstandingOps);
@@ -272,7 +261,8 @@ void StdioFileSystem::EndTimer(const char* filename, const char* operation,
         slow_ops_->Add(1);
       }
       message_handler_->Message(
-          kError, "Slow %s operation on file %s: %gms; "
+          kError,
+          "Slow %s operation on file %s: %gms; "
           "configure SlowFileLatencyUs to change threshold\n",
           operation, filename, latency_us / 1000.0);
     }
@@ -311,7 +301,6 @@ FileSystem::InputFile* StdioFileSystem::OpenInputFile(
   return input_file;
 }
 
-
 FileSystem::OutputFile* StdioFileSystem::OpenOutputFileHelper(
     const char* filename, bool append, MessageHandler* message_handler) {
   FileSystem::OutputFile* output_file = nullptr;
@@ -321,8 +310,8 @@ FileSystem::OutputFile* StdioFileSystem::OpenOutputFileHelper(
     const char* mode = append ? "a" : "w";
     FILE* f = fopen(filename, mode);
     if (f == nullptr) {
-      message_handler->Error(filename, 0,
-                             "opening output file: %s", strerror(errno));
+      message_handler->Error(filename, 0, "opening output file: %s",
+                             strerror(errno));
     } else {
       output_file = new StdioOutputFile(f, filename, this);
     }
@@ -351,8 +340,8 @@ FileSystem::OutputFile* StdioFileSystem::OpenTempFileHelper(
 #endif  // WIN32
   OutputFile* output_file = nullptr;
   if (fd < 0) {
-    message_handler->Error(template_name, 0,
-                           "opening temp file: %s", strerror(errno));
+    message_handler->Error(template_name, 0, "opening temp file: %s",
+                           strerror(errno));
   } else {
 #ifdef WIN32
     FILE* f = _fdopen(fd, "w");
@@ -365,8 +354,8 @@ FileSystem::OutputFile* StdioFileSystem::OpenTempFileHelper(
 #endif
 
       // If we failed to open the temp file, silently clean it before returning.
-      message_handler->Error(template_name, 0,
-                             "re-opening temp file: %s", strerror(errno));
+      message_handler->Error(template_name, 0, "re-opening temp file: %s",
+                             strerror(errno));
       NullMessageHandler null_message_handler;
       RemoveFile(template_name, &null_message_handler);
     } else {
@@ -374,17 +363,16 @@ FileSystem::OutputFile* StdioFileSystem::OpenTempFileHelper(
     }
   }
 
-  delete [] template_name;
+  delete[] template_name;
   return output_file;
 }
-
 
 bool StdioFileSystem::RemoveFile(const char* filename,
                                  MessageHandler* handler) {
   bool ret = (remove(filename) == 0);
   if (!ret) {
-    handler->Message(kError, "Failed to delete file %s: %s",
-                     filename, strerror(errno));
+    handler->Message(kError, "Failed to delete file %s: %s", filename,
+                     strerror(errno));
   }
   return ret;
 }
@@ -394,8 +382,8 @@ bool StdioFileSystem::RenameFileHelper(const char* old_file,
                                        MessageHandler* handler) {
   bool ret = (rename(old_file, new_file) == 0);
   if (!ret) {
-    handler->Message(kError, "Failed to rename file %s to %s: %s",
-                     old_file, new_file, strerror(errno));
+    handler->Message(kError, "Failed to rename file %s to %s: %s", old_file,
+                     new_file, strerror(errno));
   }
   return ret;
 }
@@ -408,8 +396,8 @@ bool StdioFileSystem::MakeDir(const char* path, MessageHandler* handler) {
   bool ret = (mkdir(path, 0777) == 0);
 #endif  // WIN32
   if (!ret) {
-    handler->Message(kError, "Failed to make directory %s: %s",
-                     path, strerror(errno));
+    handler->Message(kError, "Failed to make directory %s: %s", path,
+                     strerror(errno));
   }
   return ret;
 }
@@ -421,8 +409,8 @@ bool StdioFileSystem::RemoveDir(const char* path, MessageHandler* handler) {
   bool ret = (rmdir(path) == 0);
 #endif  // WIN32
   if (!ret) {
-    handler->Message(kError, "Failed to remove directory %s: %s",
-                     path, strerror(errno));
+    handler->Message(kError, "Failed to remove directory %s: %s", path,
+                     strerror(errno));
   }
   return ret;
 }
@@ -431,8 +419,7 @@ BoolOrError StdioFileSystem::Exists(const char* path, MessageHandler* handler) {
   struct stat statbuf;
   BoolOrError ret(stat(path, &statbuf) == 0);
   if (ret.is_false() && errno != ENOENT) {  // Not error if file doesn't exist.
-    handler->Message(kError, "Failed to stat %s: %s",
-                     path, strerror(errno));
+    handler->Message(kError, "Failed to stat %s: %s", path, strerror(errno));
     ret.set_error();
   }
   return ret;
@@ -446,10 +433,9 @@ BoolOrError StdioFileSystem::IsDir(const char* path, MessageHandler* handler) {
     ret.set((statbuf.st_mode & _S_IFDIR) != 0);
 #else
     ret.set(S_ISDIR(statbuf.st_mode));
-#endif  // WIN32
+#endif                           // WIN32
   } else if (errno != ENOENT) {  // Not an error if file doesn't exist.
-    handler->Message(kError, "Failed to stat %s: %s",
-                     path, strerror(errno));
+    handler->Message(kError, "Failed to stat %s: %s", path, strerror(errno));
     ret.set_error();
   }
   return ret;
@@ -468,8 +454,8 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
   WIN32_FIND_DATA entry;
   HANDLE iter = FindFirstFile(wpattern.c_str(), &entry);
   if (iter == INVALID_HANDLE_VALUE) {
-    handler->Error(dir_string.c_str(), 0,
-                   "Failed to FindFirstFile: %s", strerror(errno));
+    handler->Error(dir_string.c_str(), 0, "Failed to FindFirstFile: %s",
+                   strerror(errno));
     return false;
   }
   do {
@@ -480,8 +466,8 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
     }
   } while (FindNextFile(iter, &entry) != 0);
   if (GetLastError() != ERROR_NO_MORE_FILES) {
-    handler->Error(dir_string.c_str(), 0,
-                   "Failed to FindNextFile: %s", strerror(errno));
+    handler->Error(dir_string.c_str(), 0, "Failed to FindNextFile: %s",
+                   strerror(errno));
     FindClose(iter);
     return false;
   }
@@ -493,7 +479,7 @@ bool StdioFileSystem::ListContents(const StringPiece& dir, StringVector* files,
   const char* dirname = dir_string.c_str();
   DIR* mydir = opendir(dirname);
   if (mydir == nullptr) {
-      handler->Error(dirname, 0, "Failed to opendir: %s", strerror(errno));
+    handler->Error(dirname, 0, "Failed to opendir: %s", strerror(errno));
     return false;
   } else {
     dirent* entry = nullptr;
@@ -584,8 +570,8 @@ BoolOrError StdioFileSystem::TryLock(const StringPiece& lock_name,
   } else if (errno == EEXIST) {
     return BoolOrError(false);
   } else {
-    handler->Message(kError, "Failed to mkdir %s: %s",
-                     lock_str, strerror(errno));
+    handler->Message(kError, "Failed to mkdir %s: %s", lock_str,
+                     strerror(errno));
     return BoolOrError();
   }
 }
@@ -649,8 +635,8 @@ bool StdioFileSystem::BumpLockTimeout(const StringPiece& lock_name,
   bool success = utime(lock_name.as_string().c_str(),
                        nullptr /* update mtime to current time */) == 0;
   if (!success) {
-    handler->Info(lock_name.as_string().c_str(), 0,
-                  "Failed to bump lock: %s", strerror(errno));
+    handler->Info(lock_name.as_string().c_str(), 0, "Failed to bump lock: %s",
+                  strerror(errno));
   }
   return success;
 }
@@ -666,8 +652,8 @@ bool StdioFileSystem::Unlock(const StringPiece& lock_name,
 #endif  // WIN32
     return true;
   } else {
-    handler->Message(kError, "Failed to rmdir %s: %s",
-                     lock_str, strerror(errno));
+    handler->Message(kError, "Failed to rmdir %s: %s", lock_str,
+                     strerror(errno));
     return false;
   }
 }

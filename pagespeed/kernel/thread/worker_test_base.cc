@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,8 +32,7 @@ WorkerTestBase::WorkerTestBase() {
   thread_runtime_.reset(Platform::CreateThreadSystem());
 }
 
-WorkerTestBase::~WorkerTestBase() {
-}
+WorkerTestBase::~WorkerTestBase() {}
 
 WorkerTestBase::SyncPoint::SyncPoint(ThreadSystem* thread_system)
     : done_(false),
@@ -56,15 +55,11 @@ void WorkerTestBase::SyncPoint::Notify() {
 WorkerTestBase::NotifyRunFunction::NotifyRunFunction(SyncPoint* sync)
     : sync_(sync) {}
 
-void WorkerTestBase::NotifyRunFunction::Run() {
-  sync_->Notify();
-}
+void WorkerTestBase::NotifyRunFunction::Run() { sync_->Notify(); }
 
 WorkerTestBase::WaitRunFunction::WaitRunFunction(SyncPoint* sync)
     : sync_(sync) {}
 
-void WorkerTestBase::WaitRunFunction::Run() {
-  sync_->Wait();
-}
+void WorkerTestBase::WaitRunFunction::Run() { sync_->Wait(); }
 
 }  // namespace net_instaweb

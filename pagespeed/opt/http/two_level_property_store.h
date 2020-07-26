@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -46,23 +46,17 @@ class TwoLevelPropertyStore : public PropertyStore {
   // It issues a lookup on the primary_property_store and lookup on
   // secondary_property_store will only be issued if properties are not
   // available in primary_property_store and lookup is not yet cancelled.
-  void Get(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
-      const GoogleString& cache_key_suffix,
-      const PropertyCache::CohortVector& cohort_list,
-      PropertyPage* page,
-      BoolCallback* done,
-      AbstractPropertyStoreGetCallback** callback) override;
+  void Get(const GoogleString& url, const GoogleString& options_signature_hash,
+           const GoogleString& cache_key_suffix,
+           const PropertyCache::CohortVector& cohort_list, PropertyPage* page,
+           BoolCallback* done,
+           AbstractPropertyStoreGetCallback** callback) override;
 
   // Write to both the storage system for the given key.
-  void Put(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
-      const GoogleString& cache_key_suffix,
-      const PropertyCache::Cohort* cohort,
-      const PropertyCacheValues* values,
-      BoolCallback* done) override;
+  void Put(const GoogleString& url, const GoogleString& options_signature_hash,
+           const GoogleString& cache_key_suffix,
+           const PropertyCache::Cohort* cohort,
+           const PropertyCacheValues* values, BoolCallback* done) override;
 
   GoogleString Name() const override;
 

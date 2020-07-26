@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/resource_namer.h"
 
@@ -32,16 +31,15 @@ namespace {
 
 class ResourceNamerTest : public testing::Test {
  protected:
-  ResourceNamerTest() { }
+  ResourceNamerTest() {}
 
   void TestCopyAndSize(int signature_length) {
     MockHasher mock_hasher(full_name_.hash());
     ResourceNamer copy;
     copy.CopyFrom(full_name_);
     EXPECT_STREQ(copy.Encode(), full_name_.Encode());
-    EXPECT_EQ(
-        full_name_.EventualSize(mock_hasher, signature_length),
-        full_name_.Encode().size());
+    EXPECT_EQ(full_name_.EventualSize(mock_hasher, signature_length),
+              full_name_.Encode().size());
   }
 
   ResourceNamer full_name_;
@@ -57,8 +55,7 @@ TEST_F(ResourceNamerTest, TestEncode) {
   TestCopyAndSize(0);
   EXPECT_STREQ("name.ext.as.many.as.I.like.pagespeed.id.hash.ext",
                full_name_.Encode());
-  EXPECT_STREQ("id.name.ext.as.many.as.I.like",
-               full_name_.EncodeIdName());
+  EXPECT_STREQ("id.name.ext.as.many.as.I.like", full_name_.EncodeIdName());
   full_name_.set_experiment("q");
   TestCopyAndSize(0);
   EXPECT_STREQ("name.ext.as.many.as.I.like.pagespeed.q.id.hash.ext",
@@ -264,9 +261,9 @@ TEST_F(ResourceNamerTest, TestSizeWithoutHash_HashNotSet) {
   full_name_.set_id("id");
   full_name_.set_ext("ext");
   EXPECT_EQ(STATIC_STRLEN("file.css") + STATIC_STRLEN("id") +
-            STATIC_STRLEN("ext") + ResourceNamer::kOverhead +
-            md5_hasher.HashSizeInChars(),
-            full_name_.EventualSize(md5_hasher, 0  /*signature size*/));
+                STATIC_STRLEN("ext") + ResourceNamer::kOverhead +
+                md5_hasher.HashSizeInChars(),
+            full_name_.EventualSize(md5_hasher, 0 /*signature size*/));
 }
 
 }  // namespace

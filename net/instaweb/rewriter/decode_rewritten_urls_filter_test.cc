@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -75,8 +75,9 @@ TEST_F(DecodeRewrittenUrlsFilterTest, TestAll) {
       "<script src=\"http://test.com/d.js\"></script>"
       "</body></html>";
   ValidateExpected("different_urls", input_html, output_html);
-  EXPECT_EQ(4, rewrite_driver()->log_record()->logging_info()->
-            rewriter_info().size());
+  EXPECT_EQ(
+      4,
+      rewrite_driver()->log_record()->logging_info()->rewriter_info().size());
   ExpectLogRecord(0, RewriterApplication::APPLIED_OK);
   ExpectLogRecord(1, RewriterApplication::NOT_APPLIED);
   ExpectLogRecord(2, RewriterApplication::APPLIED_OK);

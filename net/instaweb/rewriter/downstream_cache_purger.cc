@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/downstream_cache_purger.h"
 
@@ -45,17 +44,18 @@ class StringAsyncFetchWithAsyncCountUpdates : public StringAsyncFetch {
  public:
   StringAsyncFetchWithAsyncCountUpdates(const RequestContextPtr& ctx,
                                         RewriteDriver* driver)
-      : StringAsyncFetch(ctx),
-        driver_(driver) {
+      : StringAsyncFetch(ctx), driver_(driver) {
     driver_->IncrementAsyncEventsCount();
   }
 
-  ~StringAsyncFetchWithAsyncCountUpdates() override { }
+  ~StringAsyncFetchWithAsyncCountUpdates() override {}
 
   void HandleDone(bool success) override {
     if (response_headers()->status_code() == HttpStatus::kOK) {
-      driver_->server_context()->rewrite_stats()->
-          successful_downstream_cache_purges()->Add(1);
+      driver_->server_context()
+          ->rewrite_stats()
+          ->successful_downstream_cache_purges()
+          ->Add(1);
     }
     StringAsyncFetch::HandleDone(success);
     driver_->DecrementAsyncEventsCount();
@@ -71,9 +71,7 @@ class StringAsyncFetchWithAsyncCountUpdates : public StringAsyncFetch {
 }  // namespace
 
 DownstreamCachePurger::DownstreamCachePurger(RewriteDriver* driver)
-    : driver_(driver),
-      made_downstream_purge_attempt_(false) {
-}
+    : driver_(driver), made_downstream_purge_attempt_(false) {}
 
 DownstreamCachePurger::~DownstreamCachePurger() {}
 
@@ -85,9 +83,9 @@ void DownstreamCachePurger::Clear() {
 
 bool DownstreamCachePurger::GeneratePurgeRequestParameters(
     const GoogleUrl& page_url) {
-  purge_url_ = StrCat(
-      driver_->options()->downstream_cache_purge_location_prefix(),
-      page_url.PathAndLeaf());
+  purge_url_ =
+      StrCat(driver_->options()->downstream_cache_purge_location_prefix(),
+             page_url.PathAndLeaf());
   purge_method_ = driver_->options()->downstream_cache_purge_method();
   return (!purge_url_.empty() && !purge_method_.empty());
 }
@@ -113,14 +111,13 @@ bool DownstreamCachePurger::ShouldPurgeRewrittenResponse(
   float served_rewritten_percentage =
       ((driver_->num_initiated_rewrites() - driver_->num_detached_rewrites()) *
        100.0) /
-       driver_->num_initiated_rewrites();
+      driver_->num_initiated_rewrites();
   if (served_rewritten_percentage <
       driver_->options()->downstream_cache_rewritten_percentage_threshold()) {
     driver_->message_handler()->Message(
         kInfo,
         "Should purge \"%s\" which was served with only %d%% rewriting done.",
-        google_url.spec_c_str(),
-        static_cast<int>(served_rewritten_percentage));
+        google_url.spec_c_str(), static_cast<int>(served_rewritten_percentage));
     return true;
   }
   return false;
@@ -142,8 +139,8 @@ void DownstreamCachePurger::PurgeDownstreamCache() {
   // issue multiple purges using the same RewriteDriver object.
   made_downstream_purge_attempt_ = true;
 
-  driver_->message_handler()->Message(kInfo,
-                                      "Purge url is %s", purge_url_.c_str());
+  driver_->message_handler()->Message(kInfo, "Purge url is %s",
+                                      purge_url_.c_str());
   driver_->async_fetcher()->Fetch(purge_url_, driver_->message_handler(),
                                   dummy_fetch);
 }
@@ -159,11 +156,12 @@ bool DownstreamCachePurger::MaybeIssuePurge(const GoogleUrl& google_url) {
       driver_->request_headers() != nullptr &&
       driver_->request_headers()->Lookup1(kPsaPurgeRequest) == nullptr &&
       driver_->request_headers()->method() == RequestHeaders::kGet &&
-      google_url.IsWebValid() &&
-      ShouldPurgeRewrittenResponse(google_url) &&
+      google_url.IsWebValid() && ShouldPurgeRewrittenResponse(google_url) &&
       GeneratePurgeRequestParameters(google_url)) {
-    driver_->server_context()->rewrite_stats()->
-         downstream_cache_purge_attempts()->Add(1);
+    driver_->server_context()
+        ->rewrite_stats()
+        ->downstream_cache_purge_attempts()
+        ->Add(1);
     // Purge old version from cache since we will have a better rewritten
     // version available on the next request. The purge request will
     // use the same request headers as the request (and hence the same

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/url_segment_encoder.h"
 
@@ -29,8 +28,7 @@ namespace net_instaweb {
 class MessageHandler;
 class ResourceContext;
 
-UrlSegmentEncoder::~UrlSegmentEncoder() {
-}
+UrlSegmentEncoder::~UrlSegmentEncoder() {}
 
 void UrlSegmentEncoder::Encode(const StringVector& urls,
                                const ResourceContext* data,
@@ -40,8 +38,7 @@ void UrlSegmentEncoder::Encode(const StringVector& urls,
 }
 
 bool UrlSegmentEncoder::Decode(const StringPiece& url_segment,
-                               StringVector* urls,
-                               ResourceContext* out_data,
+                               StringVector* urls, ResourceContext* out_data,
                                MessageHandler* handler) const {
   urls->clear();
   urls->push_back(GoogleString());

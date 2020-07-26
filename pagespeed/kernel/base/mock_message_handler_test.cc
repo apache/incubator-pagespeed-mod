@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,10 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/base/mock_message_handler.h"
 
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string_writer.h"
@@ -47,8 +47,7 @@ class MockMessageHandlerTest : public testing::Test {
     EXPECT_EQ(expectFatal, handler_.MessagesOfType(kFatal));
   }
 
-  void CheckSkippedCounts(int expectSkippedInfo,
-                          int expectSkippedWarn,
+  void CheckSkippedCounts(int expectSkippedInfo, int expectSkippedWarn,
                           int expectSkippedError) {
     EXPECT_EQ(expectSkippedInfo, handler_.SkippedMessagesOfType(kInfo));
     EXPECT_EQ(expectSkippedWarn, handler_.SkippedMessagesOfType(kWarning));
@@ -64,7 +63,6 @@ class MockMessageHandlerTest : public testing::Test {
 
   MockMessageHandler handler_;
 };
-
 
 TEST_F(MockMessageHandlerTest, Simple) {
   EXPECT_EQ(0, handler_.TotalMessages());

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/thread/mock_scheduler.h"
 
@@ -44,7 +43,7 @@ const int64 kWaitMs = 100 * Timer::kYearMs;
 class TestAlarm : public Function {
  public:
   TestAlarm() {}
-  void Run() override { }
+  void Run() override {}
 };
 
 // This is an alarm implementation which adds new alarms and optionally advances
@@ -55,9 +54,7 @@ class ChainedAlarm : public Function {
   // between each alarm.  If 'advance' is set, it will advance time forward
   // by 100ms on each call so that the chain unwinds itself.
   ChainedAlarm(MockScheduler* scheduler, int* count, bool advance)
-      : scheduler_(scheduler),
-        count_(count),
-        advance_(advance) {}
+      : scheduler_(scheduler), count_(count), advance_(advance) {}
 
   void Run() override {
     if (--*count_ > 0) {
@@ -91,22 +88,19 @@ class MockSchedulerTest : public testing::Test {
 
   Scheduler::Alarm* AddTask(int64 wakeup_time_us, char c) {
     // TODO(jefftk): switch to using MakeFunction without template qualification
-    Function* append_char = MakeFunction<GoogleString, char>(
-        &string_, &GoogleString::push_back, c);
+    Function* append_char =
+        MakeFunction<GoogleString, char>(&string_, &GoogleString::push_back, c);
     return scheduler_->AddAlarmAtUs(wakeup_time_us, append_char);
   }
 
-  void Run() {
-    was_run_ = true;
-  }
+  void Run() { was_run_ = true; }
 
-  void Cancel() {
-    was_cancelled_ = true;
-  }
+  void Cancel() { was_cancelled_ = true; }
 
   Scheduler::Alarm* AddRunCancelAlarmUs(int64 wakeup_time_us) {
-    return scheduler_->AddAlarmAtUs(wakeup_time_us, MakeFunction(
-        this, &MockSchedulerTest::Run, &MockSchedulerTest::Cancel));
+    return scheduler_->AddAlarmAtUs(wakeup_time_us,
+                                    MakeFunction(this, &MockSchedulerTest::Run,
+                                                 &MockSchedulerTest::Cancel));
   }
 
   void AdvanceTimeMs(int64 interval_ms) {
@@ -175,8 +169,8 @@ TEST_F(MockSchedulerTest, Cancellation) {
 // Verifies that we can add a new alarm from an Alarm::Run() method.
 TEST_F(MockSchedulerTest, ChainedAlarms) {
   int count = 10;
-  scheduler_->AddAlarmAtUs(
-      100, new ChainedAlarm(scheduler_.get(), &count, false));
+  scheduler_->AddAlarmAtUs(100,
+                           new ChainedAlarm(scheduler_.get(), &count, false));
   AdvanceTimeUs(1000);
   EXPECT_EQ(0, count);
 }
@@ -184,8 +178,8 @@ TEST_F(MockSchedulerTest, ChainedAlarms) {
 // Verifies that we can advance time from an Alarm::Run() method.
 TEST_F(MockSchedulerTest, AdvanceFromRun) {
   int count = 10;
-  scheduler_->AddAlarmAtUs(
-      100, new ChainedAlarm(scheduler_.get(), &count, true));
+  scheduler_->AddAlarmAtUs(100,
+                           new ChainedAlarm(scheduler_.get(), &count, true));
   AdvanceTimeUs(100);
   EXPECT_EQ(0, count);
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/annotated_message_handler.h"
 
@@ -29,23 +28,22 @@ namespace net_instaweb {
 
 namespace {
 
-  const int kLineNumber = 123;
-  const char kEmptyString[] = "";
-  const char kFileName[] = "my_file.cc";
-  const char kMessage1[] = "Message No. 1.";
-  const char kMessage2[] = "Message No. 2.";
-  const char kMessage3[] = "Message No. 3.";
-  const char kMessage4[] = "Message No. 4.";
-  const char kSeparator[] = ": ";
-  const char kURLInfo[] = "http://www.example.com/index.html: ";
-  const char kURLPercentS[] = "http://www.example.com/%s.html: ";
+const int kLineNumber = 123;
+const char kEmptyString[] = "";
+const char kFileName[] = "my_file.cc";
+const char kMessage1[] = "Message No. 1.";
+const char kMessage2[] = "Message No. 2.";
+const char kMessage3[] = "Message No. 3.";
+const char kMessage4[] = "Message No. 4.";
+const char kSeparator[] = ": ";
+const char kURLInfo[] = "http://www.example.com/index.html: ";
+const char kURLPercentS[] = "http://www.example.com/%s.html: ";
 
 class AnnotatedMessageHandlerTest : public testing::Test {
  protected:
   // Consruct message in the following format:
   //   "Type: FileName: LineNumber: Annotation: Message".
-  const GoogleString FileMessage(MessageType type,
-                                 const char* annotation,
+  const GoogleString FileMessage(MessageType type, const char* annotation,
                                  const char* message) {
     return StrCat(test_handler_.MessageTypeToString(type), kSeparator,
                   kFileName, kSeparator, IntegerToString(kLineNumber),
@@ -54,8 +52,7 @@ class AnnotatedMessageHandlerTest : public testing::Test {
 
   // Consruct message in the following format:
   //   "Type: Annotation: Message".
-  const GoogleString Message(MessageType type,
-                             const char* annotation,
+  const GoogleString Message(MessageType type, const char* annotation,
                              const char* message) {
     return StrCat(test_handler_.MessageTypeToString(type), kSeparator,
                   annotation, message);
@@ -65,9 +62,7 @@ class AnnotatedMessageHandlerTest : public testing::Test {
     return test_handler_.messages()[index];
   }
 
-  int num_messages() {
-    return test_handler_.messages().size();
-  }
+  int num_messages() { return test_handler_.messages().size(); }
 
  protected:
   TestMessageHandler test_handler_;

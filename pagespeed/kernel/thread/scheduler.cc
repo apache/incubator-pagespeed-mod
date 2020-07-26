@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/thread/scheduler.h"
 
@@ -76,10 +75,9 @@ class Scheduler::Alarm {
   void set_in_wait_dispatch(bool w) { in_wait_dispatch_ = w; }
 
  protected:
-  Alarm() : wakeup_time_us_(0),
-            index_(kIndexNotSet),
-            in_wait_dispatch_(false) { }
-  virtual ~Alarm() { }
+  Alarm()
+      : wakeup_time_us_(0), index_(kIndexNotSet), in_wait_dispatch_(false) {}
+  virtual ~Alarm() {}
 
  private:
   friend class Scheduler;
@@ -100,15 +98,11 @@ namespace {
 class FunctionAlarm : public Scheduler::Alarm {
  public:
   explicit FunctionAlarm(Function* function, Scheduler* scheduler)
-      : scheduler_(scheduler), function_(function) { }
-  ~FunctionAlarm() override { }
+      : scheduler_(scheduler), function_(function) {}
+  ~FunctionAlarm() override {}
 
-  void RunAlarm() override {
-    DropMutexActAndCleanup(&Function::CallRun);
-  }
-  void CancelAlarm() override {
-    DropMutexActAndCleanup(&Function::CallCancel);
-  }
+  void RunAlarm() override { DropMutexActAndCleanup(&Function::CallRun); }
+  void CancelAlarm() override { DropMutexActAndCleanup(&Function::CallCancel); }
 
  private:
   typedef void (Function::*FunctionAction)();
@@ -147,9 +141,8 @@ class FunctionAlarm : public Scheduler::Alarm {
 class Scheduler::CondVarTimeout : public Scheduler::Alarm {
  public:
   CondVarTimeout(bool* set_on_timeout, Scheduler* scheduler)
-      : set_on_timeout_(set_on_timeout),
-        scheduler_(scheduler) { }
-  ~CondVarTimeout() override { }
+      : set_on_timeout_(set_on_timeout), scheduler_(scheduler) {}
+  ~CondVarTimeout() override {}
   void RunAlarm() override {
     *set_on_timeout_ = true;
     scheduler_->CancelWaiting(this);
@@ -161,6 +154,7 @@ class Scheduler::CondVarTimeout : public Scheduler::Alarm {
     DCHECK(in_wait_dispatch());
     delete this;
   }
+
  private:
   bool* set_on_timeout_;
   Scheduler* scheduler_;
@@ -172,9 +166,8 @@ class Scheduler::CondVarTimeout : public Scheduler::Alarm {
 class Scheduler::CondVarCallbackTimeout : public Scheduler::Alarm {
  public:
   CondVarCallbackTimeout(Function* callback, Scheduler* scheduler)
-      : callback_(callback),
-        scheduler_(scheduler) { }
-  ~CondVarCallbackTimeout() override { }
+      : callback_(callback), scheduler_(scheduler) {}
+  ~CondVarCallbackTimeout() override {}
   void RunAlarm() override {
     // We may get deleted at tail end of Signal if the lock gets dropped during
     // CallRun(), so save this into a local.
@@ -210,8 +203,7 @@ Scheduler::Scheduler(ThreadSystem* thread_system, Timer* timer)
       condvar_(mutex_->NewCondvar()),
       index_(kIndexNotSet),
       signal_count_(0),
-      running_waiting_alarms_(false) {
-}
+      running_waiting_alarms_(false) {}
 
 Scheduler::~Scheduler() {
 #if SCHEDULER_CANCEL_OUTSTANDING_ALARMS_ON_DESTRUCTION
@@ -314,7 +306,8 @@ void Scheduler::InsertAlarmAtUsMutexHeld(int64 wakeup_time_us,
   alarm->index_ = ++index_;
 
   if (broadcast_on_wakeup_change) {
-    bool wakeup_time_changed = outstanding_alarms_.empty() ||
+    bool wakeup_time_changed =
+        outstanding_alarms_.empty() ||
         (wakeup_time_us < (*outstanding_alarms_.begin())->wakeup_time_us_);
     if (wakeup_time_changed) {
       condvar_->Broadcast();
@@ -417,7 +410,7 @@ SchedulerBlockingFunction::SchedulerBlockingFunction(Scheduler* scheduler)
   set_delete_after_callback(false);
 }
 
-SchedulerBlockingFunction::~SchedulerBlockingFunction() { }
+SchedulerBlockingFunction::~SchedulerBlockingFunction() {}
 
 void SchedulerBlockingFunction::Run() {
   success_ = true;
@@ -444,8 +437,6 @@ bool SchedulerBlockingFunction::Block() {
 void Scheduler::RegisterWorker(QueuedWorkerPool::Sequence* w) {}
 void Scheduler::UnregisterWorker(QueuedWorkerPool::Sequence* w) {}
 
-Scheduler::Sequence* Scheduler::NewSequence() {
-  return new Sequence(this);
-}
+Scheduler::Sequence* Scheduler::NewSequence() { return new Sequence(this); }
 
 }  // namespace net_instaweb

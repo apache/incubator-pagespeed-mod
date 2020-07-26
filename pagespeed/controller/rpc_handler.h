@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -58,7 +58,7 @@ template <typename AsyncService, typename RequestT, typename ResponseT>
 class RpcHandler
     : public RefCounted<RpcHandler<AsyncService, RequestT, ResponseT>> {
  public:
-  virtual ~RpcHandler() { }
+  virtual ~RpcHandler() {}
 
  protected:
   typedef ::grpc::ServerAsyncReaderWriter<ResponseT, RequestT> ReaderWriterT;
@@ -93,8 +93,7 @@ class RpcHandler
     FINISHED,
   };
 
-  typedef RefCountedPtr<RpcHandler<AsyncService, RequestT, ResponseT>>
-      RefPtrT;
+  typedef RefCountedPtr<RpcHandler<AsyncService, RequestT, ResponseT>> RefPtrT;
 
   // Called once for every message received from the client.
   virtual void HandleRequest(const RequestT& req) = 0;
@@ -107,7 +106,7 @@ class RpcHandler
   virtual void HandleError() = 0;
 
   // Called when a Write completes successfully.
-  virtual void HandleWriteDone() { }
+  virtual void HandleWriteDone() {}
 
   // Attempt to initiate a gRPC client session by calling the appropriate
   // RequestXXXRpcMethodName on the AsyncService object. In the SampleService
@@ -116,8 +115,7 @@ class RpcHandler
   // a callback that will invoke the success/failure handlers in this class.
   virtual void InitResponder(AsyncService* service, ::grpc::ServerContext* ctx,
                              ReaderWriterT* responder,
-                             ::grpc::ServerCompletionQueue* cq,
-                             void* tag) = 0;
+                             ::grpc::ServerCompletionQueue* cq, void* tag) = 0;
 
   // Create a new one of "this", ie: Just chain to the constructor.
   // This is boilerplate because RpcHandler can't directly call the
@@ -187,7 +185,7 @@ void RpcHandler<AsyncService, RequestT, ResponseT>::InitDone(RefPtrT ref) {
     // point in the future we could implement a callback to signal that.
     AttemptRead(ref);
   } else {
-    // When state is FINISHED, we were shutdown before we started. 
+    // When state is FINISHED, we were shutdown before we started.
     // Propagate that as CANCELLED to any client.
     ::grpc::Status status(::grpc::StatusCode::CANCELLED, "not started");
     responder_.Finish(

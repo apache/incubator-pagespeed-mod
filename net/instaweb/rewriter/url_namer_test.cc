@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test base-class url naming.
 
@@ -48,13 +47,13 @@ TEST_F(UrlNamerTest, UrlNamerEncoding) {
   const char kShard2[] = "http://s2.example.com/";
   ASSERT_TRUE(lawyer->AddRewriteDomainMapping(
       kRewriteDomain, "from.example.com", message_handler()));
-  ASSERT_TRUE(lawyer->AddShard(
-      kRewriteDomain, StrCat(kShard1, ",", kShard2), message_handler()));
-  GoogleUrl gurl(Encode("http://to.example.com/", "cf", "0",
-                        "file.css", "css"));
+  ASSERT_TRUE(lawyer->AddShard(kRewriteDomain, StrCat(kShard1, ",", kShard2),
+                               message_handler()));
+  GoogleUrl gurl(
+      Encode("http://to.example.com/", "cf", "0", "file.css", "css"));
   RewriteFilter* filter;
-  OutputResourcePtr resource = rewrite_driver()->DecodeOutputResource(
-      gurl, &filter);
+  OutputResourcePtr resource =
+      rewrite_driver()->DecodeOutputResource(gurl, &filter);
   UrlNamer url_namer;
   EXPECT_EQ(Encode(kShard1, "cf", "0", "file.css", "css"),
             url_namer.Encode(options(), *resource.get(), UrlNamer::kSharded))

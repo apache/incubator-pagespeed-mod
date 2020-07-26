@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,20 +17,17 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 
 #include <memory>
 
-
-
-#include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
-
 #include "base/logging.h"
-#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/rewriter/public/beacon_critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
@@ -116,7 +113,7 @@ void RewriteDriverFactory::InitializeDefaultOptions(RewriteOptions* options) {
 }
 
 void RewriteDriverFactory::reset_default_options(RewriteOptions* new_defaults) {
-    default_options_.reset(new_defaults);
+  default_options_.reset(new_defaults);
 }
 
 RewriteDriverFactory::~RewriteDriverFactory() {
@@ -163,23 +160,20 @@ bool RewriteDriverFactory::FetchersComputed() const {
 }
 
 void RewriteDriverFactory::set_slurp_directory(const StringPiece& dir) {
-  CHECK(!FetchersComputed())
-      << "Cannot call set_slurp_directory "
-      << " after ComputeUrl*Fetcher has been called";
+  CHECK(!FetchersComputed()) << "Cannot call set_slurp_directory "
+                             << " after ComputeUrl*Fetcher has been called";
   dir.CopyToString(&slurp_directory_);
 }
 
 void RewriteDriverFactory::set_slurp_read_only(bool read_only) {
-  CHECK(!FetchersComputed())
-      << "Cannot call set_slurp_read_only "
-      << " after ComputeUrl*Fetcher has been called";
+  CHECK(!FetchersComputed()) << "Cannot call set_slurp_read_only "
+                             << " after ComputeUrl*Fetcher has been called";
   slurp_read_only_ = read_only;
 }
 
 void RewriteDriverFactory::set_slurp_print_urls(bool print_urls) {
-  CHECK(!FetchersComputed())
-      << "Cannot call set_slurp_print_urls "
-      << " after ComputeUrl*Fetcher has been called";
+  CHECK(!FetchersComputed()) << "Cannot call set_slurp_print_urls "
+                             << " after ComputeUrl*Fetcher has been called";
   slurp_print_urls_ = print_urls;
 }
 
@@ -189,23 +183,18 @@ void RewriteDriverFactory::set_file_system(FileSystem* file_system) {
 
 void RewriteDriverFactory::set_base_url_async_fetcher(
     UrlAsyncFetcher* url_async_fetcher) {
-  CHECK(!FetchersComputed())
-      << "Cannot call set_base_url_async_fetcher "
-      << " after ComputeUrlAsyncFetcher has been called";
+  CHECK(!FetchersComputed()) << "Cannot call set_base_url_async_fetcher "
+                             << " after ComputeUrlAsyncFetcher has been called";
   base_url_async_fetcher_.reset(url_async_fetcher);
 }
 
-void RewriteDriverFactory::set_hasher(Hasher* hasher) {
-  hasher_.reset(hasher);
-}
+void RewriteDriverFactory::set_hasher(Hasher* hasher) { hasher_.reset(hasher); }
 
 void RewriteDriverFactory::set_signature(SHA1Signature* signature) {
   signature_.reset(signature);
 }
 
-void RewriteDriverFactory::set_timer(Timer* timer) {
-  timer_.reset(timer);
-}
+void RewriteDriverFactory::set_timer(Timer* timer) { timer_.reset(timer); }
 
 void RewriteDriverFactory::set_nonce_generator(NonceGenerator* gen) {
   nonce_generator_.reset(gen);
@@ -319,7 +308,7 @@ UsageDataReporter* RewriteDriverFactory::usage_data_reporter() {
 }
 
 const std::vector<const UserAgentNormalizer*>&
-    RewriteDriverFactory::user_agent_normalizers() {
+RewriteDriverFactory::user_agent_normalizers() {
   if (user_agent_normalizers_.empty()) {
     // Note: it's possible that we may want separate lists of normalizers for
     // different applications in the future. For now, though, we centralize
@@ -337,31 +326,27 @@ const std::vector<const UserAgentNormalizer*>&
 }
 
 NamedLockManager* RewriteDriverFactory::DefaultLockManager() {
-  return new FileSystemLockManager(file_system(), LockFilePrefix(),
-                                   scheduler(), message_handler());
+  return new FileSystemLockManager(file_system(), LockFilePrefix(), scheduler(),
+                                   message_handler());
 }
 
-UrlNamer* RewriteDriverFactory::DefaultUrlNamer() {
-  return new UrlNamer();
-}
+UrlNamer* RewriteDriverFactory::DefaultUrlNamer() { return new UrlNamer(); }
 
 UserAgentMatcher* RewriteDriverFactory::DefaultUserAgentMatcher() {
   return new UserAgentMatcher();
 }
 
 StaticAssetManager* RewriteDriverFactory::DefaultStaticAssetManager() {
-  return new StaticAssetManager(url_namer()->proxy_domain(),
-                                thread_system(),
-                                hasher(),
-                                message_handler());
+  return new StaticAssetManager(url_namer()->proxy_domain(), thread_system(),
+                                hasher(), message_handler());
 }
 
 CriticalImagesFinder* RewriteDriverFactory::DefaultCriticalImagesFinder(
     ServerContext* server_context) {
   // TODO(pulkitg): Don't create BeaconCriticalImagesFinder if beacon cohort is
   // not added.
-  return new BeaconCriticalImagesFinder(
-      server_context->beacon_cohort(), nonce_generator(), statistics());
+  return new BeaconCriticalImagesFinder(server_context->beacon_cohort(),
+                                        nonce_generator(), statistics());
 }
 
 CriticalSelectorFinder* RewriteDriverFactory::DefaultCriticalSelectorFinder(
@@ -434,8 +419,9 @@ QueuedWorkerPool* RewriteDriverFactory::WorkerPool(WorkerPoolCategory pool) {
 
 bool RewriteDriverFactory::set_filename_prefix(StringPiece p) {
   p.CopyToString(&filename_prefix_);
-  if (file_system()->IsDir(filename_prefix_.c_str(),
-                           message_handler()).is_true()) {
+  if (file_system()
+          ->IsDir(filename_prefix_.c_str(), message_handler())
+          .is_true()) {
     return true;
   }
 
@@ -450,9 +436,7 @@ bool RewriteDriverFactory::set_filename_prefix(StringPiece p) {
   return true;
 }
 
-StringPiece RewriteDriverFactory::filename_prefix() {
-  return filename_prefix_;
-}
+StringPiece RewriteDriverFactory::filename_prefix() { return filename_prefix_; }
 
 ServerContext* RewriteDriverFactory::CreateServerContext() {
   ServerContext* server_context = NewServerContext();
@@ -540,9 +524,8 @@ void RewriteDriverFactory::InitDecodingDriver(ServerContext* server_context) {
     // decoding_driver_ takes ownership.
     RewriteOptions* options = default_options_->Clone();
     options->ComputeSignature();
-    decoding_driver_.reset(
-        decoding_server_context_->NewUnmanagedRewriteDriver(
-            nullptr, options, RequestContextPtr(nullptr)));
+    decoding_driver_.reset(decoding_server_context_->NewUnmanagedRewriteDriver(
+        nullptr, options, RequestContextPtr(nullptr)));
     decoding_driver_->set_externally_managed(true);
 
     // Apply platform configuration mutation for consistency's sake.
@@ -576,20 +559,16 @@ void RewriteDriverFactory::InitStubDecodingServerContext(ServerContext* sc) {
 }
 
 void RewriteDriverFactory::AddPlatformSpecificDecodingPasses(
-    RewriteDriver* driver) {
-}
+    RewriteDriver* driver) {}
 
 void RewriteDriverFactory::AddPlatformSpecificRewritePasses(
-    RewriteDriver* driver) {
-}
+    RewriteDriver* driver) {}
 
 void RewriteDriverFactory::ApplyPlatformSpecificConfiguration(
-    RewriteDriver* driver) {
-}
+    RewriteDriver* driver) {}
 
 void RewriteDriverFactory::AddPlatformSpecificUserAgentNormalizers(
-    std::vector<const UserAgentNormalizer*>* out) {
-}
+    std::vector<const UserAgentNormalizer*>* out) {}
 
 UrlAsyncFetcher* RewriteDriverFactory::ComputeUrlAsyncFetcher() {
   if (url_async_fetcher_ == nullptr) {
@@ -612,8 +591,8 @@ void RewriteDriverFactory::SetupSlurpDirectories() {
   CHECK(!FetchersComputed());
   if (slurp_read_only_) {
     CHECK(!FetchersComputed());
-    HttpDumpUrlFetcher* dump_fetcher = new HttpDumpUrlFetcher(
-        slurp_directory_, file_system(), timer());
+    HttpDumpUrlFetcher* dump_fetcher =
+        new HttpDumpUrlFetcher(slurp_directory_, file_system(), timer());
     dump_fetcher->set_print_urls(slurp_print_urls_);
     url_async_fetcher_ = dump_fetcher;
   } else {
@@ -633,12 +612,9 @@ void RewriteDriverFactory::SetupSlurpDirectories() {
   }
 }
 
-void RewriteDriverFactory::FetcherSetupHooks() {
-}
+void RewriteDriverFactory::FetcherSetupHooks() {}
 
-StringPiece RewriteDriverFactory::LockFilePrefix() {
-  return filename_prefix_;
-}
+StringPiece RewriteDriverFactory::LockFilePrefix() { return filename_prefix_; }
 
 void RewriteDriverFactory::StopCacheActivity() {
   ScopedMutex lock(server_context_mutex_.get());
@@ -729,13 +705,9 @@ void RewriteDriverFactory::InitStats(Statistics* statistics) {
   PropertyStoreGetCallback::InitStats(statistics);
 }
 
-void RewriteDriverFactory::Initialize() {
-  RewriteDriver::Initialize();
-}
+void RewriteDriverFactory::Initialize() { RewriteDriver::Initialize(); }
 
-void RewriteDriverFactory::Terminate() {
-  RewriteDriver::Terminate();
-}
+void RewriteDriverFactory::Terminate() { RewriteDriver::Terminate(); }
 
 void RewriteDriverFactory::SetStatistics(Statistics* statistics) {
   statistics_ = statistics;

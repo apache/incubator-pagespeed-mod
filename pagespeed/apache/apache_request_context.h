@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -38,8 +38,8 @@ class Timer;
 
 class ApacheRequestContext : public SystemRequestContext {
  public:
-  ApacheRequestContext(
-      AbstractMutex* logging_mutex, Timer* timer, request_rec* req);
+  ApacheRequestContext(AbstractMutex* logging_mutex, Timer* timer,
+                       request_rec* req);
 
   // Returns rc as an ApacheRequestContext* if it is one and CHECK
   // fails if it is not. Returns NULL if rc is NULL.

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/controller/in_process_central_controller.h"
 
@@ -46,9 +45,7 @@ class ExpensiveOperationContextImpl : public ExpensiveOperationContext {
                      &ExpensiveOperationContextImpl::CallCancel));
   }
 
-  ~ExpensiveOperationContextImpl() override {
-    Done();
-  }
+  ~ExpensiveOperationContextImpl() override { Done(); }
 
   void Done() override {
     if (controller_ != nullptr) {
@@ -58,9 +55,7 @@ class ExpensiveOperationContextImpl : public ExpensiveOperationContext {
   }
 
  private:
-  void CallRun() {
-    callback_->CallRun();
-  }
+  void CallRun() { callback_->CallRun(); }
 
   void CallCancel() {
     controller_ = nullptr;  // Controller denied us, so don't try to release.
@@ -84,9 +79,7 @@ class ScheduleRewriteContextImpl : public ScheduleRewriteContext {
                            &ScheduleRewriteContextImpl::CallCancel));
   }
 
-  ~ScheduleRewriteContextImpl() override {
-    MarkSucceeded();
-  }
+  ~ScheduleRewriteContextImpl() override { MarkSucceeded(); }
 
   void MarkSucceeded() override {
     if (controller_ != nullptr) {
@@ -103,9 +96,7 @@ class ScheduleRewriteContextImpl : public ScheduleRewriteContext {
   }
 
  private:
-  void CallRun() {
-    callback_->CallRun();
-  }
+  void CallRun() { callback_->CallRun(); }
 
   void CallCancel() {
     controller_ = nullptr;  // Controller denied us, so don't try to release.
@@ -123,11 +114,9 @@ InProcessCentralController::InProcessCentralController(
     ExpensiveOperationController* expensive_operation_controller,
     ScheduleRewriteController* schedule_rewrite_controller)
     : expensive_operation_controller_(expensive_operation_controller),
-      schedule_rewrite_controller_(schedule_rewrite_controller) {
-}
+      schedule_rewrite_controller_(schedule_rewrite_controller) {}
 
-InProcessCentralController::~InProcessCentralController() {
-}
+InProcessCentralController::~InProcessCentralController() {}
 
 void InProcessCentralController::InitStats(Statistics* statistics) {
   NamedLockScheduleRewriteController::InitStats(statistics);

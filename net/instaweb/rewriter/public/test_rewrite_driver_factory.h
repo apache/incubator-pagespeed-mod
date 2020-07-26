@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_TEST_REWRITE_DRIVER_FACTORY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_TEST_REWRITE_DRIVER_FACTORY_H_
@@ -68,7 +67,7 @@ class WaitUrlAsyncFetcher;
 // mock fetchers, and a memory-based file system.
 class TestRewriteDriverFactory : public RewriteDriverFactory {
  public:
-  static const int64 kStartTimeMs;  // Arbitrary time to start MockTimer.
+  static const int64 kStartTimeMs;      // Arbitrary time to start MockTimer.
   static const char kUrlNamerScheme[];  // Env.var URL_NAMER_SCHEME
 
   // These constants are used to initialize the rate-controlling fetcher,
@@ -120,9 +119,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   MockTimer* mock_timer() { return mock_timer_; }
   MockHasher* mock_hasher() { return mock_hasher_; }
   MemFileSystem* mem_file_system() { return mem_file_system_; }
-  MockUrlFetcher* mock_url_async_fetcher() {
-    return mock_url_fetcher_;
-  }
+  MockUrlFetcher* mock_url_async_fetcher() { return mock_url_fetcher_; }
   WaitUrlAsyncFetcher* wait_url_async_fetcher() {
     return wait_url_async_fetcher_.get();
   }
@@ -143,18 +140,14 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
     filter_callback_vector_.push_back(callback);
   }
 
-  void ClearFilterCallbackVector() {
-    filter_callback_vector_.clear();
-  }
+  void ClearFilterCallbackVector() { filter_callback_vector_.clear(); }
 
   // Does NOT take ownership of the callback.
   void AddCreateRewriterCallback(CreateRewriterCallback* callback) {
     rewriter_callback_vector_.push_back(callback);
   }
 
-  void ClearRewriterCallbackVector() {
-    rewriter_callback_vector_.clear();
-  }
+  void ClearRewriterCallbackVector() { rewriter_callback_vector_.clear(); }
 
   // By default this is false, but can be reset.
   bool UseBeaconResultsInFilters() const override {
@@ -205,12 +198,10 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   void AdvanceTimeMs(int64 delta_ms);
 
   // Sets up the cohort in the PropertyCache provided.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort_name);
+  const PropertyCache::Cohort* SetupCohort(PropertyCache* cache,
+                                           const GoogleString& cohort_name);
 
-  CachePropertyStore* cache_property_store() {
-    return cache_property_store_;
-  }
+  CachePropertyStore* cache_property_store() { return cache_property_store_; }
 
  protected:
   Hasher* NewHasher() override;
@@ -229,7 +220,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   NamedLockManager* DefaultLockManager() override;
 
  private:
-  MockTimer* mock_timer_;  // owned by base class timer_.
+  MockTimer* mock_timer_;          // owned by base class timer_.
   MockScheduler* mock_scheduler_;  // owned by RewriteDriverFactory::scheduler_.
   DelayCache* delay_cache_;
   std::unique_ptr<ThreadsafeCache> threadsafe_cache_;

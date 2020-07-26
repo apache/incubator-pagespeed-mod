@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,15 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-
-
-#include <memory>
-
 
 namespace net_instaweb {
 
@@ -68,8 +66,7 @@ const char UserAgentMatcherTestBase::kPagespeedInsightsDesktopUserAgent[] =
 const char UserAgentMatcherTestBase::kAndroidNexusSUserAgent[] =
     "Mozilla/5.0 (Linux; U; Android 2.3.3; en-gb; Nexus S Build/GRI20)"
     "AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1";
-const char UserAgentMatcherTestBase::kBenqUserAgent[] =
-    "BENQ-A500";
+const char UserAgentMatcherTestBase::kBenqUserAgent[] = "BENQ-A500";
 const char UserAgentMatcherTestBase::kBlackBerryOS5UserAgent[] =
     "BlackBerry9000/5.0.0.93 Profile/MIDP-2.0 Configuration/CLDC-1.1 "
     "VendorID/179";
@@ -106,8 +103,7 @@ const char UserAgentMatcherTestBase::kChrome42UserAgent[] =
 const char UserAgentMatcherTestBase::kChromeUserAgent[] =
     "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US) "
     "AppleWebKit/525.13 (KHTML, like Gecko) Chrome/0.A.B.C Safari/525.13";
-const char UserAgentMatcherTestBase::kCompalUserAgent[] =
-    "Compal-A618";
+const char UserAgentMatcherTestBase::kCompalUserAgent[] = "Compal-A618";
 const char UserAgentMatcherTestBase::kCriOS31UserAgent[] =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 7_0_3 like Mac OS X) "
     "AppleWebKit/537.51.1 (KHTML, like Gecko) CriOS/31.0.1650.18 Mobile/11B511 "
@@ -143,14 +139,12 @@ const char UserAgentMatcherTestBase::kFirefoxUserAgent[] =
     "Gecko/20100101 Firefox/27.0";
 const char UserAgentMatcherTestBase::kFLYUserAgent[] =
     "FLY-2040i/BSI AU.Browser/2.0 QO3C1 MMP/1.0";
-const char UserAgentMatcherTestBase::kGenericAndroidUserAgent[] =
-    "Android";
+const char UserAgentMatcherTestBase::kGenericAndroidUserAgent[] = "Android";
 const char UserAgentMatcherTestBase::kGooglebotUserAgent[] =
     "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 // Google ads bot user agents, used to check ads policy compliance.
 // See https://support.google.com/adwords/answer/2404197?hl=en#exclude
-const char UserAgentMatcherTestBase::kGoogleAdsBotUserAgent[] =
-    "AdsBot-Google";
+const char UserAgentMatcherTestBase::kGoogleAdsBotUserAgent[] = "AdsBot-Google";
 const char UserAgentMatcherTestBase::kGoogleAdsBotMobileUserAgent[] =
     "AdsBot-Google-Mobile";
 const char UserAgentMatcherTestBase::kGooglePlusUserAgent[] =
@@ -204,10 +198,8 @@ const char UserAgentMatcherTestBase::kIPodSafari[] =
     "Mozilla/5.0 (iPod; U; CPU iPhone OS 4_3_3 like Mac OS X; en-us)"
     " AppleWebKit/533.17.9 (KHTML, like Gecko) Version/5.0.2 Mobile/8J2"
     " Safari/6533.18.5";
-const char UserAgentMatcherTestBase::kiUserAgent[] =
-    "i-mobile318";
-const char UserAgentMatcherTestBase::kJMobileUserAgent[] =
-    "J-PHONE/3.0/J-SA05";
+const char UserAgentMatcherTestBase::kiUserAgent[] = "i-mobile318";
+const char UserAgentMatcherTestBase::kJMobileUserAgent[] = "J-PHONE/3.0/J-SA05";
 const char UserAgentMatcherTestBase::kKDDIMobileUserAgent[] =
     "KDDI-CA31 UP.Browser/6.2.0.7.3.129 (GUI) MMP/2.0";
 const char UserAgentMatcherTestBase::kKindleTabletUserAgent[] =
@@ -220,14 +212,12 @@ const char UserAgentMatcherTestBase::kLENOVOUserAgent[] =
     "LENOVO-E307_ENG_RUS_FLY/(2006.05.10)S276/WAP1.2.1";
 const char UserAgentMatcherTestBase::kLGEMobileUserAgent[] =
     "LGE-AX300/1.0 UP.Browser/6.2.3.8 (GUI) MMP/2.0";
-const char UserAgentMatcherTestBase::kLGEUserAgent[] =
-    "LGE-CU8188";
+const char UserAgentMatcherTestBase::kLGEUserAgent[] = "LGE-CU8188";
 const char UserAgentMatcherTestBase::kLGMIDPMobileUserAgent[] =
     "LG-A225/V100 Obigo/WAP2.0 Profile/MIDP-2.1 Configuration/CLDC-1.1";
 const char UserAgentMatcherTestBase::kLGUPBrowserMobileUserAgent[] =
     "LG8500/1.0 UP.Browser/6.2.3.9 (GUI) MMP/2.0";
-const char UserAgentMatcherTestBase::kLGUserAgent[] =
-    "LG-B2000";
+const char UserAgentMatcherTestBase::kLGUserAgent[] = "LG-B2000";
 const char UserAgentMatcherTestBase::kMOTMobileUserAgent[] =
     "MOT-1.2.0/11.03 UP.Browser/4.1.27a";
 const char UserAgentMatcherTestBase::kMozillaMobileUserAgent[] =
@@ -281,8 +271,7 @@ const char UserAgentMatcherTestBase::kOperaWithFirefoxUserAgent[] =
 const char UserAgentMatcherTestBase::kPanasonicMobileUserAgent[] =
     "Panasonic-G60/1.0 UP.Browser/6.1.0.6 "
     "MMP/1.0 UP.Browser/6.1.0.6 (GUI) MMP/1.0";
-const char UserAgentMatcherTestBase::kPGUserAgent[] =
-    "PG-1610/R01";
+const char UserAgentMatcherTestBase::kPGUserAgent[] = "PG-1610/R01";
 const char UserAgentMatcherTestBase::kPHILIPSUserAgent[] =
     "PHILIPS 330 / Obigo Internet Browser 2.0";
 const char UserAgentMatcherTestBase::kportalmmmMobileUserAgent[] =
@@ -302,8 +291,7 @@ const char UserAgentMatcherTestBase::kSafari9UserAgent[] =
     "(KHTML, like Gecko) Version/9.1.1 Safari/601.6.17";
 const char UserAgentMatcherTestBase::kSAGEMMobileUserAgent[] =
     "SAGEM-my202C/Orange1.0 UP.Browser/5.0.5.6 (GUI)";
-const char UserAgentMatcherTestBase::kSAGEMUserAgent[] =
-    "SAGEM-942";
+const char UserAgentMatcherTestBase::kSAGEMUserAgent[] = "SAGEM-942";
 const char UserAgentMatcherTestBase::kSAMSUNGMobileUserAgent[] =
     "SAMSUNG-B2700/SXIB1 SHP/VPP/R5 NetFront/3.4 SMM-MMS/1.2.0 "
     "profile/MIDP-2.0 configuration/CLDC-1.1";
@@ -313,17 +301,14 @@ const char UserAgentMatcherTestBase::kSCHUserAgent[] =
     "SCH-U350/1.0 NetFront/3.0.22.2.18 (GUI) MMP/2.0";
 const char UserAgentMatcherTestBase::kSECMobileUserAgent[] =
     "SEC-scha310 UP.Browser/4.1.26c3";
-const char UserAgentMatcherTestBase::kSGHUserAgent[] =
-    "SGH-Z230";
+const char UserAgentMatcherTestBase::kSGHUserAgent[] = "SGH-Z230";
 const char UserAgentMatcherTestBase::kSHARPMobileUserAgent[] =
     "SHARP-TQ-GX10/0.0 Profile/MIDP-1.0 Configuration/CLDC-1.0 "
     "UP.Browser/6.1.0.2.129 (GUI) MMP/1.0";
-const char UserAgentMatcherTestBase::kSHARPUserAgent[] =
-    "SHARP-TQ-GX15";
+const char UserAgentMatcherTestBase::kSHARPUserAgent[] = "SHARP-TQ-GX15";
 const char UserAgentMatcherTestBase::kSIEMobileUserAgent[] =
     "SIE-2128/24 UP.Browser/5.0.3.3 (GUI)";
-const char UserAgentMatcherTestBase::kSIEUserAgent[] =
-    "SIE-A40";
+const char UserAgentMatcherTestBase::kSIEUserAgent[] = "SIE-A40";
 const char UserAgentMatcherTestBase::kSilkDesktopUserAgent[] =
     "Mozilla/5.0 (PlayStation Vita 2.10) AppleWebKit/536.26 (KHTML, "
     "like Gecko) Silk/3.2";
@@ -337,8 +322,7 @@ const char UserAgentMatcherTestBase::kSoftBankMobileUserAgent[] =
 const char UserAgentMatcherTestBase::kSpiceUserAgent[] =
     "Spice M6800  Opera/9.80 (MTK; Nucleus; U; en-US) Presto/2.4.18 "
     "Version/10.00";
-const char UserAgentMatcherTestBase::kTIANYUUserAgent[] =
-    "TIANYU-KTOUCH/B2012";
+const char UserAgentMatcherTestBase::kTIANYUUserAgent[] = "TIANYU-KTOUCH/B2012";
 const char UserAgentMatcherTestBase::kVodafoneMobileUserAgent[] =
     "Vodafone/1.0/0Vodafone710/B616 Browser/Obigo-Browser/Q04A "
     "MMS/Obigo-MMS/Q04A SyncML/HW-SyncML/1.0 Java/QVM/4.1 Profile/MIDP-2.0 "
@@ -352,8 +336,7 @@ const char UserAgentMatcherTestBase::kWinWAPUserAgent[] =
     "WinWAP/1.3 (1.3.0.0;WinCE;PPC2003)";
 const char UserAgentMatcherTestBase::kXWapProfileHeaderValue[] =
     "http://foo.bar.xml";
-const char UserAgentMatcherTestBase::kXWapProfile[] =
-    "x-wap-profile";
+const char UserAgentMatcherTestBase::kXWapProfile[] = "x-wap-profile";
 const char UserAgentMatcherTestBase::kYourWapUserAgent[] =
     "YourWap Ericsson 380/2.63";
 const char UserAgentMatcherTestBase::kZTEMobileUserAgent[] =
@@ -361,119 +344,112 @@ const char UserAgentMatcherTestBase::kZTEMobileUserAgent[] =
 const char UserAgentMatcherTestBase::XT907UserAgent[] =
     "Mozilla/5.0 (Linux; Android 4.1.1; XT907 Build/9.8.1Q_27-2) AppleWebKit"
     "/537.25 (KHTML, like Gecko) Chrome/26.0.1376.1 Mobile Safari/537.25";
-const char UserAgentMatcherTestBase::kTestingWebp[] =
-    "webp";
-const char UserAgentMatcherTestBase::kTestingWebpLosslessAlpha[] =
-    "webp-la";
-const char UserAgentMatcherTestBase::kTestingWebpAnimated[] =
-    "webp-animated";
+const char UserAgentMatcherTestBase::kTestingWebp[] = "webp";
+const char UserAgentMatcherTestBase::kTestingWebpLosslessAlpha[] = "webp-la";
+const char UserAgentMatcherTestBase::kTestingWebpAnimated[] = "webp-animated";
 
 // The user-agent strings for IE 11 seen below were all actual UA strings
 // observed in the real world.  Yes, the asterisks are actually in the UA.
-const char* const
-UserAgentMatcherTestBase::kIe11UserAgents[] = {
-  "Windows-RSS-Platform/2.0 (IE 11.0; Windows NT 6.1)",
-  "Mozilla/5.0 (compatible; IE 11.0; Win32; Trident/7.0)",
-  "Mozilla/5.0 (Windows NT 6.1; WOW64; ***********; rv:11.0) like Gecko",
-  "Mozilla/5.0 (Windows NT 6.1; Win64; x64; Trident/7.0; rv:11.0) like Gecko",
+const char* const UserAgentMatcherTestBase::kIe11UserAgents[] = {
+    "Windows-RSS-Platform/2.0 (IE 11.0; Windows NT 6.1)",
+    "Mozilla/5.0 (compatible; IE 11.0; Win32; Trident/7.0)",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64; ***********; rv:11.0) like Gecko",
+    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; Trident/7.0; rv:11.0) like Gecko",
 };
 
 const char* const UserAgentMatcherTestBase::kMobileUserAgents[] = {
-  UserAgentMatcherTestBase::kALCATELMobileUserAgent,
-  UserAgentMatcherTestBase::kAlcatelUserAgent,
-  UserAgentMatcherTestBase::kAndroidChrome21UserAgent,
-  UserAgentMatcherTestBase::kAndroidICSUserAgent,
-  UserAgentMatcherTestBase::kAndroidICSUserAgent,
-  UserAgentMatcherTestBase::kAndroidNexusSUserAgent,
-  UserAgentMatcherTestBase::kDoCoMoMobileUserAgent,
-  UserAgentMatcherTestBase::kIPhone4Safari,
-  UserAgentMatcherTestBase::kIPhoneChrome21UserAgent,
-  UserAgentMatcherTestBase::kIPhoneUserAgent,
-  UserAgentMatcherTestBase::kIPodSafari,
-  UserAgentMatcherTestBase::kJMobileUserAgent,
-  UserAgentMatcherTestBase::kKDDIMobileUserAgent,
-  UserAgentMatcherTestBase::kKWCMobileUserAgent,
-  UserAgentMatcherTestBase::kLGEMobileUserAgent,
-  UserAgentMatcherTestBase::kLGMIDPMobileUserAgent,
-  UserAgentMatcherTestBase::kLGUPBrowserMobileUserAgent,
-  UserAgentMatcherTestBase::kMOTMobileUserAgent,
-  UserAgentMatcherTestBase::kMozillaMobileUserAgent,
-  UserAgentMatcherTestBase::kNokiaMobileUserAgent,
-  UserAgentMatcherTestBase::kOperaMiniMobileUserAgent,
-  UserAgentMatcherTestBase::kOperaMobi9,
-  UserAgentMatcherTestBase::kOperaMobilMobileUserAgent,
-  UserAgentMatcherTestBase::kPanasonicMobileUserAgent,
-  UserAgentMatcherTestBase::kPHILIPSUserAgent,
-  UserAgentMatcherTestBase::kportalmmmMobileUserAgent,
-  UserAgentMatcherTestBase::kSAGEMMobileUserAgent,
-  UserAgentMatcherTestBase::kSAMSUNGMobileUserAgent,
-  UserAgentMatcherTestBase::kSCHMobileUserAgent,
-  UserAgentMatcherTestBase::kSECMobileUserAgent,
-  UserAgentMatcherTestBase::kSHARPMobileUserAgent,
-  UserAgentMatcherTestBase::kSIEMobileUserAgent,
-  UserAgentMatcherTestBase::kSoftBankMobileUserAgent,
-  UserAgentMatcherTestBase::kVodafoneMobileUserAgent,
-  UserAgentMatcherTestBase::kZTEMobileUserAgent,
-  UserAgentMatcherTestBase::kGoogleAdsBotMobileUserAgent
-};
+    UserAgentMatcherTestBase::kALCATELMobileUserAgent,
+    UserAgentMatcherTestBase::kAlcatelUserAgent,
+    UserAgentMatcherTestBase::kAndroidChrome21UserAgent,
+    UserAgentMatcherTestBase::kAndroidICSUserAgent,
+    UserAgentMatcherTestBase::kAndroidICSUserAgent,
+    UserAgentMatcherTestBase::kAndroidNexusSUserAgent,
+    UserAgentMatcherTestBase::kDoCoMoMobileUserAgent,
+    UserAgentMatcherTestBase::kIPhone4Safari,
+    UserAgentMatcherTestBase::kIPhoneChrome21UserAgent,
+    UserAgentMatcherTestBase::kIPhoneUserAgent,
+    UserAgentMatcherTestBase::kIPodSafari,
+    UserAgentMatcherTestBase::kJMobileUserAgent,
+    UserAgentMatcherTestBase::kKDDIMobileUserAgent,
+    UserAgentMatcherTestBase::kKWCMobileUserAgent,
+    UserAgentMatcherTestBase::kLGEMobileUserAgent,
+    UserAgentMatcherTestBase::kLGMIDPMobileUserAgent,
+    UserAgentMatcherTestBase::kLGUPBrowserMobileUserAgent,
+    UserAgentMatcherTestBase::kMOTMobileUserAgent,
+    UserAgentMatcherTestBase::kMozillaMobileUserAgent,
+    UserAgentMatcherTestBase::kNokiaMobileUserAgent,
+    UserAgentMatcherTestBase::kOperaMiniMobileUserAgent,
+    UserAgentMatcherTestBase::kOperaMobi9,
+    UserAgentMatcherTestBase::kOperaMobilMobileUserAgent,
+    UserAgentMatcherTestBase::kPanasonicMobileUserAgent,
+    UserAgentMatcherTestBase::kPHILIPSUserAgent,
+    UserAgentMatcherTestBase::kportalmmmMobileUserAgent,
+    UserAgentMatcherTestBase::kSAGEMMobileUserAgent,
+    UserAgentMatcherTestBase::kSAMSUNGMobileUserAgent,
+    UserAgentMatcherTestBase::kSCHMobileUserAgent,
+    UserAgentMatcherTestBase::kSECMobileUserAgent,
+    UserAgentMatcherTestBase::kSHARPMobileUserAgent,
+    UserAgentMatcherTestBase::kSIEMobileUserAgent,
+    UserAgentMatcherTestBase::kSoftBankMobileUserAgent,
+    UserAgentMatcherTestBase::kVodafoneMobileUserAgent,
+    UserAgentMatcherTestBase::kZTEMobileUserAgent,
+    UserAgentMatcherTestBase::kGoogleAdsBotMobileUserAgent};
 
 const char* const UserAgentMatcherTestBase::kDesktopUserAgents[] = {
-  "not a mobile",
-  UserAgentMatcherTestBase::kAmoiUserAgent,
-  UserAgentMatcherTestBase::kBenqUserAgent,
-  UserAgentMatcherTestBase::kCompalUserAgent,
-  UserAgentMatcherTestBase::kFirefoxNokiaN800,
-  UserAgentMatcherTestBase::kFLYUserAgent,
-  UserAgentMatcherTestBase::kiUserAgent,
-  UserAgentMatcherTestBase::kLENOVOUserAgent,
-  UserAgentMatcherTestBase::kLGEUserAgent,
-  UserAgentMatcherTestBase::kLGUserAgent,
-  UserAgentMatcherTestBase::kMozillaUserAgent,
-  UserAgentMatcherTestBase::kNECUserAgent,
-  UserAgentMatcherTestBase::kOpera1101UserAgent,
-  UserAgentMatcherTestBase::kPGUserAgent,
-  UserAgentMatcherTestBase::kRoverUserAgent,
-  UserAgentMatcherTestBase::kSafariUserAgent,
-  UserAgentMatcherTestBase::kSAGEMUserAgent,
-  UserAgentMatcherTestBase::kSCHUserAgent,
-  UserAgentMatcherTestBase::kSGHUserAgent,
-  UserAgentMatcherTestBase::kSHARPUserAgent,
-  UserAgentMatcherTestBase::kSIEUserAgent,
-  UserAgentMatcherTestBase::kSpiceUserAgent,
-  UserAgentMatcherTestBase::kTIANYUUserAgent,
-  UserAgentMatcherTestBase::kWinWAPUserAgent,
-  UserAgentMatcherTestBase::kYourWapUserAgent,
-  UserAgentMatcherTestBase::kGoogleAdsBotUserAgent
-};
+    "not a mobile",
+    UserAgentMatcherTestBase::kAmoiUserAgent,
+    UserAgentMatcherTestBase::kBenqUserAgent,
+    UserAgentMatcherTestBase::kCompalUserAgent,
+    UserAgentMatcherTestBase::kFirefoxNokiaN800,
+    UserAgentMatcherTestBase::kFLYUserAgent,
+    UserAgentMatcherTestBase::kiUserAgent,
+    UserAgentMatcherTestBase::kLENOVOUserAgent,
+    UserAgentMatcherTestBase::kLGEUserAgent,
+    UserAgentMatcherTestBase::kLGUserAgent,
+    UserAgentMatcherTestBase::kMozillaUserAgent,
+    UserAgentMatcherTestBase::kNECUserAgent,
+    UserAgentMatcherTestBase::kOpera1101UserAgent,
+    UserAgentMatcherTestBase::kPGUserAgent,
+    UserAgentMatcherTestBase::kRoverUserAgent,
+    UserAgentMatcherTestBase::kSafariUserAgent,
+    UserAgentMatcherTestBase::kSAGEMUserAgent,
+    UserAgentMatcherTestBase::kSCHUserAgent,
+    UserAgentMatcherTestBase::kSGHUserAgent,
+    UserAgentMatcherTestBase::kSHARPUserAgent,
+    UserAgentMatcherTestBase::kSIEUserAgent,
+    UserAgentMatcherTestBase::kSpiceUserAgent,
+    UserAgentMatcherTestBase::kTIANYUUserAgent,
+    UserAgentMatcherTestBase::kWinWAPUserAgent,
+    UserAgentMatcherTestBase::kYourWapUserAgent,
+    UserAgentMatcherTestBase::kGoogleAdsBotUserAgent};
 
 const char* const UserAgentMatcherTestBase::kTabletUserAgents[] = {
-  UserAgentMatcherTestBase::kGenericAndroidUserAgent,
-  UserAgentMatcherTestBase::kIPadTabletUserAgent,
-  UserAgentMatcherTestBase::kIPadUserAgent,
-  UserAgentMatcherTestBase::kKindleTabletUserAgent,
-  UserAgentMatcherTestBase::kNexus7ChromeUserAgent,
-  UserAgentMatcherTestBase::kSilkTabletUserAgent
-};
+    UserAgentMatcherTestBase::kGenericAndroidUserAgent,
+    UserAgentMatcherTestBase::kIPadTabletUserAgent,
+    UserAgentMatcherTestBase::kIPadUserAgent,
+    UserAgentMatcherTestBase::kKindleTabletUserAgent,
+    UserAgentMatcherTestBase::kNexus7ChromeUserAgent,
+    UserAgentMatcherTestBase::kSilkTabletUserAgent};
 
 const char* const
-UserAgentMatcherTestBase::kImageInliningSupportedUserAgents[] = {
-  "",  // Empty user agent.
-  UserAgentMatcherTestBase::kAndroidChrome21UserAgent,
-  UserAgentMatcherTestBase::kAndroidHCUserAgent,
-  UserAgentMatcherTestBase::kAndroidICSUserAgent,
-  UserAgentMatcherTestBase::kChromeUserAgent,
-  UserAgentMatcherTestBase::kFirefoxUserAgent,
-  UserAgentMatcherTestBase::kIe9UserAgent,
-  UserAgentMatcherTestBase::kIe10UserAgent,
-  UserAgentMatcherTestBase::kIPhoneUserAgent,
-  UserAgentMatcherTestBase::kOpera8UserAgent,
-  UserAgentMatcherTestBase::kSafariUserAgent,
-  UserAgentMatcherTestBase::kIe11UserAgents[0],
-  UserAgentMatcherTestBase::kIe11UserAgents[1],
-  UserAgentMatcherTestBase::kIe11UserAgents[2],
-  UserAgentMatcherTestBase::kIe11UserAgents[3],
-  UserAgentMatcherTestBase::kGoogleAdsBotUserAgent,
-  UserAgentMatcherTestBase::kGoogleAdsBotMobileUserAgent,
+    UserAgentMatcherTestBase::kImageInliningSupportedUserAgents[] = {
+        "",  // Empty user agent.
+        UserAgentMatcherTestBase::kAndroidChrome21UserAgent,
+        UserAgentMatcherTestBase::kAndroidHCUserAgent,
+        UserAgentMatcherTestBase::kAndroidICSUserAgent,
+        UserAgentMatcherTestBase::kChromeUserAgent,
+        UserAgentMatcherTestBase::kFirefoxUserAgent,
+        UserAgentMatcherTestBase::kIe9UserAgent,
+        UserAgentMatcherTestBase::kIe10UserAgent,
+        UserAgentMatcherTestBase::kIPhoneUserAgent,
+        UserAgentMatcherTestBase::kOpera8UserAgent,
+        UserAgentMatcherTestBase::kSafariUserAgent,
+        UserAgentMatcherTestBase::kIe11UserAgents[0],
+        UserAgentMatcherTestBase::kIe11UserAgents[1],
+        UserAgentMatcherTestBase::kIe11UserAgents[2],
+        UserAgentMatcherTestBase::kIe11UserAgents[3],
+        UserAgentMatcherTestBase::kGoogleAdsBotUserAgent,
+        UserAgentMatcherTestBase::kGoogleAdsBotMobileUserAgent,
 };
 
 const int UserAgentMatcherTestBase::kIe11UserAgentsArraySize =
@@ -494,19 +470,19 @@ UserAgentMatcherTestBase::UserAgentMatcherTestBase() {
 bool UserAgentMatcherTestBase::IsMobileUserAgent(
     const StringPiece& user_agent) {
   return user_agent_matcher_->GetDeviceTypeForUA(user_agent) ==
-      UserAgentMatcher::kMobile;
+         UserAgentMatcher::kMobile;
 }
 
 bool UserAgentMatcherTestBase::IsDesktopUserAgent(
     const StringPiece& user_agent) {
   return user_agent_matcher_->GetDeviceTypeForUA(user_agent) ==
-      UserAgentMatcher::kDesktop;
+         UserAgentMatcher::kDesktop;
 }
 
 bool UserAgentMatcherTestBase::IsTabletUserAgent(
     const StringPiece& user_agent) {
   return user_agent_matcher_->GetDeviceTypeForUA(user_agent) ==
-      UserAgentMatcher::kTablet;
+         UserAgentMatcher::kTablet;
 }
 
 void UserAgentMatcherTestBase::VerifyGetDeviceTypeForUA() {
@@ -530,41 +506,35 @@ void UserAgentMatcherTestBase::VerifyGetDeviceTypeForUA() {
 }
 
 void UserAgentMatcherTestBase::VerifyImageInliningSupport() {
-  for (int i = 0;
-       i < kImageInliningSupportedUserAgentsArraySize;
-       ++i) {
+  for (int i = 0; i < kImageInliningSupportedUserAgentsArraySize; ++i) {
     EXPECT_TRUE(user_agent_matcher_->SupportsImageInlining(
-                    kImageInliningSupportedUserAgents[i]))
+        kImageInliningSupportedUserAgents[i]))
         << "\"" << kImageInliningSupportedUserAgents[i]
         << "\" not detected as a user agent that supports image inlining";
   }
-  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(
-      "random user agent"));
+  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining("random user agent"));
 }
 
 void UserAgentMatcherTestBase::VerifyMobilizationSupport() {
-  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(
-      kAndroidChrome18UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsMobilization(
-      kAndroidHCUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(
-      kIPhone4Safari));
-  EXPECT_FALSE(user_agent_matcher_->SupportsMobilization(
-      kIPhoneChrome21UserAgent));;
-  EXPECT_FALSE(user_agent_matcher_->SupportsMobilization(
-      kBlackBerryOS6UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(
-      kFirefoxUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(
-      kFirefoxMobileUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(
-      kChrome42UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsMobilization(
-      kOperaMiniMobileUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(
-      kGoogleAdsBotUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(
-      kGoogleAdsBotMobileUserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsMobilization(kAndroidChrome18UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsMobilization(kAndroidHCUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(kIPhone4Safari));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsMobilization(kIPhoneChrome21UserAgent));
+  ;
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsMobilization(kBlackBerryOS6UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(kFirefoxUserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsMobilization(kFirefoxMobileUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsMobilization(kChrome42UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsMobilization(kOperaMiniMobileUserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsMobilization(kGoogleAdsBotUserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsMobilization(kGoogleAdsBotMobileUserAgent));
 }
 
 }  // namespace net_instaweb

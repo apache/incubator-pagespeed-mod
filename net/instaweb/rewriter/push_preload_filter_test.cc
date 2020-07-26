@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -55,7 +54,7 @@ class PushPreloadFilterTest : public RewriteTestBase {
 
     SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
                                   " *  { display: block }", 100);
-    SetResponseWithDefaultHeaders("b.js",  kContentTypeJavascript,
+    SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript,
                                   " var b  = 42", 200);
   }
 
@@ -90,12 +89,13 @@ TEST_F(PushPreloadFilterTest, BasicOperation) {
   options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
   rewrite_driver()->AddFilters();
 
-  static const char kInput[] = "<link rel=stylesheet href=a.css>"
-                               "<script src=b.js></script>";
+  static const char kInput[] =
+      "<link rel=stylesheet href=a.css>"
+      "<script src=b.js></script>";
 
   static const char kOutput[] =
-    "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>"
-    "<script src=b.js.pagespeed.jm.0.js></script>";
+      "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>"
+      "<script src=b.js.pagespeed.jm.0.js></script>";
 
   ValidateExpected("basic_res", kInput, kOutput);
 
@@ -103,20 +103,18 @@ TEST_F(PushPreloadFilterTest, BasicOperation) {
   ResetDriver();
   rewrite_driver()->StartParse(kTestDomain);
   rewrite_driver()->ParseText("<!doctype html><html>");
-  rewrite_driver()->Flush();   // Run filters
+  rewrite_driver()->Flush();  // Run filters
   ConstStringStarVector links;
 
   EXPECT_TRUE(rewrite_driver()->response_headers()->Lookup(
-                  HttpAttributes::kLink, &links));
+      HttpAttributes::kLink, &links));
   rewrite_driver()->FinishParse();
 
   ASSERT_EQ(2, links.size());
-  EXPECT_STREQ(
-      "</A.a.css.pagespeed.cf.0.css>; rel=preload; as=style; nopush",
-      *links[0]);
-  EXPECT_STREQ(
-      "</b.js.pagespeed.jm.0.js>; rel=preload; as=script; nopush",
-      *links[1]);
+  EXPECT_STREQ("</A.a.css.pagespeed.cf.0.css>; rel=preload; as=style; nopush",
+               *links[0]);
+  EXPECT_STREQ("</b.js.pagespeed.jm.0.js>; rel=preload; as=script; nopush",
+               *links[1]);
 }
 
 TEST_F(PushPreloadFilterTest, Invalidation) {
@@ -126,11 +124,12 @@ TEST_F(PushPreloadFilterTest, Invalidation) {
   rewrite_driver()->AddFilters();
 
   // b.js expires in 200, a.css expires in 100.
-  static const char kInput[] = "<script src=b.js></script>"
-                               "<link rel=stylesheet href=a.css>";
+  static const char kInput[] =
+      "<script src=b.js></script>"
+      "<link rel=stylesheet href=a.css>";
   static const char kOutput[] =
-    "<script src=b.js.pagespeed.jm.0.js></script>"
-    "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>";
+      "<script src=b.js.pagespeed.jm.0.js></script>"
+      "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>";
 
   ValidateExpected("invalidation", kInput, kOutput);
 
@@ -141,7 +140,7 @@ TEST_F(PushPreloadFilterTest, Invalidation) {
 
   ConstStringStarVector links;
   EXPECT_TRUE(rewrite_driver()->response_headers()->Lookup(
-                  HttpAttributes::kLink, &links));
+      HttpAttributes::kLink, &links));
 
   // Only b.js should be pushed --- or rather the .pagespeed version.
   ASSERT_EQ(1, links.size());
@@ -156,11 +155,12 @@ TEST_F(PushPreloadFilterTest, Invalidation2) {
   rewrite_driver()->AddFilters();
 
   // b.js expires in 200, a.css expires in 100.
-  static const char kInput[] = "<script src=b.js></script>"
-                               "<link rel=stylesheet href=a.css>";
+  static const char kInput[] =
+      "<script src=b.js></script>"
+      "<link rel=stylesheet href=a.css>";
   static const char kOutput[] =
-    "<script src=b.js.pagespeed.jm.0.js></script>"
-    "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>";
+      "<script src=b.js.pagespeed.jm.0.js></script>"
+      "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>";
 
   ValidateExpected("invalidation", kInput, kOutput);
 
@@ -171,7 +171,7 @@ TEST_F(PushPreloadFilterTest, Invalidation2) {
 
   ConstStringStarVector links;
   EXPECT_FALSE(rewrite_driver()->response_headers()->Lookup(
-                   HttpAttributes::kLink, &links));
+      HttpAttributes::kLink, &links));
 }
 
 TEST_F(PushPreloadFilterTest, InvalidationOrder) {
@@ -181,11 +181,12 @@ TEST_F(PushPreloadFilterTest, InvalidationOrder) {
   rewrite_driver()->AddFilters();
 
   // b.js expires in 200, a.css expires in 100.
-  static const char kInput[] = "<link rel=stylesheet href=a.css>"
-                               "<script src=b.js></script>";
+  static const char kInput[] =
+      "<link rel=stylesheet href=a.css>"
+      "<script src=b.js></script>";
   static const char kOutput[] =
-    "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>"
-    "<script src=b.js.pagespeed.jm.0.js></script>";
+      "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>"
+      "<script src=b.js.pagespeed.jm.0.js></script>";
 
   ValidateExpected("invalidation", kInput, kOutput);
 
@@ -197,25 +198,28 @@ TEST_F(PushPreloadFilterTest, InvalidationOrder) {
 
   ConstStringStarVector links;
   EXPECT_FALSE(rewrite_driver()->response_headers()->Lookup(
-                   HttpAttributes::kLink, &links));
+      HttpAttributes::kLink, &links));
 }
 
 TEST_F(PushPreloadFilterTest, IndirectCollected) {
   SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
                                 "@import \"i1.css\" all;\n"
                                 "@import \"i2.css\" print, screen;\n"
-                                "@import \"i3.css\" print;         ", 100);
+                                "@import \"i3.css\" print;         ",
+                                100);
   SetResponseWithDefaultHeaders("d.css", kContentTypeCss,
                                 "@import \"i1.css\" all;    \n"
-                                "@import \"i4.css\";    ", 100);
+                                "@import \"i4.css\";    ",
+                                100);
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   rewrite_driver()->AddFilters();
 
-  const char kInput[] = "<link rel=stylesheet href=c.css>"
-                        "<link rel=stylesheet href=d.css>";
+  const char kInput[] =
+      "<link rel=stylesheet href=c.css>"
+      "<link rel=stylesheet href=d.css>";
   const char kOutput[] =
-    "<link rel=stylesheet href=A.c.css.pagespeed.cf.0.css>"
-    "<link rel=stylesheet href=A.d.css.pagespeed.cf.0.css>";
+      "<link rel=stylesheet href=A.c.css.pagespeed.cf.0.css>"
+      "<link rel=stylesheet href=A.d.css.pagespeed.cf.0.css>";
 
   ValidateExpected("basic_res", kInput, kOutput);
 
@@ -223,28 +227,22 @@ TEST_F(PushPreloadFilterTest, IndirectCollected) {
   ResetDriver();
   rewrite_driver()->StartParse(kTestDomain);
   rewrite_driver()->ParseText("<!doctype html><html>");
-  rewrite_driver()->Flush();   // Run filters
+  rewrite_driver()->Flush();  // Run filters
   ConstStringStarVector links;
 
   EXPECT_TRUE(rewrite_driver()->response_headers()->Lookup(
-                  HttpAttributes::kLink, &links));
+      HttpAttributes::kLink, &links));
   rewrite_driver()->FinishParse();
 
   ASSERT_EQ(5, links.size());
   // These should be in preorder wrt to the dependencies between
   // CSS and things in it
-  EXPECT_STREQ(
-        "</A.c.css.pagespeed.cf.0.css>; rel=preload; as=style; nopush",
-        *links[0]);
-  EXPECT_STREQ(
-        "</i1.css>; rel=preload; as=style; nopush",
-        *links[1]);
-  EXPECT_STREQ(
-        "</i2.css>; rel=preload; as=style; nopush",
-        *links[2]);
-  EXPECT_STREQ(
-        "</A.d.css.pagespeed.cf.0.css>; rel=preload; as=style; nopush",
-        *links[3]);
+  EXPECT_STREQ("</A.c.css.pagespeed.cf.0.css>; rel=preload; as=style; nopush",
+               *links[0]);
+  EXPECT_STREQ("</i1.css>; rel=preload; as=style; nopush", *links[1]);
+  EXPECT_STREQ("</i2.css>; rel=preload; as=style; nopush", *links[2]);
+  EXPECT_STREQ("</A.d.css.pagespeed.cf.0.css>; rel=preload; as=style; nopush",
+               *links[3]);
   // not i3, since it's print only.
 
   // i1 already hinted.
@@ -255,4 +253,3 @@ TEST_F(PushPreloadFilterTest, IndirectCollected) {
 }  // namespace
 
 }  // namespace net_instaweb
-

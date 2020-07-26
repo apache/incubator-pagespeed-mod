@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_THREAD_SCHEDULER_BASED_ABSTRACT_LOCK_H_
 #define PAGESPEED_KERNEL_THREAD_SCHEDULER_BASED_ABSTRACT_LOCK_H_
@@ -47,8 +46,8 @@ class SchedulerBasedAbstractLock : public NamedLock {
   void LockTimedWait(int64 wait_ms, Function* callback) override;
 
   virtual bool LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms);
-  void LockTimedWaitStealOld(
-      int64 wait_ms, int64 steal_ms, Function* callback) override;
+  void LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
+                             Function* callback) override;
 
  protected:
   friend class SharedMemLockManagerTestBase;
@@ -72,8 +71,8 @@ class SchedulerBasedAbstractLock : public NamedLock {
   typedef bool (SchedulerBasedAbstractLock::*TryLockMethod)(int64 steal_ms);
   bool TryLockIgnoreSteal(int64 steal_ignored);
   bool BusySpin(TryLockMethod try_lock, int64 steal_ms);
-  void PollAndCallback(TryLockMethod try_lock, int64 steal_ms,
-                       int64 wait_ms, Function* callback);
+  void PollAndCallback(TryLockMethod try_lock, int64 steal_ms, int64 wait_ms,
+                       Function* callback);
 };
 
 }  // namespace net_instaweb

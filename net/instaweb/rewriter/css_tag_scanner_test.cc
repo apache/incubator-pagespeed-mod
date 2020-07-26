@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the css filter
 
@@ -51,8 +50,9 @@ class CssTagScannerTest : public testing::Test {
  protected:
   CssTagScannerTest()
       : html_parse_(&message_handler_),
-        link_(nullptr), href_(nullptr), media_(nullptr) {
-  }
+        link_(nullptr),
+        href_(nullptr),
+        media_(nullptr) {}
 
   void SetUp() override {
     link_ = html_parse_.NewElement(nullptr, HtmlName::kLink);
@@ -214,36 +214,42 @@ TEST_F(CssTagScannerTest, TestHasImport) {
   // Should work.
   EXPECT_TRUE(CssTagScanner::HasImport("@import", &message_handler_));
   EXPECT_TRUE(CssTagScanner::HasImport("@Import", &message_handler_));
-  EXPECT_TRUE(CssTagScanner::HasImport(
-      "@charset 'iso-8859-1';\n"
-      "@import url('http://foo.com');\n", &message_handler_));
-  EXPECT_TRUE(CssTagScanner::HasImport(
-      "@charset 'iso-8859-1';\n"
-      "@iMPorT url('http://foo.com');\n", &message_handler_));
+  EXPECT_TRUE(
+      CssTagScanner::HasImport("@charset 'iso-8859-1';\n"
+                               "@import url('http://foo.com');\n",
+                               &message_handler_));
+  EXPECT_TRUE(
+      CssTagScanner::HasImport("@charset 'iso-8859-1';\n"
+                               "@iMPorT url('http://foo.com');\n",
+                               &message_handler_));
 
   // Should fail.
   EXPECT_FALSE(CssTagScanner::HasImport("", &message_handler_));
   EXPECT_FALSE(CssTagScanner::HasImport("@impor", &message_handler_));
-  EXPECT_FALSE(CssTagScanner::HasImport(
-      "@charset 'iso-8859-1';\n"
-      "@impor", &message_handler_));
+  EXPECT_FALSE(
+      CssTagScanner::HasImport("@charset 'iso-8859-1';\n"
+                               "@impor",
+                               &message_handler_));
   // Make sure we aren't overflowing the buffer.
   GoogleString import_string = "@import";
   StringPiece truncated_import(import_string.data(), import_string.size() - 1);
   EXPECT_FALSE(CssTagScanner::HasImport(truncated_import, &message_handler_));
 
   // False positives.
-  EXPECT_TRUE(CssTagScanner::HasImport(
-      "@charset 'iso-8859-1';\n"
-      "@importinvalid url('http://foo.com');\n", &message_handler_));
-  EXPECT_TRUE(CssTagScanner::HasImport(
-      "@charset 'iso-8859-1';\n"
-      "/* @import url('http://foo.com'); */\n", &message_handler_));
-  EXPECT_TRUE(CssTagScanner::HasImport(
-      "@charset 'iso-8859-1';\n"
-      "a { color: pink; }\n"
-      "/* @import after rulesets is invalid */\n"
-      "@import url('http://foo.com');\n", &message_handler_));
+  EXPECT_TRUE(
+      CssTagScanner::HasImport("@charset 'iso-8859-1';\n"
+                               "@importinvalid url('http://foo.com');\n",
+                               &message_handler_));
+  EXPECT_TRUE(
+      CssTagScanner::HasImport("@charset 'iso-8859-1';\n"
+                               "/* @import url('http://foo.com'); */\n",
+                               &message_handler_));
+  EXPECT_TRUE(
+      CssTagScanner::HasImport("@charset 'iso-8859-1';\n"
+                               "a { color: pink; }\n"
+                               "/* @import after rulesets is invalid */\n"
+                               "@import url('http://foo.com');\n",
+                               &message_handler_));
 }
 
 TEST_F(CssTagScannerTest, IsStylesheetOrAlternate) {
@@ -254,9 +260,9 @@ TEST_F(CssTagScannerTest, IsStylesheetOrAlternate) {
   EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("alternate stylesheet"));
   EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate("stylesheet alternate"));
   EXPECT_TRUE(
-    CssTagScanner::IsStylesheetOrAlternate("stylesheet alternate canonical"));
-  EXPECT_TRUE(
-    CssTagScanner::IsStylesheetOrAlternate("StyleshEet alternAte canoNical "));
+      CssTagScanner::IsStylesheetOrAlternate("stylesheet alternate canonical"));
+  EXPECT_TRUE(CssTagScanner::IsStylesheetOrAlternate(
+      "StyleshEet alternAte canoNical "));
   EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate("alternate"));
   EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate("prev"));
   EXPECT_FALSE(CssTagScanner::IsStylesheetOrAlternate(""));
@@ -270,9 +276,9 @@ TEST_F(CssTagScannerTest, IsAlternateStylesheet) {
   EXPECT_TRUE(CssTagScanner::IsAlternateStylesheet("alternate stylesheet"));
   EXPECT_TRUE(CssTagScanner::IsAlternateStylesheet("stylesheet alternate"));
   EXPECT_TRUE(
-    CssTagScanner::IsAlternateStylesheet("stylesheet alternate canonical"));
+      CssTagScanner::IsAlternateStylesheet("stylesheet alternate canonical"));
   EXPECT_TRUE(
-    CssTagScanner::IsAlternateStylesheet("StyleshEet alternAte canoNical "));
+      CssTagScanner::IsAlternateStylesheet("StyleshEet alternAte canoNical "));
   EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("alternate"));
   EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet("prev"));
   EXPECT_FALSE(CssTagScanner::IsAlternateStylesheet(""));
@@ -282,8 +288,7 @@ class RewriteDomainTransformerTest : public RewriteTestBase {
  public:
   RewriteDomainTransformerTest()
       : old_base_url_("http://old-base.com/"),
-        new_base_url_("http://new-base.com/") {
-  }
+        new_base_url_("http://new-base.com/") {}
 
   GoogleString Transform(const StringPiece& input) {
     GoogleString output_buffer;
@@ -291,8 +296,8 @@ class RewriteDomainTransformerTest : public RewriteTestBase {
     RewriteDomainTransformer transformer(&old_base_url_, &new_base_url_,
                                          server_context(), options(),
                                          message_handler());
-    EXPECT_TRUE(CssTagScanner::TransformUrls(
-        input, &output_writer, &transformer, message_handler()));
+    EXPECT_TRUE(CssTagScanner::TransformUrls(input, &output_writer,
+                                             &transformer, message_handler()));
     return output_buffer;
   }
 
@@ -314,8 +319,8 @@ class RewriteDomainTransformerTest : public RewriteTestBase {
       StringWriter output_writer(&output_piece);
       EXPECT_TRUE(scanner.TransformUrlsStreaming(
           piece,
-          last_piece ? CssTagScanner::kInputIncludesEnd :
-                       CssTagScanner::kInputDoesNotIncludeEnd,
+          last_piece ? CssTagScanner::kInputIncludesEnd
+                     : CssTagScanner::kInputDoesNotIncludeEnd,
           &output_writer));
       StrAppend(&result, "portion=", output_piece,
                 ", retain=", scanner.RetainedForReparse(), "|");
@@ -331,9 +336,7 @@ class RewriteDomainTransformerTest : public RewriteTestBase {
   DISALLOW_COPY_AND_ASSIGN(RewriteDomainTransformerTest);
 };
 
-TEST_F(RewriteDomainTransformerTest, Empty) {
-  EXPECT_STREQ("", Transform(""));
-}
+TEST_F(RewriteDomainTransformerTest, Empty) { EXPECT_STREQ("", Transform("")); }
 
 TEST_F(RewriteDomainTransformerTest, NoMatch) {
   EXPECT_STREQ("hello", Transform("hello"));
@@ -387,7 +390,8 @@ TEST_F(RewriteDomainTransformerTest, EscapeDQuote) {
 
 TEST_F(RewriteDomainTransformerTest, 2Relative1Abs) {
   const char input[] = "a url(s/1.png) b url(2.png) c url(http://a/3.png) d";
-  const char expected[] = "a url(http://old-base.com/s/1.png) b "
+  const char expected[] =
+      "a url(http://old-base.com/s/1.png) b "
       "url(http://old-base.com/2.png) c url(http://a/3.png) d";
   EXPECT_STREQ(expected, Transform(input));
 }
@@ -448,8 +452,7 @@ TEST_F(RewriteDomainTransformerTest, UrlProperClose) {
 TEST_F(RewriteDomainTransformerTest, UrlUnquoted) {
   // Unquoted URLs can't have space in them, either.
   // The important thing here is that transformed version doesn't get %20.
-  EXPECT_STREQ("url(http://old-base.com/foo bar)",
-               Transform("url(/foo bar)"));
+  EXPECT_STREQ("url(http://old-base.com/foo bar)", Transform("url(/foo bar)"));
 }
 
 TEST_F(RewriteDomainTransformerTest, LotsOfWhitespace) {
@@ -504,87 +507,73 @@ TEST_F(RewriteDomainTransformerTest, ImportDQuote) {
 }
 
 TEST_F(RewriteDomainTransformerTest, ImportSQuoteDQuote) {
-  EXPECT_STREQ(
-      "a @import 'http://old-base.com/style.css'\"screen\";",
-      Transform("a @import 'style.css'\"screen\";"));
+  EXPECT_STREQ("a @import 'http://old-base.com/style.css'\"screen\";",
+               Transform("a @import 'style.css'\"screen\";"));
 }
 
 TEST_F(RewriteDomainTransformerTest, BrokenEscape) {
   // First one is unchanged due to our own limitations.
-  EXPECT_STREQ(
-      "@import 'foo/\\1234'; url(foo\\",
-      Transform("@import 'foo/\\1234'; url(foo\\"));
+  EXPECT_STREQ("@import 'foo/\\1234'; url(foo\\",
+               Transform("@import 'foo/\\1234'; url(foo\\"));
 }
 
 TEST_F(RewriteDomainTransformerTest, StreamingUrlInterrupt) {
-  const char* input[] = { "u",
-                          "rl(",
-                          "\"foo",
-                          ".png\"",
-                          ") bar u",
-                          "x",
-                          nullptr };
-  EXPECT_EQ("portion=, retain=u|"
-            "portion=, retain=url(|"
-            "portion=, retain=url(\"foo|"
-            "portion=, retain=url(\"foo.png\"|"
-            "portion=url(\"http://old-base.com/foo.png\") bar , retain=u|"
-            "portion=ux, retain=|",
-            TransformStreaming(input));
+  const char* input[] = {"u",       "rl(", "\"foo", ".png\"",
+                         ") bar u", "x",   nullptr};
+  EXPECT_EQ(
+      "portion=, retain=u|"
+      "portion=, retain=url(|"
+      "portion=, retain=url(\"foo|"
+      "portion=, retain=url(\"foo.png\"|"
+      "portion=url(\"http://old-base.com/foo.png\") bar , retain=u|"
+      "portion=ux, retain=|",
+      TransformStreaming(input));
 }
 
 TEST_F(RewriteDomainTransformerTest, StreamingOtherAtRule) {
   // export has same length as import, so we can tell it's not import
   // when seeing it.
-  const char* input[] = { "@export",
-                          " \"foo.png\";",
-                          nullptr };
-  EXPECT_EQ("portion=@export, retain=|"
-            "portion= \"foo.png\";, retain=|",
-            TransformStreaming(input));
+  const char* input[] = {"@export", " \"foo.png\";", nullptr};
+  EXPECT_EQ(
+      "portion=@export, retain=|"
+      "portion= \"foo.png\";, retain=|",
+      TransformStreaming(input));
 }
 
 TEST_F(RewriteDomainTransformerTest, StreamingUrlArgInterrupt) {
-  const char* input[] = { "background-image:url(",
-                          "foo.png",
-                          ")",
-                          nullptr };
-  EXPECT_EQ("portion=background-image:, retain=url(|"
-            "portion=, retain=url(foo.png|"
-            "portion=url(http://old-base.com/foo.png), retain=|",
-            TransformStreaming(input));
+  const char* input[] = {"background-image:url(", "foo.png", ")", nullptr};
+  EXPECT_EQ(
+      "portion=background-image:, retain=url(|"
+      "portion=, retain=url(foo.png|"
+      "portion=url(http://old-base.com/foo.png), retain=|",
+      TransformStreaming(input));
 }
 
 TEST_F(RewriteDomainTransformerTest, StreamingImportInterrupt) {
-  const char* input[] = { "@",
-                          "imp",
-                          "ort",
-                          " ",
-                          " \"foo.css",
-                          "\";",
-                          nullptr };
-  EXPECT_EQ("portion=, retain=@|"
-            "portion=, retain=@imp|"
-            "portion=, retain=@import|"
-            "portion=, retain=@import |"
-            "portion=, retain=@import  \"foo.css|"
-            "portion=@import \"http://old-base.com/foo.css\";, retain=|",
-            TransformStreaming(input));
+  const char* input[] = {"@", "imp", "ort", " ", " \"foo.css", "\";", nullptr};
+  EXPECT_EQ(
+      "portion=, retain=@|"
+      "portion=, retain=@imp|"
+      "portion=, retain=@import|"
+      "portion=, retain=@import |"
+      "portion=, retain=@import  \"foo.css|"
+      "portion=@import \"http://old-base.com/foo.css\";, retain=|",
+      TransformStreaming(input));
 }
 
 TEST_F(RewriteDomainTransformerTest, StreamingEscape) {
-  const char* input[] = { "background-image: url(\"foo\\",
-                          "\"bar\")",
-                          nullptr };
-  EXPECT_EQ("portion=background-image: , retain=url(\"foo\\|"
-            "portion=url(\"http://old-base.com/foo%22bar\"), retain=|",
-            TransformStreaming(input));
+  const char* input[] = {"background-image: url(\"foo\\", "\"bar\")", nullptr};
+  EXPECT_EQ(
+      "portion=background-image: , retain=url(\"foo\\|"
+      "portion=url(\"http://old-base.com/foo%22bar\"), retain=|",
+      TransformStreaming(input));
 }
 
 TEST_F(RewriteDomainTransformerTest, StreamingCharByChar) {
   // Just run through input char-by-char.
-  const char input[] = "@import \"other.css\"; "
-                      "ul { list-style-image:url(a.png); }";
+  const char input[] =
+      "@import \"other.css\"; "
+      "ul { list-style-image:url(a.png); }";
   RewriteDomainTransformer transformer(&old_base_url_, &new_base_url_,
                                        server_context(), options(),
                                        message_handler());
@@ -599,16 +588,17 @@ TEST_F(RewriteDomainTransformerTest, StreamingCharByChar) {
     StringWriter output_writer(&output_piece);
     EXPECT_TRUE(scanner.TransformUrlsStreaming(
         GoogleString(1, character),
-        last_piece ? CssTagScanner::kInputIncludesEnd :
-                     CssTagScanner::kInputDoesNotIncludeEnd,
+        last_piece ? CssTagScanner::kInputIncludesEnd
+                   : CssTagScanner::kInputDoesNotIncludeEnd,
         &output_writer));
     StrAppend(&result, output_piece, "|");
   }
 
-  EXPECT_EQ("||||||||||||||||||@import \"http://old-base.com/other.css\"|;"
-            "| ||||ul {| |l|i|s|t|-|s|t|y|l|e|-|i|m|a|g|e|:"
-            "||||||||||url(http://old-base.com/a.png)|;| |}|",
-            result);
+  EXPECT_EQ(
+      "||||||||||||||||||@import \"http://old-base.com/other.css\"|;"
+      "| ||||ul {| |l|i|s|t|-|s|t|y|l|e|-|i|m|a|g|e|:"
+      "||||||||||url(http://old-base.com/a.png)|;| |}|",
+      result);
 }
 
 class FailTransformer : public CssTagScanner::Transformer {
@@ -616,9 +606,7 @@ class FailTransformer : public CssTagScanner::Transformer {
   FailTransformer() {}
   ~FailTransformer() override {}
 
-  TransformStatus Transform(GoogleString* str) override {
-    return kFailure;
-  }
+  TransformStatus Transform(GoogleString* str) override { return kFailure; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FailTransformer);

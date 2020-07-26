@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -51,16 +51,15 @@ MakeShowAdsAsyncFilter::MakeShowAdsAsyncFilter(RewriteDriver* rewrite_driver)
       has_ads_by_google_js_(false),
       num_pending_show_ads_api_call_replacements_(0) {
   Statistics* statistics = rewrite_driver->statistics();
-  show_ads_snippets_converted_count_ = statistics->FindVariable(
-      kShowAdsSnippetsConverted);
-  show_ads_snippets_not_converted_count_ = statistics->FindVariable(
-      kShowAdsSnippetsNotConverted);
-  show_ads_api_replaced_for_async_ = statistics->FindVariable(
-      kShowAdsApiReplacedForAsync);
+  show_ads_snippets_converted_count_ =
+      statistics->FindVariable(kShowAdsSnippetsConverted);
+  show_ads_snippets_not_converted_count_ =
+      statistics->FindVariable(kShowAdsSnippetsNotConverted);
+  show_ads_api_replaced_for_async_ =
+      statistics->FindVariable(kShowAdsApiReplacedForAsync);
 }
 
-MakeShowAdsAsyncFilter::~MakeShowAdsAsyncFilter() {
-}
+MakeShowAdsAsyncFilter::~MakeShowAdsAsyncFilter() {}
 
 void MakeShowAdsAsyncFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kShowAdsSnippetsConverted);
@@ -81,7 +80,8 @@ void MakeShowAdsAsyncFilter::StartElementImpl(HtmlElement* element) {
   // content for processing showads snippet in EndElementImpl().
   if (element->keyword() == HtmlName::kScript) {
     const char* src_attribute = element->EscapedAttributeValue(HtmlName::kSrc);
-    if (src_attribute != nullptr && ads_util::IsAdsByGoogleJsSrc(src_attribute)) {
+    if (src_attribute != nullptr &&
+        ads_util::IsAdsByGoogleJsSrc(src_attribute)) {
       has_ads_by_google_js_ = true;
     }
     DCHECK(nullptr == current_script_element_);
@@ -108,8 +108,8 @@ void MakeShowAdsAsyncFilter::EndElementImpl(HtmlElement* element) {
         ReplaceShowAdsWithAdsByGoogleElement(parsed_attributes, element);
       } else {
         if (num_pending_show_ads_api_call_replacements_ > 0) {
-          const char* src_attribute = element->EscapedAttributeValue(
-              HtmlName::kSrc);
+          const char* src_attribute =
+              element->EscapedAttributeValue(HtmlName::kSrc);
           if (src_attribute != nullptr &&
               ads_util::IsShowAdsApiCallJsSrc(src_attribute)) {
             ReplaceShowAdsApiCallWithAdsByGoogleApiCall(element);
@@ -118,7 +118,7 @@ void MakeShowAdsAsyncFilter::EndElementImpl(HtmlElement* element) {
         }
       }
     } else {
-       LOG(DFATAL) << "Scripts should never be split";
+      LOG(DFATAL) << "Scripts should never be split";
     }
   }
 
@@ -184,20 +184,19 @@ void MakeShowAdsAsyncFilter::ReplaceShowAdsWithAdsByGoogleElement(
   // MakeShowAdsAsyncFilterTest.ShowAdsNoParent)
   HtmlElement* container_element = show_ads_element->parent();
   if (!driver()->IsRewritable(show_ads_element)) {
-    LOG(DFATAL) << "show_ads_element is not rewriteable: " <<
-        show_ads_element->ToString();
+    LOG(DFATAL) << "show_ads_element is not rewriteable: "
+                << show_ads_element->ToString();
     return;
   }
 
   // If no script with src pointing to adsbygoogle.js has been seen, creates one
   // and inserts it before 'show_ads_element'.
   if (!has_ads_by_google_js_) {
-    HtmlElement* script_element = driver()->NewElement(
-        container_element, HtmlName::kScript);
+    HtmlElement* script_element =
+        driver()->NewElement(container_element, HtmlName::kScript);
     script_element->set_style(HtmlElement::EXPLICIT_CLOSE);
     driver()->AddAttribute(script_element, HtmlName::kAsync, StringPiece());
-    driver()->AddAttribute(script_element,
-                           HtmlName::kSrc,
+    driver()->AddAttribute(script_element, HtmlName::kSrc,
                            ads_util::kAdsByGoogleJavascriptSrc);
     driver()->InsertNodeBeforeNode(show_ads_element, script_element);
     has_ads_by_google_js_ = true;
@@ -210,22 +209,20 @@ void MakeShowAdsAsyncFilter::ReplaceShowAdsWithAdsByGoogleElement(
       parsed_attributes.find(ads_attribute::kGoogleAdHeight);
   DCHECK(width_iter != parsed_attributes.end());
   DCHECK(height_iter != parsed_attributes.end());
-  GoogleString style = StrCat("display:inline-block;",
-                              "width:", width_iter->second, "px;",
-                              "height:", height_iter->second, "px");
+  GoogleString style =
+      StrCat("display:inline-block;", "width:", width_iter->second, "px;",
+             "height:", height_iter->second, "px");
 
   // Creates an <ins> element with attributes computed from 'parsed_attributes'
   // and inserts it before 'show_ads_element'.
-  HtmlElement* ads_by_google_element = driver()->NewElement(
-      container_element, HtmlName::kIns);
+  HtmlElement* ads_by_google_element =
+      driver()->NewElement(container_element, HtmlName::kIns);
   ads_by_google_element->set_style(HtmlElement::EXPLICIT_CLOSE);
-  driver()->AddAttribute(ads_by_google_element,
-                         HtmlName::kClass,
+  driver()->AddAttribute(ads_by_google_element, HtmlName::kClass,
                          ads_util::kAdsbyGoogleClass);
   driver()->AddAttribute(ads_by_google_element, HtmlName::kStyle, style);
   ShowAdsSnippetParser::AttributeMap::const_iterator iter;
-  for (iter = parsed_attributes.begin();
-       iter != parsed_attributes.end();
+  for (iter = parsed_attributes.begin(); iter != parsed_attributes.end();
        ++iter) {
     // Skip-over width & height, since they're in style= already.
     if (iter->first == ads_attribute::kGoogleAdWidth ||
@@ -234,8 +231,9 @@ void MakeShowAdsAsyncFilter::ReplaceShowAdsWithAdsByGoogleElement(
     }
     const GoogleString& ads_by_google_property_name =
         ads_attribute::LookupAdsByGoogleAttributeName(iter->first);
-    const GoogleString name = ads_by_google_property_name.empty() ?
-        iter->first : ads_by_google_property_name;
+    const GoogleString name = ads_by_google_property_name.empty()
+                                  ? iter->first
+                                  : ads_by_google_property_name;
     driver()->AddAttribute(ads_by_google_element, name, iter->second);
   }
   driver()->InsertNodeBeforeNode(show_ads_element, ads_by_google_element);

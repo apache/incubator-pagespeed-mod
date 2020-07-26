@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/mem_lock_state.h"
 
@@ -31,11 +30,9 @@ MemLockState::MemLockState(StringPiece name, MemLockManager* manager)
     : current_owner_(nullptr),
       lock_count_(0),
       name_(name.data(), name.size()),
-      manager_(manager) {
-}
+      manager_(manager) {}
 
-MemLockState::~MemLockState() {
-}
+MemLockState::~MemLockState() {}
 
 MemLock* MemLockState::CreateLock(int64 sequence) {
   MemLock* lock = new MemLock(sequence, this);
@@ -82,8 +79,8 @@ void MemLockState::Unlock() {
 // This new lock wants to steal more aggressively than
 // pending_lock.  We must remove it from all maps before
 // adjusting its timing to keep the map comparators sane.
-void MemLockState::RescheduleLock(
-    int64 held_lock_grant_time_ms, MemLock* lock) {
+void MemLockState::RescheduleLock(int64 held_lock_grant_time_ms,
+                                  MemLock* lock) {
   UnscheduleLock(lock);
   lock->CalculateWakeupTime(held_lock_grant_time_ms);
   pending_locks_.insert(lock);
@@ -154,8 +151,8 @@ void MemLockState::UnscheduleLock(MemLock* lock) {
   }
 }
 
-bool MemLockState::Comparator::operator()(
-    const MemLock* a, const MemLock* b) const {
+bool MemLockState::Comparator::operator()(const MemLock* a,
+                                          const MemLock* b) const {
   if (a == b) {
     return false;
   }
@@ -167,8 +164,8 @@ bool MemLockState::Comparator::operator()(
   return cmp < 0;
 }
 
-bool MemLockState::StealComparator::operator()(
-    const MemLock* a, const MemLock* b) const {
+bool MemLockState::StealComparator::operator()(const MemLock* a,
+                                               const MemLock* b) const {
   if (a == b) {
     return false;
   }

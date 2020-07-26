@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 
@@ -29,19 +28,16 @@
 
 namespace net_instaweb {
 
-void RewriteOptionsManager::GetRewriteOptions(
-    const GoogleUrl& url,
-    const RequestHeaders& headers,
-    OptionsCallback* done) {
+void RewriteOptionsManager::GetRewriteOptions(const GoogleUrl& url,
+                                              const RequestHeaders& headers,
+                                              OptionsCallback* done) {
   done->Run(NULL);
 }
 
 void RewriteOptionsManager::PrepareRequest(
     const RewriteOptions* rewrite_options,
-    const RequestContextPtr& request_context,
-    GoogleString* url,
-    RequestHeaders* request_headers,
-    BoolCallback* callback) {
+    const RequestContextPtr& request_context, GoogleString* url,
+    RequestHeaders* request_headers, BoolCallback* callback) {
   if (rewrite_options == nullptr) {
     callback->Run(true);
     return;

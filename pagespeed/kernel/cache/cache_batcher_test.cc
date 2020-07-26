@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 // Unit-test CacheBatcher, using LRUCache, AsyncCache, and DelayCache.
 
 #include "pagespeed/kernel/cache/cache_batcher.h"
 
 #include <cstddef>
 #include <memory>
-
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -46,7 +44,7 @@
 namespace {
 const size_t kMaxSize = 100;
 const int kMaxWorkers = 2;
-}
+}  // namespace
 
 namespace net_instaweb {
 
@@ -58,29 +56,26 @@ class CacheBatcherTest : public CacheTestBase {
     CacheBatcher::InitStats(statistics_.get());
     lru_cache_ = std::make_unique<LRUCache>(kMaxSize);
     timer_.reset(thread_system_->NewTimer());
-    pool_ = std::make_unique<QueuedWorkerPool>(
-        kMaxWorkers, "cache", thread_system_.get());
+    pool_ = std::make_unique<QueuedWorkerPool>(kMaxWorkers, "cache",
+                                               thread_system_.get());
     threadsafe_cache_ = std::make_unique<ThreadsafeCache>(
         lru_cache_.get(), thread_system_->NewMutex());
-    async_cache_ = std::make_unique<AsyncCache>(threadsafe_cache_.get(), pool_.get());
-    delay_cache_ = std::make_unique<DelayCache>(async_cache_.get(),
-                                      thread_system_.get());
+    async_cache_ =
+        std::make_unique<AsyncCache>(threadsafe_cache_.get(), pool_.get());
+    delay_cache_ =
+        std::make_unique<DelayCache>(async_cache_.get(), thread_system_.get());
     // Note: it is each test's responsibility to reset batcher_ with the backend
     // and options that it needs.
     set_mutex(thread_system_->NewMutex());
   }
 
   // Make sure we shut down the worker pool prior to destructing AsyncCache.
-  void TearDown() override {
-    pool_->ShutDown();
-  }
+  void TearDown() override { pool_->ShutDown(); }
 
   class SyncPointCallback : public CacheTestBase::Callback {
    public:
     explicit SyncPointCallback(CacheBatcherTest* test)
-        : Callback(test),
-          sync_point_(test->thread_system_.get()) {
-    }
+        : Callback(test), sync_point_(test->thread_system_.get()) {}
 
     void Done(CacheInterface::KeyState state) override {
       Callback::Done(state);
@@ -98,10 +93,8 @@ class CacheBatcherTest : public CacheTestBase {
 
   void ChangeBatcherConfig(const CacheBatcher::Options& options,
                            CacheInterface* cache) {
-    batcher_ = std::make_unique<CacheBatcher>(options,
-                                    cache,
-                                    thread_system_->NewMutex(),
-                                    statistics_.get());
+    batcher_ = std::make_unique<CacheBatcher>(
+        options, cache, thread_system_->NewMutex(), statistics_.get());
   }
 
   // After the Done() callback is be called, there is a slight delay
@@ -125,13 +118,9 @@ class CacheBatcherTest : public CacheTestBase {
     --expected_pending_;
   }
 
-  int num_in_flight_keys() {
-    return peer_.num_in_flight_keys(batcher_.get());
-  }
+  int num_in_flight_keys() { return peer_.num_in_flight_keys(batcher_.get()); }
 
-  int LastBatchSize() {
-    return peer_.last_batch_size(batcher_.get());
-  }
+  int LastBatchSize() { return peer_.last_batch_size(batcher_.get()); }
 
   std::unique_ptr<LRUCache> lru_cache_;
   std::unique_ptr<ThreadSystem> thread_system_;
@@ -266,8 +255,8 @@ TEST_F(CacheBatcherTest, ExceedMaxPendingUniqueAndDrop) {
   EXPECT_EQ(3, outstanding_fetches());
   Callback* n2 = InitiateGet("n2");
   EXPECT_EQ(4, outstanding_fetches());
-  Callback* n3 = InitiateGet("n3");     // This will be dropped immediately and
-  WaitAndCheckNotFound(n3);             // reported as not found.
+  Callback* n3 = InitiateGet("n3");  // This will be dropped immediately and
+  WaitAndCheckNotFound(n3);          // reported as not found.
   EXPECT_EQ(1, statistics_->GetVariable("cache_batcher_dropped_gets")->Get());
 
   ReleaseKey("n0");
@@ -304,8 +293,8 @@ TEST_F(CacheBatcherTest, ExceedMaxPendingDuplicateAndDrop) {
   Callback* n1_1 = InitiateGet("n1");
   Callback* n1_2 = InitiateGet("n1");
   EXPECT_EQ(4, outstanding_fetches());
-  Callback* n1_3 = InitiateGet("n1");   // This will be dropped immediately and
-  WaitAndCheckNotFound(n1_3);           // reported as not found.
+  Callback* n1_3 = InitiateGet("n1");  // This will be dropped immediately and
+  WaitAndCheckNotFound(n1_3);          // reported as not found.
   EXPECT_EQ(1, statistics_->GetVariable("cache_batcher_dropped_gets")->Get());
 
   ReleaseKey("n0");
@@ -349,7 +338,7 @@ TEST_F(CacheBatcherTest, ExceedMaxPendingInFlightAndDrop) {
   EXPECT_EQ(2, outstanding_fetches());
   Callback* n2 = InitiateGet("n2");
   EXPECT_EQ(3, outstanding_fetches());  // n0, n1, n2
-  Callback* n3 = InitiateGet("n3");  // This should be dropped immediately
+  Callback* n3 = InitiateGet("n3");     // This should be dropped immediately
   EXPECT_EQ(3, outstanding_fetches());  // n0, n1, n2
   WaitAndCheckNotFound(n3);
 

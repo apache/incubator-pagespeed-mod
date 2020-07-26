@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_DATA_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_DATA_TEST_BASE_H_
@@ -38,8 +37,10 @@ class ThreadSystem;
 class SharedMemCacheDataTestBase : public testing::Test {
  protected:
   typedef void (SharedMemCacheDataTestBase::*TestMethod)();
-  enum { kBlockSize = 512 };  // Can't use static const int here since it's
-                              // passed to EXPECT_EQ
+  enum {
+    kBlockSize = 512
+  };  // Can't use static const int here since it's
+      // passed to EXPECT_EQ
 
   explicit SharedMemCacheDataTestBase(SharedMemTestEnv* test_env);
 
@@ -75,12 +76,11 @@ class SharedMemCacheDataTestBase : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(SharedMemCacheDataTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemCacheDataTestTemplate : public SharedMemCacheDataTestBase {
  public:
   SharedMemCacheDataTestTemplate()
-      : SharedMemCacheDataTestBase(new ConcreteTestEnv) {
-  }
+      : SharedMemCacheDataTestBase(new ConcreteTestEnv) {}
 };
 
 TYPED_TEST_SUITE_P(SharedMemCacheDataTestTemplate);
@@ -98,7 +98,7 @@ TYPED_TEST_P(SharedMemCacheDataTestTemplate, TestBlockLists) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(SharedMemCacheDataTestTemplate, TestFreeList,
-                           TestLRU, TestBlockLists);
+                            TestLRU, TestBlockLists);
 
 }  // namespace net_instaweb
 

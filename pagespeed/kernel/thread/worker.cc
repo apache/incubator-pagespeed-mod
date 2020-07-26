@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -185,38 +185,26 @@ class Worker::WorkThread : public ThreadSystem::Thread {
 
 Worker::Worker(StringPiece thread_name, ThreadSystem* runtime)
     : thread_(new WorkThread(this, thread_name, runtime)),
-      queue_size_(nullptr) {
-}
+      queue_size_(nullptr) {}
 
-Worker::~Worker() {
-  thread_->ShutDown();
-}
+Worker::~Worker() { thread_->ShutDown(); }
 
-void Worker::Start() {
-  thread_->Start();
-}
+void Worker::Start() { thread_->Start(); }
 
-bool Worker::IsBusy() {
-  return thread_->IsBusy();
-}
+bool Worker::IsBusy() { return thread_->IsBusy(); }
 
 bool Worker::QueueIfPermitted(Function* closure) {
   return thread_->QueueIfPermitted(closure);
 }
 
-int Worker::NumJobs() {
-  return thread_->NumJobs();
-}
+int Worker::NumJobs() { return thread_->NumJobs(); }
 
-void Worker::ShutDown() {
-  thread_->ShutDown();
-}
+void Worker::ShutDown() { thread_->ShutDown(); }
 
 void Worker::UpdateQueueSizeStat(int value) {
   if (queue_size_ != nullptr) {
     queue_size_->AddDelta(value);
   }
 }
-
 
 }  // namespace net_instaweb

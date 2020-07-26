@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,6 +21,7 @@
 #define PAGESPEED_KERNEL_BASE_ROLLING_HASH_H_
 
 #include <cstddef>
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
@@ -46,13 +47,12 @@ uint64 RollingHash(const char* buf, size_t start, size_t n);
 // something like Rabin-Karp string matching), we must inline the computation of
 // shift amounts and then hoist them as loop invariants.  That is why this
 // function (intended for use in an inner loop) is inlined.
-inline uint64 NextRollingHash(
-    const char* buf, size_t start, size_t n, uint64 prev) {
+inline uint64 NextRollingHash(const char* buf, size_t start, size_t n,
+                              uint64 prev) {
   // In a reasonable loop, the following two tests should be eliminated based on
   // contextual information, if our compiler is optimizing enough.
   CHECK_LT(static_cast<size_t>(0), start);
-  uint64 start_hash =
-      kRollingHashCharTable[static_cast<uint8>(buf[start - 1])];
+  uint64 start_hash = kRollingHashCharTable[static_cast<uint8>(buf[start - 1])];
   uint64 end_hash =
       kRollingHashCharTable[static_cast<uint8>(buf[start - 1 + n])];
   uint64 prev_rot1 = (prev << 1) | (prev >> 63);  // rotate left 1

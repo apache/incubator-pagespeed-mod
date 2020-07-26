@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -46,8 +46,8 @@ class ReflectingFetcherTest : public ::testing::Test {
 
 TEST_F(ReflectingFetcherTest, ReflectingFetcherWorks) {
   std::unique_ptr<ThreadSystem> ts(Platform::CreateThreadSystem());
-  ExpectStringAsyncFetch dest(
-      true, RequestContext::NewTestRequestContext(ts.get()));
+  ExpectStringAsyncFetch dest(true,
+                              RequestContext::NewTestRequestContext(ts.get()));
   dest.request_headers()->Add("A", "First letter");
   dest.request_headers()->Add("B", "B#1");
   dest.request_headers()->Add("B", "B#2");
@@ -60,7 +60,6 @@ TEST_F(ReflectingFetcherTest, ReflectingFetcherWorks) {
   EXPECT_STREQ("B#1", *values[0]);
   EXPECT_STREQ("B#2", *values[1]);
 }
-
 
 }  // namespace
 

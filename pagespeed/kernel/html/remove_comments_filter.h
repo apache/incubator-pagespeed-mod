@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_REMOVE_COMMENTS_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_REMOVE_COMMENTS_FILTER_H_
-
-#include "pagespeed/kernel/html/empty_html_filter.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/html/empty_html_filter.h"
 
 namespace net_instaweb {
 class HtmlCommentNode;
@@ -61,11 +59,8 @@ class RemoveCommentsFilter : public EmptyHtmlFilter {
   // RemoveCommentsFilter takes ownership of the passed in
   // OptionsInterface instance. It is ok for OptionsInterface to be
   // NULL.
-  RemoveCommentsFilter(HtmlParse* html_parse,
-                       const OptionsInterface* options)
-      : html_parse_(html_parse),
-        options_(options) {
-  }
+  RemoveCommentsFilter(HtmlParse* html_parse, const OptionsInterface* options)
+      : html_parse_(html_parse), options_(options) {}
 
   ~RemoveCommentsFilter() override;
 

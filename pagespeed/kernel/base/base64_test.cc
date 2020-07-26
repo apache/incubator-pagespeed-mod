@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,18 +17,18 @@
  * under the License.
  */
 
-
 // Unit-test the base64 encoder.
 
-#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/base64_util.h"
+#include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace {
 
-const char chinese_data[] = "中华网,中华,中国,中文网,中国新闻,香港新闻,"
+const char chinese_data[] =
+    "中华网,中华,中国,中文网,中国新闻,香港新闻,"
     "国际新闻,中文新闻,新闻,港台新闻,两会,嫦娥一号";
 const int chinese_size = STATIC_STRLEN(chinese_data);
 
@@ -73,10 +73,9 @@ class Base64Test : public testing::Test {
       : chinese_(chinese_data, chinese_size),
         binary_(binary_data, binary_size),
         web64_codec_(),
-        mime64_codec_() {
-  }
+        mime64_codec_() {}
 
-  void TestWeb64(const Codec &codec, const GoogleString& input) {
+  void TestWeb64(const Codec& codec, const GoogleString& input) {
     GoogleString encoded, decoded;
     codec.encode(input, &encoded);
     ASSERT_TRUE(codec.decode(encoded, &decoded));
@@ -90,8 +89,8 @@ class Base64Test : public testing::Test {
   //
   // If the 'index' is specified as a negative number, it will be taken
   // as an offset from the end of the string.
-  void TestCorrupt(const Codec &codec,
-                   const GoogleString& input, char corrupt_char, int index) {
+  void TestCorrupt(const Codec& codec, const GoogleString& input,
+                   char corrupt_char, int index) {
     GoogleString encoded, decoded;
     codec.encode(input, &encoded);
     if (index < 0) {

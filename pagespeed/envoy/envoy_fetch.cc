@@ -47,11 +47,14 @@
 namespace net_instaweb {
 
 // Default keepalive 60s.
-//const int64 keepalive_timeout_ms = 60000;
+// const int64 keepalive_timeout_ms = 60000;
 
-PagespeedDataFetcherCallback::PagespeedDataFetcherCallback(EnvoyFetch* fetch) { fetch_ = fetch; }
+PagespeedDataFetcherCallback::PagespeedDataFetcherCallback(EnvoyFetch* fetch) {
+  fetch_ = fetch;
+}
 
-void PagespeedDataFetcherCallback::onSuccess(Envoy::Http::ResponseMessagePtr& response) {
+void PagespeedDataFetcherCallback::onSuccess(
+    Envoy::Http::ResponseMessagePtr& response) {
   fetch_->setResponse(response->headers(), response->body());
 }
 
@@ -62,10 +65,9 @@ void PagespeedDataFetcherCallback::onFailure(FailureReason reason) {
   // 2. timeout error
 }
 
-EnvoyFetch::EnvoyFetch(const GoogleString& url,
-                   AsyncFetch* async_fetch,
-                   MessageHandler* message_handler,
-                   EnvoyClusterManager& cluster_manager)
+EnvoyFetch::EnvoyFetch(const GoogleString& url, AsyncFetch* async_fetch,
+                       MessageHandler* message_handler,
+                       EnvoyClusterManager& cluster_manager)
     : str_url_(url),
       fetcher_(nullptr),
       async_fetch_(async_fetch),
@@ -73,8 +75,7 @@ EnvoyFetch::EnvoyFetch(const GoogleString& url,
       cluster_manager_(cluster_manager),
       done_(false),
       content_length_(-1),
-      content_length_known_(false) {
-}
+      content_length_known_(false) {}
 
 void EnvoyFetch::FetchWithEnvoy() {
   envoy::config::core::v3::HttpUri http_uri;
@@ -82,55 +83,54 @@ void EnvoyFetch::FetchWithEnvoy() {
   http_uri.set_cluster(cluster_manager_.getClusterName());
   cb_ptr_ = std::make_unique<PagespeedDataFetcherCallback>(this);
 
-  std::unique_ptr<PagespeedRemoteDataFetcher> pagespeed_remote_data_fetch_ptr = 
-      std::make_unique<PagespeedRemoteDataFetcher>(cluster_manager_.getClusterManager(str_url_), http_uri, *cb_ptr_);
+  std::unique_ptr<PagespeedRemoteDataFetcher> pagespeed_remote_data_fetch_ptr =
+      std::make_unique<PagespeedRemoteDataFetcher>(
+          cluster_manager_.getClusterManager(str_url_), http_uri, *cb_ptr_);
 
   pagespeed_remote_data_fetch_ptr->fetch();
-  cluster_manager_.getDispatcher()->run(Envoy::Event::Dispatcher::RunType::Block);
+  cluster_manager_.getDispatcher()->run(
+      Envoy::Event::Dispatcher::RunType::Block);
 }
 
 // This function is called by EnvoyUrlAsyncFetcher::StartFetch.
 void EnvoyFetch::Start() {
-  std::function<void()> fetch_fun_ptr = std::bind(&EnvoyFetch::FetchWithEnvoy, this);
+  std::function<void()> fetch_fun_ptr =
+      std::bind(&EnvoyFetch::FetchWithEnvoy, this);
   cluster_manager_.getDispatcher()->post(fetch_fun_ptr);
-  cluster_manager_.getDispatcher()->run(Envoy::Event::Dispatcher::RunType::NonBlock);
+  cluster_manager_.getDispatcher()->run(
+      Envoy::Event::Dispatcher::RunType::NonBlock);
 }
 
-bool EnvoyFetch::Init() {
-  return true;
-}
+bool EnvoyFetch::Init() { return true; }
 
 void EnvoyFetch::setResponse(Envoy::Http::HeaderMap& headers,
                              Envoy::Buffer::InstancePtr& response_body) {
-
   ResponseHeaders* res_header = async_fetch_->response_headers();
-  std::unique_ptr<ResponseHeaders> response_headers_ptr = HeaderUtils::toPageSpeedResponseHeaders(headers);
+  std::unique_ptr<ResponseHeaders> response_headers_ptr =
+      HeaderUtils::toPageSpeedResponseHeaders(headers);
   res_header->CopyFrom(*response_headers_ptr);
 
-  async_fetch_->response_headers()->SetOriginalContentLength(response_body->length());
-  if (async_fetch_->response_headers()->Has(HttpAttributes::kXOriginalContentLength)) {
-    async_fetch_->extra_response_headers()->SetOriginalContentLength(response_body->length());
+  async_fetch_->response_headers()->SetOriginalContentLength(
+      response_body->length());
+  if (async_fetch_->response_headers()->Has(
+          HttpAttributes::kXOriginalContentLength)) {
+    async_fetch_->extra_response_headers()->SetOriginalContentLength(
+        response_body->length());
   }
 
-  async_fetch_->Write(StringPiece(response_body->toString()), message_handler());
+  async_fetch_->Write(StringPiece(response_body->toString()),
+                      message_handler());
 
   async_fetch_->Done(true);
 }
 
-MessageHandler* EnvoyFetch::message_handler() {
-  return message_handler_;
-}
+MessageHandler* EnvoyFetch::message_handler() { return message_handler_; }
 
-void EnvoyFetch::FixUserAgent() {
-}
+void EnvoyFetch::FixUserAgent() {}
 
 // Prepare the request data for this fetch, and hook the write event.
-int EnvoyFetch::InitRequest() {
-  return 0;
-}
+int EnvoyFetch::InitRequest() { return 0; }
 
-int EnvoyFetch::Connect() {
-  return 0;
-}
+int EnvoyFetch::Connect() { return 0; }
 
 }  // namespace net_instaweb

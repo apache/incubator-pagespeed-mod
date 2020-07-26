@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_MOCK_HASHER_H_
 #define PAGESPEED_KERNEL_BASE_MOCK_HASHER_H_
@@ -31,13 +30,11 @@ namespace net_instaweb {
 class MockHasher : public Hasher {
  public:
   MockHasher()
-      : Hasher(kint32max),
-        hash_value_("\xd0") {  // base64-encodes to "0"
+      : Hasher(kint32max), hash_value_("\xd0") {  // base64-encodes to "0"
   }
   explicit MockHasher(StringPiece hash_value)
       : Hasher(hash_value.size()),
-        hash_value_(hash_value.data(), hash_value.size()) {
-  }
+        hash_value_(hash_value.data(), hash_value.size()) {}
 
   ~MockHasher() override;
 

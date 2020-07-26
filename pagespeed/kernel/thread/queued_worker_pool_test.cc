@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -31,12 +31,11 @@
 namespace net_instaweb {
 namespace {
 
-class QueuedWorkerPoolTest: public WorkerTestBase {
+class QueuedWorkerPoolTest : public WorkerTestBase {
  public:
   QueuedWorkerPoolTest()
       : worker_(new QueuedWorkerPool(2, "queued_worker_pool_test",
-                                     thread_runtime_.get())) {
-  }
+                                     thread_runtime_.get())) {}
 
  protected:
   std::unique_ptr<QueuedWorkerPool> worker_;
@@ -59,9 +58,7 @@ class QueuedWorkerPoolTest: public WorkerTestBase {
 class Increment : public Function {
  public:
   Increment(int expected_value, int* count)
-      : expected_value_(expected_value),
-        count_(count) {
-  }
+      : expected_value_(expected_value), count_(count) {}
 
  protected:
   void Run() override {
@@ -106,12 +103,12 @@ TEST_F(QueuedWorkerPoolTest, AddFunctionTest) {
 
   QueuedWorkerPool::Sequence* sequence = worker_->NewSequence();
   for (int i = 0; i < kBound; ++i) {
-    QueuedWorkerPool::Sequence::AddFunction
-        add(sequence, new Increment(i + 1, &count1));
+    QueuedWorkerPool::Sequence::AddFunction add(sequence,
+                                                new Increment(i + 1, &count1));
     add.set_delete_after_callback(false);
     add.CallRun();
-    QueuedWorkerPool::Sequence::AddFunction
-        cancel(sequence, new Increment(-100 * (i + 1), &count2));
+    QueuedWorkerPool::Sequence::AddFunction cancel(
+        sequence, new Increment(-100 * (i + 1), &count2));
     cancel.set_delete_after_callback(false);
     cancel.CallCancel();
   }
@@ -154,13 +151,9 @@ TEST_F(QueuedWorkerPoolTest, SlowAndFastSequences) {
 
 class MakeNewSequence : public Function {
  public:
-  MakeNewSequence(WorkerTestBase::SyncPoint* sync,
-                  QueuedWorkerPool* pool,
+  MakeNewSequence(WorkerTestBase::SyncPoint* sync, QueuedWorkerPool* pool,
                   QueuedWorkerPool::Sequence* sequence)
-      : sync_(sync),
-        pool_(pool),
-        sequence_(sequence) {
-  }
+      : sync_(sync), pool_(pool), sequence_(sequence) {}
 
   void Run() override {
     pool_->FreeSequence(sequence_);
@@ -276,18 +269,14 @@ class NotifyAndWait : public Function {
  public:
   NotifyAndWait(WorkerTestBase::SyncPoint* notify,
                 WorkerTestBase::SyncPoint* wait)
-      : notify_(notify),
-        wait_(wait) {
-  }
+      : notify_(notify), wait_(wait) {}
 
   void Run() override {
     notify_->Notify();
     wait_->Wait();
   }
 
-  void Cancel() override {
-    CHECK(false);
-  }
+  void Cancel() override { CHECK(false); }
 
  private:
   WorkerTestBase::SyncPoint* notify_;
@@ -307,7 +296,7 @@ TEST_F(QueuedWorkerPoolTest, MaxQueueSize) {
   sequence->Add(new Increment(-99, &count));   // will be run: +1 == -99.
   sequence->Add(new Increment(-98, &count));   // will be run: +1 == -98.
   sequence->Add(new NotifyRunFunction(&done));
-  sequence->Add(new Increment(-97, &count));   // Cancels first increment.
+  sequence->Add(new Increment(-97, &count));  // Cancels first increment.
   wait.Notify();
   done.Wait();
   WaitUntilSequenceCompletes(sequence);

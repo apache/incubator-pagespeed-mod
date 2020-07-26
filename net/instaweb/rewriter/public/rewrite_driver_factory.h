@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_FACTORY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_FACTORY_H_
 
+#include <memory>
 #include <set>
 #include <vector>
-#include <memory>
 
 #include "pagespeed/controller/central_controller.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -37,7 +36,11 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
+namespace pagespeed {
+namespace js {
+struct JsTokenizerPatterns;
+}
+}  // namespace pagespeed
 
 namespace net_instaweb {
 
@@ -72,7 +75,8 @@ class UserAgentNormalizer;
 class RewriteDriverFactory {
  public:
   // Helper for users of defer_cleanup; see below.
-  template<class T> class Deleter;
+  template <class T>
+  class Deleter;
 
   enum WorkerPoolCategory {
     kHtmlWorkers,
@@ -229,9 +233,7 @@ class RewriteDriverFactory {
 
   // Returns the set of directories that we (our our subclasses) have created
   // thus far.
-  const StringSet& created_directories() const {
-    return created_directories_;
-  }
+  const StringSet& created_directories() const { return created_directories_; }
 
   bool async_rewrites() { return true; }
 
@@ -291,14 +293,13 @@ class RewriteDriverFactory {
 
   // Queues an object for deletion at the last phase of RewriteDriverFactory
   // destruction.
-  template<class T> void TakeOwnership(T* obj) {
+  template <class T>
+  void TakeOwnership(T* obj) {
     defer_cleanup(new RewriteDriverFactory::Deleter<T>(obj));
   }
 
   // Base method that returns true if the given ip is a debug ip.
-  virtual bool IsDebugClient(const GoogleString& ip) const {
-    return false;
-  }
+  virtual bool IsDebugClient(const GoogleString& ip) const { return false; }
 
   // Creates an ExperimentMatcher, which is used to match clients or sessions to
   // a specific experiment.
@@ -505,10 +506,12 @@ class RewriteDriverFactory {
 
 // Helper for users of RewriterDriverFactory::defer_cleanup --- instantiates
 // into objects that call the appropriate delete operator when Run.
-template<class T> class RewriteDriverFactory::Deleter : public Function {
+template <class T>
+class RewriteDriverFactory::Deleter : public Function {
  public:
   explicit Deleter(T* obj) : obj_(obj) {}
   void Run() override { delete obj_; }
+
  private:
   T* obj_;
   DISALLOW_COPY_AND_ASSIGN(Deleter);

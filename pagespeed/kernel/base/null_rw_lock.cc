@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,35 +17,24 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/null_rw_lock.h"
 
 namespace net_instaweb {
 
-NullRWLock::~NullRWLock() {
-}
+NullRWLock::~NullRWLock() {}
 
-bool NullRWLock::TryLock() {
-  return true;
-}
+bool NullRWLock::TryLock() { return true; }
 
-void NullRWLock::Lock() {
-}
+void NullRWLock::Lock() {}
 
-void NullRWLock::Unlock() {
-}
+void NullRWLock::Unlock() {}
 
-bool NullRWLock::ReaderTryLock() {
-  return true;
-}
+bool NullRWLock::ReaderTryLock() { return true; }
 
-void NullRWLock::ReaderLock() {
-}
+void NullRWLock::ReaderLock() {}
 
-void NullRWLock::ReaderUnlock() {
-}
+void NullRWLock::ReaderUnlock() {}
 
-void NullRWLock::DCheckReaderLocked() {
-}
+void NullRWLock::DCheckReaderLocked() {}
 
 }  // namespace net_instaweb

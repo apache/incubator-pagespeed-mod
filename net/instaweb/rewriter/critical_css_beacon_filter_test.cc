@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/critical_css_beacon_filter.h"
 
@@ -72,26 +71,22 @@ const char kInlinePrint[] =
     "<style media='print'>"
     "span{color:red}"
     "</style>";
-const char kStyleCorrupt[] =
-    "span{color:";
-const char kStyleEmpty[] =
-    "/* This has no selectors */";
-const char kStyleForUnauthCss[] =
-    "div{display:inline}";
+const char kStyleCorrupt[] = "span{color:";
+const char kStyleEmpty[] = "/* This has no selectors */";
+const char kStyleForUnauthCss[] = "div{display:inline}";
 const char kUnauthDomainUrl[] = "http://unauthorized.com/d.css";
 
 // Common setup / result generation code for all tests
 class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
  public:
-  CriticalCssBeaconFilterTestBase() { }
-  ~CriticalCssBeaconFilterTestBase() override { }
+  CriticalCssBeaconFilterTestBase() {}
+  ~CriticalCssBeaconFilterTestBase() override {}
 
  protected:
   // Set everything up except for filter configuration.
   void SetUp() override {
     RewriteTestBase::SetUp();
-    SetCurrentUserAgent(
-        UserAgentMatcherTestBase::kChrome18UserAgent);
+    SetCurrentUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
     SetHtmlMimetype();  // Don't wrap scripts in <![CDATA[ ]]>
     factory()->set_use_beacon_results_in_filters(true);
     rewrite_driver()->set_property_page(NewMockPage(kTestDomain));
@@ -106,14 +101,12 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
         statistics());
     server_context()->set_critical_selector_finder(finder);
     // Set up contents of CSS files.
-    SetResponseWithDefaultHeaders("a.css", kContentTypeCss,
-                                  kStyleA, 100);
-    SetResponseWithDefaultHeaders("b.css", kContentTypeCss,
-                                  kStyleB, 100);
-    SetResponseWithDefaultHeaders("corrupt.css", kContentTypeCss,
-                                  kStyleCorrupt, 100);
-    SetResponseWithDefaultHeaders("empty.css", kContentTypeCss,
-                                  kStyleEmpty, 100);
+    SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kStyleA, 100);
+    SetResponseWithDefaultHeaders("b.css", kContentTypeCss, kStyleB, 100);
+    SetResponseWithDefaultHeaders("corrupt.css", kContentTypeCss, kStyleCorrupt,
+                                  100);
+    SetResponseWithDefaultHeaders("empty.css", kContentTypeCss, kStyleEmpty,
+                                  100);
     SetResponseWithDefaultHeaders(kUnauthDomainUrl, kContentTypeCss,
                                   kStyleForUnauthCss, 100);
   }
@@ -133,27 +126,29 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
   }
 
   GoogleString BeaconHtml(StringPiece head, StringPiece selectors) {
-    GoogleString html = StrCat(
-        "<head>", head, "</head><body><p>content</p>"
-        "<script data-pagespeed-no-defer type=\"text/javascript\">",
-        server_context()->static_asset_manager()->GetAsset(
-            StaticAssetEnum::CRITICAL_CSS_BEACON_JS, options()),
-        "pagespeed.selectors=[", selectors, "];");
-    StrAppend(&html,
-              "pagespeed.criticalCssBeaconInit('",
-              options()->beacon_url().http, "','", kTestDomain,
-              "','0','", ExpectedNonce(), "',pagespeed.selectors);"
+    GoogleString html =
+        StrCat("<head>", head,
+               "</head><body><p>content</p>"
+               "<script data-pagespeed-no-defer type=\"text/javascript\">",
+               server_context()->static_asset_manager()->GetAsset(
+                   StaticAssetEnum::CRITICAL_CSS_BEACON_JS, options()),
+               "pagespeed.selectors=[", selectors, "];");
+    StrAppend(&html, "pagespeed.criticalCssBeaconInit('",
+              options()->beacon_url().http, "','", kTestDomain, "','0','",
+              ExpectedNonce(),
+              "',pagespeed.selectors);"
               "</script></body>");
     return html;
   }
 
   GoogleString SelectorsOnlyHtml(StringPiece head, StringPiece selectors) {
-    return StrCat(
-        "<head>", head, "</head><body><p>content</p>"
-        "<script data-pagespeed-no-defer type=\"text/javascript\">",
-        CriticalCssBeaconFilter::kInitializePageSpeedJs,
-        "pagespeed.selectors=[", selectors, "];"
-        "</script></body>");
+    return StrCat("<head>", head,
+                  "</head><body><p>content</p>"
+                  "<script data-pagespeed-no-defer type=\"text/javascript\">",
+                  CriticalCssBeaconFilter::kInitializePageSpeedJs,
+                  "pagespeed.selectors=[", selectors,
+                  "];"
+                  "</script></body>");
   }
 
  private:
@@ -163,8 +158,8 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
 // Standard test setup enables filter via RewriteOptions.
 class CriticalCssBeaconFilterTest : public CriticalCssBeaconFilterTestBase {
  public:
-  CriticalCssBeaconFilterTest() { }
-  ~CriticalCssBeaconFilterTest() override { }
+  CriticalCssBeaconFilterTest() {}
+  ~CriticalCssBeaconFilterTest() override {}
 
  protected:
   void SetUp() override {
@@ -178,10 +173,8 @@ class CriticalCssBeaconFilterTest : public CriticalCssBeaconFilterTestBase {
 };
 
 TEST_F(CriticalCssBeaconFilterTest, ExtractFromInlineStyle) {
-  ValidateExpectedUrl(
-      kTestDomain,
-      InputHtml(kInlineStyle),
-      BeaconHtml(kInlineStyle, kSelectorsInline));
+  ValidateExpectedUrl(kTestDomain, InputHtml(kInlineStyle),
+                      BeaconHtml(kInlineStyle, kSelectorsInline));
 }
 
 TEST_F(CriticalCssBeaconFilterTest, DisabledForIE) {
@@ -195,35 +188,31 @@ TEST_F(CriticalCssBeaconFilterTest, DisabledForBots) {
 }
 
 TEST_F(CriticalCssBeaconFilterTest, ExtractFromUnopt) {
-  ValidateExpectedUrl(
-      kTestDomain,
-      InputHtml(CssLinkHref("a.css")),
-      BeaconHtml(CssLinkHref("a.css"), kSelectorsA));
+  ValidateExpectedUrl(kTestDomain, InputHtml(CssLinkHref("a.css")),
+                      BeaconHtml(CssLinkHref("a.css"), kSelectorsA));
 }
 
 TEST_F(CriticalCssBeaconFilterTest, ExtractFromOpt) {
-  GoogleString input_html = InputHtml(
-      StrCat(CssLinkHref("b.css"), kInlineStyle));
-  GoogleString expected_html = BeaconHtml(
-      StrCat(CssLinkHrefOpt("b.css"), kInlineStyle), kSelectorsB);
+  GoogleString input_html =
+      InputHtml(StrCat(CssLinkHref("b.css"), kInlineStyle));
+  GoogleString expected_html =
+      BeaconHtml(StrCat(CssLinkHrefOpt("b.css"), kInlineStyle), kSelectorsB);
   ValidateExpectedUrl(kTestDomain, input_html, expected_html);
 }
 
 TEST_F(CriticalCssBeaconFilterTest, DontExtractFromNoScript) {
-  GoogleString input_html = InputHtml(
-      StrCat(CssLinkHref("a.css"),
-             "<noscript>", CssLinkHref("b.css"), "</noscript>"));
-  GoogleString expected_html = BeaconHtml(
-      StrCat(CssLinkHref("a.css"),
-             "<noscript>", CssLinkHrefOpt("b.css"), "</noscript>"),
-      kSelectorsA);
+  GoogleString input_html = InputHtml(StrCat(
+      CssLinkHref("a.css"), "<noscript>", CssLinkHref("b.css"), "</noscript>"));
+  GoogleString expected_html =
+      BeaconHtml(StrCat(CssLinkHref("a.css"), "<noscript>",
+                        CssLinkHrefOpt("b.css"), "</noscript>"),
+                 kSelectorsA);
   ValidateExpectedUrl(kTestDomain, input_html, expected_html);
 }
 
 TEST_F(CriticalCssBeaconFilterTest, DontExtractFromAlternate) {
-  GoogleString input_html = InputHtml(
-      StrCat(CssLinkHref("a.css"),
-             "<link rel=\"alternate stylesheet\" href=b.css>"));
+  GoogleString input_html = InputHtml(StrCat(
+      CssLinkHref("a.css"), "<link rel=\"alternate stylesheet\" href=b.css>"));
   GoogleString expected_html = BeaconHtml(
       StrCat(CssLinkHref("a.css"),
              "<link rel=\"alternate stylesheet\" href=", UrlOpt("b.css"), ">"),
@@ -233,12 +222,17 @@ TEST_F(CriticalCssBeaconFilterTest, DontExtractFromAlternate) {
 
 TEST_F(CriticalCssBeaconFilterTest, Unauthorized) {
   GoogleString css = StrCat(CssLinkHref(kUnauthDomainUrl), kInlineStyle);
-  ValidateExpectedUrl(
-      kTestDomain, InputHtml(css), BeaconHtml(css, kSelectorsInline));
-  EXPECT_EQ(1, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(1, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
+  ValidateExpectedUrl(kTestDomain, InputHtml(css),
+                      BeaconHtml(css, kSelectorsInline));
+  EXPECT_EQ(1, statistics()
+                   ->GetVariable(
+                       CssSummarizerBase::kNumCssUsedForCriticalCssComputation)
+                   ->Get());
+  EXPECT_EQ(1,
+            statistics()
+                ->GetVariable(
+                    CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)
+                ->Get());
 }
 
 TEST_F(CriticalCssBeaconFilterTest, AllowUnauthorized) {
@@ -246,26 +240,30 @@ TEST_F(CriticalCssBeaconFilterTest, AllowUnauthorized) {
   options()->AddInlineUnauthorizedResourceType(semantic_type::kStylesheet);
   options()->ComputeSignature();
   GoogleString css = StrCat(CssLinkHref(kUnauthDomainUrl), kInlineStyle);
-  ValidateExpectedUrl(
-      kTestDomain, InputHtml(css),
-      BeaconHtml(css, kSelectorsInlineWithUnauthSelectors));
-  EXPECT_EQ(2, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssUsedForCriticalCssComputation)->Get());
-  EXPECT_EQ(0, statistics()->GetVariable(
-      CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)->Get());
+  ValidateExpectedUrl(kTestDomain, InputHtml(css),
+                      BeaconHtml(css, kSelectorsInlineWithUnauthSelectors));
+  EXPECT_EQ(2, statistics()
+                   ->GetVariable(
+                       CssSummarizerBase::kNumCssUsedForCriticalCssComputation)
+                   ->Get());
+  EXPECT_EQ(0,
+            statistics()
+                ->GetVariable(
+                    CssSummarizerBase::kNumCssNotUsedForCriticalCssComputation)
+                ->Get());
 }
 
 TEST_F(CriticalCssBeaconFilterTest, Missing) {
   SetFetchFailOnUnexpected(false);
   GoogleString css = StrCat(CssLinkHref("404.css"), kInlineStyle);
-  ValidateExpectedUrl(
-      kTestDomain, InputHtml(css), BeaconHtml(css, kSelectorsInline));
+  ValidateExpectedUrl(kTestDomain, InputHtml(css),
+                      BeaconHtml(css, kSelectorsInline));
 }
 
 TEST_F(CriticalCssBeaconFilterTest, Corrupt) {
   GoogleString css = StrCat(CssLinkHref("corrupt.css"), kInlineStyle);
-  ValidateExpectedUrl(
-      kTestDomain, InputHtml(css), BeaconHtml(css, kSelectorsInline));
+  ValidateExpectedUrl(kTestDomain, InputHtml(css),
+                      BeaconHtml(css, kSelectorsInline));
 }
 
 TEST_F(CriticalCssBeaconFilterTest, EmptyCssIgnored) {
@@ -373,11 +371,11 @@ TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
       finder->PrepareForBeaconInsertion(selectors, driver);
   ASSERT_TRUE(metadata.status == kBeaconWithNonce);
   EXPECT_EQ(ExpectedNonce(), metadata.nonce);
-  finder->WriteCriticalSelectorsToPropertyCache(
-      selectors, metadata.nonce, driver);
+  finder->WriteCriticalSelectorsToPropertyCache(selectors, metadata.nonce,
+                                                driver);
   // Force cohort to persist.
-  rewrite_driver()->property_page()
-      ->WriteCohort(server_context()->beacon_cohort());
+  rewrite_driver()->property_page()->WriteCohort(
+      server_context()->beacon_cohort());
   // Now do the test.
 
   GoogleString input_html = InputHtml(
@@ -399,14 +397,14 @@ class CriticalCssBeaconWithCombinerFilterTest
 
 TEST_F(CriticalCssBeaconWithCombinerFilterTest, Interaction) {
   // Make sure that beacon insertion interacts with combine CSS properly.
-  GoogleString input_html = InputHtml(
-      StrCat(CssLinkHref("a.css"), CssLinkHref("b.css")));
+  GoogleString input_html =
+      InputHtml(StrCat(CssLinkHref("a.css"), CssLinkHref("b.css")));
   GoogleString combined_url = Encode("", RewriteOptions::kCssCombinerId, "0",
                                      MultiUrl("a.css", "b.css"), "css");
   // css_filter applies after css_combine and adds to the url encoding.
   GoogleString expected_url = UrlOpt(combined_url);
-  GoogleString expected_html = BeaconHtml(
-      CssLinkHref(expected_url), kSelectorsInlineAB);
+  GoogleString expected_html =
+      BeaconHtml(CssLinkHref(expected_url), kSelectorsInlineAB);
   ValidateExpectedUrl(kTestDomain, input_html, expected_html);
 }
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,16 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/instaweb_handler.h"
 
 #include <cstddef>
 #include <memory>
 
-
 #include "base/logging.h"
+#include "http_config.h"
+#include "http_core.h"
+#include "http_protocol.h"
+#include "http_request.h"
 #include "net/instaweb/http/public/cache_url_async_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
@@ -38,6 +40,7 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "pagespeed/apache/apache_config.h"
 #include "pagespeed/apache/apache_fetch.h"
+#include "pagespeed/apache/apache_logging_includes.h"
 #include "pagespeed/apache/apache_message_handler.h"
 #include "pagespeed/apache/apache_request_context.h"
 #include "pagespeed/apache/apache_rewrite_driver_factory.h"
@@ -64,13 +67,7 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/system/admin_site.h"
 #include "pagespeed/system/in_place_resource_recorder.h"
-
-#include "http_config.h"
-#include "http_core.h"
-#include "http_protocol.h"
-#include "http_request.h"
 #include "util_filter.h"
-#include "pagespeed/apache/apache_logging_includes.h"
 
 namespace net_instaweb {
 
@@ -101,8 +98,8 @@ const size_t kMaxPostSizeBytes = 131072;
 
 InstawebHandler::InstawebHandler(request_rec* request)
     : request_(request),
-      server_context_(InstawebContext::ServerContextFromServerRec(
-          request->server)),
+      server_context_(
+          InstawebContext::ServerContextFromServerRec(request->server)),
       rewrite_driver_(nullptr),
       driver_owned_(true),
       num_response_attributes_(0),
@@ -158,9 +155,9 @@ RewriteDriver* InstawebHandler::MakeDriver() {
       << "We can only call MakeDriver once per InstawebHandler:"
       << original_url_;
 
-  rewrite_driver_ = ResourceFetch::GetDriver(
-      stripped_gurl_, custom_options_.release(), server_context_,
-      request_context_);
+  rewrite_driver_ =
+      ResourceFetch::GetDriver(stripped_gurl_, custom_options_.release(),
+                               server_context_, request_context_);
 
   // If there were custom options, the ownership of the memory has
   // now been transferred to the driver, but options_ still points
@@ -172,21 +169,20 @@ RewriteDriver* InstawebHandler::MakeDriver() {
   return rewrite_driver_;
 }
 
-ApacheFetch* InstawebHandler::MakeFetch(const GoogleString& url,
-                                        bool buffered,
+ApacheFetch* InstawebHandler::MakeFetch(const GoogleString& url, bool buffered,
                                         StringPiece debug_info) {
   DCHECK(fetch_ == nullptr);
   // ApacheFetch takes ownership of request_headers.
   RequestHeaders* request_headers = new RequestHeaders();
   ApacheRequestToRequestHeaders(*request_, request_headers);
-  ApacheWriter* writer = new ApacheWriter(request_,
-                                          server_context_->thread_system());
+  ApacheWriter* writer =
+      new ApacheWriter(request_, server_context_->thread_system());
   if (rewrite_driver_ == nullptr) {
     MakeDriver();
   }
-  fetch_ = new ApacheFetch(
-        url, debug_info, rewrite_driver_, writer, request_headers,
-        request_context_, options_, server_context_->message_handler());
+  fetch_ = new ApacheFetch(url, debug_info, rewrite_driver_, writer,
+                           request_headers, request_context_, options_,
+                           server_context_->message_handler());
   fetch_->set_buffered(buffered || options_->force_buffering());
   return fetch_;
 }
@@ -209,12 +205,9 @@ bool InstawebHandler::IsCompressibleContentType(const char* content_type) {
     if (type.find("javascript") != type.npos ||
         type.find("json") != type.npos ||
         type.find("ecmascript") != type.npos ||
-        type == "application/livescript" ||
-        type == "application/js" ||
-        type == "application/jscript" ||
-        type == "application/x-js" ||
-        type == "application/xhtml+xml" ||
-        type == "application/xml") {
+        type == "application/livescript" || type == "application/js" ||
+        type == "application/jscript" || type == "application/x-js" ||
+        type == "application/xhtml+xml" || type == "application/xml") {
       res = true;
     }
   }
@@ -224,8 +217,7 @@ bool InstawebHandler::IsCompressibleContentType(const char* content_type) {
 
 /* static */
 void InstawebHandler::send_out_headers_and_body(
-    request_rec* request,
-    const ResponseHeaders& response_headers,
+    request_rec* request, const ResponseHeaders& response_headers,
     const GoogleString& output) {
   // We always disable downstream header filters when sending out
   // pagespeed resources, since we've captured them in the origin fetch.
@@ -261,8 +253,9 @@ void InstawebHandler::ComputeCustomOptions() {
   {
     // In subscope so directory_options can't be used later by mistake since
     // it should only be used for computing the custom options.
-    ApacheConfig* directory_options = static_cast<ApacheConfig*>
-        ap_get_module_config(request_->per_dir_config, &pagespeed_module);
+    ApacheConfig* directory_options =
+        static_cast<ApacheConfig*> ap_get_module_config(
+            request_->per_dir_config, &pagespeed_module);
     if ((directory_options != nullptr) && directory_options->modified()) {
       custom_options_.reset(
           server_context_->apache_factory()->NewRewriteOptions());
@@ -299,7 +292,8 @@ void InstawebHandler::ComputeCustomOptions() {
   // Get the remote configuration options before GetQueryOptions, as the query
   // options should override the remote config.
   if (!directory_aware_options->remote_configuration_url().empty()) {
-    std::unique_ptr<RewriteOptions> remote_options(directory_aware_options->Clone());
+    std::unique_ptr<RewriteOptions> remote_options(
+        directory_aware_options->Clone());
 
     server_context_->GetRemoteOptions(remote_options.get(), false);
     if (custom_options_.get() == nullptr) {
@@ -310,13 +304,12 @@ void InstawebHandler::ComputeCustomOptions() {
     custom_options_->Merge(*remote_options);
   }
 
-  if (!server_context_->GetQueryOptions(request_context(),
-                                        directory_aware_options,
-                                        &stripped_gurl_, request_headers_.get(),
-                                        response_headers_.get(),
-                                        &rewrite_query_)) {
+  if (!server_context_->GetQueryOptions(
+          request_context(), directory_aware_options, &stripped_gurl_,
+          request_headers_.get(), response_headers_.get(), &rewrite_query_)) {
     server_context_->message_handler()->Message(
-        kWarning, "Invalid PageSpeed query params or headers for "
+        kWarning,
+        "Invalid PageSpeed query params or headers for "
         "request %s. Serving with default options.",
         stripped_gurl_.spec_c_str());
   }
@@ -375,20 +368,16 @@ void InstawebHandler::RemoveStrippedResponseHeadersFromApacheRequest() {
       // options from the headers. Use NULL for device_properties as no
       // device property information is needed for the stripping.
       RequestContextPtr null_request_context;
-      RewriteQuery::ScanHeader(true /* enable options */,
-                               "" /* request option override */,
-                               null_request_context,
-                               &tmp_err_resp_headers,
-                               nullptr /* device_properties */,
-                               unused_opts1.get(),
-                               server_context_->message_handler());
-      RewriteQuery::ScanHeader(true /* enable options */,
-                               "" /* request option override */,
-                               null_request_context,
-                               &tmp_resp_headers,
-                               nullptr /* device_properties */,
-                               unused_opts2.get(),
-                               server_context_->message_handler());
+      RewriteQuery::ScanHeader(
+          true /* enable options */, "" /* request option override */,
+          null_request_context, &tmp_err_resp_headers,
+          nullptr /* device_properties */, unused_opts1.get(),
+          server_context_->message_handler());
+      RewriteQuery::ScanHeader(
+          true /* enable options */, "" /* request option override */,
+          null_request_context, &tmp_resp_headers,
+          nullptr /* device_properties */, unused_opts2.get(),
+          server_context_->message_handler());
 
       // Write the stripped headers back to the Apache record.
       apr_table_clear(request_->err_headers_out);
@@ -453,8 +442,9 @@ bool InstawebHandler::HandleAsInPlace() {
   RequestHeaders::Properties request_properties(
       apr_table_get(request_->headers_in, HttpAttributes::kCookie) != nullptr,
       apr_table_get(request_->headers_in, HttpAttributes::kCookie2) != nullptr,
-      (apr_table_get(request_->headers_in, HttpAttributes::kAuthorization)
-       != nullptr) || (request_->user != nullptr));
+      (apr_table_get(request_->headers_in, HttpAttributes::kAuthorization) !=
+       nullptr) ||
+          (request_->user != nullptr));
 
   RewriteDriver* driver = MakeDriver();
   MakeFetch(false /* not buffered */, "ipro");
@@ -479,28 +469,24 @@ bool InstawebHandler::HandleAsInPlace() {
     // InPlaceResourceRecorder as we want any ?ModPagespeed query-params to
     // be stripped from the cache key before we store the result in HTTPCache.
     InPlaceResourceRecorder* recorder = new InPlaceResourceRecorder(
-        request_context_,
-        stripped_gurl_.Spec(),
-        driver->CacheFragment(),
-        request_properties,
-        options_->ipro_max_response_bytes(),
+        request_context_, stripped_gurl_.Spec(), driver->CacheFragment(),
+        request_properties, options_->ipro_max_response_bytes(),
         options_->ipro_max_concurrent_recordings(),
-        server_context_->http_cache(),
-        server_context_->statistics(),
+        server_context_->http_cache(), server_context_->statistics(),
         server_context_->message_handler());
     // See mod_instaweb.cc:mod_pagespeed_register_hooks for why we need all
     // three filters.
-    ap_add_output_filter(kModPagespeedInPlaceFilterName, recorder,
-                         request_, request_->connection);
-    ap_add_output_filter(kModPagespeedInPlaceFixHeadersName, recorder,
-                         request_, request_->connection);
+    ap_add_output_filter(kModPagespeedInPlaceFilterName, recorder, request_,
+                         request_->connection);
+    ap_add_output_filter(kModPagespeedInPlaceFixHeadersName, recorder, request_,
+                         request_->connection);
     ap_add_output_filter(kModPagespeedInPlaceCheckHeadersName, recorder,
                          request_, request_->connection);
     // Add a contingency cleanup path in case some module munches
     // (or doesn't produce at all) an EOS bucket. If everything
     // goes well, we will just remove it befoe cleaning up ourselves.
-    apr_pool_cleanup_register(
-        request_->pool, recorder, DeleteInPlaceRecorder, apr_pool_cleanup_null);
+    apr_pool_cleanup_register(request_->pool, recorder, DeleteInPlaceRecorder,
+                              apr_pool_cleanup_null);
   } else {
     server_context_->rewrite_stats()->ipro_not_rewritable()->Add(1);
   }
@@ -545,23 +531,21 @@ void InstawebHandler::HandleAsProxyForAll() {
 
   // Do loop detection.
   if (request_headers->HasValue(HttpAttributes::kXPageSpeedLoop, kLoopValue)) {
-    write_handler_response("Loop detected on fetch in ProxyAllRequests mode; "
-                           "you may need to authorize more domains. ",
-                           request_);
+    write_handler_response(
+        "Loop detected on fetch in ProxyAllRequests mode; "
+        "you may need to authorize more domains. ",
+        request_);
     return;
   }
   request_headers->Add(HttpAttributes::kXPageSpeedLoop, kLoopValue);
-  SimpleBufferedApacheFetch fetch(request_context_,
-                                  request_headers.release(),
-                                  server_context_->thread_system(),
-                                  request_,
+  SimpleBufferedApacheFetch fetch(request_context_, request_headers.release(),
+                                  server_context_->thread_system(), request_,
                                   server_context_->message_handler());
 
   ProxyInterface proxy_interface(
       ApacheServerContext::kProxyInterfaceStatsPrefix,
       apache_request_context_->local_ip(),
-      apache_request_context_->local_port(),
-      server_context_,
+      apache_request_context_->local_port(), server_context_,
       server_context_->statistics());
   proxy_interface.Fetch(original_url_, server_context_->message_handler(),
                         &fetch);
@@ -635,8 +619,8 @@ void InstawebHandler::write_handler_response(const StringPiece& output,
 /* static */
 void InstawebHandler::write_handler_response(const StringPiece& output,
                                              request_rec* request) {
-  write_handler_response(output, request,
-                         kContentTypeHtml, HttpAttributes::kNoCacheMaxAge0);
+  write_handler_response(output, request, kContentTypeHtml,
+                         HttpAttributes::kNoCacheMaxAge0);
 }
 
 // Returns request URL if it was a .pagespeed. rewritten resource URL.
@@ -682,8 +666,8 @@ struct HeaderLoggingData {
 // each header to write header data in a form suitable for javascript inlining.
 // Used only for tests.
 /* static */
-int InstawebHandler::log_request_headers(void* logging_data,
-                                         const char* key, const char* value) {
+int InstawebHandler::log_request_headers(void* logging_data, const char* key,
+                                         const char* value) {
   HeaderLoggingData* hld = static_cast<HeaderLoggingData*>(logging_data);
   StringWriter* writer = hld->writer;
   MessageHandler* handler = hld->handler;
@@ -715,8 +699,8 @@ void InstawebHandler::instaweb_static_handler(
   StringPiece file_contents;
   StringPiece cache_header;
   ContentType content_type;
-  if (static_asset_manager->GetAsset(
-      file_name, &file_contents, &content_type, &cache_header)) {
+  if (static_asset_manager->GetAsset(file_name, &file_contents, &content_type,
+                                     &cache_header)) {
     write_handler_response(file_contents, request, content_type, cache_header);
   } else {
     server_context->ReportResourceNotFound(request->parsed_uri.path, request);
@@ -758,8 +742,8 @@ bool InstawebHandler::parse_body_from_post(const request_rec* request,
   // Verify that the request has the correct content type for a form POST
   // submission. Ideally, we could use request->content_type here, but that is
   // coming back as NULL, even when the header was set correctly.
-  const char* content_type = apr_table_get(request->headers_in,
-                                           HttpAttributes::kContentType);
+  const char* content_type =
+      apr_table_get(request->headers_in, HttpAttributes::kContentType);
   if (content_type == nullptr) {
     *ret = HTTP_BAD_REQUEST;
     return false;
@@ -784,8 +768,8 @@ bool InstawebHandler::parse_body_from_post(const request_rec* request,
   // Content-Length header is set, use it, otherwise try to pull up to
   // kMaxPostSizeBytes.
   int content_len = kMaxPostSizeBytes;
-  const char* content_len_str = apr_table_get(request->headers_in,
-                                              HttpAttributes::kContentLength);
+  const char* content_len_str =
+      apr_table_get(request->headers_in, HttpAttributes::kContentLength);
   if (content_len_str != nullptr) {
     if (!StringToInt(content_len_str, &content_len)) {
       *ret = HTTP_BAD_REQUEST;
@@ -806,9 +790,9 @@ bool InstawebHandler::parse_body_from_post(const request_rec* request,
   bool eos = false;
 
   while (!eos) {
-    apr_status_t rv = ap_get_brigade(request->input_filters, bbin,
-                                     AP_MODE_READBYTES, APR_BLOCK_READ,
-                                     content_len);
+    apr_status_t rv =
+        ap_get_brigade(request->input_filters, bbin, AP_MODE_READBYTES,
+                       APR_BLOCK_READ, content_len);
     if (rv != APR_SUCCESS) {
       // Form input read failed.
       *ret = HTTP_INTERNAL_SERVER_ERROR;
@@ -816,7 +800,7 @@ bool InstawebHandler::parse_body_from_post(const request_rec* request,
     }
     for (apr_bucket* bucket = APR_BRIGADE_FIRST(bbin);
          bucket != APR_BRIGADE_SENTINEL(bbin);
-         bucket = APR_BUCKET_NEXT(bucket) ) {
+         bucket = APR_BUCKET_NEXT(bucket)) {
       if (!APR_BUCKET_IS_METADATA(bucket)) {
         const char* buf = nullptr;
         size_t bytes = 0;
@@ -867,8 +851,8 @@ apr_status_t InstawebHandler::instaweb_beacon_handler(
   }
   RequestContextPtr request_context(
       server_context->NewApacheRequestContext(request));
-  StringPiece user_agent = apr_table_get(request->headers_in,
-                                         HttpAttributes::kUserAgent);
+  StringPiece user_agent =
+      apr_table_get(request->headers_in, HttpAttributes::kUserAgent);
   server_context->HandleBeacon(data, user_agent, request_context);
   apr_table_set(request->headers_out, HttpAttributes::kCacheControl,
                 HttpAttributes::kNoCacheMaxAge0);
@@ -893,8 +877,8 @@ bool InstawebHandler::IsBeaconUrl(const RewriteOptions::BeaconUrl& beacons,
 
 /* static */
 bool InstawebHandler::is_pagespeed_subrequest(request_rec* request) {
-  StringPiece user_agent = apr_table_get(request->headers_in,
-                                         HttpAttributes::kUserAgent);
+  StringPiece user_agent =
+      apr_table_get(request->headers_in, HttpAttributes::kUserAgent);
   return (user_agent.find(kModPagespeedSubrequestUserAgent) != user_agent.npos);
 }
 
@@ -935,44 +919,38 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
   if (request_handler_str == kStatisticsHandler &&
       global_config->StatisticsAccessAllowed(gurl)) {
     InstawebHandler instaweb_handler(request);
-    server_context->StatisticsPage(false /* not global */,
-                                   instaweb_handler.query_params(),
-                                   instaweb_handler.options(),
-                                   instaweb_handler.MakeFetch(
-                                       false /* unbuffered */, "local-stats"));
+    server_context->StatisticsPage(
+        false /* not global */, instaweb_handler.query_params(),
+        instaweb_handler.options(),
+        instaweb_handler.MakeFetch(false /* unbuffered */, "local-stats"));
     return APACHE_OK;
   } else if (request_handler_str == kGlobalStatisticsHandler &&
              global_config->GlobalStatisticsAccessAllowed(gurl)) {
     InstawebHandler instaweb_handler(request);
-    server_context->StatisticsPage(true /* global */,
-                                   instaweb_handler.query_params(),
-                                   instaweb_handler.options(),
-                                   instaweb_handler.MakeFetch(
-                                       false /* unbuffered */, "global-stats"));
+    server_context->StatisticsPage(
+        true /* global */, instaweb_handler.query_params(),
+        instaweb_handler.options(),
+        instaweb_handler.MakeFetch(false /* unbuffered */, "global-stats"));
     return APACHE_OK;
   } else if (request_handler_str == kAdminHandler &&
              global_config->AdminAccessAllowed(gurl)) {
     InstawebHandler instaweb_handler(request);
     // The fetch has to be buffered because if it's a cache lookup it could
     // complete asynchrously via the rewrite thread.
-    server_context->AdminPage(false /* not global */,
-                              instaweb_handler.stripped_gurl(),
-                              instaweb_handler.query_params(),
-                              instaweb_handler.options(),
-                              instaweb_handler.MakeFetch(
-                                  true /* buffered */, "local-admin"));
+    server_context->AdminPage(
+        false /* not global */, instaweb_handler.stripped_gurl(),
+        instaweb_handler.query_params(), instaweb_handler.options(),
+        instaweb_handler.MakeFetch(true /* buffered */, "local-admin"));
     ret = APACHE_OK;
   } else if (request_handler_str == kGlobalAdminHandler &&
              global_config->GlobalAdminAccessAllowed(gurl)) {
     InstawebHandler instaweb_handler(request);
     // The fetch has to be buffered because if it's a cache lookup it could
     // complete asynchrously via the rewrite thread.
-    server_context->AdminPage(true /* global */,
-                              instaweb_handler.stripped_gurl(),
-                              instaweb_handler.query_params(),
-                              instaweb_handler.options(),
-                              instaweb_handler.MakeFetch(
-                                  true /* buffered */, "global-admin"));
+    server_context->AdminPage(
+        true /* global */, instaweb_handler.stripped_gurl(),
+        instaweb_handler.query_params(), instaweb_handler.options(),
+        instaweb_handler.MakeFetch(true /* buffered */, "global-admin"));
     ret = APACHE_OK;
   } else if (global_config->enable_cache_purge() &&
              !global_config->purge_method().empty() &&
@@ -985,26 +963,23 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
     // is part of the contract.  The response is just headers and a few bytes of
     // body, so buffering is basically free.  To be on the safe side let's
     // buffer this one too.
-    admin_site->PurgeHandler(instaweb_handler.original_url_,
-                             server_context->cache_path(),
-                             instaweb_handler.MakeFetch(
-                                 true /* buffered */, "purge"));
+    admin_site->PurgeHandler(
+        instaweb_handler.original_url_, server_context->cache_path(),
+        instaweb_handler.MakeFetch(true /* buffered */, "purge"));
     ret = APACHE_OK;
   } else if (request_handler_str == kConsoleHandler &&
              global_config->ConsoleAccessAllowed(gurl)) {
     InstawebHandler instaweb_handler(request);
-    server_context->ConsoleHandler(*instaweb_handler.options(),
-                                   AdminSite::kOther,
-                                   instaweb_handler.query_params(),
-                                   instaweb_handler.MakeFetch(
-                                       false /* unbuffered */, "console"));
+    server_context->ConsoleHandler(
+        *instaweb_handler.options(), AdminSite::kOther,
+        instaweb_handler.query_params(),
+        instaweb_handler.MakeFetch(false /* unbuffered */, "console"));
     ret = APACHE_OK;
   } else if (request_handler_str == kMessageHandler &&
              global_config->MessagesAccessAllowed(gurl)) {
     InstawebHandler instaweb_handler(request);
     server_context->MessageHistoryHandler(
-        *instaweb_handler.options(),
-        AdminSite::kOther,
+        *instaweb_handler.options(), AdminSite::kOther,
         instaweb_handler.MakeFetch(false /* unbuffered */, "messages"));
     ret = APACHE_OK;
   } else if (request_handler_str == kLogRequestHeadersHandler) {
@@ -1017,8 +992,9 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
 
     write_handler_response(output, request, kContentTypeJavascript, "public");
     ret = APACHE_OK;
-  } else if (strcmp(request->handler, kGenerateResponseWithOptionsHandler) == 0
-             && request->uri != nullptr) {
+  } else if (strcmp(request->handler, kGenerateResponseWithOptionsHandler) ==
+                 0 &&
+             request->uri != nullptr) {
     // This handler is only needed for apache_system_test. It adds headers to
     // headers_out and/or err_headers_out to test handling of parameters in
     // those resources.
@@ -1026,14 +1002,16 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
       apr_table_add(request->headers_out, "PageSpeed", "off");
     } else if (strstr(request->parsed_uri.query, "headers_errout") != nullptr) {
       apr_table_add(request->err_headers_out, "PageSpeed", "off");
-    } else if (strstr(request->parsed_uri.query, "headers_override") != nullptr) {
+    } else if (strstr(request->parsed_uri.query, "headers_override") !=
+               nullptr) {
       apr_table_add(request->headers_out, "PageSpeed", "off");
       apr_table_add(request->headers_out, "PageSpeedFilters",
                     "-remove_comments");
       apr_table_add(request->err_headers_out, "PageSpeed", "on");
       apr_table_add(request->err_headers_out, "PageSpeedFilters",
                     "+remove_comments");
-    } else if (strstr(request->parsed_uri.query, "headers_combine") != nullptr) {
+    } else if (strstr(request->parsed_uri.query, "headers_combine") !=
+               nullptr) {
       apr_table_add(request->headers_out, "PageSpeed", "on");
       apr_table_add(request->err_headers_out, "PageSpeedFilters",
                     "+remove_comments");
@@ -1048,11 +1026,11 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
                       "Ignoring invalid URL: %s", gurl.spec_c_str());
       } else if (IsBeaconUrl(global_config->beacon_url(), gurl)) {
         ret = instaweb_beacon_handler(request, server_context);
-      // For the beacon accept any method; for all others only allow GETs.
+        // For the beacon accept any method; for all others only allow GETs.
       } else if (request->method_number != M_GET) {
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, request,
-                      "Not rewriting non-GET %d of %s",
-                      request->method_number, gurl.spec_c_str());
+                      "Not rewriting non-GET %d of %s", request->method_number,
+                      gurl.spec_c_str());
       } else if (gurl.PathSansLeaf() ==
                  server_context->apache_factory()->static_asset_prefix()) {
         instaweb_static_handler(request, server_context);
@@ -1131,7 +1109,7 @@ apr_status_t InstawebHandler::instaweb_handler(request_rec* request) {
 // Additionally we store whether or not this request is a pagespeed
 // resource or not in kResourceUrlNote.
 /* static */
-apr_status_t InstawebHandler::save_url_hook(request_rec *request) {
+apr_status_t InstawebHandler::save_url_hook(request_rec* request) {
   ApacheServerContext* server_context =
       InstawebContext::ServerContextFromServerRec(request->server);
   return save_url_in_note(request, server_context);
@@ -1139,7 +1117,7 @@ apr_status_t InstawebHandler::save_url_hook(request_rec *request) {
 
 /* static */
 apr_status_t InstawebHandler::save_url_in_note(
-    request_rec *request, ApacheServerContext* server_context) {
+    request_rec* request, ApacheServerContext* server_context) {
   // Escape ASAP if we're in unplugged mode.
   if (server_context->global_config()->unplugged()) {
     return DECLINED;
@@ -1161,7 +1139,7 @@ apr_status_t InstawebHandler::save_url_in_note(
         leaf == kGlobalStatisticsHandler || leaf == kMessageHandler ||
         leaf == kAdminHandler ||
         gurl.PathSansLeaf() ==
-          server_context->apache_factory()->static_asset_prefix() ||
+            server_context->apache_factory()->static_asset_prefix() ||
         IsBeaconUrl(server_context->global_options()->beacon_url(), gurl) ||
         server_context->IsPagespeedResource(gurl)) {
       bypass_mod_rewrite = true;

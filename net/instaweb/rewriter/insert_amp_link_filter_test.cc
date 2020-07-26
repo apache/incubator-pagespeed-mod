@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/insert_amp_link_filter.h"
+
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -67,8 +67,7 @@ TEST_F(InsertAmpLinkFilterTest, DoNotAddAmpLinkIfAlreadyPresentQuoted) {
 TEST_F(InsertAmpLinkFilterTest, AmpLinkAddedIfOtherLinkTypePresent) {
   AddFilter(kDefaultAmpPattern);
   ValidateExpectedUrl(
-      "http://test.com/a/b/",
-      StrCat(kHtmlPrefix, kNonAmpLink, kHtmlSuffix),
+      "http://test.com/a/b/", StrCat(kHtmlPrefix, kNonAmpLink, kHtmlSuffix),
       StrCat(kHtmlPrefix, kNonAmpLink,
              "<link rel=\"amphtml\" href=\"https://ampversion.com/a/b/amp/\">",
              kHtmlSuffix));
@@ -88,10 +87,8 @@ TEST_F(InsertAmpLinkFilterTest, MultipleHeadTagsOnlyOneLinkTagAdded) {
 
 TEST_F(InsertAmpLinkFilterTest, NoAmpTagAddedIfNoHeadTag) {
   AddFilter(kDefaultAmpPattern);
-  ValidateExpectedUrl(
-      "http://test.com/a?q=3",
-      "<html><body></body></html>",
-      "<html><body></body></html>");
+  ValidateExpectedUrl("http://test.com/a?q=3", "<html><body></body></html>",
+                      "<html><body></body></html>");
 }
 
 // Tests for badly formed patterns.
@@ -99,18 +96,15 @@ TEST_F(InsertAmpLinkFilterTest, NoAmpTagAddedIfNoHeadTag) {
 TEST_F(InsertAmpLinkFilterTest, NoClosingBrace) {
   AddFilter("${url");
   ValidateExpectedUrl(
-      "http://test.com/a",
-      StrCat(kHtmlPrefix, kHtmlSuffix),
-      StrCat(kHtmlPrefix,
-             "<link rel=\"amphtml\" href=\"${url\">",
+      "http://test.com/a", StrCat(kHtmlPrefix, kHtmlSuffix),
+      StrCat(kHtmlPrefix, "<link rel=\"amphtml\" href=\"${url\">",
              kHtmlSuffix));
 }
 
 TEST_F(InsertAmpLinkFilterTest, UnknownPattern) {
   AddFilter("a${unknown_pattern}b");
   ValidateExpectedUrl(
-      "http://test.com/a",
-      StrCat(kHtmlPrefix, kHtmlSuffix),
+      "http://test.com/a", StrCat(kHtmlPrefix, kHtmlSuffix),
       StrCat(kHtmlPrefix,
              "<link rel=\"amphtml\" href=\"a${unknown_pattern}b\">",
              kHtmlSuffix));
@@ -119,10 +113,8 @@ TEST_F(InsertAmpLinkFilterTest, UnknownPattern) {
 TEST_F(InsertAmpLinkFilterTest, ClosingBraceWithoutOpeningBrace) {
   AddFilter("}${url}");
   ValidateExpectedUrl(
-      "http://test.com/a",
-      StrCat(kHtmlPrefix, kHtmlSuffix),
-      StrCat(kHtmlPrefix,
-             "<link rel=\"amphtml\" href=\"}http://test.com/a\">",
+      "http://test.com/a", StrCat(kHtmlPrefix, kHtmlSuffix),
+      StrCat(kHtmlPrefix, "<link rel=\"amphtml\" href=\"}http://test.com/a\">",
              kHtmlSuffix));
 }
 
@@ -133,8 +125,7 @@ TEST_F(InsertAmpLinkFilterTest, ClosingBraceWithoutOpeningBrace) {
 TEST_F(InsertAmpLinkFilterTest, DefaultTemplateUrlHasNoTrailingSlash) {
   AddFilter(kDefaultAmpPattern);
   ValidateExpectedUrl(
-      "http://test.com/a.html",
-      StrCat(kHtmlPrefix, kHtmlSuffix),
+      "http://test.com/a.html", StrCat(kHtmlPrefix, kHtmlSuffix),
       StrCat(
           kHtmlPrefix,
           "<link rel=\"amphtml\" href=\"https://ampversion.com/a.html/amp\">",
@@ -144,8 +135,7 @@ TEST_F(InsertAmpLinkFilterTest, DefaultTemplateUrlHasNoTrailingSlash) {
 TEST_F(InsertAmpLinkFilterTest, DefaultTemplateUrlHasTrailingSlash) {
   AddFilter(kDefaultAmpPattern);
   ValidateExpectedUrl(
-      "http://test.com/a/b/",
-      StrCat(kHtmlPrefix, kHtmlSuffix),
+      "http://test.com/a/b/", StrCat(kHtmlPrefix, kHtmlSuffix),
       StrCat(kHtmlPrefix,
              "<link rel=\"amphtml\" href=\"https://ampversion.com/a/b/amp/\">",
              kHtmlSuffix));
@@ -154,8 +144,7 @@ TEST_F(InsertAmpLinkFilterTest, DefaultTemplateUrlHasTrailingSlash) {
 TEST_F(InsertAmpLinkFilterTest, DefaultTemplateUrlHasQueryString) {
   AddFilter(kDefaultAmpPattern);
   ValidateExpectedUrl(
-      "http://test.com/a?q=3",
-      StrCat(kHtmlPrefix, kHtmlSuffix),
+      "http://test.com/a?q=3", StrCat(kHtmlPrefix, kHtmlSuffix),
       StrCat(kHtmlPrefix,
              "<link rel=\"amphtml\" href=\"https://ampversion.com/a/amp?q=3\">",
              kHtmlSuffix));

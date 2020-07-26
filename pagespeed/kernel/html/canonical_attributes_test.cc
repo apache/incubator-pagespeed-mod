@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/canonical_attributes.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -25,7 +24,6 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
-
 
 namespace net_instaweb {
 
@@ -45,40 +43,31 @@ class CanonicalAttributesTest : public HtmlParseTestBase {
 };
 
 TEST_F(CanonicalAttributesTest, Unescaped) {
-  ValidateExpected(
-      "unescaped",
-      Image("a.png?a=b&c=d"),
-      Image("a.png?a=b&amp;c=d"));
+  ValidateExpected("unescaped", Image("a.png?a=b&c=d"),
+                   Image("a.png?a=b&amp;c=d"));
   EXPECT_EQ(1, canonical_attributes_.num_changes());
 }
 
 TEST_F(CanonicalAttributesTest, Escaped) {
-  ValidateNoChanges(
-      "escaped",
-      Image("a.png?a=b&amp;c=d"));
+  ValidateNoChanges("escaped", Image("a.png?a=b&amp;c=d"));
 }
 
 TEST_F(CanonicalAttributesTest, QueryWithEncodedAmpersand) {
   // Mixed usage of unterminated & followed by a well-formed &amp;.  We
   // correct the usage here.
-  ValidateExpected(
-      "ampersand",
-      Image("discuss/a.php?&action=vtopic&amp;forum=2"),
-      Image("discuss/a.php?&amp;action=vtopic&amp;forum=2"));
+  ValidateExpected("ampersand",
+                   Image("discuss/a.php?&action=vtopic&amp;forum=2"),
+                   Image("discuss/a.php?&amp;action=vtopic&amp;forum=2"));
 }
 
 TEST_F(CanonicalAttributesTest, Numeric) {
-  ValidateNoChanges(
-      "numeric_escape",
-      "<a title='&#8217;'>b</a>");
+  ValidateNoChanges("numeric_escape", "<a title='&#8217;'>b</a>");
 }
 
 TEST_F(CanonicalAttributesTest, NonUtf8) {
   // The input &#250; is transformed to its symbolic form &ucacute;.
-  ValidateExpected(
-      "non_utf8",
-      "<a title='&#250;'>b</a>",
-      "<a title='&uacute;'>b</a>");
+  ValidateExpected("non_utf8", "<a title='&#250;'>b</a>",
+                   "<a title='&uacute;'>b</a>");
   EXPECT_EQ(1, canonical_attributes_.num_changes());
   EXPECT_EQ(0, canonical_attributes_.num_errors());
 }
@@ -109,8 +98,7 @@ TEST_F(CanonicalAttributesTest, Nasa) {
 }
 
 TEST_F(CanonicalAttributesTest, Retronaut) {
-  ValidateNoChanges("retronaut",
-                    "<link title='Retronaut &raquo; Feed'/>");
+  ValidateNoChanges("retronaut", "<link title='Retronaut &raquo; Feed'/>");
 }
 
 TEST_F(CanonicalAttributesTest, SingleQuoteInAttr) {
@@ -142,22 +130,19 @@ TEST_F(CanonicalAttributesTest, Yuml) {
 
 TEST_F(CanonicalAttributesTest, Truncated) {
   // Here we "correct" the missing ";" in the input.
-  ValidateExpected("truncated",
-                   "<link href='foo.css?user=z&amp'/>",
+  ValidateExpected("truncated", "<link href='foo.css?user=z&amp'/>",
                    "<link href='foo.css?user=z&amp;'/>");
 }
 
 TEST_F(CanonicalAttributesTest, EndsWithAmpersand) {
   // Here we "correct" the missing "amp;" in the input.
-  ValidateExpected("ends_with_ampersand",
-                   "<link href='foo.css?user=z&'/>",
+  ValidateExpected("ends_with_ampersand", "<link href='foo.css?user=z&'/>",
                    "<link href='foo.css?user=z&amp;'/>");
 }
 
 TEST_F(CanonicalAttributesTest, EndsWithValue) {
   // Here we "correct" the input, transforming & to &amp;.
-  ValidateExpected("ends",
-                   "<link href='a/b?c=d&e=a&t'>",
+  ValidateExpected("ends", "<link href='a/b?c=d&e=a&t'>",
                    "<link href='a/b?c=d&amp;e=a&amp;t'>");
 }
 

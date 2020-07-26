@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/header_util.h"
 
-#include <cstdio>
 #include <cstddef>
+#include <cstdio>
 #include <memory>
 #include <utility>
 
+#include "apr_strings.h"
 #include "base/logging.h"
+#include "http_core.h"
+#include "http_protocol.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/base/string.h"
@@ -35,17 +37,13 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 
-#include "apr_strings.h"
-#include "http_core.h"
-#include "http_protocol.h"
-
 namespace net_instaweb {
 
 namespace {
 
 typedef std::pair<RequestHeaders*, HeaderPredicateFn*> RequestPredicatePair;
 
-int AddAttributeCallback(void *rec, const char *key, const char *value) {
+int AddAttributeCallback(void* rec, const char* key, const char* value) {
   RequestPredicatePair* rpp = static_cast<RequestPredicatePair*>(rec);
   bool ok = true;
   if (rpp->second != NULL) {
@@ -58,14 +56,14 @@ int AddAttributeCallback(void *rec, const char *key, const char *value) {
   return 1;
 }
 
-int AddResponseAttributeCallback(void *rec, const char *key,
-                                 const char *value) {
+int AddResponseAttributeCallback(void* rec, const char* key,
+                                 const char* value) {
   ResponseHeaders* response_headers = static_cast<ResponseHeaders*>(rec);
   response_headers->Add(key, value);
   return 1;
 }
 
-template<typename T>
+template <typename T>
 void FixUpH2Version(T* headers) {
   // mod_h2 sets protocol version to 2.0 when h2 (or h2c) are in use.
   // This conservatively sets it back to 1.1 in the header objects
@@ -105,8 +103,8 @@ void ApacheRequestToResponseHeaders(const request_rec& request,
 
     FixUpH2Version(headers);
   }
-  apr_table_do(AddResponseAttributeCallback, headers,
-               request.headers_out, NULL);
+  apr_table_do(AddResponseAttributeCallback, headers, request.headers_out,
+               NULL);
   if (err_headers != nullptr) {
     apr_table_do(AddResponseAttributeCallback, err_headers,
                  request.err_headers_out, NULL);
@@ -157,7 +155,7 @@ void DisableDownstreamHeaderFilters(request_rec* request) {
   }
 }
 
-int PrintAttributeCallback(void *rec, const char *key, const char *value) {
+int PrintAttributeCallback(void* rec, const char* key, const char* value) {
   fprintf(stdout, "    %s: %s\n", key, value);
   return 1;
 }
@@ -198,13 +196,11 @@ GoogleString SubprocessEnvToString(request_rec* request) {
 class ApacheCachingHeaders : public CachingHeaders {
  public:
   explicit ApacheCachingHeaders(request_rec* request)
-      : CachingHeaders(request->status),
-        request_(request) {
-  }
+      : CachingHeaders(request->status), request_(request) {}
 
   bool Lookup(const StringPiece& key, StringPieceVector* values) override {
-    const char* value = apr_table_get(request_->headers_out,
-                                      key.as_string().c_str());
+    const char* value =
+        apr_table_get(request_->headers_out, key.as_string().c_str());
     if (value == nullptr) {
       return false;
     }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_CACHE_CACHE_STATS_H_
 #define PAGESPEED_KERNEL_CACHE_CACHE_STATS_H_
@@ -42,9 +41,7 @@ class Variable;
 class CacheStats : public CacheInterface {
  public:
   // Doees not takes ownership of the cache, timer, or statistics.
-  CacheStats(StringPiece prefix,
-             CacheInterface* cache,
-             Timer* timer,
+  CacheStats(StringPiece prefix, CacheInterface* cache, Timer* timer,
              Statistics* statistics);
   ~CacheStats() override;
 
@@ -55,7 +52,7 @@ class CacheStats : public CacheInterface {
   void MultiGet(MultiGetRequest* request) override;
   void Put(const GoogleString& key, const SharedString& value) override;
   void Delete(const GoogleString& key) override;
-  CacheInterface* Backend() override{ return cache_; }
+  CacheInterface* Backend() override { return cache_; }
   bool IsBlocking() const override { return cache_->IsBlocking(); }
 
   bool IsHealthy() const override {

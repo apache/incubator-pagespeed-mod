@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/apache/log_message_handler.h"
 
@@ -49,13 +48,13 @@ int GetApacheLogLevel(int severity) {
     case logging::LOG_INFO:
       // Note: ap_log_perror only prints NOTICE and higher messages.
       // TODO(sligocki): Find some way to print these as INFO if we can.
-      //return APLOG_INFO;
+      // return APLOG_INFO;
       return APLOG_NOTICE;
     case logging::LOG_WARNING:
       return APLOG_WARNING;
     case logging::LOG_ERROR:
       return APLOG_ERR;
-    //case logging::LOG_ERROR_REPORT:
+    // case logging::LOG_ERROR_REPORT:
     //  return APLOG_CRIT;
     case logging::LOG_FATAL:
       return APLOG_ALERT;
@@ -93,10 +92,9 @@ bool LogMessageHandler(int severity, const char* file, int line,
     ap_log_perror(APLOG_MARK, this_log_level, APR_SUCCESS, log_pool,
                   "[mod_pagespeed %s @%ld] %s",
                   (mod_pagespeed_version == nullptr)
-                    ? ""
-                    : mod_pagespeed_version->c_str(),
-                  static_cast<long>(getpid()),
-                  message.c_str());
+                      ? ""
+                      : mod_pagespeed_version->c_str(),
+                  static_cast<long>(getpid()), message.c_str());
   }
 
   if (severity == logging::LOG_FATAL) {
@@ -109,7 +107,6 @@ bool LogMessageHandler(int severity, const char* file, int line,
 }
 
 }  // namespace
-
 
 namespace net_instaweb {
 
@@ -150,8 +147,8 @@ void AddServerConfig(const server_rec* server, const StringPiece& version) {
 
   // Get VLOG(x) and above if LogLevel is set to Debug.
   if (log_level_cutoff >= APLOG_DEBUG) {
-      // XXX(oschaaf):
-      // logging::SetMinLogLevel(kDebugLogLevel);
+    // XXX(oschaaf):
+    // logging::SetMinLogLevel(kDebugLogLevel);
   }
   if (mod_pagespeed_version == nullptr) {
     mod_pagespeed_version = new GoogleString(version.as_string());
@@ -159,7 +156,6 @@ void AddServerConfig(const server_rec* server, const StringPiece& version) {
     *mod_pagespeed_version = version.as_string();
   }
 }
-
 
 }  // namespace log_message_handler
 

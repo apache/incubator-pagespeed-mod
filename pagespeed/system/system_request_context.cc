@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -45,13 +45,13 @@ GoogleString BracketIpv6(StringPiece local_ip) {
 
 SystemRequestContext::SystemRequestContext(
     AbstractMutex* logging_mutex, Timer* timer,
-    StringPiece hostname_for_cache_fragmentation,
-    int local_port, StringPiece local_ip)
+    StringPiece hostname_for_cache_fragmentation, int local_port,
+    StringPiece local_ip)
     : RequestContext(logging_mutex, timer),
       local_port_(local_port),
       local_ip_(BracketIpv6(local_ip)) {
-  set_minimal_private_suffix(domain_registry::MinimalPrivateSuffix(
-      hostname_for_cache_fragmentation));
+  set_minimal_private_suffix(
+      domain_registry::MinimalPrivateSuffix(hostname_for_cache_fragmentation));
 }
 
 SystemRequestContext* SystemRequestContext::DynamicCast(RequestContext* rc) {
@@ -59,9 +59,10 @@ SystemRequestContext* SystemRequestContext::DynamicCast(RequestContext* rc) {
     return nullptr;
   }
   SystemRequestContext* out = dynamic_cast<SystemRequestContext*>(rc);
-  DCHECK(out != nullptr) << "Invalid request conversion. Do not rely on RTTI for "
-                      << "functional behavior. System handling flows must use "
-                      << "SystemRequestContexts or a subclass.";
+  DCHECK(out != nullptr)
+      << "Invalid request conversion. Do not rely on RTTI for "
+      << "functional behavior. System handling flows must use "
+      << "SystemRequestContexts or a subclass.";
   return out;
 }
 

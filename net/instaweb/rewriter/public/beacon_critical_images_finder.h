@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,10 +39,9 @@ class Timer;
 class BeaconCriticalImagesFinder : public CriticalImagesFinder {
  public:
   // All constructor args are owned by the caller.
-  BeaconCriticalImagesFinder(
-      const PropertyCache::Cohort* cohort,
-      NonceGenerator* nonce_generator,
-      Statistics* stats);
+  BeaconCriticalImagesFinder(const PropertyCache::Cohort* cohort,
+                             NonceGenerator* nonce_generator,
+                             Statistics* stats);
   ~BeaconCriticalImagesFinder() override;
 
   Availability Available(RewriteDriver* driver) override;
@@ -51,9 +50,7 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
     return kBeaconPercentSeenForCritical;
   }
 
-  int SupportInterval() const override {
-    return kBeaconImageSupportInterval;
-  }
+  int SupportInterval() const override { return kBeaconImageSupportInterval; }
 
   void ComputeCriticalImages(RewriteDriver* driver) override {}
 
@@ -62,10 +59,8 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
   static bool UpdateCriticalImagesCacheEntry(
       const StringSet* html_critical_images_set,
       const StringSet* css_critical_images_set,
-      const RenderedImages* rendered_images_set,
-      const StringPiece& nonce,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page,
+      const RenderedImages* rendered_images_set, const StringPiece& nonce,
+      const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
       Timer* timer);
 
   bool ShouldBeacon(RewriteDriver* driver) override;
@@ -75,8 +70,8 @@ class BeaconCriticalImagesFinder : public CriticalImagesFinder {
   BeaconMetadata PrepareForBeaconInsertion(RewriteDriver* driver) override;
 
   void UpdateCandidateImagesForBeaconing(const StringSet& images,
-                                                 RewriteDriver* driver,
-                                                 bool beaconing) override;
+                                         RewriteDriver* driver,
+                                         bool beaconing) override;
 
  private:
   GoogleString GetKeyForUrl(StringPiece url) override;

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,7 +27,7 @@
 #ifndef PAGESPEED_KERNEL_BASE_SHARED_STRING_H_
 #define PAGESPEED_KERNEL_BASE_SHARED_STRING_H_
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
@@ -165,9 +165,7 @@ class SharedString {
   //
   // This routine is, however, useful to call from tests to determine
   // storage uniqueness.
-  const GoogleString* StringValue() const {
-    return ref_string_.get();
-  }
+  const GoogleString* StringValue() const { return ref_string_.get(); }
 
   // Determines whether this and that share the same storage.
   bool SharesStorage(const SharedString& that) const {

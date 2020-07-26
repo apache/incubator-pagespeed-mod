@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,8 +22,8 @@
 
 #include "pagespeed/kernel/util/categorized_refcount.h"
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/platform.h"
@@ -33,11 +33,7 @@ namespace {
 
 class Client {
  public:
-  enum RefCategory {
-    kRewrites = 0,
-    kFetches,
-    kNumRefCategories
-  };
+  enum RefCategory { kRewrites = 0, kFetches, kNumRefCategories };
 
   Client() : last_ref_removed_called_(false) {}
 
@@ -76,8 +72,7 @@ class CategorizedRefcountTest : public testing::Test {
   std::unique_ptr<ThreadSystem> thread_system_;
   std::unique_ptr<AbstractMutex> mutex_;
   Client client_;
-  CategorizedRefcount<
-      Client, Client::RefCategory> count_;
+  CategorizedRefcount<Client, Client::RefCategory> count_;
 };
 
 TEST_F(CategorizedRefcountTest, Basic) {

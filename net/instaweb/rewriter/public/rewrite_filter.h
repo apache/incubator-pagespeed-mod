@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
@@ -36,9 +35,7 @@ namespace net_instaweb {
 
 class RewriteFilter : public CommonFilter {
  public:
-  explicit RewriteFilter(RewriteDriver* driver)
-      : CommonFilter(driver) {
-  }
+  explicit RewriteFilter(RewriteDriver* driver) : CommonFilter(driver) {}
   ~RewriteFilter() override;
 
   virtual const char* id() const = 0;
@@ -76,8 +73,8 @@ class RewriteFilter : public CommonFilter {
   // Generates a nested RewriteContext appropriate for this filter.
   // Default implementation returns NULL.
   // This is used to implement ajax rewriting.
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
+  virtual RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
+                                                   const ResourceSlotPtr& slot);
 
   // Encodes user agent information needed by the filter into ResourceContext.
   // See additional header document for
@@ -114,8 +111,7 @@ class RewriteFilter : public CommonFilter {
   // Note that I do not know which browsers implement this, but I know they
   // aren't consistent, so some definitely don't.
   static GoogleString GetCharsetForStylesheet(
-      const Resource* stylesheet,
-      const StringPiece attribute_charset,
+      const Resource* stylesheet, const StringPiece attribute_charset,
       const StringPiece enclosing_charset);
 
   // Determines which filters are related to this RewriteFilter.  Note,
@@ -138,9 +134,7 @@ class RewriteFilter : public CommonFilter {
   // Return the names of options related to this RewriteFilter in
   // case-insensitive alphabetical order. NULL means there are none.
   // Ownership of the vector is not transferred to the caller.
-  virtual const StringPieceVector* RelatedOptions() const {
-    return NULL;
-  }
+  virtual const StringPieceVector* RelatedOptions() const { return NULL; }
 
  protected:
   // This class logs using id().

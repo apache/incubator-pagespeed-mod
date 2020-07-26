@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_JS_JS_MINIFY_H_
 #define PAGESPEED_KERNEL_JS_JS_MINIFY_H_
@@ -54,9 +53,8 @@ class JsMinifyingTokenizer {
   // Note: Source Maps are only correct for ASCII text. Line and column numbers
   // will be incorrect if there are multi-byte chars in input.
   // TODO(sligocki): Fix this.
-  JsMinifyingTokenizer(
-      const JsTokenizerPatterns* patterns, StringPiece input,
-      net_instaweb::source_map::MappingVector* mappings);
+  JsMinifyingTokenizer(const JsTokenizerPatterns* patterns, StringPiece input,
+                       net_instaweb::source_map::MappingVector* mappings);
 
   ~JsMinifyingTokenizer();
 
@@ -99,17 +97,16 @@ class JsMinifyingTokenizer {
 // The input should be UTF8-encoded (or plain ASCII); the minifier does have
 // some limited capability to tolerate invalid UTF8 bytes, so Latin1-encoded
 // input will often work, but no guarantees are made.
-bool MinifyUtf8Js(const JsTokenizerPatterns* patterns,
-                  StringPiece input, GoogleString* output);
+bool MinifyUtf8Js(const JsTokenizerPatterns* patterns, StringPiece input,
+                  GoogleString* output);
 
 // Minify JS and returns a source mapping.  The input should be UTF8-encoded
 // (or plain ASCII); the minifier does have some limited capability to tolerate
 // invalid UTF8 bytes, so Latin1-encoded input will often work, but no
 // guarantees are made.
 bool MinifyUtf8JsWithSourceMap(
-    const JsTokenizerPatterns* patterns,
-    StringPiece input, GoogleString* output,
-    net_instaweb::source_map::MappingVector* mappings);
+    const JsTokenizerPatterns* patterns, StringPiece input,
+    GoogleString* output, net_instaweb::source_map::MappingVector* mappings);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Below is the old JsMinify implementation.  It has several known issues that

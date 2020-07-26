@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,11 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/file_load_policy.h"
 
 #include <list>
 
 #include "net/instaweb/rewriter/public/file_load_mapping.h"
-#include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/file_load_rule.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -126,8 +126,9 @@ bool FileLoadPolicy::AssociateRegexp(StringPiece url_regexp,
   filename_prefix.CopyToString(&filename_prefix_str);
 
   if (!url_regexp.starts_with("^")) {
-    error->assign("File mapping regular expression must match beginning "
-                  "of string. (Must start with '^'.)");
+    error->assign(
+        "File mapping regular expression must match beginning "
+        "of string. (Must start with '^'.)");
     return false;
   }
 

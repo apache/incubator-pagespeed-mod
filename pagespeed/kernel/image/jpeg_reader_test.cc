@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,12 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/jpeg_reader.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/jpeg_reader.h"
 #include "pagespeed/kernel/image/read_image.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
@@ -44,18 +44,18 @@ using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::ReadTestFileWithExt;
 
 const char* kValidJpegImages[] = {
-  "test411",        // RGB color space with 4:1:1 chroma sub-sampling.
-  "test420",        // RGB color space with 4:2:0 chroma sub-sampling.
-  "test422",        // RGB color space with 4:2:2 chroma sub-sampling.
-  "test444",        // RGB color space with full chroma information.
-  "testgray",       // Grayscale color space.
+    "test411",   // RGB color space with 4:1:1 chroma sub-sampling.
+    "test420",   // RGB color space with 4:2:0 chroma sub-sampling.
+    "test422",   // RGB color space with 4:2:2 chroma sub-sampling.
+    "test444",   // RGB color space with full chroma information.
+    "testgray",  // Grayscale color space.
 };
 
-const char *kInvalidFiles[] = {
-  "notajpeg.png",   // A png.
-  "notajpeg.gif",   // A gif.
-  "emptyfile.jpg",  // A zero-byte file.
-  "corrupt.jpg",    // Invalid huffman code in the image data section.
+const char* kInvalidFiles[] = {
+    "notajpeg.png",   // A png.
+    "notajpeg.gif",   // A gif.
+    "emptyfile.jpg",  // A zero-byte file.
+    "corrupt.jpg",    // Invalid huffman code in the image data section.
 };
 
 const size_t kValidJpegImageCount = arraysize(kValidJpegImages);
@@ -83,7 +83,7 @@ TEST(JpegReaderTest, InvalidJpegs) {
     MockMessageHandler message_handler(new NullMutex);
     JpegScanlineReader reader(&message_handler);
     message_handler.AddPatternToSkipPrinting(kMessagePatternLibJpegFailure);
-    if (i < kInvalidFileCount-1) {
+    if (i < kInvalidFileCount - 1) {
       ASSERT_FALSE(reader.Initialize(src_data.c_str(), src_data.length()));
     } else {
       ASSERT_TRUE(reader.Initialize(src_data.c_str(), src_data.length()));

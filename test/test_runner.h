@@ -6,7 +6,7 @@
 namespace PageSpeed {
 
 class TestRunner {
-public:
+ public:
   static int RunTests(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
@@ -14,4 +14,4 @@ public:
   }
 };
 
-} // namespace PageSpeed
+}  // namespace PageSpeed

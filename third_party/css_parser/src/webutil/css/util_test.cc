@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
-
 #include "webutil/css/util.h"
 
 #include <memory>
 #include <string>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "webutil/css/parser.h"
 #include "webutil/css/string.h"
@@ -35,17 +32,14 @@ namespace {
 
 class CssSystemColorTest : public testing::Test {
  protected:
-  void SetUp() override {
-    color_ = std::make_unique<HtmlColor>(0, 0, 0);
-  }
+  void SetUp() override { color_ = std::make_unique<HtmlColor>(0, 0, 0); }
 
-  void TearDown() override {
-  }
+  void TearDown() override {}
 
   void TestColor(const char* name, const char* mapped_to) {
     CHECK(Css::Util::GetSystemColor(name, color_.get()));
     // TODO(sligocki): Chromium CHECK_STREQ appears to be buggy. Fixit.
-    //CHECK_STREQ(color_->ToString().c_str(), mapped_to);
+    // CHECK_STREQ(color_->ToString().c_str(), mapped_to);
     CHECK_EQ(color_->ToString(), string(mapped_to));
   }
 

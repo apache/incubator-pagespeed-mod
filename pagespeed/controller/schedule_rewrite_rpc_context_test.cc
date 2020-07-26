@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,21 +17,21 @@
  * under the License.
  */
 
+#include "pagespeed/controller/schedule_rewrite_rpc_context.h"
 
 #include <memory>
 
 #include "base/logging.h"
 #include "pagespeed/controller/controller.pb.h"
 #include "pagespeed/controller/controller_grpc_mocks.h"
-#include "pagespeed/controller/schedule_rewrite_rpc_context.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/base/message_handler_test_base.h"
 #include "pagespeed/kernel/base/proto_matcher.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/message_handler_test_base.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/thread/sequence.h"
 #include "pagespeed/kernel/thread/worker_test_base.h"
@@ -40,21 +40,20 @@
 
 using testing::_;
 using testing::Eq;
+using testing::HasSubstr;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::IsEmpty;
-using testing::HasSubstr;
 using testing::Not;
-using testing::WithArgs;
 using testing::Return;
 using testing::SetArgPointee;
+using testing::WithArgs;
 
 namespace net_instaweb {
 
 namespace {
 
-typedef MockReaderWriterT<ScheduleRewriteRequest,
-                          ScheduleRewriteResponse>
+typedef MockReaderWriterT<ScheduleRewriteRequest, ScheduleRewriteResponse>
     MockReaderWriter;
 
 class MockScheduleRewriteCallback : public ScheduleRewriteCallback {
@@ -62,7 +61,8 @@ class MockScheduleRewriteCallback : public ScheduleRewriteCallback {
   MockScheduleRewriteCallback(const GoogleString& key, Sequence* s)
       : ScheduleRewriteCallback(key, s) {
     EXPECT_CALL(*this, RunImpl(_)).Times(0);
-    EXPECT_CALL(*this, CancelImpl()).Times(0);;
+    EXPECT_CALL(*this, CancelImpl()).Times(0);
+    ;
   }
 
   MOCK_METHOD1(RunImpl, void(std::unique_ptr<ScheduleRewriteContext>* context));
@@ -78,12 +78,9 @@ class ScheduleRewriteRpcContextTest : public testing::Test {
         sequence_(worker_.NewSequence()),
         stub_(sequence_) {}
 
-  ~ScheduleRewriteRpcContextTest() override {
-    worker_.FreeSequence(sequence_);
-  }
+  ~ScheduleRewriteRpcContextTest() override { worker_.FreeSequence(sequence_); }
 
-  void StartRpcContext(MockReaderWriter* rw,
-                       MockScheduleRewriteCallback* cb) {
+  void StartRpcContext(MockReaderWriter* rw, MockScheduleRewriteCallback* cb) {
     stub_.ExpectAsyncScheduleRewrite(rw);
     // Now start the operation. This cleans up after itself.
     new ScheduleRewriteRpcContext(&stub_, nullptr /* queue */,
@@ -293,7 +290,7 @@ TEST_F(ScheduleRewriteRpcContextTest, InitFailed) {
 
   // Start the operation. This cleans up after itself.
   new ScheduleRewriteRpcContext(&stub_, nullptr /* queue */,
-                                   thread_system_.get(), &handler_, cb);
+                                thread_system_.get(), &handler_, cb);
 
   sync.Wait();
 
@@ -323,14 +320,13 @@ TEST_F(ScheduleRewriteRpcContextTest, FinishFailed) {
 
   // Start the operation. This cleans up after itself.
   new ScheduleRewriteRpcContext(&stub_, nullptr /* queue */,
-                                   thread_system_.get(), &handler_, cb);
+                                thread_system_.get(), &handler_, cb);
 
   sync.Wait();
 
   ASSERT_THAT(handler_.messages(), Not(IsEmpty()));
   EXPECT_THAT(handler_.messages().back(), HasSubstr("Finish failed"));
 }
-
 
 TEST_F(ScheduleRewriteRpcContextTest, FirstWriteFailed) {
   WorkerTestBase::SyncPoint sync(thread_system_.get());

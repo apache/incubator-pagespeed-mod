@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESPONSIVE_IMAGE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESPONSIVE_IMAGE_FILTER_H_
@@ -61,7 +60,7 @@ struct ResponsiveVirtualImages {
   ResponsiveImageCandidate fullsized_candidate;
 };
 typedef std::map<HtmlElement*, ResponsiveVirtualImages>
-        ResponsiveImageCandidateMap;
+    ResponsiveImageCandidateMap;
 
 // Filter which converts <img> tags into responsive srcset= counterparts by
 // rewriting the images at multiple resolutions.
@@ -90,8 +89,8 @@ class ResponsiveImageFirstFilter : public CommonFilter {
  private:
   void AddHiResImages(HtmlElement* element);
   ResponsiveImageCandidate AddHiResVersion(
-      HtmlElement* img, const HtmlElement::Attribute& src_attr,
-      int orig_width, int orig_height, StringPiece responsive_attribute_value,
+      HtmlElement* img, const HtmlElement::Attribute& src_attr, int orig_width,
+      int orig_height, StringPiece responsive_attribute_value,
       double resolution);
 
   friend class ResponsiveImageSecondFilter;
@@ -104,8 +103,8 @@ class ResponsiveImageFirstFilter : public CommonFilter {
 
 class ResponsiveImageSecondFilter : public CommonFilter {
  public:
-  ResponsiveImageSecondFilter(
-      RewriteDriver* driver, const ResponsiveImageFirstFilter* first_filter);
+  ResponsiveImageSecondFilter(RewriteDriver* driver,
+                              const ResponsiveImageFirstFilter* first_filter);
   ~ResponsiveImageSecondFilter() override;
 
   void StartElementImpl(HtmlElement* element) override {}
@@ -124,8 +123,8 @@ class ResponsiveImageSecondFilter : public CommonFilter {
                           const ResponsiveVirtualImages& candidates);
   void Cleanup(HtmlElement* orig_element,
                const ResponsiveVirtualImages& candidates);
-  void InsertPlaceholderDebugComment(
-      const ResponsiveImageCandidate& candidate, const char* qualifier);
+  void InsertPlaceholderDebugComment(const ResponsiveImageCandidate& candidate,
+                                     const char* qualifier);
 
   const GoogleString responsive_js_url_;
   const ResponsiveImageFirstFilter* first_filter_;

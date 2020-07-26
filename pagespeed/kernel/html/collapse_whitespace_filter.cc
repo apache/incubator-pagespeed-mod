@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/collapse_whitespace_filter.h"
 
 #include <algorithm>
@@ -25,11 +24,11 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 class HtmlParse;
@@ -38,9 +37,9 @@ namespace {
 
 // Tags within which we should never try to collapse whitespace (note that this
 // is not _quite_ the same thing as kLiteralTags in html_lexer.cc):
-const HtmlName::Keyword kSensitiveTags[] = {
-  HtmlName::kCode, HtmlName::kPre, HtmlName::kScript, HtmlName::kStyle, HtmlName::kTextarea
-};
+const HtmlName::Keyword kSensitiveTags[] = {HtmlName::kCode, HtmlName::kPre,
+                                            HtmlName::kScript, HtmlName::kStyle,
+                                            HtmlName::kTextarea};
 
 bool IsSensitiveKeyword(HtmlName::Keyword keyword) {
   const HtmlName::Keyword* end = kSensitiveTags + arraysize(kSensitiveTags);
@@ -58,9 +57,7 @@ CollapseWhitespaceFilter::CollapseWhitespaceFilter(HtmlParse* html_parse)
 
 CollapseWhitespaceFilter::~CollapseWhitespaceFilter() {}
 
-void CollapseWhitespaceFilter::StartDocument() {
-  keyword_stack_.clear();
-}
+void CollapseWhitespaceFilter::StartDocument() { keyword_stack_.clear(); }
 
 void CollapseWhitespaceFilter::StartElement(HtmlElement* element) {
   HtmlName::Keyword keyword = element->keyword();

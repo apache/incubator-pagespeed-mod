@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 
@@ -35,19 +34,17 @@
 namespace net_instaweb {
 
 namespace {
-  const char kTestSegment[] = "segment1";
-  const char kOtherSegment[] = "segment2";
+const char kTestSegment[] = "segment1";
+const char kOtherSegment[] = "segment2";
 }  // namespace
 
-SharedMemTestEnv::~SharedMemTestEnv() {
-}
+SharedMemTestEnv::~SharedMemTestEnv() {}
 
 SharedMemTestBase::SharedMemTestBase(SharedMemTestEnv* test_env)
     : test_env_(test_env),
       shmem_runtime_(test_env->CreateSharedMemRuntime()),
       thread_system_(Platform::CreateThreadSystem()),
-      handler_(thread_system_->NewMutex()) {
-}
+      handler_(thread_system_->NewMutex()) {}
 
 bool SharedMemTestBase::CreateChild(TestMethod method) {
   Function* callback = new MemberFunction0<SharedMemTestBase>(method, this);
@@ -107,7 +104,7 @@ void SharedMemTestBase::TestReadWriteChild() {
 
 void SharedMemTestBase::TestLarge() {
   std::unique_ptr<AbstractSharedMemSegment> seg(
-    shmem_runtime_->CreateSegment(kTestSegment, kLarge, &handler_));
+      shmem_runtime_->CreateSegment(kTestSegment, kLarge, &handler_));
   ASSERT_TRUE(seg.get() != nullptr);
 
   // Make sure everything is zeroed
@@ -120,7 +117,7 @@ void SharedMemTestBase::TestLarge() {
   test_env_->WaitForChildren();
 
   seg.reset(shmem_runtime_->AttachToSegment(kTestSegment, kLarge, &handler_));
-  for (int i = 0; i < kLarge; i+=4) {
+  for (int i = 0; i < kLarge; i += 4) {
     EXPECT_EQ(i, *IntPtr(seg.get(), i));
   }
 
@@ -129,8 +126,8 @@ void SharedMemTestBase::TestLarge() {
 
 void SharedMemTestBase::TestLargeChild() {
   std::unique_ptr<AbstractSharedMemSegment> seg(
-    shmem_runtime_->AttachToSegment(kTestSegment, kLarge, &handler_));
-  for (int i = 0; i < kLarge; i+=4) {
+      shmem_runtime_->AttachToSegment(kTestSegment, kLarge, &handler_));
+  for (int i = 0; i < kLarge; i += 4) {
     *IntPtr(seg.get(), i) = i;
   }
 }
@@ -319,7 +316,7 @@ void SharedMemTestBase::WriteSeg1Child() {
 
 void SharedMemTestBase::WriteSeg2Child() {
   std::unique_ptr<AbstractSharedMemSegment> seg(
-    shmem_runtime_->AttachToSegment(kOtherSegment, 4, &handler_));
+      shmem_runtime_->AttachToSegment(kOtherSegment, 4, &handler_));
   ASSERT_TRUE(seg.get() != nullptr);
   *seg->Base() = '2';
 }

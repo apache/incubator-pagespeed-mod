@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
 
@@ -50,8 +49,7 @@ const char kCssImportsToLinks[] = "css_imports_to_links";
 
 CssInlineImportToLinkFilter::CssInlineImportToLinkFilter(RewriteDriver* driver,
                                                          Statistics* statistics)
-    : driver_(driver),
-      counter_(statistics->GetVariable(kCssImportsToLinks)) {
+    : driver_(driver), counter_(statistics->GetVariable(kCssImportsToLinks)) {
   ResetState();
 }
 
@@ -61,13 +59,9 @@ void CssInlineImportToLinkFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCssImportsToLinks);
 }
 
-void CssInlineImportToLinkFilter::StartDocument() {
-  ResetState();
-}
+void CssInlineImportToLinkFilter::StartDocument() { ResetState(); }
 
-void CssInlineImportToLinkFilter::EndDocument() {
-  ResetState();
-}
+void CssInlineImportToLinkFilter::EndDocument() { ResetState(); }
 
 void CssInlineImportToLinkFilter::StartElement(HtmlElement* element) {
   DCHECK(style_element_ == nullptr);  // HTML Parser guarantees this.
@@ -115,7 +109,7 @@ bool ExtractMediaFromStyle(const HtmlElement* style_element,
                            GoogleString* media_attribute) {
   const HtmlElement::Attribute* styles_media =
       style_element->FindAttribute(HtmlName::kMedia);
-  if (styles_media!= nullptr) {
+  if (styles_media != nullptr) {
     const char* decoded_value = styles_media->DecodedValueOrNull();
     if (decoded_value == nullptr) {
       return false;
@@ -169,8 +163,8 @@ bool CheckConversionOfImportToLink(const Css::Import* import,
     // If the style has media then the @import may specify no media or the
     // same media; if the style has no media use the @import's, if any.
     StringVector import_media;
-    if (css_util::ConvertMediaQueriesToStringVector(
-            import->media_queries(), &import_media)) {
+    if (css_util::ConvertMediaQueriesToStringVector(import->media_queries(),
+                                                    &import_media)) {
       if (!media_attribute.empty()) {
         if (!*style_media_is_determined) {
           css_util::VectorizeMediaAttribute(media_attribute, style_media);
@@ -209,8 +203,7 @@ void CssInlineImportToLinkFilter::InlineImportToLinkStyle() {
   // * It begins with one or more valid @import statement.
   // * Each @import actually imports something (the url isn't empty).
   // * Each @import's media, if any, are the same as style's, if any.
-  if (style_characters_ != nullptr &&
-      driver_->IsRewritable(style_element_) &&
+  if (style_characters_ != nullptr && driver_->IsRewritable(style_element_) &&
       style_element_->FindAttribute(HtmlName::kHref) == nullptr &&
       style_element_->FindAttribute(HtmlName::kRel) == nullptr &&
       style_element_->FindAttribute(HtmlName::kScoped) == nullptr) {

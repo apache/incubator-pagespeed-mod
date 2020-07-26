@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,7 +32,7 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/statistics_template.h"
-#include "pagespeed/kernel/base/string_util.h"        // for StringPiece
+#include "pagespeed/kernel/base/string_util.h"  // for StringPiece
 #include "pagespeed/kernel/base/writer.h"
 
 namespace net_instaweb {
@@ -156,8 +156,7 @@ class SplitStatistics
   // ::InitStats(Statistics* methods) they must have been invoked on
   // both local and global statistics objects for the same object
   // names.
-  SplitStatistics(ThreadSystem* thread_system,
-                  Statistics* local,
+  SplitStatistics(ThreadSystem* thread_system, Statistics* local,
                   Statistics* global);
 
   ~SplitStatistics() override;

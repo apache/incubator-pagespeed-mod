@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/image/pixel_format_optimizer.h"
 
@@ -33,13 +32,12 @@ namespace image_compression {
 static const uint8_t OPAQUE_ALPHA = 0xFF;
 
 PixelFormatOptimizer::PixelFormatOptimizer(
-    net_instaweb::MessageHandler* handler) :
-    message_handler_(handler) {
+    net_instaweb::MessageHandler* handler)
+    : message_handler_(handler) {
   Reset();
 }
 
-PixelFormatOptimizer::~PixelFormatOptimizer() {
-}
+PixelFormatOptimizer::~PixelFormatOptimizer() {}
 
 bool PixelFormatOptimizer::Reset() {
   bytes_per_row_ = 0;
@@ -54,8 +52,7 @@ bool PixelFormatOptimizer::Reset() {
 }
 
 ScanlineStatus PixelFormatOptimizer::InitializeWithStatus(
-    const void* /* image_buffer */,
-    size_t /* buffer_length */) {
+    const void* /* image_buffer */, size_t /* buffer_length */) {
   return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                           SCANLINE_STATUS_INVOCATION_ERROR,
                           SCANLINE_PIXEL_FORMAT_OPTIMIZER,
@@ -68,14 +65,11 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
     ScanlineReaderInterface* reader) {
   Reset();
 
-  if (reader == nullptr ||
-      reader->GetPixelFormat() == UNSUPPORTED ||
-      reader->GetImageWidth() == 0 ||
-      reader->GetImageHeight() == 0) {
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
-                            SCANLINE_STATUS_UNINITIALIZED,
-                            SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-                            "Invalid input image.");
+  if (reader == nullptr || reader->GetPixelFormat() == UNSUPPORTED ||
+      reader->GetImageWidth() == 0 || reader->GetImageHeight() == 0) {
+    return PS_LOGGED_STATUS(
+        PS_LOG_INFO, message_handler_, SCANLINE_STATUS_UNINITIALIZED,
+        SCANLINE_PIXEL_FORMAT_OPTIMIZER, "Invalid input image.");
   }
 
   reader_.reset(reader);
@@ -114,8 +108,7 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
 
     // Check if the current scanline is opaque or not. Alpha is the last
     // channel.
-    for (size_t ch = num_channels - 1;
-         ch < image_width * num_channels;
+    for (size_t ch = num_channels - 1; ch < image_width * num_channels;
          ch += num_channels) {
       if (current_scanline[ch] != OPAQUE_ALPHA) {
         strip_alpha_ = false;
@@ -130,8 +123,8 @@ ScanlineStatus PixelFormatOptimizer::Initialize(
   // format and allocate memory for the stripped scanlines.
   strip_alpha_ = true;
   pixel_format_ = RGB_888;
-  bytes_per_row_ = image_width *
-      GetNumChannelsFromPixelFormat(pixel_format_, message_handler_);
+  bytes_per_row_ = image_width * GetNumChannelsFromPixelFormat(
+                                     pixel_format_, message_handler_);
   output_line_.reset(new uint8_t[bytes_per_row_]);
   was_initialized_ = true;
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
@@ -147,29 +140,27 @@ ScanlineStatus PixelFormatOptimizer::ReadNextScanlineWithStatus(
   if (!was_initialized_) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
                             SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-                            "Uninitialized");
+                            SCANLINE_PIXEL_FORMAT_OPTIMIZER, "Uninitialized");
   }
 
   if (!HasMoreScanLines()) {
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-                            "No more scanlines");
+    return PS_LOGGED_STATUS(
+        PS_LOG_INFO, message_handler_, SCANLINE_STATUS_INVOCATION_ERROR,
+        SCANLINE_PIXEL_FORMAT_OPTIMIZER, "No more scanlines");
   }
 
   if (strip_alpha_) {
-    const int bytes_per_in_pixel = GetNumChannelsFromPixelFormat(RGBA_8888,
-        message_handler_);
-    const int bytes_per_out_pixel = GetNumChannelsFromPixelFormat(RGB_888,
-        message_handler_);
+    const int bytes_per_in_pixel =
+        GetNumChannelsFromPixelFormat(RGBA_8888, message_handler_);
+    const int bytes_per_out_pixel =
+        GetNumChannelsFromPixelFormat(RGB_888, message_handler_);
 
     // If we have decided to strip the alpha channel, the entire input image
     // should have already been copied to 'input_lines_'. We will grab the
     // corresponding line in 'input_lines_', filter the alpha, and store the
     // results in the 'output_line_'.
-    uint8_t* in_pixel = input_lines_.get() +
-        output_row_ * reader_->GetBytesPerScanline();
+    uint8_t* in_pixel =
+        input_lines_.get() + output_row_ * reader_->GetBytesPerScanline();
     uint8_t* out_pixel = output_line_.get();
 
     const size_t image_width = reader_->GetImageWidth();
@@ -184,15 +175,14 @@ ScanlineStatus PixelFormatOptimizer::ReadNextScanlineWithStatus(
     // a portion of the input image. We will grab the decoded lines from
     // 'input_lines_', and then decode the rest of the image.
     if (output_row_ < input_row_) {
-      *out_scanline_bytes = input_lines_.get()
-          + output_row_ * reader_->GetBytesPerScanline();
+      *out_scanline_bytes =
+          input_lines_.get() + output_row_ * reader_->GetBytesPerScanline();
     } else {
       if (!reader_->ReadNextScanline(out_scanline_bytes)) {
         Reset();
-        return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
-                                SCANLINE_STATUS_INTERNAL_ERROR,
-                                SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-                                "Failed to read a scanline.");
+        return PS_LOGGED_STATUS(
+            PS_LOG_INFO, message_handler_, SCANLINE_STATUS_INTERNAL_ERROR,
+            SCANLINE_PIXEL_FORMAT_OPTIMIZER, "Failed to read a scanline.");
       }
     }
   }

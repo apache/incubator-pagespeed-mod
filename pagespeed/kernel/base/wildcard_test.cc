@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/wildcard.h"
 
@@ -35,8 +34,8 @@ class WildcardTest : public testing::Test {
     return CheckMatch(spec, wildcard, str);
   }
   // Match a wildcard whose spec will alter after canonicalization.
-  bool WildcardMatchNonCanonical(
-      const StringPiece& spec, const StringPiece& str) {
+  bool WildcardMatchNonCanonical(const StringPiece& spec,
+                                 const StringPiece& str) {
     Wildcard wildcard(spec);
     return CheckMatch(spec, wildcard, str);
   }
@@ -55,9 +54,7 @@ class WildcardTest : public testing::Test {
   }
 };
 
-TEST_F(WildcardTest, Identity) {
-  EXPECT_TRUE(WildcardMatch("Hello", "Hello"));
-}
+TEST_F(WildcardTest, Identity) { EXPECT_TRUE(WildcardMatch("Hello", "Hello")); }
 
 TEST_F(WildcardTest, IdentityExtra) {
   EXPECT_FALSE(WildcardMatch("Hello", "xHello"));

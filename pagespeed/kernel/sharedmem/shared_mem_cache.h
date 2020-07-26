@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_H_
@@ -44,7 +43,7 @@ class SharedMemCacheDump;
 class Timer;
 
 // Abstract interface for a cache.
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 class SharedMemCache : public CacheInterface {
  public:
   static const int kAssociativity = 4;  // Note: changing this requires changing
@@ -90,17 +89,13 @@ class SharedMemCache : public CacheInterface {
   // this ratio somewhat, since having extra entries can reduce conflicts.
   // Also outputs size_cap, which is the limit on object size for the resulting
   // cache.
-  static void ComputeDimensions(int64 size_kb,
-                                int block_entry_ratio,
-                                int sectors,
-                                int* entries_per_sector_out,
+  static void ComputeDimensions(int64 size_kb, int block_entry_ratio,
+                                int sectors, int* entries_per_sector_out,
                                 int* blocks_per_sector_out,
                                 int64* size_cap_out);
 
   // Returns the largest size of an object this cache can store.
-  size_t MaxValueSize() const {
-    return (blocks_per_sector_ * kBlockSize) / 8;
-  }
+  size_t MaxValueSize() const { return (blocks_per_sector_ * kBlockSize) / 8; }
 
   // Returns some statistics as plaintext.
   // TODO(morlovich): Potentially periodically push these to the main
@@ -132,7 +127,7 @@ class SharedMemCache : public CacheInterface {
   void Put(const GoogleString& key, const SharedString& value) override;
   void Delete(const GoogleString& key) override;
   static GoogleString FormatName();
-  GoogleString Name() const override { return FormatName();}
+  GoogleString Name() const override { return FormatName(); }
 
   bool IsBlocking() const override { return true; }
   bool IsHealthy() const override { return true; }
@@ -184,10 +179,9 @@ class SharedMemCache : public CacheInterface {
   // Finish a get, with the entry matching and sector lock held.  Releases lock
   // while performing the read, but takes it again before returning.
   CacheInterface::KeyState GetFromEntry(
-      const GoogleString& key,
-      SharedMemCacheData::Sector<kBlockSize>* sector,
-      SharedMemCacheData::EntryNum entry_num,
-      Callback* str) EXCLUSIVE_LOCKS_REQUIRED(sector->mutex());
+      const GoogleString& key, SharedMemCacheData::Sector<kBlockSize>* sector,
+      SharedMemCacheData::EntryNum entry_num, Callback* str)
+      EXCLUSIVE_LOCKS_REQUIRED(sector->mutex());
 
   // Finish a put into the given entry. Lock is expected to be held at entry,
   // will still be held when done. The hash in the entry must also be already
@@ -247,8 +241,7 @@ class SharedMemCache : public CacheInterface {
   // then makes the call if appropriate.
   void ScheduleSnapshotIfNecessary(bool checkpoint_ok,
                                    int64 last_use_timestamp_ms,
-                                   int64 last_checkpoint_ms,
-                                   int sector_num);
+                                   int64 last_checkpoint_ms, int sector_num);
 
   // Write out the specified sector to the file cache so it will survive process
   // restarts.  We pass along last_checkpoint_ms so that if another thread or

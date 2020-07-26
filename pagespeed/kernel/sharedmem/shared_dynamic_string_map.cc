@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/sharedmem/shared_dynamic_string_map.h"
 
@@ -33,24 +32,20 @@ namespace {
 
 const int kTableFactor = 2;
 const char kSharedDynamicStringMapSegmentName[] = "SharedDynamicStringMap";
-const size_t kOffsetSize = sizeof(size_t); // NOLINT
-const size_t kIntSize = sizeof(int); // NOLINT
-const size_t kEntrySize = sizeof(Entry); // NOLINT
+const size_t kOffsetSize = sizeof(size_t);  // NOLINT
+const size_t kIntSize = sizeof(int);        // NOLINT
+const size_t kEntrySize = sizeof(Entry);    // NOLINT
 
 }  // namespace
 
 SharedDynamicStringMap::SharedDynamicStringMap(
-    size_t number_of_strings,
-    size_t average_string_length,
-    AbstractSharedMem* shm_runtime,
-    const GoogleString& filename_prefix,
+    size_t number_of_strings, size_t average_string_length,
+    AbstractSharedMem* shm_runtime, const GoogleString& filename_prefix,
     const GoogleString& filename_suffix)
     : number_of_strings_(NextPowerOfTwo(number_of_strings)),
       average_string_length_(average_string_length),
-      segment_name_(StrCat(filename_prefix,
-                           kSharedDynamicStringMapSegmentName,
-                           ".",
-                           filename_suffix)),
+      segment_name_(StrCat(filename_prefix, kSharedDynamicStringMapSegmentName,
+                           ".", filename_suffix)),
       shm_runtime_(shm_runtime) {
   // Check to make sure number_of_strings_ is a power of 2.
   DCHECK_EQ(static_cast<size_t>(0),
@@ -81,8 +76,7 @@ bool SharedDynamicStringMap::InitSegment(bool parent,
   bool ok = true;
   if (parent) {
     // Initialize shared memory
-    segment_.reset(shm_runtime_->CreateSegment(segment_name_,
-                                               total_size_,
+    segment_.reset(shm_runtime_->CreateSegment(segment_name_, total_size_,
                                                message_handler));
     if (segment_.get() == nullptr) {
       ok = false;
@@ -92,7 +86,7 @@ bool SharedDynamicStringMap::InitSegment(bool parent,
       // string mutex"
       for (int i = 0; i < static_cast<int>(table_size_) + 1; i++) {
         if (!segment_->InitializeSharedMutex(i * mutex_size_,
-                                                 message_handler)) {
+                                             message_handler)) {
           ok = false;
           break;
         }
@@ -100,8 +94,7 @@ bool SharedDynamicStringMap::InitSegment(bool parent,
     }
   } else {
     // In child process -> attach to existing segment
-    segment_.reset(shm_runtime_->AttachToSegment(segment_name_,
-                                                 total_size_,
+    segment_.reset(shm_runtime_->AttachToSegment(segment_name_, total_size_,
                                                  message_handler));
     if (segment_.get() == nullptr) {
       ok = false;
@@ -264,7 +257,7 @@ void SharedDynamicStringMap::GetKeys(StringSet* strings) {
 
 int SharedDynamicStringMap::GetNumberInserted() const {
   return *(reinterpret_cast<int*>(
-      const_cast<char*> (segment_->Base() + number_inserted_offset_)));
+      const_cast<char*>(segment_->Base() + number_inserted_offset_)));
 }
 
 void SharedDynamicStringMap::GlobalCleanup(MessageHandler* message_handler) {

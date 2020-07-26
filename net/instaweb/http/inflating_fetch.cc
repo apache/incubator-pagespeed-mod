@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "net/instaweb/http/public/inflating_fetch.h"
 
 #include <memory>
-
-
-
-#include "net/instaweb/http/public/inflating_fetch.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -35,14 +32,11 @@
 
 namespace net_instaweb {
 
-InflatingFetch::InflatingFetch(AsyncFetch* fetch)
-    : SharedAsyncFetch(fetch) {
+InflatingFetch::InflatingFetch(AsyncFetch* fetch) : SharedAsyncFetch(fetch) {
   Reset();
 }
 
-InflatingFetch::~InflatingFetch() {
-  Reset();
-}
+InflatingFetch::~InflatingFetch() { Reset(); }
 
 bool InflatingFetch::IsCompressionAllowedInRequest() {
   if (!request_checked_for_accept_encoding_) {
@@ -96,8 +90,8 @@ bool InflatingFetch::HandleWrite(const StringPiece& sp,
           inflate_failure_ = true;
           break;
         } else {
-          status = SharedAsyncFetch::HandleWrite(
-              StringPiece(buf, size), handler);
+          status =
+              SharedAsyncFetch::HandleWrite(StringPiece(buf, size), handler);
         }
       }
     } else {

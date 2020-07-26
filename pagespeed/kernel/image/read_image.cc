@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,8 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/read_image.h"
+
+#include <csetjmp>
+#include <cstdlib>
 
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -33,8 +35,6 @@
 #include "pagespeed/kernel/image/scanline_interface_frame_adapter.h"
 #include "pagespeed/kernel/image/scanline_utils.h"
 #include "pagespeed/kernel/image/webp_optimizer.h"
-#include <csetjmp>
-#include <cstdlib>
 
 namespace pagespeed {
 
@@ -45,16 +45,14 @@ using net_instaweb::MessageHandler;
 ////////// Scanline API
 
 // Forward declaration
-MultipleFrameReader* InstantiateImageFrameReader(
-    ImageFormat image_type,
-    MessageHandler* handler,
-    ScanlineStatus* status);
+MultipleFrameReader* InstantiateImageFrameReader(ImageFormat image_type,
+                                                 MessageHandler* handler,
+                                                 ScanlineStatus* status);
 
 // Instantiates an uninitialized scanline image reader.
-ScanlineReaderInterface* InstantiateScanlineReader(
-    ImageFormat image_type,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+ScanlineReaderInterface* InstantiateScanlineReader(ImageFormat image_type,
+                                                   MessageHandler* handler,
+                                                   ScanlineStatus* status) {
   ScanlineReaderInterface* reader = nullptr;
   const char* which = nullptr;
 
@@ -82,41 +80,36 @@ ScanlineReaderInterface* InstantiateScanlineReader(
       if (!mf_reader->set_quirks_mode(QUIRKS_CHROME, status)) {
         return nullptr;
       }
-      reader =
-          new FrameToScanlineReaderAdapter(
-              new MultipleFramePaddingReader(mf_reader.release()));
+      reader = new FrameToScanlineReaderAdapter(
+          new MultipleFramePaddingReader(mf_reader.release()));
       break;
     }
 
     case IMAGE_UNKNOWN:
       break;
 
-    // No default so compiler will complain if any enum is not processed.
+      // No default so compiler will complain if any enum is not processed.
   }
 
   if (which == nullptr) {
-      *status = PS_LOGGED_STATUS(PS_LOG_DFATAL, handler,
-                                 SCANLINE_STATUS_UNSUPPORTED_FORMAT,
-                                 SCANLINE_UTIL,
-                                 "invalid image type for reader: %d",
-                                 image_type);
+    *status = PS_LOGGED_STATUS(
+        PS_LOG_DFATAL, handler, SCANLINE_STATUS_UNSUPPORTED_FORMAT,
+        SCANLINE_UTIL, "invalid image type for reader: %d", image_type);
   } else if (reader == nullptr) {
-    *status = PS_LOGGED_STATUS(PS_LOG_ERROR, handler,
-                               SCANLINE_STATUS_MEMORY_ERROR,
-                               SCANLINE_UTIL,
-                               "failed to allocate %s", which);
+    *status =
+        PS_LOGGED_STATUS(PS_LOG_ERROR, handler, SCANLINE_STATUS_MEMORY_ERROR,
+                         SCANLINE_UTIL, "failed to allocate %s", which);
   }
 
   return reader;
 }
 
 // Returns an initialized scanline image reader.
-ScanlineReaderInterface* CreateScanlineReader(
-    ImageFormat image_type,
-    const void* image_buffer,
-    size_t buffer_length,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+ScanlineReaderInterface* CreateScanlineReader(ImageFormat image_type,
+                                              const void* image_buffer,
+                                              size_t buffer_length,
+                                              MessageHandler* handler,
+                                              ScanlineStatus* status) {
   std::unique_ptr<ScanlineReaderInterface> reader(
       InstantiateScanlineReader(image_type, handler, status));
   if (status->Success()) {
@@ -126,44 +119,40 @@ ScanlineReaderInterface* CreateScanlineReader(
 }
 
 // Forward declaration.
-MultipleFrameWriter* InstantiateImageFrameWriter(
-    ImageFormat image_type,
-    MessageHandler* handler,
-    ScanlineStatus* status);
+MultipleFrameWriter* InstantiateImageFrameWriter(ImageFormat image_type,
+                                                 MessageHandler* handler,
+                                                 ScanlineStatus* status);
 
 // Instantiates an uninitialized scanline image writer.
-ScanlineWriterInterface* InstantiateScanlineWriter(
-    ImageFormat image_type,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+ScanlineWriterInterface* InstantiateScanlineWriter(ImageFormat image_type,
+                                                   MessageHandler* handler,
+                                                   ScanlineStatus* status) {
   ScanlineWriterInterface* writer = nullptr;
   const char* which = nullptr;
 
   *status = ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   switch (image_type) {
-    case pagespeed::image_compression::IMAGE_JPEG:
-      {
-        std::unique_ptr<JpegScanlineWriter> jpeg_writer(
-            new JpegScanlineWriter(handler));
-        if (jpeg_writer != nullptr) {
-          // TODO(huibao): Set up error handling inside JpegScanlineWriter.
-          // Remove 'setjmp' from the clients and remove the 'SetJmpBufEnv'
-          // method.
-          jmp_buf env;
-          if (setjmp(env)) {
-            // This code is run only when libjpeg hit an error, and
-            // called longjmp(env). Note that this only works for as
-            // long as this stack frame is valid.
-            jpeg_writer->AbortWrite();
-            return nullptr;
-          }
-
-          jpeg_writer->SetJmpBufEnv(&env);
-          writer = jpeg_writer.release();
+    case pagespeed::image_compression::IMAGE_JPEG: {
+      std::unique_ptr<JpegScanlineWriter> jpeg_writer(
+          new JpegScanlineWriter(handler));
+      if (jpeg_writer != nullptr) {
+        // TODO(huibao): Set up error handling inside JpegScanlineWriter.
+        // Remove 'setjmp' from the clients and remove the 'SetJmpBufEnv'
+        // method.
+        jmp_buf env;
+        if (setjmp(env)) {
+          // This code is run only when libjpeg hit an error, and
+          // called longjmp(env). Note that this only works for as
+          // long as this stack frame is valid.
+          jpeg_writer->AbortWrite();
+          return nullptr;
         }
-        which  = "JpegScanlineWriter";
+
+        jpeg_writer->SetJmpBufEnv(&env);
+        writer = jpeg_writer.release();
       }
-      break;
+      which = "JpegScanlineWriter";
+    } break;
 
     case pagespeed::image_compression::IMAGE_PNG:
       writer = new PngScanlineWriter(handler);
@@ -182,36 +171,27 @@ ScanlineWriterInterface* InstantiateScanlineWriter(
     case IMAGE_UNKNOWN:
       break;
 
-    // No default so compiler will complain if any enum is not processed.
+      // No default so compiler will complain if any enum is not processed.
   }
 
   if (which == nullptr) {
-        *status = PS_LOGGED_STATUS(PS_LOG_DFATAL, handler,
-                                   SCANLINE_STATUS_UNSUPPORTED_FORMAT,
-                                   SCANLINE_UTIL,
-                                   "invalid image type for writer: %d",
-                                   image_type);
+    *status = PS_LOGGED_STATUS(
+        PS_LOG_DFATAL, handler, SCANLINE_STATUS_UNSUPPORTED_FORMAT,
+        SCANLINE_UTIL, "invalid image type for writer: %d", image_type);
   } else if (writer == nullptr) {
-    *status = PS_LOGGED_STATUS(PS_LOG_ERROR, handler,
-                               SCANLINE_STATUS_MEMORY_ERROR,
-                               SCANLINE_UTIL,
-                               "failed to allocate %s", which);
+    *status =
+        PS_LOGGED_STATUS(PS_LOG_ERROR, handler, SCANLINE_STATUS_MEMORY_ERROR,
+                         SCANLINE_UTIL, "failed to allocate %s", which);
   }
 
   return writer;
 }
 
-
 // Returns an initialized scanline image writer.
 ScanlineWriterInterface* CreateScanlineWriter(
-    ImageFormat image_type,
-    PixelFormat pixel_format,
-    size_t width,
-    size_t height,
-    const void* config,
-    GoogleString* image_data,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+    ImageFormat image_type, PixelFormat pixel_format, size_t width,
+    size_t height, const void* config, GoogleString* image_data,
+    MessageHandler* handler, ScanlineStatus* status) {
   std::unique_ptr<ScanlineWriterInterface> writer(
       InstantiateScanlineWriter(image_type, handler, status));
   if (status->Success()) {
@@ -223,14 +203,12 @@ ScanlineWriterInterface* CreateScanlineWriter(
   return status->Success() ? writer.release() : nullptr;
 }
 
-
 ////////// ImageFrame API
 
 // Instantiates an uninitialized image frame reader.
-MultipleFrameReader* InstantiateImageFrameReader(
-    ImageFormat image_type,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+MultipleFrameReader* InstantiateImageFrameReader(ImageFormat image_type,
+                                                 MessageHandler* handler,
+                                                 ScanlineStatus* status) {
   MultipleFrameReader* reader = nullptr;
 
   *status = ScanlineStatus(SCANLINE_STATUS_SUCCESS);
@@ -238,11 +216,9 @@ MultipleFrameReader* InstantiateImageFrameReader(
     // Native ImageFrame implementation
     reader = new GifFrameReader(handler);
     if (reader == nullptr) {
-      *status = PS_LOGGED_STATUS(
-          PS_LOG_ERROR, handler,
-          SCANLINE_STATUS_MEMORY_ERROR,
-          SCANLINE_UTIL,
-          "failed to allocate GifFrameReader");
+      *status =
+          PS_LOGGED_STATUS(PS_LOG_ERROR, handler, SCANLINE_STATUS_MEMORY_ERROR,
+                           SCANLINE_UTIL, "failed to allocate GifFrameReader");
     }
   } else {
     // Image formats for which we do not have an ImageFrame
@@ -251,13 +227,11 @@ MultipleFrameReader* InstantiateImageFrameReader(
     std::unique_ptr<ScanlineReaderInterface> scanline_reader(
         InstantiateScanlineReader(image_type, handler, status));
     if (status->Success()) {
-      reader = new ScanlineToFrameReaderAdapter(
-          scanline_reader.release(), handler);
+      reader =
+          new ScanlineToFrameReaderAdapter(scanline_reader.release(), handler);
       if (reader == nullptr) {
         *status = PS_LOGGED_STATUS(
-            PS_LOG_ERROR, handler,
-            SCANLINE_STATUS_MEMORY_ERROR,
-            SCANLINE_UTIL,
+            PS_LOG_ERROR, handler, SCANLINE_STATUS_MEMORY_ERROR, SCANLINE_UTIL,
             "failed to allocate ScanlineToFrameReaderAdapter");
       }
     }
@@ -268,25 +242,20 @@ MultipleFrameReader* InstantiateImageFrameReader(
 
 // Returns an initialized image frame reader.
 MultipleFrameReader* CreateImageFrameReader(
-    ImageFormat image_type,
-    const void* image_buffer,
-    size_t buffer_length,
-    QuirksMode quirks_mode,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+    ImageFormat image_type, const void* image_buffer, size_t buffer_length,
+    QuirksMode quirks_mode, MessageHandler* handler, ScanlineStatus* status) {
   std::unique_ptr<MultipleFrameReader> reader(
       InstantiateImageFrameReader(image_type, handler, status));
-  return (status->Success() &&
-          reader->set_quirks_mode(quirks_mode, status) &&
-          reader->Initialize(image_buffer, buffer_length, status)) ?
-          reader.release() : nullptr;
+  return (status->Success() && reader->set_quirks_mode(quirks_mode, status) &&
+          reader->Initialize(image_buffer, buffer_length, status))
+             ? reader.release()
+             : nullptr;
 }
 
 // Instantiates an uninitialized image frame writer.
-MultipleFrameWriter* InstantiateImageFrameWriter(
-    ImageFormat image_type,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+MultipleFrameWriter* InstantiateImageFrameWriter(ImageFormat image_type,
+                                                 MessageHandler* handler,
+                                                 ScanlineStatus* status) {
   MultipleFrameWriter* allocated_writer = nullptr;
   *status = ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 
@@ -294,11 +263,9 @@ MultipleFrameWriter* InstantiateImageFrameWriter(
     // Native ImageFrame implementation
     allocated_writer = new WebpFrameWriter(handler);
     if (allocated_writer == nullptr) {
-      *status = PS_LOGGED_STATUS(
-          PS_LOG_ERROR, handler,
-          SCANLINE_STATUS_MEMORY_ERROR,
-          SCANLINE_UTIL,
-          "failed to allocate WebpFrameReader");
+      *status =
+          PS_LOGGED_STATUS(PS_LOG_ERROR, handler, SCANLINE_STATUS_MEMORY_ERROR,
+                           SCANLINE_UTIL, "failed to allocate WebpFrameReader");
     }
   } else {
     // Image formats for which we do not have an ImageFrame
@@ -307,13 +274,11 @@ MultipleFrameWriter* InstantiateImageFrameWriter(
     std::unique_ptr<ScanlineWriterInterface> scanline_writer(
         InstantiateScanlineWriter(image_type, handler, status));
     if (status->Success()) {
-      allocated_writer = new ScanlineToFrameWriterAdapter(
-          scanline_writer.release(), handler);
+      allocated_writer =
+          new ScanlineToFrameWriterAdapter(scanline_writer.release(), handler);
       if (allocated_writer == nullptr) {
         *status = PS_LOGGED_STATUS(
-            PS_LOG_ERROR, handler,
-            SCANLINE_STATUS_MEMORY_ERROR,
-            SCANLINE_UTIL,
+            PS_LOG_ERROR, handler, SCANLINE_STATUS_MEMORY_ERROR, SCANLINE_UTIL,
             "failed to allocate ScanlineToFrameWriterAdapter");
       }
     }
@@ -322,34 +287,28 @@ MultipleFrameWriter* InstantiateImageFrameWriter(
 }
 
 // Returns an initialized image frame writer.
-MultipleFrameWriter* CreateImageFrameWriter(
-    ImageFormat image_type,
-    const void* config,
-    GoogleString* image_data,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+MultipleFrameWriter* CreateImageFrameWriter(ImageFormat image_type,
+                                            const void* config,
+                                            GoogleString* image_data,
+                                            MessageHandler* handler,
+                                            ScanlineStatus* status) {
   std::unique_ptr<MultipleFrameWriter> writer(
       InstantiateImageFrameWriter(image_type, handler, status));
-  return (status->Success() &&
-          writer->Initialize(config, image_data, status)) ?
-      writer.release() : nullptr;
+  return (status->Success() && writer->Initialize(config, image_data, status))
+             ? writer.release()
+             : nullptr;
 }
 
 ////////// Utilities
 
-bool ReadImage(ImageFormat image_type,
-               const void* image_buffer,
-               size_t buffer_length,
-               void** pixels,
-               PixelFormat* pixel_format,
-               size_t* width,
-               size_t* height,
-               size_t* stride,
+bool ReadImage(ImageFormat image_type, const void* image_buffer,
+               size_t buffer_length, void** pixels, PixelFormat* pixel_format,
+               size_t* width, size_t* height, size_t* stride,
                MessageHandler* handler) {
   // Instantiate and initialize the reader based on image type.
   std::unique_ptr<ScanlineReaderInterface> reader;
-  reader.reset(CreateScanlineReader(image_type, image_buffer, buffer_length,
-                                    handler));
+  reader.reset(
+      CreateScanlineReader(image_type, image_buffer, buffer_length, handler));
   if (reader.get() == nullptr) {
     return false;
   }

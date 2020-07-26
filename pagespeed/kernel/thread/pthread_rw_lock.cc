@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/thread/pthread_rw_lock.h"
 
@@ -49,24 +48,16 @@ bool PthreadRWLock::TryLock() {
   return (pthread_rwlock_trywrlock(&rwlock_) == 0);
 }
 
-void PthreadRWLock::Lock() {
-  pthread_rwlock_wrlock(&rwlock_);
-}
+void PthreadRWLock::Lock() { pthread_rwlock_wrlock(&rwlock_); }
 
-void PthreadRWLock::Unlock() {
-  pthread_rwlock_unlock(&rwlock_);
-}
+void PthreadRWLock::Unlock() { pthread_rwlock_unlock(&rwlock_); }
 
 bool PthreadRWLock::ReaderTryLock() {
   return (pthread_rwlock_tryrdlock(&rwlock_) == 0);
 }
 
-void PthreadRWLock::ReaderLock() {
-  pthread_rwlock_rdlock(&rwlock_);
-}
+void PthreadRWLock::ReaderLock() { pthread_rwlock_rdlock(&rwlock_); }
 
-void PthreadRWLock::ReaderUnlock() {
-  pthread_rwlock_unlock(&rwlock_);
-}
+void PthreadRWLock::ReaderUnlock() { pthread_rwlock_unlock(&rwlock_); }
 
 }  // namespace net_instaweb

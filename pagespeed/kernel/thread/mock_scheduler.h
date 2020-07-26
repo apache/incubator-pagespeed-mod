@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_THREAD_MOCK_SCHEDULER_H_
 #define PAGESPEED_KERNEL_THREAD_MOCK_SCHEDULER_H_
@@ -40,14 +39,13 @@ class MockTimer;
 // has passed.
 class MockScheduler : public Scheduler {
  public:
-  MockScheduler(ThreadSystem* thread_system,
-                MockTimer* timer);
+  MockScheduler(ThreadSystem* thread_system, MockTimer* timer);
   ~MockScheduler() override;
 
-  void RegisterWorker(QueuedWorkerPool::Sequence* w)
-      override LOCKS_EXCLUDED(mutex());
-  void UnregisterWorker(QueuedWorkerPool::Sequence* w)
-      override LOCKS_EXCLUDED(mutex());
+  void RegisterWorker(QueuedWorkerPool::Sequence* w) override
+      LOCKS_EXCLUDED(mutex());
+  void UnregisterWorker(QueuedWorkerPool::Sequence* w) override
+      LOCKS_EXCLUDED(mutex());
 
   // Blocks until all work in registered workers is done.
   void AwaitQuiescence() LOCKS_EXCLUDED(mutex());
@@ -62,8 +60,8 @@ class MockScheduler : public Scheduler {
   void SetTimeUs(int64 time_us) LOCKS_EXCLUDED(mutex());
 
  protected:
-  void AwaitWakeupUntilUs(int64 wakeup_time_us)
-      override EXCLUSIVE_LOCKS_REQUIRED(mutex());
+  void AwaitWakeupUntilUs(int64 wakeup_time_us) override
+      EXCLUSIVE_LOCKS_REQUIRED(mutex());
 
  private:
   inline void SetTimeUsMutexHeld(int64 time_us)

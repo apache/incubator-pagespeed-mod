@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_CACHE_FILE_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_FILE_CACHE_H_
@@ -46,7 +45,9 @@ class FileCache : public CacheInterface {
   struct CachePolicy {
     CachePolicy(Timer* timer, Hasher* hasher, int64 clean_interval_ms,
                 int64 target_size_bytes, int64 target_inode_count)
-        : timer(timer), hasher(hasher), clean_interval_ms(clean_interval_ms),
+        : timer(timer),
+          hasher(hasher),
+          clean_interval_ms(clean_interval_ms),
           target_size_bytes(target_size_bytes),
           target_inode_count(target_inode_count) {}
     const Timer* timer;
@@ -55,6 +56,7 @@ class FileCache : public CacheInterface {
     int64 target_size_bytes;
     int64 target_inode_count;
     bool cleaning_enabled() { return clean_interval_ms != kDisableCleaning; }
+
    private:
     DISALLOW_COPY_AND_ASSIGN(CachePolicy);
   };

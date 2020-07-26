@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/image/image_analysis.h"
 
@@ -43,11 +42,11 @@ using net_instaweb::MockMessageHandler;
 using net_instaweb::NullMutex;
 using pagespeed::image_compression::GRAY_8;
 using pagespeed::image_compression::Histogram;
-using pagespeed::image_compression::ImageFormat;
 using pagespeed::image_compression::IMAGE_GIF;
 using pagespeed::image_compression::IMAGE_JPEG;
 using pagespeed::image_compression::IMAGE_PNG;
 using pagespeed::image_compression::IMAGE_UNKNOWN;
+using pagespeed::image_compression::ImageFormat;
 using pagespeed::image_compression::kGifTestDir;
 using pagespeed::image_compression::kJpegTestDir;
 using pagespeed::image_compression::kNumColorHistogramBins;
@@ -75,14 +74,14 @@ struct ImageInfo {
 };
 
 const ImageInfo kJpegImages[] = {
-  {"quality100", 200, 200, false, false, false, false, 100},
-  {"progressive", 200, 200, true, false, false, false, 100},
-  {"sjpeg1", 120, 90, false, false, false, false, 93},
-  {"sjpeg6", 512, 512, false, false, false, false, 100},
-  {"sjpeg3", 512, 384, false, false, true, false, 89},
-  {"sjpeg4", 512, 384, false, false, true, false, 100},
-  {"already_optimized", 130, 97, false, false, true, false, 85},
-  {"test444", 130, 97, false, false, true, false, 85},
+    {"quality100", 200, 200, false, false, false, false, 100},
+    {"progressive", 200, 200, true, false, false, false, 100},
+    {"sjpeg1", 120, 90, false, false, false, false, 93},
+    {"sjpeg6", 512, 512, false, false, false, false, 100},
+    {"sjpeg3", 512, 384, false, false, true, false, 89},
+    {"sjpeg4", 512, 384, false, false, true, false, 100},
+    {"already_optimized", 130, 97, false, false, true, false, 85},
+    {"test444", 130, 97, false, false, true, false, 85},
 };
 const size_t kJpegImageCount = arraysize(kJpegImages);
 // In kJpegImages[], the images at position kJpegImageFirstPhotoIdx and later
@@ -90,24 +89,23 @@ const size_t kJpegImageCount = arraysize(kJpegImages);
 const size_t kJpegImageFirstPhotoIdx = 4;
 
 const ImageInfo kGifImages[] = {
-  {"transparent", 320, 320, true, false, false, true, -1},
-  {"interlaced", 213, 323, true, false, true, false, -1},
-  {"animated", 120, 50, false, true, false, false, -1},
-  {"animated_interlaced", 120, 50, false, true, false, false, -1},
+    {"transparent", 320, 320, true, false, false, true, -1},
+    {"interlaced", 213, 323, true, false, true, false, -1},
+    {"animated", 120, 50, false, true, false, false, -1},
+    {"animated_interlaced", 120, 50, false, true, false, false, -1},
 };
 const size_t kGifImageCount = arraysize(kGifImages);
 
 const ImageInfo kPngImages[] = {
-  {"basi0g04", 32, 32, true, false, false, false, -1},
-  {"basi3p02", 32, 32, true, false, false, false, -1},
-  {"basn6a16", 32, 32, false, false, false, true, -1},
+    {"basi0g04", 32, 32, true, false, false, false, -1},
+    {"basi3p02", 32, 32, true, false, false, false, -1},
+    {"basn6a16", 32, 32, false, false, false, true, -1},
 };
 const size_t kPngImageCount = arraysize(kPngImages);
 
 class ImageAnalysisTest : public testing::Test {
  public:
-  ImageAnalysisTest() :
-      message_handler_(new NullMutex) {
+  ImageAnalysisTest() : message_handler_(new NullMutex) {
     // Initialize the expected histogram.
     for (int i = 0; i < kNumColorHistogramBins; ++i) {
       expected_hist_[i] = 0.0f;
@@ -122,19 +120,18 @@ class ImageAnalysisTest : public testing::Test {
                     const int* delta_x, const int* delta_y,
                     const uint8_t* expected_gradient) {
     const int num_channels =
-      GetNumChannelsFromPixelFormat(pixel_format, &message_handler_);
+        GetNumChannelsFromPixelFormat(pixel_format, &message_handler_);
 
     // Synthesize the image.
     net_instaweb::scoped_array<uint8_t> image(
         new uint8_t[bytes_per_line * height]);
-    SynthesizeImage(width, height, bytes_per_line, num_channels,
-                    seed_value, delta_x, delta_y, image.get());
+    SynthesizeImage(width, height, bytes_per_line, num_channels, seed_value,
+                    delta_x, delta_y, image.get());
 
     // Compute gradient.
     net_instaweb::scoped_array<uint8_t> gradient(new uint8_t[width * height]);
     ASSERT_TRUE(SobelGradient(image.get(), width, height, bytes_per_line,
-                               pixel_format, &message_handler_,
-                               gradient.get()));
+                              pixel_format, &message_handler_, gradient.get()));
 
     // Verify the gradient.
     EXPECT_EQ(0, memcmp(gradient.get(), expected_gradient,
@@ -157,11 +154,10 @@ class ImageAnalysisTest : public testing::Test {
       int quality = -1;
       ScanlineReaderInterface* reader = nullptr;
 
-      EXPECT_TRUE(AnalyzeImage(image_format, image_string.data(),
-                               image_string.length(), &width, &height,
-                               &is_progressive, &is_animated,
-                               &has_transparency, &is_photo, &quality, &reader,
-                               &message_handler_));
+      EXPECT_TRUE(AnalyzeImage(
+          image_format, image_string.data(), image_string.length(), &width,
+          &height, &is_progressive, &is_animated, &has_transparency, &is_photo,
+          &quality, &reader, &message_handler_));
       EXPECT_EQ(images[i].width, width);
       EXPECT_EQ(images[i].height, height);
       EXPECT_EQ(images[i].is_progressive, is_progressive);
@@ -201,16 +197,16 @@ TEST_F(ImageAnalysisTest, GradientOfWhiteImage) {
   const int delta_y[] = {0};
   const PixelFormat pixel_format = GRAY_8;
   const int num_channels =
-    GetNumChannelsFromPixelFormat(pixel_format, &message_handler_);
+      GetNumChannelsFromPixelFormat(pixel_format, &message_handler_);
 
   uint8_t seed[] = {0};
   net_instaweb::scoped_array<uint8_t> expected_gradient(
       new uint8_t[width * height]);
-  SynthesizeImage(width, height, width, num_channels, seed,
-                  delta_x, delta_y, expected_gradient.get());
+  SynthesizeImage(width, height, width, num_channels, seed, delta_x, delta_y,
+                  expected_gradient.get());
 
-  TestGradient(width, height, GRAY_8, bytes_per_line, seed_value,
-               delta_x, delta_y, expected_gradient.get());
+  TestGradient(width, height, GRAY_8, bytes_per_line, seed_value, delta_x,
+               delta_y, expected_gradient.get());
 }
 
 TEST_F(ImageAnalysisTest, GradientOfIncreasingPixelValues) {
@@ -253,12 +249,9 @@ TEST_F(ImageAnalysisTest, GradientOfFluctuatingPixelValues) {
   const int bytes_per_line[] = {18, 24};
   const PixelFormat pixel_format[] = {RGB_888, RGBA_8888};
 
-  const uint8_t expected_gradient[] = {
-      0,   0,   0,   0,   0,   0,
-      0,  14,  69,  56,  14,   0,
-      0,  70,  69,  47,  54,   0,
-      0, 104,  20,  47,  89,   0,
-      0,   0,   0,   0,   0,   0};
+  const uint8_t expected_gradient[] = {0,  0,  0,  0,  0,  0,  0,  14, 69, 56,
+                                       14, 0,  0,  70, 69, 47, 54, 0,  0,  104,
+                                       20, 47, 89, 0,  0,  0,  0,  0,  0,  0};
 
   // Test the gradient computed for two pixel formats: RGB_888 and RGBA_8888.
   // Since the alpha channel is ignored, both formats have the same gradient.
@@ -290,7 +283,7 @@ TEST_F(ImageAnalysisTest, HistogramOfBlankImage) {
   // has non-zero value (which is 1).
   expected_hist_[seed_value[0]] = (width - x0) * (height - y0);
 
-  Histogram(image.get(), width-x0, height-y0, bytes_per_line, x0, y0, hist);
+  Histogram(image.get(), width - x0, height - y0, bytes_per_line, x0, y0, hist);
   EXPECT_EQ(0, memcmp(expected_hist_, hist,
                       kNumColorHistogramBins * sizeof(hist[0])));
 }
@@ -326,10 +319,10 @@ TEST_F(ImageAnalysisTest, PhotoMetric) {
   // 0.01. Here we test that the the metric works well for thresholds
   // around it.
   const float thresholds[] = {
-    0.005f,
-    0.01f,
-    0.02f,
-    0.03f,
+      0.005f,
+      0.01f,
+      0.02f,
+      0.03f,
   };
 
   float metric[kJpegImageCount];
@@ -343,11 +336,10 @@ TEST_F(ImageAnalysisTest, PhotoMetric) {
       size_t width, height, bytes_per_line;
       uint8_t* image;
       PixelFormat pixel_format;
-      ASSERT_TRUE(ReadImage(IMAGE_JPEG, image_string.data(),
-                            image_string.length(),
-                            reinterpret_cast<void**>(&image), &pixel_format,
-                            &width, &height, &bytes_per_line,
-                            &message_handler_));
+      ASSERT_TRUE(
+          ReadImage(IMAGE_JPEG, image_string.data(), image_string.length(),
+                    reinterpret_cast<void**>(&image), &pixel_format, &width,
+                    &height, &bytes_per_line, &message_handler_));
 
       metric[j] = PhotoMetric(image, width, height, bytes_per_line,
                               pixel_format, thr, &message_handler_);
@@ -358,9 +350,8 @@ TEST_F(ImageAnalysisTest, PhotoMetric) {
     // for photos.
     float max_graphics_metric =
         *std::max_element(metric, metric + kJpegImageFirstPhotoIdx);
-    float min_photo_metric =
-        *std::min_element(metric + kJpegImageFirstPhotoIdx,
-                          metric + kJpegImageCount);
+    float min_photo_metric = *std::min_element(metric + kJpegImageFirstPhotoIdx,
+                                               metric + kJpegImageCount);
     EXPECT_LT(max_graphics_metric, min_photo_metric);
   }
 }

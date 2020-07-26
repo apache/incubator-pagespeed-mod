@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_JPEG_OPTIMIZER_H_
 #define PAGESPEED_KERNEL_IMAGE_JPEG_OPTIMIZER_H_
 
 #include <setjmp.h>
+
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_util.h"
@@ -42,12 +43,7 @@ namespace image_compression {
 
 using net_instaweb::MessageHandler;
 
-enum ColorSampling {
-  RETAIN,
-  YUV420,
-  YUV422,
-  YUV444
-};
+enum ColorSampling { RETAIN, YUV420, YUV422, YUV444 };
 
 struct JpegLossyOptions {
   JpegLossyOptions() : quality(85), num_scans(-1), color_sampling(YUV420) {}
@@ -67,8 +63,10 @@ struct JpegLossyOptions {
 
 struct JpegCompressionOptions : public ScanlineWriterConfig {
   JpegCompressionOptions()
-    : progressive(false), retain_color_profile(false),
-      retain_exif_data(false), lossy(false) {}
+      : progressive(false),
+        retain_color_profile(false),
+        retain_exif_data(false),
+        lossy(false) {}
 
   ~JpegCompressionOptions() override;
 
@@ -92,14 +90,13 @@ struct JpegCompressionOptions : public ScanlineWriterConfig {
 
 // Performs lossless optimization, that is, the output image will be
 // pixel-for-pixel identical to the input image.
-bool OptimizeJpeg(const GoogleString &original,
-                  GoogleString *compressed,
+bool OptimizeJpeg(const GoogleString& original, GoogleString* compressed,
                   MessageHandler* handler);
 
 // Performs JPEG optimizations with the provided options.
-bool OptimizeJpegWithOptions(const GoogleString &original,
-                             GoogleString *compressed,
-                             const JpegCompressionOptions &options,
+bool OptimizeJpegWithOptions(const GoogleString& original,
+                             GoogleString* compressed,
+                             const JpegCompressionOptions& options,
                              MessageHandler* handler);
 
 // User of this class must call this functions in the following sequence
@@ -133,15 +130,15 @@ class JpegScanlineWriter : public ScanlineWriterInterface {
   void AbortWrite();
 
   ScanlineStatus InitWithStatus(const size_t width, const size_t height,
-                                        PixelFormat pixel_format) override;
+                                PixelFormat pixel_format) override;
   // Set the compression options via 'params', which should be a
   // JpegCompressionOptions*. Since writer only supports lossy
   // encoding, it is an error to pass in a 'params' that has the lossy
   // field set to false.
   ScanlineStatus InitializeWriteWithStatus(const void* params,
-                                                   GoogleString *compressed) override;
+                                           GoogleString* compressed) override;
   ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes) override;
+      const void* scanline_bytes) override;
   ScanlineStatus FinalizeWriteWithStatus() override;
 
  private:

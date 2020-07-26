@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -30,7 +30,7 @@
 namespace net_instaweb {
 namespace {
 
-class QueuedWorkerTest: public WorkerTestBase {
+class QueuedWorkerTest : public WorkerTestBase {
  public:
   QueuedWorkerTest()
       : worker_(new QueuedWorker("queued_worker_test", thread_runtime_.get())) {
@@ -48,10 +48,7 @@ class QueuedWorkerTest: public WorkerTestBase {
 class ChainedTask : public Function {
  public:
   ChainedTask(int* count, QueuedWorker* worker, WorkerTestBase::SyncPoint* sync)
-      : count_(count),
-        worker_(worker),
-        sync_(sync) {
-  }
+      : count_(count), worker_(worker), sync_(sync) {}
 
   void Run() override {
     --*count_;

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/dom_stats_filter.h"
 
@@ -34,7 +33,7 @@
 namespace net_instaweb {
 
 DomStatsFilter::DomStatsFilter(RewriteDriver* driver)
-  : CommonFilter(driver), script_tag_scanner_(driver) {
+    : CommonFilter(driver), script_tag_scanner_(driver) {
   Clear();
 }
 
@@ -48,9 +47,7 @@ void DomStatsFilter::Clear() {
   num_critical_images_used_ = 0;
 }
 
-void DomStatsFilter::StartDocumentImpl() {
-  Clear();
-}
+void DomStatsFilter::StartDocumentImpl() { Clear(); }
 
 void DomStatsFilter::EndElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kImg) {
@@ -73,9 +70,9 @@ void DomStatsFilter::EndElementImpl(HtmlElement* element) {
       }
     }
   } else if (element->keyword() == HtmlName::kLink &&
-      CssTagScanner::IsStylesheetOrAlternate(
-          element->AttributeValue(HtmlName::kRel)) &&
-      element->FindAttribute(HtmlName::kHref) != nullptr) {
+             CssTagScanner::IsStylesheetOrAlternate(
+                 element->AttributeValue(HtmlName::kRel)) &&
+             element->FindAttribute(HtmlName::kHref) != nullptr) {
     ++num_external_css_;
   } else {
     HtmlElement::Attribute* src;

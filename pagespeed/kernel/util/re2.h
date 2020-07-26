@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_RE2_H_
 #define PAGESPEED_KERNEL_UTIL_RE2_H_
 
 #include "pagespeed/kernel/base/string_util.h"
-
 #include "re2/re2.h"
 
 using re2::RE2;
@@ -48,6 +46,5 @@ inline re2::StringPiece StringPieceToRe2(StringPiece sp) {
 inline StringPiece Re2ToStringPiece(re2::StringPiece sp) {
   return StringPiece(sp.data(), sp.size());
 }
-
 
 #endif  // PAGESPEED_KERNEL_UTIL_RE2_H_

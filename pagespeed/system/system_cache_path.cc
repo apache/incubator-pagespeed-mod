@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/system_cache_path.h"
 
-
 #include <memory>
-
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
@@ -105,19 +102,18 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
 
   if (config->use_shared_mem_locking()) {
     shared_mem_lock_manager_ = std::make_unique<SharedMemLockManager>(
-        shm_runtime, LockManagerSegmentName(),
-        factory->scheduler(), factory->hasher(), factory->message_handler());
+        shm_runtime, LockManagerSegmentName(), factory->scheduler(),
+        factory->hasher(), factory->message_handler());
     lock_manager_ = shared_mem_lock_manager_.get();
   } else {
     FallBackToFileBasedLocking();
   }
 
-  FileCache::CachePolicy* policy = new FileCache::CachePolicy(
-      factory->timer(),
-      factory->hasher(),
-      config->file_cache_clean_interval_ms(),
-      config->file_cache_clean_size_kb() * 1024,
-      config->file_cache_clean_inode_limit());
+  FileCache::CachePolicy* policy =
+      new FileCache::CachePolicy(factory->timer(), factory->hasher(),
+                                 config->file_cache_clean_interval_ms(),
+                                 config->file_cache_clean_size_kb() * 1024,
+                                 config->file_cache_clean_inode_limit());
   file_cache_backend_ =
       new FileCache(config->file_cache_path(), factory->file_system(),
                     factory->thread_system(), nullptr, policy,
@@ -128,8 +124,8 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
   factory->TakeOwnership(file_cache_);
 
   if (config->lru_cache_kb_per_process() != 0) {
-    LRUCache* lru_cache = new LRUCache(
-        config->lru_cache_kb_per_process() * 1024);
+    LRUCache* lru_cache =
+        new LRUCache(config->lru_cache_kb_per_process() * 1024);
     factory->TakeOwnership(lru_cache);
 
     // We only add the threadsafe-wrapper to the LRUCache.  The FileCache
@@ -145,16 +141,15 @@ SystemCachePath::SystemCachePath(const StringPiece& path,
   }
 }
 
-SystemCachePath::~SystemCachePath() {
-}
+SystemCachePath::~SystemCachePath() {}
 
 // static
 GoogleString SystemCachePath::CachePath(SystemRewriteOptions* config) {
   return (config->unplugged()
-          ? "<unplugged>"
-          : StrCat(config->file_cache_path(),
-                   config->enable_cache_purge() ? " purge " : " flush ",
-                   config->cache_flush_filename()));
+              ? "<unplugged>"
+              : StrCat(config->file_cache_path(),
+                       config->enable_cache_purge() ? " purge " : " flush ",
+                       config->cache_flush_filename()));
 }
 
 void SystemCachePath::MergeConfig(const SystemRewriteOptions* config) {
@@ -164,32 +159,24 @@ void SystemCachePath::MergeConfig(const SystemRewriteOptions* config) {
   // we get at least as much cache cleaning as each vhost owner wants.
   MergeEntries(config->file_cache_clean_interval_ms(),
                config->has_file_cache_clean_interval_ms(),
-               false /* take_larger */,
-               "IntervalMs",
-               &policy->clean_interval_ms,
-               &clean_interval_explicitly_set_);
+               false /* take_larger */, "IntervalMs",
+               &policy->clean_interval_ms, &clean_interval_explicitly_set_);
 
   // For the sizes, we take the maximum value, so that the owner of any
   // vhost gets at least as much disk space as they asked for.  Note,
   // an argument could be made either way, but there's really no right
   // answer here, which is why MergeEntries prints a warning on a conflict.
   MergeEntries(config->file_cache_clean_size_kb() * 1024,
-               config->has_file_cache_clean_size_kb(),
-               true, "SizeKb",
-               &policy->target_size_bytes,
-               &clean_size_explicitly_set_);
+               config->has_file_cache_clean_size_kb(), true, "SizeKb",
+               &policy->target_size_bytes, &clean_size_explicitly_set_);
   MergeEntries(config->file_cache_clean_inode_limit(),
-               config->has_file_cache_clean_inode_limit(),
-               true, "InodeLimit",
-               &policy->target_inode_count,
-               &clean_inode_limit_explicitly_set_);
+               config->has_file_cache_clean_inode_limit(), true, "InodeLimit",
+               &policy->target_inode_count, &clean_inode_limit_explicitly_set_);
 }
 
 void SystemCachePath::MergeEntries(int64 config_value, bool config_was_set,
-                                   bool take_larger,
-                                   const char* name,
-                                   int64* policy_value,
-                                   bool* policy_was_set) {
+                                   bool take_larger, const char* name,
+                                   int64* policy_value, bool* policy_was_set) {
   if (config_value != *policy_value) {
     // If only one of these values was explicitly set, then just silently
     // update to the explicitly set one.
@@ -206,9 +193,7 @@ void SystemCachePath::MergeEntries(int64 config_value, bool config_was_set,
           "Conflicting settings %s!=%s for FileCacheClean%s for file-cache %s, "
           "keeping the %s value",
           Integer64ToString(config_value).c_str(),
-          Integer64ToString(*policy_value).c_str(),
-          name,
-          path_.c_str(),
+          Integer64ToString(*policy_value).c_str(), name, path_.c_str(),
           take_larger ? "larger" : "smaller");
       if ((take_larger && (config_value > *policy_value)) ||
           (!take_larger && (config_value < *policy_value))) {
@@ -241,33 +226,30 @@ void SystemCachePath::ChildInit(SlowWorker* cache_clean_worker) {
     file_cache_backend_->set_worker(cache_clean_worker);
   }
 
-  purge_context_ = std::make_unique<PurgeContext>(cache_flush_filename_,
-                                        factory_->file_system(),
-                                        factory_->timer(),
-                                        RewriteOptions::kCachePurgeBytes,
-                                        factory_->thread_system(),
-                                        lock_manager_,
-                                        factory_->scheduler(),
-                                        factory_->statistics(),
-                                        factory_->message_handler());
+  purge_context_ = std::make_unique<PurgeContext>(
+      cache_flush_filename_, factory_->file_system(), factory_->timer(),
+      RewriteOptions::kCachePurgeBytes, factory_->thread_system(),
+      lock_manager_, factory_->scheduler(), factory_->statistics(),
+      factory_->message_handler());
   purge_context_->set_enable_purge(enable_cache_purge_);
-  purge_context_->SetUpdateCallback(NewPermanentCallback(
-      this, &SystemCachePath::UpdateCachePurgeSet));
+  purge_context_->SetUpdateCallback(
+      NewPermanentCallback(this, &SystemCachePath::UpdateCachePurgeSet));
 }
 
 void SystemCachePath::GlobalCleanup(MessageHandler* handler) {
   if (shared_mem_lock_manager_.get() != nullptr) {
-    shared_mem_lock_manager_->GlobalCleanup(
-        shm_runtime_, LockManagerSegmentName(), handler);
+    shared_mem_lock_manager_->GlobalCleanup(shm_runtime_,
+                                            LockManagerSegmentName(), handler);
   }
 }
 
 void SystemCachePath::FallBackToFileBasedLocking() {
-  if ((shared_mem_lock_manager_.get() != nullptr) || (lock_manager_ == nullptr)) {
+  if ((shared_mem_lock_manager_.get() != nullptr) ||
+      (lock_manager_ == nullptr)) {
     shared_mem_lock_manager_.reset(nullptr);
     file_system_lock_manager_ = std::make_unique<FileSystemLockManager>(
-        factory_->file_system(), path_,
-        factory_->scheduler(), factory_->message_handler());
+        factory_->file_system(), path_, factory_->scheduler(),
+        factory_->message_handler());
     lock_manager_ = file_system_lock_manager_.get();
   }
 }
@@ -296,7 +278,8 @@ void SystemCachePath::UpdateCachePurgeSet(
     const CopyOnWrite<PurgeSet>& purge_set) {
   ScopedMutex lock(mutex_.get());
   for (ServerContextSet::iterator p = server_context_set_.begin(),
-           e = server_context_set_.end(); p != e; ++p) {
+                                  e = server_context_set_.end();
+       p != e; ++p) {
     SystemServerContext* server_context = *p;
     server_context->UpdateCachePurgeSet(purge_set);
   }

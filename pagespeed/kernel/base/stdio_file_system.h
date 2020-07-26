@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_STDIO_FILE_SYSTEM_H_
 #define PAGESPEED_KERNEL_BASE_STDIO_FILE_SYSTEM_H_
@@ -41,41 +40,39 @@ class StdioFileSystem : public FileSystem {
   int MaxPathLength(const StringPiece& base) const override;
 
   InputFile* OpenInputFile(const char* filename,
+                           MessageHandler* message_handler) override;
+  OutputFile* OpenOutputFileHelper(const char* filename, bool append,
                                    MessageHandler* message_handler) override;
-  OutputFile* OpenOutputFileHelper(const char* filename,
-                                           bool append,
-                                           MessageHandler* message_handler) override;
   OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
-                                         MessageHandler* message_handle) override;
+                                 MessageHandler* message_handle) override;
 
   bool ListContents(const StringPiece& dir, StringVector* files,
-                            MessageHandler* handler) override;
+                    MessageHandler* handler) override;
   bool MakeDir(const char* directory_path, MessageHandler* handler) override;
   bool RemoveDir(const char* directory_path, MessageHandler* handler) override;
   bool RemoveFile(const char* filename, MessageHandler* handler) override;
   bool RenameFileHelper(const char* old_file, const char* new_file,
-                                MessageHandler* handler) override;
+                        MessageHandler* handler) override;
 
   bool Atime(const StringPiece& path, int64* timestamp_sec,
-                     MessageHandler* handler) override;
+             MessageHandler* handler) override;
   bool Mtime(const StringPiece& path, int64* timestamp_sec,
-                     MessageHandler* handler) override;
+             MessageHandler* handler) override;
   // Report the disk utilization of the file specified by path. Note that disk
   // utilization could differ from the apparent size of the file as it depends
   // on the underlying file system and default block size.
   bool Size(const StringPiece& path, int64* size,
-                    MessageHandler* handler) const override;
+            MessageHandler* handler) const override;
   BoolOrError Exists(const char* path, MessageHandler* handler) override;
   BoolOrError IsDir(const char* path, MessageHandler* handler) override;
 
   BoolOrError TryLock(const StringPiece& lock_name,
-                              MessageHandler* handler) override;
-  BoolOrError TryLockWithTimeout(const StringPiece& lock_name,
-                                         int64 timeout_ms,
-                                         const Timer* timer,
-                                         MessageHandler* handler) override;
+                      MessageHandler* handler) override;
+  BoolOrError TryLockWithTimeout(const StringPiece& lock_name, int64 timeout_ms,
+                                 const Timer* timer,
+                                 MessageHandler* handler) override;
   bool BumpLockTimeout(const StringPiece& lock_name,
-                               MessageHandler* handler) override;
+                       MessageHandler* handler) override;
 
   bool Unlock(const StringPiece& lock_name, MessageHandler* handler) override;
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,21 +17,21 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/gzip_inflater.h"
 
 #include <cstddef>
 #include <cstdlib>
+
 #include "base/logging.h"
 #ifdef USE_SYSTEM_ZLIB
-#include "zlib.h"  // NOLINT
 #include "zconf.h"  // NOLINT
+#include "zlib.h"   // NOLINT
 #else
-#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
 #include "external/envoy/bazel/foreign_cc/zlib/include/zconf.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
 #endif
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/writer.h"
 
 namespace {
@@ -39,17 +39,16 @@ namespace {
 // Helper that snapshots the state of a z_stream structure.
 struct ZlibSnapshot {
  public:
-  explicit ZlibSnapshot(z_stream* zlib)
+  explicit ZlibSnapshot(z_stream *zlib)
       : total_out(zlib->total_out),
         total_in(zlib->total_in),
         avail_in(zlib->avail_in),
-        next_in(zlib->next_in) {
-  }
+        next_in(zlib->next_in) {}
 
   const uLong total_out;
   const uLong total_in;
   const uInt avail_in;
-  Bytef* const next_in;
+  Bytef *const next_in;
 };
 
 bool IsValidZlibStreamHeaderByte(uint8 first_byte) {
@@ -79,9 +78,7 @@ GzipInflater::GzipInflater(InflateType type)
   }
 }
 
-GzipInflater::~GzipInflater() {
-  Free();
-}
+GzipInflater::~GzipInflater() { Free(); }
 
 void GzipInflater::Free() {
   if (zlib_ == nullptr) {
@@ -100,8 +97,8 @@ void GzipInflater::Free() {
 }
 
 /* static */
-bool GzipInflater::GetWindowBitsForFormat(
-    StreamFormat format, int* out_window_bits) {
+bool GzipInflater::GetWindowBitsForFormat(StreamFormat format,
+                                          int *out_window_bits) {
   // From zlib.h:
   //  [For zlib stream format] the windowBits parameter is the base
   //  two logarithm of the window size... windowBits can also be
@@ -182,9 +179,8 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
     return false;
   }
 
-  if (format_ == FORMAT_ZLIB_STREAM &&
-      zlib_->total_in == 0 &&
-      !IsValidZlibStreamHeaderByte(static_cast<const uint8*>(in)[0])) {
+  if (format_ == FORMAT_ZLIB_STREAM && zlib_->total_in == 0 &&
+      !IsValidZlibStreamHeaderByte(static_cast<const uint8 *>(in)[0])) {
     // Special case: Content-Encoding: deflate can sometimes be zlib
     // stream and sometimes be raw deflate. The header byte is not a
     // valid zlib stream header byte, so try to decode as raw deflate
@@ -202,7 +198,7 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
 void GzipInflater::SetInputInternal(const void *in, size_t in_size) {
   // The zlib library won't modify the buffer, but it does not use
   // const here, so we must const cast.
-  zlib_->next_in  = const_cast<Bytef *>(reinterpret_cast<const Bytef *>(in));
+  zlib_->next_in = const_cast<Bytef *>(reinterpret_cast<const Bytef *>(in));
   zlib_->avail_in = static_cast<uInt>(in_size);
 }
 
@@ -262,8 +258,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
   const ZlibSnapshot zlib_snapshot(zlib_);
   int err = inflate(zlib_, Z_SYNC_FLUSH);
 
-  if (format_ == FORMAT_ZLIB_STREAM &&
-      zlib_snapshot.total_in == 0 &&
+  if (format_ == FORMAT_ZLIB_STREAM && zlib_snapshot.total_in == 0 &&
       err == Z_DATA_ERROR) {
     // Special case: Content-Encoding: deflate can sometimes be zlib
     // stream and sometimes be raw deflate. We failed to decode the
@@ -275,7 +270,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
     // comments in SwitchToRawDeflateFormat for more information.
     LOG(INFO) << "Failed to decode as zlib stream. Trying raw deflate.";
     SwitchToRawDeflateFormat();
-    zlib_->next_in  = zlib_snapshot.next_in;
+    zlib_->next_in = zlib_snapshot.next_in;
     zlib_->avail_in = zlib_snapshot.avail_in;
     zlib_->next_out = reinterpret_cast<Bytef *>(buf);
     zlib_->avail_out = static_cast<uInt>(buf_size);
@@ -306,9 +301,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
   return static_cast<int>(inflated_bytes);
 }
 
-void GzipInflater::ShutDown() {
-  Free();
-}
+void GzipInflater::ShutDown() { Free(); }
 
 // One-shot contiguous-buffer inflate/deflate code adapted from
 // http://www.zlib.net/zpipe.c.  The Inflate usage model here is
@@ -341,14 +334,14 @@ bool GzipInflater::Deflate(StringPiece in, InflateType format,
   }
 
   // compress until end of file
-  strm.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(in.data()));
+  strm.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in.data()));
   strm.avail_in = in.size();
   // run deflate() on input until output buffer not full, finish
   // compression if all of source has been read in
   do {
     strm.avail_out = kStackBufferSize;
-    strm.next_out = reinterpret_cast<Byte*>(out);
-    ret = deflate(&strm, Z_FINISH);    // no bad return value
+    strm.next_out = reinterpret_cast<Byte *>(out);
+    ret = deflate(&strm, Z_FINISH);  // no bad return value
     if (ret == Z_STREAM_ERROR) {
       return false;
     }
@@ -367,13 +360,13 @@ bool GzipInflater::Deflate(StringPiece in, InflateType format,
   return true;
 }
 
-bool GzipInflater::Deflate(StringPiece in, InflateType format, Writer* writer) {
+bool GzipInflater::Deflate(StringPiece in, InflateType format, Writer *writer) {
   return GzipInflater::Deflate(in, format, Z_DEFAULT_COMPRESSION, writer);
 }
 
 // TODO(jmarantz): Consider using the incremental interface to implement
 // Inflate.
-bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
+bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer *writer) {
   z_stream strm;
   char out[kStackBufferSize];
   const int kOutSize = sizeof(out);
@@ -394,13 +387,13 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
     }
   }
 
-  strm.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(in.data()));
+  strm.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in.data()));
   strm.avail_in = in.size();
 
   // run inflate() on input until output buffer not full
   do {
     strm.avail_out = kOutSize;
-    strm.next_out = reinterpret_cast<Bytef*>(out);
+    strm.next_out = reinterpret_cast<Bytef *>(out);
     switch (inflate(&strm, Z_NO_FLUSH)) {
       case Z_STREAM_ERROR:
         LOG(DFATAL) << "state should not be not clobbered";
@@ -417,7 +410,7 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
         break;
     }
     int have = kOutSize - strm.avail_out;
-    if (!writer->Write(StringPiece(static_cast<char*>(out), have), nullptr)) {
+    if (!writer->Write(StringPiece(static_cast<char *>(out), have), nullptr)) {
       inflateEnd(&strm);
       return false;
     }
@@ -430,9 +423,8 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
 
 // All gzip files start with a ten-byte header beginning with 0x1f8b.
 bool GzipInflater::HasGzipMagicBytes(StringPiece in) {
-  return in.size() >= 10 &&
-      in[0] == static_cast<char>(0x1f) &&
-      in[1] == static_cast<char>(0x8b);
+  return in.size() >= 10 && in[0] == static_cast<char>(0x1f) &&
+         in[1] == static_cast<char>(0x8b);
 }
 
 }  // namespace net_instaweb

@@ -20,10 +20,10 @@
 #ifndef PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
 #define PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
 
+#include <atomic>
+
 #include "pagespeed/kernel/base/atomicops.h"
 #include "pagespeed/kernel/base/basictypes.h"
-
-#include <atomic>
 
 namespace net_instaweb {
 
@@ -32,21 +32,23 @@ namespace net_instaweb {
 // incomprehensible  ways; most of the time, you probably want to use a mutex
 // instead.
 class AtomicBool {
-public:
+ public:
   // Guaranteed to be initialized to false.
   AtomicBool() { set_value(false); }
 
   ~AtomicBool() {}
 
-  bool value() const { return value_.load(std::memory_order::memory_order_acquire); }
+  bool value() const {
+    return value_.load(std::memory_order::memory_order_acquire);
+  }
 
   void set_value(bool v) { value_.store(v, std::memory_order_release); }
 
-private:
+ private:
   std::atomic<bool> value_;
   DISALLOW_COPY_AND_ASSIGN(AtomicBool);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb
 
-#endif // PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
+#endif  // PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 // Unit test for CachePropertyStore.
 
 #include "pagespeed/opt/http/cache_property_store.h"
 
 #include <cstddef>
 #include <memory>
-
 
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/callback.h"
@@ -48,8 +46,7 @@ const size_t kMaxCacheSize = 200;
 const char kCohortName1[] = "cohort1";
 const char kCohortName2[] = "cohort2";
 const char kUrl[] = "www.test.com/sample.html";
-const char kParsableContent[] =
-    "value { name: 'prop1' value: 'value1' }";
+const char kParsableContent[] = "value { name: 'prop1' value: 'value1' }";
 const char kNonParsableContent[] = "random";
 const char kOptionsSignatureHash[] = "hash";
 const char kCacheKeySuffix[] = "CacheKeySuffix";
@@ -59,19 +56,17 @@ const char kCacheKeySuffix[] = "CacheKeySuffix";
 class CachePropertyStoreTest : public testing::Test {
  public:
   CachePropertyStoreTest()
-     : lru_cache_(kMaxCacheSize),
-       thread_system_(Platform::CreateThreadSystem()),
-       stats_(thread_system_.get()),
-       timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
-       cache_property_store_(
-           "test/", &lru_cache_, &timer_, &stats_, thread_system_.get()),
-       property_cache_(&cache_property_store_,
-                       &timer_,
-                       &stats_,
-                       thread_system_.get()),
-       num_callback_with_false_called_(0),
-       num_callback_with_true_called_(0),
-       cache_lookup_status_(false) {
+      : lru_cache_(kMaxCacheSize),
+        thread_system_(Platform::CreateThreadSystem()),
+        stats_(thread_system_.get()),
+        timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
+        cache_property_store_("test/", &lru_cache_, &timer_, &stats_,
+                              thread_system_.get()),
+        property_cache_(&cache_property_store_, &timer_, &stats_,
+                        thread_system_.get()),
+        num_callback_with_false_called_(0),
+        num_callback_with_true_called_(0),
+        cache_lookup_status_(false) {
     PropertyCache::InitCohortStats(kCohortName1, &stats_);
     PropertyStoreGetCallback::InitStats(&stats_);
     cohort_ = property_cache_.AddCohort(kCohortName1);
@@ -81,12 +76,9 @@ class CachePropertyStoreTest : public testing::Test {
 
   void SetUp() override {
     page_ = std::make_unique<MockPropertyPage>(
-        
-            thread_system_.get(),
-            &property_cache_,
-            kUrl,
-            kOptionsSignatureHash,
-            kCacheKeySuffix);
+
+        thread_system_.get(), &property_cache_, kUrl, kOptionsSignatureHash,
+        kCacheKeySuffix);
     property_cache_.Read(page_.get());
   }
 
@@ -102,13 +94,8 @@ class CachePropertyStoreTest : public testing::Test {
   bool ExecuteGet(PropertyPage* page) {
     AbstractPropertyStoreGetCallback* callback = nullptr;
     cache_property_store_.Get(
-        kUrl,
-        kOptionsSignatureHash,
-        kCacheKeySuffix,
-        cohort_list_,
-        page,
-        NewCallback(this, &CachePropertyStoreTest::ResultCallback),
-        &callback);
+        kUrl, kOptionsSignatureHash, kCacheKeySuffix, cohort_list_, page,
+        NewCallback(this, &CachePropertyStoreTest::ResultCallback), &callback);
     callback->DeleteWhenDone();
     return cache_lookup_status_;
   }
@@ -141,13 +128,8 @@ TEST_F(CachePropertyStoreTest, TestNoResultAvailable) {
 TEST_F(CachePropertyStoreTest, TestResultAvailable) {
   PropertyCacheValues values;
   values.ParseFromString(kParsableContent);
-  cache_property_store_.Put(
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix,
-      cohort_,
-      &values,
-      nullptr);
+  cache_property_store_.Put(kUrl, kOptionsSignatureHash, kCacheKeySuffix,
+                            cohort_, &values, nullptr);
   EXPECT_TRUE(ExecuteGet(page_.get()));
   EXPECT_EQ(CacheInterface::kAvailable, page_->GetCacheState(cohort_));
   EXPECT_EQ(0, num_callback_with_false_called_);
@@ -156,10 +138,8 @@ TEST_F(CachePropertyStoreTest, TestResultAvailable) {
 
 TEST_F(CachePropertyStoreTest, TestResultAvailableButNonParsable) {
   SharedString put_buffer(kNonParsableContent);
-  lru_cache_.Put(cache_property_store_.CacheKey(kUrl,
-                                                kOptionsSignatureHash,
-                                                kCacheKeySuffix,
-                                                cohort_),
+  lru_cache_.Put(cache_property_store_.CacheKey(kUrl, kOptionsSignatureHash,
+                                                kCacheKeySuffix, cohort_),
                  put_buffer);
   EXPECT_FALSE(ExecuteGet(page_.get()));
   EXPECT_EQ(CacheInterface::kAvailable, page_->GetCacheState(cohort_));
@@ -172,11 +152,8 @@ TEST_F(CachePropertyStoreTest, TestMultipleCohorts) {
   const PropertyCache::Cohort* cohort2 =
       property_cache_.AddCohort(kCohortName2);
   cache_property_store_.AddCohort(kCohortName2);
-  MockPropertyPage page(thread_system_.get(),
-                        &property_cache_,
-                        kUrl,
-                        kOptionsSignatureHash,
-                        kCacheKeySuffix);
+  MockPropertyPage page(thread_system_.get(), &property_cache_, kUrl,
+                        kOptionsSignatureHash, kCacheKeySuffix);
   property_cache_.Read(&page);
   PropertyCacheValues values;
   values.ParseFromString(kParsableContent);
@@ -190,13 +167,8 @@ TEST_F(CachePropertyStoreTest, TestMultipleCohorts) {
 
   lru_cache_.ClearStats();
   // Insert the value for cohort1.
-  cache_property_store_.Put(
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix,
-      cohort_,
-      &values,
-      nullptr);
+  cache_property_store_.Put(kUrl, kOptionsSignatureHash, kCacheKeySuffix,
+                            cohort_, &values, nullptr);
   EXPECT_TRUE(ExecuteGet(&page));
 
   EXPECT_EQ(1, lru_cache_.num_hits());
@@ -205,13 +177,8 @@ TEST_F(CachePropertyStoreTest, TestMultipleCohorts) {
 
   lru_cache_.ClearStats();
   // Insert the value for cohort2.
-  cache_property_store_.Put(
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix,
-      cohort2,
-      &values,
-      nullptr);
+  cache_property_store_.Put(kUrl, kOptionsSignatureHash, kCacheKeySuffix,
+                            cohort2, &values, nullptr);
   EXPECT_TRUE(ExecuteGet(&page));
 
   EXPECT_EQ(2, lru_cache_.num_hits());
@@ -229,33 +196,19 @@ TEST_F(CachePropertyStoreTest, TestMultipleCacheBackends) {
   const PropertyCache::Cohort* cohort2 =
       property_cache_.AddCohort(kCohortName2);
   cache_property_store_.AddCohortWithCache(kCohortName2, &second_cache);
-  MockPropertyPage page(
-      thread_system_.get(),
-      &property_cache_,
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix);
+  MockPropertyPage page(thread_system_.get(), &property_cache_, kUrl,
+                        kOptionsSignatureHash, kCacheKeySuffix);
   property_cache_.Read(&page);
   PropertyCacheValues values;
   values.ParseFromString(kParsableContent);
   lru_cache_.ClearStats();
   second_cache.ClearStats();
   // Insert the value for cohort1.
-  cache_property_store_.Put(
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix,
-      cohort_,
-      &values,
-      nullptr);
+  cache_property_store_.Put(kUrl, kOptionsSignatureHash, kCacheKeySuffix,
+                            cohort_, &values, nullptr);
   // Insert the value for cohort2.
-  cache_property_store_.Put(
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix,
-      cohort2,
-      &values,
-      nullptr);
+  cache_property_store_.Put(kUrl, kOptionsSignatureHash, kCacheKeySuffix,
+                            cohort2, &values, nullptr);
   cohort_list_.push_back(cohort2);
   // Get the value for cohort1 and cohort2.
   EXPECT_TRUE(ExecuteGet(&page));
@@ -276,16 +229,9 @@ TEST_F(CachePropertyStoreTest, TestMultipleCacheBackends) {
 
 TEST_F(CachePropertyStoreTest, TestPropertyCacheKeyMethod) {
   GoogleString cache_key = cache_property_store_.CacheKey(
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix,
-      cohort_);
-  GoogleString expected = StrCat(
-      "test/",
-      kUrl, "_",
-      kOptionsSignatureHash,
-      kCacheKeySuffix, "@",
-      cohort_->name());
+      kUrl, kOptionsSignatureHash, kCacheKeySuffix, cohort_);
+  GoogleString expected = StrCat("test/", kUrl, "_", kOptionsSignatureHash,
+                                 kCacheKeySuffix, "@", cohort_->name());
   EXPECT_EQ(expected, cache_key);
 }
 
@@ -293,11 +239,7 @@ TEST_F(CachePropertyStoreTest, TestPutHandlesNonNullCallback) {
   PropertyCacheValues values;
   values.ParseFromString(kParsableContent);
   cache_property_store_.Put(
-      kUrl,
-      kOptionsSignatureHash,
-      kCacheKeySuffix,
-      cohort_,
-      &values,
+      kUrl, kOptionsSignatureHash, kCacheKeySuffix, cohort_, &values,
       NewCallback(this, &CachePropertyStoreTest::ResultCallback));
   EXPECT_EQ(0, num_callback_with_false_called_);
   EXPECT_EQ(1, num_callback_with_true_called_);

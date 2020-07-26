@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,12 +29,9 @@ namespace net_instaweb {
 
 DelegatingCacheCallback::DelegatingCacheCallback(
     CacheInterface::Callback* callback)
-    : callback_(callback),
-      validate_candidate_called_(false) {
-}
+    : callback_(callback), validate_candidate_called_(false) {}
 
-DelegatingCacheCallback::~DelegatingCacheCallback() {
-}
+DelegatingCacheCallback::~DelegatingCacheCallback() {}
 
 // Note that we have to forward validity faithfully here, as if we're
 // wrapping a 2-level cache it will need to know accurately if the value

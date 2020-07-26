@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_UTIL_COPY_ON_WRITE_H_
 #define PAGESPEED_KERNEL_UTIL_COPY_ON_WRITE_H_
@@ -32,7 +31,7 @@ namespace net_instaweb {
 // T must be copyable and assignable.  It does not need to be derived
 // from any other class.  It also must have an empty constructor and,
 // if you want to use MergeOrShare, a Merge method.
-template<class T>
+template <class T>
 class CopyOnWrite {
  public:
   // Usage of default constructor requires that T also have a default

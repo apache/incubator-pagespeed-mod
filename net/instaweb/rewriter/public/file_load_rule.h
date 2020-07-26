@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_FILE_LOAD_RULE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_FILE_LOAD_RULE_H_
@@ -59,8 +58,7 @@ class FileLoadRuleRegexp : public FileLoadRule {
   FileLoadRuleRegexp(const GoogleString& filename_regexp, bool allowed)
       : FileLoadRule(allowed),
         filename_regexp_(filename_regexp),
-        filename_regexp_str_(filename_regexp)
-  {}
+        filename_regexp_str_(filename_regexp) {}
 
   bool Match(const GoogleString& filename) const override;
 
@@ -79,8 +77,7 @@ class FileLoadRuleLiteral : public FileLoadRule {
   // If allowed is true, whitelist filenames starting with filename_prefix.
   // Otherwise blacklist them.
   FileLoadRuleLiteral(const GoogleString& filename_prefix, bool allowed)
-      : FileLoadRule(allowed), filename_prefix_(filename_prefix)
-  {}
+      : FileLoadRule(allowed), filename_prefix_(filename_prefix) {}
 
   bool Match(const GoogleString& filename) const override;
 

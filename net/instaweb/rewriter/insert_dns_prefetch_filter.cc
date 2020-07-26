@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <memory>
 #include <set>
-#include <utility>                      // for pair
+#include <utility>  // for pair
 #include <vector>
 
 #include "net/instaweb/rewriter/flush_early.pb.h"
@@ -65,8 +65,7 @@ InsertDnsPrefetchFilter::InsertDnsPrefetchFilter(RewriteDriver* driver)
   Clear();
 }
 
-InsertDnsPrefetchFilter::~InsertDnsPrefetchFilter() {
-}
+InsertDnsPrefetchFilter::~InsertDnsPrefetchFilter() {}
 
 void InsertDnsPrefetchFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(true);
@@ -93,12 +92,12 @@ void InsertDnsPrefetchFilter::StartDocumentImpl() {
   user_agent_supports_dns_prefetch_ =
       driver()->server_context()->user_agent_matcher()->SupportsDnsPrefetch(
           driver()->user_agent());
-  RewriterHtmlApplication::Status status = user_agent_supports_dns_prefetch_ ?
-      RewriterHtmlApplication::ACTIVE :
-      RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED;
+  RewriterHtmlApplication::Status status =
+      user_agent_supports_dns_prefetch_
+          ? RewriterHtmlApplication::ACTIVE
+          : RewriterHtmlApplication::USER_AGENT_NOT_SUPPORTED;
   driver()->log_record()->LogRewriterHtmlStatus(
-      RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch),
-      status);
+      RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch), status);
 }
 
 // Write the information about domains gathered in this rewrite into the
@@ -116,8 +115,7 @@ void InsertDnsPrefetchFilter::EndDocument() {
   for (StringVector::const_iterator it = dns_prefetch_domains_.begin();
        it != end; ++it) {
     flush_early_info->add_dns_prefetch_domains(*it);
-    if (flush_early_info->dns_prefetch_domains_size() >=
-        kMaxDnsPrefetchTags) {
+    if (flush_early_info->dns_prefetch_domains_size() >= kMaxDnsPrefetchTags) {
       break;
     }
   }
@@ -196,11 +194,13 @@ void InsertDnsPrefetchFilter::EndElementImpl(HtmlElement* element) {
       if (IsDomainListStable(flush_early_info)) {
         const char* tag_to_insert =
             driver()->user_agent_matcher()->SupportsDnsPrefetchUsingRelPrefetch(
-                driver()->user_agent()) ? kRelPrefetch : kRelDnsPrefetch;
+                driver()->user_agent())
+                ? kRelPrefetch
+                : kRelDnsPrefetch;
         protobuf::RepeatedPtrField<GoogleString>::const_iterator end =
             flush_early_info.dns_prefetch_domains().end();
         for (protobuf::RepeatedPtrField<GoogleString>::const_iterator it =
-             flush_early_info.dns_prefetch_domains().begin();
+                 flush_early_info.dns_prefetch_domains().begin();
              it != end; ++it) {
           HtmlElement* link = driver()->NewElement(element, HtmlName::kLink);
           driver()->AddAttribute(link, HtmlName::kRel, tag_to_insert);
@@ -231,8 +231,8 @@ void InsertDnsPrefetchFilter::MarkAlreadyInHead(
       if (in_head_) {
         std::pair<StringSet::iterator, bool> result =
             domains_to_ignore_.insert(domain);
-        if (driver()->options()->Enabled(RewriteOptions::kFlushSubresources)
-            && result.second) {
+        if (driver()->options()->Enabled(RewriteOptions::kFlushSubresources) &&
+            result.second) {
           // Prefetch dns for the domains present in the head if flush
           // sub-resources filter is enabled.
           dns_prefetch_domains_.push_back(domain);
@@ -257,7 +257,8 @@ void InsertDnsPrefetchFilter::MarkAlreadyInHead(
 bool InsertDnsPrefetchFilter::IsDomainListStable(
     const FlushEarlyInfo& flush_early_info) const {
   return std::abs(flush_early_info.total_dns_prefetch_domains() -
-      flush_early_info.total_dns_prefetch_domains_previous()) <= kMaxDomainDiff;
+                  flush_early_info.total_dns_prefetch_domains_previous()) <=
+         kMaxDomainDiff;
 }
 
 }  // namespace net_instaweb

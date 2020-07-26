@@ -35,8 +35,8 @@ typedef int8_t int8;
 // this gets us check/dcheck/(v)log etc
 #include "base/logging.h"
 
-#define arraysize(a)                                                           \
-  ((sizeof(a) / sizeof(*(a))) /                                                \
+#define arraysize(a)            \
+  ((sizeof(a) / sizeof(*(a))) / \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
@@ -73,20 +73,20 @@ typedef int8_t int8;
 //  of code.
 #if defined(__clang__) && __cplusplus >= 201103L && defined(__has_warning)
 #if __has_feature(cxx_attributes) && __has_warning("-Wimplicit-fallthrough")
-#define FALLTHROUGH_INTENDED [[clang::fallthrough]] // NOLINT
+#define FALLTHROUGH_INTENDED [[clang::fallthrough]]  // NOLINT
 #endif
 #endif
 
 #ifndef FALLTHROUGH_INTENDED
-#define FALLTHROUGH_INTENDED                                                   \
-  do {                                                                         \
+#define FALLTHROUGH_INTENDED \
+  do {                       \
   } while (0)
 #endif
 
 // Lazily-initialized boolean value
 enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
 
-#endif // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
+#endif  // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 
 // XXX(oschaaf): check licence. copied this in here because chromium dropped it.
 /*
@@ -119,10 +119,8 @@ enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
 #define TALK_BASE_COMPILE_ASSERT_H_
 #if !defined(COMPILE_ASSERT)
 template <bool>
-struct CompileAssert {
-};
+struct CompileAssert {};
 #define COMPILE_ASSERT(expr, msg) \
   typedef CompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]  // NOLINT
 #endif  // COMPILE_ASSERT
 #endif  // TALK_BASE_COMPILE_ASSERT_H_
-

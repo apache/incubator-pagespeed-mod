@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-
 
 #include "pagespeed/kernel/util/hashed_nonce_generator.h"
 
@@ -32,8 +30,9 @@
 
 namespace net_instaweb {
 
-HashedNonceGenerator::HashedNonceGenerator(
-    const Hasher* hasher, StringPiece key, AbstractMutex* mutex)
+HashedNonceGenerator::HashedNonceGenerator(const Hasher* hasher,
+                                           StringPiece key,
+                                           AbstractMutex* mutex)
     : NonceGenerator(mutex),
       hasher_(hasher),
       key_size_(key.size() - sizeof(counter_)) {
@@ -43,14 +42,14 @@ HashedNonceGenerator::HashedNonceGenerator(
   // to initialize counter_, and thus exclude it from key_size_.  But we will
   // ultimately need to buffer the initial key_size_ bytes of the passed-in key,
   // the counter_, and the pid.
-  char *key_data = new char[key_size_ + sizeof(counter_) + sizeof(pid_t)];
+  char* key_data = new char[key_size_ + sizeof(counter_) + sizeof(pid_t)];
   memcpy(key_data, key.data(), key_size_);
   memcpy(&counter_, key.data() + key_size_, sizeof(counter_));
   key_.reset(key_data);
   counter_ = hasher_->HashToUint64(key);
 }
 
-HashedNonceGenerator::~HashedNonceGenerator() { }
+HashedNonceGenerator::~HashedNonceGenerator() {}
 
 uint64 HashedNonceGenerator::NewNonceImpl() {
   ++counter_;

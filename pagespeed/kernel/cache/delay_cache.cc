@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,6 +26,7 @@
 #include "pagespeed/kernel/cache/delay_cache.h"
 
 #include <utility>  // for pair.
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/function.h"
@@ -43,8 +44,7 @@ class DelayCache::DelayCallback : public CacheInterface::Callback {
       : delay_cache_(delay_cache),
         orig_callback_(orig_callback),
         key_(key),
-        state_(kNotFound) {
-  }
+        state_(kNotFound) {}
 
   ~DelayCallback() override {}
 
@@ -88,9 +88,7 @@ class DelayCache::DelayCallback : public CacheInterface::Callback {
 };
 
 DelayCache::DelayCache(CacheInterface* cache, ThreadSystem* thread_system)
-    : cache_(cache),
-      mutex_(thread_system->NewMutex()) {
-}
+    : cache_(cache), mutex_(thread_system->NewMutex()) {}
 
 DelayCache::~DelayCache() {
   CHECK(delay_requests_.empty());
@@ -157,8 +155,8 @@ void DelayCache::Get(const GoogleString& key, Callback* callback) {
 void DelayCache::MultiGet(MultiGetRequest* request) {
   for (int i = 0, n = request->size(); i < n; ++i) {
     KeyCallback* key_callback = &(*request)[i];
-    DelayCallback* cb = new DelayCallback(key_callback->key, this,
-                                          key_callback->callback);
+    DelayCallback* cb =
+        new DelayCallback(key_callback->key, this, key_callback->callback);
     key_callback->callback = cb;
   }
   cache_->MultiGet(request);
@@ -168,8 +166,6 @@ void DelayCache::Put(const GoogleString& key, const SharedString& value) {
   cache_->Put(key, value);
 }
 
-void DelayCache::Delete(const GoogleString& key) {
-  cache_->Delete(key);
-}
+void DelayCache::Delete(const GoogleString& key) { cache_->Delete(key); }
 
 }  // namespace net_instaweb

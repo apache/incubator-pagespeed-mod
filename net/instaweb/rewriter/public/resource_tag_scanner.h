@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -38,9 +38,7 @@ struct UrlCategoryPair {
   HtmlElement::Attribute* url;
   semantic_type::Category category;
 
-  UrlCategoryPair()
-      : url(NULL),
-        category(semantic_type::kUndefined) {}
+  UrlCategoryPair() : url(NULL), category(semantic_type::kUndefined) {}
 };
 
 typedef std::vector<UrlCategoryPair> UrlCategoryVector;
@@ -115,8 +113,7 @@ typedef std::vector<UrlCategoryPair> UrlCategoryVector;
 //   http://www.w3.org/TR/REC-html40/index/attributes.html
 //
 semantic_type::Category CategorizeAttribute(
-    const HtmlElement* element,
-    const HtmlElement::Attribute* attribute,
+    const HtmlElement* element, const HtmlElement::Attribute* attribute,
     const RewriteOptions* options);
 
 // Examines an HTML element to determine if it's a link to any sort of resource,

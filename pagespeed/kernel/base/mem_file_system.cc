@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/mem_file_system.h"
 
@@ -29,11 +28,11 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/file_system.h"
 #include "pagespeed/kernel/base/message_handler.h"
+#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/mock_timer.h"
+#include "pagespeed/kernel/base/timer.h"
 
 namespace net_instaweb {
 
@@ -42,8 +41,7 @@ class MemInputFile : public FileSystem::InputFile {
   MemInputFile(const StringPiece& filename, const GoogleString& contents)
       : contents_(contents),
         filename_(filename.data(), filename.size()),
-        offset_(0) {
-  }
+        offset_(0) {}
 
   bool Close(MessageHandler* message_handler) override {
     offset_ = contents_.length();
@@ -79,11 +77,10 @@ class MemInputFile : public FileSystem::InputFile {
   DISALLOW_COPY_AND_ASSIGN(MemInputFile);
 };
 
-
 class MemOutputFile : public FileSystem::OutputFile {
  public:
-  MemOutputFile(
-      const StringPiece& filename, GoogleString* contents, bool append)
+  MemOutputFile(const StringPiece& filename, GoogleString* contents,
+                bool append)
       : contents_(contents), filename_(filename.data(), filename.size()) {
     if (!append) {
       contents_->clear();
@@ -132,8 +129,7 @@ MemFileSystem::MemFileSystem(ThreadSystem* threads, Timer* timer)
   ClearStats();
 }
 
-MemFileSystem::~MemFileSystem() {
-}
+MemFileSystem::~MemFileSystem() {}
 
 void MemFileSystem::UpdateAtime(const StringPiece& path) {
   if (atime_enabled_) {
@@ -164,8 +160,8 @@ BoolOrError MemFileSystem::Exists(const char* path, MessageHandler* handler) {
 }
 
 BoolOrError MemFileSystem::IsDir(const char* path, MessageHandler* handler) {
-  return Exists(path, handler).is_true()
-      ? BoolOrError(EndsInSlash(path)) : BoolOrError();
+  return Exists(path, handler).is_true() ? BoolOrError(EndsInSlash(path))
+                                         : BoolOrError();
 }
 
 bool MemFileSystem::MakeDir(const char* path, MessageHandler* handler) {
@@ -188,8 +184,10 @@ bool MemFileSystem::RemoveDir(const char* path, MessageHandler* handler) {
 
   // Verify that this directory exists
   if (iter == string_map_.end()) {
-    handler->Message(kError, "Failed to remove directory %s: directory does "
-                     "not exist", path);
+    handler->Message(kError,
+                     "Failed to remove directory %s: directory does "
+                     "not exist",
+                     path);
     return false;
   }
 
@@ -201,8 +199,10 @@ bool MemFileSystem::RemoveDir(const char* path, MessageHandler* handler) {
   ++next_iter;
   if (next_iter != string_map_.end() &&
       next_iter->first.find(iter->first) == 0) {
-    handler->Message(kError, "Failed to remove directory %s: directory is not "
-                     "empty", path);
+    handler->Message(kError,
+                     "Failed to remove directory %s: directory is not "
+                     "empty",
+                     path);
     return false;
   }
 
@@ -260,16 +260,14 @@ bool MemFileSystem::RecursivelyMakeDir(const StringPiece& full_path_const,
   return true;
 }
 
-bool MemFileSystem::RemoveFile(const char* filename,
-                               MessageHandler* handler) {
+bool MemFileSystem::RemoveFile(const char* filename, MessageHandler* handler) {
   ScopedMutex lock(all_else_mutex_.get());
   atime_map_.erase(filename);
   mtime_map_.erase(filename);
   return (string_map_.erase(filename) == 1);
 }
 
-bool MemFileSystem::RenameFileHelper(const char* old_file,
-                                     const char* new_file,
+bool MemFileSystem::RenameFileHelper(const char* old_file, const char* new_file,
                                      MessageHandler* handler) {
   ScopedMutex lock(all_else_mutex_.get());
 
@@ -305,15 +303,16 @@ bool MemFileSystem::ListContents(const StringPiece& dir, StringVector* files,
   // filesystem that matches the prefix and doesn't have another
   // internal slash.
   for (StringStringMap::iterator it = string_map_.begin(),
-           end = string_map_.end(); it != end; it++) {
+                                 end = string_map_.end();
+       it != end; it++) {
     const GoogleString& path = (*it).first;
     if ((0 == path.compare(0, prefix_length, prefix)) &&
         path.length() > prefix_length) {
       const size_t next_slash = path.find("/", prefix_length + 1);
       // Only want to list files without another slash, unless that
       // slash is the last char in the filename.
-      if ((next_slash == GoogleString::npos)
-          || (next_slash == path.length() - 1)) {
+      if ((next_slash == GoogleString::npos) ||
+          (next_slash == path.length() - 1)) {
         files->push_back(path);
       }
     }
@@ -353,8 +352,8 @@ BoolOrError MemFileSystem::TryLock(const StringPiece& lock_name,
                                    MessageHandler* handler) {
   ScopedMutex lock(lock_map_mutex_.get());
 
-  auto ret = lock_map_.insert(
-      std::make_pair(lock_name.as_string(), timer_->NowMs()));
+  auto ret =
+      lock_map_.insert(std::make_pair(lock_name.as_string(), timer_->NowMs()));
   bool inserted = ret.second;
   return BoolOrError(inserted);
 }
@@ -404,8 +403,7 @@ bool MemFileSystem::Unlock(const StringPiece& lock_name,
   return (lock_map_.erase(lock_name.as_string()) == 1);
 }
 
-bool MemFileSystem::WriteFile(const char* filename,
-                              const StringPiece& buffer,
+bool MemFileSystem::WriteFile(const char* filename, const StringPiece& buffer,
                               MessageHandler* handler) {
   bool ret = FileSystem::WriteFile(filename, buffer, handler);
   if (write_callback_.get() != nullptr) {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,9 @@
  * under the License.
  */
 
-#include <memory>
-
-
-
 #include "pagespeed/controller/named_lock_schedule_rewrite_controller.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -45,7 +43,7 @@ class TrackCallsFunction : public Function {
   TrackCallsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  ~TrackCallsFunction() override { }
+  ~TrackCallsFunction() override {}
 
   void Run() override { run_called_ = true; }
   void Cancel() override { cancel_called_ = true; }
@@ -84,11 +82,11 @@ class NamedLockScheduleRewriteControllerTest : public testing::Test {
         expected_num_released_unheld,
         TimedVariableTotal(
             NamedLockScheduleRewriteController::kLocksReleasedWhenNotHeld));
-    EXPECT_EQ(
-        expected_currently_held,
-        stats_.GetUpDownCounter(
-                  NamedLockScheduleRewriteController::kLocksCurrentlyHeld)
-            ->Get());
+    EXPECT_EQ(expected_currently_held,
+              stats_
+                  .GetUpDownCounter(
+                      NamedLockScheduleRewriteController::kLocksCurrentlyHeld)
+                  ->Get());
   }
 
   int64 TimedVariableTotal(const GoogleString& name) {

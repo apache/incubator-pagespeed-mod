@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_CODE_BLOCK_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_CODE_BLOCK_H_
@@ -32,7 +31,11 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
+namespace pagespeed {
+namespace js {
+struct JsTokenizerPatterns;
+}
+}  // namespace pagespeed
 
 namespace net_instaweb {
 
@@ -147,8 +150,7 @@ class JavascriptCodeBlock {
 
   JavascriptCodeBlock(const StringPiece& original_code,
                       JavascriptRewriteConfig* config,
-                      const StringPiece& message_id,
-                      MessageHandler* handler);
+                      const StringPiece& message_id, MessageHandler* handler);
 
   virtual ~JavascriptCodeBlock();
 
@@ -217,7 +219,7 @@ class JavascriptCodeBlock {
   // Generates a hash of a URL escaped to be safe to use in a Javascript
   // identifier, so that variable names can be safely created that won't
   // collide with other local Javascript.
-  static GoogleString JsUrlHash(const GoogleString &url, Hasher *hasher) {
+  static GoogleString JsUrlHash(const GoogleString& url, Hasher* hasher) {
     GoogleString url_hash = hasher->Hash(GoogleUrl(url).PathAndLeaf());
     // Hashes may contain '-', which isn't valid in a JavaScript name, so
     // replace every '-' with '$'.

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,11 +17,9 @@
  * under the License.
  */
 
-#include <memory>
-
-
-
 #include "net/instaweb/http/public/simulated_delay_fetcher.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -43,9 +41,9 @@ const char kConfigPath[] = "hosts.txt";
 const char kLogPath[] = "request_log.txt";
 
 const char kHostA[] = "foo.com";
-const int  kDelayMsA = 200;
+const int kDelayMsA = 200;
 const char kHostB[] = "bar.com";
-const int  kDelayMsB = 100;
+const int kDelayMsB = 100;
 
 class SimulatedDelayFetcherTest : public ::testing::Test {
  protected:
@@ -61,9 +59,8 @@ class SimulatedDelayFetcherTest : public ::testing::Test {
     file_system_.WriteFile(kConfigPath, config, &handler_);
 
     fetcher_ = std::make_unique<SimulatedDelayFetcher>(
-        thread_system_.get(), &timer_, &scheduler_,
-                                  &handler_, &file_system_, kConfigPath,
-                                  kLogPath, 2 /* flush after 2 requests */);
+        thread_system_.get(), &timer_, &scheduler_, &handler_, &file_system_,
+        kConfigPath, kLogPath, 2 /* flush after 2 requests */);
   }
 
   ~SimulatedDelayFetcherTest() override {}
@@ -79,13 +76,11 @@ class SimulatedDelayFetcherTest : public ::testing::Test {
 TEST_F(SimulatedDelayFetcherTest, BasicOperation) {
   GoogleString result_a;
   StringAsyncFetch fetch_a(
-      RequestContext::NewTestRequestContext(thread_system_.get()),
-      &result_a);
+      RequestContext::NewTestRequestContext(thread_system_.get()), &result_a);
 
   GoogleString result_b;
   StringAsyncFetch fetch_b(
-      RequestContext::NewTestRequestContext(thread_system_.get()),
-      &result_b);
+      RequestContext::NewTestRequestContext(thread_system_.get()), &result_b);
 
   fetcher_->Fetch(StrCat("http://", kHostA), &handler_, &fetch_a);
 

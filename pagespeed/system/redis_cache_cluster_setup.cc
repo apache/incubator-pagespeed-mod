@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 // Unit-test the redis interface in conjunction with Redis Cluster
 
 #include "pagespeed/system/redis_cache_cluster_setup.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdlib>
-#include <algorithm>
 
 #include "base/logging.h"
 //#include "strings/stringpiece_utils.h"
@@ -52,7 +51,7 @@ GoogleString ReadBulkString(TcpConnectionForTesting* conn) {
   length_str.remove_suffix(2);
   int length;
   CHECK(StringToInt(length_str, &length));
-  GoogleString result =  conn->ReadBytes(length);
+  GoogleString result = conn->ReadBytes(length);
   CHECK_EQ("\r\n", conn->ReadLineCrLf());
   return result;
 }
@@ -77,12 +76,11 @@ StringVector GetNodeConfig(TcpConnectionForTesting* conn) {
   GoogleString config_csv = ReadBulkString(conn);
   StringPieceVector lines;
   SplitStringPieceToVector(config_csv, "\r\n", &lines,
-                            true /* omit_empty_strings */);
+                           true /* omit_empty_strings */);
   StringVector current_config;
   for (StringPiece line : lines) {
     StringPieceVector fields;
-    SplitStringPieceToVector(line, " ", &fields,
-                              true /* omit_empty_strings */);
+    SplitStringPieceToVector(line, " ", &fields, true /* omit_empty_strings */);
     CHECK_GE(fields.size(), 8);
     GoogleString node_descr;
     // See http://redis.io/commands/cluster-nodes. We take three fields
@@ -98,8 +96,7 @@ StringVector GetNodeConfig(TcpConnectionForTesting* conn) {
   return current_config;
 }
 
-void ResetConfiguration(StringVector* node_ids,
-                        std::vector<int>* ports,
+void ResetConfiguration(StringVector* node_ids, std::vector<int>* ports,
                         ConnectionList* connections) {
   // TODO(cheesy): These should be collapsed onto a single vector of
   // struct { conn, port, node_id }.
@@ -134,7 +131,7 @@ void ResetConfiguration(StringVector* node_ids,
   // And finally load slots configuration.
   // Some of these boundaries are explicitly probed in the SlotBoundaries
   // test. If you change the cluster layout, you must also change that test.
-  static const int slot_ranges[] = { 0, 5500, 11000, 16384 };
+  static const int slot_ranges[] = {0, 5500, 11000, 16384};
   for (int i = 0; i < 3; i++) {
     GoogleString command = "CLUSTER ADDSLOTS";
     for (int slot = slot_ranges[i]; slot < slot_ranges[i + 1]; slot++) {
@@ -153,7 +150,7 @@ void ResetConfiguration(StringVector* node_ids,
   // knows about every other node.
 
   LOG(INFO) << "Reset Redis Cluster configuration back to default, "
-                "waiting for node propagation...";
+               "waiting for node propagation...";
 
   PosixTimer timer;
   int64 timeout_at_ms = timer.NowMs() + kReconfigurationPropagationTimeoutMs;
@@ -189,7 +186,7 @@ void ResetConfiguration(StringVector* node_ids,
   // Now wait until all nodes report cluster as healthy and report same
   // cluster configuration.
   LOG(INFO) << "Reset Redis Cluster configuration back to default, "
-                "waiting for slot propagation...";
+               "waiting for slot propagation...";
   timeout_at_ms = timer.NowMs() + kReconfigurationPropagationTimeoutMs;
   bool cluster_is_up = false;
   while (!cluster_is_up) {
@@ -219,9 +216,8 @@ void ResetConfiguration(StringVector* node_ids,
   LOG(INFO) << "Redis Cluster is reset";
 }
 
-bool LoadConfiguration(StringVector* node_ids,
-                       std::vector<int>* ports,
-                        ConnectionList* connections) {
+bool LoadConfiguration(StringVector* node_ids, std::vector<int>* ports,
+                       ConnectionList* connections) {
   // Parsing environment variables.
   // TODO(cheesy): We should discover the cluster IDs by querying the ports,
   // and not rely on the shell to set REDIS_CLUSTER_IDS for us.
@@ -229,9 +225,9 @@ bool LoadConfiguration(StringVector* node_ids,
   const char* ids_env = getenv("REDIS_CLUSTER_IDS");
   if (!ports_env && !ids_env) {
     LOG(ERROR) << "Env variables REDIS_CLUSTER_* are not set. Use "
-                << "install/run_program_with_redis_cluster.sh for running "
-                << "these tests. Do not use real cluster; ALL DATA WILL "
-                << "BE ERASED DURING TESTS!";
+               << "install/run_program_with_redis_cluster.sh for running "
+               << "these tests. Do not use real cluster; ALL DATA WILL "
+               << "BE ERASED DURING TESTS!";
     return false;
   }
   CHECK(ports_env) << "Env variable REDIS_CLUSTER_PORTS is unspecified";
@@ -240,9 +236,9 @@ bool LoadConfiguration(StringVector* node_ids,
   StringPieceVector port_strs;
   StringPieceVector id_strs;
   SplitStringPieceToVector(ports_env, " ", &port_strs,
-                            /* omit_empty_strings */ true);
+                           /* omit_empty_strings */ true);
   SplitStringPieceToVector(ids_env, " ", &id_strs,
-                            /* omit_empty_strings */ true);
+                           /* omit_empty_strings */ true);
   CHECK_EQ(port_strs.size(), id_strs.size()) << "REDIS_CLUSTER_PORTS and "
                                                 "REDIS_CLUSTER_IDS have "
                                                 "different amount of items";

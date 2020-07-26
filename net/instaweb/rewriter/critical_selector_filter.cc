@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -61,7 +61,8 @@ namespace {
 
 // Helper that takes a std::vector-like collection, and compacts
 // any null holes in it.
-template<typename VectorType> void Compact(VectorType* cl) {
+template <typename VectorType>
+void Compact(VectorType* cl) {
   typename VectorType::iterator new_end =
       std::remove(cl->begin(), cl->end(),
                   static_cast<typename VectorType::value_type>(nullptr));
@@ -80,7 +81,8 @@ const char CriticalSelectorFilter::kNoscriptStylesClass[] = "psa_add_styles";
 class CriticalSelectorFilter::CssElement {
  public:
   CssElement(HtmlParse* p, HtmlElement* e, bool inside_noscript)
-      : html_parse_(p), element_(p->CloneElement(e)),
+      : html_parse_(p),
+        element_(p->CloneElement(e)),
         inside_noscript_(inside_noscript) {}
 
   // HtmlParse deletes the element (regardless of whether it is inserted).
@@ -119,7 +121,8 @@ class CriticalSelectorFilter::CssStyleElement
     HtmlElement* element = element_;
     CssElement::AppendTo(parent);
     for (CharactersNodeVector::const_iterator it = characters_nodes_.begin(),
-         end = characters_nodes_.end(); it != end; ++it) {
+                                              end = characters_nodes_.end();
+         it != end; ++it) {
       html_parse_->AppendChild(element, *it);
     }
   }
@@ -137,11 +140,9 @@ CriticalSelectorFilter::CriticalSelectorFilter(RewriteDriver* driver)
     : CssSummarizerBase(driver),
       saw_end_document_(false),
       any_rendered_(false),
-      is_flush_script_added_(false) {
-}
+      is_flush_script_added_(false) {}
 
-CriticalSelectorFilter::~CriticalSelectorFilter() {
-}
+CriticalSelectorFilter::~CriticalSelectorFilter() {}
 
 void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
                                        GoogleString* out) const {
@@ -178,12 +179,12 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
       // in which case we retain things to be conservative.
       any_selectors_apply = r->selectors().empty();
       for (int selector_index = 0, num_selectors = r->selectors().size();
-          selector_index < num_selectors; ++selector_index) {
+           selector_index < num_selectors; ++selector_index) {
         Css::Selector* s = r->mutable_selectors().at(selector_index);
         GoogleString portion_to_compare = css_util::JsDetectableSelector(*s);
         if (portion_to_compare.empty() ||
-            critical_selectors_.find(portion_to_compare)
-                != critical_selectors_.end()) {
+            critical_selectors_.find(portion_to_compare) !=
+                critical_selectors_.end()) {
           any_selectors_apply = true;
         } else {
           delete s;
@@ -210,9 +211,9 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
   CssMinify::Stylesheet(*stylesheet, &writer, &handler);
 }
 
-void CriticalSelectorFilter::RenderSummary(
-    int pos, HtmlElement* element, HtmlCharactersNode* char_node,
-    bool* is_element_deleted) {
+void CriticalSelectorFilter::RenderSummary(int pos, HtmlElement* element,
+                                           HtmlCharactersNode* char_node,
+                                           bool* is_element_deleted) {
   RememberFullCss(pos, element, char_node);
 
   const SummaryInfo& summary = GetSummaryForStyle(pos);
@@ -226,8 +227,8 @@ void CriticalSelectorFilter::RenderSummary(
     StringWriter writer(&resolved_css);
     GoogleUrl input_css_base(summary.base);
     if (driver()->ResolveCssUrls(
-            input_css_base, driver()->base_url().Spec(), summary.data,
-            &writer, driver()->message_handler()) == RewriteDriver::kSuccess) {
+            input_css_base, driver()->base_url().Spec(), summary.data, &writer,
+            driver()->message_handler()) == RewriteDriver::kSuccess) {
       css_to_use = &resolved_css;
     }
   }
@@ -243,7 +244,8 @@ void CriticalSelectorFilter::RenderSummary(
     // instead so that it is not so delicate.
     *char_node->mutable_contents() = *css_to_use;
   } else {
-    HtmlElement* style_element = driver()->NewElement(nullptr, HtmlName::kStyle);
+    HtmlElement* style_element =
+        driver()->NewElement(nullptr, HtmlName::kStyle);
     driver()->InsertNodeBeforeNode(element, style_element);
 
     HtmlCharactersNode* content =
@@ -375,7 +377,8 @@ void CriticalSelectorFilter::RenderDone() {
     GoogleString js =
         driver()->server_context()->static_asset_manager()->GetAsset(
             StaticAssetEnum::CRITICAL_CSS_LOADER_JS, driver()->options());
-    if (!driver()->options()
+    if (!driver()
+             ->options()
              ->test_only_prioritize_critical_css_dont_apply_original_css()) {
       StrAppend(&js, "pagespeed.CriticalCssLoader.Run();");
     }
@@ -390,8 +393,10 @@ void CriticalSelectorFilter::DetermineEnabled(GoogleString* disabled_reason) {
   // in the property cache. Unfortunately, we also cannot run safely in case of
   // IE, since we do not understand IE conditional comments well enough to
   // replicate their behavior in the load-everything section.
-  const StringSet& critical_selectors = driver()->server_context()
-      ->critical_selector_finder()->GetCriticalSelectors(driver());
+  const StringSet& critical_selectors = driver()
+                                            ->server_context()
+                                            ->critical_selector_finder()
+                                            ->GetCriticalSelectors(driver());
   bool ua_supports_critical_css =
       driver()->request_properties()->SupportsCriticalCss();
   bool can_run = ua_supports_critical_css && !critical_selectors.empty();
@@ -413,8 +418,8 @@ void CriticalSelectorFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(can_run);
 }
 
-void CriticalSelectorFilter::RememberFullCss(
-    int pos, HtmlElement* element, HtmlCharactersNode* char_node) {
+void CriticalSelectorFilter::RememberFullCss(int pos, HtmlElement* element,
+                                             HtmlCharactersNode* char_node) {
   // Deep copy[1] into the css_elements_ array the CSS as optimized by all the
   // filters that ran before us and rendered their results, so that we can
   // emit it accurately at end, as a lazy-load sequence.

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_attribute_quote_removal.h"
 
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/html/doctype.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/base/string.h"
 
 namespace {
 
@@ -43,8 +42,7 @@ namespace net_instaweb {
 // Remove quotes; see description in .h file.
 
 HtmlAttributeQuoteRemoval::HtmlAttributeQuoteRemoval(HtmlParse* html_parse)
-    : total_quotes_removed_(0),
-      html_parse_(html_parse) {
+    : total_quotes_removed_(0), html_parse_(html_parse) {
   // In pidgin Python:
   //    needs_no_quotes[:] = false
   //    needs_no_quotes[kNoQuoteChars] = true
@@ -65,7 +63,7 @@ HtmlAttributeQuoteRemoval::HtmlAttributeQuoteRemoval(HtmlParse* html_parse)
 
 HtmlAttributeQuoteRemoval::~HtmlAttributeQuoteRemoval() {}
 
-bool HtmlAttributeQuoteRemoval::NeedsQuotes(const char *val) {
+bool HtmlAttributeQuoteRemoval::NeedsQuotes(const char* val) {
   bool needs_quotes = false;
   int i = 0;
   if (val != nullptr) {
@@ -94,8 +92,8 @@ void HtmlAttributeQuoteRemoval::StartElement(HtmlElement* element) {
   }
   int rewritten = 0;
   HtmlElement::AttributeList* attrs = element->mutable_attributes();
-  for (HtmlElement::AttributeIterator i(attrs->begin());
-       i != attrs->end(); ++i) {
+  for (HtmlElement::AttributeIterator i(attrs->begin()); i != attrs->end();
+       ++i) {
     HtmlElement::Attribute& attr = *i;
     if (attr.quote_style() != HtmlElement::NO_QUOTE &&
         !NeedsQuotes(attr.escaped_value())) {
@@ -107,8 +105,8 @@ void HtmlAttributeQuoteRemoval::StartElement(HtmlElement* element) {
     total_quotes_removed_ += rewritten;
     if (kLogQuoteRemoval) {
       const char* plural = (rewritten == 1) ? "" : "s";
-      html_parse_->InfoHere("Scrubbed quotes from %d attribute%s",
-                            rewritten, plural);
+      html_parse_->InfoHere("Scrubbed quotes from %d attribute%s", rewritten,
+                            plural);
     }
   }
 }

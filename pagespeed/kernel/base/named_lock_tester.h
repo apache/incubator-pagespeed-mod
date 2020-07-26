@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_BASE_NAMED_LOCK_TESTER_H_
 #define PAGESPEED_KERNEL_BASE_NAMED_LOCK_TESTER_H_
@@ -39,27 +38,22 @@ namespace net_instaweb {
 class NamedLockTester {
  public:
   explicit NamedLockTester(ThreadSystem* thread_system)
-      : acquired_(false),
-        failed_(false),
-        mutex_(thread_system->NewMutex()) {
-  }
+      : acquired_(false), failed_(false), mutex_(thread_system->NewMutex()) {}
 
   bool TryLock(NamedLock* lock) {
     Clear();
-    lock->LockTimedWait(0, MakeFunction(
-        this,
-        &NamedLockTester::LockAcquired,
-        &NamedLockTester::LockFailed));
+    lock->LockTimedWait(0, MakeFunction(this, &NamedLockTester::LockAcquired,
+                                        &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled()) << "LockTimedWait returned lock operation completed";
     return Acquired();
   }
   bool LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms, NamedLock* lock) {
     Clear();
-    lock->LockTimedWaitStealOld(wait_ms, steal_ms, MakeFunction(
-        this,
-        &NamedLockTester::LockAcquired,
-        &NamedLockTester::LockFailed));
+    lock->LockTimedWaitStealOld(
+        wait_ms, steal_ms,
+        MakeFunction(this, &NamedLockTester::LockAcquired,
+                     &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled())
         << "LockTimedWaitStealOld returned lock operation completed";
@@ -67,10 +61,9 @@ class NamedLockTester {
   }
   bool LockTimedWait(int64 wait_ms, NamedLock* lock) {
     Clear();
-    lock->LockTimedWait(wait_ms, MakeFunction(
-        this,
-        &NamedLockTester::LockAcquired,
-        &NamedLockTester::LockFailed));
+    lock->LockTimedWait(wait_ms,
+                        MakeFunction(this, &NamedLockTester::LockAcquired,
+                                     &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled()) << "LockTimedWait returned lock operation completed";
     return Acquired();
@@ -87,10 +80,8 @@ class NamedLockTester {
     Clear();
     new_lock->LockTimedWait(
         60000 /* wait_ms */,  // Long enough to ensure it doesn't timeout.
-        MakeFunction(
-            this,
-            &NamedLockTester::DeleteLock,
-            &NamedLockTester::LockFailed));
+        MakeFunction(this, &NamedLockTester::DeleteLock,
+                     &NamedLockTester::LockFailed));
     old_lock->Unlock();
     Quiesce();
     CHECK(WasCalled()) << "UnlockWithDelete lock operation did not complete";
@@ -107,10 +98,8 @@ class NamedLockTester {
     Clear();
     new_lock->LockTimedWaitStealOld(
         0 /* wait_ms */, steal_ms,
-        MakeFunction(
-            this,
-            &NamedLockTester::DeleteLock,
-            &NamedLockTester::LockFailed));
+        MakeFunction(this, &NamedLockTester::DeleteLock,
+                     &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled()) << "StealWithDelete lock operation did not complete";
     return Acquired();

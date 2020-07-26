@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/automatic/proxy_interface_test_base.h"
 
 #include <cstddef>
 #include <memory>
-
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -65,8 +63,7 @@ namespace {
 // one specify a WorkerTestBase::SyncPoint to help block until completion.
 class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
  public:
-  AsyncExpectStringAsyncFetch(bool expect_success,
-                              bool log_flush,
+  AsyncExpectStringAsyncFetch(bool expect_success, bool log_flush,
                               GoogleString* buffer,
                               ResponseHeaders* response_headers,
                               bool* done_value,
@@ -89,8 +86,7 @@ class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
 
   void HandleHeadersComplete() override {
     // Make sure we have cleaned the headers in ProxyInterface.
-    EXPECT_FALSE(
-        request_headers()->Has(HttpAttributes::kAcceptEncoding));
+    EXPECT_FALSE(request_headers()->Has(HttpAttributes::kAcceptEncoding));
 
     sync_->Wait(ProxyFetch::kHeadersSetupRaceWait);
     response_headers()->Add("HeadersComplete", "1");  // Dirties caching info.
@@ -150,8 +146,7 @@ bool ProxyUrlNamer::Decode(const GoogleUrl& gurl,
 // MockFilter.
 void MockFilter::StartDocument() {
   num_elements_ = 0;
-  PropertyCache* page_cache =
-      driver_->server_context()->page_property_cache();
+  PropertyCache* page_cache = driver_->server_context()->page_property_cache();
   const PropertyCache::Cohort* cohort =
       page_cache->GetCohort(RewriteDriver::kDomCohort);
   PropertyPage* page = driver_->property_page();
@@ -171,11 +166,10 @@ void MockFilter::StartElement(HtmlElement* element) {
         driver_->server_context()->page_property_cache();
 
     if ((num_elements_property_ != nullptr) &&
-               num_elements_property_->has_value()) {
-      StrAppend(&comment, num_elements_property_->value(),
-                " elements ",
-                page_cache->IsStable(num_elements_property_)
-                ? "stable " : "unstable ");
+        num_elements_property_->has_value()) {
+      StrAppend(&comment, num_elements_property_->value(), " elements ",
+                page_cache->IsStable(num_elements_property_) ? "stable "
+                                                             : "unstable ");
     }
     HtmlNode* node = driver_->NewCommentNode(element->parent(), comment);
     driver_->InsertNodeBeforeCurrent(node);
@@ -191,10 +185,8 @@ void MockFilter::EndDocument() {
   EXPECT_TRUE(driver_->response_headers()->IsBrowserCacheable());
   PropertyPage* page = driver_->property_page();
   if (page != nullptr) {
-    page->UpdateValue(
-        driver_->server_context()->dom_cohort(),
-        "num_elements",
-        IntegerToString(num_elements_));
+    page->UpdateValue(driver_->server_context()->dom_cohort(), "num_elements",
+                      IntegerToString(num_elements_));
     num_elements_property_ = nullptr;
   }
 }
@@ -203,8 +195,7 @@ void MockFilter::EndDocument() {
 ProxyInterfaceTestBase::ProxyInterfaceTestBase()
     : callback_done_value_(false),
       header_latency_ms_(0),
-      mock_critical_images_finder_(
-          new MockCriticalImagesFinder(statistics())) {
+      mock_critical_images_finder_(new MockCriticalImagesFinder(statistics())) {
 }
 
 void ProxyInterfaceTestBase::TestHeadersSetupRace() {
@@ -220,8 +211,7 @@ void ProxyInterfaceTestBase::SetUp() {
   ProxyInterface::InitStats("test-", statistics());
   proxy_interface_ = std::make_unique<ProxyInterface>(
       "test-", "localhost", 80, server_context(), statistics());
-  server_context()->set_critical_images_finder(
-      mock_critical_images_finder_);
+  server_context()->set_critical_images_finder(mock_critical_images_finder_);
 }
 
 void ProxyInterfaceTestBase::TearDown() {
@@ -243,11 +233,8 @@ void ProxyInterfaceTestBase::SetCssCriticalImagesInFinder(
 }
 
 void ProxyInterfaceTestBase::FetchFromProxy(
-    const StringPiece& url,
-    const RequestHeaders& request_headers,
-    bool expect_success,
-    GoogleString* string_out,
-    ResponseHeaders* headers_out,
+    const StringPiece& url, const RequestHeaders& request_headers,
+    bool expect_success, GoogleString* string_out, ResponseHeaders* headers_out,
     bool proxy_fetch_property_callback_collector_created) {
   FetchFromProxyNoWait(url, request_headers, expect_success,
                        false /* log_flush*/, headers_out);
@@ -258,13 +245,11 @@ void ProxyInterfaceTestBase::FetchFromProxy(
 // Initiates a fetch using the proxy interface, and waits for it to
 // complete.
 void ProxyInterfaceTestBase::FetchFromProxy(
-    const StringPiece& url,
-    const RequestHeaders& request_headers,
-    bool expect_success,
-    GoogleString* string_out,
+    const StringPiece& url, const RequestHeaders& request_headers,
+    bool expect_success, GoogleString* string_out,
     ResponseHeaders* headers_out) {
-  FetchFromProxy(url, request_headers, expect_success, string_out,
-                 headers_out, true);
+  FetchFromProxy(url, request_headers, expect_success, string_out, headers_out,
+                 true);
 }
 
 // TODO(jmarantz): eliminate this interface as it's annoying to have
@@ -274,8 +259,7 @@ void ProxyInterfaceTestBase::FetchFromProxy(const StringPiece& url,
                                             GoogleString* string_out,
                                             ResponseHeaders* headers_out) {
   RequestHeaders request_headers;
-  FetchFromProxy(url, request_headers, expect_success, string_out,
-                 headers_out);
+  FetchFromProxy(url, request_headers, expect_success, string_out, headers_out);
 }
 
 void ProxyInterfaceTestBase::FetchFromProxyLoggingFlushes(
@@ -292,11 +276,8 @@ void ProxyInterfaceTestBase::FetchFromProxyLoggingFlushes(
 // complete.  The usage model here is to delay callbacks and/or fetches
 // to control their order of delivery, then call WaitForFetch.
 void ProxyInterfaceTestBase::FetchFromProxyNoWait(
-    const StringPiece& url,
-    const RequestHeaders& request_headers,
-    bool expect_success,
-    bool log_flush,
-    ResponseHeaders* headers_out) {
+    const StringPiece& url, const RequestHeaders& request_headers,
+    bool expect_success, bool log_flush, ResponseHeaders* headers_out) {
   sync_ = std::make_unique<WorkerTestBase::SyncPoint>(
       server_context()->thread_system());
   request_context_.reset(CreateRequestContext());
@@ -307,10 +288,9 @@ void ProxyInterfaceTestBase::FetchFromProxyNoWait(
     timing_info->FetchHeaderReceived();
   }
   AsyncFetch* fetch = new AsyncExpectStringAsyncFetch(
-      expect_success, log_flush, &callback_buffer_,
-      &callback_response_headers_, &callback_done_value_, sync_.get(),
-      server_context()->thread_synchronizer(),
-      request_context());
+      expect_success, log_flush, &callback_buffer_, &callback_response_headers_,
+      &callback_done_value_, sync_.get(),
+      server_context()->thread_synchronizer(), request_context());
   fetch->set_response_headers(headers_out);
   fetch->request_headers()->CopyFrom(request_headers);
   proxy_interface_->Fetch(AbsolutifyUrl(url), message_handler(), fetch);
@@ -371,10 +351,8 @@ void ProxyInterfaceTestBase::TestPropertyCacheWithHeadersAndOutput(
         pcache->GetCohort(RewriteDriver::kDomCohort);
     delay_http_cache_key = AbsolutifyUrl(url);
     delay_pcache_key = factory()->cache_property_store()->CacheKey(
-        delay_http_cache_key,
-        "",
-        UserAgentMatcher::DeviceTypeSuffix(UserAgentMatcher::kDesktop),
-        cohort);
+        delay_http_cache_key, "",
+        UserAgentMatcher::DeviceTypeSuffix(UserAgentMatcher::kDesktop), cohort);
     delay_cache()->DelayKey(delay_pcache_key);
     if (thread_pcache) {
       delay_cache()->DelayKey(delay_http_cache_key);

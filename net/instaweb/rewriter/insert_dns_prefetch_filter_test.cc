@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -49,7 +49,7 @@ const char kJsData[] =
     "alert     (    'hello, world!'    ) "
     " /* removed */ <!-- removed --> "
     " // single-line-comment";
-}
+}  // namespace
 
 namespace net_instaweb {
 
@@ -73,8 +73,9 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
   }
 
   void CheckPrefetchInfo(int num_domains_in_current_rewrite,
-             int num_domains_in_previous_rewrite,
-             int num_domains_to_store, const GoogleString& stored_domains_str) {
+                         int num_domains_in_previous_rewrite,
+                         int num_domains_to_store,
+                         const GoogleString& stored_domains_str) {
     StringPieceVector stored_domains;
     SplitStringPieceToVector(stored_domains_str, ",", &stored_domains, true);
     ASSERT_EQ(num_domains_to_store, stored_domains.size());
@@ -93,7 +94,7 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
     rewrite_driver_->log_record()->WriteLog();
     for (int i = 0; i < logging_info()->rewriter_stats_size(); i++) {
       if (logging_info()->rewriter_stats(i).id() ==
-          RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch) &&
+              RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch) &&
           logging_info()->rewriter_stats(i).has_html_status()) {
         EXPECT_EQ(html_status, logging_info()->rewriter_stats(i).html_status());
         return;
@@ -108,7 +109,7 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
     rewrite_driver_->log_record()->WriteLog();
     for (int i = 0; i < logging_info()->rewriter_stats_size(); i++) {
       if (logging_info()->rewriter_stats(i).id() ==
-          RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch) &&
+              RewriteOptions::FilterId(RewriteOptions::kInsertDnsPrefetch) &&
           logging_info()->rewriter_stats(i).has_html_status()) {
         EXPECT_EQ(html_status, logging_info()->rewriter_stats(i).html_status());
         const RewriteStatusCount& count_applied =
@@ -168,9 +169,9 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
 TEST_F(InsertDnsPrefetchFilterTest, IgnoreDomainsInHead) {
   GoogleString html =
       "<head>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
-        "<script src=\"http://b.com/\"/>"
-        "<link rel=\"dns-prefetch\" href=\"http://c.com\">"
+      "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
+      "<script src=\"http://b.com/\"/>"
+      "<link rel=\"dns-prefetch\" href=\"http://c.com\">"
       "</head><body></body>";
   Parse("ignore_domains_in_head", html);
   EXPECT_EQ(AddHtmlBody(html), output_);
@@ -181,9 +182,9 @@ TEST_F(InsertDnsPrefetchFilterTest, StoreDomainsInBody) {
   GoogleString html =
       "<head></head>"
       "<body>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
-        "<script src=\"http://b.com/\"/>"
-        "<img src=\"http://c.com/\"/>"
+      "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
+      "<script src=\"http://b.com/\"/>"
+      "<img src=\"http://c.com/\"/>"
       "</body>";
   Parse("store_domains_in_body", html);
   EXPECT_EQ(AddHtmlBody(html), output_);
@@ -215,9 +216,9 @@ TEST_F(InsertDnsPrefetchFilterTest,
   GoogleString html =
       "<head></head>"
       "<body>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
-        "<script src=\"http://b.com/\"/>"
-        "<img src=\"http://c.com/\"/>"
+      "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
+      "<script src=\"http://b.com/\"/>"
+      "<img src=\"http://c.com/\"/>"
       "</body>";
   Parse("store_domains_in_body", html);
   EXPECT_EQ(AddHtmlBody(html), output_);
@@ -228,12 +229,12 @@ TEST_F(InsertDnsPrefetchFilterTest,
 TEST_F(InsertDnsPrefetchFilterTest, StoreDomainsOnlyInBody) {
   GoogleString html =
       "<head>"
-        "<script src=\"http://b.com/\"/>"
+      "<script src=\"http://b.com/\"/>"
       "</head>"
       "<body>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
-        "<script src=\"http://b.com/\"/>"
-        "<img src=\"http://c.com/\"/>"
+      "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
+      "<script src=\"http://b.com/\"/>"
+      "<img src=\"http://c.com/\"/>"
       "</body>";
   Parse("store_domains_in_body", html);
   EXPECT_EQ(AddHtmlBody(html), output_);
@@ -254,31 +255,31 @@ TEST_F(InsertDnsPrefetchFilterTest, StoreDomainsInBodyMax) {
 TEST_F(InsertDnsPrefetchFilterTest, LinkTagTest) {
   GoogleString html =
       "<head>"
-        "<script></script>"
-        "<link rel=\"alternate\" href=\"http://a.com\">"
-        "<link rel=\"author\" href=\"http://b.com\">"
-        "<link rel=\"dns-prefetch\" href=\"http://c.com\">"
-        "<link rel=\"help\" href=\"http://d.com\">"
-        "<link rel=\"icon\" href=\"http://e.com\">"
-        "<link rel=\"license\" href=\"http://f.com\">"
-        "<link rel=\"next\" href=\"http://g.com\">"
-        "<link rel=\"prefetch\" href=\"http://h.com\">"
-        "<link rel=\"prev\" href=\"http://i.com\">"
-        "<link rel=\"search\" href=\"http://j.com\">"
-        "<link rel=\"stylesheet\" href=\"http://k.com\">"
+      "<script></script>"
+      "<link rel=\"alternate\" href=\"http://a.com\">"
+      "<link rel=\"author\" href=\"http://b.com\">"
+      "<link rel=\"dns-prefetch\" href=\"http://c.com\">"
+      "<link rel=\"help\" href=\"http://d.com\">"
+      "<link rel=\"icon\" href=\"http://e.com\">"
+      "<link rel=\"license\" href=\"http://f.com\">"
+      "<link rel=\"next\" href=\"http://g.com\">"
+      "<link rel=\"prefetch\" href=\"http://h.com\">"
+      "<link rel=\"prev\" href=\"http://i.com\">"
+      "<link rel=\"search\" href=\"http://j.com\">"
+      "<link rel=\"stylesheet\" href=\"http://k.com\">"
       "</head>"
       "<body>"
-        "<script src=\"http://a.com/\"/>"
-        "<script src=\"http://b.com/\"/>"
-        "<script src=\"http://c.com/\"/>"
-        "<script src=\"http://d.com/\"/>"
-        "<script src=\"http://e.com/\"/>"
-        "<script src=\"http://f.com/\"/>"
-        "<script src=\"http://g.com/\"/>"
-        "<script src=\"http://h.com/\"/>"
-        "<script src=\"http://i.com/\"/>"
-        "<script src=\"http://j.com/\"/>"
-        "<script src=\"http://k.com/\"/>"
+      "<script src=\"http://a.com/\"/>"
+      "<script src=\"http://b.com/\"/>"
+      "<script src=\"http://c.com/\"/>"
+      "<script src=\"http://d.com/\"/>"
+      "<script src=\"http://e.com/\"/>"
+      "<script src=\"http://f.com/\"/>"
+      "<script src=\"http://g.com/\"/>"
+      "<script src=\"http://h.com/\"/>"
+      "<script src=\"http://i.com/\"/>"
+      "<script src=\"http://j.com/\"/>"
+      "<script src=\"http://k.com/\"/>"
       "</body>";
   Parse("test_different_link_tags", html);
   EXPECT_EQ(AddHtmlBody(html), output_);
@@ -314,8 +315,7 @@ TEST_F(InsertDnsPrefetchFilterTest, FullFlowTest) {
   CheckPrefetchInfo(6, 9, 6, CreateDomainsVector(6));
   output_.clear();
   CheckLogStatus(RewriterHtmlApplication::ACTIVE,
-                 RewriterApplication::APPLIED_OK,
-                 8);
+                 RewriterApplication::APPLIED_OK, 8);
 
   // Since the last response caused instability in the domain list, we don't
   // insert any prefetch tags in this rewrite.
@@ -337,8 +337,7 @@ TEST_F(InsertDnsPrefetchFilterTest, FullFlowTestForLogging) {
   EXPECT_EQ(AddHtmlBody(html_input), output_);
   CheckPrefetchInfo(9, 10, 8, CreateDomainsVector(8));
   CheckLogStatus(RewriterHtmlApplication::ACTIVE,
-                 RewriterApplication::NOT_APPLIED,
-                 1);
+                 RewriterApplication::NOT_APPLIED, 1);
   output_.clear();
 }
 
@@ -350,12 +349,12 @@ TEST_F(InsertDnsPrefetchFilterTest, InsertDnsPrefetchFilterWithOtherFilters) {
   server_context()->ComputeSignature(options());
   GoogleString html =
       "<head>"
-        "<script src=\"http://b.com/\"/>"
+      "<script src=\"http://b.com/\"/>"
       "</head>"
       "<body>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
-        "<script src=\"http://b.com/\"/>"
-        "<img src=\"http://c.com/\"/>"
+      "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
+      "<script src=\"http://b.com/\"/>"
+      "<img src=\"http://c.com/\"/>"
       "</body>";
   Parse("store_domains_in_body", html);
   EXPECT_EQ(AddHtmlBody(html), output_);
@@ -369,13 +368,13 @@ TEST_F(InsertDnsPrefetchFilterTest, InsertDomainsinHeadForFlushEarlyFlow) {
   server_context()->ComputeSignature(options());
   GoogleString html =
       "<head>"
-        "<script src=\"http://b.com/\"/>"
+      "<script src=\"http://b.com/\"/>"
       "<script src=\"http://d.com/\"/>"
       "</head>"
       "<body>"
-        "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
-        "<script src=\"http://b.com/\"/>"
-        "<img src=\"http://c.com/\"/>"
+      "<link type=\"text/css\" rel=\"stylesheet\" href=\"http://a.com/\">"
+      "<script src=\"http://b.com/\"/>"
+      "<img src=\"http://c.com/\"/>"
       "</body>";
   Parse("store_domains_in_body", html);
   EXPECT_EQ(AddHtmlBody(html), output_);

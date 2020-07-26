@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,17 @@
  * under the License.
  */
 
-
-#include "pagespeed/kernel/thread/thread_system_test_base.h"
 #include "pagespeed/kernel/thread/pthread_thread_system.h"
+
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/thread/thread_system_test_base.h"
 
 namespace net_instaweb {
 
 namespace {
 
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, ThreadSystemTestTemplate,
-                              PthreadThreadSystem);
+                               PthreadThreadSystem);
 
 }  // namespace
 

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the symbol table
 
@@ -29,8 +28,7 @@
 
 namespace net_instaweb {
 
-class SymbolTableTest : public testing::Test {
-};
+class SymbolTableTest : public testing::Test {};
 
 TEST_F(SymbolTableTest, TestInternSensitive) {
   SymbolTableSensitive symbol_table;
@@ -116,7 +114,7 @@ TEST_F(SymbolTableTest, TestOverflowFirstChunk) {
 }
 
 TEST_F(SymbolTableTest, InternEmbeddedNull) {
-  const char kBytes[] = { 'A', '\0', 'B' };
+  const char kBytes[] = {'A', '\0', 'B'};
   SymbolTableSensitive symbol_table;
   Atom a1 = symbol_table.Intern(StringPiece(kBytes, 1));
   Atom a2 = symbol_table.Intern(StringPiece(kBytes, 3));

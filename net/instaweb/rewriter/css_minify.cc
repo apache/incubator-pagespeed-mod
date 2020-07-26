@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_minify.h"
 
@@ -40,8 +39,7 @@
 
 namespace net_instaweb {
 
-bool CssMinify::Stylesheet(const Css::Stylesheet& stylesheet,
-                           Writer* writer,
+bool CssMinify::Stylesheet(const Css::Stylesheet& stylesheet, Writer* writer,
                            MessageHandler* handler) {
   // Get an object to encapsulate writing.
   CssMinify minifier(writer, handler);
@@ -55,21 +53,24 @@ bool CssMinify::ParseStylesheet(StringPiece stylesheet_text) {
   CssStringPiece tmp(stylesheet_text.data(), stylesheet_text.size());
   Css::Parser parser(tmp);
   parser.set_preservation_mode(true);  // Leave in unparseable regions.
-  parser.set_quirks_mode(false);  // Don't fix badly formatted colors.
+  parser.set_quirks_mode(false);       // Don't fix badly formatted colors.
   std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
   // Report error summary.
   if (error_writer_ != nullptr) {
     if (parser.errors_seen_mask() != Css::Parser::kNoError) {
-      error_writer_->Write(absl::StrFormat(
-          "CSS parsing error mask %s\n",
-          Integer64ToString(parser.errors_seen_mask()).c_str()), handler_);
+      error_writer_->Write(
+          absl::StrFormat("CSS parsing error mask %s\n",
+                          Integer64ToString(parser.errors_seen_mask()).c_str()),
+          handler_);
     }
     if (parser.unparseable_sections_seen_mask() != Css::Parser::kNoError) {
-      error_writer_->Write(absl::StrFormat(
-          "CSS unparseable sections mask %s\n",
-          Integer64ToString(parser.unparseable_sections_seen_mask()).c_str()),
-                        handler_);
+      error_writer_->Write(
+          absl::StrFormat(
+              "CSS unparseable sections mask %s\n",
+              Integer64ToString(parser.unparseable_sections_seen_mask())
+                  .c_str()),
+          handler_);
     }
     // Report individual errors.
     for (int i = 0, n = parser.errors_seen().size(); i < n; ++i) {
@@ -84,8 +85,7 @@ bool CssMinify::ParseStylesheet(StringPiece stylesheet_text) {
 }
 
 bool CssMinify::Declarations(const Css::Declarations& declarations,
-                             Writer* writer,
-                             MessageHandler* handler) {
+                             Writer* writer, MessageHandler* handler) {
   // Get an object to encapsulate writing.
   CssMinify minifier(writer, handler);
   minifier.JoinMinify(declarations, ";");
@@ -93,12 +93,14 @@ bool CssMinify::Declarations(const Css::Declarations& declarations,
 }
 
 CssMinify::CssMinify(Writer* writer, MessageHandler* handler)
-    : writer_(writer), error_writer_(nullptr), handler_(handler), ok_(true),
-      url_collector_(nullptr), in_css_calc_function_(false) {
-}
+    : writer_(writer),
+      error_writer_(nullptr),
+      handler_(handler),
+      ok_(true),
+      url_collector_(nullptr),
+      in_css_calc_function_(false) {}
 
-CssMinify::~CssMinify() {
-}
+CssMinify::~CssMinify() {}
 
 // Write if we have not encountered write error yet.
 void CssMinify::Write(const StringPiece& str) {
@@ -113,17 +115,17 @@ void CssMinify::WriteURL(const UnicodeText& url) {
     string_url.CopyToString(StringVectorAdd(url_collector_));
   }
   // XXX(oschaaf): css
-  Write(Css::EscapeUrl(CssStringPiece(string_url.data(),string_url.size())));
+  Write(Css::EscapeUrl(CssStringPiece(string_url.data(), string_url.size())));
 }
 
 // Write out minified version of each element of vector using supplied function
 // separated by sep.
-template<typename Container>
+template <typename Container>
 void CssMinify::JoinMinify(const Container& container, const StringPiece& sep) {
   JoinMinifyIter(container.begin(), container.end(), sep);
 }
 
-template<typename Iterator>
+template <typename Iterator>
 void CssMinify::JoinMinifyIter(const Iterator& begin, const Iterator& end,
                                const StringPiece& sep) {
   for (Iterator iter = begin; iter != end; ++iter) {
@@ -134,22 +136,22 @@ void CssMinify::JoinMinifyIter(const Iterator& begin, const Iterator& end,
   }
 }
 
-template<>
+template <>
 void CssMinify::JoinMinifyIter<Css::FontFaces::const_iterator>(
     const Css::FontFaces::const_iterator& begin,
-    const Css::FontFaces::const_iterator& end,
-    const StringPiece& sep) {
+    const Css::FontFaces::const_iterator& end, const StringPiece& sep) {
   // Go through the list of @font-faces finding the contiguous subsets with the
   // same set of media (f.ex [a b b b a a] -> [a] [b b b] [a a]). For each
   // such subset, emit the start of the @media rule (if required), then emit
   // each @font-face without an @media rule, separating them by the given 'sep',
   // then emit the end of the @media rule (if required).
-  for (Css::FontFaces::const_iterator iter = begin; iter != end; ) {
+  for (Css::FontFaces::const_iterator iter = begin; iter != end;) {
     const Css::MediaQueries& first_media_queries = (*iter)->media_queries();
     MinifyMediaStart(first_media_queries);
     MinifyFontFaceIgnoringMedia(**iter);
-    for (++iter; iter != end && Equals(first_media_queries,
-                                       (*iter)->media_queries()); ++iter) {
+    for (++iter;
+         iter != end && Equals(first_media_queries, (*iter)->media_queries());
+         ++iter) {
       Write(sep);
       MinifyFontFaceIgnoringMedia(**iter);
     }
@@ -157,29 +159,28 @@ void CssMinify::JoinMinifyIter<Css::FontFaces::const_iterator>(
   }
 }
 
-template<>
+template <>
 void CssMinify::JoinMinifyIter<Css::Rulesets::const_iterator>(
     const Css::Rulesets::const_iterator& begin,
-    const Css::Rulesets::const_iterator& end,
-    const StringPiece& sep) {
+    const Css::Rulesets::const_iterator& end, const StringPiece& sep) {
   // Go through the list of rulesets finding the contiguous subsets with the
   // same set of media (f.ex [a b b b a a] -> [a] [b b b] [a a]). For each
   // such subset, emit the start of the @media rule (if required), then emit
   // each ruleset without an @media rule, separating them by the given 'sep',
   // then emit the end of the @media rule (if required).
-  for (Css::Rulesets::const_iterator iter = begin; iter != end; ) {
+  for (Css::Rulesets::const_iterator iter = begin; iter != end;) {
     const Css::MediaQueries& first_media_queries = (*iter)->media_queries();
     MinifyMediaStart(first_media_queries);
     MinifyRulesetIgnoringMedia(**iter);
-    for (++iter; iter != end && Equals(first_media_queries,
-                                       (*iter)->media_queries()); ++iter) {
+    for (++iter;
+         iter != end && Equals(first_media_queries, (*iter)->media_queries());
+         ++iter) {
       Write(sep);
       MinifyRulesetIgnoringMedia(**iter);
     }
     MinifyMediaEnd(first_media_queries);
   }
 }
-
 
 // Write the minified versions of each type. Most of these are called via
 // templated instantiations of JoinMinify (or JoinMinifyIter) so that we can
@@ -339,33 +340,19 @@ bool IsValueNormalIdentifier(const Css::Value& value) {
 // http://www.w3.org/TR/css3-values/#relative-lengths
 // http://www.w3.org/TR/css3-values/#absolute-lengths
 const char* kLengths[] = {
-  "ch",
-  "cm",
-  "em",
-  "ex",
-  "in",
-  "mm",
-  "pc",
-  "pt",
-  "px",
-  "q",
-  "rem",
-  "vh",
-  "vmax",
-  "vmin",
-  "vw",
+    "ch", "cm", "em",  "ex", "in",   "mm",   "pc", "pt",
+    "px", "q",  "rem", "vh", "vmax", "vmin", "vw",
 };
 
 bool IsLength(const GoogleString& unit) {
-  return std::binary_search(kLengths, kLengths + arraysize(kLengths),
-                            unit);
+  return std::binary_search(kLengths, kLengths + arraysize(kLengths), unit);
 }
 
 }  // namespace
 
 bool CssMinify::UnitsRequiredForValueZero(const GoogleString& unit) {
-  // https://github.com/apache/incubator-pagespeed-mod/issues/1164 : Chrome does not
-  // allow abbreviating 0s or 0% as 0.  It only allows that abbreviation for
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1164 : Chrome does
+  // not allow abbreviating 0s or 0% as 0.  It only allows that abbreviation for
   // lengths.
   //
   // https://github.com/apache/incubator-pagespeed-mod/issues/1261  See
@@ -373,8 +360,7 @@ bool CssMinify::UnitsRequiredForValueZero(const GoogleString& unit) {
   //
   // https://github.com/apache/incubator-pagespeed-mod/issues/1538
   // retaining unit for zero value in calc function
-  return (unit == "%") || !IsLength(unit) ||
-          in_css_calc_function_;
+  return (unit == "%") || !IsLength(unit) || in_css_calc_function_;
 }
 
 void CssMinify::MinifyFont(const Css::Values& font_values) {
@@ -429,7 +415,8 @@ void CssMinify::Minify(const Css::Declaration& declaration) {
         } else if (declaration.values()->size() >= 5) {
           MinifyFont(*declaration.values());
         } else {
-          handler_->Message(kError, "Unexpected number of values in "
+          handler_->Message(kError,
+                            "Unexpected number of values in "
                             "font declaration: %d",
                             static_cast<int>(declaration.values()->size()));
           ok_ = false;
@@ -517,8 +504,7 @@ void CssMinify::Minify(const Css::Value& value) {
     case Css::Value::COLOR:
       // TODO(sligocki): Can we assert, or might this happen in the wild?
       CHECK(value.GetColorValue().IsDefined());
-      Write(HtmlColorUtils::MaybeConvertToCssShorthand(
-          value.GetColorValue()));
+      Write(HtmlColorUtils::MaybeConvertToCssShorthand(value.GetColorValue()));
       break;
     case Css::Value::STRING:
       if (!value.bytes_in_original_buffer().empty()) {
@@ -575,7 +561,6 @@ void CssMinify::Minify(const Css::UnparsedRegion& unparsed_region) {
   Write(original_bytes);
 }
 
-
 bool CssMinify::Equals(const Css::MediaQueries& a,
                        const Css::MediaQueries& b) const {
   if (a.size() != b.size()) {
@@ -591,8 +576,7 @@ bool CssMinify::Equals(const Css::MediaQueries& a,
 
 bool CssMinify::Equals(const Css::MediaQuery& a,
                        const Css::MediaQuery& b) const {
-  if (a.qualifier() != b.qualifier() ||
-      a.media_type() != b.media_type() ||
+  if (a.qualifier() != b.qualifier() || a.media_type() != b.media_type() ||
       a.expressions().size() != b.expressions().size()) {
     return false;
   }
@@ -606,8 +590,7 @@ bool CssMinify::Equals(const Css::MediaQuery& a,
 
 bool CssMinify::Equals(const Css::MediaExpression& a,
                        const Css::MediaExpression& b) const {
-  if (a.name() != b.name() ||
-      a.has_value() != b.has_value()) {
+  if (a.name() != b.name() || a.has_value() != b.has_value()) {
     return false;
   }
   if (a.has_value() && a.value() != b.value()) {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test some small filters.
 
@@ -43,9 +42,8 @@ class RewriterTest : public RewriteTestBase {
 TEST_F(RewriterTest, AddHead) {
   AddFilter(RewriteOptions::kAddHead);
   // Note: Head is added before <body>, but inside <html>.
-  ValidateExpected("add_head",
-      "<html><body><p>text</p></body></html>",
-      "<html><head/><body><p>text</p></body></html>");
+  ValidateExpected("add_head", "<html><body><p>text</p></body></html>",
+                   "<html><head/><body><p>text</p></body></html>");
 }
 
 TEST_F(RewriterTest, AddHeadNoBody) {
@@ -72,20 +70,21 @@ TEST_F(RewriterTest, AddDuplicateHead) {
   AddFilter(RewriteOptions::kAddHead);
   // Add head before first non-head non-html element. We do not look ahead to
   // see if there's a head later (combine_heads can fix that up).
-  ValidateExpected("add_duplicate_head",
-                   "<p>text</p><head/>", "<head/><p>text</p><head/>");
+  ValidateExpected("add_duplicate_head", "<p>text</p><head/>",
+                   "<head/><p>text</p><head/>");
 }
 
 TEST_F(RewriterTest, MergeHead) {
   AddFilter(RewriteOptions::kCombineHeads);
-  ValidateExpected("merge_2_heads",
+  ValidateExpected(
+      "merge_2_heads",
       "<head a><p>1</p></head>4<head b>2<link x>3</head><link y>end",
       "<head a><p>1</p>2<link x>3</head>4<link y>end");
   ValidateExpected("merge_3_heads",
-      "<head a><p>1</p></head>4<head b>2<link x>3</head><link y>"
-      "<body>b<head><link z></head>ye</body>",
-      "<head a><p>1</p>2<link x>3<link z></head>4<link y>"
-      "<body>bye</body>");
+                   "<head a><p>1</p></head>4<head b>2<link x>3</head><link y>"
+                   "<body>b<head><link z></head>ye</body>",
+                   "<head a><p>1</p>2<link x>3<link z></head>4<link y>"
+                   "<body>bye</body>");
 }
 
 TEST_F(RewriterTest, HandlingOfInvalidUrls) {
@@ -123,9 +122,8 @@ TEST_F(RewriterTest, HandlingOfInvalidUrls) {
                                       "foobar", "a.css", "css")));
 
   // ... we even accept fetches with invalid extensions.
-  EXPECT_TRUE(
-      TryFetchResource(Encode(kTestDomain, RewriteOptions::kCssFilterId, hash,
-                              "a.css", "ext")));
+  EXPECT_TRUE(TryFetchResource(
+      Encode(kTestDomain, RewriteOptions::kCssFilterId, hash, "a.css", "ext")));
 
   // Changing other fields can lead to error.
   GoogleString bad_url = Encode(kTestDomain, "xz", hash, "a.css", "css");

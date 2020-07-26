@@ -34,15 +34,17 @@ namespace net_instaweb {
 EnvoyMessageHandler::EnvoyMessageHandler(Timer* timer, AbstractMutex* mutex)
     : SystemMessageHandler(timer, mutex) {}
 
-void EnvoyMessageHandler::MessageSImpl(MessageType type, const GoogleString& message) {
+void EnvoyMessageHandler::MessageSImpl(MessageType type,
+                                       const GoogleString& message) {
   GoogleMessageHandler::MessageSImpl(type, message);
   AddMessageToBuffer(type, message);
 }
 
-void EnvoyMessageHandler::FileMessageSImpl(MessageType type, const char* file, int line,
+void EnvoyMessageHandler::FileMessageSImpl(MessageType type, const char* file,
+                                           int line,
                                            const GoogleString& message) {
   GoogleMessageHandler::FileMessageSImpl(type, file, line, message);
   AddMessageToBuffer(type, file, line, message);
 }
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

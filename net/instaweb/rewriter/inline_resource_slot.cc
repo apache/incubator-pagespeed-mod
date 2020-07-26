@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,11 +29,9 @@ InlineResourceSlot::InlineResourceSlot(const ResourcePtr& resource,
                                        StringPiece location)
     : ResourceSlot(resource),
       char_node_(char_node),
-      location_(location.data(), location.size()) {
-}
+      location_(location.data(), location.size()) {}
 
-InlineResourceSlot::~InlineResourceSlot() {
-}
+InlineResourceSlot::~InlineResourceSlot() {}
 
 void InlineResourceSlot::Render() {
   if (!disable_rendering()) {
@@ -51,9 +49,7 @@ void InlineResourceSlot::Render() {
 
 // TODO(sligocki): Use code from HtmlResourceSlot or pass in the RewriteDriver
 // and call driver->UrlLine().
-GoogleString InlineResourceSlot::LocationString() const {
-  return location_;
-}
+GoogleString InlineResourceSlot::LocationString() const { return location_; }
 
 bool InlineResourceSlotComparator::operator()(
     const InlineResourceSlotPtr& p, const InlineResourceSlotPtr& q) const {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -85,7 +85,7 @@ void TestCachePayload(int payload_size, int chunk_size, int iters) {
 }
 
 static void BM_Compress1MHighEntropy(benchmark::State& state) {
-  TestCachePayload(1000*1000, 1000*1000, state.iterations());
+  TestCachePayload(1000 * 1000, 1000 * 1000, state.iterations());
 }
 
 static void BM_Compress1KHighEntropy(benchmark::State& state) {
@@ -93,7 +93,7 @@ static void BM_Compress1KHighEntropy(benchmark::State& state) {
 }
 
 static void BM_Compress1MLowEntropy(benchmark::State& state) {
-  TestCachePayload(1000*1000, 1000, state.iterations());
+  TestCachePayload(1000 * 1000, 1000, state.iterations());
 }
 
 static void BM_Compress1KLowEntropy(benchmark::State& state) {

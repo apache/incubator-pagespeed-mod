@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/association_transformer.h"
 
 #include <memory>
-
-
-
-#include "net/instaweb/rewriter/public/association_transformer.h"
 
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/css_url_counter.h"
@@ -47,14 +44,12 @@ class DummyResource : public Resource {
   DummyResource() : Resource() {}
   ~DummyResource() override {}
 
-  void set_url(const StringPiece& url) {
-    url_ = url.as_string();
-  }
+  void set_url(const StringPiece& url) { url_ = url.as_string(); }
   GoogleString url() const override { return url_; }
 
   void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback) override {
+                       const RequestContextPtr& request_context,
+                       AsyncCallback* callback) override {
     callback->Done(false, false);
   }
 
@@ -93,13 +88,11 @@ class AssociationTransformerTest : public ::testing::Test {
     options_->ComputeSignature();
   }
 
-  ~AssociationTransformerTest() override {
-    RewriteOptions::Terminate();
-  }
+  ~AssociationTransformerTest() override { RewriteOptions::Terminate(); }
 
   template <class T>
-  void ExpectValue(const std::map<GoogleString, T>& map,
-                   const StringPiece& key, const T& expected_value) {
+  void ExpectValue(const std::map<GoogleString, T>& map, const StringPiece& key,
+                   const T& expected_value) {
     typename std::map<GoogleString, T>::const_iterator iter =
         map.find(key.as_string());
     ASSERT_NE(map.end(), iter) << "map does not have key " << key;
@@ -144,8 +137,8 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
   // Provide URL association.
   DummyResource* resource = new DummyResource;
   ResourcePtr resource_ptr(resource);
-  ResourceSlotPtr slot(new AssociationSlot(
-      resource_ptr, trans.map(), "http://example.com/before.css"));
+  ResourceSlotPtr slot(new AssociationSlot(resource_ptr, trans.map(),
+                                           "http://example.com/before.css"));
   resource->set_url("http://example.com/after.css");
   slot->Render();
 
@@ -157,8 +150,8 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
   // Run second pass.
   GoogleString out;
   StringWriter out_writer(&out);
-  EXPECT_TRUE(CssTagScanner::TransformUrls(css_before, &out_writer, &trans,
-                                           &handler));
+  EXPECT_TRUE(
+      CssTagScanner::TransformUrls(css_before, &out_writer, &trans, &handler));
 
   // Check that contents was rewritten correctly.
   const GoogleString css_after = absl::StrFormat(
@@ -168,11 +161,9 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
       "Dummy:image.gif",
       // before.css was rewritten in both places to after.css.
       // The first one stays relative and the second stays absolute.
-      "after.css",
-      "http://example.com/after.css",
+      "after.css", "http://example.com/after.css",
       // Passed through DummyTransformer.
-      "Dummy:http://other.org/foo.ttf",
-      "Dummy:data:text/plain,Foobar");
+      "Dummy:http://other.org/foo.ttf", "Dummy:data:text/plain,Foobar");
   EXPECT_EQ(css_after, out);
 }
 
@@ -188,8 +179,8 @@ TEST_F(AssociationTransformerTest, FailsOnInvalidUrl) {
   // Transform fails because there is an invalid URL.
   GoogleString out;
   StringWriter out_writer(&out);
-  EXPECT_FALSE(CssTagScanner::TransformUrls(css_before, &out_writer, &trans,
-                                            &handler));
+  EXPECT_FALSE(
+      CssTagScanner::TransformUrls(css_before, &out_writer, &trans, &handler));
 }
 
 }  // namespace net_instaweb

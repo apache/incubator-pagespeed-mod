@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_WAIT_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_WAIT_URL_ASYNC_FETCHER_H_
@@ -38,18 +37,13 @@ namespace net_instaweb {
 // you explicitly call CallCallbacks().
 class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
-  WaitUrlAsyncFetcher(UrlAsyncFetcher* url_fetcher,
-                      AbstractMutex* mutex)
-      : url_fetcher_(url_fetcher),
-        pass_through_mode_(false),
-        mutex_(mutex) {
-  }
+  WaitUrlAsyncFetcher(UrlAsyncFetcher* url_fetcher, AbstractMutex* mutex)
+      : url_fetcher_(url_fetcher), pass_through_mode_(false), mutex_(mutex) {}
   ~WaitUrlAsyncFetcher() override;
 
   // Initiate fetches that will finish when CallCallbacks is called.
-  void Fetch(const GoogleString& url,
-                     MessageHandler* handler,
-                     AsyncFetch* fetch) override;
+  void Fetch(const GoogleString& url, MessageHandler* handler,
+             AsyncFetch* fetch) override;
 
   // Call all callbacks from previously initiated fetches.
   void CallCallbacks();

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,20 +17,18 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/elide_attributes_filter.h"
 
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/html/html_parse.h"
+#include "pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 
 class ElideAttributesFilterTest : public HtmlParseTestBase {
  protected:
-  ElideAttributesFilterTest()
-      : elide_attributes_filter_(&html_parse_) {
+  ElideAttributesFilterTest() : elide_attributes_filter_(&html_parse_) {
     html_parse_.AddFilter(&elide_attributes_filter_);
   }
 
@@ -57,8 +55,9 @@ TEST_F(ElideAttributesFilterTest, RemoveAttrWithDefaultValue) {
 }
 
 TEST_F(ElideAttributesFilterTest, RemoveValueFromAttr) {
-  SetDoctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" "
-             "\"http://www.w3.org/TR/html4/strict.dtd\">");
+  SetDoctype(
+      "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" "
+      "\"http://www.w3.org/TR/html4/strict.dtd\">");
   ValidateExpected("remove_value_from_attr",
                    "<head></head><body><form>"
                    "<input type=checkbox checked=checked></form></body>",
@@ -98,8 +97,9 @@ TEST_F(ElideAttributesFilterTest, RemoveScriptTypeInHtml5) {
 
 // See http://github.com/apache/incubator-pagespeed-mod/issues/59
 TEST_F(ElideAttributesFilterTest, DoNotRemoveScriptTypeInHtml4) {
-  SetDoctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" "
-             "\"http://www.w3.org/TR/html4/strict.dtd\">");
+  SetDoctype(
+      "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" "
+      "\"http://www.w3.org/TR/html4/strict.dtd\">");
   ValidateNoChanges("do_not_remove_script_type_in_html_4",
                     "<head><script src=\"foo.js\" type=\"text/javascript\">"
                     "</script></head><body></body>");
@@ -108,8 +108,9 @@ TEST_F(ElideAttributesFilterTest, DoNotRemoveScriptTypeInHtml4) {
 // Wordpress uses CSS selectors on type=text attributes in inputs, so don't
 // remove it.
 TEST_F(ElideAttributesFilterTest, DoNotRemoveTypeAttribute) {
-  SetDoctype("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" "
-             "\"http://www.w3.org/TR/html4/strict.dtd\">");
+  SetDoctype(
+      "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" "
+      "\"http://www.w3.org/TR/html4/strict.dtd\">");
   ValidateNoChanges("do_not_remove_type_attribute_from_input",
                     "<head></head><body><form>"
                     "<input type=text></form></body>");

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/hasher.h"
 
@@ -34,9 +33,7 @@ class DummyHasher : public Hasher {
   ~DummyHasher() override {}
 
   // Arbitrary number of bytes to return (> 8).
-  int RawHashSizeInBytes() const override {
-    return 16;
-  }
+  int RawHashSizeInBytes() const override { return 16; }
 
   GoogleString RawHash(const StringPiece& content) const override {
     GoogleString result = content.as_string();
@@ -57,8 +54,7 @@ TEST(HasherTest, HashToUint64) {
             hasher.HashToUint64("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"));
   EXPECT_EQ(0x0123456789ABCDEFull,
             hasher.HashToUint64("\x01\x23\x45\x67\x89\xAB\xCD\xEF"));
-  EXPECT_EQ(0xDEADBEEF00000000ull,
-            hasher.HashToUint64("\xDE\xAD\xBE\xEF"));
+  EXPECT_EQ(0xDEADBEEF00000000ull, hasher.HashToUint64("\xDE\xAD\xBE\xEF"));
   EXPECT_EQ(0x3133703133703133ull,
             hasher.HashToUint64("\x31\x33\x70\x31\x33\x70"
                                 "\x31\x33\x70\x31\x33\x70"));

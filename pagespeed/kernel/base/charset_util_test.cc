@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/charset_util.h"
 
@@ -36,8 +35,7 @@ class CharsetUtilTest : public testing::Test {
 
   // buffer must point to a large enough char array, and target will be set to
   // point to it with the correct length.
-  void TestCharsetForBom(const StringPiece bom,
-                         const StringPiece contents,
+  void TestCharsetForBom(const StringPiece bom, const StringPiece contents,
                          const StringPiece charset) {
     GoogleString target = StrCat(bom, contents);
     EXPECT_EQ(charset, GetCharsetForBom(target));
@@ -71,8 +69,7 @@ TEST_F(CharsetUtilTest, StripUtf8Bom) {
   contents = StrCat(kUtf16BigEndianBom, originalContents);
   StringPiece utf16beContents(contents);
   EXPECT_FALSE(StripUtf8Bom(&utf16beContents));
-  EXPECT_STREQ(StrCat(kUtf16BigEndianBom, originalContents),
-               utf16beContents);
+  EXPECT_STREQ(StrCat(kUtf16BigEndianBom, originalContents), utf16beContents);
 }
 
 TEST_F(CharsetUtilTest, GetCharsetForBom) {
@@ -80,24 +77,24 @@ TEST_F(CharsetUtilTest, GetCharsetForBom) {
 
   TestCharsetForBom(StringPiece(), contents, StringPiece());
 
-  TestCharsetForBom(StringPiece(kUtf8Bom, STATIC_STRLEN(kUtf8Bom)),
-                    contents, kUtf8Charset);
+  TestCharsetForBom(StringPiece(kUtf8Bom, STATIC_STRLEN(kUtf8Bom)), contents,
+                    kUtf8Charset);
 
-  TestCharsetForBom(StringPiece(kUtf16BigEndianBom,
-                                STATIC_STRLEN(kUtf16BigEndianBom)),
-                    contents, kUtf16BigEndianCharset);
+  TestCharsetForBom(
+      StringPiece(kUtf16BigEndianBom, STATIC_STRLEN(kUtf16BigEndianBom)),
+      contents, kUtf16BigEndianCharset);
 
-  TestCharsetForBom(StringPiece(kUtf16LittleEndianBom,
-                                STATIC_STRLEN(kUtf16LittleEndianBom)),
-                    contents, kUtf16LittleEndianCharset);
+  TestCharsetForBom(
+      StringPiece(kUtf16LittleEndianBom, STATIC_STRLEN(kUtf16LittleEndianBom)),
+      contents, kUtf16LittleEndianCharset);
 
-  TestCharsetForBom(StringPiece(kUtf32BigEndianBom,
-                                STATIC_STRLEN(kUtf32BigEndianBom)),
-                    contents, kUtf32BigEndianCharset);
+  TestCharsetForBom(
+      StringPiece(kUtf32BigEndianBom, STATIC_STRLEN(kUtf32BigEndianBom)),
+      contents, kUtf32BigEndianCharset);
 
-  TestCharsetForBom(StringPiece(kUtf32LittleEndianBom,
-                                STATIC_STRLEN(kUtf32LittleEndianBom)),
-                    contents, kUtf32LittleEndianCharset);
+  TestCharsetForBom(
+      StringPiece(kUtf32LittleEndianBom, STATIC_STRLEN(kUtf32LittleEndianBom)),
+      contents, kUtf32LittleEndianCharset);
 }
 
 }  // namespace

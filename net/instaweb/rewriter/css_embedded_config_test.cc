@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include <cstddef>
 
@@ -121,8 +120,7 @@ class CssEmbeddedConfigTest : public CssRewriteTestBase {
     CssRewriteTestBase::SetUp();
   }
 
-  GoogleString EncodedImageUrl(StringPiece image_name,
-                               StringPiece ext,
+  GoogleString EncodedImageUrl(StringPiece image_name, StringPiece ext,
                                StringPiece option_segment) {
     GoogleString image_url = Encode("", "ic", "0", image_name, ext);
     return AddOptionsToEncodedUrl(image_url, option_segment);
@@ -156,8 +154,7 @@ TEST_F(CssEmbeddedConfigTest, RewriteJpeg) {
   GoogleString css_link = RewriteImageInCss(kPuzzleJpgFile);
   EXPECT_STREQ(EncodedCssUrl("rj+iq=81"), css_link);
   GoogleString image_url = ExtractImageFromCssFilename(css_link);
-  EXPECT_STREQ(EncodedImageUrl(kPuzzleJpgFile, "jpg", "rj+iq=81"),
-               image_url);
+  EXPECT_STREQ(EncodedImageUrl(kPuzzleJpgFile, "jpg", "rj+iq=81"), image_url);
   EXPECT_GE(103704, FetchImageFromCache(StrCat(kTestDomain, image_url)).size());
 }
 

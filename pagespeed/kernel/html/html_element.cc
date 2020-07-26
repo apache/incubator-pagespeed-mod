@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/html/html_element.h"
 
@@ -33,13 +32,11 @@
 namespace net_instaweb {
 
 HtmlElement::HtmlElement(HtmlElement* parent, const HtmlName& name,
-    const HtmlEventListIterator& begin, const HtmlEventListIterator& end)
-    : HtmlNode(parent),
-      data_(new Data(name, begin, end)) {
-}
+                         const HtmlEventListIterator& begin,
+                         const HtmlEventListIterator& end)
+    : HtmlNode(parent), data_(new Data(name, begin, end)) {}
 
-HtmlElement::~HtmlElement() {
-}
+HtmlElement::~HtmlElement() {}
 
 HtmlElement::Data::Data(const HtmlName& name,
                         const HtmlEventListIterator& begin,
@@ -50,11 +47,9 @@ HtmlElement::Data::Data(const HtmlName& name,
       style_(AUTO_CLOSE),
       name_(name),
       begin_(begin),
-      end_(end) {
-}
+      end_(end) {}
 
-HtmlElement::Data::~Data() {
-}
+HtmlElement::Data::~Data() {}
 
 void HtmlElement::MarkAsDead(const HtmlEventListIterator& end) {
   if (data_.get() != nullptr) {
@@ -143,13 +138,24 @@ GoogleString HtmlElement::ToString() const {
     }
   }
   switch (data_->style_) {
-    case AUTO_CLOSE:       buf += "> (not yet closed)"; break;
-    case IMPLICIT_CLOSE:   buf += ">";  break;
-    case EXPLICIT_CLOSE:   StrAppend(&buf, "></", data_->name_.value(), ">");
-                           break;
-    case BRIEF_CLOSE:      buf += "/>"; break;
-    case UNCLOSED:         buf += "> (unclosed)"; break;
-    case INVISIBLE:        buf += "> (invisible)"; break;
+    case AUTO_CLOSE:
+      buf += "> (not yet closed)";
+      break;
+    case IMPLICIT_CLOSE:
+      buf += ">";
+      break;
+    case EXPLICIT_CLOSE:
+      StrAppend(&buf, "></", data_->name_.value(), ">");
+      break;
+    case BRIEF_CLOSE:
+      buf += "/>";
+      break;
+    case UNCLOSED:
+      buf += "> (unclosed)";
+      break;
+    case INVISIBLE:
+      buf += "> (invisible)";
+      break;
   }
   if ((data_->begin_line_number_ != Data::kMaxLineNumber) ||
       (data_->end_line_number_ != Data::kMaxLineNumber)) {
@@ -165,13 +171,10 @@ GoogleString HtmlElement::ToString() const {
   return buf;
 }
 
-void HtmlElement::DebugPrint() const {
-  puts(ToString().c_str());
-}
+void HtmlElement::DebugPrint() const { puts(ToString().c_str()); }
 
 void HtmlElement::AddAttribute(const Attribute& src_attr) {
-  Attribute* attr = new Attribute(src_attr.name(),
-                                  src_attr.escaped_value(),
+  Attribute* attr = new Attribute(src_attr.name(), src_attr.escaped_value(),
                                   src_attr.quote_style());
   if (src_attr.decoded_value_computed_) {
     attr->decoded_value_computed_ = true;
@@ -185,9 +188,8 @@ void HtmlElement::AddAttribute(const HtmlName& name,
                                const StringPiece& decoded_value,
                                QuoteStyle quote_style) {
   GoogleString buf;
-  Attribute* attr = new Attribute(name,
-                                  HtmlKeywords::Escape(decoded_value, &buf),
-                                  quote_style);
+  Attribute* attr = new Attribute(
+      name, HtmlKeywords::Escape(decoded_value, &buf), quote_style);
   attr->decoded_value_computed_ = true;
   attr->decoding_error_ = false;
   Attribute::CopyValue(decoded_value, &attr->decoded_value_);
@@ -274,8 +276,8 @@ const char* HtmlElement::Attribute::quote_str() const {
 
 void HtmlElement::Attribute::ComputeDecodedValue() const {
   GoogleString buf;
-  StringPiece unescaped_value = HtmlKeywords::Unescape(
-      escaped_value_.get(), &buf, &decoding_error_);
+  StringPiece unescaped_value =
+      HtmlKeywords::Unescape(escaped_value_.get(), &buf, &decoding_error_);
   CopyValue(unescaped_value, &decoded_value_);
   decoded_value_computed_ = true;
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/pixel_format_optimizer.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -24,7 +25,6 @@
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/pixel_format_optimizer.h"
 #include "pagespeed/kernel/image/png_optimizer.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
@@ -33,11 +33,11 @@ namespace {
 using net_instaweb::MessageHandler;
 using net_instaweb::MockMessageHandler;
 using net_instaweb::NullMutex;
-using pagespeed::image_compression::PngScanlineReaderRaw;
-using pagespeed::image_compression::ReadTestFileWithExt;
 using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
 using pagespeed::image_compression::kWebpTestDir;
 using pagespeed::image_compression::PixelFormatOptimizer;
+using pagespeed::image_compression::PngScanlineReaderRaw;
+using pagespeed::image_compression::ReadTestFileWithExt;
 
 const char kOpaqueAlphaImage[] = "completely_opaque_32x20.png";
 const char kNoAlphaImage[] = "opaque_32x20.png";
@@ -56,11 +56,10 @@ const char kMessagePatternLongJmp[] = "*longjmp()*";
 
 class PixelFormatOptimizerTest : public testing::Test {
  public:
-  PixelFormatOptimizerTest() :
-      message_handler_(new NullMutex),
-      optimizer_(&message_handler_),
-      gold_reader_(&message_handler_) {
-  }
+  PixelFormatOptimizerTest()
+      : message_handler_(new NullMutex),
+        optimizer_(&message_handler_),
+        gold_reader_(&message_handler_) {}
 
   bool InitializeOptimizer(const char* file_name) {
     if (!ReadTestFileWithExt(kWebpTestDir, file_name, &input_image_)) {
@@ -153,8 +152,8 @@ TEST_F(PixelFormatOptimizerTest, TruncatedImage) {
   message_handler_.AddPatternToSkipPrinting(kMessagePatternScanline);
   message_handler_.AddPatternToSkipPrinting(kMessagePatternUnexpectedEOF);
 
-  ASSERT_TRUE(ReadTestFileWithExt(kWebpTestDir, kOpaqueAlphaImage,
-                                  &input_image_));
+  ASSERT_TRUE(
+      ReadTestFileWithExt(kWebpTestDir, kOpaqueAlphaImage, &input_image_));
   int truncated_length = input_image_.length() * 0.8;
 
   std::unique_ptr<PngScanlineReaderRaw> input_reader(

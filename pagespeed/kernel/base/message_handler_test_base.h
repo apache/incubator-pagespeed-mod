@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,9 @@
  * under the License.
  */
 
+#include <cstdarg>
 
 #include "pagespeed/kernel/base/message_handler.h"
-
-#include <cstdarg>
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -37,10 +36,10 @@ class TestMessageHandler : public net_instaweb::MessageHandler {
   void MessageVImpl(MessageType type, const char* msg, va_list args) override;
   void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  void FileMessageVImpl(MessageType type, const char* filename,
-                                int line, const char* msg, va_list args) override;
-  void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message) override;
+  void FileMessageVImpl(MessageType type, const char* filename, int line,
+                        const char* msg, va_list args) override;
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
 
  private:
   StringVector messages_;

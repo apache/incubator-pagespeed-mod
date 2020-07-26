@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_SYSTEM_IN_PLACE_RESOURCE_RECORDER_H_
 #define PAGESPEED_SYSTEM_IN_PLACE_RESOURCE_RECORDER_H_
@@ -58,12 +57,12 @@ class InPlaceResourceRecorder : public Writer {
   // Does not take ownership of request_headers, cache nor handler.
   // Like other callbacks, InPlaceResourceRecorder is self-owned and will
   // delete itself when DoneAndSetHeaders() is called.
-  InPlaceResourceRecorder(
-      const RequestContextPtr& request_context,
-      StringPiece url, StringPiece fragment,
-      const RequestHeaders::Properties& request_properties,
-      int max_response_bytes, int max_concurrent_recordings,
-      HTTPCache* cache, Statistics* statistics, MessageHandler* handler);
+  InPlaceResourceRecorder(const RequestContextPtr& request_context,
+                          StringPiece url, StringPiece fragment,
+                          const RequestHeaders::Properties& request_properties,
+                          int max_response_bytes, int max_concurrent_recordings,
+                          HTTPCache* cache, Statistics* statistics,
+                          MessageHandler* handler);
 
   // Normally you should use DoneAndSetHeaders rather than deleting this
   // directly.

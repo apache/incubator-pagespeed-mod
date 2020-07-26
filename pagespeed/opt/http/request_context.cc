@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/opt/http/request_context.h"
 
@@ -53,10 +52,8 @@ RequestContext::RequestContext(AbstractMutex* logging_mutex, Timer* timer)
   Init();
 }
 
-RequestContext::RequestContext(const HttpOptions& options,
-                               AbstractMutex* mutex,
-                               Timer* timer,
-                               AbstractLogRecord* log_record)
+RequestContext::RequestContext(const HttpOptions& options, AbstractMutex* mutex,
+                               Timer* timer, AbstractLogRecord* log_record)
     : log_record_(log_record),
       // TODO(gee): Move ownership of mutex to TimingInfo.
       timing_info_(timer, mutex),
@@ -82,16 +79,14 @@ RequestContext::~RequestContext() {
 
 RequestContextPtr RequestContext::NewTestRequestContextWithTimer(
     ThreadSystem* thread_system, Timer* timer) {
-  return RequestContextPtr(
-      new RequestContext(kDefaultHttpOptionsForTests,
-                         thread_system->NewMutex(), timer));
+  return RequestContextPtr(new RequestContext(
+      kDefaultHttpOptionsForTests, thread_system->NewMutex(), timer));
 }
 
 RequestContextPtr RequestContext::NewTestRequestContext(
     AbstractLogRecord* log_record) {
-  return RequestContextPtr(
-      new RequestContext(kDefaultHttpOptionsForTests,
-                         log_record->mutex(), nullptr, log_record));
+  return RequestContextPtr(new RequestContext(
+      kDefaultHttpOptionsForTests, log_record->mutex(), nullptr, log_record));
 }
 
 AbstractLogRecord* RequestContext::NewSubordinateLogRecord(
@@ -137,9 +132,7 @@ void RequestContext::SetAcceptsWebp(bool x) {
 }
 
 AbstractLogRecord* RequestContext::GetBackgroundRewriteLog(
-    ThreadSystem* thread_system,
-    bool log_urls,
-    bool log_url_indices,
+    ThreadSystem* thread_system, bool log_urls, bool log_url_indices,
     int max_rewrite_info_log_size) {
   // The mutex of the main log record is purposefully used to synchronize the
   // creation of background log record.
@@ -149,7 +142,7 @@ AbstractLogRecord* RequestContext::GetBackgroundRewriteLog(
     // We need to create a new log record.
     log_record = NewSubordinateLogRecord(thread_system->NewMutex());
     log_record->SetBackgroundRewriteInfo(log_urls, log_url_indices,
-         max_rewrite_info_log_size);
+                                         max_rewrite_info_log_size);
     background_rewrite_log_record_.reset(log_record);
   }
   return log_record;

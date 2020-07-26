@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,16 @@
  * under the License.
  */
 
-
-#include "base/logging.h"
 #include "pagespeed/apache/apache_writer.h"
-#include "pagespeed/apache/header_util.h"
+
+#include "apr_strings.h"  // for apr_pstrdup    // NOLINT
+#include "base/logging.h"
+#include "http_protocol.h"  // NOLINT
 #include "net/instaweb/http/public/async_fetch.h"
+#include "pagespeed/apache/header_util.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/response_headers.h"
-
-#include "apr_strings.h"  // for apr_pstrdup    // NOLINT
-#include "http_protocol.h"                      // NOLINT
 
 namespace net_instaweb {
 
@@ -41,8 +40,7 @@ ApacheWriter::ApacheWriter(request_rec* r, ThreadSystem* thread_system)
   apache_request_thread_.reset(thread_system->GetThreadId());
 }
 
-ApacheWriter::~ApacheWriter() {
-}
+ApacheWriter::~ApacheWriter() {}
 
 bool ApacheWriter::Write(const StringPiece& str, MessageHandler* handler) {
   DCHECK(apache_request_thread_->IsCurrentThread());
@@ -98,8 +96,8 @@ void ApacheWriter::OutputHeaders(ResponseHeaders* response_headers) {
     response_headers->ComputeCaching();
   }
 
-  const char* content_type = response_headers->Lookup1(
-      HttpAttributes::kContentType);
+  const char* content_type =
+      response_headers->Lookup1(HttpAttributes::kContentType);
   if (content_type != nullptr) {
     // ap_set_content_type does not make a copy of the string, we need
     // to duplicate it.  Note that we will update the content type below,

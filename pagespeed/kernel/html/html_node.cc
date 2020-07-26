@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/html/html_node.h"
 
@@ -30,9 +29,7 @@ HtmlNode::~HtmlNode() {}
 HtmlLeafNode::HtmlLeafNode(HtmlElement* parent,
                            const HtmlEventListIterator& iter,
                            const StringPiece& contents)
-    : HtmlNode(parent),
-      data_(new Data(iter, contents)) {
-}
+    : HtmlNode(parent), data_(new Data(iter, contents)) {}
 
 HtmlLeafNode::~HtmlLeafNode() {}
 
@@ -78,7 +75,7 @@ void HtmlCommentNode::SynthesizeEvents(const HtmlEventListIterator& iter,
 HtmlIEDirectiveNode::~HtmlIEDirectiveNode() {}
 
 void HtmlIEDirectiveNode::SynthesizeEvents(const HtmlEventListIterator& iter,
-                                         HtmlEventList* queue) {
+                                           HtmlEventList* queue) {
   // We use -1 as a bogus line number, since the event is synthetic.
   HtmlIEDirectiveEvent* event = new HtmlIEDirectiveEvent(this, -1);
   set_iter(queue->insert(iter, event));

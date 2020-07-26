@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/annotated_message_handler.h"
 
@@ -26,18 +25,16 @@
 
 namespace net_instaweb {
 
-AnnotatedMessageHandler::AnnotatedMessageHandler(MessageHandler* handler) :
-    message_handler_(handler) {
-}
+AnnotatedMessageHandler::AnnotatedMessageHandler(MessageHandler* handler)
+    : message_handler_(handler) {}
 
 AnnotatedMessageHandler::AnnotatedMessageHandler(const GoogleString& annotation,
-                                                 MessageHandler* handler) :
-    message_handler_(handler) {
+                                                 MessageHandler* handler)
+    : message_handler_(handler) {
   annotation_ = annotation;
 }
 
-AnnotatedMessageHandler::~AnnotatedMessageHandler() {
-}
+AnnotatedMessageHandler::~AnnotatedMessageHandler() {}
 
 void AnnotatedMessageHandler::MessageVImpl(MessageType type, const char* msg,
                                            va_list args) {
@@ -46,25 +43,23 @@ void AnnotatedMessageHandler::MessageVImpl(MessageType type, const char* msg,
   message_handler_->MessageS(type, buffer);
 }
 
-void AnnotatedMessageHandler::MessageSImpl(
-    MessageType type, const GoogleString& message) {
+void AnnotatedMessageHandler::MessageSImpl(MessageType type,
+                                           const GoogleString& message) {
   GoogleString buffer = StrCat(annotation_, message);
   message_handler_->MessageS(type, buffer);
 }
 
 void AnnotatedMessageHandler::FileMessageVImpl(MessageType type,
-                                               const char* filename,
-                                               int line,
-                                               const char* msg,
-                                               va_list args) {
+                                               const char* filename, int line,
+                                               const char* msg, va_list args) {
   GoogleString buffer(annotation_);
   FormatTo(&buffer, msg, args);
   message_handler_->FileMessageS(type, filename, line, buffer);
 }
 
-void AnnotatedMessageHandler::FileMessageSImpl(
-    MessageType type, const char* filename, int line,
-    const GoogleString& message) {
+void AnnotatedMessageHandler::FileMessageSImpl(MessageType type,
+                                               const char* filename, int line,
+                                               const GoogleString& message) {
   GoogleString buffer = StrCat(annotation_, message);
   message_handler_->FileMessageS(type, filename, line, buffer);
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,12 +27,9 @@
 namespace net_instaweb {
 
 const PropertyValue* DecodeFromPropertyCacheHelper(
-    const PropertyCache* cache,
-    AbstractPropertyPage* page,
-    const PropertyCache::Cohort* cohort,
-    StringPiece property_name,
-    int64 cache_ttl_ms,
-    PropertyCacheDecodeResult* status) {
+    const PropertyCache* cache, AbstractPropertyPage* page,
+    const PropertyCache::Cohort* cohort, StringPiece property_name,
+    int64 cache_ttl_ms, PropertyCacheDecodeResult* status) {
   if (cohort == nullptr || page == nullptr) {
     *status = kPropertyCacheDecodeNotFound;
     return nullptr;
@@ -52,11 +49,8 @@ const PropertyValue* DecodeFromPropertyCacheHelper(
 }
 
 PropertyCacheUpdateResult UpdateInPropertyCache(
-    const protobuf::MessageLite& value,
-    const PropertyCache::Cohort* cohort,
-    StringPiece property_name,
-    bool write_cohort,
-    AbstractPropertyPage* page) {
+    const protobuf::MessageLite& value, const PropertyCache::Cohort* cohort,
+    StringPiece property_name, bool write_cohort, AbstractPropertyPage* page) {
   if (cohort == nullptr || page == nullptr) {
     return kPropertyCacheUpdateNotFound;
   }

@@ -38,11 +38,11 @@ class Statistics;
 class SystemThreadSystem;
 
 class EnvoyRewriteDriverFactory : public SystemRewriteDriverFactory {
-public:
+ public:
   // We take ownership of the thread system.
   explicit EnvoyRewriteDriverFactory(const ProcessContext& process_context,
-                                     SystemThreadSystem* system_thread_system, StringPiece hostname,
-                                     int port);
+                                     SystemThreadSystem* system_thread_system,
+                                     StringPiece hostname, int port);
   ~EnvoyRewriteDriverFactory() override;
   Hasher* NewHasher() override;
   UrlAsyncFetcher* AllocateFetcher(SystemRewriteOptions* config) override;
@@ -69,9 +69,13 @@ public:
   // called after the caller has finished any forking it intends to do.
   void StartThreads();
 
-  EnvoyMessageHandler* envoy_message_handler() { return envoy_message_handler_; }
+  EnvoyMessageHandler* envoy_message_handler() {
+    return envoy_message_handler_;
+  }
 
-  void NonStaticInitStats(Statistics* statistics) override { InitStats(statistics); }
+  void NonStaticInitStats(Statistics* statistics) override {
+    InitStats(statistics);
+  }
 
   void SetMainConf(EnvoyRewriteOptions* main_conf);
 
@@ -87,7 +91,7 @@ public:
 
   void NameProcess(const char* name) override;
 
-private:
+ private:
   // Timer *timer_;
 
   bool threads_started_;
@@ -102,4 +106,4 @@ private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyRewriteDriverFactory);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

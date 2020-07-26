@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_SYSTEM_APR_MEM_CACHE_H_
 #define PAGESPEED_SYSTEM_APR_MEM_CACHE_H_
@@ -117,16 +116,17 @@ class AprMemCache : public CacheInterface {
 
   bool MustEncodeKeyInValueOnPut() const override { return true; }
   void PutWithKeyInValue(const GoogleString& key,
-                                 const SharedString& key_and_value) override;
+                         const SharedString& key_and_value) override;
 
   // Sets the I/O timeout in microseconds.  This should be called at
   // setup time and not while there are operations in flight.
   void set_timeout_us(int timeout_us);
 
  private:
-  void DecodeValueMatchingKeyAndCallCallback(
-      const GoogleString& key, const char* data, size_t data_len,
-      const char* calling_method, Callback* callback);
+  void DecodeValueMatchingKeyAndCallCallback(const GoogleString& key,
+                                             const char* data, size_t data_len,
+                                             const char* calling_method,
+                                             Callback* callback);
 
   // Puts a value that's already encoded with the key into the cache, without
   // checking health first.  This is meant to be called from Put and

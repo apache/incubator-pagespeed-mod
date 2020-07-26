@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -36,13 +36,11 @@ GoogleFontCssInlineFilter::GoogleFontCssInlineFilter(RewriteDriver* driver)
   set_id(RewriteOptions::kGoogleFontCssInlineId);
   set_size_threshold_bytes(
       driver->options()->google_font_css_inline_max_bytes());
-  driver->AddResourceUrlClaimant(
-      NewPermanentCallback(
-          this, &GoogleFontCssInlineFilter::CheckIfFontServiceUrl));
+  driver->AddResourceUrlClaimant(NewPermanentCallback(
+      this, &GoogleFontCssInlineFilter::CheckIfFontServiceUrl));
 }
 
-GoogleFontCssInlineFilter::~GoogleFontCssInlineFilter() {
-}
+GoogleFontCssInlineFilter::~GoogleFontCssInlineFilter() {}
 
 void GoogleFontCssInlineFilter::InitStats(Statistics* statistics) {
   GoogleFontServiceInputResource::InitStats(statistics);
@@ -73,8 +71,8 @@ ResourcePtr GoogleFontCssInlineFilter::CreateResource(const char* url,
   return resource;
 }
 
-void GoogleFontCssInlineFilter::ResetAndExplainReason(
-    const char* reason, ResourcePtr* resource) {
+void GoogleFontCssInlineFilter::ResetAndExplainReason(const char* reason,
+                                                      ResourcePtr* resource) {
   resource->reset(nullptr);
   if (DebugMode()) {
     // Note that since we only call this after a success of
@@ -84,8 +82,8 @@ void GoogleFontCssInlineFilter::ResetAndExplainReason(
   }
 }
 
-void GoogleFontCssInlineFilter::CheckIfFontServiceUrl(
-    const GoogleUrl& url, bool* result) {
+void GoogleFontCssInlineFilter::CheckIfFontServiceUrl(const GoogleUrl& url,
+                                                      bool* result) {
   *result = GoogleFontServiceInputResource::IsFontServiceUrl(url);
 }
 

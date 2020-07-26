@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
 
@@ -46,8 +45,11 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
             HttpDumpUrlFetcher* dump_fetcher, FileSystem* file_system,
             const RequestContextPtr& request_context)
       : StringAsyncFetch(request_context),
-        url_(url), handler_(handler), base_fetch_(base_fetch),
-        filename_(filename), dump_fetcher_(dump_fetcher),
+        url_(url),
+        handler_(handler),
+        base_fetch_(base_fetch),
+        filename_(filename),
+        dump_fetcher_(dump_fetcher),
         file_system_(file_system) {
     DCHECK(request_context.get() != nullptr);
   }
@@ -96,19 +98,18 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
         }
       }
 
-      FileSystem::OutputFile* file = file_system_->OpenTempFile(
-          filename_ + ".temp", handler_);
+      FileSystem::OutputFile* file =
+          file_system_->OpenTempFile(filename_ + ".temp", handler_);
       if (file != nullptr) {
         handler_->Message(kInfo, "Storing %s as %s", url_.c_str(),
                           filename_.c_str());
         GoogleString temp_filename = file->filename();
         FileWriter file_writer(file);
         success = response_headers()->WriteAsHttp(&file_writer, handler_) &&
-            file->Write(buffer(), handler_);
+                  file->Write(buffer(), handler_);
         success &= file_system_->Close(file, handler_);
         success &= file_system_->RenameFile(temp_filename.c_str(),
-                                            filename_.c_str(),
-                                            handler_);
+                                            filename_.c_str(), handler_);
       } else {
         success = false;
       }
@@ -152,8 +153,7 @@ class HttpDumpUrlAsyncWriter::DumpFetch : public StringAsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(DumpFetch);
 };
 
-HttpDumpUrlAsyncWriter::~HttpDumpUrlAsyncWriter() {
-}
+HttpDumpUrlAsyncWriter::~HttpDumpUrlAsyncWriter() {}
 
 void HttpDumpUrlAsyncWriter::Fetch(const GoogleString& url,
                                    MessageHandler* handler,
@@ -165,9 +165,9 @@ void HttpDumpUrlAsyncWriter::Fetch(const GoogleString& url,
   if (file_system_->Exists(filename.c_str(), handler).is_true()) {
     dump_fetcher_.Fetch(url, handler, base_fetch);
   } else {
-    DumpFetch* fetch = new DumpFetch(url, handler, base_fetch, filename,
-                                     &dump_fetcher_, file_system_,
-                                     base_fetch->request_context());
+    DumpFetch* fetch =
+        new DumpFetch(url, handler, base_fetch, filename, &dump_fetcher_,
+                      file_system_, base_fetch->request_context());
     fetch->StartFetch(accept_gzip_, base_fetcher_);
   }
 }

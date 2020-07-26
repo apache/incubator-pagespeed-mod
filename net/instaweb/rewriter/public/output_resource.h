@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,16 +53,14 @@ class OutputResource : public Resource {
   // The 'options' argument can be NULL.  This is done in the Fetch path because
   // that field is only used for domain sharding, and during the fetch, further
   // domain makes no sense.
-  OutputResource(const RewriteDriver* driver,
-                 StringPiece resolved_base,
+  OutputResource(const RewriteDriver* driver, StringPiece resolved_base,
                  StringPiece unmapped_base, /* aka source domain */
                  StringPiece original_base, /* aka cnamed domain */
-                 const ResourceNamer& resource_id,
-                 OutputResourceKind kind);
+                 const ResourceNamer& resource_id, OutputResourceKind kind);
 
   void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback) override;
+                       const RequestContextPtr& request_context,
+                       AsyncCallback* callback) override;
   // NOTE: url() will crash if resource has does not have a hash set yet.
   // Specifically, this will occur if the resource has not been completely
   // written yet. Before that point, the final URL cannot be known.

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,9 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/loopback_route_fetcher.h"
 
+#include "apr_network_io.h"
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -32,17 +32,14 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 
-#include "apr_network_io.h"
-
 namespace net_instaweb {
 
 class MessageHandler;
 
-LoopbackRouteFetcher::LoopbackRouteFetcher(
-    const RewriteOptions* options,
-    const GoogleString& own_ip,
-    int own_port,
-    UrlAsyncFetcher* backend_fetcher)
+LoopbackRouteFetcher::LoopbackRouteFetcher(const RewriteOptions* options,
+                                           const GoogleString& own_ip,
+                                           int own_port,
+                                           UrlAsyncFetcher* backend_fetcher)
     : options_(options),
       own_ip_(own_ip),
       own_port_(own_port),
@@ -52,8 +49,7 @@ LoopbackRouteFetcher::LoopbackRouteFetcher(
   }
 }
 
-LoopbackRouteFetcher::~LoopbackRouteFetcher() {
-}
+LoopbackRouteFetcher::~LoopbackRouteFetcher() {}
 
 void LoopbackRouteFetcher::Fetch(const GoogleString& original_url,
                                  MessageHandler* message_handler,
@@ -119,8 +115,8 @@ bool LoopbackRouteFetcher::IsLoopbackAddr(const apr_sockaddr_t* addr) {
     // 127.0.0.0/8 is the IPv4 loopback.
     // Note: is network byte order, so we can do char-wide indexing into it
     // consistently (but not look at the whole thing).
-    const char* ipbytes = reinterpret_cast<const char*>(
-        &addr->sa.sin.sin_addr.s_addr);
+    const char* ipbytes =
+        reinterpret_cast<const char*>(&addr->sa.sin.sin_addr.s_addr);
     return (ipbytes[0] == 127);
   } else if (addr->family == APR_INET6) {
     const in6_addr& addr_v6 = addr->sa.sin6.sin6_addr;
@@ -137,15 +133,11 @@ bool LoopbackRouteFetcher::IsLoopbackAddr(const apr_sockaddr_t* addr) {
     }
 
     // If first 10 are OK, check the last 6 bytes for the 2 options.
-    return (addr_v6.s6_addr[10] == 0xFF &&
-            addr_v6.s6_addr[11] == 0xFF &&
+    return (addr_v6.s6_addr[10] == 0xFF && addr_v6.s6_addr[11] == 0xFF &&
             addr_v6.s6_addr[12] == 127) ||
-           (addr_v6.s6_addr[10] == 0 &&
-            addr_v6.s6_addr[11] == 0 &&
-            addr_v6.s6_addr[12] == 0 &&
-            addr_v6.s6_addr[13] == 0 &&
-            addr_v6.s6_addr[14] == 0 &&
-            addr_v6.s6_addr[15] == 1);
+           (addr_v6.s6_addr[10] == 0 && addr_v6.s6_addr[11] == 0 &&
+            addr_v6.s6_addr[12] == 0 && addr_v6.s6_addr[13] == 0 &&
+            addr_v6.s6_addr[14] == 0 && addr_v6.s6_addr[15] == 1);
   } else {
     return false;
   }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,10 +39,8 @@ class RewriteDriver;
 
 class FileInputResource : public Resource {
  public:
-  FileInputResource(const RewriteDriver* driver,
-                    const ContentType* type,
-                    StringPiece url,
-                    StringPiece filename);
+  FileInputResource(const RewriteDriver* driver, const ContentType* type,
+                    StringPiece url, StringPiece filename);
   ~FileInputResource() override;
 
   // Uses default no-op Freshen implementation because file-based resources
@@ -52,7 +50,7 @@ class FileInputResource : public Resource {
 
   // Set OutputPartition's input info used for expiration validation.
   void FillInPartitionInputInfo(HashHint include_content_hash,
-                                        InputInfo* input) override;
+                                InputInfo* input) override;
 
   GoogleString url() const override { return url_; }
 
@@ -63,8 +61,8 @@ class FileInputResource : public Resource {
                          ResponseHeaders* header, MessageHandler* handler);
 
   void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback) override;
+                       const RequestContextPtr& request_context,
+                       AsyncCallback* callback) override;
 
  private:
   GoogleString url_;

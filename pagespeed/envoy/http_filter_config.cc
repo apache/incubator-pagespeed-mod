@@ -1,9 +1,7 @@
 #include <string>
 
-#include "http_filter.h"
-
 #include "envoy/registry/registry.h"
-
+#include "http_filter.h"
 #include "net/instaweb/rewriter/public/process_context.h"
 #include "pagespeed/automatic/proxy_fetch.h"
 #include "pagespeed/envoy/envoy_process_context.h"
@@ -29,17 +27,19 @@ EnvoyProcessContext& getProcessContext() {
 }
 
 class HttpPageSpeedDecoderFilterConfig : public NamedHttpFilterConfigFactory {
-public:
-  Http::FilterFactoryCb createFilterFactoryFromProto(const Protobuf::Message& proto_config,
-                                                     const std::string&,
-                                                     FactoryContext& context) override {
-    return createFilter(Envoy::MessageUtil::downcastAndValidate<const pagespeed::Decoder&>(
-                            proto_config, context.messageValidationVisitor()),
-                        context);
+ public:
+  Http::FilterFactoryCb createFilterFactoryFromProto(
+      const Protobuf::Message& proto_config, const std::string&,
+      FactoryContext& context) override {
+    return createFilter(
+        Envoy::MessageUtil::downcastAndValidate<const pagespeed::Decoder&>(
+            proto_config, context.messageValidationVisitor()),
+        context);
   }
 
   /**
-   *  Return the Protobuf Message that represents your config incase you have config proto
+   *  Return the Protobuf Message that represents your config incase you have
+   * config proto
    */
   ProtobufTypes::MessagePtr createEmptyConfigProto() override {
     return ProtobufTypes::MessagePtr{new pagespeed::Decoder()};
@@ -47,15 +47,16 @@ public:
 
   std::string name() const override { return "pagespeed"; };
 
-private:
-  Http::FilterFactoryCb createFilter(const pagespeed::Decoder& proto_config, FactoryContext&) {
+ private:
+  Http::FilterFactoryCb createFilter(const pagespeed::Decoder& proto_config,
+                                     FactoryContext&) {
     Http::HttpPageSpeedDecoderFilterConfigSharedPtr config =
         std::make_shared<Http::HttpPageSpeedDecoderFilterConfig>(
             Http::HttpPageSpeedDecoderFilterConfig(proto_config));
 
     return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
-      auto filter =
-          new Http::HttpPageSpeedDecoderFilter(config, getProcessContext().server_context());
+      auto filter = new Http::HttpPageSpeedDecoderFilter(
+          config, getProcessContext().server_context());
       callbacks.addStreamFilter(Http::StreamFilterSharedPtr{filter});
     };
   }
@@ -63,9 +64,10 @@ private:
 /**
  * Static registration for this PageSpeed filter. @see RegisterFactory.
  */
-static Registry::RegisterFactory<HttpPageSpeedDecoderFilterConfig, NamedHttpFilterConfigFactory>
+static Registry::RegisterFactory<HttpPageSpeedDecoderFilterConfig,
+                                 NamedHttpFilterConfigFactory>
     register_;
 
-} // namespace Configuration
-} // namespace Server
-} // namespace Envoy
+}  // namespace Configuration
+}  // namespace Server
+}  // namespace Envoy

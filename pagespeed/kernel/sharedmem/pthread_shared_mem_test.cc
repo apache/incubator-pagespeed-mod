@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,10 +17,11 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/thread/pthread_shared_mem.h"
 
 #include <pthread.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include <cstddef>
 #include <cstdlib>
@@ -36,7 +37,6 @@
 #include "pagespeed/kernel/sharedmem/shared_mem_lock_manager_test_base.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
-#include "pagespeed/kernel/thread/pthread_shared_mem.h"
 
 namespace net_instaweb {
 
@@ -52,9 +52,7 @@ class PthreadSharedMemEnvBase : public SharedMemTestEnv {
     return new PthreadSharedMem();
   }
 
-  void ShortSleep() override {
-    usleep(1000);
-  }
+  void ShortSleep() override { usleep(1000); }
 };
 
 class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
@@ -124,43 +122,41 @@ class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
     child_processes_.clear();
   }
 
-  void ChildFailed() override {
-    exit(-1);
-  }
+  void ChildFailed() override { exit(-1); }
 
  private:
   std::vector<pid_t> child_processes_;
 };
 
-
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedCircularBufferTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedDynamicStringMapTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemCacheTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemCacheDataTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemLockManagerTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemStatisticsTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedCircularBufferTestTemplate,
-                              PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedDynamicStringMapTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread,
+                               SharedDynamicStringMapTestTemplate,
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemCacheTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemCacheDataTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemLockManagerTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemStatisticsTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 
 }  // namespace
 

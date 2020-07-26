@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -43,8 +43,7 @@ AsyncFetch::AsyncFetch()
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
       headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
-}
+      content_length_(kContentLengthUnknown) {}
 
 AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
     : request_headers_(nullptr),
@@ -241,8 +240,7 @@ GoogleString AsyncFetch::LoggingString() {
   return logging_info_str;
 }
 
-StringAsyncFetch::~StringAsyncFetch() {
-}
+StringAsyncFetch::~StringAsyncFetch() {}
 
 bool AsyncFetchUsingWriter::HandleWrite(const StringPiece& sp,
                                         MessageHandler* handler) {
@@ -253,19 +251,16 @@ bool AsyncFetchUsingWriter::HandleFlush(MessageHandler* handler) {
   return writer_->Flush(handler);
 }
 
-AsyncFetchUsingWriter::~AsyncFetchUsingWriter() {
-}
+AsyncFetchUsingWriter::~AsyncFetchUsingWriter() {}
 
 SharedAsyncFetch::SharedAsyncFetch(AsyncFetch* base_fetch)
-    : AsyncFetch(base_fetch->request_context()),
-      base_fetch_(base_fetch) {
+    : AsyncFetch(base_fetch->request_context()), base_fetch_(base_fetch) {
   set_response_headers(base_fetch->response_headers());
   set_extra_response_headers(base_fetch->extra_response_headers());
   set_request_headers(base_fetch->request_headers());
 }
 
-SharedAsyncFetch::~SharedAsyncFetch() {
-}
+SharedAsyncFetch::~SharedAsyncFetch() {}
 
 void SharedAsyncFetch::PropagateContentLength() {
   if (content_length_known()) {
@@ -320,10 +315,8 @@ bool AsyncFetch::IsGoogleCacheVia(StringPiece via_value) {
   StringPieceVector tokens;
   SplitStringPieceToVector(via_value, " ", &tokens, true);
   double version;
-  return
-      (tokens.size() == 2) &&
-      StringCaseEqual(tokens[1], "google") &&
-      StringToDouble(tokens[0], &version);
+  return (tokens.size() == 2) && StringCaseEqual(tokens[1], "google") &&
+         StringToDouble(tokens[0], &version);
 }
 
 const char FallbackSharedAsyncFetch::kStaleWarningHeaderValue[] =
@@ -390,9 +383,7 @@ void FallbackSharedAsyncFetch::HandleDone(bool success) {
 }
 
 ConditionalSharedAsyncFetch::ConditionalSharedAsyncFetch(
-    AsyncFetch* base_fetch,
-    HTTPValue* cached_value,
-    MessageHandler* handler)
+    AsyncFetch* base_fetch, HTTPValue* cached_value, MessageHandler* handler)
     : SharedAsyncFetch(base_fetch),
       handler_(handler),
       serving_cached_value_(false),
@@ -410,15 +401,15 @@ ConditionalSharedAsyncFetch::ConditionalSharedAsyncFetch(
         // Copy the Etag and Last-Modified if any into the If-None-Match and
         // If-Modified-Since request headers. Also, ensure that the Etag wasn't
         // added by us.
-        const char* etag = cached_response_headers.Lookup1(
-            HttpAttributes::kEtag);
-        if (etag != nullptr && !StringCaseStartsWith(etag,
-                                                  HTTPCache::kEtagPrefix)) {
+        const char* etag =
+            cached_response_headers.Lookup1(HttpAttributes::kEtag);
+        if (etag != nullptr &&
+            !StringCaseStartsWith(etag, HTTPCache::kEtagPrefix)) {
           request_headers()->Add(HttpAttributes::kIfNoneMatch, etag);
           added_conditional_headers_to_request_ = true;
         }
-        const char* last_modified = cached_response_headers.Lookup1(
-            HttpAttributes::kLastModified);
+        const char* last_modified =
+            cached_response_headers.Lookup1(HttpAttributes::kLastModified);
         if (last_modified != nullptr) {
           request_headers()->Add(HttpAttributes::kIfModifiedSince,
                                  last_modified);

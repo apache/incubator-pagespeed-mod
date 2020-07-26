@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -49,21 +49,17 @@ namespace {
 
 class InProcessSharedMemEnv : public SharedMemTestEnv {
  public:
-  InProcessSharedMemEnv()
-      : thread_system_(Platform::CreateThreadSystem()) {
-  }
+  InProcessSharedMemEnv() : thread_system_(Platform::CreateThreadSystem()) {}
 
   AbstractSharedMem* CreateSharedMemRuntime() override {
     return new InProcessSharedMem(thread_system_.get());
   }
 
-  void ShortSleep() override {
-    usleep(1000);
-  }
+  void ShortSleep() override { usleep(1000); }
 
   bool CreateChild(Function* callback) override {
-    RunFunctionThread* thread
-        = new RunFunctionThread(thread_system_.get(), callback);
+    RunFunctionThread* thread =
+        new RunFunctionThread(thread_system_.get(), callback);
 
     bool ok = thread->Start();
     if (!ok) {
@@ -91,9 +87,7 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
   class RunFunctionThread : public ThreadSystem::Thread {
    public:
     RunFunctionThread(ThreadSystem* runtime, Function* fn)
-        : Thread(runtime, "thread_run", ThreadSystem::kJoinable),
-          fn_(fn) {
-    }
+        : Thread(runtime, "thread_run", ThreadSystem::kJoinable), fn_(fn) {}
 
     void Run() override {
       fn_->CallRun();
@@ -110,19 +104,19 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
 };
 
 INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedCircularBufferTestTemplate,
-                              InProcessSharedMemEnv);
+                               InProcessSharedMemEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedDynamicStringMapTestTemplate,
-                              InProcessSharedMemEnv);
+                               InProcessSharedMemEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemCacheTestTemplate,
-                              InProcessSharedMemEnv);
+                               InProcessSharedMemEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemCacheDataTestTemplate,
-                              InProcessSharedMemEnv);
+                               InProcessSharedMemEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemLockManagerTestTemplate,
-                              InProcessSharedMemEnv);
+                               InProcessSharedMemEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemStatisticsTestTemplate,
-                              InProcessSharedMemEnv);
+                               InProcessSharedMemEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemTestTemplate,
-                              InProcessSharedMemEnv);
+                               InProcessSharedMemEnv);
 
 }  // namespace
 

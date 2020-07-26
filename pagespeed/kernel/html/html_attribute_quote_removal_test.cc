@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_attribute_quote_removal.h"
 
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/html/html_parse.h"
+#include "pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 
@@ -53,8 +52,7 @@ TEST_F(HtmlAttributeQuoteRemovalTest, DoNotRemoveNeededQuotes) {
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, DoNotDeleteEmptyAttrs) {
-  ValidateNoChanges("do_not_delete_empty_attrs",
-                    "<div id=''></div>");
+  ValidateNoChanges("do_not_delete_empty_attrs", "<div id=''></div>");
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, RemoveUnneededQuotes) {
@@ -64,8 +62,7 @@ TEST_F(HtmlAttributeQuoteRemovalTest, RemoveUnneededQuotes) {
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, NoValueNoChange) {
-  ValidateNoChanges("no_value_no_change",
-                    "<input checked type=checkbox>");
+  ValidateNoChanges("no_value_no_change", "<input checked type=checkbox>");
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, DoNotRemoveQuotesInXhtml) {

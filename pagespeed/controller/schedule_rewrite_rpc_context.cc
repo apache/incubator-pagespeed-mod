@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,14 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/schedule_rewrite_rpc_context.h"
 
 #include <memory>
 
 #include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/controller.pb.h"
-#include "pagespeed/controller/schedule_rewrite_callback.h"
 #include "pagespeed/controller/request_result_rpc_client.h"
+#include "pagespeed/controller/schedule_rewrite_callback.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/grpc.h"
@@ -38,8 +37,7 @@ class ScheduleRewriteRpcContext::ScheduleRewriteRequestResultRpcClient
                                     ScheduleRewriteCallback> {
  public:
   ScheduleRewriteRequestResultRpcClient(
-      const GoogleString& key,
-      CentralControllerRpcService::StubInterface* stub,
+      const GoogleString& key, CentralControllerRpcService::StubInterface* stub,
       ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
       MessageHandler* handler, ScheduleRewriteCallback* callback)
       : RequestResultRpcClient(queue, thread_system, handler, callback),
@@ -55,9 +53,7 @@ class ScheduleRewriteRpcContext::ScheduleRewriteRequestResultRpcClient
     return stub->AsyncScheduleRewrite(context, queue, tag);
   }
 
-  ~ScheduleRewriteRequestResultRpcClient() override {
-    MarkSucceeded();
-  }
+  ~ScheduleRewriteRequestResultRpcClient() override { MarkSucceeded(); }
 
   void MarkFailed() {
     ScheduleRewriteRequest req;

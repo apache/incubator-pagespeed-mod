@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_CACHE_BATCHER_H_
 #define PAGESPEED_KERNEL_CACHE_CACHE_BATCHER_H_
 
 #include <cstddef>
-
 #include <unordered_map>
 #include <vector>
 
@@ -77,8 +75,7 @@ class CacheBatcher : public CacheInterface {
   struct Options {
     Options()
         : max_parallel_lookups(kDefaultMaxParallelLookups),
-          max_pending_gets(kDefaultMaxPendingGets) {
-    }
+          max_pending_gets(kDefaultMaxPendingGets) {}
 
     int max_parallel_lookups;
     int max_pending_gets;
@@ -124,7 +121,7 @@ class CacheBatcher : public CacheInterface {
       EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void MoveQueuedKeys() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void ExtractInFlightKeys(const GoogleString& key,
-                   std::vector<CacheInterface::Callback*>* callbacks)
+                           std::vector<CacheInterface::Callback*>* callbacks)
       LOCKS_EXCLUDED(mutex_);
 
   void DecrementInFlightGets(int n) LOCKS_EXCLUDED(mutex_);

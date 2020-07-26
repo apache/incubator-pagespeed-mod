@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Thread-synchronization utility class for reproducing races in unit tests.
 
@@ -40,8 +39,7 @@ class ThreadSynchronizer::SyncPoint {
         condvar_(mutex_->NewCondvar()),
         signal_count_(0),
         key_(key),
-        allow_sloppy_(false) {
-  }
+        allow_sloppy_(false) {}
 
   ~SyncPoint() {
     // TODO(jmarantz): This highlights that further generality is
@@ -101,12 +99,9 @@ ThreadSynchronizer::ThreadSynchronizer(ThreadSystem* thread_system)
     : enabled_(false),
       thread_system_(thread_system),
       map_mutex_(thread_system->NewMutex()),
-      timer_(thread_system->NewTimer()) {
-}
+      timer_(thread_system->NewTimer()) {}
 
-ThreadSynchronizer::~ThreadSynchronizer() {
-  STLDeleteValues(&sync_map_);
-}
+ThreadSynchronizer::~ThreadSynchronizer() { STLDeleteValues(&sync_map_); }
 
 ThreadSynchronizer::SyncPoint* ThreadSynchronizer::GetSyncPoint(
     const GoogleString& key) {

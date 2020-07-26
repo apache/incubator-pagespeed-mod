@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -64,10 +64,7 @@ class MockTimeCache::DelayCallback : public CacheInterface::Callback {
 };
 
 MockTimeCache::MockTimeCache(Scheduler* scheduler, CacheInterface* cache)
-    : scheduler_(scheduler),
-      cache_(cache),
-      delay_us_(0) {
-}
+    : scheduler_(scheduler), cache_(cache), delay_us_(0) {}
 
 MockTimeCache::~MockTimeCache() {}
 
@@ -87,8 +84,6 @@ void MockTimeCache::Put(const GoogleString& key, const SharedString& value) {
   cache_->Put(key, value);
 }
 
-void MockTimeCache::Delete(const GoogleString& key) {
-  cache_->Delete(key);
-}
+void MockTimeCache::Delete(const GoogleString& key) { cache_->Delete(key); }
 
 }  // namespace net_instaweb

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 
@@ -48,8 +47,9 @@ const size_t kUnboundedQueue = 0;
 
 }  // namespace
 
-QueuedWorkerPool::QueuedWorkerPool(
-    int max_workers, StringPiece thread_name_base, ThreadSystem* thread_system)
+QueuedWorkerPool::QueuedWorkerPool(int max_workers,
+                                   StringPiece thread_name_base,
+                                   ThreadSystem* thread_system)
     : thread_system_(thread_system),
       mutex_(thread_system_->NewMutex()),
       max_workers_(max_workers),
@@ -227,8 +227,8 @@ void QueuedWorkerPool::QueueSequence(Sequence* sequence) {
   if (worker != nullptr) {
     worker->RunInWorkThread(
         new MemberFunction2<QueuedWorkerPool, QueuedWorkerPool::Sequence*,
-                            QueuedWorker*>(
-            &QueuedWorkerPool::Run, this, sequence, worker));
+                            QueuedWorker*>(&QueuedWorkerPool::Run, this,
+                                           sequence, worker));
   }
 }
 
@@ -321,8 +321,7 @@ QueuedWorkerPool::Sequence::~Sequence() {
   DCHECK(work_queue_.empty());
 }
 
-QueuedWorkerPool::Sequence::AddFunction::~AddFunction() {
-}
+QueuedWorkerPool::Sequence::AddFunction::~AddFunction() {}
 
 bool QueuedWorkerPool::Sequence::InitiateShutDown() {
   ScopedMutex lock(sequence_mutex_.get());

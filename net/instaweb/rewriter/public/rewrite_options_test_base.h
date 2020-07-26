@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_TEST_BASE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_TEST_BASE_H_
@@ -30,17 +29,14 @@ namespace net_instaweb {
 
 // Helper class to for tests that need to initialized RewriteOptions.  This
 // class is templated so any flavor of RewriteOptions can be used.
-template<class OptionsClass>
+template <class OptionsClass>
 class RewriteOptionsTestBase : public testing::Test {
  public:
-  RewriteOptionsTestBase()
-      : thread_system_(Platform::CreateThreadSystem()) {
+  RewriteOptionsTestBase() : thread_system_(Platform::CreateThreadSystem()) {
     OptionsClass::Initialize();
   }
 
-  ~RewriteOptionsTestBase() override {
-    OptionsClass::Terminate();
-  }
+  ~RewriteOptionsTestBase() override { OptionsClass::Terminate(); }
 
   ThreadSystem* thread_system() { return thread_system_.get(); }
   OptionsClass* NewOptions() { return new OptionsClass(thread_system()); }

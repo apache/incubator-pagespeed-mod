@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,21 +17,21 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/pthread_shared_mem.h"
 
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
 #include <cerrno>
 #include <cstddef>
 #include <map>
 #include <utility>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
+#include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
@@ -67,13 +67,9 @@ class PthreadSharedMemMutex : public AbstractMutex {
     return (pthread_mutex_trylock(external_mutex_) == 0);
   }
 
-  void Lock() override {
-    pthread_mutex_lock(external_mutex_);
-  }
+  void Lock() override { pthread_mutex_lock(external_mutex_); }
 
-  void Unlock() override {
-    pthread_mutex_unlock(external_mutex_);
-  }
+  void Unlock() override { pthread_mutex_unlock(external_mutex_); }
 
  private:
   pthread_mutex_t* external_mutex_;
@@ -85,20 +81,13 @@ class PthreadSharedMemSegment : public AbstractSharedMemSegment {
  public:
   // We will be representing memory mapped in the [base, base + size) range.
   PthreadSharedMemSegment(char* base, size_t size, MessageHandler* handler)
-      : base_(base),
-        size_(size) {
-  }
+      : base_(base), size_(size) {}
 
-  ~PthreadSharedMemSegment() override {
-  }
+  ~PthreadSharedMemSegment() override {}
 
-  volatile char* Base() override {
-    return base_;
-  }
+  volatile char* Base() override { return base_; }
 
-  size_t SharedMutexSize() const override {
-    return sizeof(pthread_mutex_t);
-  }
+  size_t SharedMutexSize() const override { return sizeof(pthread_mutex_t); }
 
   bool InitializeSharedMutex(size_t offset, MessageHandler* handler) override {
     pthread_mutexattr_t attr;
@@ -149,12 +138,9 @@ size_t PthreadSharedMem::s_instance_count_ = 0;
 
 PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::segment_bases_ = nullptr;
 
-PthreadSharedMem::PthreadSharedMem() {
-  instance_number_ = ++s_instance_count_;
-}
+PthreadSharedMem::PthreadSharedMem() { instance_number_ = ++s_instance_count_; }
 
-PthreadSharedMem::~PthreadSharedMem() {
-}
+PthreadSharedMem::~PthreadSharedMem() {}
 
 size_t PthreadSharedMem::SharedMutexSize() const {
   return sizeof(pthread_mutex_t);
@@ -167,14 +153,16 @@ AbstractSharedMemSegment* PthreadSharedMem::CreateSegment(
   int fd = open("/dev/zero", O_RDWR);
   if (fd == -1) {
     handler->Message(
-        kError, "Unable to create SHM segment %s, open of /dev/zero failed "
-        "with errno=%d.", prefixed_name.c_str(), errno);
+        kError,
+        "Unable to create SHM segment %s, open of /dev/zero failed "
+        "with errno=%d.",
+        prefixed_name.c_str(), errno);
     return nullptr;
   }
 
   // map it
   char* base = reinterpret_cast<char*>(
-                   mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+      mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
   int mmap_errno = errno;
   CheckedClose(fd, handler);
   if (base == MAP_FAILED) {

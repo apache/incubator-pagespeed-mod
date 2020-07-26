@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/webp_optimizer.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -30,25 +31,23 @@
 #include "pagespeed/kernel/image/png_optimizer.h"
 #include "pagespeed/kernel/image/read_image.h"
 #include "pagespeed/kernel/image/test_utils.h"
-#include "pagespeed/kernel/image/webp_optimizer.h"
 
 namespace {
 
 using net_instaweb::MockMessageHandler;
 using net_instaweb::NullMutex;
 using pagespeed::image_compression::FrameSpec;
-using pagespeed::image_compression::ImageConverter;
-using pagespeed::image_compression::ImageSpec;
 using pagespeed::image_compression::IMAGE_GIF;
 using pagespeed::image_compression::IMAGE_PNG;
 using pagespeed::image_compression::IMAGE_WEBP;
-using pagespeed::image_compression::kPngSuiteTestDir;
+using pagespeed::image_compression::ImageConverter;
+using pagespeed::image_compression::ImageSpec;
 using pagespeed::image_compression::kMessagePatternPixelFormat;
 using pagespeed::image_compression::kMessagePatternStats;
 using pagespeed::image_compression::kMessagePatternWritingToWebp;
+using pagespeed::image_compression::kPngSuiteTestDir;
 using pagespeed::image_compression::kTestRootDir;
 using pagespeed::image_compression::kWebpTestDir;
-using pagespeed::image_compression::size_px;
 using pagespeed::image_compression::PixelFormat;
 using pagespeed::image_compression::PngScanlineReaderRaw;
 using pagespeed::image_compression::QUIRKS_CHROME;
@@ -61,6 +60,7 @@ using pagespeed::image_compression::SCANLINE_STATUS_SUCCESS;
 using pagespeed::image_compression::ScanlineReaderInterface;
 using pagespeed::image_compression::ScanlineStatus;
 using pagespeed::image_compression::ScanlineWriterInterface;
+using pagespeed::image_compression::size_px;
 using pagespeed::image_compression::WebpConfiguration;
 using pagespeed::image_compression::WebpScanlineReader;
 
@@ -76,9 +76,9 @@ struct ImageInfo {
 // pagespeed_32x32_rgb.png have the same pixel values, but are stored in
 // different formats.
 const ImageInfo kValidImages[] = {
-  {"alpha_32x32", "alpha_32x32"},         // size 32-by-32 with alpha.
-  {"opaque_32x20", "opaque_32x20"},       // size 32-by-20 without alpha.
-  {"gray_saved_as_gray", "gray_saved_as_rgb"},  // images of same contents.
+    {"alpha_32x32", "alpha_32x32"},    // size 32-by-32 with alpha.
+    {"opaque_32x20", "opaque_32x20"},  // size 32-by-20 without alpha.
+    {"gray_saved_as_gray", "gray_saved_as_rgb"},  // images of same contents.
 };
 const size_t kValidImageCount = arraysize(kValidImages);
 
@@ -92,10 +92,9 @@ const char kMessagePatternInvalidWebPData[] = "Invalid WebP data.";
 class WebpScanlineOptimizerTest : public testing::Test {
  public:
   WebpScanlineOptimizerTest()
-    : message_handler_(new NullMutex),
-      reader_(&message_handler_),
-      scanline_(nullptr) {
-  }
+      : message_handler_(new NullMutex),
+        reader_(&message_handler_),
+        scanline_(nullptr) {}
 
   bool Initialize(const char* file_name) {
     if (!ReadTestFile(kWebpTestDir, file_name, "webp", &input_image_)) {
@@ -110,8 +109,7 @@ class WebpScanlineOptimizerTest : public testing::Test {
                         GoogleString* webp_image) {
     PngScanlineReaderRaw png_reader(&message_handler_);
     // Initialize a PNG reader for reading the original image.
-    ASSERT_TRUE(png_reader.Initialize(
-        png_image.data(), png_image.length()));
+    ASSERT_TRUE(png_reader.Initialize(png_image.data(), png_image.length()));
 
     // Get the sizes and pixel format of the original image.
     const size_t width = png_reader.GetImageWidth();
@@ -119,20 +117,19 @@ class WebpScanlineOptimizerTest : public testing::Test {
     const PixelFormat pixel_format = png_reader.GetPixelFormat();
 
     // Create a WebP writer.
-    std::unique_ptr<ScanlineWriterInterface> webp_writer(
-        CreateScanlineWriter(pagespeed::image_compression::IMAGE_WEBP,
-                             pixel_format, width, height, &webp_config,
-                             webp_image, &message_handler_));
+    std::unique_ptr<ScanlineWriterInterface> webp_writer(CreateScanlineWriter(
+        pagespeed::image_compression::IMAGE_WEBP, pixel_format, width, height,
+        &webp_config, webp_image, &message_handler_));
     ASSERT_NE(reinterpret_cast<ScanlineWriterInterface*>(NULL),
               webp_writer.get());
 
     // Read the scanlines from the original image and write them to the new one.
     while (png_reader.HasMoreScanLines()) {
       uint8* scanline = nullptr;
-      ASSERT_TRUE(png_reader.ReadNextScanline(
-          reinterpret_cast<void**>(&scanline)));
-      ASSERT_TRUE(webp_writer->WriteNextScanline(
-          reinterpret_cast<void*>(scanline)));
+      ASSERT_TRUE(
+          png_reader.ReadNextScanline(reinterpret_cast<void**>(&scanline)));
+      ASSERT_TRUE(
+          webp_writer->WriteNextScanline(reinterpret_cast<void*>(scanline)));
     }
     ScanlineStatus status = webp_writer->FinalizeWriteWithStatus();
     ASSERT_TRUE(status.Success()) << "Status=" << status.ToString();
@@ -169,15 +166,13 @@ TEST_F(WebpScanlineOptimizerTest, ConvertToAndReadLossyWebp) {
     GoogleString file_name = kValidImages[i].original_file;
     ReadTestFile(kWebpTestDir, file_name.c_str(), "png", &original_image);
     ConvertPngToWebp(original_image, webp_config, &webp_image);
-    ReadTestFile(kWebpTestDir, kValidImages[i].gold_file, "png",
-                 &gold_image);
-    DecodeAndCompareImagesByPSNR(IMAGE_PNG, gold_image.c_str(),
-                                 gold_image.length(), IMAGE_WEBP,
-                                 webp_image.c_str(), webp_image.length(),
-                                 kMinPSNR,
-                                 true,  // ignore_transparent_rgb
-                                 false,  // do not expand colors
-                                 &message_handler_);
+    ReadTestFile(kWebpTestDir, kValidImages[i].gold_file, "png", &gold_image);
+    DecodeAndCompareImagesByPSNR(
+        IMAGE_PNG, gold_image.c_str(), gold_image.length(), IMAGE_WEBP,
+        webp_image.c_str(), webp_image.length(), kMinPSNR,
+        true,   // ignore_transparent_rgb
+        false,  // do not expand colors
+        &message_handler_);
   }
 }
 
@@ -193,11 +188,9 @@ TEST_F(WebpScanlineOptimizerTest, ConvertToAndReadLosslessWebp) {
     ReadTestFile(kWebpTestDir, kValidImages[i].original_file, "png",
                  &original_image);
     ConvertPngToWebp(original_image, webp_config, &webp_image);
-    ReadTestFile(kWebpTestDir, kValidImages[i].gold_file, "png",
-                 &gold_image);
+    ReadTestFile(kWebpTestDir, kValidImages[i].gold_file, "png", &gold_image);
     DecodeAndCompareImages(IMAGE_PNG, gold_image.c_str(), gold_image.length(),
-                           IMAGE_WEBP, webp_image.c_str(),
-                           webp_image.length(),
+                           IMAGE_WEBP, webp_image.c_str(), webp_image.length(),
                            true,  // ignore_transparent_rgb
                            &message_handler_);
   }
@@ -216,7 +209,7 @@ TEST_F(WebpScanlineOptimizerTest, CompareToWebpGolds) {
     DecodeAndCompareImagesByPSNR(IMAGE_PNG, png_image.c_str(),
                                  png_image.length(), IMAGE_WEBP,
                                  webp_image.c_str(), webp_image.length(), 55,
-                                 true,  // ignore_transparent_rgb
+                                 true,   // ignore_transparent_rgb
                                  false,  // do not expand colors
                                  &message_handler_);
   }
@@ -268,20 +261,17 @@ TEST_F(WebpScanlineOptimizerTest, InvalidWebpBody) {
   ASSERT_FALSE(reader_.ReadNextScanline(&scanline_));
 }
 
-
 class AnimatedWebpTest : public testing::Test {
  public:
   AnimatedWebpTest() : message_handler_(new NullMutex) {}
 
-  void ConvertGifToWebp(const char* filename,
-                        const GoogleString& input_image,
+  void ConvertGifToWebp(const char* filename, const GoogleString& input_image,
                         WebpConfiguration* webp_config,
                         GoogleString* webp_image) {
     ScanlineStatus status;
-    reader_.reset(
-        CreateImageFrameReader(IMAGE_GIF,
-                               input_image.c_str(), input_image.length(),
-                               QUIRKS_CHROME, &message_handler_, &status));
+    reader_.reset(CreateImageFrameReader(IMAGE_GIF, input_image.c_str(),
+                                         input_image.length(), QUIRKS_CHROME,
+                                         &message_handler_, &status));
     ASSERT_TRUE(status.Success());
 
     writer_.reset(CreateImageFrameWriter(IMAGE_WEBP, webp_config, webp_image,
@@ -289,15 +279,15 @@ class AnimatedWebpTest : public testing::Test {
     ASSERT_TRUE(status.Success());
 
     EXPECT_TRUE(
-        ImageConverter::ConvertMultipleFrameImage(reader_.get(),
-                                                  writer_.get()).Success())
+        ImageConverter::ConvertMultipleFrameImage(reader_.get(), writer_.get())
+            .Success())
         << " for '" << filename << "'";
   }
 
   void CheckGifVsWebP(const char* filename, WebpConfiguration* webp_config,
                       bool check_pixels) {
-    GoogleString input_path = StrCat(net_instaweb::GTestSrcDir(),
-                                                   kTestRootDir, filename);
+    GoogleString input_path =
+        StrCat(net_instaweb::GTestSrcDir(), kTestRootDir, filename);
 
     GoogleString input_image;
     ASSERT_TRUE(ReadFile(input_path, &input_image));
@@ -307,23 +297,19 @@ class AnimatedWebpTest : public testing::Test {
     ConvertGifToWebp(filename, input_image, webp_config, &output_image);
 
     GoogleString output_path =
-        StrCat(net_instaweb::GTestTempDir(),
-                             kTestRootDir,
-                             filename, ".webp");
+        StrCat(net_instaweb::GTestTempDir(), kTestRootDir, filename, ".webp");
 
     if (check_pixels) {
-      EXPECT_TRUE(
-          pagespeed::image_compression::CompareAnimatedImages(
-              filename, output_image, &message_handler_));
+      EXPECT_TRUE(pagespeed::image_compression::CompareAnimatedImages(
+          filename, output_image, &message_handler_));
     }
   }
 
   void PrepareWriterFor5x5Image(size_px num_frames) {
     webp_config_.lossless = false;
     ScanlineStatus status;
-    writer_.reset(
-        CreateImageFrameWriter(IMAGE_WEBP, &webp_config_, &output_image_,
-                               &message_handler_, &status));
+    writer_.reset(CreateImageFrameWriter(
+        IMAGE_WEBP, &webp_config_, &output_image_, &message_handler_, &status));
     ASSERT_TRUE(status.Success());
 
     image_spec_.width = 5;
@@ -335,12 +321,10 @@ class AnimatedWebpTest : public testing::Test {
 
  protected:
   MockMessageHandler message_handler_;
-  std::unique_ptr<
-    pagespeed::image_compression::MultipleFrameWriter> writer_;
+  std::unique_ptr<pagespeed::image_compression::MultipleFrameWriter> writer_;
 
  private:
-  std::unique_ptr<
-    pagespeed::image_compression::MultipleFrameReader> reader_;
+  std::unique_ptr<pagespeed::image_compression::MultipleFrameReader> reader_;
 
   WebpConfiguration webp_config_;
   GoogleString output_image_;
@@ -448,7 +432,7 @@ TEST_F(AnimatedWebpTest, RequireAllScanlines) {
   EXPECT_TRUE(writer_->PrepareNextFrame(&frame_spec, &status));
 
   uint8_t scanline[300];
-  memset(scanline, 0x80, GetBytesPerPixel(RGB_888)*frame_spec.width);
+  memset(scanline, 0x80, GetBytesPerPixel(RGB_888) * frame_spec.width);
   EXPECT_TRUE(writer_->WriteNextScanline(scanline, &status));
 
 #ifndef NDEBUG
@@ -474,7 +458,7 @@ TEST_F(AnimatedWebpTest, RejectExtraScanlines) {
   EXPECT_TRUE(writer_->PrepareNextFrame(&frame_spec, &status));
 
   uint8_t scanline[300];
-  memset(scanline, 0x80, GetBytesPerPixel(RGB_888)*frame_spec.width);
+  memset(scanline, 0x80, GetBytesPerPixel(RGB_888) * frame_spec.width);
   for (int j = 0; j < frame_spec.height; ++j) {
     EXPECT_TRUE(writer_->WriteNextScanline(scanline, &status));
   }

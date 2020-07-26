@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,8 +19,6 @@
 
 // Unit-test the threadsafe cache.  Creates an LRU-cache first, and then
 // wraps a thread-safe cache around that and a mutex
-
-#include "pagespeed/kernel/sharedmem/shared_mem_cache.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -36,6 +34,7 @@
 #include "pagespeed/kernel/cache/cache_spammer.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/sharedmem/inprocess_shared_mem.h"
+#include "pagespeed/kernel/sharedmem/shared_mem_cache.h"
 #include "pagespeed/kernel/util/platform.h"
 
 namespace {
@@ -45,7 +44,7 @@ const int kNumIters = 10000;
 const int kNumInserts = 10;
 const int kSectors = 128;
 const char kSegmentName[] = "/shared_cache_spammer_test_segment";
-}
+}  // namespace
 
 namespace net_instaweb {
 
@@ -63,8 +62,7 @@ class SharedMemCacheSpammerTest : public testing::Test {
   }
 
   ~SharedMemCacheSpammerTest() override {
-    ShmCache::GlobalCleanup(&in_process_shared_mem_,
-                            kSegmentName,
+    ShmCache::GlobalCleanup(&in_process_shared_mem_, kSegmentName,
                             &message_handler_);
   }
 
@@ -73,17 +71,12 @@ class SharedMemCacheSpammerTest : public testing::Test {
     int64 size_cap;
     ShmCache::ComputeDimensions(
         kMaxSize /* size_kb */,
-        2 /* block/entry ratio, based empirically off load tests */,
-        kSectors, &entries, &blocks, &size_cap);
-    ShmCache* cache = new ShmCache(
-        &in_process_shared_mem_,
-        kSegmentName,
-        timer_.get(),
-        &hasher_,
-        kSectors,
-        entries,  /* entries per sector */
-        blocks /* blocks per sector*/,
-        &message_handler_);
+        2 /* block/entry ratio, based empirically off load tests */, kSectors,
+        &entries, &blocks, &size_cap);
+    ShmCache* cache =
+        new ShmCache(&in_process_shared_mem_, kSegmentName, timer_.get(),
+                     &hasher_, kSectors, entries, /* entries per sector */
+                     blocks /* blocks per sector*/, &message_handler_);
     return cache;
   }
 
@@ -91,8 +84,7 @@ class SharedMemCacheSpammerTest : public testing::Test {
                   const char* value_pattern) {
     CacheSpammer::RunTests(kNumThreads, kNumIters, kNumInserts,
                            expecting_evictions, do_deletes, value_pattern,
-                           cache_.get(),
-                           thread_system_.get());
+                           cache_.get(), thread_system_.get());
     cache_->SanityCheck();
   }
 

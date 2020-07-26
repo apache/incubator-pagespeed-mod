@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,8 +18,9 @@
  */
 
 //
-// CPU: Intel Ivybridge with HyperThreading (6 cores) dL1:32KB dL2:256KB dL3:12MB  // NOLINT
-// Benchmark                       Time(ns)    CPU(ns) Iterations
+// CPU: Intel Ivybridge with HyperThreading (6 cores) dL1:32KB dL2:256KB
+// dL3:12MB  // NOLINT Benchmark                       Time(ns)    CPU(ns)
+// Iterations
 // --------------------------------------------------------------
 // BM_RewriteDriverConstruction      36496      36538      19067
 // BM_EmptyFilter                  4355548    4397615        154
@@ -32,12 +33,11 @@
 
 #include <memory>
 
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
-
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/process_context.h"
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -59,8 +59,8 @@ class SpeedTestContext {
   SpeedTestContext() {
     StopBenchmarkTiming();
     RewriteDriverFactory::Initialize();
-    factory_.reset(new TestRewriteDriverFactory(
-        process_context, "/tmp", &fetcher_));
+    factory_.reset(
+        new TestRewriteDriverFactory(process_context, "/tmp", &fetcher_));
     TestRewriteDriverFactory::InitStats(factory_->statistics());
     server_context_ = factory_->CreateServerContext();
     StartBenchmarkTiming();
@@ -73,16 +73,16 @@ class SpeedTestContext {
 
   RewriteDriver* NewDriver(RewriteOptions* options) {
     return server_context_->NewCustomRewriteDriver(
-        options, RequestContext::NewTestRequestContext(
-            factory_->thread_system()));
+        options,
+        RequestContext::NewTestRequestContext(factory_->thread_system()));
   }
 
   TestRewriteDriverFactory* factory() { return factory_.get(); }
   ServerContext* server_context() { return server_context_; }
 
   // Setup statistics for the given cohort and add it to the give PropertyCache.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort) {
+  const PropertyCache::Cohort* SetupCohort(PropertyCache* cache,
+                                           const GoogleString& cohort) {
     return factory_->SetupCohort(cache, cohort);
   }
 
@@ -90,8 +90,7 @@ class SpeedTestContext {
   MockPropertyPage* NewMockPage(StringPiece url) {
     return new MockPropertyPage(
         server_context_->thread_system(),
-        server_context_->page_property_cache(),
-        url, "hash",
+        server_context_->page_property_cache(), url, "hash",
         UserAgentMatcher::DeviceTypeSuffix(UserAgentMatcher::kDesktop));
   }
 
@@ -104,8 +103,8 @@ class SpeedTestContext {
 static void BM_RewriteDriverConstruction(int iters) {
   SpeedTestContext speed_test_context;
   for (int i = 0; i < iters; ++i) {
-    RewriteOptions* options = new RewriteOptions(
-        speed_test_context.factory()->thread_system());
+    RewriteOptions* options =
+        new RewriteOptions(speed_test_context.factory()->thread_system());
     options->SetRewriteLevel(RewriteOptions::kAllFilters);
     RewriteDriver* driver = speed_test_context.NewDriver(options);
     driver->Cleanup();
@@ -122,18 +121,16 @@ static void BM_EmptyFilter(int iters) {
   // Set up the cohorts which are needed for some filters to operate properly.
   ServerContext* server_context = speed_test_context.server_context();
   PropertyCache* page_property_cache = server_context->page_property_cache();
-  const PropertyCache::Cohort* beacon_cohort =
-      speed_test_context.SetupCohort(page_property_cache,
-                                     RewriteDriver::kBeaconCohort);
+  const PropertyCache::Cohort* beacon_cohort = speed_test_context.SetupCohort(
+      page_property_cache, RewriteDriver::kBeaconCohort);
   server_context->set_beacon_cohort(beacon_cohort);
-  const PropertyCache::Cohort* dom_cohort =
-      speed_test_context.SetupCohort(page_property_cache,
-                                     RewriteDriver::kDomCohort);
+  const PropertyCache::Cohort* dom_cohort = speed_test_context.SetupCohort(
+      page_property_cache, RewriteDriver::kDomCohort);
   server_context->set_dom_cohort(dom_cohort);
 
   // Set up the driver to enable all filters.
-  std::unique_ptr<RewriteOptions> options(new RewriteOptions(
-      speed_test_context.factory()->thread_system()));
+  std::unique_ptr<RewriteOptions> options(
+      new RewriteOptions(speed_test_context.factory()->thread_system()));
   options->SetRewriteLevel(RewriteOptions::kAllFilters);
 
   GoogleString html;
@@ -149,8 +146,8 @@ static void BM_EmptyFilter(int iters) {
     // Critical css needs its finder and pcache to work, and of course we
     // don't want to accumulate everything in memory after every file, so we
     // set it up fresh.
-    driver->set_property_page(speed_test_context.NewMockPage(
-        "http://example.com"));
+    driver->set_property_page(
+        speed_test_context.NewMockPage("http://example.com"));
     page_property_cache->Read(driver->property_page());
 
     // Set up and register a beacon finder.

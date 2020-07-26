@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_NOTIFYING_FETCH_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_NOTIFYING_FETCH_H_
@@ -39,8 +38,7 @@ class RewriteOptions;
 class NotifyingFetch : public AsyncFetch {
  public:
   NotifyingFetch(const RequestContextPtr& request_context,
-                 RewriteOptions* options,
-                 const GoogleString& url,
+                 RewriteOptions* options, const GoogleString& url,
                  WorkerTestBase::SyncPoint* sync,
                  ResponseHeaders* response_headers);
   ~NotifyingFetch() override;
@@ -51,8 +49,8 @@ class NotifyingFetch : public AsyncFetch {
 
  protected:
   void HandleHeadersComplete() override {}
-  bool HandleWrite(const StringPiece& content, MessageHandler* handler)
-      override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   bool HandleFlush(MessageHandler* handler) override;
   void HandleDone(bool success) override;
   bool IsCachedResultValid(const ResponseHeaders& headers) override;

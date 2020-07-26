@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/controller/central_controller_rpc_server.h"
 
@@ -37,8 +36,7 @@ CentralControllerRpcServer::CentralControllerRpcServer(
     : listen_address_(listen_address),
       expensive_operation_controller_(expensive_operation_controller),
       rewrite_controller_(rewrite_controller),
-      handler_(handler) {
-}
+      handler_(handler) {}
 
 int CentralControllerRpcServer::Setup() {
   ::grpc::ServerBuilder builder;
@@ -64,8 +62,7 @@ int CentralControllerRpcServer::Setup() {
 }
 
 int CentralControllerRpcServer::Run() {
-  PS_LOG_INFO(handler_,
-              "CentralControllerRpcServer processing requests on %s",
+  PS_LOG_INFO(handler_, "CentralControllerRpcServer processing requests on %s",
               listen_address_.c_str());
 
   MainLoop(queue_.get());

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,13 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/base/circular_buffer.h"
 
 #include <cstdlib>
-#include "pagespeed/kernel/base/circular_buffer.h"
+
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 
@@ -45,8 +46,8 @@ TEST_F(CircularBufferTest, InstantiateWithPreAllocatedBlock) {
   const int capacity = 10;
   const int segment_size = CircularBuffer::Sizeof(capacity);
   void* segment = static_cast<void*>(malloc(segment_size));
-  CircularBuffer* cb = CircularBuffer::Init(true, segment,
-                                            segment_size, capacity);
+  CircularBuffer* cb =
+      CircularBuffer::Init(true, segment, segment_size, capacity);
   if (cb != nullptr) {
     cb->Write("0123456789");
   }
@@ -101,8 +102,8 @@ TEST_F(CircularBufferTest, SmallSize) {
   // CircularBuffer instantiated with pre-allocated buffer.
   int segment_size = CircularBuffer::Sizeof(capacity);
   void* segment = static_cast<void*>(malloc(segment_size));
-  CircularBuffer* temp = CircularBuffer::Init(true, segment,
-                                              segment_size, capacity);
+  CircularBuffer* temp =
+      CircularBuffer::Init(true, segment, segment_size, capacity);
   temp->Write("0");
   EXPECT_EQ("0", temp->ToString(&handler_));
   temp->Write("1");

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/cache/threadsafe_cache.h"
 
@@ -29,8 +28,7 @@
 
 namespace net_instaweb {
 
-ThreadsafeCache::~ThreadsafeCache() {
-}
+ThreadsafeCache::~ThreadsafeCache() {}
 
 GoogleString ThreadsafeCache::FormatName(StringPiece name) {
   return StrCat("ThreadsafeCache(", name, ")");
@@ -46,8 +44,7 @@ class ThreadsafeCallback : public DelegatingCacheCallback {
     mutex_->Lock();
   }
 
-  ~ThreadsafeCallback() override {
-  }
+  ~ThreadsafeCallback() override {}
 
   void Done(CacheInterface::KeyState state) override UNLOCK_FUNCTION(mutex_) {
     mutex_->Unlock();

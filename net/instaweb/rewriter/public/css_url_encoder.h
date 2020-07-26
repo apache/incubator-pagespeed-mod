@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,14 +53,11 @@ class CssUrlEncoder : public UrlSegmentEncoder {
   CssUrlEncoder() {}
   ~CssUrlEncoder() override;
 
-  void Encode(const StringVector& urls,
-                      const ResourceContext* encoding,
-                      GoogleString* rewritten_url) const override;
+  void Encode(const StringVector& urls, const ResourceContext* encoding,
+              GoogleString* rewritten_url) const override;
 
-  bool Decode(const StringPiece& url_segment,
-                      StringVector* urls,
-                      ResourceContext* dim,
-                      MessageHandler* handler) const override;
+  bool Decode(const StringPiece& url_segment, StringVector* urls,
+              ResourceContext* dim, MessageHandler* handler) const override;
 
   // Sets Inlining of image according to the user agent.
   static void SetInliningImages(const RequestProperties& request_properties,

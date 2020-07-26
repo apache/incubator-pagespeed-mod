@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 
@@ -35,11 +34,9 @@ namespace net_instaweb {
 SingleRewriteContext::SingleRewriteContext(RewriteDriver* driver,
                                            RewriteContext* parent,
                                            ResourceContext* resource_context)
-    : RewriteContext(driver, parent, resource_context) {
-}
+    : RewriteContext(driver, parent, resource_context) {}
 
-SingleRewriteContext::~SingleRewriteContext() {
-}
+SingleRewriteContext::~SingleRewriteContext() {}
 
 bool SingleRewriteContext::Partition(OutputPartitions* partitions,
                                      OutputResourceVector* outputs) {
@@ -52,8 +49,8 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
       GoogleString failure_reason;
       OutputResourcePtr output_resource(
           Driver()->CreateOutputResourceFromResource(
-              id(), encoder(), resource_context(),
-              resource, kind(), &failure_reason));
+              id(), encoder(), resource_context(), resource, kind(),
+              &failure_reason));
       if (output_resource.get() == nullptr) {
         partitions->add_debug_message(failure_reason);
       } else {
@@ -70,8 +67,7 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
   return ret;
 }
 
-void SingleRewriteContext::Rewrite(int partition_index,
-                                   CachedResult* partition,
+void SingleRewriteContext::Rewrite(int partition_index, CachedResult* partition,
                                    const OutputResourcePtr& output_resource) {
   CHECK_EQ(0, partition_index);
   ResourcePtr resource(slot(0)->resource());
@@ -84,8 +80,8 @@ void SingleRewriteContext::Rewrite(int partition_index,
   RewriteSingle(resource, output_resource);
 }
 
-void SingleRewriteContext::AddLinkRelCanonical(
-    const ResourcePtr& input, ResponseHeaders* output) {
+void SingleRewriteContext::AddLinkRelCanonical(const ResourcePtr& input,
+                                               ResponseHeaders* output) {
   if (output->HasLinkRelCanonical() ||
       input->response_headers()->HasLinkRelCanonical()) {
     return;

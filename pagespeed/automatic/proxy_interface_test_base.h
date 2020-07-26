@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_AUTOMATIC_PROXY_INTERFACE_TEST_BASE_H_
 #define PAGESPEED_AUTOMATIC_PROXY_INTERFACE_TEST_BASE_H_
@@ -60,12 +59,11 @@ class ProxyUrlNamer : public UrlNamer {
   ProxyUrlNamer() : authorized_(true) {}
 
   // Given the request_url, generate the original url.
-  bool Decode(const GoogleUrl& gurl,
-              const RewriteOptions* rewrite_options,
+  bool Decode(const GoogleUrl& gurl, const RewriteOptions* rewrite_options,
               GoogleString* decoded) const override;
 
   bool IsAuthorized(const GoogleUrl& gurl,
-                            const RewriteOptions& options) const override {
+                    const RewriteOptions& options) const override {
     return authorized_;
   }
 
@@ -85,10 +83,7 @@ class ProxyUrlNamer : public UrlNamer {
 class MockFilter : public EmptyHtmlFilter {
  public:
   explicit MockFilter(RewriteDriver* driver)
-      : driver_(driver),
-        num_elements_(0),
-        num_elements_property_(NULL) {
-  }
+      : driver_(driver), num_elements_(0), num_elements_property_(NULL) {}
 
   void StartDocument() override;
 
@@ -126,8 +121,7 @@ class CreateFilterCallback
 class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
  public:
   explicit BackgroundFetchCheckingAsyncFetch(AsyncFetch* base_fetch)
-      : SharedAsyncFetch(base_fetch),
-        async_fetch_(base_fetch) {}
+      : SharedAsyncFetch(base_fetch), async_fetch_(base_fetch) {}
   ~BackgroundFetchCheckingAsyncFetch() override {}
 
   void HandleHeadersComplete() override {
@@ -153,13 +147,11 @@ class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
 class BackgroundFetchCheckingUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
   explicit BackgroundFetchCheckingUrlAsyncFetcher(UrlAsyncFetcher* fetcher)
-      : base_fetcher_(fetcher),
-        num_background_fetches_(0) {}
+      : base_fetcher_(fetcher), num_background_fetches_(0) {}
   ~BackgroundFetchCheckingUrlAsyncFetcher() override {}
 
-  void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch) override {
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override {
     if (fetch->IsBackgroundFetch()) {
       num_background_fetches_++;
     }
@@ -188,40 +180,32 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
   void SetUp() override;
   void TearDown() override;
 
-  void FetchFromProxy(
-      const StringPiece& url,
-      const RequestHeaders& request_headers,
-      bool expect_success,
-      GoogleString* string_out,
-      ResponseHeaders* headers_out,
-      bool proxy_fetch_property_callback_collector_created);
+  void FetchFromProxy(const StringPiece& url,
+                      const RequestHeaders& request_headers,
+                      bool expect_success, GoogleString* string_out,
+                      ResponseHeaders* headers_out,
+                      bool proxy_fetch_property_callback_collector_created);
 
   void FetchFromProxy(const StringPiece& url,
                       const RequestHeaders& request_headers,
-                      bool expect_success,
-                      GoogleString* string_out,
+                      bool expect_success, GoogleString* string_out,
                       ResponseHeaders* headers_out);
 
-  void FetchFromProxy(const StringPiece& url,
-                      bool expect_success,
-                      GoogleString* string_out,
-                      ResponseHeaders* headers_out);
+  void FetchFromProxy(const StringPiece& url, bool expect_success,
+                      GoogleString* string_out, ResponseHeaders* headers_out);
 
-  void FetchFromProxyLoggingFlushes(const StringPiece& url,
-                                    bool expect_success,
+  void FetchFromProxyLoggingFlushes(const StringPiece& url, bool expect_success,
                                     GoogleString* string_out);
 
   void FetchFromProxyNoWait(const StringPiece& url,
                             const RequestHeaders& request_headers,
-                            bool expect_success,
-                            bool log_flush,
+                            bool expect_success, bool log_flush,
                             ResponseHeaders* headers_out);
 
   void WaitForFetch(bool proxy_fetch_property_callback_collector_created);
 
-  void TestPropertyCache(const StringPiece& url,
-                         bool delay_pcache, bool thread_pcache,
-                         bool expect_success);
+  void TestPropertyCache(const StringPiece& url, bool delay_pcache,
+                         bool thread_pcache, bool expect_success);
 
   void TestPropertyCacheWithHeadersAndOutput(
       const StringPiece& url, bool delay_pcache, bool thread_pcache,

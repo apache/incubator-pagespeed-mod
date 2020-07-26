@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,12 @@
  * under the License.
  */
 
-
 // Unit-test the lru cache
 
 #include "pagespeed/kernel/cache/lru_cache.h"
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
 
@@ -34,9 +34,7 @@ namespace net_instaweb {
 
 class LRUCacheTest : public CacheTestBase {
  protected:
-  LRUCacheTest()
-      : cache_(kMaxSize) {
-  }
+  LRUCacheTest() : cache_(kMaxSize) {}
 
   CacheInterface* Cache() override { return &cache_; }
   void PostOpCleanup() override { cache_.SanityCheck(); }
@@ -104,10 +102,10 @@ TEST_F(LRUCacheTest, DeleteWithPrefix) {
 TEST_F(LRUCacheTest, LeastRecentlyUsed) {
   // Fill the cache.
   GoogleString keys[10], values[10];
-  const char key_pattern[]      = "name%d";
-  const char value_pattern[]    = "valu%d";
+  const char key_pattern[] = "name%d";
+  const char value_pattern[] = "valu%d";
   const int key_plus_value_size = 10;  // strlen("name7") + strlen("valu7")
-  const size_t num_elements        = kMaxSize / key_plus_value_size;
+  const size_t num_elements = kMaxSize / key_plus_value_size;
   for (int i = 0; i < 10; ++i) {
     absl::StrAppendFormat(&keys[i], key_pattern, i);
     absl::StrAppendFormat(&values[i], value_pattern, i);

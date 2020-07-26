@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_SYSTEM_SYSTEM_CACHES_H_
 #define PAGESPEED_SYSTEM_SYSTEM_CACHES_H_
@@ -83,8 +82,7 @@ class SystemCaches {
 
   // thread_limit is an estimate of number of threads that may access the
   // cache at the same time. Does not take ownership of shm_runtime.
-  SystemCaches(RewriteDriverFactory* factory,
-               AbstractSharedMem* shm_runtime,
+  SystemCaches(RewriteDriverFactory* factory, AbstractSharedMem* shm_runtime,
                int thread_limit);
 
   // Note that you must call ShutDown() before this is deleted.
@@ -115,8 +113,8 @@ class SystemCaches {
   //
   // Returns whether successful or not, and if not, *error_msg will contain
   // an error message.  Meant to be called from config parsing.
-  bool CreateShmMetadataCache(
-      StringPiece name, int64 size_kb, GoogleString* error_msg);
+  bool CreateShmMetadataCache(StringPiece name, int64 size_kb,
+                              GoogleString* error_msg);
 
   // Returns, perhaps creating it, an appropriate named manager for this config
   // (potentially sharing with others as appropriate).

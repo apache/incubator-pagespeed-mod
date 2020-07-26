@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,7 +20,6 @@
 // Test that basic GifReader operations succeed or fail as expected.
 // Note that read-in file contents are tested against golden RGBA
 // files in png_optimizer_test.cc, not here.
-
 
 #include "pagespeed/kernel/image/gif_reader.h"
 
@@ -48,8 +47,8 @@ namespace image_compression {
 // Friend adapter so we can instantiate GifFrameReader.
 class TestGifFrameReader : public GifFrameReader {
  public:
-  explicit TestGifFrameReader(MessageHandler* handler) :
-      GifFrameReader(handler) {}
+  explicit TestGifFrameReader(MessageHandler* handler)
+      : GifFrameReader(handler) {}
 };
 
 }  // namespace image_compression
@@ -68,37 +67,39 @@ extern "C" {
 
 using net_instaweb::MockMessageHandler;
 using net_instaweb::NullMutex;
-using pagespeed::image_compression::kAlphaOpaque;
-using pagespeed::image_compression::kAlphaTransparent;
-using pagespeed::image_compression::kGifTestDir;
-using pagespeed::image_compression::kPngSuiteGifTestDir;
-using pagespeed::image_compression::kPngSuiteTestDir;
-using pagespeed::image_compression::kPngTestDir;
-using pagespeed::image_compression::kValidGifImageCount;
-using pagespeed::image_compression::kValidGifImages;
-using pagespeed::image_compression::size_px;
 using pagespeed::image_compression::FrameSpec;
 using pagespeed::image_compression::FrameToScanlineReaderAdapter;
 using pagespeed::image_compression::GifDisposalToFrameSpecDisposal;
 using pagespeed::image_compression::GifFrameReader;
 using pagespeed::image_compression::GifReader;
 using pagespeed::image_compression::GifSquare;
-using pagespeed::image_compression::ImageFormat;
-using pagespeed::image_compression::ImageSpec;
 using pagespeed::image_compression::IMAGE_GIF;
 using pagespeed::image_compression::IMAGE_PNG;
+using pagespeed::image_compression::ImageFormat;
+using pagespeed::image_compression::ImageSpec;
+using pagespeed::image_compression::kAlphaOpaque;
+using pagespeed::image_compression::kAlphaTransparent;
+using pagespeed::image_compression::kGifTestDir;
+using pagespeed::image_compression::kMessagePatternFailedToOpen;
+using pagespeed::image_compression::kMessagePatternFailedToRead;
+using pagespeed::image_compression::kMessagePatternLibpngError;
+using pagespeed::image_compression::kMessagePatternLibpngWarning;
+using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
+using pagespeed::image_compression::kPngSuiteGifTestDir;
+using pagespeed::image_compression::kPngSuiteTestDir;
+using pagespeed::image_compression::kPngTestDir;
+using pagespeed::image_compression::kValidGifImageCount;
+using pagespeed::image_compression::kValidGifImages;
 using pagespeed::image_compression::MultipleFrameReader;
 using pagespeed::image_compression::PackAsArgb;
 using pagespeed::image_compression::PixelFormat;
-using pagespeed::image_compression::PixelFormat;
 using pagespeed::image_compression::PixelRgbaChannels;
 using pagespeed::image_compression::PngReaderInterface;
-using pagespeed::image_compression::ReadTestFile;
-using pagespeed::image_compression::ReadFile;
-using pagespeed::image_compression::RgbaChannels;
 using pagespeed::image_compression::QUIRKS_CHROME;
 using pagespeed::image_compression::QUIRKS_FIREFOX;
 using pagespeed::image_compression::QUIRKS_NONE;
+using pagespeed::image_compression::ReadFile;
+using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::RGB_888;
 using pagespeed::image_compression::RGBA_8888;
 using pagespeed::image_compression::RGBA_ALPHA;
@@ -106,38 +107,19 @@ using pagespeed::image_compression::RGBA_BLUE;
 using pagespeed::image_compression::RGBA_GREEN;
 using pagespeed::image_compression::RGBA_NUM_CHANNELS;
 using pagespeed::image_compression::RGBA_RED;
+using pagespeed::image_compression::RgbaChannels;
 using pagespeed::image_compression::ScanlineStatus;
 using pagespeed::image_compression::ScopedPngStruct;
+using pagespeed::image_compression::size_px;
 using pagespeed::image_compression::TestGifFrameReader;
-using pagespeed::image_compression::kMessagePatternFailedToOpen;
-using pagespeed::image_compression::kMessagePatternFailedToRead;
-using pagespeed::image_compression::kMessagePatternLibpngError;
-using pagespeed::image_compression::kMessagePatternLibpngWarning;
-using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
 
-const char *kValidOpaqueGifImages[] = {
-  "basi0g01",
-  "basi0g02",
-  "basi0g04",
-  "basi0g08",
-  "basi3p01",
-  "basi3p02",
-  "basi3p04",
-  "basi3p08",
-  "basn0g01",
-  "basn0g02",
-  "basn0g04",
-  "basn0g08",
-  "basn3p01",
-  "basn3p02",
-  "basn3p04",
-  "basn3p08",
+const char* kValidOpaqueGifImages[] = {
+    "basi0g01", "basi0g02", "basi0g04", "basi0g08", "basi3p01", "basi3p02",
+    "basi3p04", "basi3p08", "basn0g01", "basn0g02", "basn0g04", "basn0g08",
+    "basn3p01", "basn3p02", "basn3p04", "basn3p08",
 };
 
-const char *kValidTransparentGifImages[] = {
-  "tr-basi4a08",
-  "tr-basn4a08"
-};
+const char* kValidTransparentGifImages[] = {"tr-basi4a08", "tr-basn4a08"};
 
 const size_t kValidOpaqueGifImageCount = arraysize(kValidOpaqueGifImages);
 const size_t kValidTransparentGifImageCount =
@@ -162,10 +144,9 @@ const char kMessagePatternMultipleFrameGif[] =
 class GifReaderTest : public testing::Test {
  public:
   GifReaderTest()
-    : message_handler_(new NullMutex),
-      gif_reader_(new GifReader(&message_handler_)),
-      read_(ScopedPngStruct::READ, &message_handler_) {
-  }
+      : message_handler_(new NullMutex),
+        gif_reader_(new GifReader(&message_handler_)),
+        read_(ScopedPngStruct::READ, &message_handler_) {}
 
  protected:
   void SetUp() override {
@@ -185,8 +166,7 @@ class GifReaderTest : public testing::Test {
 TEST_F(GifReaderTest, LoadValidGifsWithoutTransforms) {
   GoogleString in, out;
   for (size_t i = 0; i < kValidOpaqueGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                      PNG_TRANSFORM_IDENTITY))
@@ -195,8 +175,8 @@ TEST_F(GifReaderTest, LoadValidGifsWithoutTransforms) {
   }
 
   for (size_t i = 0; i < kValidTransparentGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif",
+                 &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                      PNG_TRANSFORM_IDENTITY))
@@ -213,8 +193,7 @@ TEST_F(GifReaderTest, LoadValidGifsWithoutTransforms) {
 TEST_F(GifReaderTest, ExpandColorMapForValidGifs) {
   GoogleString in, out;
   for (size_t i = 0; i < kValidOpaqueGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                      PNG_TRANSFORM_EXPAND))
@@ -223,8 +202,8 @@ TEST_F(GifReaderTest, ExpandColorMapForValidGifs) {
   }
 
   for (size_t i = 0; i < kValidTransparentGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif",
+                 &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                      PNG_TRANSFORM_EXPAND))
@@ -241,8 +220,7 @@ TEST_F(GifReaderTest, ExpandColorMapForValidGifs) {
 TEST_F(GifReaderTest, RequireOpaqueForValidGifs) {
   GoogleString in;
   for (size_t i = 0; i < kValidOpaqueGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                      PNG_TRANSFORM_IDENTITY, true))
@@ -251,8 +229,8 @@ TEST_F(GifReaderTest, RequireOpaqueForValidGifs) {
   }
 
   for (size_t i = 0; i < kValidTransparentGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif",
+                 &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_FALSE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                       PNG_TRANSFORM_IDENTITY, true))
@@ -269,8 +247,7 @@ TEST_F(GifReaderTest, RequireOpaqueForValidGifs) {
 TEST_F(GifReaderTest, ExpandColormapAndRequireOpaqueForValidGifs) {
   GoogleString in;
   for (size_t i = 0; i < kValidOpaqueGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidOpaqueGifImages[i], "gif", &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                      PNG_TRANSFORM_EXPAND, true))
@@ -279,8 +256,8 @@ TEST_F(GifReaderTest, ExpandColormapAndRequireOpaqueForValidGifs) {
   }
 
   for (size_t i = 0; i < kValidTransparentGifImageCount; i++) {
-    ReadTestFile(
-        kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif", &in);
+    ReadTestFile(kPngSuiteGifTestDir, kValidTransparentGifImages[i], "gif",
+                 &in);
     ASSERT_NE(static_cast<size_t>(0), in.length());
     ASSERT_FALSE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                       PNG_TRANSFORM_EXPAND, true))
@@ -308,32 +285,24 @@ TEST_F(GifReaderTest, StripAlpha) {
   ASSERT_NE(static_cast<size_t>(0), in.length());
   ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
                                    PNG_TRANSFORM_STRIP_ALPHA, false));
-  png_get_IHDR(read_.png_ptr(), read_.info_ptr(),
-               &width, &height, &bit_depth, &color_type,
-               nullptr, nullptr, nullptr);
+  png_get_IHDR(read_.png_ptr(), read_.info_ptr(), &width, &height, &bit_depth,
+               &color_type, nullptr, nullptr, nullptr);
   ASSERT_TRUE((color_type & PNG_COLOR_MASK_ALPHA) == 0);  // NOLINT
   ASSERT_EQ(static_cast<unsigned int>(0),
-            png_get_tRNS(read_.png_ptr(),
-                         read_.info_ptr(),
-                         &trans,
-                         &num_trans,
+            png_get_tRNS(read_.png_ptr(), read_.info_ptr(), &trans, &num_trans,
                          &trans_values));
 
   read_.reset();
 
-  ASSERT_TRUE(gif_reader_->ReadPng(in, read_.png_ptr(), read_.info_ptr(),
-                                   PNG_TRANSFORM_STRIP_ALPHA |
-                                   PNG_TRANSFORM_EXPAND, false));
-  png_get_IHDR(read_.png_ptr(), read_.info_ptr(),
-               &width, &height, &bit_depth, &color_type,
-               nullptr, nullptr, nullptr);
+  ASSERT_TRUE(gif_reader_->ReadPng(
+      in, read_.png_ptr(), read_.info_ptr(),
+      PNG_TRANSFORM_STRIP_ALPHA | PNG_TRANSFORM_EXPAND, false));
+  png_get_IHDR(read_.png_ptr(), read_.info_ptr(), &width, &height, &bit_depth,
+               &color_type, nullptr, nullptr, nullptr);
   ASSERT_TRUE((color_type & PNG_COLOR_MASK_ALPHA) == 0);  // NOLINT
 
   ASSERT_EQ(static_cast<unsigned int>(0),
-            png_get_tRNS(read_.png_ptr(),
-                         read_.info_ptr(),
-                         &trans,
-                         &num_trans,
+            png_get_tRNS(read_.png_ptr(), read_.info_ptr(), &trans, &num_trans,
                          &trans_values));
 }
 
@@ -352,10 +321,9 @@ TEST_F(GifReaderTest, ExpandColormapOnZeroSizeCanvasAndCatchLibPngError) {
 class GifScanlineReaderRawTest : public testing::Test {
  public:
   GifScanlineReaderRawTest()
-    : scanline_(nullptr),
-      message_handler_(new NullMutex),
-      reader_(new TestGifFrameReader(&message_handler_)) {
-  }
+      : scanline_(nullptr),
+        message_handler_(new NullMutex),
+        reader_(new TestGifFrameReader(&message_handler_)) {}
 
   bool Initialize(const char* file_name) {
     if (!ReadTestFile(kGifTestDir, file_name, "gif", &input_image_)) {
@@ -387,8 +355,7 @@ TEST_F(GifScanlineReaderRawTest, CorruptHeader) {
   ReadTestFile(kGifTestDir, kTransparentGif, "gif", &input_image_);
   // Make GifRecordType invalid.
   input_image_[781] = 0;
-  ASSERT_FALSE(reader_.Initialize(input_image_.c_str(),
-      input_image_.length()));
+  ASSERT_FALSE(reader_.Initialize(input_image_.c_str(), input_image_.length()));
 }
 
 TEST_F(GifScanlineReaderRawTest, InitializeWithoutRead) {
@@ -433,9 +400,7 @@ TEST_F(GifScanlineReaderRawTest, AnimatedGif) {
   ASSERT_FALSE(Initialize(kAnimatedGif));
 }
 
-TEST_F(GifScanlineReaderRawTest, BadGif) {
-  ASSERT_FALSE(Initialize(kBadGif));
-}
+TEST_F(GifScanlineReaderRawTest, BadGif) { ASSERT_FALSE(Initialize(kBadGif)); }
 
 TEST_F(GifScanlineReaderRawTest, ZeroSizeGif) {
   ASSERT_FALSE(Initialize(kZeroSizeAnimatedGif));
@@ -460,8 +425,8 @@ TEST_F(GifScanlineReaderRawTest, ValidGifs) {
     int width = reader_.GetImageWidth();
     int height = reader_.GetImageHeight();
     int bytes_per_row = reader_.GetBytesPerScanline();
-    int num_channels = GetNumChannelsFromPixelFormat(pixel_format,
-                                                     &message_handler_);
+    int num_channels =
+        GetNumChannelsFromPixelFormat(pixel_format, &message_handler_);
 
     EXPECT_EQ(kValidGifImages[i].width, width);
     EXPECT_EQ(kValidGifImages[i].height, height);
@@ -472,29 +437,28 @@ TEST_F(GifScanlineReaderRawTest, ValidGifs) {
       EXPECT_EQ(pagespeed::image_compression::RGB_888, pixel_format);
       EXPECT_EQ(3, num_channels);
     }
-    EXPECT_EQ(width*num_channels, bytes_per_row);
+    EXPECT_EQ(width * num_channels, bytes_per_row);
 
     // Decode and check the image a row at a time.
     int row = 0;
     while (reader_.HasMoreScanLines()) {
-      EXPECT_TRUE(reader_.ReadNextScanline(
-        reinterpret_cast<void**>(&decoded_pixels)));
+      EXPECT_TRUE(
+          reader_.ReadNextScanline(reinterpret_cast<void**>(&decoded_pixels)));
 
       for (int x = 0; x < width; ++x) {
         int index_dec = x * num_channels;
         int index_ref = (row * width + x) * 4;
         // ASSERT_EQ is used in stead of EXPECT_EQ. Otherwise, the log will be
         // spammed when an error happens.
-        ASSERT_EQ(0, memcmp(reference_rgba+index_ref, decoded_pixels+index_dec,
-                            num_channels));
+        ASSERT_EQ(0, memcmp(reference_rgba + index_ref,
+                            decoded_pixels + index_dec, num_channels));
       }
       ++row;
     }
 
     // Make sure both readers have exhausted all image rows.
     EXPECT_EQ(height, row);
-    EXPECT_EQ(rgba_image.length(),
-              static_cast<size_t>(4 * height * width));
+    EXPECT_EQ(rgba_image.length(), static_cast<size_t>(4 * height * width));
   }
 }
 
@@ -575,21 +539,22 @@ void CheckQuirksModeChangesToImageSpec(const FrameSpec& frame_spec,
   GifFrameReader::ApplyQuirksModeToImage(QUIRKS_FIREFOX, has_loop_count,
                                          frame_spec, &firefox_spec);
   EXPECT_TRUE(firefox_spec.Equals(expected_firefox_spec))
-      << "\nActual:\n" << firefox_spec.ToString()
-      << "\nExpected:\n" << expected_firefox_spec.ToString();
+      << "\nActual:\n"
+      << firefox_spec.ToString() << "\nExpected:\n"
+      << expected_firefox_spec.ToString();
 
   GifFrameReader::ApplyQuirksModeToImage(QUIRKS_CHROME, has_loop_count,
                                          frame_spec, &chrome_spec);
   EXPECT_TRUE(chrome_spec.Equals(expected_chrome_spec))
-      << "\nActual:\n" << chrome_spec.ToString()
-      << "\nExpected:\n" << expected_chrome_spec.ToString();
+      << "\nActual:\n"
+      << chrome_spec.ToString() << "\nExpected:\n"
+      << expected_chrome_spec.ToString();
 }
 
 void SetOpaqueBackground(PixelRgbaChannels rgba) {
-  static const PixelRgbaChannels kOpaqueBackground =
-      {0x80, 0x80, 0x80, kAlphaOpaque};
-  for (int channel = 0;
-       channel < static_cast<RgbaChannels>(channel);
+  static const PixelRgbaChannels kOpaqueBackground = {0x80, 0x80, 0x80,
+                                                      kAlphaOpaque};
+  for (int channel = 0; channel < static_cast<RgbaChannels>(channel);
        ++channel) {
     rgba[channel] = kOpaqueBackground[channel];
   }
@@ -616,22 +581,17 @@ TEST(ApplyQuirksModeToImage, TestFrameWidthLargerThanImageWidth) {
   expected_chrome_spec.height = frame_spec.height;
   expected_chrome_spec.image_size_adjusted = true;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 
-  image_spec.num_frames =
-      expected_noquirks_spec.num_frames =
-      expected_firefox_spec.num_frames =
-      expected_chrome_spec.num_frames = 1;
+  image_spec.num_frames = expected_noquirks_spec.num_frames =
+      expected_firefox_spec.num_frames = expected_chrome_spec.num_frames = 1;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 }
-
 
 TEST(ApplyQuirksModeToImage, TestFrameHeightLargerThanImageHeight) {
   ImageSpec image_spec;
@@ -654,20 +614,16 @@ TEST(ApplyQuirksModeToImage, TestFrameHeightLargerThanImageHeight) {
   expected_chrome_spec.height = frame_spec.height;
   expected_chrome_spec.image_size_adjusted = true;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 
-  image_spec.num_frames =
-      expected_noquirks_spec.num_frames =
-      expected_firefox_spec.num_frames =
-      expected_chrome_spec.num_frames = 1;
+  image_spec.num_frames = expected_noquirks_spec.num_frames =
+      expected_firefox_spec.num_frames = expected_chrome_spec.num_frames = 1;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToImage, TestFrameWidthSmallerThanImageWidth) {
@@ -687,25 +643,21 @@ TEST(ApplyQuirksModeToImage, TestFrameWidthSmallerThanImageWidth) {
   ImageSpec expected_firefox_spec = image_spec;
   ImageSpec expected_chrome_spec = image_spec;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 
   // With only one frame that is smaller than the image, the
   // background color becomes fully transparent.
-  image_spec.num_frames =
-      expected_noquirks_spec.num_frames =
-      expected_firefox_spec.num_frames =
-      expected_chrome_spec.num_frames = 1;
+  image_spec.num_frames = expected_noquirks_spec.num_frames =
+      expected_firefox_spec.num_frames = expected_chrome_spec.num_frames = 1;
 
   expected_chrome_spec.bg_color[RGBA_ALPHA] = kAlphaTransparent;
   expected_firefox_spec.bg_color[RGBA_ALPHA] = kAlphaTransparent;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToImage, TestFrameHeightSmallerThanImageHeight) {
@@ -725,25 +677,21 @@ TEST(ApplyQuirksModeToImage, TestFrameHeightSmallerThanImageHeight) {
   ImageSpec expected_firefox_spec = image_spec;
   ImageSpec expected_chrome_spec = image_spec;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 
   // With only one frame that is smaller than the image, the
   // background color becomes fully transparent.
-  image_spec.num_frames =
-      expected_noquirks_spec.num_frames =
-      expected_firefox_spec.num_frames =
-      expected_chrome_spec.num_frames = 1;
+  image_spec.num_frames = expected_noquirks_spec.num_frames =
+      expected_firefox_spec.num_frames = expected_chrome_spec.num_frames = 1;
 
   expected_chrome_spec.bg_color[RGBA_ALPHA] = kAlphaTransparent;
   expected_firefox_spec.bg_color[RGBA_ALPHA] = kAlphaTransparent;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToImage, TestFrameHeightSmallerWidthLargerThanImage) {
@@ -767,25 +715,21 @@ TEST(ApplyQuirksModeToImage, TestFrameHeightSmallerWidthLargerThanImage) {
   expected_chrome_spec.height = frame_spec.height;
   expected_chrome_spec.image_size_adjusted = true;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 
   // With only one frame that is smaller than the image, the
   // background color becomes fully transparent.
-  image_spec.num_frames =
-      expected_noquirks_spec.num_frames =
-      expected_firefox_spec.num_frames =
-      expected_chrome_spec.num_frames = 1;
+  image_spec.num_frames = expected_noquirks_spec.num_frames =
+      expected_firefox_spec.num_frames = expected_chrome_spec.num_frames = 1;
 
   expected_chrome_spec.bg_color[RGBA_ALPHA] = kAlphaTransparent;
   expected_firefox_spec.bg_color[RGBA_ALPHA] = kAlphaTransparent;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToImage, TestLoopCount) {
@@ -803,17 +747,15 @@ TEST(ApplyQuirksModeToImage, TestLoopCount) {
   ImageSpec expected_firefox_spec = image_spec;
   ImageSpec expected_chrome_spec = image_spec;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 
   expected_chrome_spec.loop_count = image_spec.loop_count + 1;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, true,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, true, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToImage, TestNoop) {
@@ -830,15 +772,13 @@ TEST(ApplyQuirksModeToImage, TestNoop) {
   ImageSpec expected_firefox_spec = image_spec;
   ImageSpec expected_chrome_spec = image_spec;
 
-  CheckQuirksModeChangesToImageSpec(frame_spec, image_spec, false,
-                                    expected_noquirks_spec,
-                                    expected_firefox_spec,
-                                    expected_chrome_spec);
+  CheckQuirksModeChangesToImageSpec(
+      frame_spec, image_spec, false, expected_noquirks_spec,
+      expected_firefox_spec, expected_chrome_spec);
 }
 
 void CheckQuirksModeChangesToFirstFrameSpec(
-    const ImageSpec& image_spec,
-    const FrameSpec& original_spec,
+    const ImageSpec& image_spec, const FrameSpec& original_spec,
     const FrameSpec& expected_noquirks_spec,
     const FrameSpec& expected_firefox_spec,
     const FrameSpec& expected_chrome_spec) {
@@ -849,8 +789,8 @@ void CheckQuirksModeChangesToFirstFrameSpec(
   ImageSpec image = image_spec;
   GifFrameReader::ApplyQuirksModeToImage(QUIRKS_NONE, false, noquirks_spec,
                                          &image);
-  GifFrameReader::ApplyQuirksModeToFirstFrame(QUIRKS_NONE,
-                                              image, &noquirks_spec);
+  GifFrameReader::ApplyQuirksModeToFirstFrame(QUIRKS_NONE, image,
+                                              &noquirks_spec);
   EXPECT_TRUE(noquirks_spec.Equals(expected_noquirks_spec))
       << " Got: " << noquirks_spec.ToString()
       << "\n Expected: " << expected_noquirks_spec.ToString();
@@ -858,8 +798,8 @@ void CheckQuirksModeChangesToFirstFrameSpec(
   image = image_spec;
   GifFrameReader::ApplyQuirksModeToImage(QUIRKS_FIREFOX, false, firefox_spec,
                                          &image);
-  GifFrameReader::ApplyQuirksModeToFirstFrame(QUIRKS_FIREFOX,
-                                              image, &firefox_spec);
+  GifFrameReader::ApplyQuirksModeToFirstFrame(QUIRKS_FIREFOX, image,
+                                              &firefox_spec);
   EXPECT_TRUE(firefox_spec.Equals(expected_firefox_spec))
       << "      Got: " << firefox_spec.ToString()
       << "\n Expected: " << expected_firefox_spec.ToString();
@@ -867,8 +807,8 @@ void CheckQuirksModeChangesToFirstFrameSpec(
   image = image_spec;
   GifFrameReader::ApplyQuirksModeToImage(QUIRKS_CHROME, false, chrome_spec,
                                          &image);
-  GifFrameReader::ApplyQuirksModeToFirstFrame(QUIRKS_CHROME,
-                                              image, &chrome_spec);
+  GifFrameReader::ApplyQuirksModeToFirstFrame(QUIRKS_CHROME, image,
+                                              &chrome_spec);
   EXPECT_TRUE(chrome_spec.Equals(expected_chrome_spec))
       << "      Got: " << chrome_spec.ToString()
       << "\n Expected: " << expected_chrome_spec.ToString();
@@ -896,10 +836,9 @@ TEST(ApplyQuirksModeToFirstFrame, TestWidth) {
   expected_chrome_spec.top = 0;
   expected_chrome_spec.left = 0;
 
-  CheckQuirksModeChangesToFirstFrameSpec(image_spec, frame_spec,
-                                         expected_noquirks_spec,
-                                         expected_firefox_spec,
-                                         expected_chrome_spec);
+  CheckQuirksModeChangesToFirstFrameSpec(
+      image_spec, frame_spec, expected_noquirks_spec, expected_firefox_spec,
+      expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToFirstFrame, TestHeight) {
@@ -924,10 +863,9 @@ TEST(ApplyQuirksModeToFirstFrame, TestHeight) {
   expected_chrome_spec.top = 0;
   expected_chrome_spec.left = 0;
 
-  CheckQuirksModeChangesToFirstFrameSpec(image_spec, frame_spec,
-                                         expected_noquirks_spec,
-                                         expected_firefox_spec,
-                                         expected_chrome_spec);
+  CheckQuirksModeChangesToFirstFrameSpec(
+      image_spec, frame_spec, expected_noquirks_spec, expected_firefox_spec,
+      expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToFirstFrame, TestZeroWidthFrame) {
@@ -954,10 +892,9 @@ TEST(ApplyQuirksModeToFirstFrame, TestZeroWidthFrame) {
   expected_firefox_spec.width = 0;
   expected_firefox_spec.height = 0;
 
-  CheckQuirksModeChangesToFirstFrameSpec(image_spec, frame_spec,
-                                         expected_noquirks_spec,
-                                         expected_firefox_spec,
-                                         expected_chrome_spec);
+  CheckQuirksModeChangesToFirstFrameSpec(
+      image_spec, frame_spec, expected_noquirks_spec, expected_firefox_spec,
+      expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToFirstFrame, TestZeroHeightFrame) {
@@ -984,10 +921,9 @@ TEST(ApplyQuirksModeToFirstFrame, TestZeroHeightFrame) {
   expected_firefox_spec.width = 0;
   expected_firefox_spec.height = 0;
 
-  CheckQuirksModeChangesToFirstFrameSpec(image_spec, frame_spec,
-                                         expected_noquirks_spec,
-                                         expected_firefox_spec,
-                                         expected_chrome_spec);
+  CheckQuirksModeChangesToFirstFrameSpec(
+      image_spec, frame_spec, expected_noquirks_spec, expected_firefox_spec,
+      expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToFirstFrame, TestNoopChrome) {
@@ -1009,10 +945,9 @@ TEST(ApplyQuirksModeToFirstFrame, TestNoopChrome) {
   expected_firefox_spec.width = 0;
   expected_firefox_spec.height = 0;
 
-  CheckQuirksModeChangesToFirstFrameSpec(image_spec, frame_spec,
-                                         expected_noquirks_spec,
-                                         expected_firefox_spec,
-                                         expected_chrome_spec);
+  CheckQuirksModeChangesToFirstFrameSpec(
+      image_spec, frame_spec, expected_noquirks_spec, expected_firefox_spec,
+      expected_chrome_spec);
 }
 
 TEST(ApplyQuirksModeToFirstFrame, TestNoop) {
@@ -1029,10 +964,9 @@ TEST(ApplyQuirksModeToFirstFrame, TestNoop) {
   FrameSpec expected_firefox_spec = frame_spec;
   FrameSpec expected_chrome_spec = frame_spec;
 
-  CheckQuirksModeChangesToFirstFrameSpec(image_spec, frame_spec,
-                                         expected_noquirks_spec,
-                                         expected_firefox_spec,
-                                         expected_chrome_spec);
+  CheckQuirksModeChangesToFirstFrameSpec(
+      image_spec, frame_spec, expected_noquirks_spec, expected_firefox_spec,
+      expected_chrome_spec);
 }
 
 class GifAnimationTest : public testing::Test {
@@ -1063,24 +997,20 @@ class GifAnimationTest : public testing::Test {
         message_handler_(new NullMutex),
         gif_(true, &message_handler_),
         reader_(new TestGifFrameReader(&message_handler_)),
-        read_all_scanlines_(true) {
-  }
+        read_all_scanlines_(true) {}
 
   void SynthesizeImage(const char* filename, const Image& image) {
     // Note that these images are synthesized with QUIRKS_NONE.
-    filename_ = StrCat(net_instaweb::GTestTempDir(),
-                                     "/", filename, ".gif");
+    filename_ = StrCat(net_instaweb::GTestTempDir(), "/", filename, ".gif");
     EXPECT_TRUE(gif_.Open(filename_));
     PS_LOG_INFO((&message_handler_), "Generating image: %s", filename_.c_str());
     gif_.PrepareScreen(true, image.width, image.height, kColorMap, kNumColors,
                        image.bg_color_idx, image.loop_count);
     for (std::vector<Frame>::iterator frame = synth_frames_.begin();
-         frame != synth_frames_.end();
-         ++frame) {
+         frame != synth_frames_.end(); ++frame) {
       EXPECT_TRUE(gif_.PutImage(
-          frame->left, frame->top, frame->width, frame->height,
-          frame->colormap, frame->num_colors,
-          frame->square_color_idx, frame->transparent_idx,
+          frame->left, frame->top, frame->width, frame->height, frame->colormap,
+          frame->num_colors, frame->square_color_idx, frame->transparent_idx,
           frame->interlace, frame->delay_cs, frame->disposal));
     }
     EXPECT_TRUE(gif_.Close());
@@ -1088,55 +1018,55 @@ class GifAnimationTest : public testing::Test {
 
   void ReadImage(const Image& image) {
     if (!ReadFile(filename_, &input_image_)) {
-      PS_LOG_FATAL((&message_handler_),
-                    "Failed to read file: %s", filename_.c_str());
+      PS_LOG_FATAL((&message_handler_), "Failed to read file: %s",
+                   filename_.c_str());
       return;
     }
 
-    EXPECT_TRUE(reader_->Initialize(input_image_.c_str(),
-                                    input_image_.length()).Success());
+    EXPECT_TRUE(reader_->Initialize(input_image_.c_str(), input_image_.length())
+                    .Success());
     ScanlineStatus status;
     ImageSpec image_spec;
     EXPECT_TRUE(reader_->GetImageSpec(&image_spec, &status));
     EXPECT_EQ(image.width, image_spec.width);
     EXPECT_EQ(image.height, image_spec.height);
-    EXPECT_EQ((image.loop_count == GifSquare::kNoLoopCountSpecified ?
-               1 : image.loop_count),
+    EXPECT_EQ((image.loop_count == GifSquare::kNoLoopCountSpecified
+                   ? 1
+                   : image.loop_count),
               image_spec.loop_count);
     EXPECT_EQ(synth_frames_.size(), image_spec.num_frames);
     EXPECT_FALSE(image_spec.use_bg_color);
-    EXPECT_EQ(kColorMap[image.bg_color_idx].Red,
-              image_spec.bg_color[RGBA_RED]);
+    EXPECT_EQ(kColorMap[image.bg_color_idx].Red, image_spec.bg_color[RGBA_RED]);
     EXPECT_EQ(kColorMap[image.bg_color_idx].Green,
               image_spec.bg_color[RGBA_GREEN]);
     EXPECT_EQ(kColorMap[image.bg_color_idx].Blue,
               image_spec.bg_color[RGBA_BLUE]);
     EXPECT_EQ(kAlphaOpaque, image_spec.bg_color[RGBA_ALPHA]);
     for (std::vector<Frame>::iterator set_frame = synth_frames_.begin();
-         set_frame != synth_frames_.end();
-         ++set_frame) {
+         set_frame != synth_frames_.end(); ++set_frame) {
       FrameSpec frame_spec;
       EXPECT_TRUE(reader_->HasMoreFrames());
       EXPECT_TRUE(reader_->PrepareNextFrame(&status));
       EXPECT_TRUE(reader_->GetFrameSpec(&frame_spec, &status));
 
-      EXPECT_EQ(set_frame->delay_cs < 0 ?
-                0 : set_frame->delay_cs * 10, frame_spec.duration_ms);
+      EXPECT_EQ(set_frame->delay_cs < 0 ? 0 : set_frame->delay_cs * 10,
+                frame_spec.duration_ms);
       EXPECT_EQ(set_frame->width, frame_spec.width);
       EXPECT_EQ(set_frame->height, frame_spec.height);
       EXPECT_EQ(set_frame->top, frame_spec.top);
       EXPECT_EQ(set_frame->left, frame_spec.left);
       EXPECT_EQ(set_frame->interlace, frame_spec.hint_progressive);
-      EXPECT_EQ(set_frame->transparent_idx >= 0 ?
-                RGBA_8888 : RGB_888, frame_spec.pixel_format);
+      EXPECT_EQ(set_frame->transparent_idx >= 0 ? RGBA_8888 : RGB_888,
+                frame_spec.pixel_format);
       FrameSpec::DisposalMethod frame_disposal =
           GifDisposalToFrameSpecDisposal(set_frame->disposal);
-      EXPECT_EQ((frame_disposal == FrameSpec::DISPOSAL_UNKNOWN ?
-                 FrameSpec::DISPOSAL_NONE : frame_disposal),
+      EXPECT_EQ((frame_disposal == FrameSpec::DISPOSAL_UNKNOWN
+                     ? FrameSpec::DISPOSAL_NONE
+                     : frame_disposal),
                 frame_spec.disposal);
 
-      const GifColorType* cmap = (set_frame->colormap == nullptr ?
-                                  kColorMap : set_frame->colormap);
+      const GifColorType* cmap =
+          (set_frame->colormap == nullptr ? kColorMap : set_frame->colormap);
       const int bytes_per_pixel = GetBytesPerPixel(frame_spec.pixel_format);
       static const int kRgbBytes = 3;
 
@@ -1144,9 +1074,8 @@ class GifAnimationTest : public testing::Test {
         for (int row = 0; row < frame_spec.height; ++row) {
           EXPECT_TRUE(reader_->HasMoreScanlines());
           const uint8_t* scanline;
-          ScanlineStatus status =
-              reader_->ReadNextScanline(
-                  reinterpret_cast<const void **>(&scanline));
+          ScanlineStatus status = reader_->ReadNextScanline(
+              reinterpret_cast<const void**>(&scanline));
           EXPECT_TRUE(status.Success());
 
           for (int col = 0; col < frame_spec.width; ++col) {
@@ -1164,9 +1093,9 @@ class GifAnimationTest : public testing::Test {
                                   kRgbBytes));
             } else {
               // This pixel must be opaque. Check all color channels.
-              ASSERT_EQ(0, memcmp(scanline + col * bytes_per_pixel,
-                                  cmap + set_frame->square_color_idx,
-                                  kRgbBytes));
+              ASSERT_EQ(0,
+                        memcmp(scanline + col * bytes_per_pixel,
+                               cmap + set_frame->square_color_idx, kRgbBytes));
               if (frame_spec.pixel_format == RGBA_8888) {
                 ASSERT_EQ(kAlphaOpaque,
                           *(scanline + col * bytes_per_pixel + kRgbBytes));
@@ -1222,25 +1151,15 @@ class GifAnimationTest : public testing::Test {
 
 const int GifAnimationTest::kNumColors = 8;
 const GifColorType GifAnimationTest::kColorMap[kNumColors] = {
-  GifSquare::kGifWhite,
-  GifSquare::kGifBlack,
-  GifSquare::kGifRed,
-  GifSquare::kGifGreen,
-  GifSquare::kGifBlue,
-  GifSquare::kGifYellow,
-  GifSquare::kGifGray,
-  GifSquare::kGifGray,
+    GifSquare::kGifWhite, GifSquare::kGifBlack, GifSquare::kGifRed,
+    GifSquare::kGifGreen, GifSquare::kGifBlue,  GifSquare::kGifYellow,
+    GifSquare::kGifGray,  GifSquare::kGifGray,
 };
 
 const GifColorType GifAnimationTest::kAlternateColorMap[kNumColors] = {
-  GifSquare::kGifBlue,
-  GifSquare::kGifRed,
-  GifSquare::kGifYellow,
-  GifSquare::kGifGreen,
-  GifSquare::kGifWhite,
-  GifSquare::kGifBlack,
-  GifSquare::kGifGray,
-  GifSquare::kGifGray,
+    GifSquare::kGifBlue,  GifSquare::kGifRed,   GifSquare::kGifYellow,
+    GifSquare::kGifGreen, GifSquare::kGifWhite, GifSquare::kGifBlack,
+    GifSquare::kGifGray,  GifSquare::kGifGray,
 };
 
 // Note that the various test cases with "FallingOffImage" generate
@@ -1334,8 +1253,7 @@ TEST_F(GifAnimationTest, ReadSingleFrameInterlacedTransparency) {
   SynthesizeAndRead("single_frame_interlaced_transparency", DefineImage());
 }
 
-TEST_F(GifAnimationTest,
-       ReadSingleFrameInterlacedOpaqueFallingOffImage) {
+TEST_F(GifAnimationTest, ReadSingleFrameInterlacedOpaqueFallingOffImage) {
   const Frame frame = {10, 10, true, 0, 1, nullptr, 0, -1, 2, 95, 95};
   synth_frames_.push_back(frame);
 
@@ -1343,8 +1261,7 @@ TEST_F(GifAnimationTest,
                     DefineImage());
 }
 
-TEST_F(GifAnimationTest,
-       ReadSingleFrameInterlacedTransparencyFallingOffImage) {
+TEST_F(GifAnimationTest, ReadSingleFrameInterlacedTransparencyFallingOffImage) {
   const Frame frame = {10, 10, true, 0, 2, nullptr, 0, 4, 2, 95, 95};
   synth_frames_.push_back(frame);
 
@@ -1356,25 +1273,24 @@ TEST_F(GifAnimationTest,
 // varying disposals.
 
 TEST_F(GifAnimationTest, ReadSingleFrameDualColormapsOpaque) {
-  const Frame frame =
-      {10, 10, false, 0, 3, kAlternateColorMap, kNumColors, -1, 2, 10, 10};
+  const Frame frame = {10,         10, false, 0,  3, kAlternateColorMap,
+                       kNumColors, -1, 2,     10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_colormaps_opaque", DefineImage());
 }
 
 TEST_F(GifAnimationTest, ReadSingleFrameDualColormapsTransparency) {
-  const Frame frame =
-      {10, 10, false, 0, 4, kAlternateColorMap, kNumColors, 4, 2, 10, 10};
+  const Frame frame = {10,         10, false, 0,  4, kAlternateColorMap,
+                       kNumColors, 4,  2,     10, 10};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_colormaps_transparency", DefineImage());
 }
 
-TEST_F(GifAnimationTest,
-       ReadSingleFrameDualColormapsOpaqueFallingOffImage) {
-  const Frame frame =
-      {10, 10, false, 0, 0, kAlternateColorMap, kNumColors, -1, 2, 95, 95};
+TEST_F(GifAnimationTest, ReadSingleFrameDualColormapsOpaqueFallingOffImage) {
+  const Frame frame = {10,         10, false, 0,  0, kAlternateColorMap,
+                       kNumColors, -1, 2,     95, 95};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_colormaps_opaque_falling_off_image",
@@ -1383,8 +1299,8 @@ TEST_F(GifAnimationTest,
 
 TEST_F(GifAnimationTest,
        ReadSingleFrameDualColormapsTransparencyFallingOffImage) {
-  const Frame frame =
-      {10, 10, false, 0, 1, kAlternateColorMap, kNumColors, 4, 2, 95, 95};
+  const Frame frame = {10,         10, false, 0,  1, kAlternateColorMap,
+                       kNumColors, 4,  2,     95, 95};
   synth_frames_.push_back(frame);
 
   SynthesizeAndRead("single_frame_colormaps_transparent_falling_off_image",
@@ -1510,12 +1426,12 @@ TEST_F(GifAnimationTest, ReadMultipleFrameNoDelay2FrameOpaque) {
   const int frame1_transparent_idx = 3;
   const int frame2_color_idx = frame1_transparent_idx;
 
-  Frame frame1 =
-      {20, 20, false, 0, 0, nullptr, 0, frame1_transparent_idx, 2, 10, 10};
+  Frame frame1 = {20, 20, false, 0, 0, nullptr, 0, frame1_transparent_idx,
+                  2,  10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 =
-      {20, 20, false, -1, -1, nullptr, 0, -1, frame2_color_idx, 20, 20};
+  Frame frame2 = {20, 20, false, -1, -1, nullptr, 0, -1, frame2_color_idx,
+                  20, 20};
   synth_frames_.push_back(frame2);
 
   SynthesizeAndRead("multiple_frame_transparency_no_delay_2frame_opaque",
@@ -1556,8 +1472,8 @@ TEST_F(GifAnimationTest, ReadMultipleFrameTransparencyMixColormaps) {
   Frame frame1 = {20, 20, false, 100, 0, nullptr, 0, -1, 2, 10, 10};
   synth_frames_.push_back(frame1);
 
-  Frame frame2 =
-      {20, 20, false, 100, 0, kAlternateColorMap, kNumColors, 3, 3, 20, 20};
+  Frame frame2 = {20,         20, false, 100, 0, kAlternateColorMap,
+                  kNumColors, 3,  3,     20,  20};
   synth_frames_.push_back(frame2);
 
   Frame frame3 = {20, 20, false, 100, 0, nullptr, 0, 2, 3, 25, 25};
@@ -1659,18 +1575,17 @@ void CheckImageForOutOfBoundsPixel(const char* filename,
   const PixelRgbaChannels kTransparentPixel = {0, 0, 0, kAlphaTransparent};
 
   MockMessageHandler message_handler(new NullMutex);
-  std::unique_ptr<MultipleFrameReader>
-      reader(new TestGifFrameReader(&message_handler));
+  std::unique_ptr<MultipleFrameReader> reader(
+      new TestGifFrameReader(&message_handler));
   GoogleString input_image;
 
   if (!ReadTestFile(kGifTestDir, filename, "gif", &input_image)) {
-    PS_LOG_FATAL((&message_handler),
-                 "Failed to read file: %s", filename);
+    PS_LOG_FATAL((&message_handler), "Failed to read file: %s", filename);
     return;
   }
 
-  EXPECT_TRUE(reader->Initialize(input_image.c_str(),
-                                 input_image.length()).Success());
+  EXPECT_TRUE(
+      reader->Initialize(input_image.c_str(), input_image.length()).Success());
   ScanlineStatus status;
   ImageSpec image_spec;
   FrameSpec frame_spec;
@@ -1696,14 +1611,12 @@ void CheckImageForOutOfBoundsPixel(const char* filename,
   const uint8_t* scanline;
   for (size_px row = 0; row < frame_spec.height; ++row) {
     EXPECT_TRUE(reader->HasMoreScanlines());
-    EXPECT_TRUE(
-        reader->ReadNextScanline(
-            reinterpret_cast<const void **>(&scanline),
-            &status));
+    EXPECT_TRUE(reader->ReadNextScanline(
+        reinterpret_cast<const void**>(&scanline), &status));
     for (size_px col = 0; col < frame_spec.width; ++col) {
-      int cmp_result = memcmp(scanline + RGBA_NUM_CHANNELS * col,
-                              &kTransparentPixel,
-                              RGBA_NUM_CHANNELS * sizeof(uint8_t));
+      int cmp_result =
+          memcmp(scanline + RGBA_NUM_CHANNELS * col, &kTransparentPixel,
+                 RGBA_NUM_CHANNELS * sizeof(uint8_t));
       EXPECT_EQ(0, cmp_result);
       if (cmp_result != 0) {
         // Return eagerly to avoid excessive output in case of error.

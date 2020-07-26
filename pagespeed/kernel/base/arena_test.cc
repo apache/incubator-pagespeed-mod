@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the arena
 
@@ -31,9 +30,7 @@ namespace net_instaweb {
 
 class ArenaTest : public testing::Test {
  public:
-  ArenaTest() {
-    ClearStats();
-  }
+  ArenaTest() { ClearStats(); }
 
  protected:
   friend class KidA;
@@ -66,13 +63,9 @@ class ArenaTest : public testing::Test {
    public:
     explicit KidA(ArenaTest* o) : Base(o) {}
 
-    ~KidA() override {
-      ++owner_->destroyed_a_;
-    }
+    ~KidA() override { ++owner_->destroyed_a_; }
 
-    void Made() override {
-      ++owner_->made_a_;
-    }
+    void Made() override { ++owner_->made_a_; }
   };
 
   // KidB is 3 pointers long, so on 64-bit along with the next pointer
@@ -85,16 +78,9 @@ class ArenaTest : public testing::Test {
    public:
     explicit KidB(ArenaTest* o) : Base(o) {}
 
-    ~KidB() override {
-      ++owner_->destroyed_b_;
-    }
+    ~KidB() override { ++owner_->destroyed_b_; }
 
-    void Made() override {
-      ++owner_->made_b_;
-    }
-
-   private:
-    void* different_size;
+    void Made() override { ++owner_->made_b_; }
   };
 
   // Tests a given mixture of allocations of KidA and KidB --
@@ -140,35 +126,26 @@ class ArenaTest : public testing::Test {
 };
 
 // Empty arena should be OK without a Destroy
-TEST_F(ArenaTest, TestEmpty) {
-}
+TEST_F(ArenaTest, TestEmpty) {}
 
 // calling Destroy on empty is fine.
-TEST_F(ArenaTest, TestEmptyDestroy) {
-  arena_.DestroyObjects();
-}
+TEST_F(ArenaTest, TestEmptyDestroy) { arena_.DestroyObjects(); }
 
-TEST_F(ArenaTest, TestJustA) {
-  TestCombo(10000, 0);
-}
+TEST_F(ArenaTest, TestJustA) { TestCombo(10000, 0); }
 
 TEST_F(ArenaTest, TestJustA2) {
   // On 32-bit this should perfectly fill all the blocks it uses
   TestCombo(2048, 0);
 }
 
-TEST_F(ArenaTest, TestJustB) {
-  TestCombo(0, 10000);
-}
+TEST_F(ArenaTest, TestJustB) { TestCombo(0, 10000); }
 
 TEST_F(ArenaTest, TestJustB2) {
   // On 64-bit this should perfectly fill all the blocks it uses
   TestCombo(0, 2048);
 }
 
-TEST_F(ArenaTest, TestMix) {
-  TestCombo(10000, 20000);
-}
+TEST_F(ArenaTest, TestMix) { TestCombo(10000, 20000); }
 
 // Make sure we work again after a clear
 TEST_F(ArenaTest, TestReuse) {

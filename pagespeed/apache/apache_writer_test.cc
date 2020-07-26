@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,21 +17,18 @@
  * under the License.
  */
 
+#include "pagespeed/apache/apache_writer.h"
 
 #include <memory>
-
-
-
-#include "pagespeed/apache/apache_writer.h"
 
 #include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/apache/header_util.h"
 #include "pagespeed/apache/mock_apache.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/null_message_handler.h"
+#include "pagespeed/kernel/base/null_thread_system.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/null_thread_system.h"
 #include "pagespeed/kernel/http/response_headers.h"
 
 namespace net_instaweb {
@@ -81,9 +78,10 @@ TEST_F(ApacheWriterTest, SimpleUsage) {
       "ap_set_content_type(text/plain) "
       "ap_rwrite(hello world)",
       MockApache::ActionsSinceLastCall());
-  EXPECT_EQ("Content-Type: text/plain\n"
-            "Set-Cookie: test=cookie\n",
-            HeadersOutToString(&request_));
+  EXPECT_EQ(
+      "Content-Type: text/plain\n"
+      "Set-Cookie: test=cookie\n",
+      HeadersOutToString(&request_));
 
   EXPECT_TRUE(apache_writer_->Flush(&message_handler_));
   EXPECT_EQ("ap_rflush()", MockApache::ActionsSinceLastCall());
@@ -104,11 +102,11 @@ TEST_F(ApacheWriterTest, HTTP10) {
       "ap_set_content_type(text/plain) "
       "ap_rwrite(hello world)",
       MockApache::ActionsSinceLastCall());
-  EXPECT_EQ("Content-Type: text/plain\n"
-            "Set-Cookie: test=cookie\n",
-            HeadersOutToString(&request_));
-  EXPECT_EQ("force-response-1.0: 1\n",
-            SubprocessEnvToString(&request_));
+  EXPECT_EQ(
+      "Content-Type: text/plain\n"
+      "Set-Cookie: test=cookie\n",
+      HeadersOutToString(&request_));
+  EXPECT_EQ("force-response-1.0: 1\n", SubprocessEnvToString(&request_));
 }
 
 TEST_F(ApacheWriterTest, ErrorStatusCode) {
@@ -121,9 +119,10 @@ TEST_F(ApacheWriterTest, ErrorStatusCode) {
       "ap_set_content_type(text/plain) "
       "ap_rwrite(hello world)",
       MockApache::ActionsSinceLastCall());
-  EXPECT_EQ("Content-Type: text/plain\n"
-            "Set-Cookie: test=cookie\n",
-            HeadersOutToString(&request_));
+  EXPECT_EQ(
+      "Content-Type: text/plain\n"
+      "Set-Cookie: test=cookie\n",
+      HeadersOutToString(&request_));
 }
 
 TEST_F(ApacheWriterTest, DisableDownstream) {
@@ -138,13 +137,15 @@ TEST_F(ApacheWriterTest, DisableDownstream) {
       "ap_set_content_type(text/plain) "
       "ap_rwrite(hello world)",
       MockApache::ActionsSinceLastCall());
-  EXPECT_EQ("Content-Type: text/plain\n"
-            "Set-Cookie: test=cookie\n",
-            HeadersOutToString(&request_));
+  EXPECT_EQ(
+      "Content-Type: text/plain\n"
+      "Set-Cookie: test=cookie\n",
+      HeadersOutToString(&request_));
 }
 
 TEST_F(ApacheWriterTest, DisableDownstreamNoneToDisable) {
-  request_.output_filters = nullptr;  // Not a leak because they're pool allocated.
+  request_.output_filters =
+      nullptr;  // Not a leak because they're pool allocated.
   apache_writer_->set_disable_downstream_header_filters(true);
   apache_writer_->OutputHeaders(response_headers_.get());
   EXPECT_TRUE(apache_writer_->Write("hello world", &message_handler_));
@@ -154,9 +155,10 @@ TEST_F(ApacheWriterTest, DisableDownstreamNoneToDisable) {
       "ap_set_content_type(text/plain) "
       "ap_rwrite(hello world)",
       MockApache::ActionsSinceLastCall());
-  EXPECT_EQ("Content-Type: text/plain\n"
-            "Set-Cookie: test=cookie\n",
-            HeadersOutToString(&request_));
+  EXPECT_EQ(
+      "Content-Type: text/plain\n"
+      "Set-Cookie: test=cookie\n",
+      HeadersOutToString(&request_));
 }
 
 TEST_F(ApacheWriterTest, StripCookies) {
@@ -170,9 +172,10 @@ TEST_F(ApacheWriterTest, StripCookies) {
       "ap_rwrite(hello world)",
       MockApache::ActionsSinceLastCall());
   // TODO(jefftk): actually strip cookies.
-  EXPECT_EQ("Content-Type: text/plain\n"
-            "Set-Cookie: test=cookie\n",
-            HeadersOutToString(&request_));
+  EXPECT_EQ(
+      "Content-Type: text/plain\n"
+      "Set-Cookie: test=cookie\n",
+      HeadersOutToString(&request_));
 }
 
 }  // namespace net_instaweb

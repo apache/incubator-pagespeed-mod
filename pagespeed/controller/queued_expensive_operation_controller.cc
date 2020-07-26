@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/controller/queued_expensive_operation_controller.h"
 
@@ -42,8 +41,7 @@ QueuedExpensiveOperationController::QueuedExpensiveOperationController(
       queued_operations_counter_(
           stats->GetUpDownCounter(kQueuedExpensiveOperations)),
       permitted_operations_counter_(
-          stats->GetTimedVariable(kPermittedExpensiveOperations)) {
-}
+          stats->GetTimedVariable(kPermittedExpensiveOperations)) {}
 
 QueuedExpensiveOperationController::~QueuedExpensiveOperationController() {
   // queue_ is *supposed* to be empty at this point. In case it's not, we

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/util/url_to_filename_encoder.h"
 
@@ -92,8 +91,8 @@ void UrlToFilenameEncoder::EncodeSegment(const StringPiece& filename_prefix,
     filename_prefix.CopyToString(&segment);
   } else {
     filename_prefix.substr(start_of_segment + 1).CopyToString(&segment);
-    filename_prefix.substr(0, start_of_segment + 1).CopyToString(
-        encoded_filename);
+    filename_prefix.substr(0, start_of_segment + 1)
+        .CopyToString(encoded_filename);
   }
 
   size_t index = 0;
@@ -158,15 +157,9 @@ void UrlToFilenameEncoder::EncodeSegment(const StringPiece& filename_prefix,
 bool UrlToFilenameEncoder::Decode(const StringPiece& encoded_filename,
                                   GoogleString* decoded_url) {
   const char kDirSeparator = '/';
-  enum State {
-    kStart,
-    kEscape,
-    kFirstDigit,
-    kTruncate,
-    kEscapeDot
-  };
+  enum State { kStart, kEscape, kFirstDigit, kTruncate, kEscapeDot };
   State state = kStart;
-  char hex_buffer[3] = { '\0', '\0', '\0' };
+  char hex_buffer[3] = {'\0', '\0', '\0'};
   for (int i = 0, n = encoded_filename.size(); i < n; ++i) {
     char ch = encoded_filename[i];
     switch (state) {

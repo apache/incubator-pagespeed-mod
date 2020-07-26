@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -81,7 +81,7 @@ static void BM_MinifyCss(int iters, int size) {
     CssMinify::Stylesheet(*stylesheet, &writer, &handler);
   }
 }
-BENCHMARK_RANGE(BM_MinifyCss, 1<<6, 1<<18);
+BENCHMARK_RANGE(BM_MinifyCss, 1 << 6, 1 << 18);
 
 // Common-case, all chars are normal alpha-num that don't need to be escaped.
 static void BM_EscapeStringNormal(int iters, int size) {
@@ -91,7 +91,7 @@ static void BM_EscapeStringNormal(int iters, int size) {
     Css::EscapeString(ident);
   }
 }
-BENCHMARK_RANGE(BM_EscapeStringNormal, 1, 1<<12);
+BENCHMARK_RANGE(BM_EscapeStringNormal, 1, 1 << 12);
 
 // Worst-case for chars we actually expect to find in identifiers.
 static void BM_EscapeStringSpecial(int iters, int size) {
@@ -101,7 +101,7 @@ static void BM_EscapeStringSpecial(int iters, int size) {
     Css::EscapeString(ident);
   }
 }
-BENCHMARK_RANGE(BM_EscapeStringSpecial, 1, 1<<12);
+BENCHMARK_RANGE(BM_EscapeStringSpecial, 1, 1 << 12);
 
 // Worst-case for exotic chars like newlines and tabs in identifiers.
 static void BM_EscapeStringSuperSpecial(int iters, int size) {
@@ -111,7 +111,7 @@ static void BM_EscapeStringSuperSpecial(int iters, int size) {
     Css::EscapeString(ident);
   }
 }
-BENCHMARK_RANGE(BM_EscapeStringSuperSpecial, 1, 1<<12);
+BENCHMARK_RANGE(BM_EscapeStringSuperSpecial, 1, 1 << 12);
 
 }  // namespace
 

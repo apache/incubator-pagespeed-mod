@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/callback.h"
 
@@ -31,10 +30,7 @@ const int kNumRunsForPermanentCallbacks = 5;
 
 class TestClass {
  public:
-  TestClass()
-      : x_(0),
-        runs_(0) {
-  }
+  TestClass() : x_(0), runs_(0) {}
 
   void Method1(int x) {
     x_ = x;
@@ -84,8 +80,8 @@ TEST(CallbackTest, MemberCallback_0_1) {
 
 TEST(CallbackTest, MemberCallback_0_1_ConstRefArg) {
   TestClass test_class;
-  Callback1<const int&>* cb = NewCallback(&test_class,
-                                          &TestClass::Method1ConstRefArg);
+  Callback1<const int&>* cb =
+      NewCallback(&test_class, &TestClass::Method1ConstRefArg);
   EXPECT_EQ(0, test_class.x());
   cb->Run(100);
   EXPECT_EQ(200, test_class.x());
@@ -102,9 +98,8 @@ TEST(CallbackTest, MemberCallback_1_1) {
 TEST(CallbackTest, MemberCallback_1_1ConstRefArg) {
   TestClass test_class;
   int arg = 1;
-  Callback1<int>* cb = NewCallback(&test_class,
-                                   &TestClass::Method2ConstRefArg,
-                                   arg);
+  Callback1<int>* cb =
+      NewCallback(&test_class, &TestClass::Method2ConstRefArg, arg);
   // Increment x to show that the reference is followed, rather having
   // arg's current value of 1 captured at the time the callback was
   // instantiated.
@@ -131,8 +126,8 @@ TEST(CallbackTest, PermanentMemberCallback_0_1) {
 
 TEST(CallbackTest, PermanentMemberCallback_0_1_ConstRefArg) {
   TestClass test_class;
-  std::unique_ptr<Callback1<const int&> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method1ConstRefArg));
+  std::unique_ptr<Callback1<const int&> > cb(
+      NewPermanentCallback(&test_class, &TestClass::Method1ConstRefArg));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
     cb->Run(100);
@@ -143,8 +138,8 @@ TEST(CallbackTest, PermanentMemberCallback_0_1_ConstRefArg) {
 
 TEST(CallbackTest, PermanentMemberCallback_1_1) {
   TestClass test_class;
-  std::unique_ptr<Callback1<int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method2, 1));
+  std::unique_ptr<Callback1<int> > cb(
+      NewPermanentCallback(&test_class, &TestClass::Method2, 1));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
     cb->Run(2);
@@ -156,8 +151,8 @@ TEST(CallbackTest, PermanentMemberCallback_1_1) {
 TEST(CallbackTest, PermanentMemberCallback_1_1ConstRefArg) {
   TestClass test_class;
   int arg = 1;
-  std::unique_ptr<Callback1<int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method2ConstRefArg, arg));
+  std::unique_ptr<Callback1<int> > cb(
+      NewPermanentCallback(&test_class, &TestClass::Method2ConstRefArg, arg));
   // Increment x showing the reference in the callback tracks the increment.
   ++arg;
   EXPECT_EQ(2, arg);
@@ -199,9 +194,8 @@ TEST(CallbackTest, MemberCallback_1_2) {
 TEST(CallbackTest, MemberCallback_1_2ConstRefArg) {
   TestClass test_class;
   int arg = 1;
-  Callback2<int, int>* cb = NewCallback(&test_class,
-                                        &TestClass::Method3ConstRefArg,
-                                        arg);
+  Callback2<int, int>* cb =
+      NewCallback(&test_class, &TestClass::Method3ConstRefArg, arg);
   // Increment x.
   ++arg;
   EXPECT_EQ(2, arg);
@@ -226,8 +220,8 @@ TEST(CallbackTest, PermanentMemberCallback_0_2) {
 
 TEST(CallbackTest, PermanentMemberCallback_0_2_ConstRefArg) {
   TestClass test_class;
-  std::unique_ptr<Callback2<const int&, int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method2ConstRefArg));
+  std::unique_ptr<Callback2<const int&, int> > cb(
+      NewPermanentCallback(&test_class, &TestClass::Method2ConstRefArg));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
     cb->Run(100, 1000);
@@ -238,8 +232,8 @@ TEST(CallbackTest, PermanentMemberCallback_0_2_ConstRefArg) {
 
 TEST(CallbackTest, PermanentMemberCallback_1_2) {
   TestClass test_class;
-  std::unique_ptr<Callback2<int, int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method3, 1));
+  std::unique_ptr<Callback2<int, int> > cb(
+      NewPermanentCallback(&test_class, &TestClass::Method3, 1));
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {
     cb->Run(10, 100);
@@ -251,8 +245,8 @@ TEST(CallbackTest, PermanentMemberCallback_1_2) {
 TEST(CallbackTest, PermanentMemberCallback_1_2ConstRefArg) {
   TestClass test_class;
   int arg = 1;
-  std::unique_ptr<Callback2<int, int> > cb(NewPermanentCallback(
-      &test_class, &TestClass::Method3ConstRefArg, arg));
+  std::unique_ptr<Callback2<int, int> > cb(
+      NewPermanentCallback(&test_class, &TestClass::Method3ConstRefArg, arg));
   ++arg;
   EXPECT_EQ(0, test_class.x());
   for (int i = 0; i < kNumRunsForPermanentCallbacks; ++i) {

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
+
+#include <csetjmp>
 
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/image/jpeg_reader.h"
-#include <csetjmp>
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
-#include "jpeglib.h"                                                 // NOLINT
+#include "jpeglib.h"  // NOLINT
 #else
 #include "external/libjpeg_turbo/jpeglib.h"
 #endif
@@ -47,11 +47,10 @@ namespace image_compression {
 const int kColorProfileMarker = JPEG_APP0 + 2;
 const int kExifDataMarker = JPEG_APP0 + 1;
 
-bool GetJpegNumComponentsAndSamplingFactors(
-    const GoogleString& jpeg,
-    int* out_num_components,
-    int* out_h_samp_factor,
-    int* out_v_samp_factor) {
+bool GetJpegNumComponentsAndSamplingFactors(const GoogleString& jpeg,
+                                            int* out_num_components,
+                                            int* out_h_samp_factor,
+                                            int* out_v_samp_factor) {
   MockMessageHandler message_handler_(new NullMutex);
   JpegReader reader(&message_handler_);
   jpeg_decompress_struct* jpeg_decompress = reader.decompress_struct();
@@ -62,7 +61,7 @@ bool GetJpegNumComponentsAndSamplingFactors(
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
 
   reader.PrepareForRead(jpeg.data(), jpeg.size());
   jpeg_read_header(jpeg_decompress, TRUE);
@@ -83,7 +82,7 @@ bool IsJpegSegmentPresent(const GoogleString& data, int segment) {
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
 
   reader.PrepareForRead(data.data(), data.size());
   jpeg_save_markers(jpeg_decompress, segment, 0xFFFF);
@@ -112,7 +111,7 @@ int GetNumScansInJpeg(const GoogleString& data) {
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
 
   reader.PrepareForRead(data.data(), data.size());
   jpeg_read_header(jpeg_decompress, TRUE);
@@ -130,14 +129,9 @@ int GetNumScansInJpeg(const GoogleString& data) {
   return num_scans;
 }
 
-int GetColorProfileMarker() {
-  return kColorProfileMarker;
-}
+int GetColorProfileMarker() { return kColorProfileMarker; }
 
-int GetExifDataMarker() {
-  return kExifDataMarker;
-}
+int GetExifDataMarker() { return kExifDataMarker; }
 
 }  // namespace image_compression
 }  // namespace pagespeed_testing
-

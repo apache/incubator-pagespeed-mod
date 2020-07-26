@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 #ifndef WEBUTIL_CSS_OPEN_SOURCE_STRING_USING_H_
 #define WEBUTIL_CSS_OPEN_SOURCE_STRING_USING_H_
 
 using std::string;
 
 #endif  // WEBUTIL_CSS_OPEN_SOURCE_STRING_USING_H_
-
 
 // XXX(oschaaf): check license. copied this in here because chromium dropped it.
 /*
@@ -57,8 +55,7 @@ using std::string;
 #define TALK_BASE_COMPILE_ASSERT_H_
 #if !defined(COMPILE_ASSERT)
 template <bool>
-struct CompileAssert {
-};
+struct CompileAssert {};
 #define COMPILE_ASSERT(expr, msg) \
   typedef CompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]  // NOLINT
 #endif  // COMPILE_ASSERT

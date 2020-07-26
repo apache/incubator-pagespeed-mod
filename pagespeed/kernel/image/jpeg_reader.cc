@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/image/jpeg_reader.h"
 
@@ -28,8 +27,8 @@
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
-#include "jerror.h"                                                 // NOLINT
-#include "jpeglib.h"                                                // NOLINT
+#include "jerror.h"   // NOLINT
+#include "jpeglib.h"  // NOLINT
 #else
 #include "external/libjpeg_turbo/jerror.h"
 #include "external/libjpeg_turbo/jpeglib.h"
@@ -54,9 +53,10 @@ METHODDEF(boolean) FillInputBuffer(j_decompress_ptr cinfo) {
   return TRUE;
 }
 
-METHODDEF(void) SkipInputData(j_decompress_ptr cinfo,
-                              long num_bytes) {              // NOLINT
-  jpeg_source_mgr &mgr = *(cinfo->src);
+METHODDEF(void)
+SkipInputData(j_decompress_ptr cinfo,
+              long num_bytes) {  // NOLINT
+  jpeg_source_mgr& mgr = *(cinfo->src);
   const int bytes_remaining = mgr.bytes_in_buffer - num_bytes;
   mgr.bytes_in_buffer = bytes_remaining < 0 ? 0 : bytes_remaining;
   mgr.next_input_byte += num_bytes;
@@ -66,15 +66,13 @@ METHODDEF(void) TermSource(j_decompress_ptr cinfo) {}
 
 // Call this function on a j_decompress_ptr to install a reader that will read
 // from the given string.
-void JpegStringReader(j_decompress_ptr cinfo,
-                      const void* image_data,
+void JpegStringReader(j_decompress_ptr cinfo, const void* image_data,
                       size_t image_length) {
   if (cinfo->src == nullptr) {
-    cinfo->src = (struct jpeg_source_mgr*)
-      (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
-                                  sizeof(jpeg_source_mgr));
+    cinfo->src = (struct jpeg_source_mgr*)(*cinfo->mem->alloc_small)(
+        (j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(jpeg_source_mgr));
   }
-  struct jpeg_source_mgr &src = *(cinfo->src);
+  struct jpeg_source_mgr& src = *(cinfo->src);
 
   src.init_source = InitSource;
   src.fill_input_buffer = FillInputBuffer;
@@ -90,10 +88,9 @@ void JpegStringReader(j_decompress_ptr cinfo,
 // encountered within libjpeg.  The longjmp jumps back
 // to the setjmp in JpegOptimizer::CreateOptimizedJpeg().
 void ErrorExit(j_common_ptr jpeg_state_struct) {
-  jmp_buf *env = static_cast<jmp_buf *>(jpeg_state_struct->client_data);
+  jmp_buf* env = static_cast<jmp_buf*>(jpeg_state_struct->client_data);
   (*jpeg_state_struct->err->output_message)(jpeg_state_struct);
-  if (env)
-    longjmp(*env, 1);
+  if (env) longjmp(*env, 1);
 }
 
 // OutputMessageFromReader is called by libjpeg code on an error when reading.
@@ -121,12 +118,11 @@ struct JpegEnv {
   jmp_buf jmp_buf_env_;
 };
 
-JpegReader::JpegReader(MessageHandler* handler)
-  : message_handler_(handler) {
+JpegReader::JpegReader(MessageHandler* handler) : message_handler_(handler) {
   jpeg_decompress_ = static_cast<jpeg_decompress_struct*>(
       malloc(sizeof(jpeg_decompress_struct)));
-  decompress_error_ = static_cast<jpeg_error_mgr*>(
-      malloc(sizeof(jpeg_error_mgr)));
+  decompress_error_ =
+      static_cast<jpeg_error_mgr*>(malloc(sizeof(jpeg_error_mgr)));
   memset(jpeg_decompress_, 0, sizeof(jpeg_decompress_struct));
   memset(decompress_error_, 0, sizeof(jpeg_error_mgr));
 
@@ -147,16 +143,16 @@ void JpegReader::PrepareForRead(const void* image_data, size_t image_length) {
   JpegStringReader(jpeg_decompress_, image_data, image_length);
 }
 
-JpegScanlineReader::JpegScanlineReader(MessageHandler* handler) :
-  jpeg_env_(nullptr),
-  pixel_format_(UNSUPPORTED),
-  height_(0),
-  width_(0),
-  row_(0),
-  bytes_per_row_(0),
-  was_initialized_(false),
-  is_progressive_(false),
-  message_handler_(handler) {
+JpegScanlineReader::JpegScanlineReader(MessageHandler* handler)
+    : jpeg_env_(nullptr),
+      pixel_format_(UNSUPPORTED),
+      height_(0),
+      width_(0),
+      row_(0),
+      bytes_per_row_(0),
+      was_initialized_(false),
+      is_progressive_(false),
+      message_handler_(handler) {
   row_pointer_[0] = nullptr;
 }
 
@@ -200,8 +196,7 @@ ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
     // again.
     Reset();
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_JPEGREADER,
+                            SCANLINE_STATUS_INTERNAL_ERROR, SCANLINE_JPEGREADER,
                             "libjpeg failed to decode the image.");
   }
 
@@ -213,7 +208,7 @@ ScanlineStatus JpegScanlineReader::InitializeWithStatus(const void* image_data,
   jpeg_create_decompress(jpeg_decompress);
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(jpeg_env_->jmp_buf_env_);
+  jpeg_decompress->client_data = static_cast<void*>(jpeg_env_->jmp_buf_env_);
 
   // Prepare to read from a string.
   JpegStringReader(jpeg_decompress, image_data, image_length);
@@ -245,8 +240,7 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
     void** out_scanline_bytes) {
   if (!was_initialized_ || !HasMoreScanLines()) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_JPEGREADER,
+                            SCANLINE_STATUS_INTERNAL_ERROR, SCANLINE_JPEGREADER,
                             "The reader was not initialized or does not "
                             "have any more scanlines.");
   }
@@ -257,8 +251,7 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
     // again.
     Reset();
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            SCANLINE_JPEGREADER,
+                            SCANLINE_STATUS_INTERNAL_ERROR, SCANLINE_JPEGREADER,
                             "libjpeg failed to decode the image.");
   }
 
@@ -276,8 +269,7 @@ ScanlineStatus JpegScanlineReader::ReadNextScanlineWithStatus(
   if (num_scanlines_read != 1) {
     Reset();
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
-                            SCANLINE_STATUS_PARSE_ERROR,
-                            SCANLINE_JPEGREADER,
+                            SCANLINE_STATUS_PARSE_ERROR, SCANLINE_JPEGREADER,
                             "libjpeg failed to read a scanline.");
   }
   *out_scanline_bytes = row_pointer_[0];

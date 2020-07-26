@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 //
 // Map an html tag to a dense index number.
@@ -30,13 +29,14 @@
 #define WEBUTIL_HTML_HTMLTAGINDEX_H__
 
 #include <string.h>
+
 #include <memory>
 #include <string>
-#include "string_using.h"
 
+#include "string_using.h"
+#include "strings/stringpiece.h"
 #include "util/gtl/dense_hash_map.h"
 #include "webutil/html/htmltagenum.h"
-#include "strings/stringpiece.h"
 
 class HtmlTagIndex {
  public:
@@ -46,9 +46,7 @@ class HtmlTagIndex {
   // Add a tag and return its index.  It is okay to add a builtin
   // tag or to add the same tag more than once.
   int AddHtmlTag(const char* tag, int length);
-  int AddHtmlTag(const char* tag) {
-    return AddHtmlTag(tag, strlen(tag));
-  }
+  int AddHtmlTag(const char* tag) { return AddHtmlTag(tag, strlen(tag)); }
 
   // Find returns a value in the half-open range [0..GetIndexMax()).
   // 0 == unknown tag.
@@ -60,15 +58,11 @@ class HtmlTagIndex {
 
   // Return the half-open upper bound on lookup return value.
   // If GetIndexMax returns 10, then find will return [0..9).
-  int GetIndexMax() const {
-    return index_max_;
-  }
+  int GetIndexMax() const { return index_max_; }
 
   // Set case sensitivity.  This cannot be done after any calls to AddHtmlTag.
   void SetCaseSensitive(bool case_sensitive);
-  bool IsCaseSensitive() const {
-    return case_sensitive_;
-  }
+  bool IsCaseSensitive() const { return case_sensitive_; }
 
  private:
   // Case sensitive stuff.

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/css_util.h"
 
@@ -44,16 +43,16 @@ int GetValueDimension(const Css::Values* values) {
   for (Css::Values::const_iterator value_iter = values->begin();
        value_iter != values->end(); ++value_iter) {
     Css::Value* value = *value_iter;
-    if ((value->GetLexicalUnitType() == Css::Value::NUMBER)
-        && (value->GetDimension() == Css::Value::PX)) {
+    if ((value->GetLexicalUnitType() == Css::Value::NUMBER) &&
+        (value->GetDimension() == Css::Value::PX)) {
       return value->GetIntegerValue();
     }
   }
   return kNoValue;
 }
 
-DimensionState GetDimensions(Css::Declarations* decls,
-                             int* width, int* height) {
+DimensionState GetDimensions(Css::Declarations* decls, int* width,
+                             int* height) {
   bool has_width = false;
   bool has_height = false;
   *width = kNoValue;
@@ -209,9 +208,7 @@ bool StartsWithWord(const StringPiece& word, StringPiece* data) {
     return false;
   }
   local.remove_prefix(word.size());
-  if (TrimLeadingWhitespace(&local) ||
-      local.empty() ||
-      local[0] == '(') {
+  if (TrimLeadingWhitespace(&local) || local.empty() || local[0] == '(') {
     *data = local;
     return true;
   }
@@ -243,10 +240,8 @@ bool CanMediaAffectScreen(const StringPiece& media) {
     // (but causes CSS2 to not use this rule).
     StartsWithWord("only", &current);
     bool initial_not = StartsWithWord("not", &current);
-    if (StartsWithWord("screen", &current) ||
-        StartsWithWord("all", &current) ||
-        current.empty() ||
-        current[0] == '(') {
+    if (StartsWithWord("screen", &current) || StartsWithWord("all", &current) ||
+        current.empty() || current[0] == '(') {
       // Affects screen, unless there was an initial not.
       if (!initial_not) {
         return true;

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,9 +23,7 @@
 
 #include <unistd.h>
 
-
 #include <memory>
-
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -51,12 +49,9 @@ class QueuedAlarmTest : public WorkerTestBase {
       : thread_system_(Platform::CreateThreadSystem()),
         sequence_(nullptr),
         done_(false),
-        cancel_(false) {
-  }
+        cancel_(false) {}
 
-  ~QueuedAlarmTest() override {
-    ClearSequence();
-  }
+  ~QueuedAlarmTest() override { ClearSequence(); }
 
   MockScheduler* SetupWithMockScheduler() {
     MockTimer* timer = new MockTimer(thread_system_->NewMutex(), 0);
@@ -69,7 +64,8 @@ class QueuedAlarmTest : public WorkerTestBase {
 
   void SetupWithRealScheduler() {
     timer_.reset(Platform::CreateTimer());
-    scheduler_ = std::make_unique<Scheduler>(thread_system_.get(), timer_.get());
+    scheduler_ =
+        std::make_unique<Scheduler>(thread_system_.get(), timer_.get());
     SetupWorker();
   }
 
@@ -98,8 +94,8 @@ class QueuedAlarmTest : public WorkerTestBase {
 
  protected:
   void SetupWorker() {
-    worker_ = std::make_unique<QueuedWorkerPool>(
-        2, "queued_alarm_test", thread_system_.get());
+    worker_ = std::make_unique<QueuedWorkerPool>(2, "queued_alarm_test",
+                                                 thread_system_.get());
     MakeSequence();
   }
 
@@ -118,10 +114,7 @@ class QueuedAlarmTest : public WorkerTestBase {
 class TestAlarmHandler {
  public:
   TestAlarmHandler(QueuedAlarmTest* fixture, WorkerTestBase::SyncPoint* sync)
-      : fixture_(fixture),
-        sync_(sync),
-        alarm_(nullptr),
-        fired_(false) {}
+      : fixture_(fixture), sync_(sync), alarm_(nullptr), fired_(false) {}
 
   void StartAlarm() {
     fixture_->sequence()->Add(
@@ -146,11 +139,9 @@ class TestAlarmHandler {
 
  private:
   void StartAlarmImpl() {
-    alarm_ =
-        new QueuedAlarm(fixture_->scheduler(),
-                        fixture_->sequence(),
-                        fixture_->timer()->NowUs(),
-                        MakeFunction(this, &TestAlarmHandler::FireAlarm));
+    alarm_ = new QueuedAlarm(fixture_->scheduler(), fixture_->sequence(),
+                             fixture_->timer()->NowUs(),
+                             MakeFunction(this, &TestAlarmHandler::FireAlarm));
   }
 
   void CancelAlarmImpl() {
@@ -181,11 +172,10 @@ TEST_F(QueuedAlarmTest, BasicOperation) {
   MockScheduler* scheduler = SetupWithMockScheduler();
 
   // Tests to make sure the alarm actually runs.
-  new QueuedAlarm(scheduler, sequence_,
-                  timer_->NowUs() + kDelayUs,
-                  MakeFunction(static_cast<QueuedAlarmTest*>(this),
-                               &QueuedAlarmTest::MarkDone,
-                               &QueuedAlarmTest::MarkCancel));
+  new QueuedAlarm(
+      scheduler, sequence_, timer_->NowUs() + kDelayUs,
+      MakeFunction(static_cast<QueuedAlarmTest*>(this),
+                   &QueuedAlarmTest::MarkDone, &QueuedAlarmTest::MarkCancel));
   {
     ScopedMutex lock(scheduler->mutex());
     scheduler->ProcessAlarmsOrWaitUs(kDelayUs);
@@ -202,12 +192,10 @@ TEST_F(QueuedAlarmTest, BasicCancel) {
   MockScheduler* scheduler = SetupWithMockScheduler();
 
   // Tests to make sure that we can cancel it.
-  QueuedAlarm* alarm =
-      new QueuedAlarm(scheduler, sequence_,
-                      timer_->NowUs() + kDelayUs,
-                      MakeFunction(static_cast<QueuedAlarmTest*>(this),
-                                   &QueuedAlarmTest::MarkDone,
-                                   &QueuedAlarmTest::MarkCancel));
+  QueuedAlarm* alarm = new QueuedAlarm(
+      scheduler, sequence_, timer_->NowUs() + kDelayUs,
+      MakeFunction(static_cast<QueuedAlarmTest*>(this),
+                   &QueuedAlarmTest::MarkDone, &QueuedAlarmTest::MarkCancel));
   alarm->CancelAlarm();
   {
     ScopedMutex lock(scheduler->mutex());
@@ -249,7 +237,7 @@ TEST_F(QueuedAlarmTest, RacingCancel) {
     }
   }
   scheduler_thread->MakeDeleter()->CallRun();
-  LOG(ERROR) << "Alarm fired in: " << fired  << "/" << kRuns;
+  LOG(ERROR) << "Alarm fired in: " << fired << "/" << kRuns;
 }
 
 }  // namespace

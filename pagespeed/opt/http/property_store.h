@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -55,26 +55,22 @@ class PropertyStore {
   // used to fast finish the lookup. Client must call DeleteWhenDone() on this
   // callback after that it is no more usable. This parameter can be set to
   // NULL.
-  virtual void Get(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
-      const GoogleString& cache_key_suffix,
-      const PropertyCache::CohortVector& cohort_list,
-      PropertyPage* page,
-      BoolCallback* done,
-      AbstractPropertyStoreGetCallback** callback) = 0;
+  virtual void Get(const GoogleString& url,
+                   const GoogleString& options_signature_hash,
+                   const GoogleString& cache_key_suffix,
+                   const PropertyCache::CohortVector& cohort_list,
+                   PropertyPage* page, BoolCallback* done,
+                   AbstractPropertyStoreGetCallback** callback) = 0;
 
   // Write to storage system for the given key.
   // Callback done can be NULL. BoolCallback done will be called with true if
   // Insert operation is successful.
   // TODO(pulkitg): Remove UserAgentMatcher dependency.
-  virtual void Put(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
-      const GoogleString& cache_key_suffix,
-      const PropertyCache::Cohort* cohort,
-      const PropertyCacheValues* values,
-      BoolCallback* done) = 0;
+  virtual void Put(const GoogleString& url,
+                   const GoogleString& options_signature_hash,
+                   const GoogleString& cache_key_suffix,
+                   const PropertyCache::Cohort* cohort,
+                   const PropertyCacheValues* values, BoolCallback* done) = 0;
 
   // PropertyStore::Get can be cancelled if enable_get_cancellation is true
   // i.e. input done callback will be called as soon as FastFinishLookup() is
@@ -110,12 +106,9 @@ class PropertyStore {
 class PropertyStoreGetCallback : public AbstractPropertyStoreGetCallback {
  public:
   typedef Callback1<bool> BoolCallback;
-  PropertyStoreGetCallback(
-      AbstractMutex* mutex,
-      PropertyPage* page,
-      bool is_cancellable,
-      BoolCallback* done,
-      Timer* timer);
+  PropertyStoreGetCallback(AbstractMutex* mutex, PropertyPage* page,
+                           bool is_cancellable, BoolCallback* done,
+                           Timer* timer);
   ~PropertyStoreGetCallback() override;
 
   static void InitStats(Statistics* statistics);
@@ -131,8 +124,7 @@ class PropertyStoreGetCallback : public AbstractPropertyStoreGetCallback {
   // PropertyPage.
   bool AddPropertyValueProtobufToPropertyPage(
       const PropertyCache::Cohort* cohort,
-      const PropertyValueProtobuf& pcache_value,
-      int64 min_write_timestamp_ms);
+      const PropertyValueProtobuf& pcache_value, int64 min_write_timestamp_ms);
 
   // Done is called when lookup is finished. This method is made public so that
   // PropertyStore implementations may call it.

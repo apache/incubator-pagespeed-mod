@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "apu.h"        /* configuration data */
+#include "apu.h" /* configuration data */
 
 /**
  * @file apu_want.h

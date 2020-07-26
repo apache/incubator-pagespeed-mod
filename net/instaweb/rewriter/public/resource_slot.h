@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_SLOT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_SLOT_H_
@@ -62,8 +61,7 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
         should_delete_element_(false),
         disable_further_processing_(false),
         was_optimized_(false),
-        need_aggregate_input_info_(false) {
-  }
+        need_aggregate_input_info_(false) {}
 
   ResourcePtr resource() const { return resource_; }
   // Return HTML element associated with slot, or NULL if none (CSS, IPRO)
@@ -135,13 +133,9 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
 
   // If this is true, input info on all inputs affecting this slot
   // will be collected from all RewriteContexts chained to it.
-  void set_need_aggregate_input_info(bool x) {
-    need_aggregate_input_info_ = x;
-  }
+  void set_need_aggregate_input_info(bool x) { need_aggregate_input_info_ = x; }
 
-  bool need_aggregate_input_info() const {
-    return need_aggregate_input_info_;
-  }
+  bool need_aggregate_input_info() const { return need_aggregate_input_info_; }
 
   void ReportInput(const InputInfo& input);
 
@@ -244,8 +238,7 @@ class NullResourceSlot : public ResourceSlot {
 class FetchResourceSlot : public ResourceSlot {
  public:
   explicit FetchResourceSlot(const ResourcePtr& resource)
-      : ResourceSlot(resource) {
-  }
+      : ResourceSlot(resource) {}
   HtmlElement* element() const override { return NULL; }
   void Render() override;
   GoogleString LocationString() const override;
@@ -260,10 +253,8 @@ class FetchResourceSlot : public ResourceSlot {
 
 class HtmlResourceSlot : public ResourceSlot {
  public:
-  HtmlResourceSlot(const ResourcePtr& resource,
-                   HtmlElement* element,
-                   HtmlElement::Attribute* attribute,
-                   RewriteDriver* driver);
+  HtmlResourceSlot(const ResourcePtr& resource, HtmlElement* element,
+                   HtmlElement::Attribute* attribute, RewriteDriver* driver);
 
   HtmlElement* element() const override { return element_; }
   HtmlElement::Attribute* attribute() const { return attribute_; }
@@ -299,8 +290,8 @@ class HtmlResourceSlotComparator {
                   const HtmlResourceSlotPtr& q) const;
 };
 
-typedef std::set<HtmlResourceSlotPtr,
-                 HtmlResourceSlotComparator> HtmlResourceSlotSet;
+typedef std::set<HtmlResourceSlotPtr, HtmlResourceSlotComparator>
+    HtmlResourceSlotSet;
 
 }  // namespace net_instaweb
 

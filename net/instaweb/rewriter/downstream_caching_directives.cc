@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "net/instaweb/rewriter/public/downstream_caching_directives.h"
 
@@ -38,11 +37,9 @@ DownstreamCachingDirectives::DownstreamCachingDirectives()
       supports_webp_(kNotSet),
       supports_webp_lossless_alpha_(kNotSet),
       supports_webp_animated_(kNotSet),
-      capabilities_to_be_supported_(kNoCapabilitiesSpecified) {
-}
+      capabilities_to_be_supported_(kNoCapabilitiesSpecified) {}
 
-DownstreamCachingDirectives::~DownstreamCachingDirectives() {
-}
+DownstreamCachingDirectives::~DownstreamCachingDirectives() {}
 
 void DownstreamCachingDirectives::ParseCapabilityListFromRequestHeaders(
     const RequestHeaders& request_headers) {
@@ -60,8 +57,7 @@ void DownstreamCachingDirectives::ParseCapabilityListFromRequestHeaders(
 }
 
 bool DownstreamCachingDirectives::IsPropertySupported(
-    LazyBool* stored_property_support,
-    const GoogleString& capability,
+    LazyBool* stored_property_support, const GoogleString& capability,
     const GoogleString& supported_capabilities) {
   if (*stored_property_support == kNotSet) {
     if (supported_capabilities ==
@@ -93,44 +89,44 @@ bool DownstreamCachingDirectives::IsPropertySupported(
 
 bool DownstreamCachingDirectives::SupportsImageInlining() const {
   return IsPropertySupported(
-             &supports_image_inlining_,
-             RewriteOptions::FilterId(RewriteOptions::kInlineImages),
-             capabilities_to_be_supported_);
+      &supports_image_inlining_,
+      RewriteOptions::FilterId(RewriteOptions::kInlineImages),
+      capabilities_to_be_supported_);
 }
 
 bool DownstreamCachingDirectives::SupportsLazyloadImages() const {
   return IsPropertySupported(
-             &supports_lazyload_images_,
-             RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
-             capabilities_to_be_supported_);
+      &supports_lazyload_images_,
+      RewriteOptions::FilterId(RewriteOptions::kLazyloadImages),
+      capabilities_to_be_supported_);
 }
 
 bool DownstreamCachingDirectives::SupportsJsDefer() const {
   return IsPropertySupported(
-             &supports_js_defer_,
-             RewriteOptions::FilterId(RewriteOptions::kDeferJavascript),
-             capabilities_to_be_supported_);
+      &supports_js_defer_,
+      RewriteOptions::FilterId(RewriteOptions::kDeferJavascript),
+      capabilities_to_be_supported_);
 }
 
 bool DownstreamCachingDirectives::SupportsWebp() const {
   return IsPropertySupported(
-             &supports_webp_,
-             RewriteOptions::FilterId(RewriteOptions::kConvertJpegToWebp),
-             capabilities_to_be_supported_);
+      &supports_webp_,
+      RewriteOptions::FilterId(RewriteOptions::kConvertJpegToWebp),
+      capabilities_to_be_supported_);
 }
 
 bool DownstreamCachingDirectives::SupportsWebpLosslessAlpha() const {
   return IsPropertySupported(
-             &supports_webp_lossless_alpha_,
-             RewriteOptions::FilterId(RewriteOptions::kConvertToWebpLossless),
-             capabilities_to_be_supported_);
+      &supports_webp_lossless_alpha_,
+      RewriteOptions::FilterId(RewriteOptions::kConvertToWebpLossless),
+      capabilities_to_be_supported_);
 }
 
 bool DownstreamCachingDirectives::SupportsWebpAnimated() const {
   return IsPropertySupported(
-             &supports_webp_animated_,
-             RewriteOptions::FilterId(RewriteOptions::kConvertToWebpAnimated),
-             capabilities_to_be_supported_);
+      &supports_webp_animated_,
+      RewriteOptions::FilterId(RewriteOptions::kConvertToWebpAnimated),
+      capabilities_to_be_supported_);
 }
 
 }  // namespace net_instaweb

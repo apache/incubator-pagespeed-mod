@@ -47,38 +47,47 @@ class Timer;
 //
 // TODO(jmarantz): make threadsafe.
 class MemFileSystem : public FileSystem {
-public:
+ public:
   typedef Callback1<const GoogleString&> FileCallback;
 
   explicit MemFileSystem(ThreadSystem* threads, Timer* timer);
   ~MemFileSystem() override;
 
-  InputFile* OpenInputFile(const char* filename, MessageHandler* message_handler) override;
+  InputFile* OpenInputFile(const char* filename,
+                           MessageHandler* message_handler) override;
   OutputFile* OpenOutputFileHelper(const char* filename, bool append,
                                    MessageHandler* message_handler) override;
   OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
                                  MessageHandler* message_handle) override;
 
-  bool ListContents(const StringPiece& dir, StringVector* files, MessageHandler* handler) override;
+  bool ListContents(const StringPiece& dir, StringVector* files,
+                    MessageHandler* handler) override;
   bool MakeDir(const char* directory_path, MessageHandler* handler) override;
-  bool RecursivelyMakeDir(const StringPiece& directory_path, MessageHandler* handler) override;
+  bool RecursivelyMakeDir(const StringPiece& directory_path,
+                          MessageHandler* handler) override;
   bool RemoveDir(const char* path, MessageHandler* handler) override;
   bool RemoveFile(const char* filename, MessageHandler* handler) override;
   bool RenameFileHelper(const char* old_file, const char* new_file,
-                                MessageHandler* handler) override;
+                        MessageHandler* handler) override;
 
   // We offer a "simulated atime" in which the clock ticks forward one
   // second every time you read or write a file.
-  bool Atime(const StringPiece& path, int64* timestamp_sec, MessageHandler* handler) override;
-  bool Mtime(const StringPiece& path, int64* timestamp_sec, MessageHandler* handler) override;
-  bool Size(const StringPiece& path, int64* size, MessageHandler* handler) const override;
+  bool Atime(const StringPiece& path, int64* timestamp_sec,
+             MessageHandler* handler) override;
+  bool Mtime(const StringPiece& path, int64* timestamp_sec,
+             MessageHandler* handler) override;
+  bool Size(const StringPiece& path, int64* size,
+            MessageHandler* handler) const override;
   BoolOrError Exists(const char* path, MessageHandler* handler) override;
   BoolOrError IsDir(const char* path, MessageHandler* handler) override;
 
-  BoolOrError TryLock(const StringPiece& lock_name, MessageHandler* handler) override;
+  BoolOrError TryLock(const StringPiece& lock_name,
+                      MessageHandler* handler) override;
   BoolOrError TryLockWithTimeout(const StringPiece& lock_name, int64 timeout_ms,
-                                         const Timer* timer, MessageHandler* handler) override;
-  bool BumpLockTimeout(const StringPiece& lock_name, MessageHandler* handler) override;
+                                 const Timer* timer,
+                                 MessageHandler* handler) override;
+  bool BumpLockTimeout(const StringPiece& lock_name,
+                       MessageHandler* handler) override;
   bool Unlock(const StringPiece& lock_name, MessageHandler* handler) override;
 
   // When atime is disabled, reading a file will not update its atime.
@@ -150,16 +159,21 @@ public:
   // class.
   void set_write_callback(FileCallback* x) { write_callback_.reset(x); }
 
-  bool WriteFile(const char* filename, const StringPiece& buffer, MessageHandler* handler) override;
+  bool WriteFile(const char* filename, const StringPiece& buffer,
+                 MessageHandler* handler) override;
   bool WriteTempFile(const StringPiece& prefix_name, const StringPiece& buffer,
-                             GoogleString* filename, MessageHandler* handler) override;
+                     GoogleString* filename, MessageHandler* handler) override;
 
-private:
-  inline void UpdateAtime(const StringPiece& path) SHARED_LOCKS_REQUIRED(all_else_mutex_);
-  inline void UpdateMtime(const StringPiece& path) SHARED_LOCKS_REQUIRED(all_else_mutex_);
+ private:
+  inline void UpdateAtime(const StringPiece& path)
+      SHARED_LOCKS_REQUIRED(all_else_mutex_);
+  inline void UpdateMtime(const StringPiece& path)
+      SHARED_LOCKS_REQUIRED(all_else_mutex_);
 
-  std::unique_ptr<AbstractMutex> lock_map_mutex_; // controls access to lock_map_
-  std::unique_ptr<AbstractMutex> all_else_mutex_; // controls access to all else.
+  std::unique_ptr<AbstractMutex>
+      lock_map_mutex_;  // controls access to lock_map_
+  std::unique_ptr<AbstractMutex>
+      all_else_mutex_;  // controls access to all else.
 
   // When disabled, OpenInputFile returns NULL.
   bool enabled_ GUARDED_BY(all_else_mutex_);
@@ -199,6 +213,6 @@ private:
   DISALLOW_COPY_AND_ASSIGN(MemFileSystem);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb
 
-#endif // PAGESPEED_KERNEL_BASE_MEM_FILE_SYSTEM_H_
+#endif  // PAGESPEED_KERNEL_BASE_MEM_FILE_SYSTEM_H_

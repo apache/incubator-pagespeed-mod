@@ -22,22 +22,26 @@
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
+#include "pagespeed/envoy/http_filter.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/http/response_headers.h"
 
-#include "pagespeed/envoy/http_filter.h"
-
 namespace net_instaweb {
 
-EnvoyBaseFetch::EnvoyBaseFetch(StringPiece url, EnvoyServerContext* server_context,
+EnvoyBaseFetch::EnvoyBaseFetch(StringPiece url,
+                               EnvoyServerContext* server_context,
                                const RequestContextPtr& request_ctx,
                                PreserveCachingHeaders preserve_caching_headers,
                                const RewriteOptions* options,
                                Envoy::Http::HttpPageSpeedDecoderFilter* decoder)
-    : AsyncFetch(request_ctx), url_(url.data(), url.size()), server_context_(server_context),
-      options_(options), preserve_caching_headers_(preserve_caching_headers), decoder_(decoder) {}
+    : AsyncFetch(request_ctx),
+      url_(url.data(), url.size()),
+      server_context_(server_context),
+      options_(options),
+      preserve_caching_headers_(preserve_caching_headers),
+      decoder_(decoder) {}
 
 bool EnvoyBaseFetch::HandleWrite(const StringPiece& sp, MessageHandler*) {
   buffer_.append(sp.data(), sp.size());
@@ -64,9 +68,13 @@ void EnvoyBaseFetch::HandleHeadersComplete() {
 
 bool EnvoyBaseFetch::HandleFlush(MessageHandler*) { return true; }
 
-int EnvoyBaseFetch::DecrementRefCount() { return DecrefAndDeleteIfUnreferenced(); }
+int EnvoyBaseFetch::DecrementRefCount() {
+  return DecrefAndDeleteIfUnreferenced();
+}
 
-int EnvoyBaseFetch::IncrementRefCount() { return __sync_add_and_fetch(&references_, 1); }
+int EnvoyBaseFetch::IncrementRefCount() {
+  return __sync_add_and_fetch(&references_, 1);
+}
 
 int EnvoyBaseFetch::DecrefAndDeleteIfUnreferenced() {
   // Creates a full memory barrier.
@@ -92,7 +100,8 @@ void EnvoyBaseFetch::HandleDone(bool success) {
 }
 
 bool EnvoyBaseFetch::IsCachedResultValid(const ResponseHeaders& headers) {
-  return OptionsAwareHTTPCacheCallback::IsCacheValid(url_, *options_, request_context(), headers);
+  return OptionsAwareHTTPCacheCallback::IsCacheValid(
+      url_, *options_, request_context(), headers);
 }
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

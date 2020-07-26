@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,7 +32,7 @@
 
 namespace net_instaweb {
 
-template<class OptionsClass>
+template <class OptionsClass>
 class CustomRewriteTestBase : public RewriteTestBase {
  public:
   class CustomTestRewriteDriverFactory : public TestRewriteDriverFactory {
@@ -49,12 +49,9 @@ class CustomRewriteTestBase : public RewriteTestBase {
   };
 
   CustomRewriteTestBase()
-      : RewriteTestBase(MakeFactories(&mock_url_fetcher_)) {
-  }
+      : RewriteTestBase(MakeFactories(&mock_url_fetcher_)) {}
 
-  ~CustomRewriteTestBase() override {
-    OptionsClass::Terminate();
-  }
+  ~CustomRewriteTestBase() override { OptionsClass::Terminate(); }
 
   TestRewriteDriverFactory* MakeTestFactory() override {
     return new CustomTestRewriteDriverFactory(&mock_url_fetcher_);
@@ -71,12 +68,11 @@ class CustomRewriteTestBase : public RewriteTestBase {
   // We must call the static Initialize method on the options class before
   // we construct a factory, which will 'new' the OptionsClass.
   static std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*>
-      MakeFactories(MockUrlFetcher* mock_fetcher) {
+  MakeFactories(MockUrlFetcher* mock_fetcher) {
     OptionsClass::Initialize();
 
-    return make_pair(
-        new CustomTestRewriteDriverFactory(mock_fetcher),
-        new CustomTestRewriteDriverFactory(mock_fetcher));
+    return make_pair(new CustomTestRewriteDriverFactory(mock_fetcher),
+                     new CustomTestRewriteDriverFactory(mock_fetcher));
   }
 };
 

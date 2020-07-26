@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit test the file_system_lock_manager using single-threaded mocks.
 
@@ -54,8 +53,8 @@ class FileSystemLockManagerTest : public testing::Test {
         timer_(thread_system_->NewMutex(), 0),
         scheduler_(thread_system_.get(), &timer_),
         file_system_(thread_system_.get(), &timer_),
-        manager_(&file_system_, GTestTempDir(), &scheduler_, &handler_) { }
-  ~FileSystemLockManagerTest() override { }
+        manager_(&file_system_, GTestTempDir(), &scheduler_, &handler_) {}
+  ~FileSystemLockManagerTest() override {}
 
   SchedulerBasedAbstractLock* MakeLock(const StringPiece& name) {
     SchedulerBasedAbstractLock* result = manager_.CreateNamedLock(name);
@@ -75,16 +74,14 @@ class FileSystemLockManagerTest : public testing::Test {
     EXPECT_FALSE(lock->LockTimedWait(kWaitMs));
   }
 
-  MockTimer* timer() {
-    return &timer_;
-  }
+  MockTimer* timer() { return &timer_; }
 
   bool TryLock(const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
     return lock->TryLock();
   }
 
-  bool TryLockStealOld(int64 steal_ms,
-                       const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
+  bool TryLockStealOld(
+      int64 steal_ms, const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
     return lock->TryLockStealOld(steal_ms);
   }
 

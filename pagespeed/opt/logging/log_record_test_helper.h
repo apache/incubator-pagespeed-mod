@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_OPT_LOGGING_LOG_RECORD_TEST_HELPER_H_
 #define PAGESPEED_OPT_LOGGING_LOG_RECORD_TEST_HELPER_H_
@@ -39,24 +38,22 @@ class AbstractMutex;
 // Captures all the arguments to LogImageRewriteActivity so that we can mock it
 // in test.
 struct ImageRewriteInfo {
-  ImageRewriteInfo(
-      const char* id,
-      const GoogleString& url,
-      RewriterApplication::Status status,
-      bool is_image_inlined,
-      bool is_critical_image,
-      bool is_url_rewritten,
-      int size,
-      bool try_low_res_src_insertion,
-      bool low_res_src_inserted,
-      ImageType low_res_image_type,
-      int low_res_data_size) :
-    id_(id), url_(url), status_(status), is_image_inlined_(is_image_inlined),
-    is_critical_image_(is_critical_image), is_url_rewritten_(is_url_rewritten),
-    size_(size), try_low_res_src_insertion_(try_low_res_src_insertion),
-    low_res_src_inserted_(low_res_src_inserted),
-    low_res_image_type_(low_res_image_type),
-    low_res_data_size_(low_res_data_size) {}
+  ImageRewriteInfo(const char* id, const GoogleString& url,
+                   RewriterApplication::Status status, bool is_image_inlined,
+                   bool is_critical_image, bool is_url_rewritten, int size,
+                   bool try_low_res_src_insertion, bool low_res_src_inserted,
+                   ImageType low_res_image_type, int low_res_data_size)
+      : id_(id),
+        url_(url),
+        status_(status),
+        is_image_inlined_(is_image_inlined),
+        is_critical_image_(is_critical_image),
+        is_url_rewritten_(is_url_rewritten),
+        size_(size),
+        try_low_res_src_insertion_(try_low_res_src_insertion),
+        low_res_src_inserted_(low_res_src_inserted),
+        low_res_image_type_(low_res_image_type),
+        low_res_data_size_(low_res_data_size) {}
 
   const char* id_;
   GoogleString url_;
@@ -74,16 +71,11 @@ struct ImageRewriteInfo {
 // A custom matcher to match more than 10 arguments allowed by MOCK_METHOD*
 // macros.
 Matcher<ImageRewriteInfo> LogImageRewriteActivityMatcher(
-    Matcher<const char*> id,
-    Matcher<const GoogleString&> url,
-    Matcher<RewriterApplication::Status> status,
-    Matcher<bool> is_image_inlined,
-    Matcher<bool> is_critical_image,
-    Matcher<bool> is_url_rewritten,
-    Matcher<int> size,
-    Matcher<bool> try_low_res_src_insertion,
-    Matcher<bool> low_res_src_inserted,
-    Matcher<ImageType> low_res_image_type,
+    Matcher<const char*> id, Matcher<const GoogleString&> url,
+    Matcher<RewriterApplication::Status> status, Matcher<bool> is_image_inlined,
+    Matcher<bool> is_critical_image, Matcher<bool> is_url_rewritten,
+    Matcher<int> size, Matcher<bool> try_low_res_src_insertion,
+    Matcher<bool> low_res_src_inserted, Matcher<ImageType> low_res_image_type,
     Matcher<int> low_res_data_size);
 
 // A class which helps mock the methods of LogRecord for testing.
@@ -91,18 +83,14 @@ class MockLogRecord : public LogRecord {
  public:
   explicit MockLogRecord(AbstractMutex* mutex) : LogRecord(mutex) {}
   ~MockLogRecord() override {}
-  void LogImageRewriteActivity(
-      const char* id,
-      const GoogleString& url,
-      RewriterApplication::Status status,
-      bool is_image_inlined,
-      bool is_critical_image,
-      bool is_url_rewritten,
-      int size,
-      bool try_low_res_src_insertion,
-      bool low_res_src_inserted,
-      ImageType low_res_image_type,
-      int low_res_data_size) override {
+  void LogImageRewriteActivity(const char* id, const GoogleString& url,
+                               RewriterApplication::Status status,
+                               bool is_image_inlined, bool is_critical_image,
+                               bool is_url_rewritten, int size,
+                               bool try_low_res_src_insertion,
+                               bool low_res_src_inserted,
+                               ImageType low_res_image_type,
+                               int low_res_data_size) override {
     ImageRewriteInfo info(id, url, status, is_image_inlined, is_critical_image,
                           is_url_rewritten, size, try_low_res_src_insertion,
                           low_res_src_inserted, low_res_image_type,

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_FILE_DRIVER_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_FILE_DRIVER_H_
@@ -45,21 +44,19 @@ class FileDriver {
   // Helper function to generate an output .html filename from
   // an input filename.  Given "/a/b/c.html" returns "a/b/c.out.html".
   // Returns false if the input file does not contain a "."
-  static bool GenerateOutputFilename(
-      const char* infilename, GoogleString* outfilename);
+  static bool GenerateOutputFilename(const char* infilename,
+                                     GoogleString* outfilename);
 
   // Helper function to generate an output .stats filename from
   // an input filename.  Given "/a/b/c.html" returns "a/b/c.stats".
   // Returns false if the input file does not contain a "."
-  static bool GenerateStatsFilename(
-      const char* infilename, GoogleString* statsfilename);
+  static bool GenerateStatsFilename(const char* infilename,
+                                    GoogleString* statsfilename);
 
   // Error messages are sent to the message file, true is returned
   // if the file was parsed successfully.
-  bool ParseFile(const char* infilename,
-                 const char* outfilename,
-                 const char* statsfilename,
-                 MessageHandler* handler);
+  bool ParseFile(const char* infilename, const char* outfilename,
+                 const char* statsfilename, MessageHandler* handler);
 
   // Indicates that we should Flush the parser every x bytes.  Disabled if x<=0.
   void set_flush_byte_count(int x) { flush_byte_count_ = x; }

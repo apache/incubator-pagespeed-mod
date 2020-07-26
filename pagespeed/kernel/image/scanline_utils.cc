@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/image/scanline_utils.h"
 
@@ -56,11 +55,10 @@ bool ExpandPixelFormat(size_t num_pixels, PixelFormat src_format,
                        PixelFormat dst_format, int dst_offset,
                        uint8_t* dst_data, MessageHandler* handler) {
   const int src_num_channels =
-    GetNumChannelsFromPixelFormat(src_format, handler);
+      GetNumChannelsFromPixelFormat(src_format, handler);
   const int dst_num_channels =
-    GetNumChannelsFromPixelFormat(dst_format, handler);
-  const int rgb_num_channels =
-    GetNumChannelsFromPixelFormat(RGB_888, handler);
+      GetNumChannelsFromPixelFormat(dst_format, handler);
+  const int rgb_num_channels = GetNumChannelsFromPixelFormat(RGB_888, handler);
   const int opaque_channel = rgb_num_channels;
   src_data += src_offset * src_num_channels;
   dst_data += dst_offset * dst_num_channels;

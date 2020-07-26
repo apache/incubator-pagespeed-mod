@@ -30,6 +30,6 @@ namespace log_message_handler {
 // isn't possible.
 void Install();
 
-} // namespace log_message_handler
+}  // namespace log_message_handler
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

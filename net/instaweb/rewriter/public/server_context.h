@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,7 +22,7 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SERVER_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SERVER_CONTEXT_H_
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 #include <set>
 #include <utility>
 #include <vector>
@@ -54,7 +54,11 @@
 #include "pagespeed/kernel/thread/sequence.h"
 #include "pagespeed/kernel/util/simple_random.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
+namespace pagespeed {
+namespace js {
+struct JsTokenizerPatterns;
+}
+}  // namespace pagespeed
 
 namespace net_instaweb {
 
@@ -125,9 +129,10 @@ class ServerContext {
   // Sets charset if it's non-empty and content_type is non-NULL.
   //
   // If cache_control suffix is non-empty, adds that to the Cache-Control
-  void SetDefaultLongCacheHeaders(
-      const ContentType* content_type, StringPiece charset,
-      StringPiece cache_control_suffix, ResponseHeaders* header) const;
+  void SetDefaultLongCacheHeaders(const ContentType* content_type,
+                                  StringPiece charset,
+                                  StringPiece cache_control_suffix,
+                                  ResponseHeaders* header) const;
 
   void set_filename_prefix(const StringPiece& file_prefix);
   void set_statistics(Statistics* x) { statistics_ = x; }
@@ -176,7 +181,7 @@ class ServerContext {
   const Hasher* lock_hasher() const { return &lock_hasher_; }
   const Hasher* contents_hasher() const { return &contents_hasher_; }
   FileSystem* file_system() { return file_system_; }
-  void set_file_system(FileSystem* fs ) { file_system_ = fs; }
+  void set_file_system(FileSystem* fs) { file_system_ = fs; }
   UrlNamer* url_namer() const { return url_namer_; }
   void set_url_namer(UrlNamer* n) { url_namer_ = n; }
   RewriteOptionsManager* rewrite_options_manager() const {
@@ -270,14 +275,10 @@ class ServerContext {
   }
   void set_critical_selector_finder(CriticalSelectorFinder* finder);
 
-  UserAgentMatcher* user_agent_matcher() const {
-    return user_agent_matcher_;
-  }
+  UserAgentMatcher* user_agent_matcher() const { return user_agent_matcher_; }
   void set_user_agent_matcher(UserAgentMatcher* n) { user_agent_matcher_ = n; }
 
-  SimpleRandom* simple_random() {
-    return &simple_random_;
-  }
+  SimpleRandom* simple_random() { return &simple_random_; }
 
   // Whether or not dumps of rewritten resources should be stored to
   // the filesystem. This is meant for testing purposes only.
@@ -301,8 +302,8 @@ class ServerContext {
   // Attempt to obtain a named lock. When the lock has been obtained, queue the
   // callback on the  given worker Sequence.  If the lock times out, cancel the
   // callback, running the cancel on the worker.
-  void LockForCreation(NamedLock* creation_lock,
-                       Sequence* worker, Function* callback);
+  void LockForCreation(NamedLock* creation_lock, Sequence* worker,
+                       Function* callback);
 
   // Setters should probably only be used in testing.
   void set_hasher(Hasher* hasher) { hasher_ = hasher; }
@@ -317,8 +318,7 @@ class ServerContext {
   // url could not be parsed; in this case the request should be declined. body
   // should be either the query params or the POST body, depending on how the
   // beacon was sent, from the beacon request.
-  bool HandleBeacon(StringPiece body,
-                    StringPiece user_agent,
+  bool HandleBeacon(StringPiece body, StringPiece user_agent,
                     const RequestContextPtr& request_context);
 
   // Returns a pointer to the master global_options.  These are not used
@@ -361,8 +361,7 @@ class ServerContext {
   // rewrite_query->pagespeed_option_cookies().
   bool GetQueryOptions(const RequestContextPtr& request_context,
                        const RewriteOptions* domain_options,
-                       GoogleUrl* request_url,
-                       RequestHeaders* request_headers,
+                       GoogleUrl* request_url, RequestHeaders* request_headers,
                        ResponseHeaders* response_headers,
                        RewriteQuery* rewrite_query);
 
@@ -402,8 +401,8 @@ class ServerContext {
 
   // As above, but uses a specific RewriteDriverPool to determine the options
   // and manage the lifetime of the result. 'pool' must not be NULL.
-  RewriteDriver* NewRewriteDriverFromPool(
-      RewriteDriverPool* pool, const RequestContextPtr& request_ctx);
+  RewriteDriver* NewRewriteDriverFromPool(RewriteDriverPool* pool,
+                                          const RequestContextPtr& request_ctx);
 
   // Generates a new unmanaged RewriteDriver with given RewriteOptions,
   // which are assumed to correspond to drivers managed by 'pool'
@@ -432,8 +431,8 @@ class ServerContext {
   // already frozen (see AddFilters()).
   //
   // Takes ownership of 'custom_options'.
-  RewriteDriver* NewCustomRewriteDriver(
-      RewriteOptions* custom_options, const RequestContextPtr& request_ctx);
+  RewriteDriver* NewCustomRewriteDriver(RewriteOptions* custom_options,
+                                        const RequestContextPtr& request_ctx);
 
   // Puts a RewriteDriver back on the free pool.  This is intended to
   // be called by a RewriteDriver on itself, once all pending
@@ -454,13 +453,9 @@ class ServerContext {
 
   // Calling this method will stop results of rewrites being cached in the
   // metadata cache. This is meant for the shutdown sequence.
-  void set_shutting_down() {
-    shutting_down_.set_value(true);
-  }
+  void set_shutting_down() { shutting_down_.set_value(true); }
 
-  bool shutting_down() const {
-    return shutting_down_.value();
-  }
+  bool shutting_down() const { return shutting_down_.value(); }
 
   // Waits a bounded amount of time for all currently running jobs to
   // complete.  This is meant for use when shutting down processing,
@@ -553,20 +548,14 @@ class ServerContext {
   }
 
   // Returns the current server hostname.
-  const GoogleString& hostname() const {
-    return hostname_;
-  }
-  void set_hostname(const GoogleString& x) {
-    hostname_ = x;
-  }
+  const GoogleString& hostname() const { return hostname_; }
+  void set_hostname(const GoogleString& x) { hostname_ = x; }
 
   void set_central_controller(std::shared_ptr<CentralController> controller) {
     central_controller_ = controller;
   }
 
-  CentralController* central_controller() {
-    return central_controller_.get();
-  }
+  CentralController* central_controller() { return central_controller_.get(); }
 
   // Adds an X-Original-Content-Length header to the response headers
   // based on the size of the input resources.
@@ -609,17 +598,15 @@ class ServerContext {
   // Establishes a new Cohort for this property.
   // This will also call CachePropertyStore::AddCohort() if CachePropertyStore
   // is used.
-  const PropertyCache::Cohort* AddCohort(
-      const GoogleString& cohort_name,
-      PropertyCache* pcache);
+  const PropertyCache::Cohort* AddCohort(const GoogleString& cohort_name,
+                                         PropertyCache* pcache);
 
   // Establishes a new Cohort to be backed by the specified CacheInterface.
   // NOTE: Does not take ownership of the CacheInterface object.
   // This also calls CachePropertyStore::AddCohort() to set the cache backend
   // for the given cohort.
   const PropertyCache::Cohort* AddCohortWithCache(
-      const GoogleString& cohort_name,
-      CacheInterface* cache,
+      const GoogleString& cohort_name, CacheInterface* cache,
       PropertyCache* pcache);
 
   // Returns the cache backend associated with CachePropertyStore.
@@ -630,10 +617,7 @@ class ServerContext {
     return js_tokenizer_patterns_;
   }
 
-  enum Format {
-    kFormatAsHtml,
-    kFormatAsJson
-  };
+  enum Format { kFormatAsHtml, kFormatAsJson };
 
   // Shows cached data related to a URL.  Ownership of options is transferred
   // to this function. If should_delete is true, deletes the entry as well.
@@ -767,8 +751,8 @@ class ServerContext {
   // id->RewriteFilter table is fully constructed independent of the options.
   RewriteDriver* decoding_driver_;
 
-  QueuedWorkerPool* html_workers_;  // Owned by the factory
-  QueuedWorkerPool* rewrite_workers_;  // Owned by the factory
+  QueuedWorkerPool* html_workers_;                  // Owned by the factory
+  QueuedWorkerPool* rewrite_workers_;               // Owned by the factory
   QueuedWorkerPool* low_priority_rewrite_workers_;  // Owned by the factory
 
   AtomicBool shutting_down_;

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,13 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/gif_reader.h"
 
 #include <csetjmp>
 #include <cstddef>
 #include <memory>
-
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -33,7 +31,7 @@
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
-#include "png.h"                                               // NOLINT
+#include "png.h"  // NOLINT
 #else
 #include "external/libpng/png.h"
 #endif
@@ -51,8 +49,8 @@ using pagespeed::image_compression::ScopedPngStruct;
 namespace {
 
 // GIF interlace tables.
-static const int kInterlaceOffsets[] = { 0, 4, 2, 1 };
-static const int kInterlaceJumps[] = { 8, 8, 4, 2 };
+static const int kInterlaceOffsets[] = {0, 4, 2, 1};
+static const int kInterlaceJumps[] = {8, 8, 4, 2};
 const int kInterlaceNumPass = arraysize(kInterlaceOffsets);
 const int kNumColorForUint8 = 256;
 const int kGifPaletteSize = 256;
@@ -65,10 +63,10 @@ static const unsigned char kTransparentFlag = 0x01;
 // declarations. To address this gcc issue, we factor a few setjmp()
 // invocations into their own narrowly scoped methods, so gcc can
 // process them properly.
-bool ProtectedPngSetIhdr(
-    png_structp png_ptr, png_infop info_ptr,
-    png_uint_32 width, png_uint_32 height, int bit_depth, int color_type,
-    int interlace_method, int compression_method, int filter_method) {
+bool ProtectedPngSetIhdr(png_structp png_ptr, png_infop info_ptr,
+                         png_uint_32 width, png_uint_32 height, int bit_depth,
+                         int color_type, int interlace_method,
+                         int compression_method, int filter_method) {
   if (setjmp(png_jmpbuf(png_ptr))) {
     return false;
   }
@@ -100,8 +98,7 @@ int ReadGifFromStream(GifFileType* gif_file, GifByteType* data, int length) {
   }
 }
 
-bool AddTransparencyChunk(png_structp png_ptr,
-                          png_infop info_ptr,
+bool AddTransparencyChunk(png_structp png_ptr, png_infop info_ptr,
                           int transparent_palette_index,
                           MessageHandler* handler) {
   const int num_trans = transparent_palette_index + 1;
@@ -128,17 +125,15 @@ bool AddTransparencyChunk(png_structp png_ptr,
   return true;
 }
 
-bool ReadImageDescriptor(GifFileType* gif_file,
-                         png_structp png_ptr,
-                         png_infop info_ptr,
-                         png_color* palette,
+bool ReadImageDescriptor(GifFileType* gif_file, png_structp png_ptr,
+                         png_infop info_ptr, png_color* palette,
                          MessageHandler* handler) {
   if (DGifGetImageDesc(gif_file) == GIF_ERROR) {
     PS_DLOG_INFO(handler, "Failed to get image descriptor.");
     return false;
   }
   if (gif_file->ImageCount != 1) {
-    PS_DLOG_INFO(handler, "Unable to optimize image with %d frames.", \
+    PS_DLOG_INFO(handler, "Unable to optimize image with %d frames.",
                  gif_file->ImageCount);
     return false;
   }
@@ -148,16 +143,15 @@ bool ReadImageDescriptor(GifFileType* gif_file,
   const GifWord height = gif_file->Image.Height;
 
   // Validate coordinates.
-  if (pixel + width > gif_file->SWidth ||
-      row + height > gif_file->SHeight) {
+  if (pixel + width > gif_file->SWidth || row + height > gif_file->SHeight) {
     PS_DLOG_INFO(handler, "Image coordinates outside of resolution.");
     return false;
   }
 
   // Populate the color map.
-  ColorMapObject* color_map =
-      gif_file->Image.ColorMap != nullptr ?
-      gif_file->Image.ColorMap : gif_file->SColorMap;
+  ColorMapObject* color_map = gif_file->Image.ColorMap != nullptr
+                                  ? gif_file->Image.ColorMap
+                                  : gif_file->SColorMap;
 
   if (color_map == nullptr) {
     PS_DLOG_INFO(handler, "Failed to find color map.");
@@ -192,11 +186,9 @@ bool ReadImageDescriptor(GifFileType* gif_file,
     // Need to deinterlace. The deinterlace code is based on algorithm
     // in giflib.
     for (int i = 0; i < kInterlaceNumPass; ++i) {
-      for (int j = row + kInterlaceOffsets[i];
-           j < row + height;
+      for (int j = row + kInterlaceOffsets[i]; j < row + height;
            j += kInterlaceJumps[i]) {
-        if (DGifGetLine(gif_file,
-                        static_cast<GifPixelType*>(&rows[j][pixel]),
+        if (DGifGetLine(gif_file, static_cast<GifPixelType*>(&rows[j][pixel]),
                         width) == GIF_ERROR) {
           PS_DLOG_INFO(handler, "Failed to DGifGetLine");
           return false;
@@ -212,10 +204,8 @@ bool ReadImageDescriptor(GifFileType* gif_file,
 // Read a GIF extension. There are various extensions. The only one we
 // care about is the transparency extension, so we ignore all other
 // extensions.
-bool ReadExtension(GifFileType* gif_file,
-                   png_structp png_ptr,
-                   png_infop info_ptr,
-                   int* out_transparent_index,
+bool ReadExtension(GifFileType* gif_file, png_structp png_ptr,
+                   png_infop info_ptr, int* out_transparent_index,
                    MessageHandler* handler) {
   GifByteType* extension = nullptr;
   int ext_code = 0;
@@ -229,7 +219,7 @@ bool ReadExtension(GifFileType* gif_file,
   if (ext_code == GRAPHICS_EXT_FUNC_CODE) {
     // Make sure that the extension has the expected length.
     if (extension[0] < 4) {
-      PS_DLOG_INFO(handler, \
+      PS_DLOG_INFO(handler,
                    "Received graphics extension with unexpected length.");
       return false;
     }
@@ -239,7 +229,7 @@ bool ReadExtension(GifFileType* gif_file,
       if (*out_transparent_index >= 0) {
         // The transparent index has already been set. Ignore new
         // values.
-        PS_DLOG_INFO(handler, \
+        PS_DLOG_INFO(handler,
                      "Found multiple transparency entries. Using first entry.");
       } else {
         // We found a transparency entry. The transparent index is in
@@ -264,8 +254,7 @@ bool ReadExtension(GifFileType* gif_file,
   return true;
 }
 
-png_uint_32 AllocatePngPixels(png_structp png_ptr,
-                              png_infop info_ptr) {
+png_uint_32 AllocatePngPixels(png_structp png_ptr, png_infop info_ptr) {
   // Like libpng's png_read_png, we free the row pointers unless they
   // weren't allocated by libpng, in which case we reuse them.
   png_uint_32 row_size = png_get_rowbytes(png_ptr, info_ptr);
@@ -279,44 +268,35 @@ png_uint_32 AllocatePngPixels(png_structp png_ptr,
 
     // Allocate the array of pointers to each row.
     const png_size_t row_pointers_size = height * sizeof(png_bytep);
-    png_bytepp row_pointers = static_cast<png_bytepp>(
-        png_malloc(png_ptr, row_pointers_size));
+    png_bytepp row_pointers =
+        static_cast<png_bytepp>(png_malloc(png_ptr, row_pointers_size));
     memset(row_pointers, 0, row_pointers_size);
     png_set_rows(png_ptr, info_ptr, row_pointers);
-    png_data_freer(png_ptr, info_ptr,
-                   PNG_DESTROY_WILL_FREE_DATA, PNG_FREE_ROWS);
+    png_data_freer(png_ptr, info_ptr, PNG_DESTROY_WILL_FREE_DATA,
+                   PNG_FREE_ROWS);
 
     // Allocate memory for each row.
     for (png_uint_32 row = 0; row < height; ++row) {
-      row_pointers[row] =
-          static_cast<png_bytep>(png_malloc(png_ptr, row_size));
+      row_pointers[row] = static_cast<png_bytep>(png_malloc(png_ptr, row_size));
     }
   }
   return row_size;
 }
 
-bool ExpandColorMap(png_structp paletted_png_ptr,
-                    png_infop paletted_info_ptr,
-                    png_color* palette,
-                    int transparent_palette_index,
-                    png_structp rgb_png_ptr,
-                    png_infop rgb_info_ptr) {
-  png_uint_32 height = png_get_image_height(paletted_png_ptr,
-                                            paletted_info_ptr);
-  png_uint_32 width = png_get_image_width(paletted_png_ptr,
-                                          paletted_info_ptr);
+bool ExpandColorMap(png_structp paletted_png_ptr, png_infop paletted_info_ptr,
+                    png_color* palette, int transparent_palette_index,
+                    png_structp rgb_png_ptr, png_infop rgb_info_ptr) {
+  png_uint_32 height =
+      png_get_image_height(paletted_png_ptr, paletted_info_ptr);
+  png_uint_32 width = png_get_image_width(paletted_png_ptr, paletted_info_ptr);
   bool have_alpha = (transparent_palette_index >= 0);
   if (setjmp(png_jmpbuf(rgb_png_ptr))) {
     return false;
   }
-  png_set_IHDR(rgb_png_ptr,
-               rgb_info_ptr,
-               width,
-               height,
+  png_set_IHDR(rgb_png_ptr, rgb_info_ptr, width, height,
                8,  // bit depth
                have_alpha ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB,
-               PNG_INTERLACE_NONE,
-               PNG_COMPRESSION_TYPE_BASE,
+               PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE,
                PNG_FILTER_TYPE_BASE);
   png_uint_32 row_size = AllocatePngPixels(rgb_png_ptr, rgb_info_ptr);
   png_byte bytes_per_pixel = have_alpha ? 4 : 3;
@@ -326,8 +306,8 @@ bool ExpandColorMap(png_structp paletted_png_ptr,
   }
 
   png_bytepp rgb_row_pointers = png_get_rows(rgb_png_ptr, rgb_info_ptr);
-  png_bytepp pal_row_pointers = png_get_rows(paletted_png_ptr,
-                                             paletted_info_ptr);
+  png_bytepp pal_row_pointers =
+      png_get_rows(paletted_png_ptr, paletted_info_ptr);
   for (png_uint_32 row = 0; row < height; ++row) {
     png_bytep rgb_next_byte = rgb_row_pointers[row];
     if (have_alpha) {
@@ -353,15 +333,11 @@ bool ExpandColorMap(png_structp paletted_png_ptr,
   return true;
 }
 
-bool ReadGifToPng(GifFileType* gif_file,
-                  png_structp png_ptr,
-                  png_infop info_ptr,
-                  bool expand_colormap,
-                  bool strip_alpha,
-                  bool require_opaque,
-                  MessageHandler* handler) {
+bool ReadGifToPng(GifFileType* gif_file, png_structp png_ptr,
+                  png_infop info_ptr, bool expand_colormap, bool strip_alpha,
+                  bool require_opaque, MessageHandler* handler) {
   if (static_cast<png_size_t>(gif_file->SHeight) >
-      PNG_UINT_32_MAX/sizeof(png_bytep)) {
+      PNG_UINT_32_MAX / sizeof(png_bytep)) {
     PS_DLOG_INFO(handler, "GIF image is too big to process.");
     return false;
   }
@@ -378,9 +354,10 @@ bool ReadGifToPng(GifFileType* gif_file,
   if (expand_colormap) {
     // We read the image into a separate struct before expanding the
     // colormap.
-    paletted_png = std::make_unique<ScopedPngStruct>(ScopedPngStruct::READ, handler);
+    paletted_png =
+        std::make_unique<ScopedPngStruct>(ScopedPngStruct::READ, handler);
     if (!paletted_png->valid()) {
-      PS_LOG_DFATAL(handler, "Invalid ScopedPngStruct r: %d", \
+      PS_LOG_DFATAL(handler, "Invalid ScopedPngStruct r: %d",
                     paletted_png->valid());
       return false;
     }
@@ -392,15 +369,11 @@ bool ReadGifToPng(GifFileType* gif_file,
     paletted_info_ptr = info_ptr;
   }
 
-  if (!ProtectedPngSetIhdr(paletted_png_ptr,
-                           paletted_info_ptr,
-                           gif_file->SWidth,
-                           gif_file->SHeight,
+  if (!ProtectedPngSetIhdr(paletted_png_ptr, paletted_info_ptr,
+                           gif_file->SWidth, gif_file->SHeight,
                            8,  // bit depth
-                           PNG_COLOR_TYPE_PALETTE,
-                           PNG_INTERLACE_NONE,
-                           PNG_COMPRESSION_TYPE_BASE,
-                           PNG_FILTER_TYPE_BASE)) {
+                           PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
+                           PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE)) {
     return false;
   }
 
@@ -412,12 +385,10 @@ bool ReadGifToPng(GifFileType* gif_file,
   // Fill the rows with the background color.
   png_bytepp row_pointers = png_get_rows(paletted_png_ptr, paletted_info_ptr);
   memset(row_pointers[0], gif_file->SBackGroundColor, row_size);
-  png_uint_32 height = png_get_image_height(paletted_png_ptr,
-                                            paletted_info_ptr);
+  png_uint_32 height =
+      png_get_image_height(paletted_png_ptr, paletted_info_ptr);
   for (png_uint_32 row = 1; row < height; ++row) {
-    memcpy(row_pointers[row],
-           row_pointers[0],
-           row_size);
+    memcpy(row_pointers[row], row_pointers[0], row_size);
   }
 
   int transparent_palette_index = -1;
@@ -431,18 +402,15 @@ bool ReadGifToPng(GifFileType* gif_file,
     }
     switch (record_type) {
       case IMAGE_DESC_RECORD_TYPE:
-        if (!ReadImageDescriptor(gif_file, paletted_png_ptr,
-                                 paletted_info_ptr, palette, handler)) {
+        if (!ReadImageDescriptor(gif_file, paletted_png_ptr, paletted_info_ptr,
+                                 palette, handler)) {
           return false;
         }
         break;
 
       case EXTENSION_RECORD_TYPE:
-        if (!ReadExtension(gif_file,
-                           paletted_png_ptr,
-                           paletted_info_ptr,
-                           &transparent_palette_index,
-                           handler)) {
+        if (!ReadExtension(gif_file, paletted_png_ptr, paletted_info_ptr,
+                           &transparent_palette_index, handler)) {
           return false;
         }
         break;
@@ -477,10 +445,9 @@ bool ReadGifToPng(GifFileType* gif_file,
   if (expand_colormap) {
     // Generate the non-paletted PNG data into the pointers that were
     // passed in.
-    if (!ExpandColorMap(paletted_png_ptr, paletted_info_ptr,
-                        palette,
-                        strip_alpha ? -1 : transparent_palette_index,
-                        png_ptr, info_ptr)) {
+    if (!ExpandColorMap(paletted_png_ptr, paletted_info_ptr, palette,
+                        strip_alpha ? -1 : transparent_palette_index, png_ptr,
+                        info_ptr)) {
       return false;
     }
   }
@@ -504,8 +471,7 @@ ScanlineStatus SkipOverGifExtensionSubblocks(GifFileType* gif_file,
   while (extension != nullptr) {
     if (DGifGetExtensionNext(gif_file, &extension) == GIF_ERROR) {
       return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler,
-                              SCANLINE_STATUS_PARSE_ERROR,
-                              FRAME_GIFREADER,
+                              SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                               "Failed to read next extension.");
     }
   }
@@ -513,11 +479,9 @@ ScanlineStatus SkipOverGifExtensionSubblocks(GifFileType* gif_file,
 }
 
 // Utility to expand a color index from a palette.
-void ExpandColorIndex(const ColorMapObject* colormap,
-                      const int color_index,
+void ExpandColorIndex(const ColorMapObject* colormap, const int color_index,
                       PixelRgbaChannels rgba) {
-  if ((colormap != nullptr) &&
-      (colormap->Colors != nullptr) &&
+  if ((colormap != nullptr) && (colormap->Colors != nullptr) &&
       (color_index < colormap->ColorCount)) {
     const GifColorType color = colormap->Colors[color_index];
     rgba[RGBA_RED] = color.Red;
@@ -527,22 +491,16 @@ void ExpandColorIndex(const ColorMapObject* colormap,
   }
 }
 
-GifReader::GifReader(MessageHandler* handler)
-    : message_handler_(handler) {
-}
+GifReader::GifReader(MessageHandler* handler) : message_handler_(handler) {}
 
-GifReader::~GifReader() {
-}
+GifReader::~GifReader() {}
 
-bool GifReader::ReadPng(const GoogleString& body,
-                        png_structp png_ptr,
-                        png_infop info_ptr,
-                        int transforms,
+bool GifReader::ReadPng(const GoogleString& body, png_structp png_ptr,
+                        png_infop info_ptr, int transforms,
                         bool require_opaque) const {
   int allowed_transforms =
       // These transforms are no-ops when reading a .gif file.
-      PNG_TRANSFORM_STRIP_16 |
-      PNG_TRANSFORM_GRAY_TO_RGB |
+      PNG_TRANSFORM_STRIP_16 | PNG_TRANSFORM_GRAY_TO_RGB |
       // We implement this transform explicitly.
       PNG_TRANSFORM_EXPAND |
       // We implement this transform explicitly, regardless of require_opaque.
@@ -571,9 +529,8 @@ bool GifReader::ReadPng(const GoogleString& body,
     return false;
   }
 
-  bool result = ReadGifToPng(gif_file, png_ptr, info_ptr,
-                             expand_colormap, strip_alpha,
-                             require_opaque, message_handler_);
+  bool result = ReadGifToPng(gif_file, png_ptr, info_ptr, expand_colormap,
+                             strip_alpha, require_opaque, message_handler_);
   if (DGifCloseFile(gif_file, nullptr) == GIF_ERROR) {
     PS_DLOG_INFO(message_handler_, "Failed to close GIF.");
   }
@@ -581,10 +538,8 @@ bool GifReader::ReadPng(const GoogleString& body,
   return result;
 }
 
-bool GifReader::GetAttributes(const GoogleString& body,
-                              int* out_width,
-                              int* out_height,
-                              int* out_bit_depth,
+bool GifReader::GetAttributes(const GoogleString& body, int* out_width,
+                              int* out_height, int* out_bit_depth,
                               int* out_color_type) const {
   // We need the length of the magic bytes (GIF_STAMP_LEN), plus 2
   // bytes for width, plus 2 bytes for height.
@@ -602,8 +557,7 @@ bool GifReader::GetAttributes(const GoogleString& body,
   const unsigned char* width_data = body_data + GIF_STAMP_LEN;
   const unsigned char* height_data = width_data + 2;
 
-  *out_width =
-      (static_cast<unsigned int>(width_data[1]) << 8) + width_data[0];
+  *out_width = (static_cast<unsigned int>(width_data[1]) << 8) + width_data[0];
   *out_height =
       (static_cast<unsigned int>(height_data[1]) << 8) + height_data[0];
 
@@ -615,11 +569,10 @@ bool GifReader::GetAttributes(const GoogleString& body,
 
 class ScopedGifStruct {
  public:
-  explicit ScopedGifStruct(MessageHandler* handler) :
-      gif_file_(nullptr),
-      message_handler_(handler),
-      gif_input_(ScanlineStreamInput(handler)) {
-  }
+  explicit ScopedGifStruct(MessageHandler* handler)
+      : gif_file_(nullptr),
+        message_handler_(handler),
+        gif_input_(ScanlineStreamInput(handler)) {}
 
   ~ScopedGifStruct() {
     ScanlineStatus status;
@@ -627,8 +580,7 @@ class ScopedGifStruct {
     LOG_IF(ERROR, !status.Success());
   }
 
-  bool Initialize(const void* image_buffer,
-                  size_t buffer_length,
+  bool Initialize(const void* image_buffer, size_t buffer_length,
                   ScanlineStatus* status) {
     if (Reset(status)) {
       gif_input_.Initialize(image_buffer, buffer_length);
@@ -648,11 +600,9 @@ class ScopedGifStruct {
   bool Reset(ScanlineStatus* status) {
     if (gif_file_ != nullptr) {
       if (DGifCloseFile(gif_file_, nullptr) == GIF_ERROR) {
-        *status = PS_LOGGED_STATUS(PS_LOG_INFO,
-                                   message_handler_,
-                                   SCANLINE_STATUS_INTERNAL_ERROR,
-                                   FRAME_GIFREADER,
-                                   "Failed to close GIF file.");
+        *status = PS_LOGGED_STATUS(
+            PS_LOG_INFO, message_handler_, SCANLINE_STATUS_INTERNAL_ERROR,
+            FRAME_GIFREADER, "Failed to close GIF file.");
         return false;
       }
       gif_file_ = nullptr;
@@ -675,11 +625,9 @@ class ScopedGifStruct {
 #endif
 
     if (gif_file_ == nullptr) {
-      *status = PS_LOGGED_STATUS(PS_LOG_INFO,
-                                 message_handler_,
+      *status = PS_LOGGED_STATUS(PS_LOG_INFO, message_handler_,
                                  SCANLINE_STATUS_INTERNAL_ERROR,
-                                 FRAME_GIFREADER,
-                                 "Failed to open GIF file.");
+                                 FRAME_GIFREADER, "Failed to open GIF file.");
       return false;
     }
     *status = ScanlineStatus(SCANLINE_STATUS_SUCCESS);
@@ -705,8 +653,7 @@ GifFrameReader::GifFrameReader(MessageHandler* handler)
   Reset();
 }
 
-GifFrameReader::~GifFrameReader() {
-}
+GifFrameReader::~GifFrameReader() {}
 
 ScanlineStatus GifFrameReader::Reset() {
   image_initialized_ = false;
@@ -765,24 +712,21 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingFrame() {
   int ext_code = 0;
   if (DGifGetExtension(gif_file, &ext_code, &extension) == GIF_ERROR) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                            SCANLINE_STATUS_PARSE_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                             "Failed to read extension.");
   }
 
   if (ext_code == GRAPHICS_EXT_FUNC_CODE) {
     if (extension[kGifGceSizeIndex] != kGifGceExpectedSize) {
       return PS_LOGGED_STATUS(
-          PS_LOG_INFO, message_handler(),
-          SCANLINE_STATUS_PARSE_ERROR,
+          PS_LOG_INFO, message_handler(), SCANLINE_STATUS_PARSE_ERROR,
           FRAME_GIFREADER,
           "Received graphics extension with unexpected length.");
     }
     const int flags = extension[kGifGceFlagsIndex];
     const int dispose = (flags >> kGifGceDisposeShift) & kGifGceDisposeMask;
-    const int delay =
-        extension[kGifGceDelayLoIndex] |
-        (extension[kGifGceDelayHiIndex] << 8);  // In 10 ms units.
+    const int delay = extension[kGifGceDelayLoIndex] |
+                      (extension[kGifGceDelayHiIndex] << 8);  // In 10 ms units.
     frame_spec_.duration_ms = delay * 10;
 
     FrameSpec::DisposalMethod frame_dispose =
@@ -795,13 +739,12 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingFrame() {
       // images, an unrecognized disposal methods constitutes an
       // error.
       if (image_spec_.num_frames == 1) {
-        PS_LOG_INFO(message_handler(),
-                    "Unrecognized disposal method %d.", dispose);
+        PS_LOG_INFO(message_handler(), "Unrecognized disposal method %d.",
+                    dispose);
         frame_spec_.disposal = FrameSpec::DISPOSAL_NONE;
       } else {
         return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                SCANLINE_STATUS_PARSE_ERROR,
-                                FRAME_GIFREADER,
+                                SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                                 "Unrecognized disposal method %d.", dispose);
       }
     }
@@ -817,9 +760,9 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingFrame() {
 
     // In case the next record is an Image Extension (i.e. the
     // next frame), get the transparent index.
-    frame_transparent_index_ =
-        ((flags & kGifGceTransparentMask) ?
-         extension[kGifGceTransparentIndexIndex] : kNoTransparentIndex);
+    frame_transparent_index_ = ((flags & kGifGceTransparentMask)
+                                    ? extension[kGifGceTransparentIndexIndex]
+                                    : kNoTransparentIndex);
   }
 
   // We skip all other extension block types, such as
@@ -855,23 +798,19 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
 
   if (DGifGetExtension(gif_file, &ext_code, &extension) == GIF_ERROR) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                            SCANLINE_STATUS_PARSE_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                             "Failed to read extension.");
   }
 
-  if  (ext_code == APPLICATION_EXT_FUNC_CODE) {
+  if (ext_code == APPLICATION_EXT_FUNC_CODE) {
     if (extension == nullptr) {
-      return PS_LOGGED_STATUS(
-          PS_LOG_INFO, message_handler(),
-          SCANLINE_STATUS_PARSE_ERROR,
-          FRAME_GIFREADER,
-          "NULL Application Extension Block.");
+      return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
+                              SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
+                              "NULL Application Extension Block.");
     }
     if (extension[kGifAeIdentifierLengthIndex] != kGifAeIdentifierLength) {
       return PS_LOGGED_STATUS(
-          PS_LOG_INFO, message_handler(),
-          SCANLINE_STATUS_PARSE_ERROR,
+          PS_LOG_INFO, message_handler(), SCANLINE_STATUS_PARSE_ERROR,
           FRAME_GIFREADER,
           "Application extension block size has unexpected size.");
     }
@@ -879,8 +818,7 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
       // Recognize and parse Netscape2.0 NAB extension for loop count.
       if (DGifGetExtensionNext(gif_file, &extension) == GIF_ERROR) {
         return PS_LOGGED_STATUS(
-            PS_LOG_INFO, message_handler(),
-            SCANLINE_STATUS_PARSE_ERROR,
+            PS_LOG_INFO, message_handler(), SCANLINE_STATUS_PARSE_ERROR,
             FRAME_GIFREADER,
             "DGifGetExtensionNext failed while trying to get loop count");
       }
@@ -889,8 +827,7 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
            (extension[kGifAeLoopCountFixedConstIndex] !=
             kGifAeLoopCountExpectedFixedConst))) {
         return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                SCANLINE_STATUS_PARSE_ERROR,
-                                FRAME_GIFREADER,
+                                SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                                 "animation loop count: wrong size/marker");
       }
       if (past_first_frame) {
@@ -899,9 +836,8 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
                     "Animation loop count in unexpected location.");
       }
       if (has_loop_count_) {
-        PS_LOG_INFO(
-            message_handler(),
-            "Multiple loop counts encountered. Using the last one.");
+        PS_LOG_INFO(message_handler(),
+                    "Multiple loop counts encountered. Using the last one.");
       }
       has_loop_count_ = true;
       image_spec_.loop_count = (extension[kGifAeLoopCountLoIndex] |
@@ -918,8 +854,7 @@ ScanlineStatus GifFrameReader::ProcessExtensionAffectingImage(
 ScanlineStatus GifFrameReader::Initialize() {
   if (image_buffer_ == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_INVOCATION_ERROR, FRAME_GIFREADER,
                             "null or empty image buffer.");
   }
   if (image_initialized_) {
@@ -931,8 +866,7 @@ ScanlineStatus GifFrameReader::Initialize() {
       gif_struct_ = std::make_unique<ScopedGifStruct>(message_handler());
       if (gif_struct_ == nullptr) {
         return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                                SCANLINE_STATUS_MEMORY_ERROR,
-                                FRAME_GIFREADER,
+                                SCANLINE_STATUS_MEMORY_ERROR, FRAME_GIFREADER,
                                 "Failed to allocate ScopedGifStruct.");
       }
     }
@@ -941,8 +875,7 @@ ScanlineStatus GifFrameReader::Initialize() {
       gif_palette_.reset(new PaletteRGBA[kGifPaletteSize]);
       if (gif_palette_ == nullptr) {
         return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                                SCANLINE_STATUS_MEMORY_ERROR,
-                                FRAME_GIFREADER,
+                                SCANLINE_STATUS_MEMORY_ERROR, FRAME_GIFREADER,
                                 "Failed to allocate PaletteRGBA.");
       }
     }
@@ -989,7 +922,7 @@ inline void ClearGifColorMap(GifFileType* gif_file) {
 ScanlineStatus GifFrameReader::GetImageData() {
   GifFileType* gif_file = gif_struct_->gif_file();
   size_t offset = gif_struct_->offset();
-  image_spec_.width =  gif_file->SWidth;
+  image_spec_.width = gif_file->SWidth;
   image_spec_.height = gif_file->SHeight;
 
   GifRecordType record_type = UNDEFINED_RECORD_TYPE;
@@ -998,8 +931,7 @@ ScanlineStatus GifFrameReader::GetImageData() {
 
     if (DGifGetRecordType(gif_file, &record_type) == GIF_ERROR) {
       return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                              SCANLINE_STATUS_PARSE_ERROR,
-                              FRAME_GIFREADER,
+                              SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                               "DGifGetRecordType()");
     }
     switch (record_type) {
@@ -1009,8 +941,7 @@ ScanlineStatus GifFrameReader::GetImageData() {
         ClearGifColorMap(gif_file);
         if (DGifGetImageDesc(gif_file) == GIF_ERROR) {
           return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                  SCANLINE_STATUS_PARSE_ERROR,
-                                  FRAME_GIFREADER,
+                                  SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                                   "DGifGetImageDesc()");
         }
 
@@ -1028,16 +959,14 @@ ScanlineStatus GifFrameReader::GetImageData() {
         GifByteType* code_block;
         if (DGifGetCode(gif_file, &code_size, &code_block) == GIF_ERROR) {
           return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                  SCANLINE_STATUS_PARSE_ERROR,
-                                  FRAME_GIFREADER,
+                                  SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                                   "DGifGetCode()");
         }
         while (code_block != nullptr) {
           if (DGifGetCodeNext(gif_file, &code_block) == GIF_ERROR) {
             return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
                                     SCANLINE_STATUS_PARSE_ERROR,
-                                    FRAME_GIFREADER,
-                                    "DGifGetCodeNext()");
+                                    FRAME_GIFREADER, "DGifGetCodeNext()");
           }
         }
 
@@ -1059,10 +988,8 @@ ScanlineStatus GifFrameReader::GetImageData() {
 
       default:
         return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                SCANLINE_STATUS_PARSE_ERROR,
-                                FRAME_GIFREADER,
-                                "unexpected record %d",
-                                record_type);
+                                SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
+                                "unexpected record %d", record_type);
         break;
     }
   }
@@ -1079,8 +1006,7 @@ ScanlineStatus GifFrameReader::GetImageData() {
   // (unless they have a local color map, of course). Find out how
   // giflib deals with this, how often it occurs in practice, and, if
   // necessary, accommodate this situation in code.
-  ExpandColorIndex(gif_file->SColorMap,
-                   gif_file->SBackGroundColor,
+  ExpandColorIndex(gif_file->SColorMap, gif_file->SBackGroundColor,
                    image_spec_.bg_color);
   // The GIF background color seems to not be interpreted by Chrome,
   // Firefox, and other image viewers, so regardless of whether we
@@ -1088,14 +1014,14 @@ ScanlineStatus GifFrameReader::GetImageData() {
   image_spec_.use_bg_color = false;
 
   gif_struct_->set_offset(offset);
-  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);;
+  return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
+  ;
 }
 
 ScanlineStatus GifFrameReader::set_quirks_mode(QuirksMode quirks_mode) {
   if (image_initialized_) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_INVOCATION_ERROR, FRAME_GIFREADER,
                             "Can't change quirks mode for initialized image.");
   }
   return MultipleFrameReader::set_quirks_mode(quirks_mode);
@@ -1110,9 +1036,9 @@ void GifFrameReader::ApplyQuirksModeToImage(QuirksMode quirks_mode,
   switch (quirks_mode) {
     case QUIRKS_CHROME: {
       // Based on Chrome 38 behavior on Linux.
-      bool image_smaller_than_first_frame = (
-          (frame_spec.width > image_spec->width) ||
-          (frame_spec.height > image_spec->height));
+      bool image_smaller_than_first_frame =
+          ((frame_spec.width > image_spec->width) ||
+           (frame_spec.height > image_spec->height));
 
       if (image_smaller_than_first_frame) {
         image_spec->image_size_adjusted = true;
@@ -1130,11 +1056,10 @@ void GifFrameReader::ApplyQuirksModeToImage(QuirksMode quirks_mode,
     }
     case QUIRKS_FIREFOX: {
       // Based on Firefox 32 behavior on Linux.
-      bool image_and_frame_match = (
-          (frame_spec.width == image_spec->width) &&
-          (frame_spec.height == image_spec->height) &&
-          (frame_spec.left == 0) &&
-          (frame_spec.top == 0));
+      bool image_and_frame_match =
+          ((frame_spec.width == image_spec->width) &&
+           (frame_spec.height == image_spec->height) &&
+           (frame_spec.left == 0) && (frame_spec.top == 0));
       if (!image_and_frame_match) {
         clear_bg_color = true;
       }
@@ -1163,8 +1088,8 @@ void GifFrameReader::ApplyQuirksModeToFirstFrame(const QuirksMode quirks_mode,
   switch (quirks_mode) {
     case QUIRKS_CHROME: {
       // Based on Chrome 38 behavior on Linux.
-      bool first_frame_zero_dimension = (
-          (frame_spec->width == 0) || (frame_spec->height == 0));
+      bool first_frame_zero_dimension =
+          ((frame_spec->width == 0) || (frame_spec->height == 0));
 
       if (first_frame_zero_dimension) {
         frame_spec->width = image_spec.width;
@@ -1182,11 +1107,10 @@ void GifFrameReader::ApplyQuirksModeToFirstFrame(const QuirksMode quirks_mode,
     }
     case QUIRKS_FIREFOX: {
       // Based on Firefox 32 behavior on Linux.
-      bool image_and_frame_match = (
-          (frame_spec->width == image_spec.width) &&
-          (frame_spec->height == image_spec.height) &&
-          (frame_spec->left == 0) &&
-          (frame_spec->top == 0));
+      bool image_and_frame_match =
+          ((frame_spec->width == image_spec.width) &&
+           (frame_spec->height == image_spec.height) &&
+           (frame_spec->left == 0) && (frame_spec->top == 0));
       if (!image_and_frame_match) {
         frame_spec->height = 0;
         frame_spec->width = 0;
@@ -1207,29 +1131,25 @@ ScanlineStatus GifFrameReader::CreateColorMap() {
   GifFileType* gif_file = gif_struct_->gif_file();
 
   // Populate the color map.
-  ColorMapObject* color_map =
-      gif_file->Image.ColorMap != nullptr ?
-      gif_file->Image.ColorMap : gif_file->SColorMap;
+  ColorMapObject* color_map = gif_file->Image.ColorMap != nullptr
+                                  ? gif_file->Image.ColorMap
+                                  : gif_file->SColorMap;
   if (color_map == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_INTERNAL_ERROR, FRAME_GIFREADER,
                             "missing colormap in image and screen");
   }
 
   GifColorType* palette_in = color_map->Colors;
   if (palette_in == nullptr) {
     return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_INTERNAL_ERROR, FRAME_GIFREADER,
                             "Could not find colormap in the GIF image.");
   }
   if (color_map->ColorCount > kGifPaletteSize) {
-    return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                            SCANLINE_STATUS_INTERNAL_ERROR,
-                            FRAME_GIFREADER,
-                            "ColorCount is too large: %d",
-                            color_map->ColorCount);
+    return PS_LOGGED_STATUS(
+        PS_LOG_INFO, message_handler(), SCANLINE_STATUS_INTERNAL_ERROR,
+        FRAME_GIFREADER, "ColorCount is too large: %d", color_map->ColorCount);
   }
 
   frame_palette_size_ = color_map->ColorCount;
@@ -1241,8 +1161,7 @@ ScanlineStatus GifFrameReader::CreateColorMap() {
   }
   // Set any out-of-range palette entries to be completely transparent
   // in case any pixel references them.
-  memset(gif_palette_.get() + frame_palette_size_,
-         kAlphaTransparent,
+  memset(gif_palette_.get() + frame_palette_size_, kAlphaTransparent,
          (kGifPaletteSize - frame_palette_size_) * sizeof(PaletteRGBA));
 
   // Process the transparency information. The output format will be
@@ -1261,8 +1180,7 @@ ScanlineStatus GifFrameReader::CreateColorMap() {
     frame_spec_.pixel_format = RGBA_8888;
     if (frame_transparent_index_ < frame_palette_size_) {
       // Set transparent index's color to be transparent.
-      memset(&(gif_palette_[frame_transparent_index_]),
-             kAlphaTransparent,
+      memset(&(gif_palette_[frame_transparent_index_]), kAlphaTransparent,
              sizeof(PaletteRGBA));
     }
   } else {
@@ -1276,8 +1194,7 @@ ScanlineStatus GifFrameReader::DecodeProgressiveGif() {
   // The deinterlace code is based on the algorithm in giflib.
   GifFileType* gif_file = gif_struct_->gif_file();
   for (int pass = 0; pass < kInterlaceNumPass; ++pass) {
-    for (size_px y = kInterlaceOffsets[pass];
-         y < frame_spec_.height;
+    for (size_px y = kInterlaceOffsets[pass]; y < frame_spec_.height;
          y += kInterlaceJumps[pass]) {
       GifPixelType* row_pointer = frame_index_.get() + y * frame_spec_.width;
       if (DGifGetLine(gif_file, row_pointer, frame_spec_.width) == GIF_ERROR) {
@@ -1296,11 +1213,11 @@ ScanlineStatus GifFrameReader::DecodeNonProgressiveGif() {
   const GifPixelType* row_pointer_end =
       frame_index_.get() + frame_spec_.height * frame_spec_.width;
   for (; row_pointer < row_pointer_end; row_pointer += frame_spec_.width) {
-      if (DGifGetLine(gif_file, row_pointer, frame_spec_.width) == GIF_ERROR) {
-        return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                SCANLINE_STATUS_INTERNAL_ERROR, FRAME_GIFREADER,
-                                "DGifGetLine()");
-      }
+    if (DGifGetLine(gif_file, row_pointer, frame_spec_.width) == GIF_ERROR) {
+      return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
+                              SCANLINE_STATUS_INTERNAL_ERROR, FRAME_GIFREADER,
+                              "DGifGetLine()");
+    }
   }
   return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
 }
@@ -1308,8 +1225,7 @@ ScanlineStatus GifFrameReader::DecodeNonProgressiveGif() {
 // Helper function for PrepareNextFrame(). This returns true if any of
 // the 'num_pixel' pixel entries starting at 'px' reference a palette
 // value greater than 'frame_palette_size'.
-inline bool FrameHasOutOfRangePixels(GifPixelType* px,
-                                     const size_px num_pixels,
+inline bool FrameHasOutOfRangePixels(GifPixelType* px, const size_px num_pixels,
                                      const int frame_palette_size) {
   const GifPixelType* end_px = px + num_pixels;
   for (; px < end_px; ++px) {
@@ -1336,8 +1252,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
 
   if (next_frame_ >= image_spec_.num_frames) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_INVOCATION_ERROR, FRAME_GIFREADER,
                             "PrepareNextFrame: no more frames.");
   }
 
@@ -1350,8 +1265,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
     GifRecordType record_type = UNDEFINED_RECORD_TYPE;
     if (DGifGetRecordType(gif_file, &record_type) == GIF_ERROR) {
       return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                              SCANLINE_STATUS_PARSE_ERROR,
-                              FRAME_GIFREADER,
+                              SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                               "DGifGetRecordType()");
     }
 
@@ -1361,8 +1275,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
         ClearGifColorMap(gif_file);
         if (DGifGetImageDesc(gif_file) == GIF_ERROR) {
           return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                  SCANLINE_STATUS_PARSE_ERROR,
-                                  FRAME_GIFREADER,
+                                  SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
                                   "DGifGetImageDesc()");
         }
         frame_spec_.top = gif_file->Image.Top;
@@ -1389,8 +1302,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
       case TERMINATE_RECORD_TYPE: {
         DVLOG(1) << "PrepareNextFrame: TERMINATE";
         return PS_LOGGED_STATUS(
-            PS_LOG_INFO, message_handler(),
-            SCANLINE_STATUS_INTERNAL_ERROR,
+            PS_LOG_INFO, message_handler(), SCANLINE_STATUS_INTERNAL_ERROR,
             FRAME_GIFREADER,
             "PrepareNextFrame: expected to find the next frame, failed.");
         break;
@@ -1398,10 +1310,8 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
 
       default: {
         return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                                SCANLINE_STATUS_PARSE_ERROR,
-                                FRAME_GIFREADER,
-                                "unexpected record %d",
-                                record_type);
+                                SCANLINE_STATUS_PARSE_ERROR, FRAME_GIFREADER,
+                                "unexpected record %d", record_type);
         break;
       }
     }
@@ -1430,14 +1340,13 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
   } else {
     // We need to read all the rows before the first call to
     // ReadNextScanline().
-    frame_index_.reset(new GifPixelType[frame_spec_.width *
-                                        frame_spec_.height]);
+    frame_index_.reset(
+        new GifPixelType[frame_spec_.width * frame_spec_.height]);
   }
   if (frame_index_ == nullptr) {
     Reset();
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_MEMORY_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_MEMORY_ERROR, FRAME_GIFREADER,
                             "new GiPixelType[] for frame_index_");
   }
 
@@ -1445,9 +1354,9 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
   frame_initialized_ = true;
 
   if (frame_eagerly_read_) {
-    ScanlineStatus status = (frame_spec_.hint_progressive ?
-                             DecodeProgressiveGif() :
-                             DecodeNonProgressiveGif());
+    ScanlineStatus status =
+        (frame_spec_.hint_progressive ? DecodeProgressiveGif()
+                                      : DecodeNonProgressiveGif());
     if (!status.Success()) {
       PS_LOG_INFO(message_handler(), "Failed to decode entire GIF frame.");
       Reset();
@@ -1462,8 +1371,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
       PS_DLOG_INFO(
           message_handler(),
           "Found out-of-range pixel in frame %i. Switching frame to %s",
-          next_frame_ - 1,
-          GetPixelFormatString(frame_spec_.pixel_format));
+          next_frame_ - 1, GetPixelFormatString(frame_spec_.pixel_format));
     }
   }
 
@@ -1475,8 +1383,7 @@ ScanlineStatus GifFrameReader::PrepareNextFrame() {
   if (frame_buffer_ == nullptr) {
     Reset();
     return PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                            SCANLINE_STATUS_MEMORY_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_MEMORY_ERROR, FRAME_GIFREADER,
                             "new GiPixelType[] for frame_buffer_ ");
   }
 
@@ -1487,8 +1394,7 @@ ScanlineStatus GifFrameReader::ReadNextScanline(
     const void** out_scanline_bytes) {
   if (!frame_initialized_ || !HasMoreScanlines()) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_GIFREADER,
+                            SCANLINE_STATUS_INVOCATION_ERROR, FRAME_GIFREADER,
                             "The GIF image was not initialized or does not "
                             "have more scanlines.");
   }
@@ -1506,8 +1412,7 @@ ScanlineStatus GifFrameReader::ReadNextScanline(
     if (DGifGetLine(gif_file, index_buffer, frame_spec_.width) == GIF_ERROR) {
       Reset();
       return PS_LOGGED_STATUS(PS_LOG_INFO, message_handler(),
-                              SCANLINE_STATUS_INTERNAL_ERROR,
-                              FRAME_GIFREADER,
+                              SCANLINE_STATUS_INTERNAL_ERROR, FRAME_GIFREADER,
                               "DGifGetLine()");
     }
   } else {
@@ -1516,8 +1421,7 @@ ScanlineStatus GifFrameReader::ReadNextScanline(
     index_buffer = frame_index_.get() + next_row_ * frame_spec_.width;
   }
 
-  for (size_px pixel_index = 0;
-       pixel_index < frame_spec_.width;
+  for (size_px pixel_index = 0; pixel_index < frame_spec_.width;
        ++pixel_index) {
     // Convert the color index to the actual color. Note that
     // out-of-range pixel values get automatically converted to

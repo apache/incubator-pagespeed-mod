@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include <cstddef>
 
@@ -41,10 +40,10 @@ namespace pagespeed {
 namespace image_compression {
 
 // Friend adapter so we can instantiate GifFrameReader.
-class TestGifFrameReader : public  GifFrameReader {
+class TestGifFrameReader : public GifFrameReader {
  public:
-  explicit TestGifFrameReader(MessageHandler* handler) :
-      GifFrameReader(handler) {}
+  explicit TestGifFrameReader(MessageHandler* handler)
+      : GifFrameReader(handler) {}
 };
 
 }  // namespace image_compression
@@ -55,12 +54,11 @@ namespace {
 
 using net_instaweb::MockMessageHandler;
 using net_instaweb::NullMutex;
-using pagespeed::image_compression::kAlphaOpaque;
-using pagespeed::image_compression::kAlphaTransparent;
-using pagespeed::image_compression::size_px;
-using pagespeed::image_compression::kGifTestDir;
 using pagespeed::image_compression::FrameToScanlineReaderAdapter;
 using pagespeed::image_compression::GifFrameReader;
+using pagespeed::image_compression::kAlphaOpaque;
+using pagespeed::image_compression::kAlphaTransparent;
+using pagespeed::image_compression::kGifTestDir;
 using pagespeed::image_compression::MultipleFramePaddingReader;
 using pagespeed::image_compression::MultipleFrameReader;
 using pagespeed::image_compression::PackAsRgba;
@@ -71,15 +69,14 @@ using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::RGBA_8888;
 using pagespeed::image_compression::ScanlineReaderInterface;
 using pagespeed::image_compression::ScanlineStatus;
+using pagespeed::image_compression::size_px;
 using pagespeed::image_compression::TestGifFrameReader;
 
 // Tests for FrameToScanlineReaderAdapter composed with
 // MultipleFramePaddingReader.
 class FrameScanlineAdapterWithPaddingTest : public testing::Test {
  public:
-  FrameScanlineAdapterWithPaddingTest()
-      : message_handler_(new NullMutex) {
-  }
+  FrameScanlineAdapterWithPaddingTest() : message_handler_(new NullMutex) {}
 
  protected:
   // Verifies that the pixels in the positions [start,end) all have the
@@ -93,16 +90,14 @@ class FrameScanlineAdapterWithPaddingTest : public testing::Test {
       // we don't want a log message for every single pixel.
       ASSERT_EQ(0, memcmp((static_cast<const uint8_t*>(scanline) +
                            idx * bytes_per_pixel),
-                          color,
-                          bytes_per_pixel))
+                          color, bytes_per_pixel))
           << "[" << start << "," << end << "] (bpp:" << bytes_per_pixel << ")"
           << " got: "
-          << PixelRgbaChannelsToString(static_cast<const uint8_t *>(scanline) +
+          << PixelRgbaChannelsToString(static_cast<const uint8_t*>(scanline) +
                                        idx * bytes_per_pixel)
           << " want: " << PixelRgbaChannelsToString(color);
     }
   }
-
 
  protected:
   MockMessageHandler message_handler_;
@@ -143,17 +138,17 @@ TEST_F(FrameScanlineAdapterWithPaddingTest, ReaderPadsLines) {
   uint32_t* scanline = nullptr;
   for (int j = 0; j < kHeight; ++j) {
     EXPECT_TRUE(reader->HasMoreScanLines());
-    reader->ReadNextScanlineWithStatus(reinterpret_cast<void **>(&scanline));
+    reader->ReadNextScanlineWithStatus(reinterpret_cast<void**>(&scanline));
     EXPECT_TRUE(status.Success()) << status.ToString();
     if ((j < kForegroundYBegin) || (j >= kForegroundYEnd)) {
       VerifyPixels(scanline, 0, kWidth, kTransparent, reader->GetPixelFormat());
     } else {
-      VerifyPixels(scanline, 0, kForegroundXBegin,
-                   kTransparent, reader->GetPixelFormat());
-      VerifyPixels(scanline, kForegroundXBegin, kForegroundXEnd,
-                   kRed, reader->GetPixelFormat());
-      VerifyPixels(scanline, kForegroundXEnd, kWidth,
-                   kTransparent, reader->GetPixelFormat());
+      VerifyPixels(scanline, 0, kForegroundXBegin, kTransparent,
+                   reader->GetPixelFormat());
+      VerifyPixels(scanline, kForegroundXBegin, kForegroundXEnd, kRed,
+                   reader->GetPixelFormat());
+      VerifyPixels(scanline, kForegroundXEnd, kWidth, kTransparent,
+                   reader->GetPixelFormat());
     }
   }
 }

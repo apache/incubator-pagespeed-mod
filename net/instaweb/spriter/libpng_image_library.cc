@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,8 +39,9 @@ LibpngImageLibrary::Image::Image(ImageLibraryInterface* lib,
                                  png_structp png_struct, png_infop png_info,
                                  png_bytep* rows)
     : ImageLibraryInterface::Image(lib),
-      png_struct_(png_struct), png_info_(png_info), rows_(rows) {
-}
+      png_struct_(png_struct),
+      png_info_(png_info),
+      rows_(rows) {}
 LibpngImageLibrary::Image::~Image() {
   int width, height;
   GetDimensions(&width, &height);
@@ -50,15 +51,13 @@ LibpngImageLibrary::Image::~Image() {
   }
   delete[] rows_;
 }
-bool LibpngImageLibrary::Image::GetDimensions(int* out_width, int* out_height)
-    const {
+bool LibpngImageLibrary::Image::GetDimensions(int* out_width,
+                                              int* out_height) const {
   *out_width = png_get_image_width(png_struct_, png_info_);
   *out_height = png_get_image_height(png_struct_, png_info_);
   return true;
 }
-const png_bytep* LibpngImageLibrary::Image::Rows() const {
-  return rows_;
-}
+const png_bytep* LibpngImageLibrary::Image::Rows() const { return rows_; }
 
 bool LibpngImageLibrary::Canvas::DrawImage(
     const ImageLibraryInterface::Image* image, int x_start, int y_start) {
@@ -90,30 +89,30 @@ bool LibpngImageLibrary::Canvas::WriteToFile(const FilePath& filename,
   FILE* file = fopen(write_path.c_str(), "wb");
   if (file == nullptr) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": ", strerror(errno)));
+        StrCat("Writing image ", write_path, ": ", strerror(errno)));
     fclose(file);
     return false;
   }
 
-  png_structp png_struct = png_create_write_struct(
-      PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+  png_structp png_struct =
+      png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
   if (png_struct == nullptr) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": cannot create png struct"));
+        StrCat("Writing image ", write_path, ": cannot create png struct"));
     fclose(file);
     return false;
   }
   png_infop png_info = png_create_info_struct(png_struct);
   if (png_info == nullptr) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": cannot create png info"));
+        StrCat("Writing image ", write_path, ": cannot create png info"));
     png_destroy_write_struct(&png_struct, &png_info);
     fclose(file);
     return false;
   }
   if (setjmp(png_jmpbuf(png_struct))) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": cannot initialize libpng"));
+        StrCat("Writing image ", write_path, ": cannot initialize libpng"));
     png_destroy_write_struct(&png_struct, &png_info);
     fclose(file);
     return false;
@@ -121,21 +120,21 @@ bool LibpngImageLibrary::Canvas::WriteToFile(const FilePath& filename,
   png_init_io(png_struct, file);
   if (setjmp(png_jmpbuf(png_struct))) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": cannot write header"));
+        StrCat("Writing image ", write_path, ": cannot write header"));
     png_destroy_write_struct(&png_struct, &png_info);
     fclose(file);
     return false;
   }
   const png_byte bit_depth = 8;
   const png_byte color_type = PNG_COLOR_TYPE_RGB_ALPHA;
-  png_set_IHDR(png_struct, png_info, width_, height_,
-               bit_depth, color_type, PNG_INTERLACE_NONE,
-               PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+  png_set_IHDR(png_struct, png_info, width_, height_, bit_depth, color_type,
+               PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE,
+               PNG_FILTER_TYPE_BASE);
   png_write_info(png_struct, png_info);
 
   if (setjmp(png_jmpbuf(png_struct))) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": cannot write body"));
+        StrCat("Writing image ", write_path, ": cannot write body"));
     png_destroy_write_struct(&png_struct, &png_info);
     fclose(file);
     return false;
@@ -144,7 +143,7 @@ bool LibpngImageLibrary::Canvas::WriteToFile(const FilePath& filename,
 
   if (setjmp(png_jmpbuf(png_struct))) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": cannot write end"));
+        StrCat("Writing image ", write_path, ": cannot write end"));
     fclose(file);
     return false;
   }
@@ -152,17 +151,20 @@ bool LibpngImageLibrary::Canvas::WriteToFile(const FilePath& filename,
   png_destroy_write_struct(&png_struct, &png_info);
   if (fclose(file) != 0) {
     delegate_->OnError(
-        StrCat("Writing image " , write_path, ": ", strerror(errno)));
+        StrCat("Writing image ", write_path, ": ", strerror(errno)));
     return false;
   }
   return true;
 }
 LibpngImageLibrary::Canvas::Canvas(ImageLibraryInterface* lib,
                                    const Delegate* d,
-                                   const GoogleString& base_out_path,
-                                   int width, int height)
-    : ImageLibraryInterface::Canvas(lib), delegate_(d),
-      base_out_path_(base_out_path), width_(width), height_(height) {
+                                   const GoogleString& base_out_path, int width,
+                                   int height)
+    : ImageLibraryInterface::Canvas(lib),
+      delegate_(d),
+      base_out_path_(base_out_path),
+      width_(width),
+      height_(height) {
   rows_ = new png_bytep[height];
   for (int i = height - 1; i >= 0; i--) {
     rows_[i] = new png_byte[width * BYTES_PER_PIXEL];
@@ -180,7 +182,6 @@ ImageLibraryInterface::Canvas* LibpngImageLibrary::CreateCanvas(int width,
   return new Canvas(this, delegate(), base_output_path(), width, height);
 }
 
-
 // Read an image from disk.  Return NULL (after calling delegate
 // method) on error.  Caller owns the returned pointer.
 ImageLibraryInterface::Image* LibpngImageLibrary::ReadFromFile(
@@ -188,32 +189,32 @@ ImageLibraryInterface::Image* LibpngImageLibrary::ReadFromFile(
   GoogleString path = StrCat(base_input_path(), filename);
   FILE* file = fopen(path.c_str(), "rb");
   if (file == nullptr) {
-    delegate()->OnError(StrCat("Reading image " , path, ": ", strerror(errno)));
+    delegate()->OnError(StrCat("Reading image ", path, ": ", strerror(errno)));
     return nullptr;
   }
   png_byte header[8];
   if (fread(header, 1, 8, file) != 8) {
-    delegate()->OnError(StrCat("Image " , path, " has no header."));
+    delegate()->OnError(StrCat("Image ", path, " has no header."));
     fclose(file);
     return nullptr;
   }
   if (png_sig_cmp(header, 0, 8) != 0) {
-    delegate()->OnError(StrCat("Image " , path, " not PNG."));
+    delegate()->OnError(StrCat("Image ", path, " not PNG."));
     fclose(file);
     return nullptr;
   }
-  png_structp png_struct = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-                                                  nullptr, nullptr, nullptr);
+  png_structp png_struct =
+      png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
   png_infop png_info = png_create_info_struct(png_struct);
   if (!png_info) {
     png_destroy_read_struct(&png_struct, nullptr, nullptr);
-    delegate()->OnError(StrCat("Image " , path, " could not create png_info"));
+    delegate()->OnError(StrCat("Image ", path, " could not create png_info"));
     return nullptr;
   }
   if (setjmp(png_jmpbuf(png_struct))) {
     png_destroy_read_struct(&png_struct, &png_info, nullptr);
     fclose(file);
-    delegate()->OnError(StrCat("Image " , path, " could not be decoded."));
+    delegate()->OnError(StrCat("Image ", path, " could not be decoded."));
     return nullptr;
   }
   png_init_io(png_struct, file);
@@ -223,11 +224,11 @@ ImageLibraryInterface::Image* LibpngImageLibrary::ReadFromFile(
   int height = png_get_image_height(png_struct, png_info);
   if ((width > MAX_PNG_DIMENSION) || (height > MAX_PNG_DIMENSION)) {
     fclose(file);
-    delegate()->OnError(StrCat("Image " , path, " is too big."));
+    delegate()->OnError(StrCat("Image ", path, " is too big."));
     return nullptr;
   }
   if ((width <= 0) || (height <= 0)) {
-    delegate()->OnError(StrCat("Image " , path, " has nonpositive dimension."));
+    delegate()->OnError(StrCat("Image ", path, " has nonpositive dimension."));
     return nullptr;
   }
 
@@ -255,7 +256,7 @@ ImageLibraryInterface::Image* LibpngImageLibrary::ReadFromFile(
   }
   if ((color_type == PNG_COLOR_TYPE_GRAY) ||
       (color_type == PNG_COLOR_TYPE_GRAY_ALPHA)) {
-        png_set_gray_to_rgb(png_struct);
+    png_set_gray_to_rgb(png_struct);
   }
   // TODO(abliss): what to do with background color and gamma?
   png_read_update_info(png_struct, png_info);
@@ -269,13 +270,10 @@ ImageLibraryInterface::Image* LibpngImageLibrary::ReadFromFile(
   return new Image(this, png_struct, png_info, rows);
 }
 
-
 LibpngImageLibrary::LibpngImageLibrary(const FilePath& base_input_path,
                                        const FilePath& base_output_path,
                                        Delegate* delegate)
-    : ImageLibraryInterface(base_input_path, base_output_path, delegate) {
-}
-
+    : ImageLibraryInterface(base_input_path, base_output_path, delegate) {}
 
 }  // namespace spriter
 }  // namespace net_instaweb

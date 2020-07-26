@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,11 @@
  * under the License.
  */
 
-
 // Unit-test the RewriteContext class.  This is made simplest by
 // setting up some dummy rewriters in our test framework.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_TEST_BASE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_TEST_BASE_H_
-
-#include "net/instaweb/rewriter/public/rewrite_context.h"
 
 #include <utility>
 #include <vector>
@@ -35,6 +32,7 @@
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_combiner.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
+#include "net/instaweb/rewriter/public/rewrite_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -56,7 +54,6 @@
 #include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/url_multipart_encoder.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
-
 
 namespace net_instaweb {
 
@@ -80,8 +77,7 @@ class TrimWhitespaceRewriter : public SimpleTextFilter::Rewriter {
   ~TrimWhitespaceRewriter() override;
 
   bool RewriteText(const StringPiece& url, const StringPiece& in,
-                           GoogleString* out,
-                           ServerContext* server_context) override;
+                   GoogleString* out, ServerContext* server_context) override;
   HtmlElement::Attribute* FindResourceAttribute(HtmlElement* element) override;
   OutputResourceKind kind() const override { return kind_; }
   const char* id() const override { return kFilterId; }
@@ -105,8 +101,7 @@ class TrimWhitespaceSyncFilter : public SimpleTextFilter {
 
   explicit TrimWhitespaceSyncFilter(OutputResourceKind kind,
                                     RewriteDriver* driver)
-      : SimpleTextFilter(new TrimWhitespaceRewriter(kind), driver) {
-  }
+      : SimpleTextFilter(new TrimWhitespaceRewriter(kind), driver) {}
   ~TrimWhitespaceSyncFilter() override;
 
   void StartElementImpl(HtmlElement* element) override;
@@ -139,8 +134,7 @@ class UpperCaseRewriter : public SimpleTextFilter::Rewriter {
   ~UpperCaseRewriter() override;
 
   bool RewriteText(const StringPiece& url, const StringPiece& in,
-                           GoogleString* out,
-                           ServerContext* server_context) override {
+                   GoogleString* out, ServerContext* server_context) override {
     ++num_rewrites_;
     in.CopyToString(out);
     UpperString(out);
@@ -175,8 +169,10 @@ class NestedFilter : public RewriteFilter {
 
   NestedFilter(RewriteDriver* driver, SimpleTextFilter* upper_filter,
                UpperCaseRewriter* upper_rewriter, bool expected_nested_result)
-      : RewriteFilter(driver), upper_filter_(upper_filter),
-        upper_rewriter_(upper_rewriter), chain_(false),
+      : RewriteFilter(driver),
+        upper_filter_(upper_filter),
+        upper_rewriter_(upper_rewriter),
+        chain_(false),
         check_nested_rewrite_result_(true),
         expected_nested_rewrite_result_(expected_nested_result) {
     ClearStats();
@@ -222,11 +218,10 @@ class NestedFilter : public RewriteFilter {
     Context(RewriteDriver* driver, NestedFilter* filter, bool chain)
         : SingleRewriteContext(driver, NULL, NULL),
           filter_(filter),
-          chain_(chain) {
-    }
+          chain_(chain) {}
     ~Context() override;
-    void RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output) override;
+    void RewriteSingle(const ResourcePtr& input,
+                       const OutputResourcePtr& output) override;
     bool PolicyPermitsRendering() const override { return true; }
     void Harvest() override;
 
@@ -280,17 +275,15 @@ class CombiningFilter : public RewriteFilter {
  public:
   static const char kFilterId[];
 
-  CombiningFilter(RewriteDriver* driver,
-                  MockScheduler* scheduler,
+  CombiningFilter(RewriteDriver* driver, MockScheduler* scheduler,
                   int64 rewrite_delay_ms);
   ~CombiningFilter() override;
 
   class Combiner : public ResourceCombiner {
    public:
     Combiner(RewriteDriver* driver, RewriteFilter* filter)
-        : ResourceCombiner(
-            driver, kContentTypeCss.file_extension() + 1, filter) {
-    }
+        : ResourceCombiner(driver, kContentTypeCss.file_extension() + 1,
+                           filter) {}
     OutputResourcePtr MakeOutput() {
       return Combine(rewrite_driver_->message_handler());
     }
@@ -299,11 +292,11 @@ class CombiningFilter : public RewriteFilter {
     }
 
     bool WritePiece(int index, int num_pieces, const Resource* input,
-                            OutputResource* combination,
-                            Writer* writer, MessageHandler* handler) override {
+                    OutputResource* combination, Writer* writer,
+                    MessageHandler* handler) override {
       writer->Write(prefix_, handler);
-      return ResourceCombiner::WritePiece(
-          index, num_pieces, input, combination, writer, handler);
+      return ResourceCombiner::WritePiece(index, num_pieces, input, combination,
+                                          writer, handler);
     }
 
     void set_prefix(const GoogleString& prefix) { prefix_ = prefix; }
@@ -333,15 +326,13 @@ class CombiningFilter : public RewriteFilter {
     bool Partition(OutputPartitions* partitions,
                    OutputResourceVector* outputs) override;
 
-    void Rewrite(int partition_index,
-                  CachedResult* partition,
-                  const OutputResourcePtr& output) override;
+    void Rewrite(int partition_index, CachedResult* partition,
+                 const OutputResourcePtr& output) override;
     bool OptimizationOnly() const override {
       return filter_->optimization_only();
     }
 
-    void DoRewrite(int partition_index,
-                   CachedResult* partition,
+    void DoRewrite(int partition_index, CachedResult* partition,
                    OutputResourcePtr output);
     bool PolicyPermitsRendering() const override { return true; }
     void Render() override;
@@ -425,9 +416,9 @@ class CombiningFilter : public RewriteFilter {
   // applied.
   WorkerTestBase::SyncPoint* rewrite_signal_on_;
   GoogleString prefix_;
-  bool on_the_fly_;  // If true, will act as an on-the-fly filter.
-  bool optimization_only_;  // If false, will disable load-shedding and fetch
-                            // rewrite deadlines.
+  bool on_the_fly_;          // If true, will act as an on-the-fly filter.
+  bool optimization_only_;   // If false, will disable load-shedding and fetch
+                             // rewrite deadlines.
   bool disable_successors_;  // if true, will disable successors for all
                              // slots, not just mutated ones.
 
@@ -448,8 +439,8 @@ class RewriteContextTestBase : public RewriteTestBase {
   // Use a TTL value other than the implicit value, so we are sure we are using
   // the original TTL value.
   GoogleString OriginTtlMaxAge() {
-    return StrCat("max-age=", Integer64ToString(
-        kOriginTtlMs / Timer::kSecondMs));
+    return StrCat("max-age=",
+                  Integer64ToString(kOriginTtlMs / Timer::kSecondMs));
   }
 
   explicit RewriteContextTestBase(

@@ -17,15 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/system_caches.h"
 
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
-
-#include <utility>
 #include <tuple>
+#include <utility>
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -33,12 +31,6 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "pagespeed/system/apr_mem_cache.h"
-#include "pagespeed/system/redis_cache.h"
-#include "pagespeed/system/system_cache_path.h"
-#include "pagespeed/system/system_rewrite_options.h"
-#include "pagespeed/system/system_server_context.h"
-#include "pagespeed/system/external_server_spec.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
@@ -57,6 +49,12 @@
 #include "pagespeed/kernel/cache/write_through_cache.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/thread/slow_worker.h"
+#include "pagespeed/system/apr_mem_cache.h"
+#include "pagespeed/system/external_server_spec.h"
+#include "pagespeed/system/redis_cache.h"
+#include "pagespeed/system/system_cache_path.h"
+#include "pagespeed/system/system_rewrite_options.h"
+#include "pagespeed/system/system_server_context.h"
 
 namespace net_instaweb {
 
@@ -67,21 +65,17 @@ const char SystemCaches::kRedisBlocking[] = "redis_blocking";
 const char SystemCaches::kShmCache[] = "shm_cache";
 const char SystemCaches::kDefaultSharedMemoryPath[] = "pagespeed_default_shm";
 
-SystemCaches::SystemCaches(
-    RewriteDriverFactory* factory, AbstractSharedMem* shm_runtime,
-    int thread_limit)
+SystemCaches::SystemCaches(RewriteDriverFactory* factory,
+                           AbstractSharedMem* shm_runtime, int thread_limit)
     : factory_(factory),
       shared_mem_runtime_(shm_runtime),
       thread_limit_(thread_limit),
       is_root_process_(true),
       was_shut_down_(false),
       cache_hasher_(20),
-      default_shm_metadata_cache_creation_failed_(false) {
-}
+      default_shm_metadata_cache_creation_failed_(false) {}
 
-SystemCaches::~SystemCaches() {
-  DCHECK(was_shut_down_);
-}
+SystemCaches::~SystemCaches() { DCHECK(was_shut_down_); }
 
 void SystemCaches::ShutDown(MessageHandler* message_handler) {
   DCHECK(!was_shut_down_);
@@ -128,13 +122,15 @@ void SystemCaches::ShutDown(MessageHandler* message_handler) {
   if (is_root_process_) {
     // Cleanup per-path shm resources.
     for (PathCacheMap::iterator p = path_cache_map_.begin(),
-             e = path_cache_map_.end(); p != e; ++p) {
+                                e = path_cache_map_.end();
+         p != e; ++p) {
       p->second->GlobalCleanup(message_handler);
     }
 
     // And all the SHM caches.
     for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
-             e = metadata_shm_caches_.end(); p != e; ++p) {
+                                       e = metadata_shm_caches_.end();
+         p != e; ++p) {
       if (p->second->cache_backend != nullptr && p->second->initialized) {
         MetadataShmCache::GlobalCleanup(shared_mem_runtime_, p->second->segment,
                                         message_handler);
@@ -146,8 +142,8 @@ void SystemCaches::ShutDown(MessageHandler* message_handler) {
 SystemCachePath* SystemCaches::GetCache(SystemRewriteOptions* config) {
   GoogleString path = SystemCachePath::CachePath(config);
   SystemCachePath* system_cache_path = nullptr;
-  std::pair<PathCacheMap::iterator, bool> result = path_cache_map_.insert(
-      PathCacheMap::value_type(path, system_cache_path));
+  std::pair<PathCacheMap::iterator, bool> result =
+      path_cache_map_.insert(PathCacheMap::value_type(path, system_cache_path));
   PathCacheMap::iterator iter = result.first;
   if (result.second) {
     iter->second = system_cache_path =
@@ -162,10 +158,9 @@ SystemCachePath* SystemCaches::GetCache(SystemRewriteOptions* config) {
 
 SystemCaches::ExternalCacheInterfaces
 SystemCaches::ConstructExternalCacheInterfacesFromBlocking(
-    CacheInterface* backend,
-    QueuedWorkerPool* pool, int batcher_max_parallel_lookups,
-    const char* async_stats_name, const char* blocking_stats_name) {
-
+    CacheInterface* backend, QueuedWorkerPool* pool,
+    int batcher_max_parallel_lookups, const char* async_stats_name,
+    const char* blocking_stats_name) {
   ExternalCacheInterfaces result;
 
   if (pool == nullptr) {
@@ -177,10 +172,8 @@ SystemCaches::ConstructExternalCacheInterfacesFromBlocking(
 
   // Put the batcher above the stats so that the stats sees the MultiGets
   // and can show us the histogram of how they are sized.
-  result.async = new CacheStats(async_stats_name,
-                                result.async,
-                                factory_->timer(),
-                                factory_->statistics());
+  result.async = new CacheStats(async_stats_name, result.async,
+                                factory_->timer(), factory_->statistics());
   factory_->TakeOwnership(result.async);
 
   CacheBatcher::Options options;
@@ -188,9 +181,7 @@ SystemCaches::ConstructExternalCacheInterfacesFromBlocking(
     options.max_parallel_lookups = batcher_max_parallel_lookups;
   }
   CacheBatcher* batcher = new CacheBatcher(
-      options,
-      result.async,
-      factory_->thread_system()->NewMutex(),
+      options, result.async, factory_->thread_system()->NewMutex(),
       factory_->statistics());
   factory_->TakeOwnership(batcher);
   result.async = batcher;
@@ -206,10 +197,9 @@ SystemCaches::ConstructExternalCacheInterfacesFromBlocking(
 SystemCaches::ExternalCacheInterfaces SystemCaches::NewMemcached(
     SystemRewriteOptions* config) {
   const ExternalClusterSpec& servers_specs = config->memcached_servers();
-  AprMemCache* mem_cache =
-      new AprMemCache(servers_specs, thread_limit_, &cache_hasher_,
-                      factory_->statistics(), factory_->timer(),
-                      factory_->message_handler());
+  AprMemCache* mem_cache = new AprMemCache(
+      servers_specs, thread_limit_, &cache_hasher_, factory_->statistics(),
+      factory_->timer(), factory_->message_handler());
   factory_->TakeOwnership(mem_cache);
   mem_cache->set_timeout_us(config->memcached_timeout_us());
   memcache_servers_.push_back(mem_cache);
@@ -218,7 +208,8 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewMemcached(
   if (num_threads != 0) {
     if (num_threads != 1) {
       factory_->message_handler()->Message(
-          kWarning, "ModPagespeedMemcachedThreads support for >1 thread "
+          kWarning,
+          "ModPagespeedMemcachedThreads support for >1 thread "
           "is not supported yet; changing to 1 thread (was %d)",
           num_threads);
       num_threads = 1;
@@ -228,8 +219,7 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewMemcached(
       // Note -- we will use the first value of ModPagespeedMemCacheThreads
       // that we see in a VirtualHost, ignoring later ones.
       memcached_pool_ = std::make_unique<QueuedWorkerPool>(
-          num_threads, "memcached",
-                               factory_->thread_system());
+          num_threads, "memcached", factory_->thread_system());
     }
     return ConstructExternalCacheInterfacesFromBlocking(
         mem_cache, memcached_pool_.get(), num_threads, kMemcachedAsync,
@@ -238,7 +228,7 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewMemcached(
     return ConstructExternalCacheInterfacesFromBlocking(
         mem_cache,
         nullptr,  // No worker pool.
-        -1,    // Do not change batcher's max_parallel_lookups.
+        -1,       // Do not change batcher's max_parallel_lookups.
         kMemcachedAsync, kMemcachedBlocking);
   }
 }
@@ -268,8 +258,8 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewRedis(
     // because all queries will still be queued as they require exclusive access
     // to RedisCache. Creating a separate single-threaded pool for different
     // RedisCaches could be a good idea, though.
-    redis_pool_ = std::make_unique<QueuedWorkerPool>(
-        1, "redis", factory_->thread_system());
+    redis_pool_ = std::make_unique<QueuedWorkerPool>(1, "redis",
+                                                     factory_->thread_system());
   }
   return ConstructExternalCacheInterfacesFromBlocking(
       redis_server, redis_pool_.get(), 1, kRedisAsync, kRedisBlocking);
@@ -282,7 +272,8 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewExternalCache(
 
   if (use_redis && use_memcached) {
     factory_->message_handler()->Message(
-        kWarning, "Redis and Memcached are enabled simultaneously, will use "
+        kWarning,
+        "Redis and Memcached are enabled simultaneously, will use "
         "Redis and ignore Memcached");
     use_memcached = false;
   }
@@ -345,8 +336,8 @@ SystemCaches::ExternalCacheInterfaces SystemCaches::NewExternalCache(
   return result;
 }
 
-bool SystemCaches::CreateShmMetadataCache(
-    StringPiece name, int64 size_kb, GoogleString* error_msg) {
+bool SystemCaches::CreateShmMetadataCache(StringPiece name, int64 size_kb,
+                                          GoogleString* error_msg) {
   MetadataShmCacheInfo* cache_info = nullptr;
   std::pair<MetadataShmCacheMap::iterator, bool> result =
       metadata_shm_caches_.insert(
@@ -370,16 +361,10 @@ bool SystemCaches::CreateShmMetadataCache(
       cache_info = new MetadataShmCacheInfo;
       factory_->TakeOwnership(cache_info);
       cache_info->segment = StrCat(name, "/metadata_cache");
-      cache_info->cache_backend =
-          new SharedMemCache<64>(
-              shared_mem_runtime_,
-              cache_info->segment,
-              factory_->timer(),
-              factory_->hasher(),
-              kSectors,
-              entries,  /* entries per sector */
-              blocks /* blocks per sector*/,
-              factory_->message_handler());
+      cache_info->cache_backend = new SharedMemCache<64>(
+          shared_mem_runtime_, cache_info->segment, factory_->timer(),
+          factory_->hasher(), kSectors, entries, /* entries per sector */
+          blocks /* blocks per sector*/, factory_->message_handler());
       factory_->TakeOwnership(cache_info->cache_backend);
       // We can't set cache_info->cache_to_use yet since statistics aren't ready
       // yet. It will happen in ::RootInit().
@@ -433,7 +418,8 @@ SystemCaches::MetadataShmCacheInfo* SystemCaches::GetShmMetadataCacheOrDefault(
     return shm_cache;  // Using the default shm cache, which already exists.
   }
   if (default_shm_metadata_cache_creation_failed_) {
-    return nullptr;  // Already tried to create the default shm cache and failed.
+    return nullptr;  // Already tried to create the default shm cache and
+                     // failed.
   }
   // This config is for the first server context to need the default cache;
   // create it.
@@ -464,16 +450,18 @@ void SystemCaches::SetupPcacheCohorts(ServerContext* server_context,
 
 void SystemCaches::SetupCaches(ServerContext* server_context,
                                bool enable_property_cache) {
-  SystemRewriteOptions* config = dynamic_cast<SystemRewriteOptions*>(
-      server_context->global_options());
+  SystemRewriteOptions* config =
+      dynamic_cast<SystemRewriteOptions*>(server_context->global_options());
   DCHECK(config != nullptr);
   SystemCachePath* caches_for_path = GetCache(config);
   CacheInterface* lru_cache = caches_for_path->lru_cache();
   CacheInterface* file_cache = caches_for_path->file_cache();
   MetadataShmCacheInfo* shm_metadata_cache_info =
       GetShmMetadataCacheOrDefault(config);
-  CacheInterface* shm_metadata_cache = (shm_metadata_cache_info != nullptr) ?
-      shm_metadata_cache_info->cache_to_use : nullptr;
+  CacheInterface* shm_metadata_cache =
+      (shm_metadata_cache_info != nullptr)
+          ? shm_metadata_cache_info->cache_to_use
+          : nullptr;
   CacheInterface* property_store_cache = nullptr;
   CacheInterface* http_l2 = file_cache;
   Statistics* stats = server_context->statistics();
@@ -502,13 +490,13 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
   HTTPCache* http_cache = nullptr;
   if (lru_cache == nullptr) {
     // No L1, and so backend is just the L2.
-    http_cache = new HTTPCache(http_l2, factory_->timer(),
-                               factory_->hasher(), stats);
+    http_cache =
+        new HTTPCache(http_l2, factory_->timer(), factory_->hasher(), stats);
     http_cache->SetCompressionLevel(config->http_cache_compression_level());
   } else {
     // L1 is LRU, with the L2 as computed above.
-    WriteThroughCache* write_through_http_cache = new WriteThroughCache(
-        lru_cache, http_l2);
+    WriteThroughCache* write_through_http_cache =
+        new WriteThroughCache(lru_cache, http_l2);
     server_context->DeleteCacheOnDestruction(write_through_http_cache);
     write_through_http_cache->set_cache1_limit(config->lru_cache_byte_limit());
     http_cache = new HTTPCache(write_through_http_cache, factory_->timer(),
@@ -560,11 +548,10 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
       // to disk every so often, and restore it on restart. This means we don't
       // need to write most objects through to the file cache, just ones too big
       // to store in the SHM cache.
-      FallbackCache* metadata_fallback =
-          new FallbackCache(
-              shm_metadata_cache, file_cache,
-              shm_metadata_cache_info->cache_backend->MaxValueSize(),
-              factory_->message_handler());
+      FallbackCache* metadata_fallback = new FallbackCache(
+          shm_metadata_cache, file_cache,
+          shm_metadata_cache_info->cache_backend->MaxValueSize(),
+          factory_->message_handler());
       // SharedMemCache uses hash-produced fixed size keys internally, so its
       // value size limit isn't affected by key length changes.
       metadata_fallback->set_account_for_key_size(false);
@@ -578,14 +565,14 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
   } else {
     l1_size_limit = config->lru_cache_byte_limit();
     metadata_l1 = lru_cache;  // may be NULL
-    metadata_l2 = http_l2;  // external or file cache.
+    metadata_l2 = http_l2;    // external or file cache.
   }
 
   CacheInterface* metadata_cache;
 
   if (metadata_l1 != nullptr) {
-    WriteThroughCache* write_through_cache = new WriteThroughCache(
-        metadata_l1, metadata_l2);
+    WriteThroughCache* write_through_cache =
+        new WriteThroughCache(metadata_l1, metadata_l2);
     server_context->DeleteCacheOnDestruction(write_through_cache);
     write_through_cache->set_cache1_limit(l1_size_limit);
     metadata_cache = write_through_cache;
@@ -612,7 +599,7 @@ void SystemCaches::SetupCaches(ServerContext* server_context,
   server_context->set_metadata_cache(metadata_cache);
   SetupPcacheCohorts(server_context, enable_property_cache);
   SystemServerContext* system_server_context =
-    dynamic_cast<SystemServerContext*>(server_context);
+      dynamic_cast<SystemServerContext*>(server_context);
   system_server_context->SetCachePath(caches_for_path);
 }
 
@@ -632,7 +619,8 @@ void SystemCaches::RootInit() {
   const SystemRewriteOptions* global_options =
       SystemRewriteOptions::DynamicCast(factory_->default_options());
   for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
-           e = metadata_shm_caches_.end(); p != e; ++p) {
+                                     e = metadata_shm_caches_.end();
+       p != e; ++p) {
     MetadataShmCacheInfo* cache_info = p->second;
 
     // If we're using the default shared memory cache and different vhosts have
@@ -654,7 +642,8 @@ void SystemCaches::RootInit() {
     // Tell the shm cache about file caches and let it pick one to use for
     // checkpointing.
     for (PathCacheMap::iterator q = path_cache_map_.begin(),
-             f = path_cache_map_.end(); q != f; ++q) {
+                                f = path_cache_map_.end();
+         q != f; ++q) {
       FileCache* file_cache = q->second->file_cache_backend();
       // It's fine to call RegisterSnapshotFileCache multiple times: it
       // considers all the inputs and picks the best one.
@@ -679,7 +668,8 @@ void SystemCaches::RootInit() {
   }
 
   for (PathCacheMap::iterator p = path_cache_map_.begin(),
-           e = path_cache_map_.end(); p != e; ++p) {
+                              e = path_cache_map_.end();
+       p != e; ++p) {
     SystemCachePath* cache = p->second;
     cache->RootInit();
   }
@@ -688,10 +678,11 @@ void SystemCaches::RootInit() {
 void SystemCaches::ChildInit() {
   is_root_process_ = false;
 
-  slow_worker_ = std::make_unique<SlowWorker>(
-      "slow_work_thread", factory_->thread_system());
+  slow_worker_ = std::make_unique<SlowWorker>("slow_work_thread",
+                                              factory_->thread_system());
   for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
-           e = metadata_shm_caches_.end(); p != e; ++p) {
+                                     e = metadata_shm_caches_.end();
+       p != e; ++p) {
     MetadataShmCacheInfo* cache_info = p->second;
     if ((cache_info->cache_backend != nullptr) &&
         !cache_info->cache_backend->Attach()) {
@@ -705,7 +696,8 @@ void SystemCaches::ChildInit() {
   }
 
   for (PathCacheMap::iterator p = path_cache_map_.begin(),
-           e = path_cache_map_.end(); p != e; ++p) {
+                              e = path_cache_map_.end();
+       p != e; ++p) {
     SystemCachePath* cache = p->second;
     cache->ChildInit(slow_worker_.get());
   }
@@ -768,7 +760,8 @@ void SystemCaches::PrintCacheStats(StatFlags flags, GoogleString* out) {
   // all the declared caches.
   if (flags & kGlobalView) {
     for (MetadataShmCacheMap::iterator p = metadata_shm_caches_.begin(),
-             e = metadata_shm_caches_.end(); p != e; ++p) {
+                                       e = metadata_shm_caches_.end();
+         p != e; ++p) {
       MetadataShmCacheInfo* cache_info = p->second;
       if (cache_info->cache_backend != nullptr) {
         StrAppend(out, "\nShared memory metadata cache '", p->first,

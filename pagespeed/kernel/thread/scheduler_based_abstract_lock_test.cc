@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,9 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/thread/scheduler_based_abstract_lock.h"
 
 #include <memory>
-
-
-
-#include "pagespeed/kernel/thread/scheduler_based_abstract_lock.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -53,8 +50,7 @@ class SchedulerBasedAbstractLockTest : public testing::Test {
   SchedulerBasedAbstractLockTest()
       : thread_system_(Platform::CreateThreadSystem()),
         timer_(thread_system_->NewMutex(), 0),
-        scheduler_(thread_system_.get(), &timer_) {
-  }
+        scheduler_(thread_system_.get(), &timer_) {}
 
   std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
@@ -67,8 +63,8 @@ class SchedulerBasedAbstractLockTest : public testing::Test {
 // A mock lock base class
 class MockLockBase : public SchedulerBasedAbstractLock {
  public:
-  explicit MockLockBase(Scheduler* scheduler) : scheduler_(scheduler) { }
-  ~MockLockBase() override { }
+  explicit MockLockBase(Scheduler* scheduler) : scheduler_(scheduler) {}
+  ~MockLockBase() override {}
   Scheduler* scheduler() const override { return scheduler_; }
   // None of the mock locks actually implement locking, so
   // unlocking is a no-op.
@@ -86,8 +82,8 @@ class MockLockBase : public SchedulerBasedAbstractLock {
 // A mock lock that always claims locking happened
 class AlwaysLock : public MockLockBase {
  public:
-  explicit AlwaysLock(Scheduler* scheduler) : MockLockBase(scheduler) { }
-  ~AlwaysLock() override { }
+  explicit AlwaysLock(Scheduler* scheduler) : MockLockBase(scheduler) {}
+  ~AlwaysLock() override {}
   bool TryLock() override {
     held_ = true;
     return true;
@@ -97,6 +93,7 @@ class AlwaysLock : public MockLockBase {
     return true;
   }
   GoogleString name() const override { return GoogleString("AlwaysLock"); }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(AlwaysLock);
 };
@@ -104,15 +101,12 @@ class AlwaysLock : public MockLockBase {
 // A mock lock that always claims lock attempts failed
 class NeverLock : public MockLockBase {
  public:
-  explicit NeverLock(Scheduler* scheduler) : MockLockBase(scheduler) { }
-  ~NeverLock() override { }
-  bool TryLock() override {
-    return false;
-  }
-  bool TryLockStealOld(int64 timeout_ms) override {
-    return false;
-  }
+  explicit NeverLock(Scheduler* scheduler) : MockLockBase(scheduler) {}
+  ~NeverLock() override {}
+  bool TryLock() override { return false; }
+  bool TryLockStealOld(int64 timeout_ms) override { return false; }
   GoogleString name() const override { return GoogleString("NeverLock"); }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(NeverLock);
 };
@@ -122,8 +116,7 @@ class StealOnlyLock : public NeverLock {
  public:
   explicit StealOnlyLock(Scheduler* scheduler)
       : NeverLock(scheduler),
-        last_hold_time_ms_(scheduler_->timer()->NowMs()) {
-  }
+        last_hold_time_ms_(scheduler_->timer()->NowMs()) {}
   bool TryLockStealOld(int64 timeout_ms) override {
     int64 timeout_time_ms = last_hold_time_ms_ + timeout_ms;
     int64 now_ms = scheduler()->timer()->NowMs();
@@ -136,13 +129,12 @@ class StealOnlyLock : public NeverLock {
     }
   }
   GoogleString name() const override { return GoogleString("StealOnlyLock"); }
+
  private:
   int64 last_hold_time_ms_;
 
   DISALLOW_COPY_AND_ASSIGN(StealOnlyLock);
 };
-  
-
 
 // Simple tests that involve either failed try or successfully obtaining lock.
 // Note that we always capture start times before lock construction, to account
@@ -273,8 +265,8 @@ class LockedTimer : public Timer {
   LockedTimer(Timer* timer, ThreadSystem::CondvarCapableMutex* mutex)
       : timer_(timer),
         mutex_(mutex),
-        sleep_wakeup_condvar_(mutex->NewCondvar()) { }
-  ~LockedTimer() override { }
+        sleep_wakeup_condvar_(mutex->NewCondvar()) {}
+  ~LockedTimer() override {}
   void SleepUs(int64 us) override {
     {
       ScopedMutex lock(mutex_);
@@ -312,18 +304,18 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
   // The default is DoNothingHelper, which just sleeps a long time and
   // terminates.  The other helper threads do not terminate (and fail if they
   // try).
-  void DoNothingHelper() {
-    SleepMs(kLongMs);
-  }
+  void DoNothingHelper() { SleepMs(kLongMs); }
   // Attempt to lock and spin forever
   void LockHelper() {
-    while (!never_lock_.LockTimedWait(10 * kLongMs) && !done_.value()) { }
+    while (!never_lock_.LockTimedWait(10 * kLongMs) && !done_.value()) {
+    }
     CHECK(done_.value()) << "Should not lock!";
   }
   // Attempt to Lock with a steal and spin forever.  This used to fail.
   void LockStealHelper() {
     while (!never_lock_.LockTimedWaitStealOld(10 * kLongMs, kShortMs) &&
-           !done_.value()) { }
+           !done_.value()) {
+    }
     CHECK(done_.value()) << "Shouldn't lock!";
   }
 
@@ -333,7 +325,7 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
       : never_lock_(&scheduler_),
         startup_condvar_(scheduler_.mutex()->NewCondvar()),
         helper_thread_method_(
-            &ThreadedSchedulerBasedLockTest::DoNothingHelper) { }
+            &ThreadedSchedulerBasedLockTest::DoNothingHelper) {}
   void SleepUntilMs(int64 end_ms) EXCLUSIVE_LOCKS_REQUIRED(scheduler_.mutex()) {
     int64 now_ms = timer_.NowMs();
     while (now_ms < end_ms) {
@@ -360,8 +352,8 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
     }
   }
   void StartHelper() LOCKS_EXCLUDED(scheduler_.mutex()) {
-    helper_thread_ = std::make_unique<ThreadedSchedulerBasedLockTest::HelperThread>(
-        this);
+    helper_thread_ =
+        std::make_unique<ThreadedSchedulerBasedLockTest::HelperThread>(this);
     helper_thread_->Start();
     {
       ScopedMutex lock(scheduler_.mutex());
@@ -372,18 +364,14 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
       startup_condvar_->Signal();
     }
   }
-  void FinishHelper() {
-    helper_thread_->Join();
-  }
+  void FinishHelper() { helper_thread_->Join(); }
   // If the helper thread runs forever, we need to cancel it so that
   // we can safely destruct the test objects before exit.
   void CancelHelper() {
     done_.set_value(true);
     FinishHelper();
   }
-  void set_helper(HelperThreadMethod helper) {
-    helper_thread_method_ = helper;
-  }
+  void set_helper(HelperThreadMethod helper) { helper_thread_method_ = helper; }
 
   NeverLock never_lock_;
 
@@ -394,7 +382,7 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
         : ThreadSystem::Thread(test->thread_system_.get(),
                                "threaded_scheduler_based_lock_test_helper",
                                ThreadSystem::kJoinable),
-          test_(test) { }
+          test_(test) {}
     void Run() override LOCKS_EXCLUDED(test_->scheduler_.mutex()) {
       {
         ScopedMutex lock(test_->scheduler_.mutex());
@@ -406,6 +394,7 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
       }
       (test_->*(test_->helper_thread_method_))();
     }
+
    private:
     ThreadedSchedulerBasedLockTest* test_;
     DISALLOW_COPY_AND_ASSIGN(HelperThread);

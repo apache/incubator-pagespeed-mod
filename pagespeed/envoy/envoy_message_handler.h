@@ -22,7 +22,6 @@
 #include <cstdarg>
 
 #include "external/envoy/source/common/common/logger.h"
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
@@ -37,17 +36,17 @@ class Timer;
 // Implementation of a message handler that uses envoy_log_error()
 // logging to emit messages, with a fallback to GoogleMessageHandler
 class EnvoyMessageHandler : public SystemMessageHandler {
-public:
+ public:
   explicit EnvoyMessageHandler(Timer* timer, AbstractMutex* mutex);
 
-protected:
+ protected:
   void MessageSImpl(MessageType type, const GoogleString& message) override;
 
   void FileMessageSImpl(MessageType type, const char* file, int line,
-                                const GoogleString& message) override;
+                        const GoogleString& message) override;
 
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyMessageHandler);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

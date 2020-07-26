@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,15 +17,13 @@
  * under the License.
  */
 
-
-#include "pagespeed/kernel/base/string_multi_map.h"
-
 #include <set>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/benchmark.h"
+#include "pagespeed/kernel/base/string_multi_map.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/benchmark.h"
 
 //
 // .../src/out/Release/mod_pagespeed_speed_test "BM_Sanitize*
@@ -36,21 +34,20 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-
 namespace {
 
 static StringPiece kNamesToSanitize[] = {
-  // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
-  "Connection",
-  "KeepAlive",
-  "Proxy-Authenticate",
-  "Proxy-Authorization",
-  "SetCookie",
-  "SetCookie2",
-  "TE",
-  "Trailers",
-  "Transfer-Encoding",
-  "Upgrade",
+    // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+    "Connection",
+    "KeepAlive",
+    "Proxy-Authenticate",
+    "Proxy-Authorization",
+    "SetCookie",
+    "SetCookie2",
+    "TE",
+    "Trailers",
+    "Transfer-Encoding",
+    "Upgrade",
 };
 
 void AddHeaders(net_instaweb::StringMultiMapInsensitive* multi_map) {
@@ -98,7 +95,8 @@ void BM_SanitizeBySet(benchmark::State& state) {
       }
       bool removed_anything = false;
       for (net_instaweb::StringSetInsensitive::const_iterator iter =
-               remove_set.begin(); iter != remove_set.end(); ++iter) {
+               remove_set.begin();
+           iter != remove_set.end(); ++iter) {
         if (multi_map.RemoveAll(*iter)) {
           removed_anything = true;
         }

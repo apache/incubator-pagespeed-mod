@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,12 +37,12 @@ class SupportNoscriptFilterTest : public RewriteTestBase {
   void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDelayImages);
-    SetResponseWithDefaultHeaders(
-        "http://test.com/1.jpeg", kContentTypeJpeg,
-        "bogusimage but it is not parsed", 100 /* sec */);
-    SetResponseWithDefaultHeaders(
-        "http://test.com/2.jpeg", kContentTypeJpeg,
-        "bogusimage but it is not parsed", 100 /* sec */);
+    SetResponseWithDefaultHeaders("http://test.com/1.jpeg", kContentTypeJpeg,
+                                  "bogusimage but it is not parsed",
+                                  100 /* sec */);
+    SetResponseWithDefaultHeaders("http://test.com/2.jpeg", kContentTypeJpeg,
+                                  "bogusimage but it is not parsed",
+                                  100 /* sec */);
   }
 };
 
@@ -83,8 +83,7 @@ TEST_F(SupportNoscriptFilterTest, TestNoscriptMultipleBodies) {
 }
 
 TEST_F(SupportNoscriptFilterTest, TestNoBody) {
-  GoogleString input_html =
-      "<head></head>";
+  GoogleString input_html = "<head></head>";
   SetCurrentUserAgent(kChromeUserAgent);
   ValidateExpected("support_noscript", input_html, input_html);
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #include "pagespeed/kernel/base/shared_string.h"
 
@@ -52,7 +51,7 @@ TEST_F(SharedStringTest, ConstructFromSharedString) {
   EXPECT_FALSE(ss2.unique());
   EXPECT_STREQ("hello", ss.Value());
   EXPECT_STREQ("hello", ss2.Value());
-  EXPECT_TRUE(ss.SharesStorage(ss2))<< "storage is shared";
+  EXPECT_TRUE(ss.SharesStorage(ss2)) << "storage is shared";
   EXPECT_FALSE(ss.trimmed());
 
   // Mutations to ss do not affect ss2.
@@ -163,7 +162,6 @@ TEST_F(SharedStringTest, DetachRetainingContent) {
   EXPECT_STREQ("hello", ss2.Value());
 }
 
-
 TEST_F(SharedStringTest, WriteAt) {
   SharedString ss("HELLO");
   SharedString ss2 = ss;
@@ -218,7 +216,7 @@ TEST_F(SharedStringTest, Extend) {
   ss.WriteAt(2, "abcde", 5);
   EXPECT_STREQ("12abcde", ss.Value());
   EXPECT_STREQ("x", ss2.Value()) << "ss2 still unaffected";
-  EXPECT_FALSE(ss.SharesStorage(ss2))<< "finally storage is detached";
+  EXPECT_FALSE(ss.SharesStorage(ss2)) << "finally storage is detached";
 }
 
 TEST_F(SharedStringTest, ExtendUniqueTruncated) {

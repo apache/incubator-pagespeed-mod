@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,7 +32,6 @@
 #include "pagespeed/kernel/base/writer.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
-
 
 namespace net_instaweb {
 
@@ -206,7 +205,7 @@ class StringAsyncFetch : public AsyncFetch {
   ~StringAsyncFetch() override;
 
   bool HandleWrite(const StringPiece& content,
-                  MessageHandler* handler) override {
+                   MessageHandler* handler) override {
     content.AppendToString(buffer_pointer_);
     return true;
   }
@@ -258,8 +257,7 @@ class AsyncFetchUsingWriter : public AsyncFetch {
  public:
   AsyncFetchUsingWriter(const RequestContextPtr& request_context,
                         Writer* writer)
-     : AsyncFetch(request_context),
-       writer_(writer) {}
+      : AsyncFetch(request_context), writer_(writer) {}
   ~AsyncFetchUsingWriter() override;
 
  protected:
@@ -287,9 +285,7 @@ class SharedAsyncFetch : public AsyncFetch {
   }
 
  protected:
-  void HandleDone(bool success) override {
-    base_fetch_->Done(success);
-  }
+  void HandleDone(bool success) override { base_fetch_->Done(success); }
 
   bool HandleWrite(const StringPiece& content,
                    MessageHandler* handler) override {
@@ -340,7 +336,8 @@ class FallbackSharedAsyncFetch : public SharedAsyncFetch {
 
  protected:
   void HandleDone(bool success) override;
-  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   bool HandleFlush(MessageHandler* handler) override;
   void HandleHeadersComplete() override;
 
@@ -375,7 +372,8 @@ class ConditionalSharedAsyncFetch : public SharedAsyncFetch {
 
  protected:
   void HandleDone(bool success) override;
-  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   bool HandleFlush(MessageHandler* handler) override;
   void HandleHeadersComplete() override;
 

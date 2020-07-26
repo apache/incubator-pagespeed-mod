@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_H_
@@ -124,13 +123,11 @@ class SharedMemHistogram : public Histogram {
     // Shared memory space should include a mutex, HistogramBody and the storage
     // for the actual buckets.
     return shm_runtime->SharedMutexSize() + sizeof(HistogramBody) +
-        sizeof(double) * NumBuckets();
+           sizeof(double) * NumBuckets();
   }
 
  protected:
-  AbstractMutex* lock() override {
-    return mutex_.get();
-  }
+  AbstractMutex* lock() override { return mutex_.get(); }
   double AverageInternal() override;
   double PercentileInternal(const double perc) override;
   double StandardDeviationInternal() override;
@@ -183,11 +180,11 @@ class SharedMemHistogram : public Histogram {
   DISALLOW_COPY_AND_ASSIGN(SharedMemHistogram);
 };
 
-class SharedMemStatistics : public ScalarStatisticsTemplate<
-  SharedMemVariable, SharedMemHistogram, FakeTimedVariable> {
+class SharedMemStatistics
+    : public ScalarStatisticsTemplate<SharedMemVariable, SharedMemHistogram,
+                                      FakeTimedVariable> {
  public:
-  SharedMemStatistics(int64 logging_interval_ms,
-                      int64 max_logfile_size_kb,
+  SharedMemStatistics(int64 logging_interval_ms, int64 max_logfile_size_kb,
                       const StringPiece& logging_file, bool logging,
                       const GoogleString& filename_prefix,
                       AbstractSharedMem* shm_runtime,
@@ -220,9 +217,7 @@ class SharedMemStatistics : public ScalarStatisticsTemplate<
   GoogleString SegmentName() const;
 
   // TODO(sligocki): Rename to statistics_logger().
-  StatisticsLogger* console_logger() override {
-    return console_logger_.get();
-  }
+  StatisticsLogger* console_logger() override { return console_logger_.get(); }
 
  protected:
   Var* NewVariable(StringPiece name) override;

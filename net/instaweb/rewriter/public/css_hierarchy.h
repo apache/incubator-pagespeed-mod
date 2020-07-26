@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_HIERARCHY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_HIERARCHY_H_
@@ -77,22 +76,16 @@ class CssHierarchy {
   // valid for the life of this object.
   void InitializeRoot(const GoogleUrl& css_base_url,
                       const GoogleUrl& css_trim_url,
-                      const StringPiece input_contents,
-                      bool has_unparseables,
-                      int64 flattened_result_limit,
-                      Css::Stylesheet* stylesheet,
+                      const StringPiece input_contents, bool has_unparseables,
+                      int64 flattened_result_limit, Css::Stylesheet* stylesheet,
                       MessageHandler* message_handler);
 
   // A hierarchy needs rewriting only if it has an import to read and expand.
-  bool NeedsRewriting() const {
-    return flattening_succeeded_ && !url_.empty();
-  }
+  bool NeedsRewriting() const { return flattening_succeeded_ && !url_.empty(); }
 
   const StringPiece url() const { return url_; }
   const StringPiece url_for_humans() const {
-    return (url_.empty() ? "inline"
-            : IsDataUrl(url_) ? "data URL"
-            : url_);
+    return (url_.empty() ? "inline" : IsDataUrl(url_) ? "data URL" : url_);
   }
 
   const GoogleUrl& css_base_url() const { return css_base_url_; }

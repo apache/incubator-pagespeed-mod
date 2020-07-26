@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_FILTER_H_
@@ -80,8 +79,7 @@ class CssFilter : public RewriteFilter {
   CssFilter(RewriteDriver* driver,
             // TODO(sligocki): Temporary pattern until we figure out a better
             // way to do this without passing all filters around everywhere.
-            CacheExtender* cache_extender,
-            ImageRewriteFilter* image_rewriter,
+            CacheExtender* cache_extender, ImageRewriteFilter* image_rewriter,
             ImageCombineFilter* image_combiner);
   ~CssFilter() override;
 
@@ -126,7 +124,8 @@ class CssFilter : public RewriteFilter {
       CssFilter::Context* rewriter, RewriteContext* parent,
       CssHierarchy* hierarchy);
 
-  const RewriteOptions::Filter* RelatedFilters(int* num_filters) const override {
+  const RewriteOptions::Filter* RelatedFilters(
+      int* num_filters) const override {
     *num_filters = merged_filters_size_;
     return merged_filters_;
   }
@@ -151,8 +150,7 @@ class CssFilter : public RewriteFilter {
     kAttributeWithUrls
   };
 
-  Context* MakeContext(RewriteDriver* driver,
-                       RewriteContext* parent);
+  Context* MakeContext(RewriteDriver* driver, RewriteContext* parent);
 
   // Starts the asynchronous rewrite process for inline CSS 'text'.
   void StartInlineRewrite(HtmlCharactersNode* text,
@@ -176,8 +174,7 @@ class CssFilter : public RewriteFilter {
   // is specified in the given element, check that they agree, and if not
   // return false and set the failure reason, otherwise return true and assign
   // the first charset to '*charset'.
-  bool GetApplicableCharset(const HtmlElement* element,
-                            GoogleString* charset,
+  bool GetApplicableCharset(const HtmlElement* element, GoogleString* charset,
                             GoogleString* failure_reason) const;
 
   // Get the media specified in the given element, if any. Returns true if
@@ -252,21 +249,16 @@ class CssFilter : public RewriteFilter {
 // Context used by CssFilter under async flow.
 class CssFilter::Context : public SingleRewriteContext {
  public:
-  Context(CssFilter* filter, RewriteDriver* driver,
-          RewriteContext* parent,
-          CacheExtender* cache_extender,
-          ImageRewriteFilter* image_rewriter,
-          ImageCombineFilter* image_combiner,
-          ResourceContext* context);
+  Context(CssFilter* filter, RewriteDriver* driver, RewriteContext* parent,
+          CacheExtender* cache_extender, ImageRewriteFilter* image_rewriter,
+          ImageCombineFilter* image_combiner, ResourceContext* context);
   ~Context() override;
 
   // Setup rewriting for inline, attribute, or external CSS.
   void SetupInlineRewrite(HtmlElement* style_element, HtmlCharactersNode* text);
-  void SetupAttributeRewrite(HtmlElement* element,
-                             HtmlElement::Attribute* src,
+  void SetupAttributeRewrite(HtmlElement* element, HtmlElement::Attribute* src,
                              InlineCssKind inline_css_kind);
-  void SetupExternalRewrite(HtmlElement* element,
-                            const GoogleUrl& base_gurl,
+  void SetupExternalRewrite(HtmlElement* element, const GoogleUrl& base_gurl,
                             const GoogleUrl& trim_gurl);
 
   // Starts nested rewrite jobs for any imports or images contained in the CSS.
@@ -276,9 +268,8 @@ class CssFilter::Context : public SingleRewriteContext {
   // Specialization to absolutify URLs in input resource in case of rewrite
   // fail or deadline exceeded.
   bool SendFallbackResponse(StringPiece output_url_base,
-                                    StringPiece input_contents,
-                                    AsyncFetch* async_fetch,
-                                    MessageHandler* handler) override;
+                            StringPiece input_contents, AsyncFetch* async_fetch,
+                            MessageHandler* handler) override;
 
   CssResourceSlotFactory* slot_factory() { return &slot_factory_; }
 
@@ -289,9 +280,9 @@ class CssFilter::Context : public SingleRewriteContext {
   void Render() override;
   void Harvest() override;
   bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs) override;
+                 OutputResourceVector* outputs) override;
   void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output) override;
+                     const OutputResourcePtr& output) override;
   const char* id() const override { return filter_->id(); }
   OutputResourceKind kind() const override { return kRewrittenResource; }
   GoogleString CacheKeySuffix() const override;
@@ -315,10 +306,8 @@ class CssFilter::Context : public SingleRewriteContext {
 
   bool RewriteCssText(const GoogleUrl& css_base_gurl,
                       const GoogleUrl& css_trim_gurl,
-                      const StringPiece& in_text,
-                      int64 in_text_size,
-                      bool text_is_declarations,
-                      MessageHandler* handler);
+                      const StringPiece& in_text, int64 in_text_size,
+                      bool text_is_declarations, MessageHandler* handler);
 
   // Starts nested rewrite jobs for any imports or images contained in the CSS.
   void RewriteCssFromRoot(const GoogleUrl& css_base_gurl,
@@ -337,22 +326,16 @@ class CssFilter::Context : public SingleRewriteContext {
 
   // Tries to write out a (potentially edited) stylesheet out to out_text,
   // and returns whether we should consider the result as an improvement.
-  bool SerializeCss(int64 in_text_size,
-                    const Css::Stylesheet* stylesheet,
+  bool SerializeCss(int64 in_text_size, const Css::Stylesheet* stylesheet,
                     const GoogleUrl& css_base_gurl,
-                    const GoogleUrl& css_trim_gurl,
-                    bool previously_optimized,
-                    bool stylesheet_is_declarations,
-                    bool add_utf8_bom,
-                    GoogleString* out_text,
-                    MessageHandler* handler);
+                    const GoogleUrl& css_trim_gurl, bool previously_optimized,
+                    bool stylesheet_is_declarations, bool add_utf8_bom,
+                    GoogleString* out_text, MessageHandler* handler);
 
   // Used by the asynchronous rewrite callbacks (RewriteSingle + Harvest) to
   // determine if what is being rewritten is a style attribute or a stylesheet,
   // since an attribute comprises only declarations, unlike a stlyesheet.
-  bool IsInlineAttribute() const {
-    return (rewrite_inline_attribute_ != NULL);
-  }
+  bool IsInlineAttribute() const { return (rewrite_inline_attribute_ != NULL); }
 
   // Determine the appropriate image inlining threshold based upon whether we're
   // in an html file (<style> tag or style= attribute) or in an external css

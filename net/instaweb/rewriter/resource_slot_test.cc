@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the resource slot comparator.
 
@@ -32,7 +31,7 @@
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"               // for StrCat
+#include "pagespeed/kernel/base/string_util.h"  // for StrCat
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/html/html_writer_filter.h"
@@ -56,8 +55,8 @@ class ResourceSlotTest : public RewriteTestBase {
     // Set up 4 slots for testing.
     RewriteDriver* driver = rewrite_driver();
     driver->AddFilters();
-    ASSERT_TRUE(driver->StartParseId(kHtmlUrl, "resource_slot_test",
-                                     kContentTypeHtml));
+    ASSERT_TRUE(
+        driver->StartParseId(kHtmlUrl, "resource_slot_test", kContentTypeHtml));
     elements_[0] = driver->NewElement(nullptr, HtmlName::kLink);
     driver->AddAttribute(elements_[0], HtmlName::kHref, "v1");
     driver->AddAttribute(elements_[0], HtmlName::kSrc, "v2");
@@ -85,8 +84,7 @@ class ResourceSlotTest : public RewriteTestBase {
     ResourcePtr empty;
     HtmlResourceSlot* slot = new HtmlResourceSlot(
         empty, element(element_index),
-        attribute(element_index, attribute_index),
-        html_parse());
+        attribute(element_index, attribute_index), html_parse());
     return HtmlResourceSlotPtr(slot);
   }
 
@@ -140,8 +138,7 @@ TEST_F(ResourceSlotTest, Accessors) {
   EXPECT_EQ("resource_slot_test:2-3", slot(2)->LocationString());
 
   const char kDataUrl[] = "data:text/plain,Huh";
-  ResourcePtr resource =
-      DataUrlInputResource::Make(kDataUrl, rewrite_driver());
+  ResourcePtr resource = DataUrlInputResource::Make(kDataUrl, rewrite_driver());
   ResourceSlotPtr fetch_slot(new FetchResourceSlot(resource));
   EXPECT_EQ(StrCat("Fetch of ", kDataUrl), fetch_slot->LocationString());
 }

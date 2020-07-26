@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,14 @@
  * under the License.
  */
 
-
-
 // Test the blocking w/timeout callback helper.
-
-#include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 
 #include <algorithm>
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -68,6 +65,7 @@ class TrapWriter : public Writer {
     ADD_FAILURE() << "Should not do a Flush";
     return false;
   }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(TrapWriter);
 };
@@ -79,17 +77,19 @@ class TrapWriter : public Writer {
 class DelayedFetcher : public UrlAsyncFetcher {
  public:
   // Note: If sim_delay <= 0, will report immediately at Fetch.
-  DelayedFetcher(ThreadSystem* thread_system,
-                 Timer* timer, MessageHandler* handler,
-                 int64 delay_ms, bool sim_success)
+  DelayedFetcher(ThreadSystem* thread_system, Timer* timer,
+                 MessageHandler* handler, int64 delay_ms, bool sim_success)
       : thread_system_(thread_system),
-        timer_(timer), handler_(handler), delay_ms_(delay_ms),
-        sim_success_(sim_success), fetch_pending_(false), fetch_(nullptr),
-        sync_(nullptr) {
-  }
+        timer_(timer),
+        handler_(handler),
+        delay_ms_(delay_ms),
+        sim_success_(sim_success),
+        fetch_pending_(false),
+        fetch_(nullptr),
+        sync_(nullptr) {}
 
   void Fetch(const GoogleString& url, MessageHandler* handler,
-                     AsyncFetch* fetch) override {
+             AsyncFetch* fetch) override {
     CHECK(!fetch_pending_);
     fetch_ = fetch;
     fetch_pending_ = true;
@@ -110,11 +110,9 @@ class DelayedFetcher : public UrlAsyncFetcher {
 
   class InvokeCallbackThread : public ThreadSystem::Thread {
    public:
-    InvokeCallbackThread(ThreadSystem* thread_system,
-                         DelayedFetcher* parent)
+    InvokeCallbackThread(ThreadSystem* thread_system, DelayedFetcher* parent)
         : Thread(thread_system, "delayed_fetch", ThreadSystem::kDetached),
-          parent_(parent) {
-    }
+          parent_(parent) {}
 
     void Run() override {
       parent_->timer_->SleepMs(parent_->delay_ms_);
@@ -147,7 +145,7 @@ class DelayedFetcher : public UrlAsyncFetcher {
   MessageHandler* handler_;
 
   // Simulation settings:
-  int64 delay_ms_;  // how long till we report the result
+  int64 delay_ms_;    // how long till we report the result
   bool sim_success_;  // whether to report success or failure
 
   // Fetch session:
@@ -165,8 +163,7 @@ class SyncFetcherAdapterTest : public testing::Test {
   SyncFetcherAdapterTest()
       : timer_(Platform::CreateTimer()),
         thread_system_(Platform::CreateThreadSystem()),
-        handler_(thread_system_->NewMutex()) {
-  }
+        handler_(thread_system_->NewMutex()) {}
 
  protected:
   void DoFetch(UrlAsyncFetcher* fetcher, SyncFetcherAdapterCallback* callback) {

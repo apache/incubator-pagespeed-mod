@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,21 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/automatic/proxy_interface.h"
-
 
 #include <memory>
 
-
 //#include "base/callback.h"
 #include "base/logging.h"
-#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/resource_fetch.h"
@@ -39,6 +35,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "pagespeed/opt/logging/log_record.h"
 //#include "strings/stringpiece_utils.h"
 #include "pagespeed/automatic/proxy_fetch.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -66,7 +63,8 @@ namespace {
 const char kTotalRequestCount[] = "all-requests";
 const char kPagespeedRequestCount[] = "pagespeed-requests";
 const char kRejectedRequestCount[] = "publisher-rejected-requests";
-const char kRejectedRequestHtmlResponse[] = "Unable to serve "
+const char kRejectedRequestHtmlResponse[] =
+    "Unable to serve "
     "content as the content is blocked by the administrator of the domain.";
 const char kNoDomainConfigRequestCount[] = "without-domain-config-requests";
 const char kNoDomainConfigResourceRequestCount[] =
@@ -81,28 +79,26 @@ struct ProxyInterface::RequestData {
   MessageHandler* handler;
 };
 
-ProxyInterface::ProxyInterface(StringPiece stats_prefix,
-                               StringPiece hostname, int port,
-                               ServerContext* server_context,
+ProxyInterface::ProxyInterface(StringPiece stats_prefix, StringPiece hostname,
+                               int port, ServerContext* server_context,
                                Statistics* stats)
     : server_context_(server_context),
       hostname_(hostname.as_string()),
       port_(port),
-      all_requests_(stats->GetTimedVariable(
-          StrCat(stats_prefix, kTotalRequestCount))),
+      all_requests_(
+          stats->GetTimedVariable(StrCat(stats_prefix, kTotalRequestCount))),
       pagespeed_requests_(stats->GetTimedVariable(
           StrCat(stats_prefix, kPagespeedRequestCount))),
-      rejected_requests_(stats->GetTimedVariable(
-          StrCat(stats_prefix, kRejectedRequestCount))),
+      rejected_requests_(
+          stats->GetTimedVariable(StrCat(stats_prefix, kRejectedRequestCount))),
       requests_without_domain_config_(stats->GetTimedVariable(
           StrCat(stats_prefix, kNoDomainConfigRequestCount))),
       resource_requests_without_domain_config_(stats->GetTimedVariable(
-          StrCat(stats_prefix,  kNoDomainConfigResourceRequestCount))) {
+          StrCat(stats_prefix, kNoDomainConfigResourceRequestCount))) {
   proxy_fetch_factory_ = std::make_unique<ProxyFetchFactory>(server_context);
 }
 
-ProxyInterface::~ProxyInterface() {
-}
+ProxyInterface::~ProxyInterface() {}
 
 void ProxyInterface::InitStats(StringPiece stats_prefix,
                                Statistics* statistics) {
@@ -159,8 +155,7 @@ bool ProxyInterface::UrlAndPortMatchThisServer(const GoogleUrl& url) {
 }
 
 void ProxyInterface::Fetch(const GoogleString& requested_url_string,
-                           MessageHandler* handler,
-                           AsyncFetch* async_fetch) {
+                           MessageHandler* handler, AsyncFetch* async_fetch) {
   GoogleUrl requested_url(requested_url_string);
   const bool is_get_or_head =
       (async_fetch->request_headers()->method() == RequestHeaders::kGet) ||
@@ -204,17 +199,15 @@ void ProxyInterface::ProxyRequest(bool is_resource_fetch,
   request_data->handler = handler;
 
   server_context_->rewrite_options_manager()->GetRewriteOptions(
-      request_url,
-      *async_fetch->request_headers(),
+      request_url, *async_fetch->request_headers(),
       NewCallback(this, &ProxyInterface::GetRewriteOptionsDone, request_data));
 }
 
 ProxyFetchPropertyCallbackCollector*
-    ProxyInterface::InitiatePropertyCacheLookup(
-    bool is_resource_fetch,
-    const GoogleUrl& request_url,
-    RewriteOptions* options,
-    AsyncFetch* async_fetch) {
+ProxyInterface::InitiatePropertyCacheLookup(bool is_resource_fetch,
+                                            const GoogleUrl& request_url,
+                                            RewriteOptions* options,
+                                            AsyncFetch* async_fetch) {
   return ProxyFetchFactory::InitiatePropertyCacheLookup(
       is_resource_fetch, request_url, server_context_, options, async_fetch);
 }
@@ -237,10 +230,10 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
 
   // Parse the query options, headers, and cookies.
   RewriteQuery query;
-  if (!server_context_->GetQueryOptions(async_fetch->request_context(),
-                                        domain_options, request_url,
-                                        async_fetch->request_headers(),
-                                        nullptr /* response_headers */, &query)) {
+  if (!server_context_->GetQueryOptions(
+          async_fetch->request_context(), domain_options, request_url,
+          async_fetch->request_headers(), nullptr /* response_headers */,
+          &query)) {
     async_fetch->response_headers()->SetStatusAndReason(
         HttpStatus::kMethodNotAllowed);
     async_fetch->Write("Invalid PageSpeed query-params/request headers",
@@ -288,7 +281,7 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
   bool cookie_found = experiment::GetExperimentCookieState(
       *async_fetch->request_headers(), &prior_experiment_id);
 
-  AbstractLogRecord* log_record =  async_fetch->request_context()->log_record();
+  AbstractLogRecord* log_record = async_fetch->request_context()->log_record();
   {
     ScopedMutex lock(log_record->mutex());
     log_record->logging_info()->set_is_pagespeed_resource(is_resource_fetch);
@@ -353,7 +346,7 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
     RewriteDriver* driver = nullptr;
     RequestContextPtr request_ctx = async_fetch->request_context();
     DCHECK(request_ctx.get() != nullptr) << "Async fetch must have a request"
-                                      << "context but does not.";
+                                         << "context but does not.";
     if (options == nullptr) {
       driver = server_context_->NewRewriteDriver(request_ctx);
     } else {
@@ -378,8 +371,8 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
         query.pagespeed_option_cookies().ToEscapedString());
 
     // Takes ownership of property_callback.
-    proxy_fetch_factory_->StartNewProxyFetch(
-        url_string, async_fetch, driver, property_callback, nullptr);
+    proxy_fetch_factory_->StartNewProxyFetch(url_string, async_fetch, driver,
+                                             property_callback, nullptr);
   }
 }
 

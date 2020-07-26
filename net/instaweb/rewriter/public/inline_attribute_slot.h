@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_INLINE_ATTRIBUTE_SLOT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_INLINE_ATTRIBUTE_SLOT_H_
@@ -27,10 +26,8 @@ namespace net_instaweb {
 
 class InlineAttributeSlot : public ResourceSlot {
  public:
-  InlineAttributeSlot(const ResourcePtr& resource,
-                      HtmlElement* element,
-                      HtmlElement::Attribute* attribute,
-                      StringPiece location);
+  InlineAttributeSlot(const ResourcePtr& resource, HtmlElement* element,
+                      HtmlElement::Attribute* attribute, StringPiece location);
   ~InlineAttributeSlot() override;
   HtmlElement* element() const override { return element_; }
   GoogleString LocationString() const override { return location_; }
@@ -55,8 +52,8 @@ class InlineAttributeSlotComparator {
                   const InlineAttributeSlotPtr& q) const;
 };
 
-typedef std::set<InlineAttributeSlotPtr,
-                 InlineAttributeSlotComparator> InlineAttributeSlotSet;
+typedef std::set<InlineAttributeSlotPtr, InlineAttributeSlotComparator>
+    InlineAttributeSlotSet;
 
 }  // namespace net_instaweb
 

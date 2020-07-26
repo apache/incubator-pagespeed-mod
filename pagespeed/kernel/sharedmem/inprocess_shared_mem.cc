@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,8 +27,8 @@
 
 #include <cstring>
 #include <map>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -46,11 +46,9 @@ namespace net_instaweb {
 class LOCKABLE InProcessSharedMem::DelegateMutex : public AbstractMutex {
  public:
   // Does not take ownership of actual.
-  explicit DelegateMutex(AbstractMutex* actual) : actual_(actual) {
-  }
+  explicit DelegateMutex(AbstractMutex* actual) : actual_(actual) {}
 
-  ~DelegateMutex() override {
-  }
+  ~DelegateMutex() override {}
 
   bool TryLock() override EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     return actual_->TryLock();
@@ -60,9 +58,7 @@ class LOCKABLE InProcessSharedMem::DelegateMutex : public AbstractMutex {
 
   void Unlock() override UNLOCK_FUNCTION() { actual_->Unlock(); }
 
-  void DCheckLocked() override {
-    actual_->DCheckLocked();
-  }
+  void DCheckLocked() override { actual_->DCheckLocked(); }
 
  private:
   AbstractMutex* actual_;
@@ -72,22 +68,16 @@ class LOCKABLE InProcessSharedMem::DelegateMutex : public AbstractMutex {
 // Likewise for segments and AttachToSegment.
 class InProcessSharedMem::DelegateSegment : public AbstractSharedMemSegment {
  public:
-  explicit DelegateSegment(AbstractSharedMemSegment* actual) : actual_(actual) {
-  }
+  explicit DelegateSegment(AbstractSharedMemSegment* actual)
+      : actual_(actual) {}
 
-  ~DelegateSegment() override {
-  }
+  ~DelegateSegment() override {}
 
-  volatile char* Base() override {
-    return actual_->Base();
-  }
+  volatile char* Base() override { return actual_->Base(); }
 
-  size_t SharedMutexSize() const override {
-    return actual_->SharedMutexSize();
-  }
+  size_t SharedMutexSize() const override { return actual_->SharedMutexSize(); }
 
-  bool InitializeSharedMutex(size_t offset,
-                                     MessageHandler* handler) override {
+  bool InitializeSharedMutex(size_t offset, MessageHandler* handler) override {
     return actual_->InitializeSharedMutex(offset, handler);
   }
 
@@ -103,8 +93,7 @@ class InProcessSharedMem::DelegateSegment : public AbstractSharedMemSegment {
 class InProcessSharedMem::Segment : public AbstractSharedMemSegment {
  public:
   Segment(ThreadSystem* thread_system, size_t size)
-      : thread_system_(thread_system),
-        storage_(new char[size]) {
+      : thread_system_(thread_system), storage_(new char[size]) {
     std::memset(storage_, 0, size);
   }
 
@@ -113,16 +102,11 @@ class InProcessSharedMem::Segment : public AbstractSharedMemSegment {
     delete[] storage_;
   }
 
-  volatile char* Base() override {
-    return storage_;
-  }
+  volatile char* Base() override { return storage_; }
 
-  size_t SharedMutexSize() const override {
-    return sizeof(AbstractMutex*);
-  }
+  size_t SharedMutexSize() const override { return sizeof(AbstractMutex*); }
 
-  bool InitializeSharedMutex(size_t offset,
-                                     MessageHandler* handler) override {
+  bool InitializeSharedMutex(size_t offset, MessageHandler* handler) override {
     AbstractMutex* mutex = thread_system_->NewMutex();
     mutexes_.push_back(mutex);
     *MutexPtr(offset) = mutex;
@@ -146,12 +130,9 @@ class InProcessSharedMem::Segment : public AbstractSharedMemSegment {
 };
 
 InProcessSharedMem::InProcessSharedMem(ThreadSystem* thread_system)
-    : thread_system_(thread_system) {
-}
+    : thread_system_(thread_system) {}
 
-InProcessSharedMem::~InProcessSharedMem() {
-  STLDeleteValues(&segments_);
-}
+InProcessSharedMem::~InProcessSharedMem() { STLDeleteValues(&segments_); }
 
 size_t InProcessSharedMem::SharedMutexSize() const {
   // We just store the pointer to the actual thread system mutex object inline.
@@ -177,7 +158,7 @@ AbstractSharedMemSegment* InProcessSharedMem::CreateSegment(
 }
 
 AbstractSharedMemSegment* InProcessSharedMem::AttachToSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler) {
+    const GoogleString& name, size_t size, MessageHandler* handler) {
   SegmentMap::iterator prev = segments_.find(name);
   if (prev != segments_.end()) {
     return new DelegateSegment(prev->second);
@@ -188,8 +169,8 @@ AbstractSharedMemSegment* InProcessSharedMem::AttachToSegment(
   }
 }
 
-void InProcessSharedMem::DestroySegment(
-    const GoogleString& name, MessageHandler* handler) {
+void InProcessSharedMem::DestroySegment(const GoogleString& name,
+                                        MessageHandler* handler) {
   SegmentMap::iterator prev = segments_.find(name);
   if (prev != segments_.end()) {
     // This deletes the actual Segment, but not any DelegateSegment.
