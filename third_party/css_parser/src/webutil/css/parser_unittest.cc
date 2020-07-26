@@ -1921,13 +1921,6 @@ TEST_F(ParserTest, AcceptAllValues) {
   EXPECT_EQ("-moz-inline-box",
             UnicodeTextToUTF8(value->GetIdentifier().ident_text()));
   EXPECT_EQ("display: -moz-inline-box", declarations->ToString());
-
-  Parser p2("display: -moz-inline-box");
-  p2.set_preservation_mode(false);
-  declarations.reset(p2.ParseDeclarations());
-  EXPECT_EQ(Parser::kDeclarationError, p2.errors_seen_mask());
-  EXPECT_EQ(0, declarations->size());
-  EXPECT_EQ("", declarations->ToString());
 }
 
 TEST_F(ParserTest, VerbatimDeclarations) {
