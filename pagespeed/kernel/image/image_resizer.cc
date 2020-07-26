@@ -378,7 +378,7 @@ class ResizeRowArea : public ResizeRow {
 
   virtual bool Initialize(int in_size, int out_size, double ratio,
                           float* output_buffer, MessageHandler* handler);
-  virtual const void* Resize(const uint8_t* in_data);
+  const void* Resize(const uint8_t* in_data) override;
 
  protected:
   const int num_channels_;
@@ -441,7 +441,7 @@ class ResizeColArea : public ResizeCol {
                           uint8_t* output_buffer,
                           MessageHandler* handler);
 
-  virtual const uint8_t* Resize(const void* in_data_ptr);
+  const uint8_t* Resize(const void* in_data_ptr) override;
 
   virtual int out_row() const {
     return out_row_;

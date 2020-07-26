@@ -46,7 +46,7 @@ class MemLockManager : public NamedLockManager {
 
   explicit MemLockManager(Timer* timer);
   virtual ~MemLockManager();
-  virtual NamedLock* CreateNamedLock(const StringPiece& name);
+  NamedLock* CreateNamedLock(const StringPiece& name) override;
 
   // Returns the absolute time (ms since 1970) of the next interesting
   // event (cancel, steal) for any lock created with this manager.

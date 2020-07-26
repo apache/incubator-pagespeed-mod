@@ -61,8 +61,8 @@ class FileCache::CacheCleanFunction : public Function {
   CacheCleanFunction(FileCache* cache, int64 next_clean_time_ms)
       : cache_(cache),
         next_clean_time_ms_(next_clean_time_ms) {}
-  virtual ~CacheCleanFunction() {}
-  virtual void Run() { cache_->CleanWithLocking(next_clean_time_ms_); }
+  ~CacheCleanFunction() override {}
+  void Run() override { cache_->CleanWithLocking(next_clean_time_ms_); }
 
  private:
   FileCache* cache_;

@@ -60,11 +60,11 @@ class SharedCircularBuffer : public Writer {
   // Reset circular buffer.
   void Clear();
   // Write content to circular buffer.
-  virtual bool Write(const StringPiece& message, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* message_handler) { return true; }
+  bool Write(const StringPiece& message, MessageHandler* handler) override;
+  bool Flush(MessageHandler* message_handler) override { return true; }
 
   // Write content of data in buffer to writer, without clearing the buffer.
-  virtual bool Dump(Writer* writer, MessageHandler* handler);
+  bool Dump(Writer* writer, MessageHandler* handler) override;
   // Return data content as string. This is for test purposes.
   GoogleString ToString(MessageHandler* handler);
   // This should be called from the root process as it is about to exit, when no

@@ -37,7 +37,7 @@ class MockNonceGenerator : public NonceGenerator {
   virtual ~MockNonceGenerator();
 
  protected:
-  virtual uint64 NewNonceImpl();
+  uint64 NewNonceImpl() override;
 
  private:
   uint64 counter_;

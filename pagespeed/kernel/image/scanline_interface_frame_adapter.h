@@ -63,10 +63,10 @@ class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
   explicit FrameToScanlineReaderAdapter(MultipleFrameReader* frame_reader);
   virtual ~FrameToScanlineReaderAdapter() {}
 
-  virtual bool Reset();
-  virtual size_t GetBytesPerScanline();
-  virtual bool HasMoreScanLines();
-  virtual bool IsProgressive();
+  bool Reset() override;
+  size_t GetBytesPerScanline() override;
+  bool HasMoreScanLines() override;
+  bool IsProgressive() override;
 
   // Will return an error status if the underlying MultipleFrameReader
   // is processing an animated image.
@@ -74,9 +74,9 @@ class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
                                               size_t buffer_length);
   virtual ScanlineStatus ReadNextScanlineWithStatus(
       void** out_scanline_bytes);
-  virtual size_t GetImageHeight();
-  virtual size_t GetImageWidth();
-  virtual PixelFormat GetPixelFormat();
+  size_t GetImageHeight() override;
+  size_t GetImageWidth() override;
+  PixelFormat GetPixelFormat() override;
 
  private:
   std::unique_ptr<MultipleFrameReader> impl_;
@@ -101,7 +101,7 @@ class FrameToScanlineWriterAdapter : public ScanlineWriterInterface {
                                                    GoogleString* out);
   virtual ScanlineStatus WriteNextScanlineWithStatus(
       const void *scanline_bytes);
-  virtual ScanlineStatus FinalizeWriteWithStatus();
+  ScanlineStatus FinalizeWriteWithStatus() override;
 
  private:
   std::unique_ptr<MultipleFrameWriter> impl_;
@@ -123,12 +123,12 @@ class ScanlineToFrameReaderAdapter : public MultipleFrameReader {
   // Acquires ownership of 'scanline_reader'.
   ScanlineToFrameReaderAdapter(ScanlineReaderInterface* scanline_reader,
                                MessageHandler* message_handler);
-  virtual ScanlineStatus Reset();
-  virtual ScanlineStatus Initialize();
+  ScanlineStatus Reset() override;
+  ScanlineStatus Initialize() override;
   virtual bool HasMoreFrames() const;
   virtual bool HasMoreScanlines() const;
-  virtual ScanlineStatus PrepareNextFrame();
-  virtual ScanlineStatus ReadNextScanline(const void** out_scanline_bytes);
+  ScanlineStatus PrepareNextFrame() override;
+  ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override;
   virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const;
   virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const;
 
@@ -159,10 +159,10 @@ class ScanlineToFrameWriterAdapter : public MultipleFrameWriter {
 
   virtual ScanlineStatus Initialize(const void* config,
                                     GoogleString* out);
-  virtual ScanlineStatus PrepareImage(const ImageSpec* image_spec);
-  virtual ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec);
-  virtual ScanlineStatus WriteNextScanline(const void *scanline_bytes);
-  virtual ScanlineStatus FinalizeWrite();
+  ScanlineStatus PrepareImage(const ImageSpec* image_spec) override;
+  ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec) override;
+  ScanlineStatus WriteNextScanline(const void *scanline_bytes) override;
+  ScanlineStatus FinalizeWrite() override;
 
  private:
   enum {

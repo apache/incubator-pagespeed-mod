@@ -33,7 +33,7 @@ class ThreadSafeLockManager : public NamedLockManager {
  public:
   explicit ThreadSafeLockManager(Scheduler* scheduler);
   virtual ~ThreadSafeLockManager();
-  virtual NamedLock* CreateNamedLock(const StringPiece& name);
+  NamedLock* CreateNamedLock(const StringPiece& name) override;
 
  private:
   class Lock;

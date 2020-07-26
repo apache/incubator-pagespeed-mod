@@ -47,8 +47,8 @@ class SharedMemStatisticsTestBase : public testing::Test {
   SharedMemStatisticsTestBase();
   explicit SharedMemStatisticsTestBase(SharedMemTestEnv* test_env);
 
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
   bool CreateChild(TestMethod method);
 
   void TestCreate();

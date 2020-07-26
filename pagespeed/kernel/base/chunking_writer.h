@@ -39,8 +39,8 @@ class ChunkingWriter : public Writer {
   ChunkingWriter(Writer* writer, int flush_limit);
   virtual ~ChunkingWriter();
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 
  private:
   // Flushes output if we have enough queued; returns false on Flush failure

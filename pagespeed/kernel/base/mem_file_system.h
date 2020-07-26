@@ -64,11 +64,11 @@ class MemFileSystem : public FileSystem {
 
   virtual bool ListContents(const StringPiece& dir, StringVector* files,
                             MessageHandler* handler);
-  virtual bool MakeDir(const char* directory_path, MessageHandler* handler);
+  bool MakeDir(const char* directory_path, MessageHandler* handler) override;
   virtual bool RecursivelyMakeDir(const StringPiece& directory_path,
                                   MessageHandler* handler);
-  virtual bool RemoveDir(const char* path, MessageHandler* handler);
-  virtual bool RemoveFile(const char* filename, MessageHandler* handler);
+  bool RemoveDir(const char* path, MessageHandler* handler) override;
+  bool RemoveFile(const char* filename, MessageHandler* handler) override;
   virtual bool RenameFileHelper(const char* old_file, const char* new_file,
                                MessageHandler* handler);
 
@@ -80,8 +80,8 @@ class MemFileSystem : public FileSystem {
                      MessageHandler* handler);
   virtual bool Size(const StringPiece& path, int64* size,
                     MessageHandler* handler) const;
-  virtual BoolOrError Exists(const char* path, MessageHandler* handler);
-  virtual BoolOrError IsDir(const char* path, MessageHandler* handler);
+  BoolOrError Exists(const char* path, MessageHandler* handler) override;
+  BoolOrError IsDir(const char* path, MessageHandler* handler) override;
 
   virtual BoolOrError TryLock(const StringPiece& lock_name,
                               MessageHandler* handler);
@@ -91,7 +91,7 @@ class MemFileSystem : public FileSystem {
                                          MessageHandler* handler);
   virtual bool BumpLockTimeout(const StringPiece& lock_name,
                                MessageHandler* handler);
-  virtual bool Unlock(const StringPiece& lock_name, MessageHandler* handler);
+  bool Unlock(const StringPiece& lock_name, MessageHandler* handler) override;
 
   // When atime is disabled, reading a file will not update its atime.
   void set_atime_enabled(bool enabled) {

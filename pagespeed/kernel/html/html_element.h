@@ -230,7 +230,7 @@ class HtmlElement : public HtmlNode {
   // returning false.
   virtual bool live() const { return (data_.get() != NULL) && data_->live_; }
 
-  virtual void MarkAsDead(const HtmlEventListIterator& end);
+  void MarkAsDead(const HtmlEventListIterator& end) override;
 
   // Add a copy of an attribute to this element.  The attribute may come
   // from this element, or another one.

@@ -36,8 +36,8 @@ class CanonicalAttributes : public EmptyHtmlFilter {
   explicit CanonicalAttributes(HtmlParse* html_parse);
   virtual ~CanonicalAttributes();
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
   virtual const char* Name() const { return "CanonicalAttributes"; }
   int num_changes() const { return num_changes_; }
   int num_errors() const { return num_errors_; }

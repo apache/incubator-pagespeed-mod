@@ -232,8 +232,8 @@ class SchedulerBlockingFunction : public Function {
  public:
   explicit SchedulerBlockingFunction(Scheduler* scheduler);
   virtual ~SchedulerBlockingFunction();
-  virtual void Run();
-  virtual void Cancel();
+  void Run() override;
+  void Cancel() override;
   // Block until called back, returning true for Run and false for Cancel.
   bool Block();
  private:

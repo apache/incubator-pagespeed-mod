@@ -60,13 +60,13 @@ class Timer;
 class SharedMemVariable : public MutexedScalar {
  public:
   SharedMemVariable(StringPiece name, Statistics* stats);
-  virtual ~SharedMemVariable() {}
+  ~SharedMemVariable() override {}
   virtual StringPiece GetName() const { return name_; }
 
  protected:
-  virtual AbstractMutex* mutex() const;
-  virtual int64 GetLockHeld() const;
-  virtual int64 SetReturningPreviousValueLockHeld(int64 value);
+  AbstractMutex* mutex() const override;
+  int64 GetLockHeld() const override;
+  int64 SetReturningPreviousValueLockHeld(int64 value) override;
 
  private:
   friend class SharedMemStatistics;
@@ -98,25 +98,25 @@ class SharedMemHistogram : public Histogram {
   SharedMemHistogram(StringPiece name, Statistics* stats);
 
   virtual ~SharedMemHistogram();
-  virtual void Add(double value);
-  virtual void Clear();
-  virtual int NumBuckets();
+  void Add(double value) override;
+  void Clear() override;
+  int NumBuckets() override;
   // Call the following functions after statistics->Init and before add values.
   // EnableNegativeBuckets, SetMinValue and SetMaxValue will
   // cause resetting Histogram.
-  virtual void EnableNegativeBuckets();
+  void EnableNegativeBuckets() override;
   // Set the minimum value allowed in histogram.
-  virtual void SetMinValue(double value);
+  void SetMinValue(double value) override;
   // Set the upper-bound of value in histogram,
   // The value range in histogram is [MinValue, MaxValue) or
   // (-MaxValue, MaxValue) if negative buckets are enabled.
-  virtual void SetMaxValue(double value);
+  void SetMaxValue(double value) override;
 
   // We rely on NumBuckets to allocate a memory segment for the histogram, so
   // this should be called right after AddHistogram() in the ::Initialize
   // process. Similarly, all the bounds must be initialized at that point, to
   // avoid clearing the histogram as new child processes attach to it.
-  virtual void SetSuggestedNumBuckets(int i);
+  void SetSuggestedNumBuckets(int i) override;
 
   // Return the amount of shared memory this Histogram objects needs for its
   // use.
@@ -128,17 +128,17 @@ class SharedMemHistogram : public Histogram {
   }
 
  protected:
-  virtual AbstractMutex* lock() {
+  AbstractMutex* lock() override {
     return mutex_.get();
   }
-  virtual double AverageInternal();
-  virtual double PercentileInternal(const double perc);
-  virtual double StandardDeviationInternal();
-  virtual double CountInternal();
-  virtual double MaximumInternal();
-  virtual double MinimumInternal();
-  virtual double BucketStart(int index);
-  virtual double BucketCount(int index);
+  double AverageInternal() override;
+  double PercentileInternal(const double perc) override;
+  double StandardDeviationInternal() override;
+  double CountInternal() override;
+  double MaximumInternal() override;
+  double MinimumInternal() override;
+  double BucketStart(int index) override;
+  double BucketCount(int index) override;
 
  private:
   friend class SharedMemStatistics;
@@ -220,14 +220,14 @@ class SharedMemStatistics : public ScalarStatisticsTemplate<
   GoogleString SegmentName() const;
 
   // TODO(sligocki): Rename to statistics_logger().
-  virtual StatisticsLogger* console_logger() {
+  StatisticsLogger* console_logger() override {
     return console_logger_.get();
   }
 
  protected:
-  virtual Var* NewVariable(StringPiece name);
-  virtual UpDown* NewUpDownCounter(StringPiece name);
-  virtual Hist* NewHistogram(StringPiece name);
+  Var* NewVariable(StringPiece name) override;
+  UpDown* NewUpDownCounter(StringPiece name) override;
+  Hist* NewHistogram(StringPiece name) override;
 
  private:
   // Create mutexes in the segment, with per_var bytes being used,

@@ -51,7 +51,7 @@ class HashedNonceGenerator : public NonceGenerator {
   virtual ~HashedNonceGenerator();
 
  protected:
-  virtual uint64 NewNonceImpl();
+  uint64 NewNonceImpl() override;
 
  private:
   const Hasher* hasher_;

@@ -87,7 +87,7 @@ class BackupUpDownCounter : public UpDownCounter {
     return val;
   }
 
-  virtual StringPiece GetName() const { return counter_->GetName(); }
+  StringPiece GetName() const override { return counter_->GetName(); }
 
   virtual void Set(int64 value) {
     counter_->Set(value);

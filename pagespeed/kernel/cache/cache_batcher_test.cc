@@ -85,14 +85,14 @@ class CacheBatcherTest : public CacheTestBase {
       sync_point_.Notify();
     }
 
-    virtual void Wait() { sync_point_.Wait(); }
+    void Wait() override { sync_point_.Wait(); }
 
    private:
     WorkerTestBase::SyncPoint sync_point_;
   };
 
-  virtual CacheInterface* Cache() { return batcher_.get(); }
-  virtual Callback* NewCallback() { return new SyncPointCallback(this); }
+  CacheInterface* Cache() override { return batcher_.get(); }
+  Callback* NewCallback() override { return new SyncPointCallback(this); }
 
   void ChangeBatcherConfig(const CacheBatcher::Options& options,
                            CacheInterface* cache) {

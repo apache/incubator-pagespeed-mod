@@ -38,21 +38,21 @@ class StdioFileSystem : public FileSystem {
   StdioFileSystem();
   virtual ~StdioFileSystem();
 
-  virtual int MaxPathLength(const StringPiece& base) const;
+  int MaxPathLength(const StringPiece& base) const override;
 
-  virtual InputFile* OpenInputFile(const char* filename,
-                                   MessageHandler* message_handler);
-  virtual OutputFile* OpenOutputFileHelper(const char* filename,
+  InputFile* OpenInputFile(const char* filename,
+                                   MessageHandler* message_handler) override;
+  OutputFile* OpenOutputFileHelper(const char* filename,
                                            bool append,
                                            MessageHandler* message_handler);
-  virtual OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
-                                         MessageHandler* message_handle);
+  OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
+                                         MessageHandler* message_handle) override;
 
-  virtual bool ListContents(const StringPiece& dir, StringVector* files,
+  bool ListContents(const StringPiece& dir, StringVector* files,
                             MessageHandler* handler);
-  virtual bool MakeDir(const char* directory_path, MessageHandler* handler);
-  virtual bool RemoveDir(const char* directory_path, MessageHandler* handler);
-  virtual bool RemoveFile(const char* filename, MessageHandler* handler);
+  bool MakeDir(const char* directory_path, MessageHandler* handler) override;
+  bool RemoveDir(const char* directory_path, MessageHandler* handler) override;
+  bool RemoveFile(const char* filename, MessageHandler* handler) override;
   virtual bool RenameFileHelper(const char* old_file, const char* new_file,
                                 MessageHandler* handler);
 
@@ -65,8 +65,8 @@ class StdioFileSystem : public FileSystem {
   // on the underlying file system and default block size.
   virtual bool Size(const StringPiece& path, int64* size,
                     MessageHandler* handler) const;
-  virtual BoolOrError Exists(const char* path, MessageHandler* handler);
-  virtual BoolOrError IsDir(const char* path, MessageHandler* handler);
+  BoolOrError Exists(const char* path, MessageHandler* handler) override;
+  BoolOrError IsDir(const char* path, MessageHandler* handler) override;
 
   virtual BoolOrError TryLock(const StringPiece& lock_name,
                               MessageHandler* handler);
@@ -77,7 +77,7 @@ class StdioFileSystem : public FileSystem {
   virtual bool BumpLockTimeout(const StringPiece& lock_name,
                                MessageHandler* handler);
 
-  virtual bool Unlock(const StringPiece& lock_name, MessageHandler* handler);
+  bool Unlock(const StringPiece& lock_name, MessageHandler* handler) override;
 
   InputFile* Stdin();
   OutputFile* Stdout();

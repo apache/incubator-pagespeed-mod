@@ -64,7 +64,7 @@ class CompressedCacheTest : public CacheTestBase {
     return ret;
   }
 
-  virtual CacheInterface* Cache() { return compressed_cache_.get(); }
+  CacheInterface* Cache() override { return compressed_cache_.get(); }
 
   GoogleMessageHandler handler_;
   std::unique_ptr<LRUCache> lru_cache_;

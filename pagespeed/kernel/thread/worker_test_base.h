@@ -88,7 +88,7 @@ class WorkerTestBase::SyncPoint {
 class WorkerTestBase::NotifyRunFunction : public Function {
  public:
   explicit NotifyRunFunction(SyncPoint* sync);
-  virtual void Run();
+  void Run() override;
 
  private:
   SyncPoint* sync_;
@@ -99,7 +99,7 @@ class WorkerTestBase::NotifyRunFunction : public Function {
 class WorkerTestBase::WaitRunFunction : public Function {
  public:
   explicit WaitRunFunction(SyncPoint* sync);
-  virtual void Run();
+  void Run() override;
 
  private:
   SyncPoint* sync_;

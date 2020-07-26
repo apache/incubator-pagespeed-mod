@@ -59,7 +59,7 @@ class LockManagerSpammer : public ThreadSystem::Thread {
   void Denied(NamedLock* lock);
 
  protected:
-  virtual void Run();
+  void Run() override;
 
  private:
   class CountDown {

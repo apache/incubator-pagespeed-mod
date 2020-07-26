@@ -55,7 +55,7 @@ class CacheSpammer : public ThreadSystem::Thread {
   void GetDone(bool found, StringPiece key);
 
  protected:
-  virtual void Run();
+  void Run() override;
 
  private:
   CacheSpammer(ThreadSystem* runtime,

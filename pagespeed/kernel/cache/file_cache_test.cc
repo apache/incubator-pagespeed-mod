@@ -96,7 +96,7 @@ class FileCacheTest : public CacheTestBase {
     file_system_.set_atime_enabled(true);
   }
 
-  virtual CacheInterface* Cache() { return cache_.get(); }
+  CacheInterface* Cache() override { return cache_.get(); }
   virtual void PostOpCleanup() { }
 
   bool Clean(int64 size, int64 inode_count) {

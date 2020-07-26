@@ -52,7 +52,7 @@ class DisableTestFilter : public EmptyHtmlFilter {
     return message;
   }
 
-  virtual const char* Name() const { return name_.c_str(); }
+  const char* Name() const override { return name_.c_str(); }
 
  private:
   GoogleString name_;

@@ -68,10 +68,10 @@ class MockMessageHandler : public MessageHandler {
   void AddPatternToSkipPrinting(const char* pattern);
 
   // Dumps contents of String Buffer.
-  virtual bool Dump(Writer* writer);
+  bool Dump(Writer* writer) override;
 
  protected:
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
   virtual void FileMessageSImpl(MessageType type, const char* filename,
                                 int line, const GoogleString& message);

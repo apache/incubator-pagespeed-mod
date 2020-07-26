@@ -95,7 +95,7 @@ class MemOutputFile : public FileSystem::OutputFile {
     return true;
   }
 
-  virtual const char* filename() { return filename_.c_str(); }
+  const char* filename() override { return filename_.c_str(); }
 
   virtual bool Flush(MessageHandler* message_handler) {
     contents_->append(written_);
@@ -103,11 +103,11 @@ class MemOutputFile : public FileSystem::OutputFile {
     return true;
   }
 
-  virtual bool SetWorldReadable(MessageHandler* message_handler) {
+  bool SetWorldReadable(MessageHandler* message_handler) override {
     return true;
   }
 
-  virtual bool Write(const StringPiece& buf, MessageHandler* handler) {
+  bool Write(const StringPiece& buf, MessageHandler* handler) override {
     buf.AppendToString(&written_);
     return true;
   }

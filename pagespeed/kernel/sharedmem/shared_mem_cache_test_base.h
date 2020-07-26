@@ -48,9 +48,9 @@ class SharedMemCacheTestBase : public CacheTestBase {
 
   explicit SharedMemCacheTestBase(SharedMemTestEnv* test_env);
 
-  virtual void TearDown();
+  void TearDown() override;
 
-  virtual SharedMemCache<kBlockSize>* Cache() { return cache_.get(); }
+  SharedMemCache<kBlockSize>* Cache() override { return cache_.get(); }
   virtual void SanityCheck();
 
   void TestBasic();

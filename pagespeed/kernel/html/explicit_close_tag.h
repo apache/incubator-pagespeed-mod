@@ -40,7 +40,7 @@ class ExplicitCloseTag : public EmptyHtmlFilter {
   ExplicitCloseTag() {}
   virtual ~ExplicitCloseTag();
 
-  virtual void EndElement(HtmlElement* element);
+  void EndElement(HtmlElement* element) override;
   virtual const char* Name() const { return "ExplicitCloseTag"; }
 
  private:

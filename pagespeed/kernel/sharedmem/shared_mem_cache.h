@@ -128,15 +128,15 @@ class SharedMemCache : public CacheInterface {
   static void DemarshalSnapshot(const StringPiece& marshaled,
                                 SharedMemCacheDump* out);
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
   static GoogleString FormatName();
-  virtual GoogleString Name() const { return FormatName();}
+  GoogleString Name() const override { return FormatName();}
 
-  virtual bool IsBlocking() const { return true; }
-  virtual bool IsHealthy() const { return true; }
-  virtual void ShutDown() {
+  bool IsBlocking() const override { return true; }
+  bool IsHealthy() const override { return true; }
+  void ShutDown() override {
     // TODO(morlovich): Implement
   }
 

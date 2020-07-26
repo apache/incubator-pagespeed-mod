@@ -50,7 +50,7 @@ class SlowWorker : public Worker {
   void RunIfNotBusy(Function* closure);
 
  private:
-  virtual bool IsPermitted(Function* closure);
+  bool IsPermitted(Function* closure) override;
 
   DISALLOW_COPY_AND_ASSIGN(SlowWorker);
 };

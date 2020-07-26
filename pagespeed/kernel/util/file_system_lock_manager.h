@@ -59,7 +59,7 @@ class FileSystemLockManager : public NamedLockManager {
   // remnants of dead locks.  A given NamedLock object should Lock and Unlock
   // in matched pairs; DO NOT use separate NamedLock objects created with the
   // same name to perform a Lock and the corresponding Unlock.
-  virtual SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name);
+  SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name) override;
 
   // Simple accessors for constructor arguments
   FileSystem* file_system() const { return file_system_; }

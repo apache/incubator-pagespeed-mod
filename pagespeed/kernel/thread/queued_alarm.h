@@ -64,7 +64,7 @@ class QueuedAlarm : public Function {
   virtual ~QueuedAlarm();
 
   // Runs in an arbitrary thread.
-  virtual void Run();
+  void Run() override;
 
   // Runs in the sequence case.
   void SequencePortionOfRun();

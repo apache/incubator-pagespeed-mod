@@ -41,10 +41,10 @@ class PthreadCondvar : public ThreadSystem::Condvar {
 
   virtual PthreadMutex* mutex() const { return mutex_; }
 
-  virtual void Signal();
-  virtual void Broadcast();
-  virtual void Wait();
-  virtual void TimedWait(int64 timeout_ms);
+  void Signal() override;
+  void Broadcast() override;
+  void Wait() override;
+  void TimedWait(int64 timeout_ms) override;
 
  private:
   void Init();

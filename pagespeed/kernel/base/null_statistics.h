@@ -48,7 +48,7 @@ class NullStatistics : public ScalarStatisticsTemplate<NullStatisticsVariable> {
   NullStatistics();
   virtual ~NullStatistics();
 
-  virtual CountHistogram* NewHistogram(StringPiece name);
+  CountHistogram* NewHistogram(StringPiece name) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullStatistics);

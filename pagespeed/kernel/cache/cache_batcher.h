@@ -95,18 +95,18 @@ class CacheBatcher : public CacheInterface {
   // in the root Apache process.
   static void InitStats(Statistics* statistics);
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
   virtual GoogleString Name() const;
   static GoogleString FormatName(StringPiece cache, int parallelism, int max);
 
   // Note: CacheBatcher cannot do any batching if given a blocking cache,
   // however it is still functional so pass on the bit.
-  virtual bool IsBlocking() const { return cache_->IsBlocking(); }
+  bool IsBlocking() const override { return cache_->IsBlocking(); }
 
-  virtual bool IsHealthy() const { return cache_->IsHealthy(); }
-  virtual void ShutDown();
+  bool IsHealthy() const override { return cache_->IsHealthy(); }
+  void ShutDown() override;
 
  private:
   typedef std::unordered_map<GoogleString, std::vector<Callback*>> CallbackMap;

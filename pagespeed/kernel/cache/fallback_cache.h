@@ -51,10 +51,10 @@ class FallbackCache : public CacheInterface {
                 MessageHandler* handler);
   virtual ~FallbackCache();
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
-  virtual void MultiGet(MultiGetRequest* request);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
+  void MultiGet(MultiGetRequest* request) override;
   virtual bool IsBlocking() const {
     // We can fulfill our guarantee only if both caches block.
     return (small_object_cache_->IsBlocking() &&

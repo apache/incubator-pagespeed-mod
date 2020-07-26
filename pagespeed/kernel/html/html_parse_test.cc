@@ -1780,8 +1780,8 @@ class InsertCommentOnFirstDivFilter : public EmptyHtmlFilter {
   }
 
   virtual void StartDocument() { first_ = true; }
-  virtual void StartElement(HtmlElement* element) { Insert(true, element); }
-  virtual void EndElement(HtmlElement* element) { Insert(false, element); }
+  void StartElement(HtmlElement* element) override { Insert(true, element); }
+  void EndElement(HtmlElement* element) override { Insert(false, element); }
   virtual const char* Name() const { return "InsertCommentOnFirstDivFilter"; }
 
  private:
@@ -3092,8 +3092,8 @@ class InsertScriptsFilter : public EmptyHtmlFilter {
   void set_external(bool external) { external_ = external; }
 
  protected:
-  virtual void StartElement(HtmlElement* element) { Insert(true, element); }
-  virtual void EndElement(HtmlElement* element) { Insert(false, element); }
+  void StartElement(HtmlElement* element) override { Insert(true, element); }
+  void EndElement(HtmlElement* element) override { Insert(false, element); }
   virtual const char* Name() const { return "InsertScriptsFilter"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 

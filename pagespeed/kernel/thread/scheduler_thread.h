@@ -47,7 +47,7 @@ class SchedulerThread : public ThreadSystem::Thread {
   Function* MakeDeleter();
 
  protected:
-  virtual void Run();
+  void Run() override;
 
  private:
   class CleanupFunction;

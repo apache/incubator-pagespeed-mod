@@ -44,16 +44,16 @@ class MultipleFramePaddingReader : public MultipleFrameReader {
   explicit MultipleFramePaddingReader(MultipleFrameReader* reader);
   virtual ~MultipleFramePaddingReader();
 
-  virtual ScanlineStatus Reset();
-  virtual ScanlineStatus Initialize();
+  ScanlineStatus Reset() override;
+  ScanlineStatus Initialize() override;
   virtual bool HasMoreFrames() const;
   virtual bool HasMoreScanlines() const;
-  virtual ScanlineStatus PrepareNextFrame();
-  virtual ScanlineStatus ReadNextScanline(const void** out_scanline_bytes);
+  ScanlineStatus PrepareNextFrame() override;
+  ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override;
   virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const;
   virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const;
   MessageHandler* message_handler() const;
-  virtual ScanlineStatus set_quirks_mode(QuirksMode quirks_mode);
+  ScanlineStatus set_quirks_mode(QuirksMode quirks_mode) override;
   virtual QuirksMode quirks_mode() const;
 
  private:

@@ -106,7 +106,7 @@ class HtmlLeafNode : public HtmlNode {
  public:
   virtual ~HtmlLeafNode();
   virtual bool live() const { return (data_.get() != NULL) && data_->is_live_; }
-  virtual void MarkAsDead(const HtmlEventListIterator& end);
+  void MarkAsDead(const HtmlEventListIterator& end) override;
   virtual GoogleString ToString() const;
 
   const GoogleString& contents() const { return data_->contents_; }

@@ -43,7 +43,7 @@ class InputFileNonceGenerator : public NonceGenerator {
   virtual ~InputFileNonceGenerator();
 
  protected:
-  virtual uint64 NewNonceImpl();
+  uint64 NewNonceImpl() override;
 
  private:
   FileSystem::InputFile* file_;

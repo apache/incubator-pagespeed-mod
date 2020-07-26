@@ -38,8 +38,8 @@ class AnnotatedMessageHandler : public MessageHandler {
   virtual ~AnnotatedMessageHandler();
 
  protected:
-  virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageVImpl(MessageType type, const char* msg, va_list args) override;
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
   virtual void FileMessageVImpl(MessageType type, const char* filename,
                                 int line, const char* msg, va_list args);

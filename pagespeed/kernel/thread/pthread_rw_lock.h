@@ -32,12 +32,12 @@ class PthreadRWLock : public ThreadSystem::RWLock {
  public:
   PthreadRWLock();
   virtual ~PthreadRWLock();
-  virtual bool TryLock();
-  virtual void Lock();
-  virtual void Unlock();
-  virtual bool ReaderTryLock();
-  virtual void ReaderLock();
-  virtual void ReaderUnlock();
+  bool TryLock() override;
+  void Lock() override;
+  void Unlock() override;
+  bool ReaderTryLock() override;
+  void ReaderLock() override;
+  void ReaderUnlock() override;
 
  private:
   pthread_rwlock_t rwlock_;

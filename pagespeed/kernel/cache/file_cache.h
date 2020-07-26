@@ -66,18 +66,18 @@ class FileCache : public CacheInterface {
 
   static void InitStats(Statistics* statistics);
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
   void set_worker(SlowWorker* worker) { worker_ = worker; }
   SlowWorker* worker() { return worker_; }
 
   static GoogleString FormatName() { return "FileCache"; }
-  virtual GoogleString Name() const { return FormatName(); }
+  GoogleString Name() const override { return FormatName(); }
 
-  virtual bool IsBlocking() const { return true; }
-  virtual bool IsHealthy() const { return true; }
-  virtual void ShutDown() {}  // TODO(jmarantz): implement.
+  bool IsBlocking() const override { return true; }
+  bool IsHealthy() const override { return true; }
+  void ShutDown() override {}  // TODO(jmarantz): implement.
 
   const CachePolicy* cache_policy() const { return cache_policy_.get(); }
   CachePolicy* mutable_cache_policy() { return cache_policy_.get(); }

@@ -53,10 +53,10 @@ class PixelFormatOptimizer : public ScanlineReaderInterface {
   // PixelFormatOptimizer acquires ownership of reader, even in case of failure.
   ScanlineStatus Initialize(ScanlineReaderInterface* reader);
 
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
 
   // Resets the resizer to its initial state. Always returns true.
-  virtual bool Reset();
+  bool Reset() override;
 
   // Returns number of bytes required to store a scanline.
   virtual size_t GetBytesPerScanline() {

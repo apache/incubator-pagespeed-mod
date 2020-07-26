@@ -99,12 +99,12 @@ class GifFrameReader : public MultipleFrameReader {
  public:
   virtual ~GifFrameReader();
 
-  virtual ScanlineStatus Reset();
+  ScanlineStatus Reset() override;
 
   // Initialize the reader with the given image stream. Note that
   // image_buffer must remain unchanged until the last call to
   // ReadNextScanlineWithStatus().
-  virtual ScanlineStatus Initialize();
+  ScanlineStatus Initialize() override;
 
   virtual bool HasMoreFrames() const {
     return (image_initialized_ && (next_frame_ < image_spec_.num_frames));
@@ -114,13 +114,13 @@ class GifFrameReader : public MultipleFrameReader {
     return (frame_initialized_ && (next_row_ < frame_spec_.height));
   }
 
-  virtual ScanlineStatus PrepareNextFrame();
+  ScanlineStatus PrepareNextFrame() override;
 
   // Return the next row of pixels. For non-progressive GIF,
   // ReadNextScanline will decode one row of pixels each time when it
   // is called, but for progressive GIF, ReadNextScanline will decode
   // the entire image at the first time when it is called.
-  virtual ScanlineStatus ReadNextScanline(const void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override;
 
   virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const {
     if (frame_spec == NULL) {
@@ -144,7 +144,7 @@ class GifFrameReader : public MultipleFrameReader {
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  virtual ScanlineStatus set_quirks_mode(QuirksMode quirks_mode);
+  ScanlineStatus set_quirks_mode(QuirksMode quirks_mode) override;
 
   // Apply the specified browser-specific tweaking of image_spec based
   // on the first frame's frame_spec and whether an explicit

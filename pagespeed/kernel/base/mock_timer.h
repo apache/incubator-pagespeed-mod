@@ -70,8 +70,8 @@ class MockTimer : public Timer {
 
   // Returns number of microseconds since 1970.
   virtual int64 NowUs() const;
-  virtual void SleepUs(int64 us) { AdvanceUs(us); }
-  virtual void SleepMs(int64 ms) { AdvanceUs(1000 * ms); }
+  void SleepUs(int64 us) override { AdvanceUs(us); }
+  void SleepMs(int64 ms) override { AdvanceUs(1000 * ms); }
 
  private:
   typedef struct {

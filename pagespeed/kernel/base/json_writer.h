@@ -52,8 +52,8 @@ class JsonWriter : public Writer {
              const std::vector<ElementJsonPair>* element_json_stack);
   virtual ~JsonWriter();
 
-  virtual bool Write(const StringPiece& str, MessageHandler* message_handler);
-  virtual bool Flush(MessageHandler* message_handler);
+  bool Write(const StringPiece& str, MessageHandler* message_handler) override;
+  bool Flush(MessageHandler* message_handler) override;
   // Updates the json dictionary with the buffer content so far.
   void UpdateDictionary();
 

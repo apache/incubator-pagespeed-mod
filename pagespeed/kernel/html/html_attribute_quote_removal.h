@@ -47,7 +47,7 @@ class HtmlAttributeQuoteRemoval : public EmptyHtmlFilter {
   virtual ~HtmlAttributeQuoteRemoval();
   // Given context in object, does attribute value val require quotes?
   bool NeedsQuotes(const char *val);
-  virtual void StartElement(HtmlElement* element);
+  void StartElement(HtmlElement* element) override;
   // # of quote pairs removed from attributes in *all* documents processed.
   int total_quotes_removed() const {
     return total_quotes_removed_;

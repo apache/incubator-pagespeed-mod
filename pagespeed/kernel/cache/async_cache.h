@@ -64,12 +64,12 @@ class AsyncCache : public CacheInterface {
   AsyncCache(CacheInterface* cache, QueuedWorkerPool* pool);
   virtual ~AsyncCache();
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
-  virtual void MultiGet(MultiGetRequest* request);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
+  void MultiGet(MultiGetRequest* request) override;
   static GoogleString FormatName(StringPiece cache);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
+  GoogleString Name() const override { return FormatName(cache_->Name()); }
   virtual bool IsBlocking() const { return false; }
 
   // Prevent the AsyncCache from issuing any more Gets.  Any subsequent
@@ -79,7 +79,7 @@ class AsyncCache : public CacheInterface {
   // This can be called during the process Shutdown flow to avoid
   // introducing more work asynchronously that will have to be
   // completed prior to Shutdown.
-  virtual void ShutDown();
+  void ShutDown() override;
 
   // Cancels all pending cache operations.  Puts and Deletes are dropped.
   // Gets and MultiGets are retired by calling their callbacks with

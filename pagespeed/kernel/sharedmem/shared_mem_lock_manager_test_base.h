@@ -40,8 +40,8 @@ class SharedMemLockManagerTestBase : public testing::Test {
   typedef void (SharedMemLockManagerTestBase::*TestMethod)();
 
   explicit SharedMemLockManagerTestBase(SharedMemTestEnv* test_env);
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   void TestBasic();
   void TestDestructorUnlock();

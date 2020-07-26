@@ -41,7 +41,7 @@ class DelegatingCacheCallback : public CacheInterface::Callback {
   virtual bool ValidateCandidate(const GoogleString& key,
                                  CacheInterface::KeyState state);
 
-  virtual void Done(CacheInterface::KeyState state);
+  void Done(CacheInterface::KeyState state) override;
 
  private:
   CacheInterface::Callback* callback_;

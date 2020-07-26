@@ -34,7 +34,7 @@ class PrintMessageHandler : public MessageHandler {
   virtual ~PrintMessageHandler();
 
  protected:
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
   virtual void FileMessageSImpl(MessageType type, const char* filename,
                                 int line, const GoogleString& message);
 

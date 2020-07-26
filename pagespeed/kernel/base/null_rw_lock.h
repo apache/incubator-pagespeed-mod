@@ -32,13 +32,13 @@ class LOCKABLE NullRWLock : public ThreadSystem::RWLock {
  public:
   NullRWLock() {}
   virtual ~NullRWLock();
-  virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
-  virtual void Lock() EXCLUSIVE_LOCK_FUNCTION();
-  virtual void Unlock() UNLOCK_FUNCTION();
-  virtual bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true);
-  virtual void ReaderLock() SHARED_LOCK_FUNCTION();
-  virtual void ReaderUnlock() UNLOCK_FUNCTION();
-  virtual void DCheckReaderLocked();
+  bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
+  void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
+  void Unlock() UNLOCK_FUNCTION() override;
+  bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true) override;
+  void ReaderLock() SHARED_LOCK_FUNCTION() override;
+  void ReaderUnlock() UNLOCK_FUNCTION() override;
+  void DCheckReaderLocked() override;
 };
 
 }  // namespace net_instaweb

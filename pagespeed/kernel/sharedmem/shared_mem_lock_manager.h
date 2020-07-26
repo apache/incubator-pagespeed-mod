@@ -75,7 +75,7 @@ class SharedMemLockManager : public NamedLockManager {
   static void GlobalCleanup(AbstractSharedMem* shm, const GoogleString& path,
                             MessageHandler* message_handler);
 
-  virtual SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name);
+  SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name) override;
 
  private:
   friend class SharedMemLock;

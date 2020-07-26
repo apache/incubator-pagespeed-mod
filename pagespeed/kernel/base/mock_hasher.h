@@ -49,7 +49,7 @@ class MockHasher : public Hasher {
     hash_value_ = new_hash_value;
   }
 
-  virtual int RawHashSizeInBytes() const { return hash_value_.length(); }
+  int RawHashSizeInBytes() const override { return hash_value_.length(); }
 
  private:
   GoogleString hash_value_;

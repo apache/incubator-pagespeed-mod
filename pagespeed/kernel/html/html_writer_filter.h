@@ -42,17 +42,17 @@ class HtmlWriterFilter : public HtmlFilter {
   void set_writer(Writer* writer) { writer_ = writer; }
   virtual ~HtmlWriterFilter();
 
-  virtual void StartDocument();
-  virtual void EndDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual void Cdata(HtmlCdataNode* cdata);
-  virtual void Comment(HtmlCommentNode* comment);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void Directive(HtmlDirectiveNode* directive);
-  virtual void Flush();
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void StartDocument() override;
+  void EndDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  void Cdata(HtmlCdataNode* cdata) override;
+  void Comment(HtmlCommentNode* comment) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  void Directive(HtmlDirectiveNode* directive) override;
+  void Flush() override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
   // This filter will not change urls.
   virtual bool CanModifyUrls() { return false; }
   ScriptUsage GetScriptUsage() const override { return kNeverInjectsScripts; }

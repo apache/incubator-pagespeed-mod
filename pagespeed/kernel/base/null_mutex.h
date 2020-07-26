@@ -32,9 +32,9 @@ class LOCKABLE NullMutex : public AbstractMutex {
  public:
   NullMutex() {}
   virtual ~NullMutex();
-  virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
-  virtual void Lock() EXCLUSIVE_LOCK_FUNCTION();
-  virtual void Unlock() UNLOCK_FUNCTION();
+  bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
+  void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
+  void Unlock() UNLOCK_FUNCTION() override;
 };
 
 }  // namespace net_instaweb

@@ -92,7 +92,7 @@ class AlwaysLock : public MockLockBase {
     held_ = true;
     return true;
   }
-  virtual GoogleString name() const { return GoogleString("AlwaysLock"); }
+  GoogleString name() const override { return GoogleString("AlwaysLock"); }
  private:
   DISALLOW_COPY_AND_ASSIGN(AlwaysLock);
 };
@@ -108,7 +108,7 @@ class NeverLock : public MockLockBase {
   virtual bool TryLockStealOld(int64 timeout_ms) {
     return false;
   }
-  virtual GoogleString name() const { return GoogleString("NeverLock"); }
+  GoogleString name() const override { return GoogleString("NeverLock"); }
  private:
   DISALLOW_COPY_AND_ASSIGN(NeverLock);
 };
@@ -131,7 +131,7 @@ class StealOnlyLock : public NeverLock {
       return false;
     }
   }
-  virtual GoogleString name() const { return GoogleString("StealOnlyLock"); }
+  GoogleString name() const override { return GoogleString("StealOnlyLock"); }
  private:
   int64 last_hold_time_ms_;
 

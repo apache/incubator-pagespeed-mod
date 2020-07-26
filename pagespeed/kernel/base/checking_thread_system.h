@@ -59,17 +59,17 @@ class CheckingThreadSystem : public ThreadSystem {
     explicit Mutex(ThreadSystem::CondvarCapableMutex* mutex) : mutex_(mutex) { }
     virtual ~Mutex();
 
-    virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
-    virtual void Lock() EXCLUSIVE_LOCK_FUNCTION();
-    virtual void Unlock() UNLOCK_FUNCTION();
+    bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
+    void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
+    void Unlock() UNLOCK_FUNCTION() override;
     // This implementation of DCheckLocked CHECK-fails if lock is not held.
-    virtual void DCheckLocked();
+    void DCheckLocked() override;
 
     // This implementation of DCheckUnlocked CHECK-fails if lock is held.
-    virtual void DCheckUnlocked();
+    void DCheckUnlocked() override;
 
     // The condvars provided perform lock checking for ....Wait operations.
-    virtual ThreadSystem::Condvar* NewCondvar();
+    ThreadSystem::Condvar* NewCondvar() override;
 
    private:
     friend class CheckingCondvar;
@@ -90,16 +90,16 @@ class CheckingThreadSystem : public ThreadSystem {
     explicit RWLock(ThreadSystem::RWLock* lock) : lock_(lock) { }
     virtual ~RWLock();
 
-    virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
-    virtual void Lock() EXCLUSIVE_LOCK_FUNCTION();
-    virtual void Unlock() UNLOCK_FUNCTION();
-    virtual bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true);
-    virtual void ReaderLock() SHARED_LOCK_FUNCTION();
-    virtual void ReaderUnlock() UNLOCK_FUNCTION();
+    bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
+    void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
+    void Unlock() UNLOCK_FUNCTION() override;
+    bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true) override;
+    void ReaderLock() SHARED_LOCK_FUNCTION() override;
+    void ReaderUnlock() UNLOCK_FUNCTION() override;
 
     // This implementation of DCheckLocked CHECK-fails if lock is not held.
-    virtual void DCheckLocked();
-    virtual void DCheckReaderLocked();
+    void DCheckLocked() override;
+    void DCheckReaderLocked() override;
 
    private:
     void TakeLockControl();
@@ -116,17 +116,17 @@ class CheckingThreadSystem : public ThreadSystem {
       : thread_system_(thread_system) { }
   virtual ~CheckingThreadSystem();
 
-  virtual Mutex* NewMutex();
-  virtual RWLock* NewRWLock();
-  virtual Timer* NewTimer();
-  virtual ThreadId* GetThreadId() const {
+  Mutex* NewMutex() override;
+  RWLock* NewRWLock() override;
+  Timer* NewTimer() override;
+  ThreadId* GetThreadId() const override{
     return thread_system_->GetThreadId();
   }
 
  private:
   friend class Mutex;
 
-  virtual ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags);
+  ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags) override;
 
   std::unique_ptr<ThreadSystem> thread_system_;
   DISALLOW_COPY_AND_ASSIGN(CheckingThreadSystem);

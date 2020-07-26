@@ -36,8 +36,8 @@ class NullWriter : public Writer {
  public:
   explicit NullWriter() { }
   virtual ~NullWriter();
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 };
 
 }  // namespace net_instaweb

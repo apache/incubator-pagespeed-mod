@@ -140,7 +140,7 @@ class AsyncCacheTest : public CacheTestBase {
       ThreadsafeCache::Get(key, callback);
     }
 
-    virtual bool IsHealthy() const { return is_healthy_.value(); }
+    bool IsHealthy() const override { return is_healthy_.value(); }
     void set_is_healthy(bool x) { is_healthy_.set_value(x); }
 
    private:
@@ -163,7 +163,7 @@ class AsyncCacheTest : public CacheTestBase {
       sync_point_.Notify();
     }
 
-    virtual void Wait() { sync_point_.Wait(); }
+    void Wait() override { sync_point_.Wait(); }
 
    private:
     WorkerTestBase::SyncPoint sync_point_;
@@ -187,8 +187,8 @@ class AsyncCacheTest : public CacheTestBase {
     pool_->ShutDown();  // quiesce before destructing cache.
   }
 
-  virtual CacheInterface* Cache() { return async_cache_.get(); }
-  virtual Callback* NewCallback() { return new AsyncCallback(this); }
+  CacheInterface* Cache() override { return async_cache_.get(); }
+  Callback* NewCallback() override { return new AsyncCallback(this); }
 
   virtual void PostOpCleanup() {
     // Wait until the AsyncCache available thread-count is restored to

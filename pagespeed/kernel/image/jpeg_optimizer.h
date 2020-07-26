@@ -142,7 +142,7 @@ class JpegScanlineWriter : public ScanlineWriterInterface {
                                                    GoogleString *compressed);
   virtual ScanlineStatus WriteNextScanlineWithStatus(
       const void *scanline_bytes);
-  virtual ScanlineStatus FinalizeWriteWithStatus();
+  ScanlineStatus FinalizeWriteWithStatus() override;
 
  private:
   // Since writer only supports lossy encoding, it is an error to pass

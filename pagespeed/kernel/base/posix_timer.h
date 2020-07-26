@@ -31,8 +31,8 @@ class PosixTimer : public Timer {
   PosixTimer() {}
   virtual ~PosixTimer();
 
-  virtual int64 NowUs() const;
-  virtual void SleepUs(int64 us);
+  virtual int64 NowUs() const override;
+  void SleepUs(int64 us) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(PosixTimer);

@@ -51,7 +51,7 @@ class QueuedWorker : public Worker {
   void RunInWorkThread(Function* closure);
 
  private:
-  virtual bool IsPermitted(Function* closure);
+  bool IsPermitted(Function* closure) override;
 
   DISALLOW_COPY_AND_ASSIGN(QueuedWorker);
 };

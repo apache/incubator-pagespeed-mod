@@ -35,9 +35,9 @@ class StringWriter : public Writer {
  public:
   explicit StringWriter(GoogleString* str) : string_(str) { }
   virtual ~StringWriter();
-  virtual bool Write(const StringPiece& str, MessageHandler* message_handler);
-  virtual bool Flush(MessageHandler* message_handler);
-  virtual bool Dump(Writer* writer, MessageHandler* message_handler);
+  bool Write(const StringPiece& str, MessageHandler* message_handler) override;
+  bool Flush(MessageHandler* message_handler) override;
+  bool Dump(Writer* writer, MessageHandler* message_handler) override;
  private:
   GoogleString* string_;
 

@@ -62,10 +62,10 @@ class ScanlineResizer : public ScanlineReaderInterface {
   // Reads the next available scanline. Returns an error if the next scanline
   // is not available. This can happen when the reader cannot provide enough
   // image rows, or when all of the scanlines have been read.
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
 
   // Resets the resizer to its initial state. Always returns true.
-  virtual bool Reset();
+  bool Reset() override;
 
   // Returns number of bytes required to store a scanline.
   virtual size_t GetBytesPerScanline() {
@@ -74,7 +74,7 @@ class ScanlineResizer : public ScanlineReaderInterface {
 
   // Returns true if there are more scanlines to read. Returns false if the
   // object has not been initialized or all of the scanlines have been read.
-  virtual bool HasMoreScanLines();
+  bool HasMoreScanLines() override;
 
   // Returns the height of the image.
   virtual size_t GetImageHeight() {
