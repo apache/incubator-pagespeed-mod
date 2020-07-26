@@ -405,26 +405,26 @@ class ImageRewriteFilter::Context : public SingleRewriteContext {
         in_noscript_element_(in_noscript_element),
         is_resized_using_rendered_dimensions_(
             is_resized_using_rendered_dimensions) {}
-  virtual ~Context() {}
+  ~Context() override {}
 
   bool PolicyPermitsRendering() const override;
-  virtual void Render();
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output);
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
-  virtual const UrlSegmentEncoder* encoder() const;
+  void Render() override;
+  void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output) override;
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
+  const UrlSegmentEncoder* encoder() const override;
 
   // Implements UserAgentCacheKey method of RewriteContext.
-  virtual GoogleString UserAgentCacheKey(
-      const ResourceContext* resource_context) const;
+  GoogleString UserAgentCacheKey(
+      const ResourceContext* resource_context) const override;
 
   // Implements EncodeUserAgentIntoResourceContext of RewriteContext.
-  virtual void EncodeUserAgentIntoResourceContext(
-      ResourceContext* context);
+  void EncodeUserAgentIntoResourceContext(
+      ResourceContext* context) override;
 
-  virtual void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                                       ResponseHeaders* headers) {
+  void FixFetchFallbackHeaders(const CachedResult& cached_result,
+                                       ResponseHeaders* headers) override {
     AddLinkRelCanonicalForFallbackHeaders(headers);
     SingleRewriteContext::FixFetchFallbackHeaders(cached_result, headers);
   }
@@ -437,7 +437,7 @@ class ImageRewriteFilter::Context : public SingleRewriteContext {
 
   friend class ImageRewriteFilter;
 
-  virtual bool ScheduleViaCentralController() { return true; }
+  bool ScheduleViaCentralController() override { return true; }
 
   int64 css_image_inline_max_bytes_;
   ImageRewriteFilter* filter_;
@@ -462,17 +462,17 @@ class ImageRewriteFilter::Context::InvokeRewriteFunction
         filter_(filter),
         input_resource_(input_resource),
         output_resource_(output_resource) {}
-  virtual ~InvokeRewriteFunction() { }
+  ~InvokeRewriteFunction() override { }
 
  protected:
-  virtual void RunImpl(std::unique_ptr<ExpensiveOperationContext>* context) {
+  void RunImpl(std::unique_ptr<ExpensiveOperationContext>* context) override {
     RewriteResult result = filter_->RewriteLoadedResourceImpl(
         context_, input_resource_, output_resource_);
     (*context)->Done();
     context_->RewriteDone(result, 0);
   }
 
-  virtual void CancelImpl() {
+  void CancelImpl() override {
     filter_->ReportDroppedRewrite();
     filter_->InfoAndTrace(context_, "%s: Too busy to rewrite image.",
                           input_resource_->url().c_str());

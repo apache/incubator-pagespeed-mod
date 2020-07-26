@@ -46,7 +46,7 @@ class DelayCacheTest : public CacheTestBase {
         thread_system_(Platform::CreateThreadSystem()),
         cache_(&lru_cache_, thread_system_.get()) {}
 
-  virtual CacheInterface* Cache() { return &cache_; }
+  CacheInterface* Cache() override { return &cache_; }
 
  protected:
   LRUCache lru_cache_;

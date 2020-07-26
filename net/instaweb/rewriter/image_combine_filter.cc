@@ -477,9 +477,9 @@ class Library : public spriter::ImageLibraryInterface {
       DCHECK(image_ != NULL) << "null image not allowed.";
     }
 
-    virtual ~SpriterImage() {}
+    ~SpriterImage() override {}
 
-    virtual bool GetDimensions(int* out_width, int* out_height) const {
+    bool GetDimensions(int* out_width, int* out_height) const override {
       ImageDim dim;
       image_->Dimensions(&dim);
       *out_width = dim.width();
@@ -512,17 +512,17 @@ class Library : public spriter::ImageLibraryInterface {
                                          tmp_dir, timer, handler, options));
     }
 
-    virtual ~Canvas() { }
+    ~Canvas() override { }
 
-    virtual bool DrawImage(const Image* image, int x, int y) {
+    bool DrawImage(const Image* image, int x, int y) override {
       const SpriterImage* spriter_image
           = static_cast<const SpriterImage*>(image);
       return image_->DrawImage(spriter_image->image(), x, y);
     }
 
     // On successfully writing, we release our image.
-    virtual bool WriteToFile(
-        const FilePath& write_path, spriter::ImageFormat format) {
+    bool WriteToFile(
+        const FilePath& write_path, spriter::ImageFormat format) override {
       if (format != spriter::PNG) {
         return false;
       }
@@ -544,14 +544,14 @@ class Library : public spriter::ImageLibraryInterface {
     tmp_dir.CopyToString(&tmp_dir_);
   }
 
-  ~Library() {
+  ~Library() override {
     STLDeleteValues(&fake_fs_);
   }
 
   // Read an image from disk.  Return NULL (after calling delegate method) on
   // error.  Caller owns the returned pointer, which must not outlive this
   // library.
-  virtual SpriterImage* ReadFromFile(const FilePath& path) {
+  SpriterImage* ReadFromFile(const FilePath& path) override {
     net_instaweb::Image* image = fake_fs_[path];
     if (image == NULL) {
       return NULL;
@@ -559,7 +559,7 @@ class Library : public spriter::ImageLibraryInterface {
     return new SpriterImage(image, this);
   }
 
-  virtual Canvas* CreateCanvas(int width, int height) {
+  Canvas* CreateCanvas(int width, int height) override {
     return new Canvas(width, height, this, tmp_dir_, timer_, handler_);
   }
 
@@ -644,16 +644,16 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
                          filter),
         library_(library) { }
 
-  virtual ~Combiner() {
+  ~Combiner() override {
     // Note that the superclass's dtor will not call our overridden Clear.
     // Fortunately there's no harm in calling Clear() several times.
     Clear();
   }
 
-  virtual bool WriteCombination(
+  bool WriteCombination(
       const ResourceVector& combine_resources,
       const OutputResourcePtr& combination,
-      MessageHandler* handler) {
+      MessageHandler* handler) override {
     spriter::ImageSpriter spriter(library_);
 
     spriter::SpriterInput input;
@@ -700,7 +700,7 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
     return Combine(rewrite_driver_->message_handler());
   }
 
-  virtual void Clear() {
+  void Clear() override {
     ResourceCombiner::Clear();
     added_urls_.clear();
   }
@@ -710,7 +710,7 @@ class ImageCombineFilter::Combiner : public ResourceCombiner {
   }
 
  private:
-  virtual const ContentType* CombinationContentType() {
+  const ContentType* CombinationContentType() override {
     return &kContentTypePng;
   }
 
@@ -732,7 +732,7 @@ class SpriteFutureSlot : public CssResourceSlot {
 
   SpriteFuture* future() { return future_.get(); }
 
-  virtual void Render() {
+  void Render() override {
     // If we couldn't sprite this slot, try to apply other filters.
     if (!may_sprite_) {
       CssResourceSlot::Render();
@@ -745,7 +745,7 @@ class SpriteFutureSlot : public CssResourceSlot {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(SpriteFutureSlot);
-  virtual ~SpriteFutureSlot() {
+  ~SpriteFutureSlot() override {
   }
 
  private:
@@ -781,7 +781,7 @@ class ImageCombineFilter::Context : public RewriteContext {
         filter_(filter) {
   }
 
-  virtual ~Context() {}
+  ~Context() override {}
 
   // This cache key will no longer match the partition key generated for
   // fetches in RewriteContext.  This may or may not cause cache misses
@@ -791,7 +791,7 @@ class ImageCombineFilter::Context : public RewriteContext {
   // combination, in order to keep it short so it doesn't run up against
   // filename length limits on apache.
   // TODO(nforman): Figure out a way to test cache keys in general.
-  virtual GoogleString CacheKeySuffix() const {
+  GoogleString CacheKeySuffix() const override {
     return key_suffix_;
   }
 
@@ -802,11 +802,11 @@ class ImageCombineFilter::Context : public RewriteContext {
     return true;
   }
 
-  virtual const UrlSegmentEncoder* encoder() const {
+  const UrlSegmentEncoder* encoder() const override {
     return filter_->encoder();
   }
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
 
   void Reset() {
     library_.Clear();
@@ -814,8 +814,8 @@ class ImageCombineFilter::Context : public RewriteContext {
 
  protected:
   // Write the combination out.
-  virtual void Rewrite(int partition_index, CachedResult* partition,
-                       const OutputResourcePtr& output) {
+  void Rewrite(int partition_index, CachedResult* partition,
+                       const OutputResourcePtr& output) override {
     RewriteResult result = kRewriteOk;
     if (!output->IsWritten()) {
       // Note that this method expects to do something for only the fetch path,
@@ -839,7 +839,7 @@ class ImageCombineFilter::Context : public RewriteContext {
     RewriteDone(result, partition_index);
   }
 
-  bool PolicyPermitsRendering() const {
+  bool PolicyPermitsRendering() const override {
     return AreOutputsAllowedByCsp(CspDirective::kImgSrc);
   }
 
@@ -847,7 +847,7 @@ class ImageCombineFilter::Context : public RewriteContext {
   // TODO(nforman): be smarter about when to sprite and when not.
   // e.g. if it turns out all the divs are too big to use the sprite
   // except for one, don't use it.
-  virtual void Render() {
+  void Render() override {
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
       const CachedResult* partition = output_partition(p);
       int num_inputs = partition->input_size();
@@ -914,8 +914,8 @@ class ImageCombineFilter::Context : public RewriteContext {
   // in as few partitions as possible. We skip over slots that point to images
   // that are too small for the context they're in.
   // TODO(nforman): Consider separating by color map to group things smarter.
-  virtual void PartitionAsync(OutputPartitions* partitions,
-                              OutputResourceVector* outputs) {
+  void PartitionAsync(OutputPartitions* partitions,
+                              OutputResourceVector* outputs) override {
     // Partitioning here requires image decompression, so we want to
     // move it to a different thread.
     Driver()->AddLowPriorityRewriteTask(MakeFunction(
@@ -945,7 +945,7 @@ class ImageCombineFilter::Context : public RewriteContext {
         : ImageCombineFilter::Combiner(filter, library),
           partition_(NULL) { }
 
-    virtual ~ImageCombination() { }
+    ~ImageCombination() override { }
 
     void AddResourceToPartition(Resource* resource, int index) {
       resource->AddInputInfoToPartition(

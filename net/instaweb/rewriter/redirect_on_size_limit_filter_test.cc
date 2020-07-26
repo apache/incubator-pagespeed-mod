@@ -45,7 +45,7 @@ class RedirectOnSizeLimitFilterTest : public RewriteTestBase {
   RedirectOnSizeLimitFilterTest() : writer_(&output_) {}
 
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 
   void SetupDriver(int size_limit) {
     options_->set_max_html_parse_bytes(size_limit);
@@ -84,8 +84,8 @@ class RedirectOnSizeLimitFilterTest : public RewriteTestBase {
     }
   }
 
-  virtual bool AddHtmlTags() const { return false; }
-  virtual bool AddBody() const { return false; }
+  bool AddHtmlTags() const override { return false; }
+  bool AddBody() const override { return false; }
 
   GoogleString output_;
 

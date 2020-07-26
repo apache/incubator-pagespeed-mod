@@ -176,7 +176,7 @@ class RemoveCommentsFilterOptions
       : options_(options) {
   }
 
-  virtual bool IsRetainedComment(const StringPiece& comment) const {
+  bool IsRetainedComment(const StringPiece& comment) const override {
     return options_->IsRetainedComment(comment);
   }
 
@@ -196,19 +196,19 @@ class RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks
       RewriteDriver* rewrite_driver) : rewrite_driver_(rewrite_driver) {
   }
 
-  virtual ~RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks() {
+  ~RewriteDriverCacheUrlAsyncFetcherAsyncOpHooks() override {
   }
 
   // TODO(pulkitg): Remove session fetchers, so that fetcher can live as long
   // server is alive and there is no need of
   // {Increment/Decrement}AsyncEventsCount().
-  virtual void StartAsyncOp() {
+  void StartAsyncOp() override {
     // Increment async_events_counts so that driver will be alive as long as
     // background fetch happens in CacheUrlAsyncFetcher.
     rewrite_driver_->IncrementAsyncEventsCount();
   }
 
-  virtual void FinishAsyncOp() {
+  void FinishAsyncOp() override {
     rewrite_driver_->DecrementAsyncEventsCount();
   }
 
@@ -1676,7 +1676,7 @@ class FilterFetch : public SharedAsyncFetch {
       : SharedAsyncFetch(async_fetch),
         driver_(driver) {
   }
-  virtual ~FilterFetch() {}
+  ~FilterFetch() override {}
 
   static bool Start(RewriteFilter* filter,
                     const OutputResourcePtr& output_resource,
@@ -1745,7 +1745,7 @@ class CacheCallback : public OptionsAwareHTTPCacheCallback {
     canonical_url_ = output_resource_->HttpCacheKey();
   }
 
-  virtual ~CacheCallback() {}
+  ~CacheCallback() override {}
 
   void Find() {
     ServerContext* server_context = driver_->server_context();
@@ -1753,7 +1753,7 @@ class CacheCallback : public OptionsAwareHTTPCacheCallback {
     http_cache->Find(canonical_url_, driver_->CacheFragment(), handler_, this);
   }
 
-  bool IsCacheValid(const GoogleString& key, const ResponseHeaders& headers) {
+  bool IsCacheValid(const GoogleString& key, const ResponseHeaders& headers) override {
     // If the user cares, don't try to send a rewritten .pagespeed. webp
     // resources to a browser that can't handle it.
     if (!driver_->options()->serve_rewritten_webp_urls_to_any_agent() &&
@@ -1764,7 +1764,7 @@ class CacheCallback : public OptionsAwareHTTPCacheCallback {
     return OptionsAwareHTTPCacheCallback::IsCacheValid(key, headers);
   }
 
-  virtual void Done(HTTPCache::FindResult find_result) {
+  void Done(HTTPCache::FindResult find_result) override {
     StringPiece content;
     ResponseHeaders* response_headers = async_fetch_->response_headers();
     if (find_result.status == HTTPCache::kFound) {

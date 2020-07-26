@@ -68,7 +68,7 @@ class WaitCancelFunction : public Function {
  public:
   explicit WaitCancelFunction(WorkerTestBase::SyncPoint* sync) : sync_(sync) {}
 
-  virtual void Run() {
+  void Run() override {
     sync_->Notify();
     while (!quit_requested()) {
       usleep(10);
@@ -101,7 +101,7 @@ class CheckDefaultCancelFunction : public WorkerTestBase::NotifyRunFunction {
   explicit CheckDefaultCancelFunction(WorkerTestBase::SyncPoint* sync)
       : NotifyRunFunction(sync) {}
 
-  virtual void Run() {
+  void Run() override {
     CHECK(!quit_requested());
     NotifyRunFunction::Run();
   }

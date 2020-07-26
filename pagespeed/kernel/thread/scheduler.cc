@@ -101,12 +101,12 @@ class FunctionAlarm : public Scheduler::Alarm {
  public:
   explicit FunctionAlarm(Function* function, Scheduler* scheduler)
       : scheduler_(scheduler), function_(function) { }
-  virtual ~FunctionAlarm() { }
+  ~FunctionAlarm() override { }
 
-  virtual void RunAlarm() {
+  void RunAlarm() override {
     DropMutexActAndCleanup(&Function::CallRun);
   }
-  virtual void CancelAlarm() {
+  void CancelAlarm() override {
     DropMutexActAndCleanup(&Function::CallCancel);
   }
 
@@ -149,15 +149,15 @@ class Scheduler::CondVarTimeout : public Scheduler::Alarm {
   CondVarTimeout(bool* set_on_timeout, Scheduler* scheduler)
       : set_on_timeout_(set_on_timeout),
         scheduler_(scheduler) { }
-  virtual ~CondVarTimeout() { }
-  virtual void RunAlarm() {
+  ~CondVarTimeout() override { }
+  void RunAlarm() override {
     *set_on_timeout_ = true;
     scheduler_->CancelWaiting(this);
     if (!in_wait_dispatch()) {
       delete this;
     }
   }
-  virtual void CancelAlarm() {
+  void CancelAlarm() override {
     DCHECK(in_wait_dispatch());
     delete this;
   }
@@ -174,8 +174,8 @@ class Scheduler::CondVarCallbackTimeout : public Scheduler::Alarm {
   CondVarCallbackTimeout(Function* callback, Scheduler* scheduler)
       : callback_(callback),
         scheduler_(scheduler) { }
-  virtual ~CondVarCallbackTimeout() { }
-  virtual void RunAlarm() {
+  ~CondVarCallbackTimeout() override { }
+  void RunAlarm() override {
     // We may get deleted at tail end of Signal if the lock gets dropped during
     // CallRun(), so save this into a local.
     bool saved_in_wait_dispatch = in_wait_dispatch();
@@ -185,7 +185,7 @@ class Scheduler::CondVarCallbackTimeout : public Scheduler::Alarm {
       delete this;
     }
   }
-  virtual void CancelAlarm() {
+  void CancelAlarm() override {
     DCHECK(in_wait_dispatch());
     callback_->CallRun();
     delete this;

@@ -46,11 +46,11 @@ class HistoryTestCriticalImagesFinder : public TestCriticalImagesFinder {
                                   Statistics* stats)
       : TestCriticalImagesFinder(cohort, stats) {}
 
-  virtual int PercentSeenForCritical() const {
+  int PercentSeenForCritical() const override {
     return 80;
   }
 
-  virtual int SupportInterval() const {
+  int SupportInterval() const override {
     return 10;
   }
 };
@@ -61,10 +61,10 @@ const char kCriticalImagesCohort[] = "critical_images";
 
 class CriticalImagesFinderTest : public CriticalImagesFinderTestBase {
  public:
-  virtual CriticalImagesFinder* finder() { return finder_.get(); }
+  CriticalImagesFinder* finder() override { return finder_.get(); }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     CriticalImagesFinderTestBase::SetUp();
     SetupCohort(page_property_cache(), kCriticalImagesCohort);
     finder_.reset(new TestCriticalImagesFinder(
@@ -80,7 +80,7 @@ class CriticalImagesFinderTest : public CriticalImagesFinderTestBase {
 
 class CriticalImagesHistoryFinderTest : public CriticalImagesFinderTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     CriticalImagesFinderTestBase::SetUp();
     SetupCohort(page_property_cache(), kCriticalImagesCohort);
     finder_.reset(new HistoryTestCriticalImagesFinder(

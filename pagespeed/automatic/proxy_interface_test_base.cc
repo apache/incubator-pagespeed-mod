@@ -83,7 +83,7 @@ class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
     set_response_headers(response_headers);
   }
 
-  virtual ~AsyncExpectStringAsyncFetch() {}
+  ~AsyncExpectStringAsyncFetch() override {}
 
   void HandleHeadersComplete() override {
     // Make sure we have cleaned the headers in ProxyInterface.
@@ -104,7 +104,7 @@ class AsyncExpectStringAsyncFetch : public ExpectStringAsyncFetch {
     notify->Notify();
   }
 
-  virtual bool HandleFlush(MessageHandler* handler) {
+  bool HandleFlush(MessageHandler* handler) override {
     if (log_flush_) {
       HandleWrite("|Flush|", handler);
     }

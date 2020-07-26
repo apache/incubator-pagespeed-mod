@@ -99,7 +99,7 @@ namespace net_instaweb {
 class JavascriptFilterTest : public RewriteTestBase,
                              public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_use_experimental_js_minifier(GetParam());
     expected_rewritten_path_ = Encode("", kFilterId, "0",

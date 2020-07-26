@@ -648,10 +648,10 @@ class InstawebCacheComputer : public CachingHeaders {
         response_headers_(headers) {
   }
 
-  virtual ~InstawebCacheComputer() {}
+  ~InstawebCacheComputer() override {}
 
   // Which status codes are cacheable by default.
-  virtual bool IsCacheableResourceStatusCode() const {
+  bool IsCacheableResourceStatusCode() const override {
     switch (status_code()) {
       // For our purposes, only a few status codes are cacheable.
       // Others like 203, 206 and 304 depend upon input headers and other state.
@@ -683,7 +683,7 @@ class InstawebCacheComputer : public CachingHeaders {
     // for redirects they actually want cached.
   }
 
-  virtual bool IsLikelyStaticResourceType() const {
+  bool IsLikelyStaticResourceType() const override {
     if (IsRedirectStatusCode()) {
       return true;  // redirects are cacheable
     }
@@ -691,7 +691,7 @@ class InstawebCacheComputer : public CachingHeaders {
     return (type != NULL) && type->IsLikelyStaticResource();
   }
 
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
+  bool Lookup(const StringPiece& key, StringPieceVector* values) override {
     ConstStringStarVector value_strings;
     bool ret = response_headers_.Lookup(key, &value_strings);
     if (ret) {

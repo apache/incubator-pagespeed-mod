@@ -54,15 +54,15 @@ class MinifyExcerptFilter : public CssSummarizerBase {
         will_not_render_summaries_in_place_(false),
         include_base_(false) {}
 
-  virtual const char* Name() const { return "Minify10"; }
-  virtual const char* id() const { return "csr"; }
+  const char* Name() const override { return "Minify10"; }
+  const char* id() const override { return "csr"; }
 
-  virtual bool MustSummarize(HtmlElement* element) const {
+  bool MustSummarize(HtmlElement* element) const override {
     return (!element->FindAttribute(HtmlName::kDataPagespeedNoDefer));
   }
 
-  virtual void Summarize(Css::Stylesheet* stylesheet,
-                         GoogleString* out) const {
+  void Summarize(Css::Stylesheet* stylesheet,
+                         GoogleString* out) const override {
     StringWriter write_out(out);
     CssMinify::Stylesheet(*stylesheet, &write_out, driver()->message_handler());
     if (out->length() > 10) {
@@ -87,10 +87,10 @@ class MinifyExcerptFilter : public CssSummarizerBase {
     }
   }
 
-  virtual void RenderSummary(int pos,
+  void RenderSummary(int pos,
                              HtmlElement* element,
                              HtmlCharactersNode* char_node,
-                             bool* is_element_deleted) {
+                             bool* is_element_deleted) override {
     if (!render_summaries_in_place_) {
       return;
     }
@@ -130,7 +130,7 @@ class MinifyExcerptFilter : public CssSummarizerBase {
         element, driver()->NewCommentNode(NULL, annotation));
   }
 
-  virtual void SummariesDone() {
+  void SummariesDone() override {
     result_.clear();
     for (int i = 0; i < NumStyles(); ++i) {
       const SummaryInfo& sum = GetSummaryForStyle(i);
@@ -178,10 +178,10 @@ class CssSummarizerBaseTest : public RewriteTestBase {
                      CssLinkHref("close_style_tag.css"),  // closing style tag
                      CssLinkHref("404.css"),  // fetch error
                      CssLinkHref("http://evil.com/d.css"))) { }
-  virtual ~CssSummarizerBaseTest() { }
+  ~CssSummarizerBaseTest() override { }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
     filter_ = new MinifyExcerptFilter(rewrite_driver());
@@ -392,7 +392,7 @@ TEST_F(CssSummarizerBaseTest, IgnoreNonSummarizable) {
 
 class CssSummarizerBaseWithCombinerFilterTest : public CssSummarizerBaseTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kCombineCss);
     CssSummarizerBaseTest::SetUp();
     SetHtmlMimetype();  // no <link />, just <link>

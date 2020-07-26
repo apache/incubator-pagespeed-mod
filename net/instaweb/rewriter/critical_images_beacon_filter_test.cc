@@ -66,7 +66,7 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
  protected:
   CriticalImagesBeaconFilterTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_beacon_url("http://example.com/beacon");
     CriticalImagesBeaconFilter::InitStats(statistics());
     // Enable a filter that uses critical images, which in turn will enable

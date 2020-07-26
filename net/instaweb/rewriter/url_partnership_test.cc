@@ -59,7 +59,7 @@ class UrlPartnershipTest : public RewriteTestBase {
         style2_url_("style2.css?appearance=reader") {
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     GoogleUrl original_gurl(kOriginalRequest);
     partnership_.reset(new UrlPartnership(rewrite_driver()));

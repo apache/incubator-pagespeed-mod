@@ -50,7 +50,7 @@ class FallbackCacheTest : public CacheTestBase {
                         kTestValueSizeThreshold, &handler_) {
   }
 
-  virtual CacheInterface* Cache() { return &fallback_cache_; }
+  CacheInterface* Cache() override { return &fallback_cache_; }
 
   GoogleMessageHandler handler_;
   LRUCache small_cache_;

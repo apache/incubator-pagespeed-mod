@@ -115,10 +115,10 @@ class CacheStats::StatsCallback : public DelegatingCacheCallback {
     start_time_us_ = timer->NowUs();
   }
 
-  virtual ~StatsCallback() {
+  ~StatsCallback() override {
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     if (state == CacheInterface::kAvailable) {
       int64 end_time_us = timer_->NowUs();
       stats_->hits_->Add(1);

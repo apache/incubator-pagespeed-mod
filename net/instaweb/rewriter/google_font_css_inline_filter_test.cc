@@ -42,7 +42,7 @@ const char kRoboto[] = "http://fonts.googleapis.com/css?family=Roboto";
 
 class GoogleFontCssInlineFilterTestBase : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
   }
 
@@ -85,7 +85,7 @@ class GoogleFontCssInlineFilterTestBase : public RewriteTestBase {
 
 class GoogleFontCssInlineFilterTest : public GoogleFontCssInlineFilterTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     GoogleFontCssInlineFilterTestBase::SetUp();
     SetUpForFontFilterTest(RewriteOptions::kInlineGoogleFontCss);
   }
@@ -137,7 +137,7 @@ TEST_F(GoogleFontCssInlineFilterTest, ProtocolRelative) {
 class GoogleFontCssInlineFilterSizeLimitTest
     : public GoogleFontCssInlineFilterTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     GoogleFontCssInlineFilterTestBase::SetUp();
     // GoogleFontCssInlineFilter uses google_font_css_inline_max_bytes.
     // Set a threshold at font_safieri, which should prevent longer
@@ -165,7 +165,7 @@ TEST_F(GoogleFontCssInlineFilterSizeLimitTest, SizeLimit) {
 class GoogleFontCssInlineFilterAndImportTest
     : public GoogleFontCssInlineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();  // skipped base on purpose
     options()->EnableFilter(
         RewriteOptions::RewriteOptions::kInlineImportToLink);
@@ -189,7 +189,7 @@ TEST_F(GoogleFontCssInlineFilterAndImportTest, ViaInlineImport) {
 
 class GoogleFontCssInlineFilterAndWidePermissionsTest
     : public GoogleFontCssInlineFilterTestBase {
-  virtual void SetUp() {
+  void SetUp() override {
     GoogleFontCssInlineFilterTestBase::SetUp();
     // Check that we don't rely solely on authorization to properly
     // dispatch the URL to us.

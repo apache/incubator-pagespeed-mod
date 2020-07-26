@@ -34,7 +34,7 @@ class ElideAttributesFilterTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&elide_attributes_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
  private:
   ElideAttributesFilter elide_attributes_filter_;

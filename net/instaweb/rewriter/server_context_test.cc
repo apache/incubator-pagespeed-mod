@@ -104,7 +104,7 @@ class VerifyContentsCallback : public Resource::AsyncCallback {
       contents_(contents),
       called_(false) {
   }
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  void Done(bool lock_failure, bool resource_ok) override {
     EXPECT_FALSE(lock_failure);
     EXPECT_STREQ(contents_, resource()->ExtractUncompressedContents());
     called_ = true;
@@ -654,12 +654,12 @@ class MockRewriteFilter : public RewriteFilter {
  public:
   explicit MockRewriteFilter(RewriteDriver* driver)
       : RewriteFilter(driver) {}
-  virtual ~MockRewriteFilter() {}
-  virtual const char* id() const { return "mk"; }
-  virtual const char* Name() const { return "mock_filter"; }
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  ~MockRewriteFilter() override {}
+  const char* id() const override { return "mk"; }
+  const char* Name() const override { return "mock_filter"; }
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockRewriteFilter);
@@ -669,8 +669,8 @@ class CreateMockRewriterCallback
     : public TestRewriteDriverFactory::CreateRewriterCallback {
  public:
   CreateMockRewriterCallback() {}
-  virtual ~CreateMockRewriterCallback() {}
-  virtual RewriteFilter* Done(RewriteDriver* driver) {
+  ~CreateMockRewriterCallback() override {}
+  RewriteFilter* Done(RewriteDriver* driver) override {
     return new MockRewriteFilter(driver);
   }
  private:
@@ -684,7 +684,7 @@ class MockPlatformConfigCallback
       : result_ptr_(result_ptr) {
   }
 
-  virtual void Done(RewriteDriver* driver) {
+  void Done(RewriteDriver* driver) override {
     *result_ptr_ = driver;
   }
 
@@ -1135,9 +1135,9 @@ TEST_F(ServerContextTest, TestHandleBeacon) {
 class BeaconTest : public ServerContextTest {
  protected:
   BeaconTest() : property_cache_(NULL) { }
-  virtual ~BeaconTest() { }
+  ~BeaconTest() override { }
 
-  virtual void SetUp() {
+  void SetUp() override {
     ServerContextTest::SetUp();
 
     property_cache_ = server_context()->page_property_cache();
@@ -1381,7 +1381,7 @@ TEST_F(BeaconTest, EmptyCriticalCss) {
 
 class ResourceFreshenTest : public ServerContextTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ServerContextTest::SetUp();
     HTTPCache::InitStats(statistics());
     expirations_ = statistics()->GetVariable(HTTPCache::kCacheExpirations);
@@ -1500,7 +1500,7 @@ TEST_F(ResourceFreshenTest, NoFreshenOfShortLivedResources) {
 
 class ServerContextShardedTest : public ServerContextTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ServerContextTest::SetUp();
     EXPECT_TRUE(options()->WriteableDomainLawyer()->AddShard(
         "example.com", "shard0.com,shard1.com", message_handler()));

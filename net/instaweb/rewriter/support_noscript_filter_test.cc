@@ -34,7 +34,7 @@ const char kUnsupportedUserAgent[] = "Unsupported";
 
 class SupportNoscriptFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDelayImages);
     SetResponseWithDefaultHeaders(

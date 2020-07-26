@@ -57,7 +57,7 @@ const char kAsyncGlueInit[] =
 
 class GoogleAnalyticsFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Setup the statistics.
     RewriteTestBase::SetUp();
 

@@ -48,18 +48,18 @@ namespace {
 
 class PthreadSharedMemEnvBase : public SharedMemTestEnv {
  public:
-  virtual AbstractSharedMem* CreateSharedMemRuntime() {
+  AbstractSharedMem* CreateSharedMemRuntime() override {
     return new PthreadSharedMem();
   }
 
-  virtual void ShortSleep() {
+  void ShortSleep() override {
     usleep(1000);
   }
 };
 
 class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  bool CreateChild(Function* callback) override {
     pthread_t thread;
     if (pthread_create(&thread, NULL, InvokeCallback, callback) != 0) {
       return false;
@@ -68,7 +68,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
     return true;
   }
 
-  virtual void WaitForChildren() {
+  void WaitForChildren() override {
     for (size_t i = 0; i < child_threads_.size(); ++i) {
       void* result = this;  // non-NULL -> failure.
       EXPECT_EQ(0, pthread_join(child_threads_[i], &result));
@@ -77,7 +77,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
     child_threads_.clear();
   }
 
-  virtual void ChildFailed() {
+  void ChildFailed() override {
     // In case of failure, we exit the thread with a non-NULL status.
     // We leak the callback object in that case, but this only gets called
     // for test failures anyway.
@@ -96,7 +96,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
 
 class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  bool CreateChild(Function* callback) override {
     pid_t ret = fork();
     if (ret == -1) {
       // Failure
@@ -114,7 +114,7 @@ class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
     }
   }
 
-  virtual void WaitForChildren() {
+  void WaitForChildren() override {
     for (size_t i = 0; i < child_processes_.size(); ++i) {
       int status;
       EXPECT_EQ(child_processes_[i], waitpid(child_processes_[i], &status, 0));
@@ -124,7 +124,7 @@ class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
     child_processes_.clear();
   }
 
-  virtual void ChildFailed() {
+  void ChildFailed() override {
     exit(-1);
   }
 

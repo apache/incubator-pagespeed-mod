@@ -42,7 +42,7 @@ const char kRequestUrl[] = "http://www.example.com/";
 // NameValue from http.proto as the stored proto type.
 class PropertyCacheUtilTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     pcache_ = rewrite_driver()->server_context()->page_property_cache();
     dom_cohort_ = SetupCohort(pcache_, RewriteDriver::kDomCohort);

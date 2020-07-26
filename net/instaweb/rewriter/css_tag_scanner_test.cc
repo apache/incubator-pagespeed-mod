@@ -54,7 +54,7 @@ class CssTagScannerTest : public testing::Test {
         link_(NULL), href_(NULL), media_(NULL) {
   }
 
-  void SetUp() {
+  void SetUp() override {
     link_ = html_parse_.NewElement(NULL, HtmlName::kLink);
     // Set up link_ to a reasonable (and legal) start state.
     html_parse_.AddAttribute(link_, HtmlName::kRel, "stylesheet");
@@ -614,9 +614,9 @@ TEST_F(RewriteDomainTransformerTest, StreamingCharByChar) {
 class FailTransformer : public CssTagScanner::Transformer {
  public:
   FailTransformer() {}
-  virtual ~FailTransformer() {}
+  ~FailTransformer() override {}
 
-  virtual TransformStatus Transform(GoogleString* str) {
+  TransformStatus Transform(GoogleString* str) override {
     return kFailure;
   }
 

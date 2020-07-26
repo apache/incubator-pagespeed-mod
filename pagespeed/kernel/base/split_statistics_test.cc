@@ -66,7 +66,7 @@ class SplitStatisticsTest : public testing::Test {
     InitStats(split_b_.get());
   }
 
-  ~SplitStatisticsTest() {
+  ~SplitStatisticsTest() override {
     local_b_->GlobalCleanup(&message_handler_);
     split_b_.reset(NULL);
     delete local_b_store_;

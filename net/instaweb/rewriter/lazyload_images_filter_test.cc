@@ -44,7 +44,7 @@ class LazyloadImagesFilterTest : public RewriteTestBase {
       : blank_image_src_("/psajs/1.0.gif") {}
 
   // TODO(matterbury): Delete this method as it should be redundant.
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetCurrentUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.

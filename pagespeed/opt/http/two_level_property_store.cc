@@ -87,13 +87,13 @@ class TwoLevelPropertyStoreGetCallback
     }
   }
 
-  virtual ~TwoLevelPropertyStoreGetCallback() {
+  ~TwoLevelPropertyStoreGetCallback() override {
     if (secondary_property_store_get_callback_ != NULL) {
       secondary_property_store_get_callback_->DeleteWhenDone();
     }
   }
 
-  virtual void FastFinishLookup() {
+  void FastFinishLookup() override {
     AbstractPropertyStoreGetCallback* secondary_property_store_get_callback =
         NULL;
     {
@@ -117,7 +117,7 @@ class TwoLevelPropertyStoreGetCallback
     secondary_property_store_get_callback->FastFinishLookup();
   }
 
-  virtual void DeleteWhenDone() {
+  void DeleteWhenDone() override {
     {
       ScopedMutex lock(mutex_.get());
       delete_when_done_ = true;

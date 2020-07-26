@@ -35,12 +35,12 @@ class AddIdsFilterTest : public RewriteTestBase {
       : add_ids_filter_(rewrite_driver()) {
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     html_parse()->AddFilter(&add_ids_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   // Remove PageSpeed- ids
   GoogleString Unlabel(StringPiece labeled) {

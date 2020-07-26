@@ -77,7 +77,7 @@ class ExpensiveOperationRpcContextTest : public testing::Test {
         sequence_(worker_.NewSequence()),
         stub_(sequence_) {}
 
-  ~ExpensiveOperationRpcContextTest() {
+  ~ExpensiveOperationRpcContextTest() override {
     worker_.FreeSequence(sequence_);
   }
 

@@ -46,7 +46,7 @@ class ExpensiveOperationContextImpl : public ExpensiveOperationContext {
                      &ExpensiveOperationContextImpl::CallCancel));
   }
 
-  ~ExpensiveOperationContextImpl() {
+  ~ExpensiveOperationContextImpl() override {
     Done();
   }
 
@@ -84,7 +84,7 @@ class ScheduleRewriteContextImpl : public ScheduleRewriteContext {
                            &ScheduleRewriteContextImpl::CallCancel));
   }
 
-  ~ScheduleRewriteContextImpl() {
+  ~ScheduleRewriteContextImpl() override {
     MarkSucceeded();
   }
 

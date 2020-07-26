@@ -640,7 +640,7 @@ TEST(BasicUtilsTest, EraseBracketedSubstring) {
 class JoinCollectionTest : public testing::Test {
  public:
   JoinCollectionTest() { }
-  virtual ~JoinCollectionTest() { }
+  ~JoinCollectionTest() override { }
  protected:
   template <typename C>
   void CheckAppendJoinCollection(

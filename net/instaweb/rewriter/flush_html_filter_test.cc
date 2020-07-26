@@ -40,7 +40,7 @@ const char kScriptFormat[] = "<script type=text/javascript src='%s'></script>";
 
 class FlushFilterTest : public RewriteTestBase  {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_flush_html(true);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
@@ -48,7 +48,7 @@ class FlushFilterTest : public RewriteTestBase  {
     html_parse()->StartParse("http://example.com");
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     html_parse()->FinishParse();
     RewriteTestBase::TearDown();
   }

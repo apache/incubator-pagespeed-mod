@@ -54,7 +54,7 @@ class MockTimeCacheTest : public CacheTestBase {
         cache_(&scheduler_, &lru_cache_) {
   }
 
-  virtual CacheInterface* Cache() { return &cache_; }
+  CacheInterface* Cache() override { return &cache_; }
 
   void AdvanceTimeUs(int64 interval_us) {
     scheduler_.AdvanceTimeUs(interval_us);

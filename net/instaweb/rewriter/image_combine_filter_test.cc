@@ -50,7 +50,7 @@ constexpr char kHtmlTemplate3Divs[] = "<head><style>"
 // Image spriting tests.
 class CssImageCombineTest : public CssRewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kSpriteImages);
@@ -142,7 +142,7 @@ TEST_F(CssImageCombineTest, SpritesImages) {
 // Image spriting tests with debug enabled.
 class CssImageCombineUnauthorizedTest : public CssRewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kDebug);
     options()->EnableFilter(RewriteOptions::kSpriteImages);
     CssRewriteTestBase::SetUp();
@@ -192,7 +192,7 @@ class CssImageCombineTestCustomOptions : public CssImageCombineTest {
  protected:
   // Derived classes should set their options and then call
   // CssImageCombineTest::SetUp().
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(CssImageCombineTest, SpritesMultiple) {
@@ -516,7 +516,7 @@ TEST_F(CssImageCombineTest, SpriteWrongMime) {
 
 class CssImageMultiFilterTest : public CssImageCombineTest {
   // Users must call CssImageCombineTest::SetUp().
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(CssImageMultiFilterTest, SpritesAndNonSprites) {

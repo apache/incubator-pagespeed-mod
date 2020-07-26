@@ -61,7 +61,7 @@ class InPlaceResourceRecorderTest : public RewriteTestBase {
     kLateGzipHeader
   };
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     InPlaceResourceRecorder::InitStats(statistics());
   }

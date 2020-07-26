@@ -72,7 +72,7 @@ const ContentType kContentTypeHtc =
 
 class CssImageRewriterTest : public CssRewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheImages);
@@ -517,7 +517,7 @@ class InlineCssImageRewriterTest : public CssImageRewriterTest {
     server_context()->ComputeSignature(options());
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kInlineImages);
     CssImageRewriterTest::SetUp();
     SetUpTestImageFile();
@@ -987,7 +987,7 @@ class CssRecompressImagesInStyleAttributes : public RewriteTestBase {
           "background-image:url(foo.png)"
           "\"/>") {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     options()->EnableFilter(RewriteOptions::kFallbackRewriteCssUrls);
@@ -1190,7 +1190,7 @@ TEST_F(CssImageRewriterTest, DebugMessage) {
 // which doesn't really work for an experimental flag.
 class CssImageRewriterMetricsTest : public CssRewriteTestBase {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kExperimentCollectMobImageInfo);
     options()->EnableFilter(RewriteOptions::kRecompressPng);
     options()->EnableFilter(RewriteOptions::kRecompressJpeg);

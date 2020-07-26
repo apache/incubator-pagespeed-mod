@@ -76,7 +76,7 @@ class CachePutFetch : public SharedAsyncFetch {
     }
   }
 
-  virtual ~CachePutFetch() {}
+  ~CachePutFetch() override {}
 
   void HandleHeadersComplete() override {
     // We compute the latency here as it's the spot where we're doing an
@@ -110,8 +110,8 @@ class CachePutFetch : public SharedAsyncFetch {
     SharedAsyncFetch::HandleHeadersComplete();
   }
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     bool ret = true;
     ret &= SharedAsyncFetch::HandleWrite(content, handler);
     if (cacheable_) {
@@ -120,7 +120,7 @@ class CachePutFetch : public SharedAsyncFetch {
     return ret;
   }
 
-  virtual bool HandleFlush(MessageHandler* handler) {
+  bool HandleFlush(MessageHandler* handler) override {
     // Note cache_value_.Flush doesn't do anything.
     return SharedAsyncFetch::HandleFlush(handler);
   }
@@ -213,21 +213,21 @@ class CacheFindCallback : public HTTPCache::Callback {
       async_op_hooks_->StartAsyncOp();
     }
 
-    virtual ~BackgroundFreshenFetch() {
+    ~BackgroundFreshenFetch() override {
       async_op_hooks_->FinishAsyncOp();
     }
 
-    virtual void StartFetch(
-        UrlAsyncFetcher* fetcher, MessageHandler* handler) {
+    void StartFetch(
+        UrlAsyncFetcher* fetcher, MessageHandler* handler) override {
       AsyncFetch* fetch = callback_->WrapCachePutFetchAndConditionalFetch(this);
       fetcher->Fetch(url(), handler, fetch);
     }
 
-    virtual bool ShouldYieldToRedundantFetchInProgress() {
+    bool ShouldYieldToRedundantFetchInProgress() override {
       return true;
     }
 
-    virtual bool IsBackgroundFetch() const { return true; }
+    bool IsBackgroundFetch() const override { return true; }
 
    private:
     CacheFindCallback* callback_;
@@ -278,9 +278,9 @@ class CacheFindCallback : public HTTPCache::Callback {
     // https://modpagespeed.com/doc/configuration#respectvary
     set_response_headers(base_fetch->response_headers());
   }
-  virtual ~CacheFindCallback() {}
+  ~CacheFindCallback() override {}
 
-  virtual void Done(HTTPCache::FindResult find_result) {
+  void Done(HTTPCache::FindResult find_result) override {
     if (response_sequence_ == NULL) {
       Finish(find_result);
     } else {
@@ -407,13 +407,13 @@ class CacheFindCallback : public HTTPCache::Callback {
     delete this;
   }
 
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
+  bool IsCacheValid(const GoogleString& key,
+                            const ResponseHeaders& headers) override {
     // base_fetch_ already has the key (URL + fragment).
     return base_fetch_->IsCachedResultValid(headers);
   }
 
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
+  ResponseHeaders::VaryOption RespectVaryOnResources() const override {
     return respect_vary_;
   }
 

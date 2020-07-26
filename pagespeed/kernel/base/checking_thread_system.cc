@@ -37,22 +37,22 @@ class CheckingThreadSystem::CheckingCondvar : public ThreadSystem::Condvar {
   CheckingCondvar(CheckingThreadSystem::Mutex* mutex,
           ThreadSystem::Condvar* condvar)
       : mutex_(mutex), condvar_(condvar) { }
-  virtual ~CheckingCondvar() { }
-  virtual CheckingThreadSystem::Mutex* mutex() const {
+  ~CheckingCondvar() override { }
+  CheckingThreadSystem::Mutex* mutex() const override {
     return mutex_;
   }
-  virtual void Signal() {
+  void Signal() override {
     condvar_->Signal();
   }
-  virtual void Broadcast() {
+  void Broadcast() override {
     condvar_->Broadcast();
   }
-  virtual void Wait() {
+  void Wait() override {
     mutex_->DropLockControl();
     condvar_->Wait();
     mutex_->TakeLockControl();
   }
-  virtual void TimedWait(int64 timeout_ms) {
+  void TimedWait(int64 timeout_ms) override {
     mutex_->DropLockControl();
     condvar_->TimedWait(timeout_ms);
     mutex_->TakeLockControl();

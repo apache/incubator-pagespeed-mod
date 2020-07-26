@@ -41,20 +41,20 @@ namespace net_instaweb {
 class DummyResource : public Resource {
  public:
   DummyResource() : Resource() {}
-  virtual ~DummyResource() {}
+  ~DummyResource() override {}
 
   void set_url(const StringPiece& url) {
     url_ = url.as_string();
   }
-  virtual GoogleString url() const { return url_; }
+  GoogleString url() const override { return url_; }
 
-  virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
+  void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                const RequestContextPtr& request_context,
-                               AsyncCallback* callback) {
+                               AsyncCallback* callback) override {
     callback->Done(false, false);
   }
 
-  virtual bool UseHttpCache() const { return false; }
+  bool UseHttpCache() const override { return false; }
 
  private:
   GoogleString url_;
@@ -67,9 +67,9 @@ namespace {
 class DummyTransformer : public CssTagScanner::Transformer {
  public:
   DummyTransformer() {}
-  virtual ~DummyTransformer() {}
+  ~DummyTransformer() override {}
 
-  virtual TransformStatus Transform(GoogleString* str) {
+  TransformStatus Transform(GoogleString* str) override {
     *str = StrCat("Dummy:", *str);
     return kSuccess;
   }
@@ -89,7 +89,7 @@ class AssociationTransformerTest : public ::testing::Test {
     options_->ComputeSignature();
   }
 
-  ~AssociationTransformerTest() {
+  ~AssociationTransformerTest() override {
     RewriteOptions::Terminate();
   }
 

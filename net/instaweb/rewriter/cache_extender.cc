@@ -73,17 +73,17 @@ class CacheExtender::Context : public SingleRewriteContext {
       : SingleRewriteContext(driver, parent,
                              NULL /* no resource context */),
         input_role_(input_role), extender_(extender) {}
-  virtual ~Context() {}
+  ~Context() override {}
 
   bool PolicyPermitsRendering() const override;
-  virtual void Render();
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output);
-  virtual const char* id() const { return extender_->id(); }
-  virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
+  void Render() override;
+  void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output) override;
+  const char* id() const override { return extender_->id(); }
+  OutputResourceKind kind() const override { return kOnTheFlyResource; }
 
-  virtual void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                               ResponseHeaders* headers) {
+  void FixFetchFallbackHeaders(const CachedResult& cached_result,
+                               ResponseHeaders* headers) override {
     SingleRewriteContext::FixFetchFallbackHeaders(cached_result, headers);
     if (num_slots() != 1 || slot(0)->resource().get() == NULL) {
       return;

@@ -40,7 +40,7 @@ class TestSharedAsyncFetch : public SharedAsyncFetch {
       : SharedAsyncFetch(base_fetch) {
   }
 
-  virtual ~TestSharedAsyncFetch() {
+  ~TestSharedAsyncFetch() override {
   }
 
  private:

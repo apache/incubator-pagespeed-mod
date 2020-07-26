@@ -43,7 +43,7 @@ class RewrittenContentScanningFilterTest : public RewriteTestBase {
   RewrittenContentScanningFilterTest() {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     rewrite_driver()->AddOwnedPostRenderFilter(
         new RewrittenContentScanningFilter(rewrite_driver_));

@@ -507,7 +507,7 @@ TEST_F(ThreadsafeLockManagerTest, RunStolenLockWithDeletedManager) {
 // like this now for reviewability.
 class ThreadsafeLockManagerSpammerTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     timer_.reset(Platform::CreateTimer());
     thread_system_.reset(Platform::CreateThreadSystem());
     scheduler_.reset(new Scheduler(thread_system_.get(), timer_.get()));

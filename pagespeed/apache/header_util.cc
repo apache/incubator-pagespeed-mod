@@ -202,7 +202,7 @@ class ApacheCachingHeaders : public CachingHeaders {
         request_(request) {
   }
 
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
+  bool Lookup(const StringPiece& key, StringPieceVector* values) override {
     const char* value = apr_table_get(request_->headers_out,
                                       key.as_string().c_str());
     if (value == NULL) {
@@ -215,12 +215,12 @@ class ApacheCachingHeaders : public CachingHeaders {
     return true;
   }
 
-  virtual bool IsLikelyStaticResourceType() const {
+  bool IsLikelyStaticResourceType() const override {
     DCHECK(false);  // not called in our use-case.
     return false;
   }
 
-  virtual bool IsCacheableResourceStatusCode() const {
+  bool IsCacheableResourceStatusCode() const override {
     DCHECK(false);  // not called in our use-case.
     return false;
   }

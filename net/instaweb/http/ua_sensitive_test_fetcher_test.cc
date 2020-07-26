@@ -53,7 +53,7 @@ class UserAgentSensitiveTestFetcherTest : public ::testing::Test {
         ua_sensitive_fetcher_(&mock_fetcher_) {
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Font loader CSS gets Cache-Control:private, max-age=86400
     ResponseHeaders response_headers;
     response_headers.SetStatusAndReason(HttpStatus::kOK);

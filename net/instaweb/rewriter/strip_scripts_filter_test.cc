@@ -34,7 +34,7 @@ class StripScriptsFilterTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&strip_scripts_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
  private:
   StripScriptsFilter strip_scripts_filter_;

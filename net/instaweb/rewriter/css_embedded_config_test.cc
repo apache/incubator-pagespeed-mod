@@ -52,7 +52,7 @@ namespace net_instaweb {
 // different bits on different platforms.
 class CssEmbeddedConfigTest : public CssRewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Don't call CssRewriteTestBase::SetUp() here because that calls AddFilter
     // and makes it inconvenient for us to add more.  Instead each test method
     // should call AddFilterAndSetup.

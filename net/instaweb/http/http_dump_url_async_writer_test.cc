@@ -45,7 +45,7 @@ class HttpDumpUrlAsyncWriterTest : public FetcherTest {
                       &mock_timer_) {
   }
 
-  UrlAsyncFetcher* async_fetcher() { return &dump_fetcher_; }
+  UrlAsyncFetcher* async_fetcher() override { return &dump_fetcher_; }
 
   GoogleString root_dir_;
   MockTimer mock_timer_;

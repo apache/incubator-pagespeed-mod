@@ -41,7 +41,7 @@ const char kBody2[] = "Contents.";
 
 class WaitUrlAsyncFetcherTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     thread_system_.reset(Platform::CreateThreadSystem());
     wait_fetcher_.reset(new WaitUrlAsyncFetcher(
         &base_fetcher_, thread_system_->NewMutex()));

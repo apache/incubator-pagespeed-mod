@@ -64,11 +64,11 @@ class Increment : public Function {
   }
 
  protected:
-  virtual void Run() {
+  void Run() override {
     ++*count_;
     EXPECT_EQ(expected_value_, *count_);
   }
-  virtual void Cancel() {
+  void Cancel() override {
     *count_ -= 100;
     EXPECT_EQ(expected_value_, *count_);
   }
@@ -162,7 +162,7 @@ class MakeNewSequence : public Function {
         sequence_(sequence) {
   }
 
-  virtual void Run() {
+  void Run() override {
     pool_->FreeSequence(sequence_);
     pool_->NewSequence()->Add(new WorkerTestBase::NotifyRunFunction(sync_));
   }
@@ -188,14 +188,14 @@ class LogOpsFunction : public Function {
   LogOpsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  virtual ~LogOpsFunction() {}
+  ~LogOpsFunction() override {}
 
   bool run_called() const { return run_called_; }
   bool cancel_called() const { return cancel_called_; }
 
  protected:
-  virtual void Run() { run_called_ = true; }
-  virtual void Cancel() { cancel_called_ = true; }
+  void Run() override { run_called_ = true; }
+  void Cancel() override { cancel_called_ = true; }
 
  private:
   bool run_called_;
@@ -280,12 +280,12 @@ class NotifyAndWait : public Function {
         wait_(wait) {
   }
 
-  virtual void Run() {
+  void Run() override {
     notify_->Notify();
     wait_->Wait();
   }
 
-  virtual void Cancel() {
+  void Cancel() override {
     CHECK(false);
   }
 

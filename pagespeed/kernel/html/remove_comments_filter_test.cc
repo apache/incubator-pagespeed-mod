@@ -39,7 +39,7 @@ class OptionsImpl : public RemoveCommentsFilter::OptionsInterface {
     retain_comments_.Allow(comment);
   }
 
-  virtual bool IsRetainedComment(const StringPiece& comment) const {
+  bool IsRetainedComment(const StringPiece& comment) const override {
     return retain_comments_.Match(comment, false);
   }
 
@@ -59,7 +59,7 @@ class RemoveCommentsFilterTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&remove_comments_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
  protected:
   // NOTE: The options_ instance is owned by the

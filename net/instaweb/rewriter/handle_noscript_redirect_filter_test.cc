@@ -29,7 +29,7 @@ namespace net_instaweb {
 
 class HandleNoscriptRedirectFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kHandleNoscriptRedirect);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();

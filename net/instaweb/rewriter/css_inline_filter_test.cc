@@ -175,7 +175,7 @@ class CssInlineFilterTestCustomOptions : public CssInlineFilterTest {
  protected:
   // Derived classes should add their options and then call
   // CssInlineFilterTest::SetUp().
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(CssInlineFilterTest, InlineCssUnhealthy) {

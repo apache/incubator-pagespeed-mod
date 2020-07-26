@@ -57,10 +57,10 @@ class FallbackCallback : public CacheInterface::Callback {
         validate_candidate_called_(false) {
   }
 
-  virtual ~FallbackCallback() {
+  ~FallbackCallback() override {
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     DCHECK(validate_candidate_called_);
     if (callback_ != NULL) {
       callback_->DelegatedDone(state);
@@ -71,8 +71,8 @@ class FallbackCallback : public CacheInterface::Callback {
   // This validation is called by the small-object cache.  We need to decode
   // the value and decide whether to unwrap the small value, or forward the
   // request to the large_object_cache_.
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) {
+  bool ValidateCandidate(const GoogleString& key,
+                                 CacheInterface::KeyState state) override {
     validate_candidate_called_ = true;
     size_t size = value().size();
     const char* val = value().data();

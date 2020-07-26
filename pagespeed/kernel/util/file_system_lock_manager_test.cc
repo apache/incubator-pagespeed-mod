@@ -55,7 +55,7 @@ class FileSystemLockManagerTest : public testing::Test {
         scheduler_(thread_system_.get(), &timer_),
         file_system_(thread_system_.get(), &timer_),
         manager_(&file_system_, GTestTempDir(), &scheduler_, &handler_) { }
-  virtual ~FileSystemLockManagerTest() { }
+  ~FileSystemLockManagerTest() override { }
 
   SchedulerBasedAbstractLock* MakeLock(const StringPiece& name) {
     SchedulerBasedAbstractLock* result = manager_.CreateNamedLock(name);

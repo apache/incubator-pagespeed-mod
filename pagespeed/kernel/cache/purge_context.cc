@@ -75,7 +75,7 @@ class BackupUpDownCounter : public UpDownCounter {
         local_counter_(0) {
   }
 
-  virtual int64 Get() const {
+  int64 Get() const override {
     // Don't take the lock for local_counter unless we have actually set some
     // value in the past, yet we can't retrieve it from the real UpDownCounter.
     bool was_set = was_set_.value();
@@ -89,7 +89,7 @@ class BackupUpDownCounter : public UpDownCounter {
 
   StringPiece GetName() const override { return counter_->GetName(); }
 
-  virtual void Set(int64 value) {
+  void Set(int64 value) override {
     counter_->Set(value);
     {
       ScopedMutex lock(mutex_.get());
@@ -98,7 +98,7 @@ class BackupUpDownCounter : public UpDownCounter {
     }
   }
 
-  virtual int64 AddHelper(int64 delta) {
+  int64 AddHelper(int64 delta) override {
     LOG(DFATAL) << "AddHelper is not used in PurgeContext";
     return 0;
   }

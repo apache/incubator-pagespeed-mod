@@ -53,14 +53,14 @@ class MockFetch : public AsyncFetch {
         is_background_fetch_(is_background_fetch),
         done_(false),
         success_(false) {}
-  virtual ~MockFetch() {}
+  ~MockFetch() override {}
   void HandleHeadersComplete() override {}
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     content.AppendToString(&content_);
     return true;
   }
-  virtual bool HandleFlush(MessageHandler* handler) {
+  bool HandleFlush(MessageHandler* handler) override {
     return true;
   }
   void HandleDone(bool success) override {
@@ -68,7 +68,7 @@ class MockFetch : public AsyncFetch {
     done_ = true;
   }
 
-  virtual bool IsBackgroundFetch() const {
+  bool IsBackgroundFetch() const override {
     return is_background_fetch_;
   }
 

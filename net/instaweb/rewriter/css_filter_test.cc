@@ -280,7 +280,7 @@ class CssFilterTestCustomOptions : public CssFilterTest {
  protected:
   // Derived classes should add their options and then call
   // CssFilterTest::SetUp.
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(CssFilterTestCustomOptions, CssPreserveUrls) {

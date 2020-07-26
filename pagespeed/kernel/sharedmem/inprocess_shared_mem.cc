@@ -49,18 +49,18 @@ class LOCKABLE InProcessSharedMem::DelegateMutex : public AbstractMutex {
   explicit DelegateMutex(AbstractMutex* actual) : actual_(actual) {
   }
 
-  virtual ~DelegateMutex() {
+  ~DelegateMutex() override {
   }
 
-  virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) {
+  bool TryLock() override EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     return actual_->TryLock();
   }
 
-  virtual void Lock() EXCLUSIVE_LOCK_FUNCTION() { actual_->Lock(); }
+  void Lock() override EXCLUSIVE_LOCK_FUNCTION() { actual_->Lock(); }
 
-  virtual void Unlock() UNLOCK_FUNCTION() { actual_->Unlock(); }
+  void Unlock() override UNLOCK_FUNCTION() { actual_->Unlock(); }
 
-  virtual void DCheckLocked() {
+  void DCheckLocked() override {
     actual_->DCheckLocked();
   }
 
@@ -75,23 +75,23 @@ class InProcessSharedMem::DelegateSegment : public AbstractSharedMemSegment {
   explicit DelegateSegment(AbstractSharedMemSegment* actual) : actual_(actual) {
   }
 
-  virtual ~DelegateSegment() {
+  ~DelegateSegment() override {
   }
 
-  virtual volatile char* Base() {
+  volatile char* Base() override {
     return actual_->Base();
   }
 
-  virtual size_t SharedMutexSize() const {
+  size_t SharedMutexSize() const override {
     return actual_->SharedMutexSize();
   }
 
-  virtual bool InitializeSharedMutex(size_t offset,
-                                     MessageHandler* handler) {
+  bool InitializeSharedMutex(size_t offset,
+                                     MessageHandler* handler) override {
     return actual_->InitializeSharedMutex(offset, handler);
   }
 
-  virtual AbstractMutex* AttachToSharedMutex(size_t offset) {
+  AbstractMutex* AttachToSharedMutex(size_t offset) override {
     return actual_->AttachToSharedMutex(offset);
   }
 
@@ -108,28 +108,28 @@ class InProcessSharedMem::Segment : public AbstractSharedMemSegment {
     std::memset(storage_, 0, size);
   }
 
-  virtual ~Segment() {
+  ~Segment() override {
     STLDeleteElements(&mutexes_);
     delete[] storage_;
   }
 
-  virtual volatile char* Base() {
+  volatile char* Base() override {
     return storage_;
   }
 
-  virtual size_t SharedMutexSize() const {
+  size_t SharedMutexSize() const override {
     return sizeof(AbstractMutex*);
   }
 
-  virtual bool InitializeSharedMutex(size_t offset,
-                                     MessageHandler* handler) {
+  bool InitializeSharedMutex(size_t offset,
+                                     MessageHandler* handler) override {
     AbstractMutex* mutex = thread_system_->NewMutex();
     mutexes_.push_back(mutex);
     *MutexPtr(offset) = mutex;
     return true;
   }
 
-  virtual AbstractMutex* AttachToSharedMutex(size_t offset) {
+  AbstractMutex* AttachToSharedMutex(size_t offset) override {
     return new DelegateMutex(*MutexPtr(offset));
   }
 

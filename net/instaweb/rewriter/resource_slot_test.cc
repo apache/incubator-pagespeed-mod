@@ -48,9 +48,9 @@ namespace net_instaweb {
 
 class ResourceSlotTest : public RewriteTestBase {
  protected:
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     // Set up 4 slots for testing.
@@ -76,7 +76,7 @@ class ResourceSlotTest : public RewriteTestBase {
     slots_[3] = MakeSlot(1, 1);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     rewrite_driver()->FinishParse();
     RewriteTestBase::TearDown();
   }

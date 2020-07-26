@@ -122,7 +122,7 @@ class HttpResponseWriter : public Writer {
         response_(response) {
   }
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     bool ret = true;
 
     // We don't store the request headers with the slurped file.  So if
@@ -167,7 +167,7 @@ class HttpResponseWriter : public Writer {
     return ret;
   }
 
-  bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     return writer_->Flush(handler);
   }
 

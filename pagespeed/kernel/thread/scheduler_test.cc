@@ -272,9 +272,9 @@ class RetryWaitFunction : public Function {
         scheduler_(scheduler), counter_(counter) {
   }
 
-  virtual ~RetryWaitFunction() {}
+  ~RetryWaitFunction() override {}
 
-  virtual void Run() EXCLUSIVE_LOCKS_REQUIRED(scheduler_->mutex()) {
+  void Run() override EXCLUSIVE_LOCKS_REQUIRED(scheduler_->mutex()) {
     ++*counter_;
     if ((timer_->NowMs() - start_ms_) < 10) {
       // Note that we want the retry delay here to place us later than

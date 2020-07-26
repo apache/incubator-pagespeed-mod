@@ -36,11 +36,11 @@ namespace spriter {
 class LibpngImageLibraryTest : public testing::Test {
  protected:
   class LogDelegate : public ImageLibraryInterface::Delegate {
-    virtual void OnError(const GoogleString& error) const {
+    void OnError(const GoogleString& error) const override {
       ASSERT_TRUE(false) << "Unexpected error: " << error;
     }
   };
-  virtual void SetUp() {
+  void SetUp() override {
     delegate_.reset(new LogDelegate());
     mkdir(GTestTempDir().c_str(), 0777);
     src_library_.reset(new LibpngImageLibrary(StrCat(GTestSrcDir(), kTestData),

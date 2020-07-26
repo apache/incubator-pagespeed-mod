@@ -41,7 +41,7 @@ const char kHtmlUrl[] = "http://www.test.com/index.jsp";
 
 class RewriteQueryTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     allow_related_options_ = false;
     allow_options_to_be_set_by_cookies_ = false;

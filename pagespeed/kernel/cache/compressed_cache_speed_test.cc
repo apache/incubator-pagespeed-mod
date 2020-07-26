@@ -55,8 +55,8 @@ namespace {
 class EmptyCallback : public net_instaweb::CacheInterface::Callback {
  public:
   EmptyCallback() {}
-  virtual ~EmptyCallback() {}
-  virtual void Done(net_instaweb::CacheInterface::KeyState state) {}
+  ~EmptyCallback() override {}
+  void Done(net_instaweb::CacheInterface::KeyState state) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyCallback);

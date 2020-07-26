@@ -90,13 +90,13 @@ class TestRewriter : public RewriteFilter {
         create_custom_encoder_(create_custom_encoder) {
   }
 
-  virtual ~TestRewriter() {
+  ~TestRewriter() override {
   }
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
 
-  virtual void EndElementImpl(HtmlElement* element) {
+  void EndElementImpl(HtmlElement* element) override {
     if (element->keyword() == HtmlName::kTag) {
       HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
       if (src != NULL) {
@@ -114,8 +114,8 @@ class TestRewriter : public RewriteFilter {
     }
   }
 
-  virtual const char* Name() const { return "TestRewriter"; }
-  virtual const char* id() const { return kTestFilterPrefix; }
+  const char* Name() const override { return "TestRewriter"; }
+  const char* id() const override { return kTestFilterPrefix; }
 
   // Number of times RewriteLoadedResource got called
   int num_rewrites_called() const { return num_rewrites_called_; }
@@ -149,7 +149,7 @@ class TestRewriter : public RewriteFilter {
     return ok ? kRewriteOk : kRewriteFailed;
   }
 
-  virtual const UrlSegmentEncoder* encoder() const {
+  const UrlSegmentEncoder* encoder() const override {
     if (create_custom_encoder_) {
       return &test_url_encoder_;
     } else {
@@ -181,7 +181,7 @@ class TestRewriter : public RewriteFilter {
     TestRewriter* filter_;
   };
 
-  virtual RewriteContext* MakeRewriteContext() {
+  RewriteContext* MakeRewriteContext() override {
     return new Context(driver(), this);
   }
 
@@ -192,20 +192,20 @@ class TestRewriter : public RewriteFilter {
   // name encoding, which is enough to see if it got invoked right.
   class TestUrlEncoder: public UrlSegmentEncoder {
    public:
-    virtual ~TestUrlEncoder() {
+    ~TestUrlEncoder() override {
     }
 
-    virtual void Encode(const StringVector& urls, const ResourceContext* data,
-                        GoogleString* rewritten_url) const {
+    void Encode(const StringVector& urls, const ResourceContext* data,
+                        GoogleString* rewritten_url) const override {
       CHECK_EQ(1, urls.size());
       *rewritten_url = kTestEncoderUrlExtra;
       UrlEscaper::EncodeToUrlSegment(urls[0], rewritten_url);
     }
 
-    virtual bool Decode(const StringPiece& rewritten_url,
+    bool Decode(const StringPiece& rewritten_url,
                         StringVector* urls,
                         ResourceContext* data,
-                        MessageHandler* handler) const {
+                        MessageHandler* handler) const override {
       const int magic_len = STATIC_STRLEN(kTestEncoderUrlExtra);
       urls->clear();
       urls->push_back(GoogleString());
@@ -230,7 +230,7 @@ class RewriteSingleResourceFilterTest
     : public RewriteTestBase,
       public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     filter_ = new TestRewriter(rewrite_driver(), GetParam());

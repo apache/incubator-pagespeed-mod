@@ -78,7 +78,7 @@ class StatisticsLoggerTest : public ::testing::Test {
     stats_.AddVariable(kUnloggedVariable);
   }
 
-  virtual ~StatisticsLoggerTest() {}
+  ~StatisticsLoggerTest() override {}
 
   static void SetUpTestCase() {
     HtmlKeywords::Init();

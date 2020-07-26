@@ -212,9 +212,9 @@ class RewriteContext::OutputCacheCallback : public CacheInterface::Callback {
       : rewrite_context_(rc), function_(function),
         cache_result_(new CacheLookupResult) {}
 
-  virtual ~OutputCacheCallback() {}
+  ~OutputCacheCallback() override {}
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     // Check if the cache content being used is stale. If so, mark it as a
     // cache hit but set the stale_rewrite flag in the context.
     if (cache_result_->useable_cache_content &&
@@ -230,8 +230,8 @@ class RewriteContext::OutputCacheCallback : public CacheInterface::Callback {
   }
 
  protected:
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) {
+  bool ValidateCandidate(const GoogleString& key,
+                                 CacheInterface::KeyState state) override {
     DCHECK(!cache_result_->cache_ok);
     // The following is used to hold the cache lookup information obtained from
     // the current cache's value.  Note that the cache_ok field of this is not
@@ -432,7 +432,7 @@ class RewriteContext::WriteIfChanged : public CacheInterface::Callback {
     cache->Get(key, new WriteIfChanged(key, val, cache));
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     if ((state != CacheInterface::kAvailable) || (value().Value() != value_)) {
       cache_->PutSwappingString(key_, &value_);
     }
@@ -467,7 +467,7 @@ class RewriteContext::LookupMetadataForOutputResourceCallback
         callback_(callback) {
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     callback_->Done(key_, ReleaseLookupResult());
     delete this;
   }
@@ -491,8 +491,8 @@ class RewriteContext::HTTPCacheCallback : public OptionsAwareHTTPCacheCallback {
                                       rc->Driver()->request_context()),
         rewrite_context_(rc),
         function_(function) {}
-  virtual ~HTTPCacheCallback() {}
-  virtual void Done(HTTPCache::FindResult find_result) {
+  ~HTTPCacheCallback() override {}
+  void Done(HTTPCache::FindResult find_result) override {
     RewriteDriver* rewrite_driver = rewrite_context_->Driver();
     rewrite_driver->AddRewriteTask(MakeFunction(
         rewrite_context_, function_, find_result,
@@ -539,8 +539,8 @@ class RewriteContext::ResourceFetchCallback : public Resource::AsyncCallback {
         delegate_(rc, r, slot_index) {
   }
 
-  virtual ~ResourceFetchCallback() {}
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  ~ResourceFetchCallback() override {}
+  void Done(bool lock_failure, bool resource_ok) override {
     if (lock_failure) {
       rewrite_context_->ok_to_write_output_partitions_ = false;
     }
@@ -569,7 +569,7 @@ class RewriteContext::ResourceReconstructCallback
     set_response_headers(resource->response_headers());
   }
 
-  virtual ~ResourceReconstructCallback() {
+  ~ResourceReconstructCallback() override {
   }
 
   void HandleDone(bool success) override {
@@ -606,10 +606,10 @@ class RewriteContext::ResourceRevalidateCallback
         input_info_(input_info) {
   }
 
-  virtual ~ResourceRevalidateCallback() {
+  ~ResourceRevalidateCallback() override {
   }
 
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  void Done(bool lock_failure, bool resource_ok) override {
     RewriteDriver* rewrite_driver = rewrite_context_->Driver();
     rewrite_driver->AddRewriteTask(
         MakeFunction(rewrite_context_, &RewriteContext::ResourceRevalidateDone,
@@ -636,13 +636,13 @@ class RewriteContext::RewriteFreshenCallback
         input_index_(input_index),
         manager_(manager) {}
 
-  virtual ~RewriteFreshenCallback() {}
+  ~RewriteFreshenCallback() override {}
 
-  virtual InputInfo* input_info() {
+  InputInfo* input_info() override {
     return manager_->GetInputInfo(partition_index_, input_index_);
   }
 
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  void Done(bool lock_failure, bool resource_ok) override {
     manager_->Done(lock_failure, resource_ok);
     delete this;
   }
@@ -950,9 +950,9 @@ class RewriteContext::InvokeRewriteFunction : public Function {
       : context_(context), partition_(partition), output_(output) {
   }
 
-  virtual ~InvokeRewriteFunction() {}
+  ~InvokeRewriteFunction() override {}
 
-  virtual void Run() {
+  void Run() override {
     context_->FindServerContext()->rewrite_stats()->num_rewrites_executed()
         ->IncBy(1);
     context_->Rewrite(partition_,
@@ -960,7 +960,7 @@ class RewriteContext::InvokeRewriteFunction : public Function {
                       output_);
   }
 
-  virtual void Cancel() {
+  void Cancel() override {
     context_->FindServerContext()->rewrite_stats()->num_rewrites_dropped()
         ->IncBy(1);
     context_->RewriteDone(kTooBusy, partition_);

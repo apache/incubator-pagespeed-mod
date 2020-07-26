@@ -96,14 +96,14 @@ class SerfTestFetch : public AsyncFetch {
       : AsyncFetch(ctx),
         mutex_(mutex), success_(false), done_(false) {
   }
-  virtual ~SerfTestFetch() {}
+  ~SerfTestFetch() override {}
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     content.AppendToString(&buffer_);
     return true;
   }
-  virtual bool HandleFlush(MessageHandler* handler) { return true; }
+  bool HandleFlush(MessageHandler* handler) override { return true; }
   void HandleHeadersComplete() override {}
   void HandleDone(bool success) override {
     ScopedMutex lock(mutex_);
@@ -119,7 +119,7 @@ class SerfTestFetch : public AsyncFetch {
     return done_;
   }
 
-  virtual void Reset() {
+  void Reset() override {
     ScopedMutex lock(mutex_);
     AsyncFetch::Reset();
     done_ = false;
@@ -155,7 +155,7 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
         fetcher_timeout_ms_(FetcherTimeoutMs()) {
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     SetUpWithProxy("");
   }
 
@@ -222,7 +222,7 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
         ->Set(timer_->NowMs());
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Need to free the fetcher before destroy the pool.
     serf_url_async_fetcher_.reset(NULL);
     timer_.reset(NULL);
@@ -893,7 +893,7 @@ class SerfFetchTest : public SerfUrlAsyncFetcherTest {
             RequestContext::NewTestRequestContext(thread_system_.get()))) {
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     async_fetch_->response_headers()->set_status_code(200);
     serf_fetch_->CallbackDone(SerfCompletionResult::kSuccess);
     // Fetch must be deleted before fetcher because it has a child pool.
@@ -1002,7 +1002,7 @@ TEST_F(SerfFetchTest, TestParseUrlDoubleSlashRawSpace) {
 
 class SerfUrlAsyncFetcherTestWithProxy : public SerfUrlAsyncFetcherTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We don't expect this to be a working proxy; this is only used for
     // just covering a crash bug.
     SetUpWithProxy("127.0.0.1:8080");
@@ -1027,7 +1027,7 @@ class SerfUrlAsyncFetcherTestFakeWebServer : public SerfUrlAsyncFetcherTest {
                         ThreadSystem* thread_system)
         : TcpServerThreadForTesting(desired_listen_port_, "fake_webserver",
                                     thread_system) {}
-    virtual ~FakeWebServerThread() { ShutDown(); }
+    ~FakeWebServerThread() override { ShutDown(); }
 
     void HandleClientConnection(apr_socket_t* sock) override {
       char request_buffer[kStackBufferSize];

@@ -39,7 +39,7 @@ class ScriptTagScannerTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&collector_);
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
   // Helper class to collect script information (language,
   // and attributes)
@@ -49,7 +49,7 @@ class ScriptTagScannerTest : public HtmlParseTestBase {
         : script_tag_scanner_(html_parse) {
     }
 
-    virtual void StartElement(HtmlElement* element) {
+    void StartElement(HtmlElement* element) override {
       HtmlElement::Attribute* src;
       ScriptInfo info;
       info.classification =
@@ -77,7 +77,7 @@ class ScriptTagScannerTest : public HtmlParseTestBase {
       return scripts_[pos].flags;
     }
 
-    virtual const char* Name() const { return "ScriptCollector"; }
+    const char* Name() const override { return "ScriptCollector"; }
 
    private:
     struct ScriptInfo {

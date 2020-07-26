@@ -169,7 +169,7 @@ class GifReaderTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngError);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngWarning);
   }
@@ -367,7 +367,7 @@ class GifScanlineReaderRawTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternFailedToOpen);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternFailedToRead);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternMultipleFrameGif);
@@ -1196,7 +1196,7 @@ class GifAnimationTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternFailedToOpen);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternFailedToRead);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternMultipleFrameGif);

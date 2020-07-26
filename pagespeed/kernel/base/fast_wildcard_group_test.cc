@@ -30,7 +30,7 @@ const char kInitialSignature[] = "*.ccA,*.hA,a*.hD,ab*.hA,c*.ccD,";
 
 class FastWildcardGroupTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     group_.Allow("*.cc");
     group_.Allow("*.h");
     group_.Disallow("a*.h");

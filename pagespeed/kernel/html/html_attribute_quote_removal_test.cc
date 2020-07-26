@@ -34,7 +34,7 @@ class HtmlAttributeQuoteRemovalTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&html_attribute_quote_removal_);
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
  private:
   HtmlAttributeQuoteRemoval html_attribute_quote_removal_;

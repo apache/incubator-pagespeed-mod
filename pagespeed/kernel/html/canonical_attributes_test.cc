@@ -35,7 +35,7 @@ class CanonicalAttributesTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&canonical_attributes_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   GoogleString Image(const StringPiece& image) {
     return StrCat("<img src='", image, "'>");

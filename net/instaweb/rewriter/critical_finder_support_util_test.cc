@@ -35,9 +35,9 @@ class CriticalFinderSupportUtilTest : public RewriteTestBase {
  protected:
   CriticalFinderSupportUtilTest() {}
 
-  virtual ~CriticalFinderSupportUtilTest() {}
+  ~CriticalFinderSupportUtilTest() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     critical_keys_proto_.Clear();
   }

@@ -771,7 +771,7 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
       thread_started_(false) {
   }
 
-  ~SerfThreadedFetcher() {
+  ~SerfThreadedFetcher() override {
     // Let the thread terminate naturally by telling it to unblock,
     // then waiting for it to finish its next active Poll operation.
     {
@@ -837,7 +837,7 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
     }
   }
 
-  void ShutDown() {
+  void ShutDown() override {
     // See comments in the destructor above.. The big difference is that
     // because we set shutdown_ to true new jobs can't actually come in.
     {
@@ -854,7 +854,7 @@ class SerfThreadedFetcher : public SerfUrlAsyncFetcher {
   }
 
  protected:
-  bool AnyPendingFetches() {
+  bool AnyPendingFetches() override {
     ScopedMutex lock(initiate_mutex_.get());
     // NOTE: We must hold both mutexes to avoid the case where we miss a fetch
     // in transit.

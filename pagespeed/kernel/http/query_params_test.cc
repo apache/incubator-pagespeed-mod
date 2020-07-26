@@ -42,7 +42,7 @@ class QueryParamsTest : public testing::Test {
  protected:
   QueryParamsTest() { }
 
-  virtual void SetUp() {
+  void SetUp() override {
     gurl_.Reset(kQueryUrl);
     query_params_.ParseFromUrl(gurl_);
   }

@@ -46,7 +46,7 @@ const char kNonCss[] = "http://fonts.googleapis.com/some.txt";
 
 class GoogleFontServiceInputResourceTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     GoogleFontServiceInputResource::InitStats(statistics());
 

@@ -27,7 +27,7 @@ namespace net_instaweb {
 
 class BaseTagFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kAddBaseTag);
     rewrite_driver()->AddFilters();

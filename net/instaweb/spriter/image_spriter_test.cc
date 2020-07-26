@@ -64,7 +64,7 @@ void SetupCommonOptions(SpriterInput* spriter_input,
 class FailOnImageLibError : public ImageLibraryInterface::Delegate {
  public:
   // Implement ImageLibInterface::Delegate:
-  virtual void OnError(const GoogleString& error) const {
+  void OnError(const GoogleString& error) const override {
     ASSERT_TRUE(0) << "Unexpected error: " << error;
   }
 };

@@ -128,11 +128,11 @@ class AsyncCacheTest : public CacheTestBase {
           sync_point_(NULL) {
       set_is_healthy(true);
     }
-    virtual ~SyncedLRUCache() {}
+    ~SyncedLRUCache() override {}
 
     void set_sync_point(WorkerTestBase::SyncPoint* x) { sync_point_ = x; }
 
-    void Get(const GoogleString& key, Callback* callback) {
+    void Get(const GoogleString& key, Callback* callback) override {
       if (sync_point_ != NULL) {
         sync_point_->Notify();
       }
@@ -158,7 +158,7 @@ class AsyncCacheTest : public CacheTestBase {
           sync_point_(test->thread_system_.get()) {
     }
 
-    virtual void Done(CacheInterface::KeyState state) {
+    void Done(CacheInterface::KeyState state) override {
       Callback::Done(state);
       sync_point_.Notify();
     }
@@ -183,14 +183,14 @@ class AsyncCacheTest : public CacheTestBase {
     async_cache_.reset(new AsyncCache(synced_lru_cache_.get(), pool_.get()));
   }
 
-  ~AsyncCacheTest() {
+  ~AsyncCacheTest() override {
     pool_->ShutDown();  // quiesce before destructing cache.
   }
 
   CacheInterface* Cache() override { return async_cache_.get(); }
   Callback* NewCallback() override { return new AsyncCallback(this); }
 
-  virtual void PostOpCleanup() {
+  void PostOpCleanup() override {
     // Wait until the AsyncCache available thread-count is restored to
     // non-zero.  Note that in AsyncCache we call blocking cache
     // Get/MultiGet first, then decrement the in-use thread-count, so

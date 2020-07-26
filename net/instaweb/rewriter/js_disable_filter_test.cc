@@ -51,13 +51,13 @@ const char kXUACompatibleMetaTag[] =
 
 class JsDisableFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDisableJavascript);
     options()->Disallow("*donotmove*");
   }
 
-  virtual bool AddBody() const {
+  bool AddBody() const override {
     return false;
   }
 

@@ -91,9 +91,9 @@ class TestCombineFilter : public RewriteFilter {
     }
 
    protected:
-    virtual bool WritePiece(int index, int num_pieces, const Resource* input,
+    bool WritePiece(int index, int num_pieces, const Resource* input,
                             OutputResource* combination, Writer* writer,
-                            MessageHandler* handler) {
+                            MessageHandler* handler) override {
       ResourceCombiner::WritePiece(index, num_pieces, input,
                                    combination, writer, handler);
       writer->Write("|", handler);
@@ -101,13 +101,13 @@ class TestCombineFilter : public RewriteFilter {
     }
 
    private:
-    virtual const ContentType* CombinationContentType() {
+    const ContentType* CombinationContentType() override {
       return &kContentTypeText;
     }
 
-    virtual bool ResourceCombinable(Resource* resource,
+    bool ResourceCombinable(Resource* resource,
                                     GoogleString* failure_reason,
-                                    MessageHandler* /*handler*/) {
+                                    MessageHandler* /*handler*/) override {
       EXPECT_TRUE(resource->HttpStatusOk());
       if (resource->ExtractUncompressedContents() == kVetoText) {
         *failure_reason = "Contents match veto text";
@@ -122,17 +122,17 @@ class TestCombineFilter : public RewriteFilter {
         combiner_(driver, this) {
   }
 
-  virtual void StartDocumentImpl() {
+  void StartDocumentImpl() override {
     combiner_.Reset();
   }
 
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual const char* Name() const { return "TestCombine"; }
-  virtual const char* id() const { return kTestCombinerId; }
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
+  const char* Name() const override { return "TestCombine"; }
+  const char* id() const override { return kTestCombinerId; }
 
   TestCombineFilter::TestCombiner* combiner() { return &combiner_; }
-  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
+  const UrlSegmentEncoder* encoder() const override { return &encoder_; }
 
  private:
   TestCombineFilter::TestCombiner combiner_;
@@ -144,7 +144,7 @@ class TestCombineFilter : public RewriteFilter {
 // Test fixture.
 class ResourceCombinerTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     filter_ = new TestCombineFilter(rewrite_driver());

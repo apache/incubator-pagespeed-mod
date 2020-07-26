@@ -62,7 +62,7 @@ class SimulatedDelayFetcherTest : public ::testing::Test {
                                   kLogPath, 2 /* flush after 2 requests */));
   }
 
-  virtual ~SimulatedDelayFetcherTest() {}
+  ~SimulatedDelayFetcherTest() override {}
 
   std::unique_ptr<ThreadSystem> thread_system_;
   GoogleMessageHandler handler_;

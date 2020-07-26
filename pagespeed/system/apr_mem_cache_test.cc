@@ -157,7 +157,7 @@ class AprMemCacheTest : public CacheTestBase {
     return initialized;
   }
 
-  virtual CacheInterface* Cache() { return cache_.get(); }
+  CacheInterface* Cache() override { return cache_.get(); }
 
   GoogleMessageHandler handler_;
   MD5Hasher md5_hasher_;
@@ -550,7 +550,7 @@ class FakeMemcacheServerThread : public TcpServerThreadForTesting {
       : TcpServerThreadForTesting(fake_memcache_listen_port, "fake_memcache",
                                   thread_system) {}
 
-  virtual ~FakeMemcacheServerThread() { ShutDown(); }
+  ~FakeMemcacheServerThread() override { ShutDown(); }
 
  private:
   void HandleClientConnection(apr_socket_t* sock) override {

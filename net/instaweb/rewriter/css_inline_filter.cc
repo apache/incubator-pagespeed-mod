@@ -60,8 +60,8 @@ class CssInlineFilter::Context : public InlineRewriteContext {
     }
   }
 
-  virtual bool ShouldInline(const ResourcePtr& resource,
-                            GoogleString* reason) const {
+  bool ShouldInline(const ResourcePtr& resource,
+                            GoogleString* reason) const override {
     return filter_->ShouldInline(resource, attrs_charset_, reason);
   }
 
@@ -69,7 +69,7 @@ class CssInlineFilter::Context : public InlineRewriteContext {
     return Driver()->content_security_policy().PermitsInlineStyle();
   }
 
-  virtual void Render() {
+  void Render() override {
     if (num_output_partitions() < 1 ||
         !output_partition(0)->has_inlined_data()) {
       // Remove any LSC attributes as they're pointless if we don't inline.
@@ -79,18 +79,18 @@ class CssInlineFilter::Context : public InlineRewriteContext {
     InlineRewriteContext::Render();
   }
 
-  virtual void RenderInline(
+  void RenderInline(
       const ResourcePtr& resource, const StringPiece& text,
-      HtmlElement* element) {
+      HtmlElement* element) override {
     filter_->RenderInline(resource, *(output_partition(0)),
                           base_url_, text, element);
   }
 
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized) {
+  ResourcePtr CreateResource(const char* url, bool* is_authorized) override {
     return filter_->CreateResource(url, is_authorized);
   }
 
-  virtual const char* id() const { return filter_->id_; }
+  const char* id() const override { return filter_->id_; }
   RewriteDriver::InputRole InputRole() const override {
     return RewriteDriver::InputRole::kStyle;
   }

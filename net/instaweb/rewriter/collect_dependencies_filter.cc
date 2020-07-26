@@ -194,7 +194,7 @@ class CollectDependenciesFilter::Context : public RewriteContext {
     return "cdf";
   }
 
-  bool PolicyPermitsRendering() const {
+  bool PolicyPermitsRendering() const override {
     return true;  // We don't alter the doc...
   }
 

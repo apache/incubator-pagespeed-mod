@@ -54,7 +54,7 @@ namespace net_instaweb {
 
 class DomainRewriteFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
     options()->Disallow("*dont_shard*");
@@ -94,8 +94,8 @@ class DomainRewriteFilterTest : public RewriteTestBase {
     return delta;
   }
 
-  virtual bool AddBody() const { return false; }
-  virtual bool AddHtmlTags() const { return add_html_tags_; }
+  bool AddBody() const override { return false; }
+  bool AddHtmlTags() const override { return add_html_tags_; }
 
  protected:
   bool add_html_tags_;

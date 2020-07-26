@@ -53,7 +53,7 @@ class ApacheWriterTest : public testing::Test {
     response_headers_->Add("Transfer-Encoding", "chunked");  // Will be removed.
     response_headers_->Add("Content-Length", "42");          // Will be removed.
   }
-  virtual ~ApacheWriterTest() {
+  ~ApacheWriterTest() override {
     MockApache::CleanupRequest(&request_);
     MockApache::Terminate();
   }

@@ -16,3 +16,4 @@ bazel-*
 .vscode/ipch
 .vscode/.vs_code_bazel_build/vs_code_aspect.bzl
 external/
+compile_commands.json

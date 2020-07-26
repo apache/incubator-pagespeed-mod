@@ -97,7 +97,7 @@ constexpr char kHtmlWrapperFormat[] =
 class DedupInlinedImagesTest : public RewriteTestBase,
                                public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetFiltersAndOptions();
     rewrite_driver()->AddFilters();
@@ -258,7 +258,7 @@ class DedupInlinePreviewImagesTest : public DedupInlinedImagesTest {
  public:
   DedupInlinePreviewImagesTest() : DedupInlinedImagesTest() {}
 
-  virtual void SetFiltersAndOptions() {
+  void SetFiltersAndOptions() override {
     options()->EnableFilter(RewriteOptions::kDedupInlinedImages);
     options()->EnableFilter(RewriteOptions::kDelayImages);
     options()->set_min_image_size_low_resolution_bytes(1 * 1024);

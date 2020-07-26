@@ -39,7 +39,7 @@ const char kCssData[] = ".blue {color: blue; src: url(dummy.png);}";
 
 class CssInlineImportToLinkFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();
   }
@@ -397,7 +397,7 @@ TEST_F(CssInlineImportToLinkFilterTest, DoNotConvertBadStyle) {
 class CssInlineImportToLinkFilterTestNoTags
     : public CssInlineImportToLinkFilterTest {
  public:
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 };
 
 TEST_F(CssInlineImportToLinkFilterTestNoTags, UnclosedStyleGetsConverted) {

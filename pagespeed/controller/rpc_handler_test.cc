@@ -58,7 +58,7 @@ class MockRpcHandler : public RpcHandler<GrpcTestService::AsyncService,
         .WillByDefault(Return());
     EXPECT_CALL(*this, HandleError()).Times(0);
   }
-  virtual ~MockRpcHandler() { }
+  ~MockRpcHandler() override { }
 
   MOCK_METHOD1(HandleRequest, void(const TestRequest& req));
   MOCK_METHOD0(HandleWriteDone, void());
@@ -99,7 +99,7 @@ class MockRpcHandler : public RpcHandler<GrpcTestService::AsyncService,
 
   void InitResponder(GrpcTestService::AsyncService* service,
                      ::grpc::ServerContext* ctx, ReaderWriterT* responder,
-                     ::grpc::ServerCompletionQueue* cq, void* callback) {
+                     ::grpc::ServerCompletionQueue* cq, void* callback) override {
     service->RequestTest(ctx, responder, cq, cq, callback);
   }
 

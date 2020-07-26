@@ -57,11 +57,11 @@ TEST(SplitWriterTest, SplitsWrite) {
 
 class FailWriter : public Writer {
  public:
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     return false;
   }
 
-  virtual bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     return false;
   }
 };

@@ -55,7 +55,7 @@ class PoolTest : public testing::Test {
     }
   }
 
-  ~PoolTest() {
+  ~PoolTest() override {
     pool_.Clear();
   }
 

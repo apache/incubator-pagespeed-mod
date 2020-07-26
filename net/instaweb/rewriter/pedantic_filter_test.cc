@@ -34,7 +34,7 @@ class PedanticFilterTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&pedantic_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
  private:
   PedanticFilter pedantic_filter_;

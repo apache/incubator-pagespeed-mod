@@ -62,7 +62,7 @@ class MemLockManagerTest : public testing::Test {
         tester_(thread_system_.get()) {
     tester_.set_quiesce(MakeFunction(this, &MemLockManagerTest::Quiesce));
   }
-  virtual ~MemLockManagerTest() { }
+  ~MemLockManagerTest() override { }
 
   NamedLock* MakeLock(const StringPiece& name) {
     return lock_manager_->CreateNamedLock(name);

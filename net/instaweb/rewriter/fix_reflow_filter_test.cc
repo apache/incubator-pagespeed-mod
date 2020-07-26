@@ -52,7 +52,7 @@ const char kNoscriptUrl[] = "http://www.example.com/?PageSpeed=noscript";
 
 class FixReflowFilterTest : public CustomRewriteTestBase<RewriteOptions> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();  // rewrite_driver() is valid after this.
     const PropertyCache::Cohort* cohort = SetupCohort(
         server_context()->page_property_cache(), kCohortName);

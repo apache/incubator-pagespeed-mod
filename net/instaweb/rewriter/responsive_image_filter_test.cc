@@ -71,7 +71,7 @@ class ResponsiveImageFilterTest : public RewriteTestBase {
                          kContentTypePng, 100);
   }
 
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   void TestSimple(int width, int height, StringPiece filename,
                   StringPiece full_density, StringPiece final_ext,

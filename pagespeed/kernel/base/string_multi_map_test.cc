@@ -38,7 +38,7 @@ class StringMultiMapTest : public testing::Test {
  protected:
   StringMultiMapTest() { }
 
-  virtual void SetUp() {
+  void SetUp() override {
     string_map_.Add("a", "1");
     string_map_.Add("b", StringPiece());
     string_map_.Add("C", "2");
@@ -203,7 +203,7 @@ TEST_F(StringMultiMapTest, TestRemoveFromSortedArray) {
 
 class StringMultiMapStartEmptyTest : public StringMultiMapTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Purposefully doesn't call the base
   }
 };

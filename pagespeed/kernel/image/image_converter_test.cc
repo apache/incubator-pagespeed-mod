@@ -274,7 +274,7 @@ class ImageConverterTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngError);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternLibpngWarning);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternPixelFormat);

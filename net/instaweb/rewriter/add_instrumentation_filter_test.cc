@@ -46,7 +46,7 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
  protected:
   AddInstrumentationFilterTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_beacon_url("http://example.com/beacon?org=xxx");
     AddInstrumentationFilter::InitStats(statistics());
     options()->EnableFilter(RewriteOptions::kAddInstrumentation);
@@ -57,7 +57,7 @@ class AddInstrumentationFilterTest : public RewriteTestBase {
     https_mode_ = false;
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   void AddFilters() {
     AddFiltersWithUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);

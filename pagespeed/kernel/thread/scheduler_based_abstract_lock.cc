@@ -91,7 +91,7 @@ class TimedWaitPollState : public Function {
         end_time_ms_(end_time_ms),
         max_interval_ms_(max_interval_ms),
         interval_ms_(0) {}
-  virtual ~TimedWaitPollState() { }
+  ~TimedWaitPollState() override { }
 
   // Note: doesn't actually clone interval_ms_.
   TimedWaitPollState* Clone() {
@@ -101,7 +101,7 @@ class TimedWaitPollState : public Function {
   }
 
  protected:
-  virtual void Run() {
+  void Run() override {
     if ((lock_->*try_lock_)(steal_ms_)) {
       callback_->CallRun();
       return;

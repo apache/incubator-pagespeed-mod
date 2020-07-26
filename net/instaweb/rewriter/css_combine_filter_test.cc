@@ -75,7 +75,7 @@ class CssCombineFilterTest : public RewriteTestBase {
         css_file_count_reduction_(statistics()->GetVariable(
             CssCombineFilter::kCssFileCountReduction)) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_support_noscript_enabled(false);
     AddFilter(RewriteOptions::kCombineCss);
@@ -557,7 +557,7 @@ class CssCombineFilterCustomOptions : public CssCombineFilterTest {
  protected:
   // Derived classes need to set custom options and explicitly call
   // CssCombineFilterTest::SetUp();
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 // Tests Issue 600 in which CSS files in a MapProxyDomain were not combined with
@@ -744,7 +744,7 @@ TEST_F(CssCombineFilterTest, IEDirectiveBarrier) {
 
 class CssCombineFilterWithDebugTest : public CssCombineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kDebug);
@@ -1758,7 +1758,7 @@ TEST_F(CssCombineFilterTest, StatsWithDelay) {
 
 class CssCombineAndCacheExtendTest : public CssCombineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kExtendCacheCss);
@@ -1792,7 +1792,7 @@ TEST_F(CssCombineAndCacheExtendTest, CombineCssNoExtraCacheExtension) {
 
 class CssFilterWithCombineTest : public CssCombineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kRewriteCss);
@@ -2070,7 +2070,7 @@ TEST_F(CssCombineMaxSizeTest, ReconstructedResourceExpectedHeadersNoStore) {
 
 class CollapseWhitespaceGeneralTest : public RewriteTestBase {
   // Don't add any text to our tests.
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 };
 
 // Issue 463: Collapse whitespace after other filters have been applied

@@ -79,7 +79,7 @@ class Worker::WorkThread : public ThreadSystem::Thread {
     return current_task_;
   }
 
-  virtual void Run() LOCKS_EXCLUDED(mutex_) {
+  void Run() override LOCKS_EXCLUDED(mutex_) {
     Function* task;
     while ((task = GetNextTask()) != NULL) {
       // Run tasks (not holding the lock, so new tasks can be added).

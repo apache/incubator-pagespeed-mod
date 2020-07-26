@@ -111,7 +111,7 @@ const char kCuppaPng150sqInlineData[] =
 class LocalStorageCacheTest : public RewriteTestBase,
                               public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     MySetUp();
   }
@@ -236,7 +236,7 @@ TEST_F(LocalStorageCacheTest, LinkUrlTransormationFails) {
 
 class LocalStorageCacheTinyTest : public LocalStorageCacheTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_css_inline_max_bytes(10);  // An arbitrary tiny value.
     MySetUp();

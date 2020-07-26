@@ -60,7 +60,7 @@ class MockScheduleRewriteController : public ScheduleRewriteController {
     EXPECT_CALL(*this, NotifyRewriteComplete(_)).Times(0);
     EXPECT_CALL(*this, NotifyRewriteFailed(_)).Times(0);
   }
-  virtual ~MockScheduleRewriteController() { }
+  ~MockScheduleRewriteController() override { }
 
   MOCK_METHOD2(ScheduleRewrite, void(const GoogleString& key, Function* cb));
   MOCK_METHOD1(NotifyRewriteComplete, void(const GoogleString& key));

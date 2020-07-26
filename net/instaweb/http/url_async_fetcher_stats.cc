@@ -52,7 +52,7 @@ class UrlAsyncFetcherStats::StatsAsyncFetch : public SharedAsyncFetch {
     start_time_us_ = stats_fetcher_->timer_->NowUs();
   }
 
-  virtual ~StatsAsyncFetch() {
+  ~StatsAsyncFetch() override {
   }
 
   void HandleHeadersComplete() override {
@@ -72,8 +72,8 @@ class UrlAsyncFetcherStats::StatsAsyncFetch : public SharedAsyncFetch {
     delete this;
   }
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     size_ += content.size();
     return SharedAsyncFetch::HandleWrite(content, handler);
   }

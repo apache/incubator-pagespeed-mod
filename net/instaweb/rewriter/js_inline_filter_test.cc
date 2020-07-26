@@ -44,7 +44,7 @@ class JsInlineFilterTest : public RewriteTestBase {
 
  protected:
   // TODO(matterbury): Delete this method as it should be redundant.
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
   }
 
@@ -192,7 +192,7 @@ TEST_F(JsInlineFilterTest, DoInlineJavascriptSimpleHtml) {
 
 class JsInlineFilterTestCustomOptions : public JsInlineFilterTest {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(JsInlineFilterTestCustomOptions, InlineJsPreserveURLSOn) {

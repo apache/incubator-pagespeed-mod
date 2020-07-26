@@ -401,9 +401,9 @@ class HTTPCacheStringCallback : public OptionsAwareHTTPCacheCallback {
         body_out_(body_out),
         headers_out_(headers_out), found_(false) {}
 
-  virtual ~HTTPCacheStringCallback() {}
+  ~HTTPCacheStringCallback() override {}
 
-  virtual void Done(HTTPCache::FindResult find_result) {
+  void Done(HTTPCache::FindResult find_result) override {
     StringPiece contents;
     if ((find_result.status == HTTPCache::kFound) &&
         http_value()->ExtractContents(&contents)) {
@@ -440,8 +440,8 @@ class TestRequestContext : public RequestContext {
         logging_info_copy_(logging_info) {
   }
 
-  virtual AbstractLogRecord* NewSubordinateLogRecord(
-      AbstractMutex* logging_mutex) {
+  AbstractLogRecord* NewSubordinateLogRecord(
+      AbstractMutex* logging_mutex) override {
     return new CopyOnWriteLogRecord(logging_mutex, logging_info_copy_);
   }
 
@@ -454,7 +454,7 @@ typedef RefCountedPtr<TestRequestContext> TestRequestContextPtr;
 
 class ImageRewriteTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     PropertyCache* pcache = page_property_cache();
     server_context_->set_enable_property_cache(true);
     const PropertyCache::Cohort* cohort =
@@ -676,7 +676,7 @@ class ImageRewriteTest : public RewriteTestBase {
         : img_srcs_(img_srcs) {
     }
 
-    virtual void StartElement(HtmlElement* element) {
+    void StartElement(HtmlElement* element) override {
       resource_tag_scanner::UrlCategoryVector attributes;
       NullThreadSystem thread_system;
       RewriteOptions options(&thread_system);
@@ -688,7 +688,7 @@ class ImageRewriteTest : public RewriteTestBase {
       }
     }
 
-    virtual const char* Name() const { return "ImageCollector"; }
+    const char* Name() const override { return "ImageCollector"; }
 
    private:
     StringVector* img_srcs_;
@@ -1159,7 +1159,7 @@ class ImageRewriteTest : public RewriteTestBase {
 
   // Override CreateRequestContext so that we are always pointing it at
   // LoggingInfo structure that we retain across request lifetime.
-  virtual RequestContextPtr CreateRequestContext() {
+  RequestContextPtr CreateRequestContext() override {
     return RequestContextPtr(new TestRequestContext(
         &logging_info_, factory()->thread_system()->NewMutex()));
   }

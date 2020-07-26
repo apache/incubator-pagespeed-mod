@@ -78,7 +78,7 @@ class HtmlParseTest : public HtmlParseTestBase {
                    StrCat(tag2, "></", tag1, ">"))));
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
   // Sends the input through the HtmlParse filter chain, flushing
   // at flush_index.  Leaves resulting output in output_buffer_.
@@ -94,7 +94,7 @@ class HtmlParseTest : public HtmlParseTestBase {
 };
 
 class HtmlParseTestNoBody : public HtmlParseTestBase {
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 };
 
 TEST_F(HtmlParseTest, AvoidFalseXmlComment) {
@@ -149,7 +149,7 @@ class AttrValuesSaverFilter : public EmptyHtmlFilter {
  public:
   AttrValuesSaverFilter() { }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     const HtmlElement::AttributeList& attrs = element->attributes();
     for (HtmlElement::AttributeConstIterator i(attrs.begin());
          i != attrs.end(); ++i) {
@@ -165,7 +165,7 @@ class AttrValuesSaverFilter : public EmptyHtmlFilter {
   }
 
   const GoogleString& value() { return value_; }
-  virtual const char* Name() const { return "attr_saver"; }
+  const char* Name() const override { return "attr_saver"; }
 
  private:
   GoogleString value_;
@@ -318,7 +318,7 @@ TEST_F(HtmlParseTest, OpenBracketAfterName) {
 
 class HtmlParseTestNoBodyNoHtml : public HtmlParseTestNoBody {
  protected:
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   void CheckOutput(int start_index, int end_index,
                    const GoogleString& input,
@@ -499,9 +499,9 @@ namespace {
 class AnnotatingHtmlFilter : public EmptyHtmlFilter {
  public:
   AnnotatingHtmlFilter() : annotate_flush_(false) {}
-  virtual ~AnnotatingHtmlFilter() {}
+  ~AnnotatingHtmlFilter() override {}
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     StrAppend(&buffer_, (buffer_.empty() ? "+" : " +"), element->name_str());
 
     bool first = true;
@@ -519,7 +519,7 @@ class AnnotatingHtmlFilter : public EmptyHtmlFilter {
       first = false;
     }
   }
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     StrAppend(&buffer_, " -", element->name_str());
     switch (element->style()) {
       case HtmlElement::AUTO_CLOSE:      buffer_ += "(a)"; break;
@@ -530,17 +530,17 @@ class AnnotatingHtmlFilter : public EmptyHtmlFilter {
       case HtmlElement::INVISIBLE:       buffer_ += "(I)"; break;
     }
   }
-  virtual void Characters(HtmlCharactersNode* characters) {
+  void Characters(HtmlCharactersNode* characters) override {
     StrAppend(&buffer_, (buffer_.empty() ? "'" : " '"), characters->contents(),
               "'");
   }
 
-  virtual const char* Name() const { return "AnnotatingHtmlFilter"; }
+  const char* Name() const override { return "AnnotatingHtmlFilter"; }
 
   const GoogleString& buffer() const { return buffer_; }
   void Clear() { buffer_.clear(); }
 
-  virtual void Flush() {
+  void Flush() override {
     if (annotate_flush_) {
       buffer_ += "[F]";
     }
@@ -557,14 +557,14 @@ class AnnotatingHtmlFilter : public EmptyHtmlFilter {
 
 class HtmlAnnotationTest : public HtmlParseTestNoBody {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     HtmlParseTestNoBody::SetUp();
     html_parse_.AddFilter(&annotation_);
   }
 
   const GoogleString& annotation() { return annotation_.buffer(); }
   void ResetAnnotation() { annotation_.Clear(); }
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 
  protected:
   AnnotatingHtmlFilter annotation_;
@@ -1223,38 +1223,38 @@ class HandlerCalledFilter : public HtmlFilter {
  public:
   HandlerCalledFilter() : enabled_value_(true) {}
 
-  virtual void StartDocument() { called_start_document_ = true; }
-  virtual void EndDocument() { called_end_document_ = true;}
-  virtual void StartElement(HtmlElement* element) {
+  void StartDocument() override { called_start_document_ = true; }
+  void EndDocument() override { called_end_document_ = true;}
+  void StartElement(HtmlElement* element) override {
     called_start_element_ = true;
   }
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     called_end_element_ = true;
   }
-  virtual void Cdata(HtmlCdataNode* cdata) { called_cdata_ = true; }
-  virtual void Comment(HtmlCommentNode* comment) { called_comment_ = true; }
-  virtual void IEDirective(HtmlIEDirectiveNode* directive) {
+  void Cdata(HtmlCdataNode* cdata) override { called_cdata_ = true; }
+  void Comment(HtmlCommentNode* comment) override { called_comment_ = true; }
+  void IEDirective(HtmlIEDirectiveNode* directive) override {
     called_ie_directive_ = true;
   }
-  virtual void Characters(HtmlCharactersNode* characters) {
+  void Characters(HtmlCharactersNode* characters) override {
     called_characters_ = true;
   }
-  virtual void Directive(HtmlDirectiveNode* directive) {
+  void Directive(HtmlDirectiveNode* directive) override {
     called_directive_ = true;
   }
-  virtual void Flush() { called_flush_ = true; }
+  void Flush() override { called_flush_ = true; }
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  void DetermineEnabled(GoogleString* disabled_reason) override {
     set_is_enabled(enabled_value_);
   }
 
-  virtual bool CanModifyUrls() { return false; }
+  bool CanModifyUrls() override { return false; }
   ScriptUsage GetScriptUsage() const override { return kNeverInjectsScripts; }
 
   void SetEnabled(bool enabled_value) {
     enabled_value_  = enabled_value;
   }
-  virtual const char* Name() const { return "HandlerCalled"; }
+  const char* Name() const override { return "HandlerCalled"; }
 
   Bool called_start_document_;
   Bool called_end_document_;
@@ -1416,7 +1416,7 @@ class EventListManipulationTest : public HtmlParseTest {
  protected:
   EventListManipulationTest() { }
 
-  virtual void SetUp() {
+  void SetUp() override {
     HtmlParseTest::SetUp();
     static const char kUrl[] = "http://html.parse.test/event_list_test.html";
     ASSERT_TRUE(html_parse_.StartParse(kUrl));
@@ -1428,7 +1428,7 @@ class EventListManipulationTest : public HtmlParseTest {
     // Note: the last 2 are not added in SetUp.
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     html_parse_.FinishParse();
     HtmlParseTest::TearDown();
   }
@@ -1779,10 +1779,10 @@ class InsertCommentOnFirstDivFilter : public EmptyHtmlFilter {
         first_(true) {
   }
 
-  virtual void StartDocument() { first_ = true; }
+  void StartDocument() override { first_ = true; }
   void StartElement(HtmlElement* element) override { Insert(true, element); }
   void EndElement(HtmlElement* element) override { Insert(false, element); }
-  virtual const char* Name() const { return "InsertCommentOnFirstDivFilter"; }
+  const char* Name() const override { return "InsertCommentOnFirstDivFilter"; }
 
  private:
   void Insert(bool at_start, HtmlElement* element) {
@@ -1873,7 +1873,7 @@ class AttributeManipulationTest : public HtmlParseTest {
  protected:
   AttributeManipulationTest() { }
 
-  virtual void SetUp() {
+  void SetUp() override {
     HtmlParseTest::SetUp();
     static const char kUrl[] =
         "http://html.parse.test/attribute_manipulation_test.html";
@@ -1891,7 +1891,7 @@ class AttributeManipulationTest : public HtmlParseTest {
     html_parse_.CloseElement(node_, HtmlElement::BRIEF_CLOSE, 0);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     html_parse_.FinishParse();
     HtmlParseTest::TearDown();
   }
@@ -2103,13 +2103,13 @@ class DisableFilterOnBody : public EmptyHtmlFilter {
         html_parse_(parse) {
   }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     if (element->keyword() == HtmlName::kBody) {
       filter_to_disable_->set_is_enabled(false);
       HtmlTestingPeer::set_buffer_events(html_parse_, false);
     }
   }
-  virtual const char* Name() const { return "DisableFilterOnBody"; }
+  const char* Name() const override { return "DisableFilterOnBody"; }
 
  private:
   HtmlFilter* filter_to_disable_;
@@ -2128,25 +2128,25 @@ class CountingCallbacksFilter : public EmptyHtmlFilter {
   int num_char_elements() const { return num_char_elements_; }
 
  protected:
-  virtual void StartDocument() {
+  void StartDocument() override {
     num_start_elements_ = 0;
     num_end_elements_ = 0;
     num_char_elements_ = 0;
   }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     ++num_start_elements_;
   }
 
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     ++num_end_elements_;
   }
 
-  virtual void Characters(HtmlCharactersNode* characters) {
+  void Characters(HtmlCharactersNode* characters) override {
     ++num_char_elements_;
   }
 
-  virtual const char* Name() const { return "CountingCallbacksFilter"; }
+  const char* Name() const override { return "CountingCallbacksFilter"; }
 
  private:
   int num_start_elements_;
@@ -2222,7 +2222,7 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
   int flushes_preventing_delete() const { return flushes_preventing_delete_; }
 
  protected:
-  virtual void StartDocument() {
+  void StartDocument() override {
     pending_deletes_.clear();
     num_deleted_elements_ = 0;
     flushes_preventing_delete_ = 0;
@@ -2231,7 +2231,7 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
     // windows.
   }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     CountingCallbacksFilter::StartElement(element);
     if (element->keyword() == delete_node_type_) {
       pending_deletes_.push_back(element);
@@ -2241,14 +2241,14 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
     }
   }
 
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     CountingCallbacksFilter::EndElement(element);
     if (!delete_on_open_tag_ && element->keyword() == delete_from_type_) {
       DeleteElements();
     }
   }
 
-  virtual void Flush() {
+  void Flush() override {
     // We can't delete an element that has been flushed.
     for (int i = 0, n = pending_deletes_.size(); i < n; ++i) {
       ++flushes_preventing_delete_;
@@ -2256,7 +2256,7 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
     pending_deletes_.clear();
   }
 
-  virtual const char* Name() const { return "DeleteNodesFilter"; }
+  const char* Name() const override { return "DeleteNodesFilter"; }
 
  private:
   void DeleteElements() {
@@ -2392,8 +2392,8 @@ class EventListOrderTest : public HtmlParseTest {
     html_parse_.AddFilter(&delete_nodes_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddBody() const override { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   DeleteNodesFilter delete_nodes_filter_;
 
@@ -2537,14 +2537,14 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
   int num_deletes() const { return num_deletes_; }
 
  protected:
-  virtual void StartDocument() {
+  void StartDocument() override {
     CountingCallbacksFilter::StartDocument();
     restore_map_.clear();
     outstanding_deferred_elements_ = 0;
     num_deletes_ = 0;
   }
 
-  virtual void Characters(HtmlCharactersNode* node) {
+  void Characters(HtmlCharactersNode* node) override {
     CountingCallbacksFilter::Characters(node);
     const GoogleString& text = node->contents();
     if (!MaybeRemoveNode(text, node) &&
@@ -2553,7 +2553,7 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
     }
   }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     CountingCallbacksFilter::StartElement(element);
     const char* id = FindId(element);
     if (id != NULL) {
@@ -2566,14 +2566,14 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
     }
   }
 
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     CountingCallbacksFilter::EndElement(element);
     const char* id = FindId(element);
     if (id != NULL && !restore_on_open_) {
       MaybeRestoreNode(id);
     }
   }
-  virtual const char* Name() const { return "RestoreNodesFilter"; }
+  const char* Name() const override { return "RestoreNodesFilter"; }
 
  private:
   typedef std::map<GoogleString, HtmlNode*> RestoreMap;
@@ -2655,8 +2655,8 @@ class HtmlRestoreTest : public HtmlParseTest {
     html_parse_.AddFilter(&post_counts_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddBody() const override { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   // Runs a test like ValidateExpected, but puts one or two Flush
   // calls at aribtrary points in the text, covering all n^2 places

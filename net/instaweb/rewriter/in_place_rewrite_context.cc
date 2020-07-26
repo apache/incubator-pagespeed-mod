@@ -604,7 +604,7 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
         message_handler_(handler) {
   }
 
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  void Done(bool lock_failure, bool resource_ok) override {
     if (!lock_failure && resource_ok) {
       async_fetch_->response_headers()->CopyFrom(
           *resource()->response_headers());

@@ -1235,11 +1235,11 @@ class MockRewriteContext : public SingleRewriteContext {
   explicit MockRewriteContext(RewriteDriver* driver) :
       SingleRewriteContext(driver, NULL, NULL) {}
 
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output) {}
+  void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output) override {}
   bool PolicyPermitsRendering() const override { return true; }
-  virtual const char* id() const { return "mock"; }
-  virtual OutputResourceKind kind() const { return kOnTheFlyResource; }
+  const char* id() const override { return "mock"; }
+  OutputResourceKind kind() const override { return kOnTheFlyResource; }
 };
 
 TEST_F(RewriteDriverTest, DISABLED_DiagnosticsWithPercent) {
@@ -1474,21 +1474,21 @@ class ResponseHeadersCheckingFilter : public EmptyHtmlFilter {
     }
   }
 
-  virtual void StartDocument() {
+  void StartDocument() override {
     flush_occurred_ = false;
     CheckAccess();
   }
 
-  virtual void Flush() {
+  void Flush() override {
     CheckAccess();  // We still can access the mutable headers during Flush.
     flush_occurred_ = true;
   }
 
-  virtual void StartElement(HtmlElement* element) { CheckAccess(); }
-  virtual void EndElement(HtmlElement* element) { CheckAccess(); }
-  virtual void EndDocument() { CheckAccess(); }
+  void StartElement(HtmlElement* element) override { CheckAccess(); }
+  void EndElement(HtmlElement* element) override { CheckAccess(); }
+  void EndDocument() override { CheckAccess(); }
 
-  virtual const char* Name() const { return "ResponseHeadersCheckingFilter"; }
+  const char* Name() const override { return "ResponseHeadersCheckingFilter"; }
 
  private:
   RewriteDriver* driver_;
@@ -1501,11 +1501,11 @@ class DetermineEnabledCheckingFilter : public EmptyHtmlFilter {
     start_document_called_(false),
     enabled_value_(false) {}
 
-  virtual void StartDocument() {
+  void StartDocument() override {
     start_document_called_ = true;
   }
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  void DetermineEnabled(GoogleString* disabled_reason) override {
     set_is_enabled(enabled_value_);
   }
 
@@ -1517,7 +1517,7 @@ class DetermineEnabledCheckingFilter : public EmptyHtmlFilter {
     return start_document_called_;
   }
 
-  virtual const char* Name() const { return "DetermineEnabledCheckingFilter"; }
+  const char* Name() const override { return "DetermineEnabledCheckingFilter"; }
 
  private:
   bool start_document_called_;
@@ -1621,9 +1621,9 @@ class WaitAsyncFetch : public StringAsyncFetch {
       : StringAsyncFetch(req, content),
         sync_(thread_system) {
   }
-  virtual ~WaitAsyncFetch() {}
+  ~WaitAsyncFetch() override {}
 
-  virtual void HandleDone(bool status) {
+  void HandleDone(bool status) override {
     StringAsyncFetch::HandleDone(status);
     sync_.Notify();
   }
@@ -1636,7 +1636,7 @@ class WaitAsyncFetch : public StringAsyncFetch {
 class InPlaceTest : public RewriteTestBase {
  protected:
   InPlaceTest() {}
-  virtual ~InPlaceTest() {}
+  ~InPlaceTest() override {}
 
   bool FetchInPlaceResource(const StringPiece& url,
                             bool proxy_mode,
@@ -1927,24 +1927,24 @@ TEST_F(RewriteDriverTest, DecodeMultiUrlsEncodesCorrectly) {
 class RenderDoneCheckingFilter : public EmptyHtmlFilter {
  public:
   RenderDoneCheckingFilter() : element_(NULL) {}
-  virtual ~RenderDoneCheckingFilter() {}
+  ~RenderDoneCheckingFilter() override {}
   const GoogleString& src() const { return src_; }
 
  protected:
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     if (element->keyword() == HtmlName::kImg) {
       element_ = element;
     }
   }
 
-  virtual void RenderDone() {
+  void RenderDone() override {
     if (element_ != NULL) {
       const char* val = element_->AttributeValue(HtmlName::kSrc);
       src_ = (val != NULL ? val : "");
     }
   }
 
-  virtual const char* Name() const { return "RenderDoneCheckingFilter"; }
+  const char* Name() const override { return "RenderDoneCheckingFilter"; }
 
  private:
   HtmlElement* element_;

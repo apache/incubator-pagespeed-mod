@@ -90,9 +90,9 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
     return (parser.errors_seen_mask() == Css::Parser::kNoError);
   }
 
-  virtual bool ResourceCombinable(Resource* resource,
+  bool ResourceCombinable(Resource* resource,
                                   GoogleString* failure_reason,
-                                  MessageHandler* handler) {
+                                  MessageHandler* handler) override {
     // If this CSS file is not parseable it may have errors that will break
     // the rest of the files combined with this one. So we should not include
     // it in the combination.
@@ -139,30 +139,30 @@ class CssCombineFilter::CssCombiner : public ResourceCombiner {
     }
   }
 
-  virtual bool ContentSizeTooBig() const {
+  bool ContentSizeTooBig() const override {
     int64 combined_css_max_size =
       rewrite_driver_->options()->max_combined_css_bytes();
     return (combined_css_max_size >= 0 &&
             combined_css_max_size < combined_css_size_);
   }
 
-  virtual void AccumulateCombinedSize(const ResourcePtr& resource) {
+  void AccumulateCombinedSize(const ResourcePtr& resource) override {
     combined_css_size_ += resource->UncompressedContentsSize();
   }
 
-  virtual void Clear() {
+  void Clear() override {
     ResourceCombiner::Clear();
     combined_css_size_ = 0;
   }
 
  private:
-  virtual const ContentType* CombinationContentType() {
+  const ContentType* CombinationContentType() override {
     return &kContentTypeCss;
   }
 
-  virtual bool WritePiece(int index, int num_pieces, const Resource* input,
+  bool WritePiece(int index, int num_pieces, const Resource* input,
                           OutputResource* combination, Writer* writer,
-                          MessageHandler* handler);
+                          MessageHandler* handler) override;
 
   GoogleString media_;
   Variable* css_file_count_reduction_;
@@ -207,8 +207,8 @@ class CssCombineFilter::Context : public RewriteContext {
   }
 
  protected:
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs) {
+  bool Partition(OutputPartitions* partitions,
+                         OutputResourceVector* outputs) override {
     MessageHandler* handler = Driver()->message_handler();
     CachedResult* partition = NULL;
     CHECK_EQ(static_cast<int>(elements_.size()), num_slots());
@@ -252,9 +252,9 @@ class CssCombineFilter::Context : public RewriteContext {
     return (partitions->partition_size() != 0);
   }
 
-  virtual void Rewrite(int partition_index,
+  void Rewrite(int partition_index,
                        CachedResult* partition,
-                       const OutputResourcePtr& output) {
+                       const OutputResourcePtr& output) override {
     // resource_combiner.cc calls WriteCombination as part
     // of Combine.  But if we are being called on behalf of a
     // fetch then the resource still needs to be written.
@@ -278,7 +278,7 @@ class CssCombineFilter::Context : public RewriteContext {
     return AreOutputsAllowedByCsp(CspDirective::kStyleSrc);
   }
 
-  virtual void Render() {
+  void Render() override {
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
       const CachedResult* partition = output_partition(p);
       if (partition->input_size() == 0) {
@@ -304,11 +304,11 @@ class CssCombineFilter::Context : public RewriteContext {
     }
   }
 
-  virtual const UrlSegmentEncoder* encoder() const {
+  const UrlSegmentEncoder* encoder() const override {
     return filter_->encoder();
   }
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
 
  private:
   void FinalizePartition(OutputPartitions* partitions,

@@ -85,25 +85,25 @@ class HTTPCacheTest : public testing::Test {
       http_value()->Clear();
       fallback_http_value()->Clear();
     }
-    virtual void Done(HTTPCache::FindResult result) {
+    void Done(HTTPCache::FindResult result) override {
       called_ = true;
       result_ = result;
     }
-    virtual bool IsCacheValid(const GoogleString& key,
-                              const ResponseHeaders& headers) {
+    bool IsCacheValid(const GoogleString& key,
+                              const ResponseHeaders& headers) override {
       // For unit testing, we are simply stubbing IsCacheValid.
       return cache_valid_;
     }
-    virtual bool IsFresh(const ResponseHeaders& headers) {
+    bool IsFresh(const ResponseHeaders& headers) override {
       // For unit testing, we are simply stubbing IsFresh.
       return fresh_;
     }
-    virtual int64 OverrideCacheTtlMs(const GoogleString& key) {
+    int64 OverrideCacheTtlMs(const GoogleString& key) override {
       return override_cache_ttl_ms_;
     }
 
     // Detailed Vary handling is tested in ResponseHeadersTest.
-    virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
+    ResponseHeaders::VaryOption RespectVaryOnResources() const override {
       return ResponseHeaders::kRespectVaryOnResources;
     }
 
@@ -1033,26 +1033,26 @@ class HTTPCacheWriteThroughTest : public HTTPCacheTest {
           first_cache_fresh_(true),
           second_cache_fresh_(true) {}
 
-    virtual void Done(HTTPCache::FindResult result) {
+    void Done(HTTPCache::FindResult result) override {
       called_ = true;
       result_ = result;
     }
-    virtual bool IsCacheValid(const GoogleString& key,
-                              const ResponseHeaders& headers) {
+    bool IsCacheValid(const GoogleString& key,
+                              const ResponseHeaders& headers) override {
       bool result = first_call_cache_valid_ ?
           first_cache_valid_ : second_cache_valid_;
       first_call_cache_valid_ = false;
       return result;
     }
 
-    virtual bool IsFresh(const ResponseHeaders& headers) {
+    bool IsFresh(const ResponseHeaders& headers) override {
       bool result = first_call_cache_fresh_ ?
           first_cache_fresh_ : second_cache_fresh_;
       first_call_cache_fresh_ = false;
       return result;
     }
 
-    virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
+    ResponseHeaders::VaryOption RespectVaryOnResources() const override {
       return ResponseHeaders::kRespectVaryOnResources;
     }
 

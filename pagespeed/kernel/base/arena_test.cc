@@ -66,11 +66,11 @@ class ArenaTest : public testing::Test {
    public:
     explicit KidA(ArenaTest* o) : Base(o) {}
 
-    ~KidA() {
+    ~KidA() override {
       ++owner_->destroyed_a_;
     }
 
-    virtual void Made() {
+    void Made() override {
       ++owner_->made_a_;
     }
   };
@@ -85,11 +85,11 @@ class ArenaTest : public testing::Test {
    public:
     explicit KidB(ArenaTest* o) : Base(o) {}
 
-    ~KidB() {
+    ~KidB() override {
       ++owner_->destroyed_b_;
     }
 
-    virtual void Made() {
+    void Made() override {
       ++owner_->made_b_;
     }
 

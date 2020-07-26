@@ -59,12 +59,12 @@ class TrapWriter : public Writer {
  public:
   TrapWriter() {}
 
-  virtual bool Write(const StringPiece& str, MessageHandler* message_handler) {
+  bool Write(const StringPiece& str, MessageHandler* message_handler) override {
     ADD_FAILURE() << "Should not do a Write";
     return false;
   }
 
-  virtual bool Flush(MessageHandler* message_handler) {
+  bool Flush(MessageHandler* message_handler) override {
     ADD_FAILURE() << "Should not do a Flush";
     return false;
   }
@@ -88,8 +88,8 @@ class DelayedFetcher : public UrlAsyncFetcher {
         sync_(NULL) {
   }
 
-  virtual void Fetch(const GoogleString& url, MessageHandler* handler,
-                     AsyncFetch* fetch) {
+  void Fetch(const GoogleString& url, MessageHandler* handler,
+                     AsyncFetch* fetch) override {
     CHECK(!fetch_pending_);
     fetch_ = fetch;
     fetch_pending_ = true;
@@ -106,7 +106,7 @@ class DelayedFetcher : public UrlAsyncFetcher {
   void set_sync(WorkerTestBase::SyncPoint* sync) { sync_ = sync; }
 
  private:
-  ~DelayedFetcher() {}
+  ~DelayedFetcher() override {}
 
   class InvokeCallbackThread : public ThreadSystem::Thread {
    public:
@@ -116,7 +116,7 @@ class DelayedFetcher : public UrlAsyncFetcher {
           parent_(parent) {
     }
 
-    virtual void Run() {
+    void Run() override {
       parent_->timer_->SleepMs(parent_->delay_ms_);
       parent_->ReportResult();
       delete this;

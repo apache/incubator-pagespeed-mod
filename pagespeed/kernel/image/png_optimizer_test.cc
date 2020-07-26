@@ -563,7 +563,7 @@ class PngOptimizerTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternAnimatedGif);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternBadGifDescriptor);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternBadGifLine);

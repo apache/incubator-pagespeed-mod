@@ -26,7 +26,7 @@ namespace net_instaweb {
 
 class WildcardGroupTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     group_.Allow("*.cc");
     group_.Allow("*.h");
     group_.Disallow("a*.h");

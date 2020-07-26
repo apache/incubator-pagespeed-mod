@@ -35,7 +35,7 @@ class TestCachingHeaders : public CachingHeaders {
         cacheable_resource_status_code_(true) {
   }
 
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
+  bool Lookup(const StringPiece& key, StringPieceVector* values) override {
     if (key == HttpAttributes::kCacheControl) {
       SplitStringPieceToVector(cache_control_, ",", values, true);
       for (int i = 0, n = values->size(); i < n; ++i) {
@@ -47,11 +47,11 @@ class TestCachingHeaders : public CachingHeaders {
     }
   }
 
-  virtual bool IsLikelyStaticResourceType() const {
+  bool IsLikelyStaticResourceType() const override {
     return likely_static_resource_type_;
   }
 
-  virtual bool IsCacheableResourceStatusCode() const {
+  bool IsCacheableResourceStatusCode() const override {
     return cacheable_resource_status_code_;
   }
 

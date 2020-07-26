@@ -84,11 +84,11 @@ const char kUnauthDomainUrl[] = "http://unauthorized.com/d.css";
 class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
  public:
   CriticalCssBeaconFilterTestBase() { }
-  virtual ~CriticalCssBeaconFilterTestBase() { }
+  ~CriticalCssBeaconFilterTestBase() override { }
 
  protected:
   // Set everything up except for filter configuration.
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetCurrentUserAgent(
         UserAgentMatcherTestBase::kChrome18UserAgent);
@@ -164,10 +164,10 @@ class CriticalCssBeaconFilterTestBase : public RewriteTestBase {
 class CriticalCssBeaconFilterTest : public CriticalCssBeaconFilterTestBase {
  public:
   CriticalCssBeaconFilterTest() { }
-  virtual ~CriticalCssBeaconFilterTest() { }
+  ~CriticalCssBeaconFilterTest() override { }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     CriticalCssBeaconFilterTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kPrioritizeCriticalCss);
     rewrite_driver()->AddFilters();
@@ -337,10 +337,10 @@ TEST_F(CriticalCssBeaconFilterTest, FalseBeaconResultsGivesEmptyBeaconUrl) {
 class CriticalCssBeaconOnlyTest : public CriticalCssBeaconFilterTestBase {
  public:
   CriticalCssBeaconOnlyTest() {}
-  virtual ~CriticalCssBeaconOnlyTest() {}
+  ~CriticalCssBeaconOnlyTest() override {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     CriticalCssBeaconFilterTestBase::SetUp();
     // Need to set up filters that are normally auto-enabled by
     // kPrioritizeCriticalCss: we're switching on CriticalCssBeaconFilter by
@@ -391,7 +391,7 @@ TEST_F(CriticalCssBeaconOnlyTest, ExtantPCache) {
 class CriticalCssBeaconWithCombinerFilterTest
     : public CriticalCssBeaconFilterTest {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kCombineCss);
     CriticalCssBeaconFilterTest::SetUp();
   }

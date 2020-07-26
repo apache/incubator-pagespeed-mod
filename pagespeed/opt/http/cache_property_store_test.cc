@@ -77,7 +77,7 @@ class CachePropertyStoreTest : public testing::Test {
     cohort_list_.push_back(cohort_);
   }
 
-  void SetUp() {
+  void SetUp() override {
     page_.reset(
         new MockPropertyPage(
             thread_system_.get(),

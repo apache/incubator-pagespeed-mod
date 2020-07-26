@@ -159,9 +159,9 @@ class BeaconPropertyCallback : public PropertyPage {
     return cohort_list;
   }
 
-  virtual ~BeaconPropertyCallback() {}
+  ~BeaconPropertyCallback() override {}
 
-  virtual void Done(bool success) {
+  void Done(bool success) override {
     // TODO(jud): Clean up the call to UpdateCriticalImagesCacheEntry with a
     // struct to nicely package up all of the pcache arguments.
     BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
@@ -231,7 +231,7 @@ class GlobalOptionsRewriteDriverPool : public RewriteDriverPool {
       : server_context_(context) {
   }
 
-  virtual const RewriteOptions* TargetOptions() const {
+  const RewriteOptions* TargetOptions() const override {
     return server_context_->global_options();
   }
 
@@ -1137,10 +1137,10 @@ class MetadataCacheResultCallback
         handler_(handler) {
   }
 
-  virtual ~MetadataCacheResultCallback() {}
+  ~MetadataCacheResultCallback() override {}
 
-  virtual void Done(const GoogleString& cache_key,
-                    RewriteContext::CacheLookupResult* in_result) {
+  void Done(const GoogleString& cache_key,
+                    RewriteContext::CacheLookupResult* in_result) override {
     std::unique_ptr<RewriteContext::CacheLookupResult> result(in_result);
     driver_->Cleanup();
 

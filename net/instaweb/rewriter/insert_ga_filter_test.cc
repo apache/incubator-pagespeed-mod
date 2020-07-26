@@ -257,7 +257,7 @@ constexpr char* const kGaNoCreates[] = {
 // Test fixture for InsertGAFilter unit tests.
 class InsertGAFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_ga_id(kGaId);
     options()->EnableFilter(RewriteOptions::kInsertGA);
     RewriteTestBase::SetUp();

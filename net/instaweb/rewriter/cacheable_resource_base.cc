@@ -90,7 +90,7 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
     }
   }
 
-  virtual ~FetchCallbackBase() {}
+  ~FetchCallbackBase() override {}
 
   // Set this to true if implementing a kLoadEvenIfNotCacheable policy.
   void set_no_cache_ok(bool x) { no_cache_ok_ = x; }
@@ -152,14 +152,14 @@ class CacheableResourceBase::FetchCallbackBase : public AsyncFetchWithLock {
   }
 
   // Overridden from AsyncFetch.
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     bool success = http_value_writer()->Write(content, handler);
     return success && AsyncFetchWithLock::HandleWrite(content, handler);
   }
 
   // Overridden from AsyncFetchWithLock.
-  virtual void StartFetch(UrlAsyncFetcher* fetcher, MessageHandler* handler) {
+  void StartFetch(UrlAsyncFetcher* fetcher, MessageHandler* handler) override {
     fetch_url_ = url();
     fetcher_ = fetcher;
     if (!request_headers()->Has(HttpAttributes::kReferer)) {
@@ -320,7 +320,7 @@ class CacheableResourceBase::FreshenFetchCallback : public FetchCallbackBase {
         rewrite_options->implicit_cache_ttl_ms());
   }
 
-  virtual void Finalize(bool lock_failure, bool resource_ok) {
+  void Finalize(bool lock_failure, bool resource_ok) override {
     if (callback_ != NULL) {
       if (!lock_failure) {
         resource_ok &= resource_->UpdateInputInfoForFreshen(
@@ -333,11 +333,11 @@ class CacheableResourceBase::FreshenFetchCallback : public FetchCallbackBase {
     // will take care of deleting 'this'.
   }
 
-  virtual HTTPValue* http_value() { return &http_value_; }
-  virtual HTTPCache* http_cache() { return http_cache_; }
-  virtual HTTPValueWriter* http_value_writer() { return &http_value_writer_; }
-  virtual bool ShouldYieldToRedundantFetchInProgress() { return true; }
-  virtual bool IsBackgroundFetch() const { return true; }
+  HTTPValue* http_value() override { return &http_value_; }
+  HTTPCache* http_cache() override { return http_cache_; }
+  HTTPValueWriter* http_value_writer() override { return &http_value_writer_; }
+  bool ShouldYieldToRedundantFetchInProgress() override { return true; }
+  bool IsBackgroundFetch() const override { return true; }
 
  private:
   GoogleString url_;
@@ -377,7 +377,7 @@ class CacheableResourceBase::LoadFetchCallback
         resource->rewrite_options()->implicit_cache_ttl_ms());
   }
 
-  virtual void Finalize(bool lock_failure, bool resource_ok) {
+  void Finalize(bool lock_failure, bool resource_ok) override {
     if (!lock_failure && resource_ok) {
       // Because we've authorized the Fetcher to directly populate the
       // ResponseHeaders in resource_->response_headers_, we must explicitly
@@ -404,16 +404,16 @@ class CacheableResourceBase::LoadFetchCallback
     // AsyncFetchWithLock will delete 'this' eventually.
   }
 
-  virtual bool IsBackgroundFetch() const {
+  bool IsBackgroundFetch() const override {
     return resource_->is_background_fetch();
   }
 
-  virtual HTTPValue* http_value() { return &resource_->value_; }
-  virtual HTTPCache* http_cache() {
+  HTTPValue* http_value() override { return &resource_->value_; }
+  HTTPCache* http_cache() override {
     return resource_->server_context()->http_cache();
   }
-  virtual HTTPValueWriter* http_value_writer() { return &http_value_writer_; }
-  virtual bool ShouldYieldToRedundantFetchInProgress() { return false; }
+  HTTPValueWriter* http_value_writer() override { return &http_value_writer_; }
+  bool ShouldYieldToRedundantFetchInProgress() override { return false; }
 
  private:
   CacheableResourceBase* resource_;
@@ -432,8 +432,8 @@ class CacheableResourceBase::LoadHttpCacheCallback
       NotCacheablePolicy not_cacheable_policy,
       AsyncCallback* resource_callback,
       CacheableResourceBase* resource);
-  virtual ~LoadHttpCacheCallback();
-  virtual void Done(HTTPCache::FindResult find_result);
+  ~LoadHttpCacheCallback() override;
+  void Done(HTTPCache::FindResult find_result) override;
 
  private:
   void LoadAndSaveToCache();
@@ -566,9 +566,9 @@ class CacheableResourceBase::FreshenHttpCacheCallback
         own_resource_(resource),
         callback_(callback) {}
 
-  virtual ~FreshenHttpCacheCallback() {}
+  ~FreshenHttpCacheCallback() override {}
 
-  virtual void Done(HTTPCache::FindResult find_result) {
+  void Done(HTTPCache::FindResult find_result) override {
     if (find_result.status == HTTPCache::kNotFound &&
         !resource_->ShouldSkipBackgroundFetch()) {
       // Not found in cache. Invoke the fetcher.
@@ -591,7 +591,7 @@ class CacheableResourceBase::FreshenHttpCacheCallback
   // Checks if the response is fresh enough. We may have an imminently
   // expiring resource in the L1 cache, but a fresh response in the L2 cache and
   // regular cache lookups will return the response in the L1.
-  virtual bool IsFresh(const ResponseHeaders& headers) {
+  bool IsFresh(const ResponseHeaders& headers) override {
     int64 date_ms = headers.date_ms();
     int64 expiry_ms = headers.CacheExpirationTimeMs();
     return !ResponseHeaders::IsImminentlyExpiring(

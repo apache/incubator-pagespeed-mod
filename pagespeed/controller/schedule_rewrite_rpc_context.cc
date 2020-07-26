@@ -55,7 +55,7 @@ class ScheduleRewriteRpcContext::ScheduleRewriteRequestResultRpcClient
     return stub->AsyncScheduleRewrite(context, queue, tag);
   }
 
-  ~ScheduleRewriteRequestResultRpcClient() {
+  ~ScheduleRewriteRequestResultRpcClient() override {
     MarkSucceeded();
   }
 

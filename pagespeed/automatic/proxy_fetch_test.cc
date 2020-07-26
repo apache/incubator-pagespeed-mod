@@ -67,7 +67,7 @@ class MockProxyFetch : public ProxyFetch {
     response_headers()->set_status_code(HttpStatus::kOK);
   }
 
-  ~MockProxyFetch() { }
+  ~MockProxyFetch() override { }
 
   static RewriteDriver* GetNewRewriteDriver(ServerContext* server_context,
                                      AsyncFetch* async_fetch) {
@@ -79,7 +79,7 @@ class MockProxyFetch : public ProxyFetch {
   }
 
   void PropertyCacheComplete(
-      ProxyFetchPropertyCallbackCollector* callback_collector) {
+      ProxyFetchPropertyCallbackCollector* callback_collector) override {
     complete_ = true;
   }
 
@@ -322,7 +322,7 @@ class FlushLoggingStringAsyncFetch : public StringAsyncFetch {
       const RequestContextPtr& request_context)
       : StringAsyncFetch(request_context) {}
 
-  virtual ~FlushLoggingStringAsyncFetch() {}
+  ~FlushLoggingStringAsyncFetch() override {}
 
   bool HandleFlush(MessageHandler* handler) override {
     HandleWrite("|Flush|", handler);

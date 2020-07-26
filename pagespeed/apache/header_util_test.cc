@@ -37,12 +37,12 @@ class HeaderUtilTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     MockApache::Initialize();
     MockApache::PrepareRequest(&request_);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     MockApache::CleanupRequest(&request_);
     MockApache::Terminate();
   }

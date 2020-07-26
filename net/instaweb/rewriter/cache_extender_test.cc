@@ -98,7 +98,7 @@ class CacheExtenderTest : public RewriteTestBase {
   }
 
   // TODO(matterbury): Delete this method as it should be redundant.
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
   }
 
@@ -321,7 +321,7 @@ TEST_F(CacheExtenderTest, ExtendUnhealthy) {
 
 class CacheExtenderTestPreserveURLs : public CacheExtenderTest {
  public:
-  virtual void SetUp() {}
+  void SetUp() override {}
 
   // This function should only be called once, as it sets the filters
   // and options.

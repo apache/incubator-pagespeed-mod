@@ -62,11 +62,11 @@ bool GenerateFilename(
 class Rewriter : public Writer {
  public:
   explicit Rewriter(HtmlParse* parser) : parser_(parser) {}
-  virtual bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     parser_->Flush();
     return true;
   }
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     parser_->ParseText(str);
     return true;
   }

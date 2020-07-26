@@ -122,7 +122,7 @@ class CheckDateHeaderFetch : public StringAsyncFetch {
   CheckDateHeaderFetch(const MockTimer* timer, ThreadSystem* threads)
       : StringAsyncFetch(RequestContext::NewTestRequestContext(threads)),
         headers_complete_called_(false), timer_(timer) {}
-  virtual ~CheckDateHeaderFetch() {}
+  ~CheckDateHeaderFetch() override {}
 
   void HandleHeadersComplete() override {
     headers_complete_called_ = true;

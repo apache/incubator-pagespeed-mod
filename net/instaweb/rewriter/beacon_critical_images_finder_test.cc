@@ -46,12 +46,12 @@ const char kRequestUrl[] = "http://www.example.com";
 
 class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
  public:
-  virtual CriticalImagesFinder* finder() { return finder_; }
+  CriticalImagesFinder* finder() override { return finder_; }
 
  protected:
   BeaconCriticalImagesFinderTest() { }
 
-  virtual void SetUp() {
+  void SetUp() override {
     CriticalImagesFinderTestBase::SetUp();
     const PropertyCache::Cohort* beacon_cohort =
         SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
@@ -172,7 +172,7 @@ class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
 
   bool UpdateCriticalImagesCacheEntry(
       const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set) {
+      const StringSet* css_critical_images_set) override {
     // If this fails, you should have called Beacon().
     CHECK_EQ(kBeaconWithNonce, last_beacon_metadata_.status);
     return UpdateCriticalImagesCacheEntry(

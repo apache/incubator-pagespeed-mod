@@ -53,7 +53,7 @@ class ChainedTask : public Function {
         sync_(sync) {
   }
 
-  virtual void Run() {
+  void Run() override {
     --*count_;
     if (*count_ > 0) {
       worker_->RunInWorkThread(new ChainedTask(count_, worker_, sync_));

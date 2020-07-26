@@ -78,7 +78,7 @@ class ScheduleRewriteRpcContextTest : public testing::Test {
         sequence_(worker_.NewSequence()),
         stub_(sequence_) {}
 
-  ~ScheduleRewriteRpcContextTest() {
+  ~ScheduleRewriteRpcContextTest() override {
     worker_.FreeSequence(sequence_);
   }
 

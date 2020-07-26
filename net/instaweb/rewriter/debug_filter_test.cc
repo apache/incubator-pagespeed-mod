@@ -47,7 +47,7 @@ const char kScript[] = "x.js";
 
 class DebugFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDebug);
     options()->EnableFilter(RewriteOptions::kExtendCacheScripts);
@@ -279,7 +279,7 @@ TEST_F(DebugFilterTest, FlushInStyleTag) {
 
 class DebugFilterWithCriticalImagesTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDebug);
     options()->EnableFilter(RewriteOptions::kExtendCacheScripts);
@@ -320,7 +320,7 @@ TEST_F(DebugFilterWithCriticalImagesTest, CriticalImageMessageBlankSrc) {
 
 class DebugFilterNoOtherFiltersTest : public DebugFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_support_noscript_enabled(false);
     options()->EnableFilter(RewriteOptions::kDebug);
@@ -336,11 +336,11 @@ class DisabledFilter : public EmptyHtmlFilter {
  public:
   explicit DisabledFilter(const GoogleString& name) : name_(name) {}
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  void DetermineEnabled(GoogleString* disabled_reason) override {
     set_is_enabled(false);
   }
 
-  virtual const char* Name() const { return name_.c_str(); }
+  const char* Name() const override { return name_.c_str(); }
 
  private:
   GoogleString name_;

@@ -49,7 +49,7 @@ class TrackCallsFunction : public Function {
   TrackCallsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  virtual ~TrackCallsFunction() { }
+  ~TrackCallsFunction() override { }
 
   void Run() override { run_called_ = true; }
   void Cancel() override { cancel_called_ = true; }

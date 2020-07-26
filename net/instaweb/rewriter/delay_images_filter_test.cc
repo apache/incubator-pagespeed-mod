@@ -74,12 +74,12 @@ class DelayImagesFilterTest : public RewriteTestBase {
 
  protected:
   // TODO(matterbury): Delete this method as it should be redundant.
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
   }
 
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
   // Match rewritten html content and return its byte count.
   int MatchOutputAndCountBytes(const GoogleString& html_input,
                                const GoogleString& expected) {

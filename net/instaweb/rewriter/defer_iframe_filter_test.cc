@@ -32,7 +32,7 @@ namespace net_instaweb {
 
 class DeferIframeFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
     rewrite_driver_->AddOwnedPostRenderFilter(

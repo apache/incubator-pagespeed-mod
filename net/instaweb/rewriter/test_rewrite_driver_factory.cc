@@ -81,10 +81,10 @@ class TestServerContext : public ServerContext {
       : ServerContext(factory) {
   }
 
-  virtual ~TestServerContext() {
+  ~TestServerContext() override {
   }
 
-  virtual bool ProxiesHtml() const { return true; }
+  bool ProxiesHtml() const override { return true; }
 };
 
 }  // namespace

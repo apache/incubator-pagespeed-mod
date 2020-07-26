@@ -32,13 +32,13 @@ class MessageHandler;
 
 class FileSystemLock : public SchedulerBasedAbstractLock {
  public:
-  virtual ~FileSystemLock() {
+  ~FileSystemLock() override {
     if (held_) {
       Unlock();
     }
   }
 
-  virtual bool TryLock() {
+  bool TryLock() override {
     bool result = false;
     if (manager_->file_system()->
         TryLock(name_, manager_->handler()).is_true()) {
@@ -47,7 +47,7 @@ class FileSystemLock : public SchedulerBasedAbstractLock {
     return result;
   }
 
-  virtual bool TryLockStealOld(int64 timeout_ms) {
+  bool TryLockStealOld(int64 timeout_ms) override {
     bool result = false;
     if (manager_->file_system()->
         TryLockWithTimeout(name_, timeout_ms, scheduler()->timer(),
@@ -57,20 +57,20 @@ class FileSystemLock : public SchedulerBasedAbstractLock {
     return result;
   }
 
-  virtual void Unlock() {
+  void Unlock() override {
     held_ = !manager_->file_system()->Unlock(name_, manager_->handler());
   }
 
-  virtual GoogleString name() const {
+  GoogleString name() const override {
     return name_;
   }
 
-  virtual bool Held() {
+  bool Held() override {
     return held_;
   }
 
  protected:
-  virtual Scheduler* scheduler() const {
+  Scheduler* scheduler() const override {
     return manager_->scheduler();
   }
 

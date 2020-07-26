@@ -44,7 +44,7 @@ class CriticalSelectorFinderTest : public RewriteTestBase {
  protected:
   CriticalSelectorFinderTest() { }
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     const PropertyCache::Cohort* beacon_cohort =
         SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
@@ -487,12 +487,12 @@ class UnverifiedCriticalSelectorFinder : public CriticalSelectorFinder {
   UnverifiedCriticalSelectorFinder(const PropertyCache::Cohort* cohort,
                                    Statistics* stats)
       : CriticalSelectorFinder(cohort, NULL, stats) {}
-  virtual ~UnverifiedCriticalSelectorFinder() {}
+  ~UnverifiedCriticalSelectorFinder() override {}
 
-  virtual int SupportInterval() const { return 10; }
+  int SupportInterval() const override { return 10; }
 
  protected:
-  virtual bool ShouldReplacePriorResult() const { return true; }
+  bool ShouldReplacePriorResult() const override { return true; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(UnverifiedCriticalSelectorFinder);
@@ -501,11 +501,11 @@ class UnverifiedCriticalSelectorFinder : public CriticalSelectorFinder {
 // Test that unverified results apply.
 class UnverifiedSelectorsTest : public CriticalSelectorFinderTest {
  protected:
-  virtual BeaconStatus ExpectedBeaconStatus() {
+  BeaconStatus ExpectedBeaconStatus() override {
     return kBeaconNoNonce;
   }
-  virtual CriticalSelectorFinder* CreateFinder(
-      const PropertyCache::Cohort* cohort) {
+  CriticalSelectorFinder* CreateFinder(
+      const PropertyCache::Cohort* cohort) override {
     return new UnverifiedCriticalSelectorFinder(cohort, statistics());
   }
 };

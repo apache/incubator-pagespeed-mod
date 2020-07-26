@@ -35,11 +35,11 @@ namespace {
 
 class CssSystemColorTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     color_.reset(new HtmlColor(0, 0, 0));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
   }
 
   void TestColor(const char* name, const char* mapped_to) {

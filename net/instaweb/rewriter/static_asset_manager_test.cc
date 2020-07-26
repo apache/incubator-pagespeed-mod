@@ -50,7 +50,7 @@ class StaticAssetManagerTest : public RewriteTestBase {
                                           server_context()->message_handler()));
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
   }
 
@@ -59,9 +59,9 @@ class StaticAssetManagerTest : public RewriteTestBase {
    public:
     explicit AddStaticJsBeforeBr(RewriteDriver* driver)
         : CommonFilter(driver) { }
-    virtual void StartDocumentImpl() { }
-    virtual void StartElementImpl(HtmlElement* element) { }
-    virtual void EndElementImpl(HtmlElement* element) {
+    void StartDocumentImpl() override { }
+    void StartElementImpl(HtmlElement* element) override { }
+    void EndElementImpl(HtmlElement* element) override {
       if (element->keyword() == HtmlName::kBr) {
         HtmlElement* script = driver()->NewElement(element->parent(),
                                                   HtmlName::kScript);
@@ -69,7 +69,7 @@ class StaticAssetManagerTest : public RewriteTestBase {
         AddJsToElement(kScript, script);
       }
     }
-    virtual const char* Name() const { return "AddStaticJsBeforeBr"; }
+    const char* Name() const override { return "AddStaticJsBeforeBr"; }
     ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
    private:

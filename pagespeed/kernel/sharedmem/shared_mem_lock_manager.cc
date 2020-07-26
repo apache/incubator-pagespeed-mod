@@ -109,19 +109,19 @@ namespace Data = SharedMemLockData;
 
 class SharedMemLock : public SchedulerBasedAbstractLock {
  public:
-  virtual ~SharedMemLock() {
+  ~SharedMemLock() override {
     Unlock();
   }
 
-  virtual bool TryLock() {
+  bool TryLock() override {
     return TryLockImpl(false, 0);
   }
 
-  virtual bool TryLockStealOld(int64 timeout_ms) {
+  bool TryLockStealOld(int64 timeout_ms) override {
     return TryLockImpl(true, timeout_ms);
   }
 
-  virtual void Unlock() {
+  void Unlock() override {
     if (acquisition_time_ == Data::kNotAcquired) {
       return;
     }
@@ -148,16 +148,16 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
     acquisition_time_ = Data::kNotAcquired;
   }
 
-  virtual GoogleString name() const {
+  GoogleString name() const override {
     return name_;
   }
 
-  virtual bool Held() {
+  bool Held() override {
     return (acquisition_time_ != Data::kNotAcquired);
   }
 
  protected:
-  virtual Scheduler* scheduler() const {
+  Scheduler* scheduler() const override {
     return manager_->scheduler_;
   }
 

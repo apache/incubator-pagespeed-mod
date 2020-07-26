@@ -59,7 +59,7 @@ class MockExpensiveOperationController : public ExpensiveOperationController {
     EXPECT_CALL(*this, ScheduleExpensiveOperation(_)).Times(0);
     EXPECT_CALL(*this, NotifyExpensiveOperationComplete()).Times(0);
   }
-  virtual ~MockExpensiveOperationController() { }
+  ~MockExpensiveOperationController() override { }
 
   MOCK_METHOD1(ScheduleExpensiveOperation, void(Function* cb));
   MOCK_METHOD0(NotifyExpensiveOperationComplete, void());

@@ -139,7 +139,7 @@ class WebpScanlineOptimizerTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternInvalidWebPData);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternPixelFormat);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternStats);

@@ -62,7 +62,7 @@ class SharedMemCacheSpammerTest : public testing::Test {
     CHECK(cache_->Attach());
   }
 
-  ~SharedMemCacheSpammerTest() {
+  ~SharedMemCacheSpammerTest() override {
     ShmCache::GlobalCleanup(&in_process_shared_mem_,
                             kSegmentName,
                             &message_handler_);

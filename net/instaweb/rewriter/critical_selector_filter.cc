@@ -107,7 +107,7 @@ class CriticalSelectorFilter::CssStyleElement
  public:
   CssStyleElement(HtmlParse* p, HtmlElement* e, bool inside_noscript)
       : CssElement(p, e, inside_noscript) {}
-  virtual ~CssStyleElement() {}
+  ~CssStyleElement() override {}
 
   // Call before InsertBeforeCurrent.
   void AppendCharactersNode(HtmlCharactersNode* characters_node) {
@@ -115,7 +115,7 @@ class CriticalSelectorFilter::CssStyleElement
         html_parse_->NewCharactersNode(NULL, characters_node->contents()));
   }
 
-  virtual void AppendTo(HtmlElement* parent) const {
+  void AppendTo(HtmlElement* parent) const override {
     HtmlElement* element = element_;
     CssElement::AppendTo(parent);
     for (CharactersNodeVector::const_iterator it = characters_nodes_.begin(),

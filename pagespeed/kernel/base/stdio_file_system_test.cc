@@ -53,9 +53,9 @@ class StdioFileSystemTest : public FileSystemTest {
     EXPECT_TRUE(file_system()->WriteFile(tmpfile.c_str(), "", &handler_));
     EXPECT_TRUE(file_system()->Size(tmpfile, &default_file_size_, &handler_));
   }
-  virtual ~StdioFileSystemTest() {}
+  ~StdioFileSystemTest() override {}
 
-  virtual void DeleteRecursively(const StringPiece& filename) {
+  void DeleteRecursively(const StringPiece& filename) override {
     GoogleString filename_string;
     filename.CopyToString(&filename_string);
     if (stdio_file_system_.Exists(
@@ -65,18 +65,18 @@ class StdioFileSystemTest : public FileSystemTest {
     }
     DeleteRecursivelyImpl(filename.as_string());
   }
-  virtual FileSystem* file_system() {
+  FileSystem* file_system() override {
     return &stdio_file_system_;
   }
-  virtual Timer* timer()  { return &timer_; }
+  Timer* timer() override  { return &timer_; }
 
   // Disk based file systems should return the number of disk blocks allocated
   // for a file, not the size of the contents.
-  virtual int FileSize(StringPiece contents) const {
+  int FileSize(StringPiece contents) const override {
     return FileBlockSize(contents, default_file_size_);
   }
 
-  virtual int DefaultDirSize() const {
+  int DefaultDirSize() const override {
     return default_dir_size_;
   }
 

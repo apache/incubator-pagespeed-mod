@@ -55,7 +55,7 @@ class CacheInterface;
 // filesystem and with a shared http/metadata cache.
 class SharedCacheTest : public RewriteContextTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteContextTestBase::SetUp();
 
     options()->file_load_policy()->Associate(kTestDomain, "/test/");

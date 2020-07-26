@@ -44,13 +44,13 @@ class CountingFilter : public CommonFilter {
                                                    start_element_calls_(0),
                                                    end_element_calls_(0) {}
 
-  virtual void StartDocumentImpl() { ++start_doc_calls_; }
-  virtual void StartElementImpl(HtmlElement* element) {
+  void StartDocumentImpl() override { ++start_doc_calls_; }
+  void StartElementImpl(HtmlElement* element) override {
     ++start_element_calls_;
   }
-  virtual void EndElementImpl(HtmlElement* element) { ++end_element_calls_; }
+  void EndElementImpl(HtmlElement* element) override { ++end_element_calls_; }
 
-  virtual const char* Name() const { return "CommonFilterTest.CountingFilter"; }
+  const char* Name() const override { return "CommonFilterTest.CountingFilter"; }
 
   int start_doc_calls_;
   int start_element_calls_;
@@ -59,7 +59,7 @@ class CountingFilter : public CommonFilter {
 
 class CommonFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     filter_.reset(new CountingFilter(rewrite_driver()));
     rewrite_driver()->AddFilter(filter_.get());
@@ -254,22 +254,22 @@ class EndDocumentInserterFilter : public CommonFilter {
       : CommonFilter(driver)
   {}
 
-  virtual void EndDocument() {
+  void EndDocument() override {
     InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, "test comment"));
   }
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const {
+  const char* Name() const override {
     return "CommonFilterTest.EndDocumentInserterFilter";
   }
 };
 
 class CommonFilterInsertNodeAtBodyEndTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     filter_.reset(new EndDocumentInserterFilter(rewrite_driver()));
     rewrite_driver()->AddFilter(filter_.get());

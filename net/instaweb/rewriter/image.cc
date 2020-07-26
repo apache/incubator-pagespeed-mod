@@ -220,16 +220,16 @@ class ImageImpl : public Image {
             Timer* timer, MessageHandler* handler,
             CompressionOptions* options);
 
-  virtual void Dimensions(ImageDim* natural_dim);
-  virtual bool ResizeTo(const ImageDim& new_dim);
-  virtual bool DrawImage(Image* image, int x, int y);
-  virtual bool EnsureLoaded(bool output_useful);
-  virtual bool ShouldConvertToProgressive(int64 quality) const;
-  virtual void SetResizedDimensions(const ImageDim& dims) { dims_ = dims; }
-  virtual void SetTransformToLowRes();
-  virtual const GoogleString& url() { return url_; }
-  virtual const GoogleString& debug_message() { return debug_message_; }
-  virtual const GoogleString& resize_debug_message() {
+  void Dimensions(ImageDim* natural_dim) override;
+  bool ResizeTo(const ImageDim& new_dim) override;
+  bool DrawImage(Image* image, int x, int y) override;
+  bool EnsureLoaded(bool output_useful) override;
+  bool ShouldConvertToProgressive(int64 quality) const override;
+  void SetResizedDimensions(const ImageDim& dims) override { dims_ = dims; }
+  void SetTransformToLowRes() override;
+  const GoogleString& url() override { return url_; }
+  const GoogleString& debug_message() override { return debug_message_; }
+  const GoogleString& resize_debug_message() override {
     return resize_debug_message_;
   }
 

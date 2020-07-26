@@ -61,10 +61,10 @@ class CompressedCallback : public CacheInterface::Callback {
         validate_candidate_called_(false) {
   }
 
-  virtual ~CompressedCallback() {}
+  ~CompressedCallback() override {}
 
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) {
+  bool ValidateCandidate(const GoogleString& key,
+                                 CacheInterface::KeyState state) override {
     validate_candidate_called_ = true;
     bool ret = false;
     if (state == CacheInterface::kAvailable) {
@@ -89,7 +89,7 @@ class CompressedCallback : public CacheInterface::Callback {
     return ret;
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     DCHECK(validate_candidate_called_);
     callback_->DelegatedDone(state);
     delete this;

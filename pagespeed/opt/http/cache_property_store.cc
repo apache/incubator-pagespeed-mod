@@ -69,7 +69,7 @@ class CachePropertyStoreGetCallback : public PropertyStoreGetCallback {
       : PropertyStoreGetCallback(
           mutex, page, is_cancellable, done, timer) {
   }
-  virtual ~CachePropertyStoreGetCallback() {
+  ~CachePropertyStoreGetCallback() override {
   }
 
   void SetStateInPropertyPage(
@@ -143,9 +143,9 @@ class CachePropertyStoreCacheCallback : public CacheInterface::Callback {
         property_store_callback_(property_store_callback),
         callback_collector_(callback_collector) {
   }
-  virtual ~CachePropertyStoreCacheCallback() {}
+  ~CachePropertyStoreCacheCallback() override {}
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     bool valid = false;
     if (state == CacheInterface::kAvailable) {
       StringPiece value_string = value().Value();

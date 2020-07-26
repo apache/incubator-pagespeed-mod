@@ -69,7 +69,7 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
     return std::make_pair(factory1, factory2);
   }
 
-  virtual void SetupCaches(ServerContext* server_context) {
+  void SetupCaches(ServerContext* server_context) override {
     server_context->set_http_cache(
         new HTTPCache(cache1_, timer(), hasher(), statistics()));
     if (use_write_through_cache_) {
@@ -146,7 +146,7 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
     RewriteOptions::Terminate();
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Keeping local pointers to cache backends for convenience.  Note that both
     // factory and other_factory use the same cache backends.
     CustomRewriteDriverFactory* custom_factory =
@@ -156,11 +156,11 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
     RewriteContextTestBase::SetUp();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     RewriteContextTestBase::TearDown();
   }
 
-  virtual void ClearStats() {
+  void ClearStats() override {
     RewriteContextTestBase::ClearStats();
     cache1_->ClearStats();
     cache2_->ClearStats();

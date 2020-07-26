@@ -119,7 +119,7 @@ class CssFlattenImportsTest : public CssRewriteTestBase {
     SetFetchResponse404(k404CssFile);
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     // We don't use the parent class setup, because we want to make sure that
     // RewriteCss is enabled implicitly by enabling FlattenCssImports.  We
     // skip to the setup for the parent of our parent class.
@@ -1276,7 +1276,7 @@ TEST_F(CssFlattenImportsTest, FlattenInlineCssWithRelativeImage) {
 
 class CssFlattenImportsOnlyTest : public CssFlattenImportsTest {
  protected:
-  virtual void SetUpFilters() {
+  void SetUpFilters() override {
     options()->SetRewriteLevel(RewriteOptions::kPassThrough);
     options()->EnableFilter(RewriteOptions::kFlattenCssImports);
     options()->set_always_rewrite_css(true);
@@ -1302,7 +1302,7 @@ TEST_F(CssFlattenImportsOnlyTest, FlattenAndTrimInlineCssWithRelativeImage) {
 
 class CssFlattenImportsAndRewriteImagesTest : public CssFlattenImportsTest {
  protected:
-  virtual void SetUpFilters() {
+  void SetUpFilters() override {
     options()->SetRewriteLevel(RewriteOptions::kPassThrough);
     options()->EnableFilter(RewriteOptions::kFlattenCssImports);
     options()->EnableFilter(RewriteOptions::kRecompressPng);

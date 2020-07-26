@@ -33,7 +33,7 @@ class CollapseWhitespaceFilterTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&filter_);
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
  private:
   CollapseWhitespaceFilter filter_;

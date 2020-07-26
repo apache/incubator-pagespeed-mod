@@ -34,7 +34,7 @@ namespace net_instaweb {
 
 class DomStatsFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kComputeStatistics);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();

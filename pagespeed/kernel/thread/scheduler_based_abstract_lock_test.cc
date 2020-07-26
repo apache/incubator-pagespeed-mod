@@ -64,12 +64,12 @@ class SchedulerBasedAbstractLockTest : public testing::Test {
 class MockLockBase : public SchedulerBasedAbstractLock {
  public:
   explicit MockLockBase(Scheduler* scheduler) : scheduler_(scheduler) { }
-  virtual ~MockLockBase() { }
-  virtual Scheduler* scheduler() const { return scheduler_; }
+  ~MockLockBase() override { }
+  Scheduler* scheduler() const override { return scheduler_; }
   // None of the mock locks actually implement locking, so
   // unlocking is a no-op.
-  virtual void Unlock() { held_ = false; }
-  virtual bool Held() { return held_; }
+  void Unlock() override { held_ = false; }
+  bool Held() override { return held_; }
 
  protected:
   Scheduler* scheduler_;
@@ -83,12 +83,12 @@ class MockLockBase : public SchedulerBasedAbstractLock {
 class AlwaysLock : public MockLockBase {
  public:
   explicit AlwaysLock(Scheduler* scheduler) : MockLockBase(scheduler) { }
-  virtual ~AlwaysLock() { }
-  virtual bool TryLock() {
+  ~AlwaysLock() override { }
+  bool TryLock() override {
     held_ = true;
     return true;
   }
-  virtual bool TryLockStealOld(int64 timeout_ms) {
+  bool TryLockStealOld(int64 timeout_ms) override {
     held_ = true;
     return true;
   }
@@ -101,11 +101,11 @@ class AlwaysLock : public MockLockBase {
 class NeverLock : public MockLockBase {
  public:
   explicit NeverLock(Scheduler* scheduler) : MockLockBase(scheduler) { }
-  virtual ~NeverLock() { }
-  virtual bool TryLock() {
+  ~NeverLock() override { }
+  bool TryLock() override {
     return false;
   }
-  virtual bool TryLockStealOld(int64 timeout_ms) {
+  bool TryLockStealOld(int64 timeout_ms) override {
     return false;
   }
   GoogleString name() const override { return GoogleString("NeverLock"); }
@@ -120,7 +120,7 @@ class StealOnlyLock : public NeverLock {
       : NeverLock(scheduler),
         last_hold_time_ms_(scheduler_->timer()->NowMs()) {
   }
-  virtual bool TryLockStealOld(int64 timeout_ms) {
+  bool TryLockStealOld(int64 timeout_ms) override {
     int64 timeout_time_ms = last_hold_time_ms_ + timeout_ms;
     int64 now_ms = scheduler()->timer()->NowMs();
     if (timeout_time_ms <= now_ms) {
@@ -270,15 +270,15 @@ class LockedTimer : public Timer {
       : timer_(timer),
         mutex_(mutex),
         sleep_wakeup_condvar_(mutex->NewCondvar()) { }
-  virtual ~LockedTimer() { }
-  virtual void SleepUs(int64 us) {
+  ~LockedTimer() override { }
+  void SleepUs(int64 us) override {
     {
       ScopedMutex lock(mutex_);
       timer_->SleepUs(us);
       sleep_wakeup_condvar_->Signal();
     }
   }
-  virtual int64 NowUs() const {
+  int64 NowUs() const override {
     ScopedMutex lock(mutex_);
     return timer_->NowUs();
   }
@@ -391,7 +391,7 @@ class ThreadedSchedulerBasedLockTest : public SchedulerBasedAbstractLockTest {
                                "threaded_scheduler_based_lock_test_helper",
                                ThreadSystem::kJoinable),
           test_(test) { }
-    virtual void Run() LOCKS_EXCLUDED(test_->scheduler_.mutex()) {
+    void Run() override LOCKS_EXCLUDED(test_->scheduler_.mutex()) {
       {
         ScopedMutex lock(test_->scheduler_.mutex());
         test_->ready_to_start_.set_value(true);

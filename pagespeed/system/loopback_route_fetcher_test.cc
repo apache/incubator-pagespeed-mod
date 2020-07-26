@@ -66,11 +66,11 @@ class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
     atexit(apr_terminate);
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     apr_pool_create(&pool_, NULL);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     apr_pool_destroy(pool_);
   }
 

@@ -69,7 +69,7 @@ class CacheBatcherTest : public CacheTestBase {
   }
 
   // Make sure we shut down the worker pool prior to destructing AsyncCache.
-  virtual void TearDown() {
+  void TearDown() override {
     pool_->ShutDown();
   }
 
@@ -80,7 +80,7 @@ class CacheBatcherTest : public CacheTestBase {
           sync_point_(test->thread_system_.get()) {
     }
 
-    virtual void Done(CacheInterface::KeyState state) {
+    void Done(CacheInterface::KeyState state) override {
       Callback::Done(state);
       sync_point_.Notify();
     }
@@ -106,7 +106,7 @@ class CacheBatcherTest : public CacheTestBase {
   // in the worker thread before the CacheBatcher knows it can
   // schedule another lookup.  To test the sequences we want, wait
   // till the batcher catches up with our expectations.
-  virtual void PostOpCleanup() {
+  void PostOpCleanup() override {
     while ((num_in_flight_keys() != expected_pending_) ||
            (async_cache_->outstanding_operations() != 0)) {
       timer_->SleepMs(1);

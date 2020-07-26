@@ -49,18 +49,18 @@ class JsInlineFilter::Context : public InlineRewriteContext {
           HtmlElement::Attribute* src)
       : InlineRewriteContext(filter, element, src), filter_(filter) {}
 
-  virtual bool ShouldInline(const ResourcePtr& resource,
-                            GoogleString* reason) const {
+  bool ShouldInline(const ResourcePtr& resource,
+                            GoogleString* reason) const override {
     return filter_->ShouldInline(resource, reason);
   }
 
-  virtual void RenderInline(
+  void RenderInline(
       const ResourcePtr& resource, const StringPiece& text,
-      HtmlElement* element) {
+      HtmlElement* element) override {
     filter_->RenderInline(resource, text, element);
   }
 
-  virtual const char* id() const { return RewriteOptions::kJavascriptInlineId; }
+  const char* id() const override { return RewriteOptions::kJavascriptInlineId; }
 
   bool PolicyPermitsRendering() const override {
     return Driver()->content_security_policy().PermitsInlineScript();

@@ -32,7 +32,7 @@ namespace net_instaweb {
 
 class DecodeRewrittenUrlsFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kDecodeRewrittenUrls);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();

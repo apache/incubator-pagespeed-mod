@@ -53,9 +53,9 @@ class MockCentralControllerCallback
         counts_(counts), steal_pointer_(false) {
   }
 
-  virtual ~MockCentralControllerCallback() {}
+  ~MockCentralControllerCallback() override {}
 
-  virtual void RunImpl(std::unique_ptr<MockCallbackHandle>* handle) {
+  void RunImpl(std::unique_ptr<MockCallbackHandle>* handle) override {
     ++counts_->run_called;
     if (steal_pointer_) {
       counts_->handle.reset(handle->release());
@@ -63,7 +63,7 @@ class MockCentralControllerCallback
     counts_->sync.Notify();
   }
 
-  virtual void CancelImpl() {
+  void CancelImpl() override {
     ++counts_->cancel_called;
     counts_->sync.Notify();
   }

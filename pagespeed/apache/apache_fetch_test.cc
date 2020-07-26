@@ -67,14 +67,14 @@ class ApacheFetchTest : public RewriteTestBase {
             server_context_->thread_system(), timer())) {
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     MockApache::Initialize();
     MockApache::PrepareRequest(&request_);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     apache_fetch_.reset(NULL);
     RewriteTestBase::TearDown();
   }
@@ -113,7 +113,7 @@ class ApacheFetchTest : public RewriteTestBase {
     EXPECT_STREQ("", MockApache::ActionsSinceLastCall());
   }
 
-  virtual ~ApacheFetchTest() {
+  ~ApacheFetchTest() override {
     MockApache::CleanupRequest(&request_);
     MockApache::Terminate();
   }

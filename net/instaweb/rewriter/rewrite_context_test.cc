@@ -2943,14 +2943,14 @@ class TestWaitFilter : public CommonFilter {
   TestWaitFilter(RewriteDriver* driver,
                  WorkerTestBase::SyncPoint* sync)
       : CommonFilter(driver), sync_(sync) {}
-  virtual ~TestWaitFilter() {}
+  ~TestWaitFilter() override {}
 
-  virtual const char* Name() const { return "TestWait"; }
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(net_instaweb::HtmlElement*) {}
-  virtual void EndElementImpl(net_instaweb::HtmlElement*) {}
+  const char* Name() const override { return "TestWait"; }
+  void StartDocumentImpl() override {}
+  void StartElementImpl(net_instaweb::HtmlElement*) override {}
+  void EndElementImpl(net_instaweb::HtmlElement*) override {}
 
-  virtual void Flush() {
+  void Flush() override {
     sync_->Wait();
     driver()->set_externally_managed(true);
     CommonFilter::Flush();
@@ -2972,19 +2972,19 @@ class TestNotifyFilter : public CommonFilter {
                                NULL /* resource context*/),
           sync_(sync) {}
 
-    virtual ~Context() {
+    ~Context() override {
       sync_->Notify();
     }
 
    protected:
-    virtual void RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output) {
+    void RewriteSingle(
+        const ResourcePtr& input, const OutputResourcePtr& output) override {
       RewriteDone(kRewriteFailed, 0);
     }
 
     bool PolicyPermitsRendering() const override { return true; }
-    virtual const char* id() const { return "testnotify"; }
-    virtual OutputResourceKind kind() const { return kRewrittenResource; }
+    const char* id() const override { return "testnotify"; }
+    OutputResourceKind kind() const override { return kRewrittenResource; }
 
    private:
     WorkerTestBase::SyncPoint* sync_;
@@ -2993,14 +2993,14 @@ class TestNotifyFilter : public CommonFilter {
 
   TestNotifyFilter(RewriteDriver* driver, WorkerTestBase::SyncPoint* sync)
       : CommonFilter(driver), sync_(sync)  {}
-  virtual ~TestNotifyFilter() {}
+  ~TestNotifyFilter() override {}
 
-  virtual const char* Name() const {
+  const char* Name() const override {
     return "Notify";
   }
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(net_instaweb::HtmlElement* element) {
+  void StartDocumentImpl() override {}
+  void StartElementImpl(net_instaweb::HtmlElement* element) override {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
     if (href != NULL) {
       bool unused;
@@ -3014,7 +3014,7 @@ class TestNotifyFilter : public CommonFilter {
     }
   }
 
-  virtual void EndElementImpl(net_instaweb::HtmlElement*) {}
+  void EndElementImpl(net_instaweb::HtmlElement*) override {}
 
  private:
   WorkerTestBase::SyncPoint* sync_;
@@ -5103,13 +5103,13 @@ class FailOnHashMismatchFilter : public RewriteFilter {
     explicit Context(RewriteDriver* driver)
         : SingleRewriteContext(driver, NULL, NULL) {}
 
-    virtual bool FailOnHashMismatch() const { return true; }
+    bool FailOnHashMismatch() const override { return true; }
 
     bool PolicyPermitsRendering() const override { return true; }
-    virtual const char* id() const { return kFilterId; }
-    virtual OutputResourceKind kind() const { return kRewrittenResource; }
-    virtual void RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output) {
+    const char* id() const override { return kFilterId; }
+    OutputResourceKind kind() const override { return kRewrittenResource; }
+    void RewriteSingle(
+        const ResourcePtr& input, const OutputResourcePtr& output) override {
       // Do nothing.
       Driver()->Write(ResourceVector(1, input), "output", &kContentTypeCss,
                       kUtf8Charset, output.get());
@@ -5117,15 +5117,15 @@ class FailOnHashMismatchFilter : public RewriteFilter {
     }
   };
 
-  virtual RewriteContext* MakeRewriteContext() {
+  RewriteContext* MakeRewriteContext() override {
     return new Context(driver());
   }
 
-  virtual const char* id() const { return kFilterId; }
-  virtual const char* Name() const { return "FailOnHashMismatchFilter"; }
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  const char* id() const override { return kFilterId; }
+  const char* Name() const override { return "FailOnHashMismatchFilter"; }
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
 };
 
 const char FailOnHashMismatchFilter::kFilterId[] =

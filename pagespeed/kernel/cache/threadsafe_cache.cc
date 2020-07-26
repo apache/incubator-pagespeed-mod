@@ -46,10 +46,10 @@ class ThreadsafeCallback : public DelegatingCacheCallback {
     mutex_->Lock();
   }
 
-  virtual ~ThreadsafeCallback() {
+  ~ThreadsafeCallback() override {
   }
 
-  virtual void Done(CacheInterface::KeyState state) UNLOCK_FUNCTION(mutex_) {
+  void Done(CacheInterface::KeyState state) override UNLOCK_FUNCTION(mutex_) {
     mutex_->Unlock();
     DelegatingCacheCallback::Done(state);
   }

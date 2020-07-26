@@ -38,7 +38,7 @@ namespace {
 // Test fixture for MetaTagFilter unit tests.
 class MetaTagFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kConvertMetaTags);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();

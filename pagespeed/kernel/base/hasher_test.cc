@@ -31,14 +31,14 @@ namespace {
 class DummyHasher : public Hasher {
  public:
   DummyHasher() : Hasher(10) {}
-  virtual ~DummyHasher() {}
+  ~DummyHasher() override {}
 
   // Arbitrary number of bytes to return (> 8).
-  virtual int RawHashSizeInBytes() const {
+  int RawHashSizeInBytes() const override {
     return 16;
   }
 
-  virtual GoogleString RawHash(const StringPiece& content) const {
+  GoogleString RawHash(const StringPiece& content) const override {
     GoogleString result = content.as_string();
     result.resize(RawHashSizeInBytes());
     CHECK_EQ(RawHashSizeInBytes(), result.size());

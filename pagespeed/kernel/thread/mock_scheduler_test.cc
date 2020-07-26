@@ -44,7 +44,7 @@ const int64 kWaitMs = 100 * Timer::kYearMs;
 class TestAlarm : public Function {
  public:
   TestAlarm() {}
-  virtual void Run() { }
+  void Run() override { }
 };
 
 // This is an alarm implementation which adds new alarms and optionally advances
@@ -59,7 +59,7 @@ class ChainedAlarm : public Function {
         count_(count),
         advance_(advance) {}
 
-  virtual void Run() {
+  void Run() override {
     if (--*count_ > 0) {
       int64 next_time_us = scheduler_->timer()->NowUs();
       scheduler_->AddAlarmAtUs(next_time_us,

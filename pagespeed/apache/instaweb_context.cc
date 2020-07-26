@@ -77,7 +77,7 @@ class PropertyCallback : public PropertyPage {
   bool done() const { return done_.value(); }
 
  protected:
-  virtual void Done(bool success) {
+  void Done(bool success) override {
     driver_->set_property_page(this);
     done_.set_value(true);
   }

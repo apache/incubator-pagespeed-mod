@@ -52,13 +52,13 @@ class WriteThroughCallback : public CacheInterface::Callback {
         trying_cache2_(false) {
   }
 
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) {
+  bool ValidateCandidate(const GoogleString& key,
+                                 CacheInterface::KeyState state) override {
     callback_->set_value(value());
     return callback_->DelegatedValidateCandidate(key, state);
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     if (state == CacheInterface::kAvailable) {
       if (trying_cache2_) {
         write_through_cache_->PutInCache1(key_, value());

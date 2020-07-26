@@ -62,7 +62,7 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
     server_context()->ComputeSignature(options());
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     // Enable critical selector filter alone so that
@@ -154,7 +154,7 @@ class CriticalSelectorFilterTest : public RewriteTestBase {
                   " media=\"", media, "\">");
   }
 
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   void ValidateRewriterLogging(RewriterHtmlApplication::Status html_status) {
     rewrite_driver()->log_record()->WriteLog();
@@ -542,7 +542,7 @@ TEST_F(CriticalSelectorFilterTest, DoNotLazyLoadIfNothingRewritten) {
 class CriticalSelectorWithRewriteCssFilterTest
     : public CriticalSelectorFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     CriticalSelectorFilterTest::SetUp();
   }
@@ -578,7 +578,7 @@ TEST_F(CriticalSelectorWithRewriteCssFilterTest, ProperlyUsedOptimized) {
 class CriticalSelectorWithCombinerFilterTest
     : public CriticalSelectorFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kCombineCss);
     CriticalSelectorFilterTest::SetUp();
   }
@@ -628,11 +628,11 @@ TEST_F(CriticalSelectorWithCombinerFilterTest, ResolveWhenCombineAcrossPaths) {
 class CriticalSelectorWithInlineCssFilterTest
     : public CriticalSelectorFilterTest {
  protected:
-  virtual void SetUpBeforeSelectorsFilter() {}
+  void SetUpBeforeSelectorsFilter() override {}
 
   // Add the inline css filter after the critical selector filter so
   // it matches the order that is in RewriteDriver.
-  virtual void SetUpAfterSelectorsFilter() {
+  void SetUpAfterSelectorsFilter() override {
     options()->EnableFilter(RewriteOptions::kInlineCss);
     rewrite_driver()->AddFilters();
   }
@@ -660,7 +660,7 @@ TEST_F(CriticalSelectorWithInlineCssFilterTest, AvoidTryingToInlineTwice) {
 class CriticalSelectorWithBackgroundImageCacheExtensionTest
     : public CriticalSelectorFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kExtendCacheImages);
     options()->EnableFilter(RewriteOptions::kRewriteCss);
     CriticalSelectorFilterTest::SetUp();

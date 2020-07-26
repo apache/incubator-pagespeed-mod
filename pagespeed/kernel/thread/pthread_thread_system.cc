@@ -41,13 +41,13 @@ namespace {
 class PthreadId : public ThreadSystem::ThreadId {
  public:
   PthreadId() : id_(pthread_self()) {}
-  virtual ~PthreadId() {}
+  ~PthreadId() override {}
 
-  virtual bool IsEqual(const ThreadId& that) const {
+  bool IsEqual(const ThreadId& that) const override {
     return pthread_equal(id_, dynamic_cast<const PthreadId&>(that).id_) != 0;
   }
 
-  virtual bool IsCurrentThread() const {
+  bool IsCurrentThread() const override {
     return pthread_equal(id_, pthread_self()) != 0;
   }
 
@@ -69,10 +69,10 @@ class PthreadThreadImpl : public ThreadSystem::ThreadImpl {
         flags_(flags) {
   }
 
-  virtual ~PthreadThreadImpl() {
+  ~PthreadThreadImpl() override {
   }
 
-  virtual bool StartImpl() {
+  bool StartImpl() override {
     int result;
 
     pthread_attr_t attr;
@@ -100,7 +100,7 @@ class PthreadThreadImpl : public ThreadSystem::ThreadImpl {
     return true;
   }
 
-  virtual void JoinImpl() {
+  void JoinImpl() override {
     void* ignored;
     pthread_join(thread_obj_, &ignored);
   }

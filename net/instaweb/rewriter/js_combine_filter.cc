@@ -82,13 +82,13 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     js_file_count_reduction_ = stats->GetVariable(kJsFileCountReduction);
   }
 
-  virtual ~JsCombiner() {
+  ~JsCombiner() override {
     STLDeleteValues(&code_blocks_);
   }
 
-  virtual bool ResourceCombinable(
+  bool ResourceCombinable(
       Resource* resource, GoogleString* failure_reason,
-      MessageHandler* handler) {
+      MessageHandler* handler) override {
     // Get the charset for the given resource.
     StringPiece this_charset = RewriteFilter::GetCharsetForScript(
         resource, attribute_charset_, rewrite_driver_->containing_charset());
@@ -134,7 +134,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     return true;
   }
 
-  virtual bool ContentSizeTooBig() const {
+  bool ContentSizeTooBig() const override {
     int64 combined_js_max_size =
         rewrite_driver_->options()->max_combined_js_bytes();
 
@@ -145,11 +145,11 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     return false;
   }
 
-  virtual void AccumulateCombinedSize(const ResourcePtr& resource) {
+  void AccumulateCombinedSize(const ResourcePtr& resource) override {
     combined_js_size_ += resource->UncompressedContentsSize();
   }
 
-  virtual void Clear() {
+  void Clear() override {
     ResourceCombiner::Clear();
     STLDeleteValues(&code_blocks_);
     combined_js_size_ = 0;
@@ -182,13 +182,13 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
  private:
   typedef std::map<const Resource*, JavascriptCodeBlock*> CodeBlockMap;
 
-  virtual const ContentType* CombinationContentType() {
+  const ContentType* CombinationContentType() override {
     return &kContentTypeJavascript;
   }
 
-  virtual bool WritePiece(int index, int num_pieces, const Resource* input,
+  bool WritePiece(int index, int num_pieces, const Resource* input,
                           OutputResource* combination, Writer* writer,
-                          MessageHandler* handler);
+                          MessageHandler* handler) override;
 
   JavascriptCodeBlock* BlockForResource(const Resource* input);
 
@@ -261,8 +261,8 @@ class JsCombineFilter::Context : public RewriteContext {
   }
 
  protected:
-  virtual void PartitionAsync(OutputPartitions* partitions,
-                              OutputResourceVector* outputs) {
+  void PartitionAsync(OutputPartitions* partitions,
+                              OutputResourceVector* outputs) override {
     // Partitioning here requires JS minification, so we want to
     // move it to a different thread.
     Driver()->AddLowPriorityRewriteTask(MakeFunction(
@@ -319,9 +319,9 @@ class JsCombineFilter::Context : public RewriteContext {
   }
 
   // Actually write the new resource.
-  virtual void Rewrite(int partition_index,
+  void Rewrite(int partition_index,
                        CachedResult* partition,
-                       const OutputResourcePtr& output) {
+                       const OutputResourcePtr& output) override {
     RewriteResult result = kRewriteOk;
     if (!output->IsWritten()) {
       ResourceVector resources;
@@ -336,7 +336,7 @@ class JsCombineFilter::Context : public RewriteContext {
     RewriteDone(result, partition_index);
   }
 
-  bool PolicyPermitsRendering() const {
+  bool PolicyPermitsRendering() const override {
     return AreOutputsAllowedByCsp(CspDirective::kScriptSrc);
   }
 
@@ -344,7 +344,7 @@ class JsCombineFilter::Context : public RewriteContext {
   // combined resource.  Then create new script tags for each slot
   // in the partition that evaluate the variable that refers to the
   // original script for that tag.
-  virtual void Render() {
+  void Render() override {
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
       const CachedResult* partition = output_partition(p);
       int partition_size = partition->input_size();
@@ -379,13 +379,13 @@ class JsCombineFilter::Context : public RewriteContext {
     }
   }
 
-  virtual const UrlSegmentEncoder* encoder() const {
+  const UrlSegmentEncoder* encoder() const override {
     return filter_->encoder();
   }
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
 
-  virtual GoogleString CacheKeySuffix() const {
+  GoogleString CacheKeySuffix() const override {
     // Updated to make sure certain bugfixes actually deploy, and we don't
     // end up using old broken cached version.
     return "v4";

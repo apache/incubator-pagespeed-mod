@@ -109,7 +109,7 @@ class TestRewriteOptionsManager : public RewriteOptionsManager {
 
   void GetRewriteOptions(const GoogleUrl& url,
                          const RequestHeaders& headers,
-                         OptionsCallback* done) {
+                         OptionsCallback* done) override {
     done->Run((options_ == NULL) ? NULL : options_->Clone());
   }
 
@@ -797,7 +797,7 @@ class CssCollector : public EmptyHtmlFilter {
       : css_links_(css_links) {
   }
 
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     HtmlElement::Attribute* href;
     const char* media;
     if (CssTagScanner::ParseCssElement(element, &href, &media)) {
@@ -808,7 +808,7 @@ class CssCollector : public EmptyHtmlFilter {
     }
   }
 
-  virtual const char* Name() const { return "CssCollector"; }
+  const char* Name() const override { return "CssCollector"; }
 
  private:
   RewriteTestBase::CssLink::Vector* css_links_;
@@ -1136,8 +1136,8 @@ class BlockingResourceCallback : public Resource::AsyncCallback {
         done_(false),
         success_(false) {
   }
-  virtual ~BlockingResourceCallback() {}
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  ~BlockingResourceCallback() override {}
+  void Done(bool lock_failure, bool resource_ok) override {
     done_ = true;
     success_ = !lock_failure && resource_ok;
   }
@@ -1154,8 +1154,8 @@ class DeferredResourceCallback : public Resource::AsyncCallback {
   explicit DeferredResourceCallback(const ResourcePtr& resource)
       : Resource::AsyncCallback(resource) {
   }
-  virtual ~DeferredResourceCallback() {}
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  ~DeferredResourceCallback() override {}
+  void Done(bool lock_failure, bool resource_ok) override {
     CHECK(!lock_failure && resource_ok);
     delete this;
   }
@@ -1168,20 +1168,20 @@ class HttpCallback : public HTTPCache::Callback {
         done_(false),
         options_(NULL) {
   }
-  virtual ~HttpCallback() {}
-  virtual bool IsCacheValid(const GoogleString& key,
-                            const ResponseHeaders& headers) {
+  ~HttpCallback() override {}
+  bool IsCacheValid(const GoogleString& key,
+                            const ResponseHeaders& headers) override {
     if (options_ == NULL) {
       return true;
     }
     return OptionsAwareHTTPCacheCallback::IsCacheValid(
         key, *options_, request_context(), headers);
   }
-  virtual void Done(HTTPCache::FindResult find_result) {
+  void Done(HTTPCache::FindResult find_result) override {
     done_ = true;
     result_ = find_result;
   }
-  virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
+  ResponseHeaders::VaryOption RespectVaryOnResources() const override {
     return ResponseHeaders::kRespectVaryOnResources;
   }
 

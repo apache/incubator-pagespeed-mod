@@ -36,7 +36,7 @@ class SuccessThread : public ThreadSystem::Thread {
       : Thread(owner->thread_system(), "success", ThreadSystem::kJoinable),
         owner_(owner) {}
 
-  virtual void Run() {
+  void Run() override {
     owner_->set_ok_flag(true);
   }
 
@@ -59,7 +59,7 @@ class ToggleThread : public ThreadSystem::Thread {
         parent_id_(owner->thread_system()->GetThreadId()) {
   }
 
-  virtual void Run() {
+  void Run() override {
     // Check whether our ID is not the same as our parent, and
     // vice versa.
     std::unique_ptr<ThreadSystem::ThreadId> id(

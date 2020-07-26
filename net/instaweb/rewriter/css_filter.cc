@@ -93,9 +93,9 @@ class SimpleAbsolutifyTransformer : public CssTagScanner::Transformer {
  public:
   explicit SimpleAbsolutifyTransformer(const GoogleUrl* base_url)
       : base_url_(base_url) {}
-  virtual ~SimpleAbsolutifyTransformer() {}
+  ~SimpleAbsolutifyTransformer() override {}
 
-  virtual TransformStatus Transform(GoogleString* str) {
+  TransformStatus Transform(GoogleString* str) override {
     GoogleUrl abs(*base_url_, *str);
     if (abs.IsWebValid()) {
       abs.Spec().CopyToString(str);

@@ -60,7 +60,7 @@ class SyncCallback : public CacheInterface::Callback {
   SyncCallback() : called_(false), state_(CacheInterface::kNotFound) {
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     called_ = true;
     state_ = state;
   }

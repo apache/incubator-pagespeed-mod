@@ -39,7 +39,7 @@ const char * kDeferJsCodeNonGStatic = "<script type=\"text/javascript\" "
 class JsDeferDisabledFilterTest : public RewriteTestBase {
  protected:
   // TODO(matterbury): Delete this method as it should be redundant.
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
   }
@@ -53,8 +53,8 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
     rewrite_driver()->AddFilter(js_defer_disabled_filter_.get());
   }
 
-  virtual bool AddHtmlTags() const { return false; }
-  virtual bool AddBody() const { return false; }
+  bool AddHtmlTags() const override { return false; }
+  bool AddBody() const override { return false; }
 
   std::unique_ptr<JsDeferDisabledFilter> js_defer_disabled_filter_;
 };

@@ -168,7 +168,7 @@ class StdioOutputFile : public FileSystem::OutputFile {
       : file_helper_(f, filename, fs) {
   }
 
-  virtual bool Write(const StringPiece& buf, MessageHandler* handler) {
+  bool Write(const StringPiece& buf, MessageHandler* handler) override {
     file_helper_.StartTimer();
     size_t bytes_written =
         fwrite(buf.data(), 1, buf.size(), file_helper_.file_);
@@ -180,7 +180,7 @@ class StdioOutputFile : public FileSystem::OutputFile {
     return ret;
   }
 
-  virtual bool Flush(MessageHandler* message_handler) {
+  bool Flush(MessageHandler* message_handler) override {
     bool ret = true;
     if (fflush(file_helper_.file_) != 0) {
       file_helper_.ReportError(message_handler, "flushing file");
@@ -189,13 +189,13 @@ class StdioOutputFile : public FileSystem::OutputFile {
     return ret;
   }
 
-  virtual bool Close(MessageHandler* message_handler) {
+  bool Close(MessageHandler* message_handler) override {
     return file_helper_.Close(message_handler);
   }
 
-  virtual const char* filename() { return file_helper_.filename_.c_str(); }
+  const char* filename() override { return file_helper_.filename_.c_str(); }
 
-  virtual bool SetWorldReadable(MessageHandler* message_handler) {
+  bool SetWorldReadable(MessageHandler* message_handler) override {
     bool ret = true;
 #ifdef WIN32
     const char* filename = file_helper_.filename_.c_str();

@@ -45,18 +45,18 @@ class MemFileSystemTest : public FileSystemTest {
         mem_file_system_(thread_system_.get(), &timer_) {
     mem_file_system_.set_advance_time_on_update(true, &timer_);
   }
-  virtual void DeleteRecursively(const StringPiece& filename) {
+  void DeleteRecursively(const StringPiece& filename) override {
     mem_file_system_.Clear();
   }
-  virtual FileSystem* file_system() { return &mem_file_system_; }
-  virtual Timer* timer() { return &timer_; }
+  FileSystem* file_system() override { return &mem_file_system_; }
+  Timer* timer() override { return &timer_; }
   virtual GoogleString test_tmpdir() { return GTestTempDir(); }
 
-  virtual int FileSize(StringPiece contents) const {
+  int FileSize(StringPiece contents) const override {
     return FileContentSize(contents);
   }
 
-  virtual int DefaultDirSize() const {
+  int DefaultDirSize() const override {
     return 0;
   }
 

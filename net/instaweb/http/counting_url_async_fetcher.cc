@@ -37,8 +37,8 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
     ++counter_->fetch_start_count_;
   }
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     {
       ScopedMutex lock(counter_->mutex_.get());
       counter_->byte_count_ += content.size();

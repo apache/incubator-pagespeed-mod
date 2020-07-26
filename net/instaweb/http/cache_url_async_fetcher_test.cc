@@ -81,7 +81,7 @@ class MockFetch : public AsyncFetch {
         cache_result_valid_(true) {
   }
 
-  virtual ~MockFetch() {}
+  ~MockFetch() override {}
 
   void HandleHeadersComplete() override {
     // Make sure that we've called
@@ -92,12 +92,12 @@ class MockFetch : public AsyncFetch {
     response_headers()->IsProxyCacheable();
   }
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     content.AppendToString(content_);
     return true;
   }
-  virtual bool HandleFlush(MessageHandler* handler) {
+  bool HandleFlush(MessageHandler* handler) override {
     return true;
   }
 
@@ -113,7 +113,7 @@ class MockFetch : public AsyncFetch {
     delete this;
   }
 
-  virtual bool IsCachedResultValid(const ResponseHeaders& headers) {
+  bool IsCachedResultValid(const ResponseHeaders& headers) override {
     // We simply override AsyncFetch and stub this.
     return cache_result_valid_;
   }
@@ -137,17 +137,17 @@ class MockCacheUrlAsyncFetcherAsyncOpHooks
  public:
   MockCacheUrlAsyncFetcherAsyncOpHooks()
       : count_(0) {}
-  virtual ~MockCacheUrlAsyncFetcherAsyncOpHooks() {
+  ~MockCacheUrlAsyncFetcherAsyncOpHooks() override {
     // Check both StartAsyncOp() and FinishAsyncOp() should be called same
     // number of times.
     EXPECT_EQ(0, count_);
   }
 
-  virtual void StartAsyncOp() {
+  void StartAsyncOp() override {
     ++count_;
   }
 
-  virtual void FinishAsyncOp() {
+  void FinishAsyncOp() override {
     --count_;
     ASSERT_GE(count_, 0);
   }
@@ -162,9 +162,9 @@ class DelayedMockUrlFetcher : public MockUrlFetcher {
   explicit DelayedMockUrlFetcher(ThreadSynchronizer* sync)
       : MockUrlFetcher(),
         sync_(sync) {}
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch) {
+                     AsyncFetch* fetch) override {
     sync_->Signal(kFetchTriggeredPrefix);
     sync_->Wait(kStartFetchPrefix);
     MockUrlFetcher::Fetch(url, message_handler, fetch);
@@ -199,23 +199,23 @@ class CacheUrlAsyncFetcherTest : public ::testing::Test {
       fresh_ = true;
       return this;
     }
-    virtual void Done(HTTPCache::FindResult result) {
+    void Done(HTTPCache::FindResult result) override {
       called_ = true;
       result_ = result;
     }
-    virtual bool IsCacheValid(const GoogleString& key,
-                              const ResponseHeaders& headers) {
+    bool IsCacheValid(const GoogleString& key,
+                              const ResponseHeaders& headers) override {
       // For unit testing, we are simply stubbing IsCacheValid.
       return cache_valid_;
     }
-    virtual bool IsFresh(const ResponseHeaders& headers) {
+    bool IsFresh(const ResponseHeaders& headers) override {
       // For unit testing, we are simply stubbing IsFresh.
       return fresh_;
     }
 
     // The detailed Vary testing is handled in response_headers_test.cc and
     // is not needed here.
-    virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
+    ResponseHeaders::VaryOption RespectVaryOnResources() const override {
       return ResponseHeaders::kRespectVaryOnResources;
     }
 

@@ -138,8 +138,8 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     start_ms_ = start_us_ / 1000;
   }
 
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState backend_state) {
+  bool ValidateCandidate(const GoogleString& key,
+                                 CacheInterface::KeyState backend_state) override {
     ++cache_level_;
     int64 now_us = http_cache_->timer()->NowUs();
     int64 now_ms = now_us / 1000;
@@ -275,7 +275,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     return result_.status == HTTPCache::kFound;
   }
 
-  virtual void Done(CacheInterface::KeyState backend_state) {
+  void Done(CacheInterface::KeyState backend_state) override {
     callback_->Done(result_);
     delete this;
   }

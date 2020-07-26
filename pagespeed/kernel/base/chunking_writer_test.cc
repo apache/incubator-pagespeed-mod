@@ -46,7 +46,7 @@ class TracingWriter : public Writer {
       expected_handler_(expected_handler), ops_(0), fail_on_op_(-1) {
   }
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     EXPECT_EQ(expected_handler_, handler);
     if (ops_ == fail_on_op_) {
       // Still advance, so that we know we don't get called again
@@ -61,7 +61,7 @@ class TracingWriter : public Writer {
     return true;
   }
 
-  virtual bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     EXPECT_EQ(expected_handler_, handler);
     if (ops_ == fail_on_op_) {
       // Still advance, so that we know we don't get called again
@@ -92,7 +92,7 @@ class ChunkingWriterTest : public testing::Test {
  public:
   ChunkingWriterTest() : message_handler_(new NullMutex) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     tracer_.reset(new TracingWriter(&message_handler_));
     SetUpWithLimit(0);
   }

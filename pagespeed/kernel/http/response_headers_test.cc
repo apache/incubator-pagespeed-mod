@@ -139,7 +139,7 @@ class ResponseHeadersTest : public testing::Test {
 
   // At the end of every test, check to make sure that clearing the meta-data
   // produces an equivalent structure to a freshly initialized one.
-  virtual void TearDown() {
+  void TearDown() override {
     response_headers_.Clear();
     ResponseHeaders empty_response_headers;
 

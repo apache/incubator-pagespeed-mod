@@ -63,7 +63,7 @@ namespace net_instaweb {
 class MockFetch : public StringAsyncFetch {
  public:
   explicit MockFetch(const RequestContextPtr& ctx) : StringAsyncFetch(ctx) {}
-  virtual ~MockFetch() {}
+  ~MockFetch() override {}
 
   void ExpectAcceptEncoding(const StringPiece& encoding) {
     encoding.CopyToString(&accept_encoding_);
@@ -93,7 +93,7 @@ class InflatingFetchTest : public testing::Test {
         thread_system_(Platform::CreateThreadSystem()) {
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     mock_fetch_.reset(new MockFetch(
         RequestContext::NewTestRequestContext(thread_system_.get())));
     inflating_fetch_ = new InflatingFetch(mock_fetch_.get());

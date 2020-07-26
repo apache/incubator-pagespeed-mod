@@ -64,13 +64,13 @@ class TestResource : public CacheableResourceBase {
     CacheableResourceBase::InitStats("test", stats);
   }
 
-  virtual GoogleString cache_key() const { return cache_key_; }
+  GoogleString cache_key() const override { return cache_key_; }
   void set_cache_key(StringPiece ck) {
     ck.CopyToString(&cache_key_);
   }
 
-  virtual void PrepareRequest(const RequestContextPtr& request_context,
-                              RequestHeaders* headers) {
+  void PrepareRequest(const RequestContextPtr& request_context,
+                              RequestHeaders* headers) override {
     if (do_prepare_request_) {
       // To test that this gets invoked properly, we set the referer header
       // since MockUrlFetcher records those.
@@ -79,7 +79,7 @@ class TestResource : public CacheableResourceBase {
     }
   }
 
-  virtual void PrepareResponseHeaders(ResponseHeaders* headers) {
+  void PrepareResponseHeaders(ResponseHeaders* headers) override {
     if (do_prepare_response_) {
       headers->Remove(HttpAttributes::kCacheControl, "private");
     }
@@ -118,9 +118,9 @@ class MockFreshenCallback : public Resource::FreshenCallback {
         extend_success_(false) {
   }
 
-  virtual InputInfo* input_info() { return input_info_; }
+  InputInfo* input_info() override { return input_info_; }
 
-  virtual void Done(bool lock_failure, bool extend_success) {
+  void Done(bool lock_failure, bool extend_success) override {
     done_ = true;
     extend_success_ = extend_success;
   }
@@ -138,7 +138,7 @@ class MockFreshenCallback : public Resource::FreshenCallback {
 
 class CacheableResourceBaseTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     TestResource::InitStats(server_context()->statistics());
 

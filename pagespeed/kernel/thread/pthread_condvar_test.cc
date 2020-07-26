@@ -41,16 +41,16 @@ class PthreadCondvarTest : public CondvarTestBase {
     Init(&pthread_mutex_, &pthread_startup_condvar_, &pthread_condvar_);
   }
 
-  virtual void CreateHelper() {
+  void CreateHelper() override {
     pthread_create(&helper_thread_, NULL,
                    &HelperThread, this);
   }
 
-  virtual void FinishHelper() {
+  void FinishHelper() override {
     pthread_join(helper_thread_, NULL);
   }
 
-  virtual Timer* timer() { return &timer_; }
+  Timer* timer() override { return &timer_; }
 
   PthreadMutex pthread_mutex_;
   PthreadCondvar pthread_startup_condvar_;

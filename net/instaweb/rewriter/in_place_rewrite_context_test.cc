@@ -65,8 +65,8 @@ class FakeImageFilter : public FakeFilter {
         : FakeFilter::Context(filter, driver, parent, resource_context),
           filter_(filter) { }
 
-    virtual void DoRewriteSingle(const ResourcePtr input,
-                                 OutputResourcePtr output) {
+    void DoRewriteSingle(const ResourcePtr input,
+                                 OutputResourcePtr output) override {
       CachedResult* cached = output->EnsureCachedResultCreated();
       cached->set_optimized_image_type(filter_->optimized_image_type());
       FakeFilter::Context::DoRewriteSingle(input, output);
@@ -91,7 +91,7 @@ class FakeImageFilter : public FakeFilter {
 
   RewriteContext* MakeFakeContext(
       RewriteDriver* driver, RewriteContext* parent,
-      ResourceContext* resource_context) {
+      ResourceContext* resource_context) override {
     return new FakeImageFilter::Context(this, driver, parent, resource_context);
   }
 

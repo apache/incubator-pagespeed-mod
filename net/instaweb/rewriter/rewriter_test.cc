@@ -37,7 +37,7 @@ namespace {
 
 class RewriterTest : public RewriteTestBase {
   // We want to be able to edit the exact HTML (not have tags added).
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 };
 
 TEST_F(RewriterTest, AddHead) {

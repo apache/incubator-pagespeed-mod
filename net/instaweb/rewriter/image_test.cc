@@ -263,7 +263,7 @@ class ImageTest : public ImageTestBase {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     message_handler_.AddPatternToSkipPrinting(kMessagePatternAnimatedGif);
     message_handler_.AddPatternToSkipPrinting(kMessagePatternDataTruncated);
     message_handler_.AddPatternToSkipPrinting(

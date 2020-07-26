@@ -35,7 +35,7 @@ namespace {
 class CssMinifyTest : public ::testing::Test {
  protected:
   CssMinifyTest() {}
-  virtual ~CssMinifyTest() {}
+  ~CssMinifyTest() override {}
 
   void RewriteCss(const StringPiece& in_text, GoogleString* out_text) {
     out_text->clear();

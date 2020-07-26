@@ -50,7 +50,7 @@ class QueuedAlarmTest : public WorkerTestBase {
         cancel_(false) {
   }
 
-  virtual ~QueuedAlarmTest() {
+  ~QueuedAlarmTest() override {
     ClearSequence();
   }
 

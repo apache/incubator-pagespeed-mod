@@ -50,7 +50,7 @@ class StringAsyncFetchWithAsyncCountUpdates : public StringAsyncFetch {
     driver_->IncrementAsyncEventsCount();
   }
 
-  virtual ~StringAsyncFetchWithAsyncCountUpdates() { }
+  ~StringAsyncFetchWithAsyncCountUpdates() override { }
 
   void HandleDone(bool success) override {
     if (response_headers()->status_code() == HttpStatus::kOK) {

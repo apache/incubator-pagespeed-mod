@@ -33,10 +33,10 @@ namespace net_instaweb {
 class SchedulerThread::CleanupFunction : public Function {
  public:
   explicit CleanupFunction(SchedulerThread* parent) : parent_(parent) {}
-  virtual ~CleanupFunction() {}
+  ~CleanupFunction() override {}
 
  protected:
-  virtual void Run() {
+  void Run() override {
     {
       ScopedMutex lock(parent_->scheduler_->mutex());
       parent_->quit_ = true;
@@ -46,7 +46,7 @@ class SchedulerThread::CleanupFunction : public Function {
     delete parent_;
   }
 
-  virtual void Cancel() {
+  void Cancel() override {
     LOG(DFATAL) << "CleanupFunction does not expect to be cancelled";
   }
 

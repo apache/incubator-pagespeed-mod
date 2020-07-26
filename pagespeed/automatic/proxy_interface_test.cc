@@ -106,9 +106,9 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     ConvertTimeToString(MockTimer::kApr_5_2010_ms - 2 * Timer::kDayMs,
                         &old_time_string_);
   }
-  virtual ~ProxyInterfaceTest() {}
+  ~ProxyInterfaceTest() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     ThreadSynchronizer* sync = server_context()->thread_synchronizer();
     sync->EnableForPrefix(ProxyFetch::kCollectorDoneFinish);
     sync->EnableForPrefix(ProxyFetch::kCollectorDetachFinish);
@@ -158,7 +158,7 @@ class ProxyInterfaceTest : public ProxyInterfaceTestBase {
     EXPECT_EQ(num, background_fetch_fetcher_->num_background_fetches());
   }
 
-  virtual void ClearStats() {
+  void ClearStats() override {
     RewriteTestBase::ClearStats();
     background_fetch_fetcher_->clear_num_background_fetches();
   }
@@ -3549,7 +3549,7 @@ class ProxyInterfaceOriginPropertyPageTest : public ProxyInterfaceTest {
     explicit PerOriginPageReaderFilter(RewriteDriver* driver)
         : driver_(driver) {}
 
-    virtual void StartDocument() {
+    void StartDocument() override {
       // This keeps a little per-site visits counter in per-origin pcache
       // and dumps it into a comment.
       PropertyPage* sitewide_page = driver_->origin_property_page();
@@ -3571,9 +3571,9 @@ class ProxyInterfaceOriginPropertyPageTest : public ProxyInterfaceTest {
       sitewide_page->WriteCohort(dom_cohort);
     }
 
-    virtual void StartElement(HtmlElement* element) {}
-    virtual void EndDocument() {}
-    virtual const char* Name() const { return "PerOriginPageReaderFilter"; }
+    void StartElement(HtmlElement* element) override {}
+    void EndDocument() override {}
+    const char* Name() const override { return "PerOriginPageReaderFilter"; }
 
    private:
     RewriteDriver* driver_;
@@ -3584,9 +3584,9 @@ class ProxyInterfaceOriginPropertyPageTest : public ProxyInterfaceTest {
       : public TestRewriteDriverFactory::CreateFilterCallback {
    public:
     PerOriginPageReaderFilterCreator() {}
-    virtual ~PerOriginPageReaderFilterCreator() {}
+    ~PerOriginPageReaderFilterCreator() override {}
 
-    virtual HtmlFilter* Done(RewriteDriver* driver) {
+    HtmlFilter* Done(RewriteDriver* driver) override {
       return new PerOriginPageReaderFilter(driver);
     }
 
@@ -3594,7 +3594,7 @@ class ProxyInterfaceOriginPropertyPageTest : public ProxyInterfaceTest {
     DISALLOW_COPY_AND_ASSIGN(PerOriginPageReaderFilterCreator);
   };
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteOptions* options = server_context()->global_options();
     // mobilizer turns on the per-domain page.
     options->ClearSignatureForTesting();

@@ -75,9 +75,9 @@ class FakeReader : public MultipleFrameReader {
     Reset();
   }
 
-  virtual ~FakeReader() {}
+  ~FakeReader() override {}
 
-  virtual ScanlineStatus Reset() {
+  ScanlineStatus Reset() override {
     current_frame_ = 0;
     next_frame_ = 0;
     current_scanline_ = 0;
@@ -86,15 +86,15 @@ class FakeReader : public MultipleFrameReader {
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  virtual ScanlineStatus Initialize() {
+  ScanlineStatus Initialize() override {
     return Reset();
   }
 
-  virtual bool HasMoreFrames() const {
+  bool HasMoreFrames() const override {
     return (next_frame_ < frames_.size());
   }
 
-  virtual bool HasMoreScanlines() const {
+  bool HasMoreScanlines() const override {
     return (current_scanline_ < frames_[current_frame_].height);
   }
 
@@ -107,7 +107,7 @@ class FakeReader : public MultipleFrameReader {
     }
   }
 
-  virtual ScanlineStatus PrepareNextFrame() {
+  ScanlineStatus PrepareNextFrame() override {
     if ((state_ < INITIALIZED) || !HasMoreFrames()) {
       return ScanlineStatus(SCANLINE_STATUS_INVOCATION_ERROR,
                             SCANLINE_UNKNOWN,
@@ -133,7 +133,7 @@ class FakeReader : public MultipleFrameReader {
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  virtual ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) {
+  ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override {
     if (((state_ != FRAME_PREPARED) && (state_ != SCANLINE_READ)) ||
         (!HasMoreScanlines())) {
       return ScanlineStatus(SCANLINE_STATUS_INVOCATION_ERROR,
@@ -147,12 +147,12 @@ class FakeReader : public MultipleFrameReader {
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const {
+  ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const override {
     *frame_spec = frames_[current_frame_];
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const {
+  ScanlineStatus GetImageSpec(ImageSpec* image_spec) const override {
     *image_spec = image_spec_;
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }

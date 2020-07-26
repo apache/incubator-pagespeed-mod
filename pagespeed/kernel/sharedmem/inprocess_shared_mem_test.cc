@@ -53,15 +53,15 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
       : thread_system_(Platform::CreateThreadSystem()) {
   }
 
-  virtual AbstractSharedMem* CreateSharedMemRuntime() {
+  AbstractSharedMem* CreateSharedMemRuntime() override {
     return new InProcessSharedMem(thread_system_.get());
   }
 
-  virtual void ShortSleep() {
+  void ShortSleep() override {
     usleep(1000);
   }
 
-  virtual bool CreateChild(Function* callback) {
+  bool CreateChild(Function* callback) override {
     RunFunctionThread* thread
         = new RunFunctionThread(thread_system_.get(), callback);
 
@@ -74,14 +74,14 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
     return true;
   }
 
-  virtual void WaitForChildren() {
+  void WaitForChildren() override {
     for (size_t i = 0; i < child_threads_.size(); ++i) {
       child_threads_[i]->Join();
     }
     STLDeleteElements(&child_threads_);
   }
 
-  virtual void ChildFailed() {
+  void ChildFailed() override {
     // Unfortunately we don't have a clean way of signaling this.
     LOG(FATAL) << "Test failure in child thread";
   }
@@ -95,7 +95,7 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
           fn_(fn) {
     }
 
-    virtual void Run() {
+    void Run() override {
       fn_->CallRun();
       fn_ = NULL;
     }

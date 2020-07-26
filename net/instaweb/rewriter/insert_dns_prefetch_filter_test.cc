@@ -58,7 +58,7 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
   InsertDnsPrefetchFilterTest() : writer_(&output_) {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_support_noscript_enabled(false);
     options()->EnableFilter(RewriteOptions::kInsertDnsPrefetch);
     RewriteTestBase::SetUp();
@@ -67,7 +67,7 @@ class InsertDnsPrefetchFilterTest : public RewriteTestBase {
     SetCurrentUserAgent(UserAgentMatcherTestBase::kChromeUserAgent);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     filter_.reset(NULL);
     RewriteTestBase::TearDown();
   }

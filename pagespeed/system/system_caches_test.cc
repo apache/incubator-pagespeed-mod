@@ -102,7 +102,7 @@ class SystemServerContextNoProxyHtml : public SystemServerContext {
       : SystemServerContext(factory, "fake_hostname", 80 /* fake port */) {
   }
 
-  virtual bool ProxiesHtml() const { return false; }
+  bool ProxiesHtml() const override { return false; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SystemServerContextNoProxyHtml);
@@ -128,12 +128,12 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
     }
 
     // RespectVary not relevant in this context.
-    virtual ResponseHeaders::VaryOption RespectVaryOnResources() const {
+    ResponseHeaders::VaryOption RespectVaryOnResources() const override {
       return ResponseHeaders::kRespectVaryOnResources;
     }
 
    protected:
-    virtual void Done(HTTPCache::FindResult state) {
+    void Done(HTTPCache::FindResult state) override {
       result_ = state;
       if (state.status == HTTPCache::kFound) {
         StringPiece contents;
@@ -143,8 +143,8 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
       sync_.Notify();
     }
 
-    virtual bool IsCacheValid(const GoogleString& key,
-                              const ResponseHeaders& headers) {
+    bool IsCacheValid(const GoogleString& key,
+                              const ResponseHeaders& headers) override {
       return true;
     }
 
@@ -176,7 +176,7 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
         stats);
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     // TODO(jcrowell) factor out apr_initialize/terminate to share in static
     // constructor similar to rewrite_test_base.cc.
     apr_initialize();
@@ -199,7 +199,7 @@ class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
     SetUpSystemCaches();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     system_caches_->StopCacheActivity();
     RewriteTestBase::TearDown();
     system_caches_->ShutDown(factory()->message_handler());

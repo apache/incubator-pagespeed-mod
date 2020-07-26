@@ -108,7 +108,7 @@ class JsCombineFilterTest : public RewriteTestBase {
         : output_(output), active_script_(NULL) {
     }
 
-    virtual void StartElement(HtmlElement* element) {
+    void StartElement(HtmlElement* element) override {
       EXPECT_EQ(NULL, active_script_);
       if (element->keyword() == HtmlName::kScript) {
         active_script_ = element;
@@ -116,11 +116,11 @@ class JsCombineFilterTest : public RewriteTestBase {
       }
     }
 
-    virtual void Characters(HtmlCharactersNode* characters) {
+    void Characters(HtmlCharactersNode* characters) override {
       script_content_ += characters->contents();
     }
 
-    virtual void EndElement(HtmlElement* element) {
+    void EndElement(HtmlElement* element) override {
       if (element->keyword() == HtmlName::kScript) {
         ScriptInfo info;
         info.element = element;
@@ -134,7 +134,7 @@ class JsCombineFilterTest : public RewriteTestBase {
       }
     }
 
-    virtual const char* Name() const { return "ScriptCollector"; }
+    const char* Name() const override { return "ScriptCollector"; }
 
    private:
     ScriptInfoVector* output_;
@@ -144,7 +144,7 @@ class JsCombineFilterTest : public RewriteTestBase {
     DISALLOW_COPY_AND_ASSIGN(ScriptCollector);
   };
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     UseMd5Hasher();
     SetDefaultLongCacheHeaders(&kContentTypeJavascript, &default_js_header_);
@@ -310,7 +310,7 @@ class JsCombineFilterTest : public RewriteTestBase {
 };
 
 class JsFilterAndCombineFilterTest : public JsCombineFilterTest {
-  virtual void SetUpExtraFilters() {
+  void SetUpExtraFilters() override {
     options()->SoftEnableFilterForTesting(
         RewriteOptions::kRewriteJavascriptExternal);
   }
@@ -326,7 +326,7 @@ class JsCombineFilterCustomOptions : public JsCombineFilterTest {
  protected:
   // Derived classes should set their options and then call
   // JsCombineFilterTest::SetUp().
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(JsCombineFilterCustomOptions, CombineJsPreserveURLsOn) {
@@ -360,7 +360,7 @@ TEST_F(JsCombineFilterTest, ServeFilesUnhealthy) {
 }
 
 class JsCombineAndCacheExtendFilterTest : public JsCombineFilterTest {
-  virtual void SetUpExtraFilters() {
+  void SetUpExtraFilters() override {
     options()->SoftEnableFilterForTesting(RewriteOptions::kExtendCacheScripts);
   }
 };

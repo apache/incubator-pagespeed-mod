@@ -29,7 +29,7 @@ namespace net_instaweb {
 
 class LogRecordTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     log_record_.reset(new LogRecord(new NullMutex));
   }
 

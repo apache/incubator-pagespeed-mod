@@ -90,14 +90,14 @@ class FileCacheTest : public CacheTestBase {
     EXPECT_LT(min_time_ms, clean_time_ms);
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     worker_.Start();
     file_system_.Clear();
     file_system_.set_atime_enabled(true);
   }
 
   CacheInterface* Cache() override { return cache_.get(); }
-  virtual void PostOpCleanup() { }
+  void PostOpCleanup() override { }
 
   bool Clean(int64 size, int64 inode_count) {
     // Cache expects to be locked when cleaning.

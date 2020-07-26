@@ -45,20 +45,20 @@ class Codec {
 
 class WebSafeBase64Codec : public Codec {
  public:
-  virtual void encode(const GoogleString& in, GoogleString* out) const {
+  void encode(const GoogleString& in, GoogleString* out) const override {
     net_instaweb::Web64Encode(in, out);
   }
-  virtual bool decode(const GoogleString& in, GoogleString* out) const {
+  bool decode(const GoogleString& in, GoogleString* out) const override {
     return net_instaweb::Web64Decode(in, out);
   }
 };
 
 class MimeBase64Codec : public Codec {
  public:
-  virtual void encode(const GoogleString& in, GoogleString* out) const {
+  void encode(const GoogleString& in, GoogleString* out) const override {
     net_instaweb::Mime64Encode(in, out);
   }
-  virtual bool decode(const GoogleString& in, GoogleString* out) const {
+  bool decode(const GoogleString& in, GoogleString* out) const override {
     return net_instaweb::Mime64Decode(in, out);
   }
 };

@@ -51,12 +51,12 @@ class ResourceCollector : public EmptyHtmlFilter {
         resource_category_(resource_category),
         driver_(driver) {}
 
-  virtual void StartDocument() {
+  void StartDocument() override {
     resources_->clear();
     resource_category_->clear();
   }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     resource_tag_scanner::UrlCategoryVector attributes;
     resource_tag_scanner::ScanElement(element, driver_->options(), &attributes);
     for (int i = 0, n = attributes.size(); i < n; ++i) {
@@ -65,7 +65,7 @@ class ResourceCollector : public EmptyHtmlFilter {
     }
   }
 
-  virtual const char* Name() const { return "ResourceCollector"; }
+  const char* Name() const override { return "ResourceCollector"; }
 
  private:
   StringVector* resources_;
@@ -77,7 +77,7 @@ class ResourceCollector : public EmptyHtmlFilter {
 
 class ResourceTagScannerTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     collector_.reset(
         new ResourceCollector(
@@ -85,7 +85,7 @@ class ResourceTagScannerTest : public RewriteTestBase {
     rewrite_driver()->AddFilter(collector_.get());
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
   StringVector resources_;
   CategoryVector resource_category_;

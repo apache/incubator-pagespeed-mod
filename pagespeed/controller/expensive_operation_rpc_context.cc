@@ -53,7 +53,7 @@ class ExpensiveOperationRpcContext::ExpensiveOperationRequestResultRpcClient
     return stub->AsyncScheduleExpensiveOperation(context, queue, tag);
   }
 
-  ~ExpensiveOperationRequestResultRpcClient() {
+  ~ExpensiveOperationRequestResultRpcClient() override {
     Done();
   }
 

@@ -41,8 +41,8 @@ class WriteThroughCacheTest : public CacheTestBase {
   LRUCache big_cache_;
   WriteThroughCache write_through_cache_;
 
-  virtual CacheInterface* Cache() { return &write_through_cache_; }
-  virtual void PostOpCleanup() {
+  CacheInterface* Cache() override { return &write_through_cache_; }
+  void PostOpCleanup() override {
     small_cache_.SanityCheck();
     big_cache_.SanityCheck();
   }

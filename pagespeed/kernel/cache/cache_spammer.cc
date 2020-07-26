@@ -71,10 +71,10 @@ class SpammerCallback : public CacheInterface::Callback {
         expected_(expected.data(), expected.size()) {
   }
 
-  virtual ~SpammerCallback() {
+  ~SpammerCallback() override {
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     DCHECK(validate_candidate_called_);
     bool found = (state == CacheInterface::kAvailable);
     if (found) {
@@ -84,8 +84,8 @@ class SpammerCallback : public CacheInterface::Callback {
     delete this;
   }
 
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) {
+  bool ValidateCandidate(const GoogleString& key,
+                                 CacheInterface::KeyState state) override {
     validate_candidate_called_ = true;
     return true;
   }

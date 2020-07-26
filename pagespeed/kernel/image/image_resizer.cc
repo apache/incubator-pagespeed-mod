@@ -376,8 +376,8 @@ class ResizeRowArea : public ResizeRow {
   explicit ResizeRowArea(int num_channels)
       : num_channels_(num_channels), output_buffer_(NULL) {}
 
-  virtual bool Initialize(int in_size, int out_size, double ratio,
-                          float* output_buffer, MessageHandler* handler);
+  bool Initialize(int in_size, int out_size, double ratio,
+                          float* output_buffer, MessageHandler* handler) override;
   const void* Resize(const uint8_t* in_data) override;
 
  protected:
@@ -433,25 +433,25 @@ class ResizeColArea : public ResizeCol {
  public:
   ResizeColArea() : output_buffer_(NULL) {}
 
-  virtual bool Initialize(int in_size,
+  bool Initialize(int in_size,
                           int out_size,
                           double ratio_x,
                           double ratio_y,
                           int elements_per_output_row,
                           uint8_t* output_buffer,
-                          MessageHandler* handler);
+                          MessageHandler* handler) override;
 
   const uint8_t* Resize(const void* in_data_ptr) override;
 
-  virtual int out_row() const {
+  int out_row() const override {
     return out_row_;
   }
 
-  void InitializeResize() {
+  void InitializeResize() override {
     need_more_scanlines_ = true;
   }
 
-  bool NeedMoreScanlines() const {
+  bool NeedMoreScanlines() const override {
     return need_more_scanlines_;
   }
 

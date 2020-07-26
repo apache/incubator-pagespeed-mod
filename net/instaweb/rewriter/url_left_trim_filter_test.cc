@@ -33,7 +33,7 @@ namespace net_instaweb {
 
 class UrlLeftTrimFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     left_trim_filter_.reset(new UrlLeftTrimFilter(rewrite_driver(),
                                                   statistics()));
@@ -77,7 +77,7 @@ class UrlLeftTrimFilterTest : public RewriteTestBase {
     base_url_.reset(new GoogleUrl(base_url));
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   // TODO(jmarantz): factor out all the image references in this file to use
   // this method.

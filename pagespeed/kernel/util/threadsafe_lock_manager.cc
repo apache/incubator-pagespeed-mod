@@ -206,7 +206,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
         manager_destroyed_(false) {
   }
 
-  virtual ~Lock() {
+  ~Lock() override {
     LockHolder::ScopedLockRunningDelayedCallbacks lock(lock_holder_.get());
     if (lock_->Held()) {
       UnlockMutexHeld();
@@ -218,8 +218,8 @@ class ThreadSafeLockManager::Lock : public NamedLock {
   }
 
   // API implementation:
-  virtual void LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
-                                     Function* callback) {
+  void LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
+                                     Function* callback) override {
     LockHolder::ScopedLockRunningDelayedCallbacks lock(lock_holder_.get());
     if (manager_destroyed_) {
       lock_holder_->EnqueueCancel(callback);
@@ -229,7 +229,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
     }
   }
 
-  virtual void LockTimedWait(int64 wait_ms, Function* callback) {
+  void LockTimedWait(int64 wait_ms, Function* callback) override {
     LockHolder::ScopedLockRunningDelayedCallbacks lock(lock_holder_.get());
     if (manager_destroyed_) {
       lock_holder_->EnqueueCancel(callback);
@@ -239,7 +239,7 @@ class ThreadSafeLockManager::Lock : public NamedLock {
     }
   }
 
-  virtual void Unlock() {
+  void Unlock() override {
     LockHolder::ScopedLockRunningDelayedCallbacks lock(lock_holder_.get());
     UnlockMutexHeld();
   }
@@ -250,12 +250,12 @@ class ThreadSafeLockManager::Lock : public NamedLock {
     }
   }
 
-  virtual bool Held() {
+  bool Held() override {
     ScopedMutex lock(lock_holder_->mutex_.get());
     return lock_->Held();
   }
 
-  virtual GoogleString name() const {
+  GoogleString name() const override {
     ScopedMutex lock(lock_holder_->mutex_.get());
     return lock_->name();
   }

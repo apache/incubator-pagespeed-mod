@@ -175,7 +175,7 @@ const char kShowAdsHtmlPageWithInvalidGoogleAdFormat[] =
 class MakeShowAdsAsyncFilterTest : public RewriteTestBase {
  protected:
   MakeShowAdsAsyncFilterTest() : add_tags_(true) {}
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     MakeShowAdsAsyncFilter::InitStats(rewrite_driver()->statistics());
     filter_.reset(new MakeShowAdsAsyncFilter(rewrite_driver()));

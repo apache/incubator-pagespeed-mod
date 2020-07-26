@@ -35,13 +35,13 @@ namespace {
 class NullRWLock : public ThreadSystem::RWLock {
  public:
   NullRWLock() {}
-  virtual ~NullRWLock();
-  virtual bool ReaderTryLock() { return true; }
-  virtual void ReaderLock() {}
-  virtual void ReaderUnlock() {}
-  virtual bool TryLock() { return true; }
-  virtual void Lock() {}
-  virtual void Unlock() {}
+  ~NullRWLock() override;
+  bool ReaderTryLock() override { return true; }
+  void ReaderLock() override {}
+  void ReaderUnlock() override {}
+  bool TryLock() override { return true; }
+  void Lock() override {}
+  void Unlock() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullRWLock);
@@ -54,13 +54,13 @@ class NullThreadId : public ThreadSystem::ThreadId {
         system_(system) {
   }
 
-  virtual ~NullThreadId() {}
+  ~NullThreadId() override {}
 
-  virtual bool IsEqual(const ThreadId& that) const {
+  bool IsEqual(const ThreadId& that) const override {
     return (id_ == dynamic_cast<const NullThreadId&>(that).id_);
   }
 
-  virtual bool IsCurrentThread() const {
+  bool IsCurrentThread() const override {
     return id_ == system_->current_thread();
   }
 

@@ -62,7 +62,7 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
  public:
   // pos denotes our position in the filters' summaries_ vector.
   Context(int pos, CssSummarizerBase* filter, RewriteDriver* driver);
-  virtual ~Context();
+  ~Context() override;
 
   // Calls to finish initialization for given rewrite type; should be called
   // soon after construction.

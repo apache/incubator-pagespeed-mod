@@ -45,7 +45,7 @@ class ThreadSynchronizerTest : public testing::Test {
         sync_point_(new WorkerTestBase::SyncPoint(thread_system_.get())) {
   }
 
-  ~ThreadSynchronizerTest() {
+  ~ThreadSynchronizerTest() override {
     sync_point_.reset(NULL);  // make sure this is destructed first.
   }
 

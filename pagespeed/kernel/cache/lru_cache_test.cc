@@ -38,7 +38,7 @@ class LRUCacheTest : public CacheTestBase {
       : cache_(kMaxSize) {
   }
 
-  virtual CacheInterface* Cache() { return &cache_; }
+  CacheInterface* Cache() override { return &cache_; }
   void PostOpCleanup() override { cache_.SanityCheck(); }
 
   LRUCache cache_;

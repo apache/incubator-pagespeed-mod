@@ -63,15 +63,15 @@ class PthreadSharedMemMutex : public AbstractMutex {
   explicit PthreadSharedMemMutex(pthread_mutex_t* external_mutex)
       : external_mutex_(external_mutex) {}
 
-  virtual bool TryLock() {
+  bool TryLock() override {
     return (pthread_mutex_trylock(external_mutex_) == 0);
   }
 
-  virtual void Lock() {
+  void Lock() override {
     pthread_mutex_lock(external_mutex_);
   }
 
-  virtual void Unlock() {
+  void Unlock() override {
     pthread_mutex_unlock(external_mutex_);
   }
 
@@ -89,18 +89,18 @@ class PthreadSharedMemSegment : public AbstractSharedMemSegment {
         size_(size) {
   }
 
-  virtual ~PthreadSharedMemSegment() {
+  ~PthreadSharedMemSegment() override {
   }
 
-  virtual volatile char* Base() {
+  volatile char* Base() override {
     return base_;
   }
 
-  virtual size_t SharedMutexSize() const {
+  size_t SharedMutexSize() const override {
     return sizeof(pthread_mutex_t);
   }
 
-  virtual bool InitializeSharedMutex(size_t offset, MessageHandler* handler) {
+  bool InitializeSharedMutex(size_t offset, MessageHandler* handler) override {
     pthread_mutexattr_t attr;
     if (pthread_mutexattr_init(&attr) != 0) {
       handler->Message(kError, "pthread_mutexattr_init failed with errno:%d",
@@ -126,7 +126,7 @@ class PthreadSharedMemSegment : public AbstractSharedMemSegment {
     return true;
   }
 
-  virtual AbstractMutex* AttachToSharedMutex(size_t offset) {
+  AbstractMutex* AttachToSharedMutex(size_t offset) override {
     return new PthreadSharedMemMutex(MutexPtr(offset));
   }
 
