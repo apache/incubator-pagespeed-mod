@@ -47,9 +47,9 @@ class JsDisableFilter : public CommonFilter {
   static const char kEnableJsExperimental[];
   static const char kElementOnloadCode[];
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
-  virtual const char* Name() const {
+  const char* Name() const override {
     return "JsDisableFilter";
   }
 
@@ -60,7 +60,7 @@ class JsDisableFilter : public CommonFilter {
 
   void StartElementImpl(HtmlElement* element) override;
 
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
 
   void EndDocument() override;
 

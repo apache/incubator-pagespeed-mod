@@ -48,7 +48,7 @@ namespace image_compression {
 class PixelFormatOptimizer : public ScanlineReaderInterface {
  public:
   explicit PixelFormatOptimizer(net_instaweb::MessageHandler* handler);
-  virtual ~PixelFormatOptimizer();
+  ~PixelFormatOptimizer() override;
 
   // PixelFormatOptimizer acquires ownership of reader, even in case of failure.
   ScanlineStatus Initialize(ScanlineReaderInterface* reader);
@@ -59,40 +59,40 @@ class PixelFormatOptimizer : public ScanlineReaderInterface {
   bool Reset() override;
 
   // Returns number of bytes required to store a scanline.
-  virtual size_t GetBytesPerScanline() {
+  size_t GetBytesPerScanline() override {
     return bytes_per_row_;
   }
 
   // Returns true if there are more scanlines to read. Returns false if the
   // object has not been initialized or all of the scanlines have been read.
-  virtual bool HasMoreScanLines() {
+  bool HasMoreScanLines() override {
     return (output_row_ < GetImageHeight());
   }
 
   // Returns the height of the image.
-  virtual size_t GetImageHeight() {
+  size_t GetImageHeight() override {
     return reader_->GetImageHeight();
   }
 
   // Returns the width of the image.
-  virtual size_t GetImageWidth() {
+  size_t GetImageWidth() override {
     return reader_->GetImageWidth();
   }
 
   // Returns the pixel format of the image.
-  virtual PixelFormat GetPixelFormat() {
+  PixelFormat GetPixelFormat() override {
     return pixel_format_;
   }
 
   // Returns true if the image is encoded in progressive / interlacing format.
-  virtual bool IsProgressive() {
+  bool IsProgressive() override {
     return reader_->IsProgressive();
   }
 
   // This method should not be called. If it does get called, in DEBUG mode it
   // will throw a FATAL error and in RELEASE mode it does nothing.
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                              size_t buffer_length) override;
 
  private:
   std::unique_ptr<ScanlineReaderInterface> reader_;

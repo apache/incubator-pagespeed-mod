@@ -40,8 +40,8 @@ class DeterministicJsFilter : public CommonFilter {
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element) { }
-  virtual const char* Name() const { return "DeterministicJs"; }
+  void EndElementImpl(HtmlElement* element) override {}
+  const char* Name() const override { return "DeterministicJs"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

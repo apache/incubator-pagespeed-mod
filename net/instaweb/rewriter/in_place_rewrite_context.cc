@@ -596,12 +596,11 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
  public:
   NonHttpResourceCallback(const ResourcePtr& resource,
                           bool proxy_mode,
-                          RewriteContext* context,
+                          RewriteContext*,
                           RecordingFetch* fetch,
                           MessageHandler* handler)
       : AsyncCallback(resource),
         proxy_mode_(proxy_mode),
-        context_(context),
         async_fetch_(fetch),
         message_handler_(handler) {
   }
@@ -630,7 +629,6 @@ class NonHttpResourceCallback : public Resource::AsyncCallback {
 
  private:
   bool proxy_mode_;
-  RewriteContext* context_;
   RecordingFetch* async_fetch_;
   MessageHandler* message_handler_;
 

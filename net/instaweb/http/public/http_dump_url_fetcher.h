@@ -55,7 +55,7 @@ class HttpDumpUrlFetcher : public UrlAsyncFetcher {
 
   HttpDumpUrlFetcher(const StringPiece& root_dir, FileSystem* file_system,
                      Timer* timer);
-  virtual ~HttpDumpUrlFetcher();
+  ~HttpDumpUrlFetcher() override;
 
   // Converts URL into filename the way that Latency Lab does.
   // Note: root_dir_ must be standardized to have a / at end already.
@@ -72,9 +72,9 @@ class HttpDumpUrlFetcher : public UrlAsyncFetcher {
   }
 
   // This is a synchronous/blocking implementation.
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
   // Parse file into response_headers and response_writer as if it were bytes
   // off the wire.

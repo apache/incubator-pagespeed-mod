@@ -26,12 +26,6 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
-namespace {
-
-const char kQueryString[] = "a=1&b&c=2&d=&a=3";
-
-}  // namespace
-
 namespace net_instaweb {
 
 class StringMultiMapTest : public testing::Test {

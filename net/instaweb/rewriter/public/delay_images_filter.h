@@ -96,14 +96,14 @@ class DelayImagesFilter : public CommonFilter {
   virtual ~DelayImagesFilter();
 
   void StartDocumentImpl() override;
-  virtual void StartElementImpl(HtmlElement* element) { }
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override { }
+  void EndElementImpl(HtmlElement* element) override;
 
   void EndDocument() override;
 
-  virtual const char* Name() const { return "DelayImages"; }
+  const char* Name() const override { return "DelayImages"; }
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   static void InitStats(Statistics* statistics);
   static void Terminate();

@@ -75,10 +75,10 @@ class DeferIframeFilter : public CommonFilter {
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void EndElementImpl(HtmlElement* element) override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
-  virtual const char* Name() const { return "DeferIframe"; }
+  const char* Name() const override { return "DeferIframe"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

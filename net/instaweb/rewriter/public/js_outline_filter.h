@@ -47,14 +47,14 @@ class JsOutlineFilter : public CommonFilter {
   void StartDocumentImpl() override;
 
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual void Flush();
+  void Flush() override;
 
   // HTML Events we expect to be in <script> elements.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
-  virtual const char* Name() const { return "OutlineJs"; }
+  const char* Name() const override { return "OutlineJs"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

@@ -123,7 +123,7 @@ bool OptimizeJpegWithOptions(const GoogleString &original,
 class JpegScanlineWriter : public ScanlineWriterInterface {
  public:
   explicit JpegScanlineWriter(MessageHandler* handler);
-  virtual ~JpegScanlineWriter();
+  ~JpegScanlineWriter() override;
 
   // Set the environment for longjmp calls.
   void SetJmpBufEnv(jmp_buf* env);
@@ -132,16 +132,16 @@ class JpegScanlineWriter : public ScanlineWriterInterface {
   // cleaning up the jpeg structs.
   void AbortWrite();
 
-  virtual ScanlineStatus InitWithStatus(const size_t width, const size_t height,
-                                        PixelFormat pixel_format);
+  ScanlineStatus InitWithStatus(const size_t width, const size_t height,
+                                        PixelFormat pixel_format) override;
   // Set the compression options via 'params', which should be a
   // JpegCompressionOptions*. Since writer only supports lossy
   // encoding, it is an error to pass in a 'params' that has the lossy
   // field set to false.
-  virtual ScanlineStatus InitializeWriteWithStatus(const void* params,
-                                                   GoogleString *compressed);
-  virtual ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes);
+  ScanlineStatus InitializeWriteWithStatus(const void* params,
+                                                   GoogleString *compressed) override;
+  ScanlineStatus WriteNextScanlineWithStatus(
+      const void *scanline_bytes) override;
   ScanlineStatus FinalizeWriteWithStatus() override;
 
  private:

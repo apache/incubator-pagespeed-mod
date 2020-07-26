@@ -53,7 +53,7 @@ class HtmlAttributeQuoteRemoval : public EmptyHtmlFilter {
     return total_quotes_removed_;
   }
 
-  virtual const char* Name() const { return "HtmlAttributeQuoteRemoval"; }
+  const char* Name() const override { return "HtmlAttributeQuoteRemoval"; }
 
  private:
   int total_quotes_removed_;

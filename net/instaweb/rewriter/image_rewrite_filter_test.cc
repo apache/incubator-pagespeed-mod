@@ -125,7 +125,6 @@ const char kPixelDims[] = " width='1' height='1'";
 // the test.
 const int kIgnoreSize = -1;
 
-const char kCriticalImagesCohort[] = "critical_images";
 
 // Message to ignore.
 const char kMessagePatternFailedToEncodeWebp[] = "*Could not encode webp data*";

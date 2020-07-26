@@ -123,22 +123,22 @@ class GoogleAnalyticsFilter : public EmptyHtmlFilter {
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocument();
+  void StartDocument() override;
   void EndDocument() override;
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
 
-  virtual void Flush();
+  void Flush() override;
 
   // Expected HTML Events in <script> elements.
-  virtual void Characters(HtmlCharactersNode* characters_node);
+  void Characters(HtmlCharactersNode* characters_node) override;
 
   // Unexpected HTML Events in <script> elements.
-  virtual void Comment(HtmlCommentNode* comment);
-  virtual void Cdata(HtmlCdataNode* cdata);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
+  void Comment(HtmlCommentNode* comment) override;
+  void Cdata(HtmlCdataNode* cdata) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
 
-  virtual const char* Name() const { return "GoogleAnalytics"; }
+  const char* Name() const override { return "GoogleAnalytics"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
   static const char kPageLoadCount[];

@@ -58,12 +58,12 @@ class CacheExtender : public RewriteFilter {
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl() {}
+  void StartDocumentImpl() override {}
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const { return "CacheExtender"; }
-  virtual const char* id() const { return RewriteOptions::kCacheExtenderId; }
+  const char* Name() const override { return "CacheExtender"; }
+  const char* id() const override { return RewriteOptions::kCacheExtenderId; }
 
   // Creates a nested rewrite for given parent and slot, and returns it.
   // The result is not registered with the parent.
@@ -72,7 +72,7 @@ class CacheExtender : public RewriteFilter {
 
  protected:
   virtual bool ComputeOnTheFly() const;
-  virtual RewriteContext* MakeRewriteContext();
+  RewriteContext* MakeRewriteContext() override;
 
  private:
   class Context;

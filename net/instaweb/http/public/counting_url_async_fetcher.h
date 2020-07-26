@@ -45,15 +45,15 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
         mutex_(thread_system_->NewMutex()) {
     Clear();
   }
-  virtual ~CountingUrlAsyncFetcher();
+  ~CountingUrlAsyncFetcher() override;
 
   void set_fetcher(UrlAsyncFetcher* fetcher) { fetcher_ = fetcher; }
 
-  virtual bool SupportsHttps() const { return fetcher_->SupportsHttps(); }
+  bool SupportsHttps() const override { return fetcher_->SupportsHttps(); }
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
   // number of completed fetches.
   int fetch_count() const {

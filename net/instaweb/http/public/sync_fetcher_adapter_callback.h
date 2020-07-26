@@ -86,12 +86,12 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
   void TimedWait(int64 timeout_ms) EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
  protected:
-  virtual void HandleDone(bool success) LOCKS_EXCLUDED(mutex_);
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  void HandleDone(bool success) LOCKS_EXCLUDED(mutex_) override;
+  bool HandleWrite(const StringPiece& content,
+                           MessageHandler* handler) override {
     return writer_->Write(content, handler);
   }
-  virtual bool HandleFlush(MessageHandler* handler) {
+  bool HandleFlush(MessageHandler* handler) override {
     return writer_->Flush(handler);
   }
   void HandleHeadersComplete() override {

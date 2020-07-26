@@ -105,11 +105,11 @@ class AssociationSlot : public ResourceSlot {
   }
   virtual ~AssociationSlot();
 
-  virtual HtmlElement* element() const { return NULL; }
+  HtmlElement* element() const override { return NULL; }
 
   // All Render() calls are from the same thread, so this doesn't need to be
   // thread-safe.
-  virtual void Render() {
+  void Render() override {
     // We should never try to render unauthorized resource URLs as is.
     if (!resource()->is_authorized_domain()) {
       return;
@@ -128,7 +128,7 @@ class AssociationSlot : public ResourceSlot {
     return true;
   }
 
-  virtual GoogleString LocationString() const {
+  GoogleString LocationString() const override {
     // TODO(sligocki): Improve quality of this diagnostic.
     // Also improve CssResourceSlot::LocationString() which is identical.
     return "Inside CSS";

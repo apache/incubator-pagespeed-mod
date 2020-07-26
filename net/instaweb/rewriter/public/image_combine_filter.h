@@ -95,20 +95,20 @@ class ImageCombineFilter : public RewriteFilter {
   void RegisterOrReleaseContext();
 
  protected:
-  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
-  virtual const char* Name() const { return "ImageCombine"; }
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  const UrlSegmentEncoder* encoder() const override { return &encoder_; }
+  const char* Name() const override { return "ImageCombine"; }
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
 
   // Image rewriting was originally, but is no longer, a single CSS.
-  virtual const char* id() const { return RewriteOptions::kImageCombineId; }
+  const char* id() const override { return RewriteOptions::kImageCombineId; }
 
  private:
   class Combiner;
   class Context;
 
-  virtual RewriteContext* MakeRewriteContext();
+  RewriteContext* MakeRewriteContext() override;
   Context* MakeNestedContext(RewriteContext* parent, const GoogleUrl& css_url,
                              const StringPiece& css_text);
   bool GetDeclarationDimensions(Css::Declarations* declarations,

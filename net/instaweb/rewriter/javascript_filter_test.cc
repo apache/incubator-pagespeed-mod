@@ -61,7 +61,6 @@ const char kInlineScriptFormat[] =
     "<script type='text/javascript'>"
     "%s"
     "</script>";
-const char kEndInlineScript[] = "<script type='text/javascript'>";
 
 const char kCdataWrapper[] = "//<![CDATA[\n%s\n//]]>";
 const char kCdataAltWrapper[] = "//<![CDATA[\r%s\r//]]>";

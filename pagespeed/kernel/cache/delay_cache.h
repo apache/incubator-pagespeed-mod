@@ -76,7 +76,7 @@ class DelayCache : public CacheInterface {
   static GoogleString FormatName(StringPiece name);
   GoogleString Name() const override { return FormatName(cache_->Name()); }
 
-  virtual bool IsBlocking() const { return false; }
+  bool IsBlocking() const override { return false; }
   bool IsHealthy() const override { return cache_->IsHealthy(); }
   void ShutDown() override { cache_->ShutDown(); }
 

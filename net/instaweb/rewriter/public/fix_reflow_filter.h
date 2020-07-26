@@ -40,11 +40,11 @@ class FixReflowFilter : public EmptyHtmlFilter {
   explicit FixReflowFilter(RewriteDriver* driver);
   virtual ~FixReflowFilter();
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
 
-  virtual const char* Name() const {
+  const char* Name() const override {
     return "FixReflowFilter";
   }
 

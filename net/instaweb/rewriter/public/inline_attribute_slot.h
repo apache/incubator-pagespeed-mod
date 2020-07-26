@@ -31,11 +31,11 @@ class InlineAttributeSlot : public ResourceSlot {
                       HtmlElement* element,
                       HtmlElement::Attribute* attribute,
                       StringPiece location);
-  virtual ~InlineAttributeSlot();
-  virtual HtmlElement* element() const { return element_; }
-  virtual GoogleString LocationString() const { return location_; }
+  ~InlineAttributeSlot() override;
+  HtmlElement* element() const override { return element_; }
+  GoogleString LocationString() const override { return location_; }
 
-  virtual void Render();
+  void Render() override;
 
   const HtmlElement::Attribute* attribute() const { return attribute_; }
 

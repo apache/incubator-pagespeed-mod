@@ -98,11 +98,11 @@ class CssFilter : public RewriteFilter {
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void EndElementImpl(HtmlElement* element);
+  void Characters(HtmlCharactersNode* characters) override;
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "CssFilter"; }
-  virtual const char* id() const { return RewriteOptions::kCssFilterId; }
+  const char* Name() const override { return "CssFilter"; }
+  const char* id() const override { return RewriteOptions::kCssFilterId; }
   virtual void EncodeUserAgentIntoResourceContext(
       ResourceContext* context) const;
 
@@ -126,19 +126,19 @@ class CssFilter : public RewriteFilter {
       CssFilter::Context* rewriter, RewriteContext* parent,
       CssHierarchy* hierarchy);
 
-  virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const {
+  const RewriteOptions::Filter* RelatedFilters(int* num_filters) const override {
     *num_filters = merged_filters_size_;
     return merged_filters_;
   }
-  virtual const StringPieceVector* RelatedOptions() const {
+  const StringPieceVector* RelatedOptions() const override {
     return related_options_;
   }
 
  protected:
-  virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const;
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
+  RewriteContext* MakeRewriteContext() override;
+  const UrlSegmentEncoder* encoder() const override;
+  RewriteContext* MakeNestedRewriteContext(
+      RewriteContext* parent, const ResourceSlotPtr& slot) override;
 
  private:
   friend class Context;
@@ -287,19 +287,19 @@ class CssFilter::Context : public SingleRewriteContext {
  protected:
   bool PolicyPermitsRendering() const override;
   void Render() override;
-  virtual void Harvest();
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs);
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output);
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  void Harvest() override;
+  bool Partition(OutputPartitions* partitions,
+                         OutputResourceVector* outputs) override;
+  void RewriteSingle(const ResourcePtr& input,
+                             const OutputResourcePtr& output) override;
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
   virtual GoogleString CacheKeySuffix() const;
-  virtual const UrlSegmentEncoder* encoder() const;
+  const UrlSegmentEncoder* encoder() const override;
 
   // Implements UserAgentCacheKey method of RewriteContext.
-  virtual GoogleString UserAgentCacheKey(
-      const ResourceContext* resource_context) const;
+  GoogleString UserAgentCacheKey(
+      const ResourceContext* resource_context) const override;
 
  private:
   void GetCssBaseUrlToUse(const ResourcePtr& input_resource,
@@ -359,7 +359,7 @@ class CssFilter::Context : public SingleRewriteContext {
   // file.
   int64 ImageInlineMaxBytes() const;
 
-  virtual bool ScheduleViaCentralController() { return true; }
+  bool ScheduleViaCentralController() override { return true; }
 
   CssFilter* filter_;
   std::unique_ptr<CssImageRewriter> css_image_rewriter_;

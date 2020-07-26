@@ -63,8 +63,8 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
 
   static void InitStats(Statistics* statistics);
 
-  virtual const char* Name() const { return "CriticalCssBeacon"; }
-  virtual const char* id() const { return "cb"; }
+  const char* Name() const override { return "CriticalCssBeacon"; }
+  const char* id() const override { return "cb"; }
 
   // This filter needs access to all critical selectors (even those from
   // unauthorized domains) in order to let the clients use them while
@@ -79,7 +79,7 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
   }
 
   // Selectors are inlined into javascript.
-  virtual bool IntendedForInlining() const { return true; }
+  bool IntendedForInlining() const override { return true; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  protected:
@@ -88,7 +88,7 @@ class CriticalCssBeaconFilter : public CssSummarizerBase {
                          GoogleString* out) const;
   virtual void SummariesDone();
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
  private:
   static void FindSelectorsFromRuleset(const Css::Ruleset& ruleset,

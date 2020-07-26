@@ -39,10 +39,10 @@ class HandleNoscriptRedirectFilter : public EmptyHtmlFilter {
   explicit HandleNoscriptRedirectFilter(RewriteDriver* rewrite_driver);
   virtual ~HandleNoscriptRedirectFilter();
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual const char* Name() const { return "HandleNoscriptRedirect"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  const char* Name() const override { return "HandleNoscriptRedirect"; }
 
  private:
   void Init();

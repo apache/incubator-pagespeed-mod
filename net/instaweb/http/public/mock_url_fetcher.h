@@ -43,7 +43,7 @@ class Timer;
 class MockUrlFetcher : public UrlAsyncFetcher {
  public:
   MockUrlFetcher();
-  virtual ~MockUrlFetcher();
+  ~MockUrlFetcher() override;
 
   void SetResponse(const StringPiece& url,
                    const ResponseHeaders& response_header,
@@ -65,11 +65,11 @@ class MockUrlFetcher : public UrlAsyncFetcher {
                               const StringPiece& response_body);
 
   // Fetching unset URLs will cause EXPECT failures as well as Done(false).
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
-  virtual bool SupportsHttps() const {
+  bool SupportsHttps() const override {
     ScopedMutex lock(mutex_.get());
     return supports_https_;
   }

@@ -34,7 +34,7 @@ class EnvoyRewriteDriverFactory;
 class ProxyFetchFactory;
 class EnvoyServerContext;
 
-class EnvoyProcessContext : ProcessContext {
+class EnvoyProcessContext : public ProcessContext {
 public:
   explicit EnvoyProcessContext();
   ~EnvoyProcessContext() override {};

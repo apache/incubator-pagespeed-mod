@@ -81,10 +81,10 @@ class LocalStorageCacheFilter : public RewriteFilter {
   void StartDocumentImpl() override;
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "LocalStorageCache"; }
-  virtual const char* id() const {
+  const char* Name() const override { return "LocalStorageCache"; }
+  const char* id() const override {
     return RewriteOptions::kLocalStorageCacheId;
   }
 

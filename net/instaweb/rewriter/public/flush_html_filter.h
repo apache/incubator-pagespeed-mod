@@ -39,10 +39,10 @@ class FlushHtmlFilter : public CommonFilter {
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void Flush();
+  void EndElementImpl(HtmlElement* element) override;
+  void Flush() override;
 
-  virtual const char* Name() const { return "FlushHtmlFilter"; }
+  const char* Name() const override { return "FlushHtmlFilter"; }
 
  private:
   int score_;

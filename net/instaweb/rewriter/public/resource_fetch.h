@@ -100,8 +100,8 @@ class ResourceFetch : public SharedAsyncFetch {
 
  protected:
   // Protected interface from AsyncFetch.
-  virtual void HandleHeadersComplete();
-  virtual void HandleDone(bool success);
+  void HandleHeadersComplete() override;
+  void HandleDone(bool success) override;
 
  private:
   ResourceFetch(const GoogleUrl& url, CleanupMode cleanup_mode,
@@ -120,8 +120,6 @@ class ResourceFetch : public SharedAsyncFetch {
   GoogleUrl resource_url_;
   RewriteDriver* driver_;
   Timer* timer_;
-  MessageHandler* message_handler_;
-
   int64 start_time_ms_;
   int redirect_count_;
   CleanupMode cleanup_mode_;

@@ -81,11 +81,11 @@ class ResponsiveImageFirstFilter : public CommonFilter {
   explicit ResponsiveImageFirstFilter(RewriteDriver* driver);
   virtual ~ResponsiveImageFirstFilter();
 
-  virtual void StartElementImpl(HtmlElement* element) {}
+  void StartElementImpl(HtmlElement* element) override {}
   void StartDocumentImpl() override;
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "ResponsiveImageFirst"; }
+  const char* Name() const override { return "ResponsiveImageFirst"; }
 
  private:
   void AddHiResImages(HtmlElement* element);
@@ -108,12 +108,12 @@ class ResponsiveImageSecondFilter : public CommonFilter {
       RewriteDriver* driver, const ResponsiveImageFirstFilter* first_filter);
   virtual ~ResponsiveImageSecondFilter();
 
-  virtual void StartElementImpl(HtmlElement* element) {}
+  void StartElementImpl(HtmlElement* element) override {}
   void StartDocumentImpl() override;
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
   void EndDocument() override;
 
-  virtual const char* Name() const { return "ResponsiveImageSecond"; }
+  const char* Name() const override { return "ResponsiveImageSecond"; }
 
   // Injects scripts only when option responsive_images_zoom is enabled, and
   // the current document is not AMP.

@@ -41,10 +41,10 @@ class CssMoveToHeadFilter : public CommonFilter {
   static void InitStats(Statistics* statistics);
 
   void StartDocumentImpl() override;
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "CssMoveToHead"; }
+  const char* Name() const override { return "CssMoveToHead"; }
 
  private:
   // Should we move CSS into head? If not, we just move it above scripts.

@@ -112,8 +112,8 @@ class SystemServerContextNoProxyHtml : public SystemServerContext {
 
 class SystemCachesTest : public CustomRewriteTestBase<SystemRewriteOptions> {
  protected:
-  static const int kThreadLimit = 3;
-  static const int kUsableMetadataCacheSize = 8 * 1024;
+  static constexpr int kThreadLimit = 3;
+  static constexpr int kUsableMetadataCacheSize = 8 * 1024;
 
   // Helper that blocks for async HTTP cache lookups.
   class HTTPBlockingCallback : public HTTPCache::Callback {

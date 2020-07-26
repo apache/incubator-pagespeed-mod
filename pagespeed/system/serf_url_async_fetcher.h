@@ -124,19 +124,19 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
                       Statistics* statistics, Timer* timer, int64 timeout_ms,
                       MessageHandler* handler);
   SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent, const char* proxy);
-  virtual ~SerfUrlAsyncFetcher();
+  ~SerfUrlAsyncFetcher() override;
 
   static void InitStats(Statistics* statistics);
 
   // Stops all active fetches and prevents further fetches from starting
   // (they will instead quickly call back to ->Done(false).
-  virtual void ShutDown();
+  void ShutDown() override;
 
-  virtual bool SupportsHttps() const;
+  bool SupportsHttps() const override;
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* callback);
+                     AsyncFetch* callback) override;
   // TODO(morlovich): Make private once non-thread mode concept removed.
   int Poll(int64 max_wait_ms);
 
@@ -160,7 +160,7 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   apr_pool_t* pool() const { return pool_; }
 
   void PrintActiveFetches(MessageHandler* handler) const;
-  virtual int64 timeout_ms() { return timeout_ms_; }
+  int64 timeout_ms() override { return timeout_ms_; }
   ThreadSystem* thread_system() { return thread_system_; }
 
   // Indicates that Serf should enumerate failing URLs whenever the underlying

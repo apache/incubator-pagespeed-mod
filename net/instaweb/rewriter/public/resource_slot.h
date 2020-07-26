@@ -225,9 +225,9 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
 class NullResourceSlot : public ResourceSlot {
  public:
   NullResourceSlot(const ResourcePtr& resource, StringPiece location);
-  virtual HtmlElement* element() const { return NULL; }
-  virtual void Render() {}
-  virtual GoogleString LocationString() const { return location_; }
+  HtmlElement* element() const override { return NULL; }
+  void Render() override {}
+  GoogleString LocationString() const override { return location_; }
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(NullResourceSlot);
@@ -246,9 +246,9 @@ class FetchResourceSlot : public ResourceSlot {
   explicit FetchResourceSlot(const ResourcePtr& resource)
       : ResourceSlot(resource) {
   }
-  virtual HtmlElement* element() const { return NULL; }
-  virtual void Render();
-  virtual GoogleString LocationString() const;
+  HtmlElement* element() const override { return NULL; }
+  void Render() override;
+  GoogleString LocationString() const override;
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(FetchResourceSlot);
@@ -265,13 +265,13 @@ class HtmlResourceSlot : public ResourceSlot {
                    HtmlElement::Attribute* attribute,
                    RewriteDriver* driver);
 
-  virtual HtmlElement* element() const { return element_; }
+  HtmlElement* element() const override { return element_; }
   HtmlElement::Attribute* attribute() const { return attribute_; }
 
-  virtual void Render();
-  virtual GoogleString LocationString() const;
-  virtual bool DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
+  void Render() override;
+  GoogleString LocationString() const override;
+  bool DirectSetUrl(const StringPiece& url) override;
+  bool CanDirectSetUrl() override { return true; }
 
   // How relative the original URL was. If PreserveUrlRelativity is enabled,
   // Render will try to make the final URL just as relative.
@@ -279,7 +279,7 @@ class HtmlResourceSlot : public ResourceSlot {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);
-  virtual ~HtmlResourceSlot();
+  ~HtmlResourceSlot() override;
 
  private:
   HtmlElement* element_;

@@ -36,12 +36,12 @@ class RewriteDriver;
 class SupportNoscriptFilter : public EmptyHtmlFilter {
  public:
   explicit SupportNoscriptFilter(RewriteDriver* rewrite_driver);
-  virtual ~SupportNoscriptFilter();
+  ~SupportNoscriptFilter() override;
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
-  virtual void StartElement(HtmlElement* element);
-  virtual const char* Name() const { return "SupportNoscript"; }
+  void StartElement(HtmlElement* element) override;
+  const char* Name() const override { return "SupportNoscript"; }
 
   // Make sure this filter gets turned off when a document is declared as AMP.
   //

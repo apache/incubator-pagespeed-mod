@@ -63,11 +63,11 @@ class SimulatedDelayFetcher : public UrlAsyncFetcher {
                         StringPiece request_log_path,
                         int request_log_flush_frequency);
 
-  virtual ~SimulatedDelayFetcher();
+  ~SimulatedDelayFetcher() override;
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
  private:
   typedef std::map<GoogleString, int> DelayMap;

@@ -39,15 +39,15 @@ class AddHeadersFetcher : public UrlAsyncFetcher {
   // Caller keeps ownership of backend_fetcher.
   AddHeadersFetcher(const RewriteOptions* options,
                     UrlAsyncFetcher* backend_fetcher);
-  virtual ~AddHeadersFetcher();
+  ~AddHeadersFetcher() override;
 
-  virtual bool SupportsHttps() const {
+  bool SupportsHttps() const override {
     return backend_fetcher_->SupportsHttps();
   }
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* callback);
+                     AsyncFetch* callback) override;
 
  private:
   const RewriteOptions* const options_;

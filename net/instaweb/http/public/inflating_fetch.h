@@ -73,13 +73,13 @@ class InflatingFetch : public SharedAsyncFetch {
  protected:
   // If inflation is required, inflates and passes bytes to the linked fetch,
   // otherwise just passes bytes.
-  virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler);
+  bool HandleWrite(const StringPiece& sp, MessageHandler* handler) override;
 
   // Analyzes headers and depending on the request settings and flags will
   // either setup inflater or not.
-  virtual void HandleHeadersComplete();
-  virtual void HandleDone(bool success);
-  virtual void Reset();
+  void HandleHeadersComplete() override;
+  void HandleDone(bool success) override;
+  void Reset() override;
 
  private:
   void InitInflater(GzipInflater::InflateType, const StringPiece& value);

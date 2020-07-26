@@ -77,15 +77,15 @@ class TrimWhitespaceRewriter : public SimpleTextFilter::Rewriter {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(TrimWhitespaceRewriter);
-  virtual ~TrimWhitespaceRewriter();
+  ~TrimWhitespaceRewriter() override;
 
-  virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
+  bool RewriteText(const StringPiece& url, const StringPiece& in,
                            GoogleString* out,
-                           ServerContext* server_context);
-  virtual HtmlElement::Attribute* FindResourceAttribute(HtmlElement* element);
-  virtual OutputResourceKind kind() const { return kind_; }
-  virtual const char* id() const { return kFilterId; }
-  virtual const char* name() const { return "TrimWhitespace"; }
+                           ServerContext* server_context) override;
+  HtmlElement::Attribute* FindResourceAttribute(HtmlElement* element) override;
+  OutputResourceKind kind() const override { return kind_; }
+  const char* id() const override { return kFilterId; }
+  const char* name() const override { return "TrimWhitespace"; }
 
  private:
   OutputResourceKind kind_;
@@ -110,8 +110,8 @@ class TrimWhitespaceSyncFilter : public SimpleTextFilter {
   virtual ~TrimWhitespaceSyncFilter();
 
   void StartElementImpl(HtmlElement* element) override;
-  virtual const char* id() const { return kFilterId; }
-  virtual const char* name() const { return "TrimWhitespaceSync"; }
+  const char* id() const override { return kFilterId; }
+  virtual const char* name() { return "TrimWhitespaceSync"; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TrimWhitespaceSyncFilter);
@@ -136,25 +136,25 @@ class UpperCaseRewriter : public SimpleTextFilter::Rewriter {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(UpperCaseRewriter);
-  virtual ~UpperCaseRewriter();
+  ~UpperCaseRewriter() override;
 
-  virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
+  bool RewriteText(const StringPiece& url, const StringPiece& in,
                            GoogleString* out,
-                           ServerContext* server_context) {
+                           ServerContext* server_context) override {
     ++num_rewrites_;
     in.CopyToString(out);
     UpperString(out);
     return in != *out;
   }
-  virtual HtmlElement::Attribute* FindResourceAttribute(HtmlElement* element) {
+  HtmlElement::Attribute* FindResourceAttribute(HtmlElement* element) override {
     if (element->keyword() == HtmlName::kLink) {
       return element->FindAttribute(HtmlName::kHref);
     }
     return NULL;
   }
-  virtual OutputResourceKind kind() const { return kind_; }
-  virtual const char* id() const { return kFilterId; }
-  virtual const char* name() const { return "UpperCase"; }
+  OutputResourceKind kind() const override { return kind_; }
+  const char* id() const override { return kFilterId; }
+  const char* name() const override { return "UpperCase"; }
 
  private:
   OutputResourceKind kind_;
@@ -207,14 +207,14 @@ class NestedFilter : public RewriteFilter {
   }
 
  protected:
-  virtual ~NestedFilter();
+  ~NestedFilter() override;
 
   class NestedSlot : public ResourceSlot {
    public:
     explicit NestedSlot(const ResourcePtr& resource) : ResourceSlot(resource) {}
-    virtual HtmlElement* element() const { return NULL; }
-    virtual void Render() {}
-    virtual GoogleString LocationString() const { return "nested:"; }
+    HtmlElement* element() const override { return NULL; }
+    void Render() override {}
+    GoogleString LocationString() const override { return "nested:"; }
   };
 
   class Context : public SingleRewriteContext {
@@ -224,15 +224,15 @@ class NestedFilter : public RewriteFilter {
           filter_(filter),
           chain_(chain) {
     }
-    virtual ~Context();
-    virtual void RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output);
+    ~Context() override;
+    void RewriteSingle(
+        const ResourcePtr& input, const OutputResourcePtr& output) override;
     bool PolicyPermitsRendering() const override { return true; }
-    virtual void Harvest();
+    void Harvest() override;
 
    protected:
-    virtual const char* id() const { return kFilterId; }
-    virtual OutputResourceKind kind() const { return kRewrittenResource; }
+    const char* id() const override { return kFilterId; }
+    OutputResourceKind kind() const override { return kRewrittenResource; }
 
    private:
     std::vector<GoogleString*> strings_;
@@ -243,17 +243,17 @@ class NestedFilter : public RewriteFilter {
     DISALLOW_COPY_AND_ASSIGN(Context);
   };
 
-  virtual RewriteContext* MakeRewriteContext() {
+  RewriteContext* MakeRewriteContext() override {
     return new Context(driver(), this, chain_);
   }
 
   void StartElementImpl(HtmlElement* element) override;
   SimpleTextFilter* upper_filter() { return upper_filter_; }
 
-  virtual const char* id() const { return kFilterId; }
-  virtual const char* Name() const { return "NestedFilter"; }
-  virtual void StartDocumentImpl() {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  const char* id() const override { return kFilterId; }
+  const char* Name() const override { return "NestedFilter"; }
+  void StartDocumentImpl() override {}
+  void EndElementImpl(HtmlElement* element) override {}
 
  private:
   // Upper-casing filter we also invoke.
@@ -316,7 +316,7 @@ class CombiningFilter : public RewriteFilter {
     GoogleString prefix_;
   };
 
-  virtual const char* id() const { return kFilterId; }
+  const char* id() const override { return kFilterId; }
 
   class Context : public RewriteContext {
    public:
@@ -330,13 +330,13 @@ class CombiningFilter : public RewriteFilter {
     }
 
    protected:
-    virtual bool Partition(OutputPartitions* partitions,
-                           OutputResourceVector* outputs);
+    bool Partition(OutputPartitions* partitions,
+                   OutputResourceVector* outputs) override;
 
-    virtual void Rewrite(int partition_index,
-                         CachedResult* partition,
-                         const OutputResourcePtr& output);
-    virtual bool OptimizationOnly() const {
+    void Rewrite(int partition_index,
+                  CachedResult* partition,
+                  const OutputResourcePtr& output) override;
+    bool OptimizationOnly() const override {
       return filter_->optimization_only();
     }
 
@@ -344,13 +344,13 @@ class CombiningFilter : public RewriteFilter {
                    CachedResult* partition,
                    OutputResourcePtr output);
     bool PolicyPermitsRendering() const override { return true; }
-    virtual void Render();
-    virtual void WillNotRender();
-    virtual void Cancel();
+    void Render() override;
+    void WillNotRender() override;
+    void Cancel() override;
     void DisableRemovedSlots(const CachedResult* partition);
-    virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
-    virtual const char* id() const { return kFilterId; }
-    virtual OutputResourceKind kind() const {
+    const UrlSegmentEncoder* encoder() const override { return &encoder_; }
+    const char* id() const override { return kFilterId; }
+    OutputResourceKind kind() const override {
       return filter_->on_the_fly_ ? kOnTheFlyResource : kRewrittenResource;
     }
 
@@ -362,22 +362,22 @@ class CombiningFilter : public RewriteFilter {
     CombiningFilter* filter_;
   };
 
-  virtual void StartDocumentImpl() {}
+  void StartDocumentImpl() override {}
   void StartElementImpl(HtmlElement* element) override;
-  virtual void Flush() {
+  void Flush() override {
     if (context_.get() != NULL) {
       driver()->InitiateRewrite(context_.release());
     }
   }
 
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual const char* Name() const { return "Combining"; }
-  RewriteContext* MakeRewriteContext() {
+  void EndElementImpl(HtmlElement* element) override {}
+  const char* Name() const override { return "Combining"; }
+  RewriteContext* MakeRewriteContext() override {
     return new Context(driver(), this, scheduler_);
   }
-  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
+  const UrlSegmentEncoder* encoder() const override { return &encoder_; }
 
-  virtual bool ComputeOnTheFly() const { return on_the_fly_; }
+  bool ComputeOnTheFly() const override { return on_the_fly_; }
 
   int num_rewrites() const { return num_rewrites_; }
   int num_render() const { return num_render_; }
@@ -458,10 +458,10 @@ class RewriteContextTestBase : public RewriteTestBase {
   RewriteContextTestBase() {}
   virtual ~RewriteContextTestBase();
 
-  virtual void SetUp();
-  virtual void TearDown();
-  virtual bool AddBody() const { return false; }
-  virtual void ClearStats();
+  void SetUp() override;
+  void TearDown() override;
+  bool AddBody() const override { return false; }
+  void ClearStats() override;
 
   void InitResources() { InitResourcesToDomain(kTestDomain); }
   void InitResourcesToDomain(const char* domain);

@@ -42,8 +42,8 @@ class BaseTagFilter : public EmptyHtmlFilter {
   virtual void StartDocument() {
     added_base_tag_ = false;
   }
-  virtual void StartElement(HtmlElement* element);
-  virtual const char* Name() const { return "BaseTag"; }
+  void StartElement(HtmlElement* element) override;
+  const char* Name() const override { return "BaseTag"; }
 
  private:
   bool added_base_tag_;

@@ -70,7 +70,7 @@ class AsyncCache : public CacheInterface {
   void MultiGet(MultiGetRequest* request) override;
   static GoogleString FormatName(StringPiece cache);
   GoogleString Name() const override { return FormatName(cache_->Name()); }
-  virtual bool IsBlocking() const { return false; }
+  bool IsBlocking() const override { return false; }
 
   // Prevent the AsyncCache from issuing any more Gets.  Any subsequent
   // Gets will have their callback invoked immediately with kNotFound.
@@ -86,7 +86,7 @@ class AsyncCache : public CacheInterface {
   // kNotFound.
   void CancelPendingOperations() { sequence_->CancelPendingFunctions(); }
 
-  virtual bool IsHealthy() const {
+  bool IsHealthy() const override {
     return !stopped_.value() && cache_->IsHealthy();
   }
 

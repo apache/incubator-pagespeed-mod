@@ -39,7 +39,7 @@ class ElideAttributesFilter : public EmptyHtmlFilter {
   virtual ~ElideAttributesFilter();
 
   void StartElement(HtmlElement* element) override;
-  virtual const char* Name() const { return "ElideAttributes"; }
+  const char* Name() const override { return "ElideAttributes"; }
 
  private:
   struct AttrValue {

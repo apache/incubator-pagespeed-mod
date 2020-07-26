@@ -38,9 +38,9 @@ class RedirectOnSizeLimitFilter : public CommonFilter {
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "RedirectOnSizeLimit"; }
+  const char* Name() const override { return "RedirectOnSizeLimit"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

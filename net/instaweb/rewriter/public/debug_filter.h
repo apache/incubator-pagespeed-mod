@@ -41,9 +41,9 @@ class DebugFilter : public EmptyHtmlFilter {
   virtual ~DebugFilter();
 
   void EndDocument() override;
-  virtual void Flush();
+  void Flush() override;
 
-  virtual const char* Name() const { return "Debug"; }
+  const char* Name() const override { return "Debug"; }
 
   // Special entry-points needed for measuring timing.  The timing
   // of StartDocument/EndDocument does not capture the correct timing,
@@ -57,7 +57,7 @@ class DebugFilter : public EmptyHtmlFilter {
   void StartRender();
   void EndRender();
 
-  virtual void EndElement(HtmlElement* element);
+  void EndElement(HtmlElement* element) override;
 
   // Formats Flush/EndOfDocument messages that will be easy to read from
   // View->PageSource in a browser.

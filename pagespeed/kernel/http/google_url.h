@@ -24,13 +24,13 @@
 
 #include <cstddef>
 
-#include "url/gurl.h"
-#include "url/url_parse_internal.h"
-#include "url/url_util.h"
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+
+#include "url/gurl.h"
+#include "url/url_parse_internal.h"
+#include "url/url_util.h"
 
 
 namespace net_instaweb {

@@ -147,12 +147,11 @@ ResourceFetch::ResourceFetch(const GoogleUrl& url,
                              CleanupMode cleanup_mode,
                              RewriteDriver* driver,
                              Timer* timer,
-                             MessageHandler* handler,
+                             MessageHandler*,
                              AsyncFetch* async_fetch)
     : SharedAsyncFetch(async_fetch),
       driver_(driver),
       timer_(timer),
-      message_handler_(handler),
       start_time_ms_(timer->NowMs()),
       redirect_count_(0),
       cleanup_mode_(cleanup_mode) {

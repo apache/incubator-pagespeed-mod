@@ -52,7 +52,7 @@ class ResizeCol;
 class ScanlineResizer : public ScanlineReaderInterface {
  public:
   explicit ScanlineResizer(MessageHandler* handler);
-  virtual ~ScanlineResizer();
+  ~ScanlineResizer() override;
 
   // Initializes the resizer with a reader and the desired output size.
   bool Initialize(ScanlineReaderInterface* reader,
@@ -68,7 +68,7 @@ class ScanlineResizer : public ScanlineReaderInterface {
   bool Reset() override;
 
   // Returns number of bytes required to store a scanline.
-  virtual size_t GetBytesPerScanline() {
+  size_t GetBytesPerScanline() override {
     return static_cast<size_t>(elements_per_row_);
   }
 
@@ -77,29 +77,29 @@ class ScanlineResizer : public ScanlineReaderInterface {
   bool HasMoreScanLines() override;
 
   // Returns the height of the image.
-  virtual size_t GetImageHeight() {
+  size_t GetImageHeight() override {
     return static_cast<size_t>(height_);
   }
 
   // Returns the width of the image.
-  virtual size_t GetImageWidth() {
+  size_t GetImageWidth() override {
     return static_cast<size_t>(width_);
   }
 
   // Returns the pixel format of the image.
-  virtual PixelFormat GetPixelFormat() {
+  PixelFormat GetPixelFormat() override {
     return reader_->GetPixelFormat();
   }
 
   // Returns true if the image is encoded in progressive / interlacing format.
-  virtual bool IsProgressive() {
+  bool IsProgressive() override {
     return reader_->IsProgressive();
   }
 
   // This method should not be called. If it does get called, in DEBUG mode it
   // will throw a FATAL error and in RELEASE mode it does nothing.
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                              size_t buffer_length) override;
 
   static const size_t kPreserveAspectRatio = 0;
 

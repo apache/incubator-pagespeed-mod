@@ -67,17 +67,17 @@ class InPlaceResourceRecorder : public Writer {
 
   // Normally you should use DoneAndSetHeaders rather than deleting this
   // directly.
-  virtual ~InPlaceResourceRecorder();
+  ~InPlaceResourceRecorder() override;
 
   static void InitStats(Statistics* statistics);
 
   // These take a handler for compatibility with the Writer API, but the handler
   // is not used.
-  virtual bool Write(const StringPiece& contents, MessageHandler* handler);
+  bool Write(const StringPiece& contents, MessageHandler* handler) override;
 
   // Flush is a no-op because we have to buffer up the whole contents before
   // writing to cache.
-  virtual bool Flush(MessageHandler* handler) { return true; }
+  bool Flush(MessageHandler* handler) override { return true; }
 
   // Sometimes the response headers prohibit IPRO:
   //  * If it's not an IPRO content type.

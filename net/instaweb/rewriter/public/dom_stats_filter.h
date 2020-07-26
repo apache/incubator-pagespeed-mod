@@ -41,7 +41,7 @@ class DomStatsFilter : public CommonFilter {
   // Clears all state associated with the filter.
   void Clear();
 
-  virtual const char* Name() const { return "Dom Statistics"; }
+  const char* Name() const override { return "Dom Statistics"; }
 
   int num_img_tags() const { return num_img_tags_; }
   int num_inlined_img_tags() const { return num_inlined_img_tags_; }
@@ -51,8 +51,8 @@ class DomStatsFilter : public CommonFilter {
 
  private:
   void StartDocumentImpl() override;
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override;
 
   int num_img_tags_;
   int num_inlined_img_tags_;

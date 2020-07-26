@@ -40,10 +40,10 @@ class ResponseHeaders;
 class ApacheWriter : public Writer {
  public:
   ApacheWriter(request_rec* r, ThreadSystem* thread_system);
-  virtual ~ApacheWriter();
+  ~ApacheWriter() override;
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 
   // Copies the contents of the specified response_headers to the Apache
   // headers_out structure.  This must be done before any bytes are flushed.

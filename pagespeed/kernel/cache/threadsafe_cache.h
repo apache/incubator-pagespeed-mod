@@ -47,13 +47,13 @@ class ThreadsafeCache : public CacheInterface {
       : cache_(cache),
         mutex_(mutex) {
   }
-  virtual ~ThreadsafeCache();
+  ~ThreadsafeCache() override;
 
   void Get(const GoogleString& key, Callback* callback) override;
-  virtual void Put(const GoogleString& key, const SharedString& value)
-      LOCKS_EXCLUDED(mutex_);
+  void Put(const GoogleString& key, const SharedString& value)
+      LOCKS_EXCLUDED(mutex_) override;
   void Delete(const GoogleString& key) LOCKS_EXCLUDED(mutex_) override;
-  virtual CacheInterface* Backend() { return cache_; }
+  CacheInterface* Backend() override { return cache_; }
   bool IsBlocking() const override { return cache_->IsBlocking(); }
   bool IsHealthy() const LOCKS_EXCLUDED(mutex_) override;
   void ShutDown() LOCKS_EXCLUDED(mutex_) override;

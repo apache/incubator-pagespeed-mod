@@ -98,7 +98,7 @@ class CacheBatcher : public CacheInterface {
   void Get(const GoogleString& key, Callback* callback) override;
   void Put(const GoogleString& key, const SharedString& value) override;
   void Delete(const GoogleString& key) override;
-  virtual GoogleString Name() const;
+  GoogleString Name() const override;
   static GoogleString FormatName(StringPiece cache, int parallelism, int max);
 
   // Note: CacheBatcher cannot do any batching if given a blocking cache,

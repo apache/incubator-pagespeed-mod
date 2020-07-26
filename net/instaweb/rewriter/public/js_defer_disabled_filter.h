@@ -41,8 +41,8 @@ class JsDeferDisabledFilter : public CommonFilter {
   explicit JsDeferDisabledFilter(RewriteDriver* driver);
   virtual ~JsDeferDisabledFilter();
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-  virtual const char* Name() const { return "JsDeferDisabledFilter"; }
+  void DetermineEnabled(GoogleString* disabled_reason) override;
+  const char* Name() const override { return "JsDeferDisabledFilter"; }
 
   static void InitStats(Statistics* statistics);
   static void Terminate();
@@ -56,9 +56,9 @@ class JsDeferDisabledFilter : public CommonFilter {
  private:
   void EndDocument() override;
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
 
   void InsertJsDeferCode();
 

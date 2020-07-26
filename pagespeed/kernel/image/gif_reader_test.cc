@@ -145,7 +145,6 @@ const size_t kValidTransparentGifImageCount =
 
 const char kAnimatedGif[] = "animated";
 const char kBadGif[] = "bad";
-const char kCompletelyTransparentImage[] = "completely_transparent";
 const char kFrameSmallerThanScreen[] = "frame_smaller_than_screen";
 const char kInterlacedImage[] = "interlaced";
 const char kRedConforming[] = "red_conforming";

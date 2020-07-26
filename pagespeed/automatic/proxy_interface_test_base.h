@@ -155,11 +155,11 @@ class BackgroundFetchCheckingUrlAsyncFetcher : public UrlAsyncFetcher {
   explicit BackgroundFetchCheckingUrlAsyncFetcher(UrlAsyncFetcher* fetcher)
       : base_fetcher_(fetcher),
         num_background_fetches_(0) {}
-  virtual ~BackgroundFetchCheckingUrlAsyncFetcher() {}
+  ~BackgroundFetchCheckingUrlAsyncFetcher() override {}
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch) {
+                     AsyncFetch* fetch) override {
     if (fetch->IsBackgroundFetch()) {
       num_background_fetches_++;
     }
@@ -185,8 +185,8 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
   static const int kHtmlCacheTimeSec = 5000;
 
   ProxyInterfaceTestBase();
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   void FetchFromProxy(
       const StringPiece& url,
@@ -236,7 +236,7 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
   // created temporarily for the proxy fetch.  This allows us to reset
   // the request-context on each new ProxyFetch, potentially changing
   // request-headers that affect webp/gzip bits in the RequestContext.
-  virtual RequestContextPtr request_context();
+  RequestContextPtr request_context() override;
 
   // Setting a nonzero header-latency advances the scheduler every
   // time we initiate a new request, so that there's a latency

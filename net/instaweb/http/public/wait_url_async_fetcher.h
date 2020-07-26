@@ -44,12 +44,12 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
         pass_through_mode_(false),
         mutex_(mutex) {
   }
-  virtual ~WaitUrlAsyncFetcher();
+  ~WaitUrlAsyncFetcher() override;
 
   // Initiate fetches that will finish when CallCallbacks is called.
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
   // Call all callbacks from previously initiated fetches.
   void CallCallbacks();

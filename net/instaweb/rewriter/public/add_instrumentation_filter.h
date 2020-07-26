@@ -53,13 +53,13 @@ class AddInstrumentationFilter : public CommonFilter {
   void StartDocumentImpl() override;
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual const char* Name() const { return "AddInstrumentation"; }
+  void EndElementImpl(HtmlElement* element) override;
+  const char* Name() const override { return "AddInstrumentation"; }
 
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  protected:
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   // The total number of times instrumentation script is added.
   Variable* instrumentation_script_added_count_;

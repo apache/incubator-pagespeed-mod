@@ -42,19 +42,19 @@ class MultipleFramePaddingReader : public MultipleFrameReader {
  public:
   // Takes ownership of reader.
   explicit MultipleFramePaddingReader(MultipleFrameReader* reader);
-  virtual ~MultipleFramePaddingReader();
+  ~MultipleFramePaddingReader() override;
 
   ScanlineStatus Reset() override;
   ScanlineStatus Initialize() override;
-  virtual bool HasMoreFrames() const;
-  virtual bool HasMoreScanlines() const;
+  bool HasMoreFrames() const override;
+  bool HasMoreScanlines() const override;
   ScanlineStatus PrepareNextFrame() override;
   ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override;
-  virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const;
-  virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const;
+  ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const override;
+  ScanlineStatus GetImageSpec(ImageSpec* image_spec) const override;
   MessageHandler* message_handler() const;
   ScanlineStatus set_quirks_mode(QuirksMode quirks_mode) override;
-  virtual QuirksMode quirks_mode() const;
+  QuirksMode quirks_mode() const override;
 
  private:
   std::unique_ptr<MultipleFrameReader> impl_;

@@ -52,9 +52,6 @@ const char kCohortName2[] = "cohort2";
 const char kPropName1[] = "prop1";
 const char kValueName1[] = "value1";
 const char kUrl[] = "www.test.com/sample.html";
-const char kParsableContent[] =
-    "value { name: 'prop1' value: 'value1' }";
-const char kNonParsableContent[] = "random";
 const char kOptionsSignatureHash[] = "hash";
 const char kCacheKeySuffix[] = "CacheKeySuffix";
 

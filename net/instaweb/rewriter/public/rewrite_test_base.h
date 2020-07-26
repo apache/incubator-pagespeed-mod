@@ -119,13 +119,13 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                                      TestRewriteDriverFactory*> factories);
   virtual ~RewriteTestBase();
 
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   // In this set of tests, we will provide explicit body tags, so
   // the test harness should not add them in for our convenience.
   // It can go ahead and add the <html> and </html>, however.
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   // Makes a TestRewriteDriverFactory.  This can be overridden in
   // subclasses if you need a factory with special properties.

@@ -150,9 +150,9 @@ public:
   // class.
   void set_write_callback(FileCallback* x) { write_callback_.reset(x); }
 
-  virtual bool WriteFile(const char* filename, const StringPiece& buffer, MessageHandler* handler);
-  virtual bool WriteTempFile(const StringPiece& prefix_name, const StringPiece& buffer,
-                             GoogleString* filename, MessageHandler* handler);
+  bool WriteFile(const char* filename, const StringPiece& buffer, MessageHandler* handler) override;
+  bool WriteTempFile(const StringPiece& prefix_name, const StringPiece& buffer,
+                             GoogleString* filename, MessageHandler* handler) override;
 
 private:
   inline void UpdateAtime(const StringPiece& path) SHARED_LOCKS_REQUIRED(all_else_mutex_);

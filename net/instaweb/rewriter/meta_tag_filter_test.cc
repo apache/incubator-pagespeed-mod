@@ -186,7 +186,7 @@ const char kMetaTagNoScriptDoc[] =
     "</head><body></body></html>";
 
 TEST_F(MetaTagFilterTest, TestNoScript) {
-  ValidateNoChanges("no_script", kMetaTagDoNothing);
+  ValidateNoChanges("no_script", kMetaTagNoScriptDoc);
   ASSERT_EQ(1, headers()->NumAttributes());
   EXPECT_STREQ("text/html", headers()->Lookup1(HttpAttributes::kContentType));
 }

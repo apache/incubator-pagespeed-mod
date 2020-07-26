@@ -81,14 +81,14 @@ class LoggingFilter : public EmptyHtmlFilter {
   LoggingFilter();
 
   // HtmlFilter methods.
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual void Cdata(HtmlCdataNode* cdata);
-  virtual void Comment(HtmlCommentNode* comment);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual void Directive(HtmlDirectiveNode* directive);
-  virtual const char* Name() const { return "Logging"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  void Cdata(HtmlCdataNode* cdata) override;
+  void Comment(HtmlCommentNode* comment) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  void Directive(HtmlDirectiveNode* directive) override;
+  const char* Name() const override { return "Logging"; }
 
   // Getter for individual statistics; NO BOUNDS CHECKS.
   inline int get(const Statistic statistic) const {

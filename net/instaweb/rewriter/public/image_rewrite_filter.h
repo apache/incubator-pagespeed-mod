@@ -119,13 +119,13 @@ class ImageRewriteFilter : public RewriteFilter {
   static void AddRelatedOptions(StringPieceVector* target);
   void StartDocumentImpl() override;
   void EndDocument() override;
-  virtual void RenderDone();
+  void RenderDone() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual const char* Name() const { return "ImageRewrite"; }
-  virtual const char* id() const { return RewriteOptions::kImageCompressionId; }
-  virtual void EncodeUserAgentIntoResourceContext(
-      ResourceContext* context) const;
+  void EndElementImpl(HtmlElement* element) override {}
+  const char* Name() const override { return "ImageRewrite"; }
+  const char* id() const override { return RewriteOptions::kImageCompressionId; }
+  void EncodeUserAgentIntoResourceContext(
+      ResourceContext* context) const override;
 
   // Registers image information associated with a URL, for use by
   // experiment_collect_mob_image_info. Should be called from DOM-safe
@@ -178,8 +178,8 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Creates a nested rewrite for the given parent and slot and returns it. The
   // result is not registered with the parent.
-  virtual RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
-                                                   const ResourceSlotPtr& slot);
+  RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
+                                        const ResourceSlotPtr& slot) override;
 
   // Update desired image dimensions if necessary. Returns true if it is
   // updated.
@@ -206,8 +206,8 @@ class ImageRewriteFilter : public RewriteFilter {
   Image::CompressionOptions* ImageOptionsForLoadedResource(
       const ResourceContext& context, const ResourcePtr& input_resource);
 
-  virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const;
-  virtual const StringPieceVector* RelatedOptions() const {
+  const RewriteOptions::Filter* RelatedFilters(int* num_filters) const override;
+  const StringPieceVector* RelatedOptions() const override {
     return related_options_;
   }
 
@@ -218,9 +218,9 @@ class ImageRewriteFilter : public RewriteFilter {
   void ReportDroppedRewrite();
 
  protected:
-  virtual const UrlSegmentEncoder* encoder() const;
+  const UrlSegmentEncoder* encoder() const override;
 
-  virtual RewriteContext* MakeRewriteContext();
+  RewriteContext* MakeRewriteContext() override;
 
  private:
   friend class Context;

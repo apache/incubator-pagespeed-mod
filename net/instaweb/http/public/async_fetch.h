@@ -59,7 +59,7 @@ class AsyncFetch : public Writer {
   AsyncFetch();
   explicit AsyncFetch(const RequestContextPtr& request_ctx);
 
-  virtual ~AsyncFetch();
+  ~AsyncFetch() override;
 
   // Called when ResponseHeaders have been set, but before writing contents.
   // Contract: Must be called (at most once) before Write, Flush or Done.
@@ -75,8 +75,8 @@ class AsyncFetch : public Writer {
 
   // Data available.  This interface is intended for callers.  Implementors
   // must override HandlerWrite and HandleFlush.
-  virtual bool Write(const StringPiece& content, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& content, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 
   // Is the cache entry corresponding to headers valid? Default is that it is
   // valid. Sub-classes can provide specific implementations, e.g., based on
@@ -260,11 +260,11 @@ class AsyncFetchUsingWriter : public AsyncFetch {
                         Writer* writer)
      : AsyncFetch(request_context),
        writer_(writer) {}
-  virtual ~AsyncFetchUsingWriter();
+  ~AsyncFetchUsingWriter() override;
 
  protected:
-  virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
+  bool HandleWrite(const StringPiece& sp, MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
 
  private:
   Writer* writer_;
@@ -330,7 +330,7 @@ class FallbackSharedAsyncFetch : public SharedAsyncFetch {
 
   FallbackSharedAsyncFetch(AsyncFetch* base_fetch, HTTPValue* fallback,
                            MessageHandler* handler);
-  virtual ~FallbackSharedAsyncFetch();
+  ~FallbackSharedAsyncFetch() override;
 
   void set_fallback_responses_served(Variable* x) {
     fallback_responses_served_ = x;
@@ -339,10 +339,10 @@ class FallbackSharedAsyncFetch : public SharedAsyncFetch {
   bool serving_fallback() const { return serving_fallback_; }
 
  protected:
-  virtual void HandleDone(bool success);
-  virtual bool HandleWrite(const StringPiece& content, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
-  virtual void HandleHeadersComplete();
+  void HandleDone(bool success) override;
+  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
+  void HandleHeadersComplete() override;
 
  private:
   // Note that this is only used while serving the fallback response.
@@ -367,17 +367,17 @@ class ConditionalSharedAsyncFetch : public SharedAsyncFetch {
  public:
   ConditionalSharedAsyncFetch(AsyncFetch* base_fetch, HTTPValue* cached_value,
                               MessageHandler* handler);
-  virtual ~ConditionalSharedAsyncFetch();
+  ~ConditionalSharedAsyncFetch() override;
 
   void set_num_conditional_refreshes(Variable* x) {
     num_conditional_refreshes_ = x;
   }
 
  protected:
-  virtual void HandleDone(bool success);
-  virtual bool HandleWrite(const StringPiece& content, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
-  virtual void HandleHeadersComplete();
+  void HandleDone(bool success) override;
+  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
+  void HandleHeadersComplete() override;
 
  private:
   // Note that this is only used while serving the cached response.

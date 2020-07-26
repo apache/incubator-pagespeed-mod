@@ -55,17 +55,17 @@ class CssCombineFilter : public RewriteFilter {
   void StartDocumentImpl() override;
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual void Flush();
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual const char* Name() const { return "CssCombine"; }
-  virtual const UrlSegmentEncoder* encoder() const {
+  void EndElementImpl(HtmlElement* element) override {}
+  void Flush() override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  const char* Name() const override { return "CssCombine"; }
+  const UrlSegmentEncoder* encoder() const override {
     return &multipart_encoder_;
   }
 
-  virtual RewriteContext* MakeRewriteContext();
-  virtual const char* id() const { return RewriteOptions::kCssCombinerId; }
+  RewriteContext* MakeRewriteContext() override;
+  const char* id() const override { return RewriteOptions::kCssCombinerId; }
 
  private:
   class Context;

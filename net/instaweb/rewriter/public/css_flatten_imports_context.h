@@ -58,9 +58,9 @@ class CssFlattenImportsContext : public SingleRewriteContext {
         rewriter_(rewriter),
         hierarchy_(hierarchy) {
   }
-  virtual ~CssFlattenImportsContext() {}
+  ~CssFlattenImportsContext() override {}
 
-  virtual GoogleString CacheKeySuffix() const {
+  virtual GoogleString CacheKeySuffix() const override {
     // We have to include the media that applies to this context in its key
     // so that, if someone @import's the same file but with a different set
     // of media on the @import rule, we don't fetch the cached file, since
@@ -77,8 +77,8 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     return suffix;
   }
 
-  virtual void RewriteSingle(const ResourcePtr& input_resource,
-                             const OutputResourcePtr& output_resource) {
+  void RewriteSingle(const ResourcePtr& input_resource,
+                             const OutputResourcePtr& output_resource) override {
     input_resource_ = input_resource;
     output_resource_ = output_resource;
 
@@ -143,7 +143,7 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     }
   }
 
-  void Harvest() {
+  void Harvest() override {
     DCHECK_EQ(1, num_output_partitions());
 
     // Propagate any info on images from child rewrites.
@@ -174,12 +174,12 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     }
   }
 
-  bool PolicyPermitsRendering() const {
+  bool PolicyPermitsRendering() const override {
     // We apply CSP policy for flattening at top-level, not here.
     return true;
   }
 
-  virtual void Render() {
+  void Render() override {
     // If we have flattened the imported file ...
     if (num_output_partitions() == 1 && output_partition(0)->optimizable()) {
       // If Harvest() was called, directly or from RewriteSingle(), then the
@@ -209,10 +209,10 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     }
   }
 
-  virtual const char* id() const {
+  const char* id() const override {
     return RewriteOptions::kCssImportFlattenerId;
   }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
 
  private:
   CssFilter* filter_;

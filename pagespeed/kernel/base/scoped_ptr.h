@@ -17,9 +17,7 @@
  * under the License.
  */
 
-
-#ifndef PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
-#define PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
+#pragma once
 
 #include <memory>
 
@@ -32,5 +30,3 @@ template<typename T> class scoped_array : public std::unique_ptr<T[]> {
 };
 
 }
-
-#endif

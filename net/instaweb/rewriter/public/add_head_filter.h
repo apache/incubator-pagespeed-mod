@@ -33,14 +33,14 @@ class HtmlParse;
 class AddHeadFilter : public EmptyHtmlFilter {
  public:
   explicit AddHeadFilter(HtmlParse* parser, bool combine_multiple_heads);
-  virtual ~AddHeadFilter();
+  ~AddHeadFilter() override;
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
   void EndDocument() override;
-  virtual void EndElement(HtmlElement* element);
-  virtual void Flush();
-  virtual const char* Name() const { return "AddHead"; }
+  void EndElement(HtmlElement* element) override;
+  void Flush() override;
+  const char* Name() const override { return "AddHead"; }
 
  private:
   HtmlParse* html_parse_;

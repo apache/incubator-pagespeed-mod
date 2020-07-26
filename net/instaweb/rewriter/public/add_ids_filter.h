@@ -47,10 +47,10 @@ class AddIdsFilter : public EmptyHtmlFilter {
   explicit AddIdsFilter(RewriteDriver* driver);
   virtual ~AddIdsFilter();
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual const char* Name() const { return "AddIdsFilter"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  const char* Name() const override { return "AddIdsFilter"; }
 
  private:
   GoogleString GetDivCountStackEncoding();

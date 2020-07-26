@@ -68,7 +68,7 @@ class AsyncFetchWithLock : public AsyncFetch {
                      const GoogleString& cache_key,
                      NamedLockManager* lock_manager,
                      MessageHandler* message_handler);
-  virtual ~AsyncFetchWithLock();
+  ~AsyncFetchWithLock() override;
 
   // This will first try to acquire lock and triggers fetch by calling
   // StartFetch() if successful.
@@ -99,15 +99,15 @@ class AsyncFetchWithLock : public AsyncFetch {
   // Releases the lock.
   // If subclass overrides the function, then, it should also call
   // AsyncFetchWithLock::HandleDone()
-  virtual void HandleDone(bool success);
+  void HandleDone(bool success) override;
 
   // HandleHeadersComplete(), HandleWrite() and HandleFlush() are no-op
   // functions and any special handling can be done in subclass and must call
   // the superclass function before returning.
-  virtual void HandleHeadersComplete();
-  virtual bool HandleWrite(
-      const StringPiece& content, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
+  void HandleHeadersComplete() override;
+  bool HandleWrite(
+      const StringPiece& content, MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
 
  private:
   // Makes a lock used for fetching.

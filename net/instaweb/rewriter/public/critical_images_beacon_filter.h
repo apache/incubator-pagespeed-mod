@@ -46,15 +46,15 @@ class CriticalImagesBeaconFilter : public CommonFilter {
   explicit CriticalImagesBeaconFilter(RewriteDriver* driver);
   virtual ~CriticalImagesBeaconFilter();
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   static void InitStats(Statistics* statistics);
 
   virtual void StartDocumentImpl() { }
   void EndDocument() override;
-  virtual void StartElementImpl(HtmlElement* element) { }
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual const char* Name() const { return "CriticalImagesBeacon"; }
+  void StartElementImpl(HtmlElement* element) override { }
+  void EndElementImpl(HtmlElement* element) override;
+  const char* Name() const override { return "CriticalImagesBeacon"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
   // Returns true if this filter is going to inject a beacon. Filters that need

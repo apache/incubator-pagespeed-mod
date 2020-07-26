@@ -62,8 +62,8 @@ class HTTPValue : public Writer {
   // multiple times to append more data, and can be called before
   // or after SetHeaders.  However, SetHeaders cannot be interleaved
   // in between calls to Write.
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 
   // Retrieves the headers, returning false if empty.
   bool ExtractHeaders(ResponseHeaders* headers, MessageHandler* handler) const;

@@ -61,7 +61,7 @@ class ApacheServerContext : public SystemServerContext {
   ApacheServerContext(ApacheRewriteDriverFactory* factory,
                       server_rec* server,
                       const StringPiece& version);
-  virtual ~ApacheServerContext();
+  ~ApacheServerContext() override;
 
   // This must be called for every statistics object in use before using this.
   static void InitStats(Statistics* statistics);

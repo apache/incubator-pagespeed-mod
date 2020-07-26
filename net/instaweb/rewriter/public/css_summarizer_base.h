@@ -206,11 +206,11 @@ class CssSummarizerBase : public RewriteFilter {
   void StartDocumentImpl() override;
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void EndElementImpl(HtmlElement* element);
+  void Characters(HtmlCharactersNode* characters) override;
+  void EndElementImpl(HtmlElement* element) override;
   virtual void RenderDone();
 
-  virtual RewriteContext* MakeRewriteContext();
+  RewriteContext* MakeRewriteContext() override;
 
  private:
   class Context;

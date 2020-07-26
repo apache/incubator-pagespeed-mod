@@ -509,7 +509,7 @@ TEST_F(InsertGAFilterTest, ManyHeadsAndBodies) {
   // Make sure we only add the GA snippet in one place.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
-  constexpr char* kHeadsFmt = "<head></head><head></head><head></head></head>"
+  constexpr char kHeadsFmt[] = "<head></head><head></head><head></head></head>"
       "<body></body><body>%s</body>";
   GoogleString input = absl::StrFormat(kHeadsFmt, "");
   GoogleString experiment_snippet =

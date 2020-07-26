@@ -44,7 +44,7 @@ class InlineRewriteContext : public RewriteContext {
   // Note that you should also call StartInlining() to do the work.
   InlineRewriteContext(CommonFilter* filter, HtmlElement* element,
                        HtmlElement::Attribute* src);
-  virtual ~InlineRewriteContext();
+  ~InlineRewriteContext() override;
 
   // Starts the actual inlining process, and takes over memory management
   // of this object.
@@ -73,13 +73,13 @@ class InlineRewriteContext : public RewriteContext {
   virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
 
   // InlineRewriteContext takes care of these methods from RewriteContext;
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs);
-  virtual void Rewrite(int partition_index,
+  bool Partition(OutputPartitions* partitions,
+                         OutputResourceVector* outputs) override;
+  void Rewrite(int partition_index,
                        CachedResult* partition,
-                       const OutputResourcePtr& output);
-  virtual void Render();
-  virtual OutputResourceKind kind() const;
+                       const OutputResourcePtr& output) override;
+  void Render() override;
+  OutputResourceKind kind() const override;
 
   HtmlElement* get_element() const { return element_; }
 

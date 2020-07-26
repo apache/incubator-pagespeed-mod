@@ -1116,7 +1116,6 @@ bool DomainLawyer::AddProxySuffix(const GoogleUrl& base_url,
     // permit redirects from http:// to https:// (and likewise inclusion of
     // resources).
     if (href_gurl.IsWebValid() && base_url.IsWebValid()) {
-      StringPiece href_domain, base_domain;
       StringPiece href_host = href_gurl.Host();
       if (href_host == base_host_no_suffix) {
         // TODO(jmarantz): handle alternate ports.

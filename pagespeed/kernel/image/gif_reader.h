@@ -106,11 +106,11 @@ class GifFrameReader : public MultipleFrameReader {
   // ReadNextScanlineWithStatus().
   ScanlineStatus Initialize() override;
 
-  virtual bool HasMoreFrames() const {
+  bool HasMoreFrames() const override {
     return (image_initialized_ && (next_frame_ < image_spec_.num_frames));
   }
 
-  virtual bool HasMoreScanlines() const {
+  bool HasMoreScanlines() const override {
     return (frame_initialized_ && (next_row_ < frame_spec_.height));
   }
 
@@ -122,7 +122,7 @@ class GifFrameReader : public MultipleFrameReader {
   // the entire image at the first time when it is called.
   ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override;
 
-  virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const {
+  ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const override {
     if (frame_spec == NULL) {
       return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
                               SCANLINE_STATUS_INVOCATION_ERROR,
@@ -133,7 +133,7 @@ class GifFrameReader : public MultipleFrameReader {
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const {
+  ScanlineStatus GetImageSpec(ImageSpec* image_spec) const override {
     if (image_spec == NULL) {
       return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
                               SCANLINE_STATUS_INVOCATION_ERROR,

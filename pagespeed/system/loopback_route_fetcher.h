@@ -50,15 +50,15 @@ class LoopbackRouteFetcher : public UrlAsyncFetcher {
                        const GoogleString& own_ip,
                        int own_port,
                        UrlAsyncFetcher* backend_fetcher);
-  virtual ~LoopbackRouteFetcher();
+  ~LoopbackRouteFetcher() override;
 
-  virtual bool SupportsHttps() const {
+  bool SupportsHttps() const override {
     return backend_fetcher_->SupportsHttps();
   }
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
   // Returns true if the given address is an IPv4 or IPv6 loopback.
   static bool IsLoopbackAddr(const apr_sockaddr_t* addr);

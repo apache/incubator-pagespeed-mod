@@ -43,7 +43,7 @@ class SystemMessageHandler : public GoogleMessageHandler {
  public:
   SystemMessageHandler(Timer* timer, AbstractMutex* mutex);
 
-  virtual ~SystemMessageHandler();
+  ~SystemMessageHandler() override;
 
   // When we initialize SystemMessageHandler in the SystemRewriteDriverFactory,
   // the factory's buffer_ is not initialized yet.  In a live server, we need to
@@ -55,7 +55,7 @@ class SystemMessageHandler : public GoogleMessageHandler {
   }
 
   // Dump contents of SharedCircularBuffer.
-  virtual bool Dump(Writer* writer);
+  bool Dump(Writer* writer) override;
 
  protected:
   // Add messages to the SharedCircularBuffer.
@@ -65,9 +65,9 @@ class SystemMessageHandler : public GoogleMessageHandler {
 
   // Since we subclass GoogleMessageHandler but want to format messages
   // internally we must provide overrides of these two logging methods.
-  virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
-  virtual void FileMessageVImpl(MessageType type, const char* file,
-                                int line, const char* msg, va_list args);
+  void MessageVImpl(MessageType type, const char* msg, va_list args) override;
+  void FileMessageVImpl(MessageType type, const char* file,
+                                int line, const char* msg, va_list args) override;
 
  private:
   friend class SystemMessageHandlerTest;

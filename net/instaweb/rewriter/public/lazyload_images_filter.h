@@ -86,7 +86,7 @@ class LazyloadImagesFilter : public CommonFilter {
   explicit LazyloadImagesFilter(RewriteDriver* driver);
   virtual ~LazyloadImagesFilter();
 
-  virtual const char* Name() const { return "Lazyload Images"; }
+  const char* Name() const override { return "Lazyload Images"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
   static void InitStats(Statistics* statistics);
@@ -102,8 +102,8 @@ class LazyloadImagesFilter : public CommonFilter {
   void StartDocumentImpl() override;
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void EndElementImpl(HtmlElement* element) override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   // Clears all state associated with the filter.
   void Clear();

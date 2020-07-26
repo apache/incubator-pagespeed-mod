@@ -49,11 +49,11 @@ class SplitUpDownCounter : public UpDownCounter {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitUpDownCounter(UpDownCounter* rw, UpDownCounter* w);
-  virtual ~SplitUpDownCounter();
+  ~SplitUpDownCounter() override;
   void Set(int64 new_value) override;
   int64 SetReturningPreviousValue(int64 new_value) override;
-  virtual int64 Get() const;
-  virtual StringPiece GetName() const;
+  int64 Get() const override;
+  StringPiece GetName() const override;
   int64 AddHelper(int64 delta) override;
 
  private:
@@ -68,9 +68,9 @@ class SplitVariable : public Variable {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitVariable(Variable* rw, Variable* w);
-  virtual ~SplitVariable();
-  virtual int64 Get() const;
-  virtual StringPiece GetName() const;
+  ~SplitVariable() override;
+  int64 Get() const override;
+  StringPiece GetName() const override;
   int64 AddHelper(int64 delta) override;
   void Clear() override;
 

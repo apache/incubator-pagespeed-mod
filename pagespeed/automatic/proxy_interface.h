@@ -60,9 +60,9 @@ class ProxyInterface : public UrlAsyncFetcher {
   // All requests use this interface. We decide internally whether the
   // request is a pagespeed resource, HTML page to be rewritten or another
   // resource to be proxied directly.
-  virtual void Fetch(const GoogleString& requested_url,
+  void Fetch(const GoogleString& requested_url,
                      MessageHandler* handler,
-                     AsyncFetch* async_fetch);
+                     AsyncFetch* async_fetch) override;
 
   // Is this url_string well-formed enough to proxy through?
   bool IsWellFormedUrl(const GoogleUrl& url);

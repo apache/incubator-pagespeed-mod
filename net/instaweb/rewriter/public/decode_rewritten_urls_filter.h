@@ -35,8 +35,8 @@ class DecodeRewrittenUrlsFilter : public EmptyHtmlFilter {
   explicit DecodeRewrittenUrlsFilter(RewriteDriver* driver) : driver_(driver) {}
   virtual ~DecodeRewrittenUrlsFilter();
 
-  virtual void StartElement(HtmlElement* element);
-  virtual const char* Name() const { return "DecodeRewrittenUrlsFilter"; }
+  void StartElement(HtmlElement* element) override;
+  const char* Name() const override { return "DecodeRewrittenUrlsFilter"; }
 
  private:
   RewriteDriver* driver_;

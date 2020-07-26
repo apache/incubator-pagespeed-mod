@@ -50,14 +50,14 @@ class HttpDumpUrlAsyncWriter : public UrlAsyncFetcher {
         accept_gzip_(true) {
     root_dir.CopyToString(&root_dir_);
   }
-  virtual ~HttpDumpUrlAsyncWriter();
+  ~HttpDumpUrlAsyncWriter() override;
 
-  virtual bool SupportsHttps() const { return base_fetcher_->SupportsHttps(); }
+  bool SupportsHttps() const override { return base_fetcher_->SupportsHttps(); }
 
   // This is a synchronous/blocking implementation.
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* handler,
-                     AsyncFetch* base_fetch);
+                     AsyncFetch* base_fetch) override;
 
   // Controls whether we will request and save gzipped content to the
   // file system.  Note that http_dump_url_fetcher will inflate on

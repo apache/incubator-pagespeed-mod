@@ -45,11 +45,11 @@ class RewriteOptions;
 // A place storing a rewritable URL inside a CSS AST.
 class CssResourceSlot : public ResourceSlot {
  public:
-  virtual void Render();
+  void Render() override;
   virtual void Finished();
-  virtual GoogleString LocationString() const;
+  GoogleString LocationString() const override;
 
-  virtual HtmlElement* element() const { return NULL; }
+  HtmlElement* element() const override { return NULL; }
   Css::Values* values() const { return values_; }
   size_t value_index() const { return value_index_; }
   UrlRelativity url_relativity() const { return url_relativity_; }

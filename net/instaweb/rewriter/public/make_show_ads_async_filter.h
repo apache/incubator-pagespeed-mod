@@ -50,13 +50,13 @@ class MakeShowAdsAsyncFilter : public CommonFilter {
   // Overrides CommonFilter
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
 
   // Overrides HtmlFilter
-  virtual const char* Name() const {
+  const char* Name() const override {
     return "MakeShowAdsAsyncFilter";
   }
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

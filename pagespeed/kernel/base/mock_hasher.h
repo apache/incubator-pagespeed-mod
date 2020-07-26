@@ -39,9 +39,9 @@ class MockHasher : public Hasher {
         hash_value_(hash_value.data(), hash_value.size()) {
   }
 
-  virtual ~MockHasher();
+  ~MockHasher() override;
 
-  virtual GoogleString RawHash(const StringPiece& content) const {
+  GoogleString RawHash(const StringPiece& content) const override {
     return hash_value_;
   }
 

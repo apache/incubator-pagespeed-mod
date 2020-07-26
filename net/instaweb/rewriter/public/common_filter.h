@@ -82,14 +82,14 @@ class CommonFilter : public EmptyHtmlFilter {
   void InsertNodeAtBodyEnd(HtmlNode* data);
 
   // Note: Don't overload these methods, overload the implementers instead!
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
 
   // If a subclass overloads this function and wishes to use
   // InsertNodeAtBodyEnd(), it needs to make an upcall to this implementation
   // for InsertNodeAtBodyEnd() to work correctly.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
   // Creates an input resource with the url evaluated based on input_url
   // which may need to be absolutified relative to base_url(). Returns NULL

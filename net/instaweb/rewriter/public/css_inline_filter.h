@@ -50,19 +50,19 @@ class CssInlineFilter : public CommonFilter {
 
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual const char* Name() const { return "InlineCss"; }
+  void EndElementImpl(HtmlElement* element) override;
+  const char* Name() const override { return "InlineCss"; }
   // Inlining css from unauthorized domains into HTML is considered
   // safe because it does not cause any new content to be executed compared
   // to the unoptimized page.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const {
+  RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
+      const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
                semantic_type::kStylesheet) ?
            RewriteDriver::kInlineUnauthorizedResources :
            RewriteDriver::kInlineOnlyAuthorizedResources;
   }
-  virtual bool IntendedForInlining() const { return true; }
+  bool IntendedForInlining() const override { return true; }
 
   static void InitStats(Statistics* statistics);
   static bool HasClosingStyleTag(StringPiece contents);

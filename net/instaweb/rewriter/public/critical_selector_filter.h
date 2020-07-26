@@ -57,8 +57,8 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   explicit CriticalSelectorFilter(RewriteDriver* rewrite_driver);
   virtual ~CriticalSelectorFilter();
 
-  virtual const char* Name() const { return "CriticalSelectorFilter"; }
-  virtual const char* id() const { return "cl"; }
+  const char* Name() const override { return "CriticalSelectorFilter"; }
+  const char* id() const override { return "cl"; }
 
   // This filter needs access to all critical selectors (even those from
   // unauthorized domains) in order to inline them into HTML.
@@ -74,7 +74,7 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   }
 
   // Selectors are inlined into the html.
-  virtual bool IntendedForInlining() const { return true; }
+  bool IntendedForInlining() const override { return true; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  protected:
@@ -100,10 +100,10 @@ class CriticalSelectorFilter : public CssSummarizerBase {
   // Parser callbacks.
   void StartDocumentImpl() override;
   void EndDocument() override;
-  virtual void RenderDone();
+  void RenderDone() override;
 
   // Filter control API.
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
  private:
   class CssElement;

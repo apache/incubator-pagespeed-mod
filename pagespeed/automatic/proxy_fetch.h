@@ -348,11 +348,11 @@ class ProxyFetch : public SharedAsyncFetch {
 
  protected:
   // protected interface from AsyncFetch.
-  virtual void HandleHeadersComplete();
-  virtual bool HandleWrite(const StringPiece& content, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
-  virtual void HandleDone(bool success);
-  virtual bool IsCachedResultValid(const ResponseHeaders& headers);
+  void HandleHeadersComplete() override;
+  bool HandleWrite(const StringPiece& content, MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
+  void HandleDone(bool success) override;
+  bool IsCachedResultValid(const ResponseHeaders& headers) override;
 
  private:
   friend class ProxyFetchFactory;

@@ -500,8 +500,8 @@ class RewriteDriver : public HtmlParse {
   // Override HtmlParse's StartParseId to propagate any required options.
   // Note that if this (or other variants) returns true you should use
   // FinishParse(), otherwise Cleanup().
-  virtual bool StartParseId(const StringPiece& url, const StringPiece& id,
-                            const ContentType& content_type);
+  bool StartParseId(const StringPiece& url, const StringPiece& id,
+                    const ContentType& content_type) override;
 
   // Override HtmlParse's FinishParse to ensure that the
   // request-scoped cache is cleared immediately.
@@ -509,7 +509,7 @@ class RewriteDriver : public HtmlParse {
   // Note that the RewriteDriver can delete itself in this method, if
   // it's not externally managed, and if all RewriteContexts have been
   // completed.
-  virtual void FinishParse();
+  void FinishParse() override;
 
   // As above, but asynchronous. Note that the RewriteDriver may already be
   // deleted at the point the callback is invoked. The scheduler lock will
@@ -945,7 +945,7 @@ class RewriteDriver : public HtmlParse {
   // model) and results in blocking behavior.
   //
   // FlushAsync is prefered for event-driven servers.
-  virtual void Flush();
+  void Flush() override;
 
   // Initiates an asynchronous Flush.  done->Run() will be called when
   // the flush is complete.  Further calls to ParseText should be deferred until
@@ -1263,7 +1263,7 @@ class RewriteDriver : public HtmlParse {
   bool IsLoadPermittedByCsp(const GoogleUrl& url, CspDirective role);
 
  protected:
-  virtual void DetermineFiltersBehaviorImpl();
+  void DetermineFiltersBehaviorImpl() override;
 
  private:
   friend class RewriteContext;
@@ -1338,7 +1338,7 @@ class RewriteDriver : public HtmlParse {
   }
 
   // Parses an arbitrary block of an html file
-  virtual void ParseTextInternal(const char* content, int size);
+  void ParseTextInternal(const char* content, int size) override;
 
   // Indicates whether we should skip parsing for the given request.
   bool ShouldSkipParsing();

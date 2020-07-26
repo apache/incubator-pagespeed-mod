@@ -35,8 +35,8 @@ class FileStatisticsLog : public StatisticsLog {
   // Note: calling context responsible for closing & cleaning up file.
   explicit FileStatisticsLog(FileSystem::OutputFile* file,
                              MessageHandler* message_handler);
-  virtual ~FileStatisticsLog();
-  virtual void LogStat(const char *statName, int value);
+  ~FileStatisticsLog() override;
+  void LogStat(const char *statName, int value) override;
 
  private:
   FileSystem::OutputFile* file_;

@@ -38,11 +38,11 @@ class RewrittenContentScanningFilter : public EmptyHtmlFilter {
   explicit RewrittenContentScanningFilter(RewriteDriver* driver);
   virtual ~RewrittenContentScanningFilter();
 
-  virtual void StartDocument();
+  void StartDocument() override;
   void EndDocument() override;
-  virtual void StartElement(HtmlElement* element);
+  void StartElement(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "RewrittenContentScanningFilter"; }
+  const char* Name() const override { return "RewrittenContentScanningFilter"; }
 
  private:
   RewriteDriver* driver_;

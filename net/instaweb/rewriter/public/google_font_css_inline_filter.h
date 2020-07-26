@@ -41,10 +41,10 @@ class GoogleFontCssInlineFilter : public CssInlineFilter {
 
   static void InitStats(Statistics* statistics);
 
-  virtual const char* Name() const { return "InlineGoogleFontCss"; }
+  const char* Name() const override { return "InlineGoogleFontCss"; }
 
  protected:
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
+  ResourcePtr CreateResource(const char* url, bool* is_authorized) override;
 
  private:
   void ResetAndExplainReason(const char* reason, ResourcePtr* resource);

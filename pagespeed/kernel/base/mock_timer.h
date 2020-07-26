@@ -41,7 +41,7 @@ class MockTimer : public Timer {
 
   // Takes ownership of mutex.
   MockTimer(AbstractMutex* mutex, int64 time_ms);
-  virtual ~MockTimer();
+  ~MockTimer() override;
 
   // Sets the time as in microseconds, calling any outstanding alarms
   // with wakeup times up to and including time_us.
@@ -69,7 +69,7 @@ class MockTimer : public Timer {
   void SetTimeDeltaMs(int64 delta_ms) { SetTimeDeltaUs(1000 * delta_ms); }
 
   // Returns number of microseconds since 1970.
-  virtual int64 NowUs() const;
+  int64 NowUs() const override;
   void SleepUs(int64 us) override { AdvanceUs(us); }
   void SleepMs(int64 ms) override { AdvanceUs(1000 * ms); }
 

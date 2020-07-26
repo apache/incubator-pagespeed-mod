@@ -49,17 +49,17 @@ class RateControllingUrlAsyncFetcher : public UrlAsyncFetcher {
                                  ThreadSystem* thread_system,
                                  Statistics* statistics);
 
-  virtual ~RateControllingUrlAsyncFetcher();
+  ~RateControllingUrlAsyncFetcher() override;
 
-  virtual bool SupportsHttps() const {
+  bool SupportsHttps() const override {
     return base_fetcher_->SupportsHttps();
   }
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
-  virtual void ShutDown();
+  void ShutDown() override;
 
  private:
   UrlAsyncFetcher* base_fetcher_;

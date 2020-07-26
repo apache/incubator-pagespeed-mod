@@ -82,13 +82,13 @@ class CacheUrlAsyncFetcher : public UrlAsyncFetcher {
                        const GoogleString& fragment,
                        AsyncOpHooks* async_op_hooks,
                        UrlAsyncFetcher* fetcher);
-  virtual ~CacheUrlAsyncFetcher();
+  ~CacheUrlAsyncFetcher() override;
 
-  virtual bool SupportsHttps() const { return fetcher_->SupportsHttps(); }
+  bool SupportsHttps() const override { return fetcher_->SupportsHttps(); }
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* base_fetch);
+                     AsyncFetch* base_fetch) override;
 
   // HTTP status code used to indicate that we failed the Fetch because
   // result was not found in cache. (Only happens if fetcher_ == NULL).

@@ -47,12 +47,12 @@ class RewriteFilter : public CommonFilter {
   // property cache can enable writing of it in the RewriterDriver. Filters
   // inheriting from RewriteDriver that use the DOM cohort should override
   // UsePropertyCacheDomCohort to return true.
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   // Returns whether this filter can modify urls.  Because most filters do
   // modify urls this defaults returning true, and filters that commit to never
   // modifying urls should override it to return false.
-  virtual bool CanModifyUrls() { return true; }
+  bool CanModifyUrls() override { return true; }
 
   // All RewriteFilters define how they encode URLs and other
   // associated information needed for a rewrite into a URL.
@@ -144,7 +144,7 @@ class RewriteFilter : public CommonFilter {
 
  protected:
   // This class logs using id().
-  virtual const char* LoggingId() { return id(); }
+  const char* LoggingId() override { return id(); }
 
  private:
   // Filters should override this and return true if they write to the property

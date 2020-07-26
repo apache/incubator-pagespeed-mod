@@ -52,11 +52,11 @@ class UrlLeftTrimFilter : public CommonFilter {
   virtual ~UrlLeftTrimFilter();
 
   static void InitStats(Statistics* statistics);
-  virtual void StartDocumentImpl() {}
+  void StartDocumentImpl() override {}
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const { return "UrlLeftTrim"; }
+  const char* Name() const override { return "UrlLeftTrim"; }
 
   // Trim 'url_to_trim' relative to 'base_url' returning the result in
   // 'trimmed_url'. Returns true if we succeeded at trimming the URL.

@@ -52,18 +52,18 @@ class CssInlineImportToLinkFilter : public EmptyHtmlFilter {
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocument();
+  void StartDocument() override;
   void EndDocument() override;
 
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
 
-  virtual void Flush();
+  void Flush() override;
 
   // HTML Events we expect to be in a <style> element.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
-  virtual const char* Name() const { return "InlineImportToLinkCss"; }
+  const char* Name() const override { return "InlineImportToLinkCss"; }
 
  private:
   void ResetState();

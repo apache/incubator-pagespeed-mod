@@ -42,11 +42,11 @@ class MessageHandler;
 class ReflectingTestFetcher : public UrlAsyncFetcher {
  public:
   ReflectingTestFetcher() {}
-  virtual ~ReflectingTestFetcher() {}
+  ~ReflectingTestFetcher() override {}
 
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch) {
+                     AsyncFetch* fetch) override {
     RequestHeaders* in = fetch->request_headers();
     ResponseHeaders* out = fetch->response_headers();
     out->SetStatusAndReason(HttpStatus::kOK);

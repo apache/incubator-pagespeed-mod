@@ -39,11 +39,11 @@ class RewriteOptions;
 class TestUrlNamer : public UrlNamer {
  public:
   TestUrlNamer();
-  virtual ~TestUrlNamer();
+  ~TestUrlNamer() override;
 
-  virtual GoogleString Encode(const RewriteOptions* rewrite_options,
+  GoogleString Encode(const RewriteOptions* rewrite_options,
                               const OutputResource& output_resource,
-                              EncodeOption encode_option) const;
+                              EncodeOption encode_option) const override;
 
   bool Decode(const GoogleUrl& request_url,
               const RewriteOptions* rewrite_options,
@@ -59,7 +59,7 @@ class TestUrlNamer : public UrlNamer {
   ProxyExtent ProxyMode() const override { return proxy_mode_; }
 
   // Determines whether the specified URL has been mapped to our proxy domain.
-  virtual bool IsProxyEncoded(const GoogleUrl& url) const;
+  bool IsProxyEncoded(const GoogleUrl& url) const override;
 
   // Set whether a test needs the URL namer to act in proxy mode.
   static void SetProxyMode(ProxyExtent value) { proxy_mode_ = value; }

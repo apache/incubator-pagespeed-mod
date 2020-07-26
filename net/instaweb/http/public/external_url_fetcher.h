@@ -42,13 +42,13 @@ class RequestHeaders;
 class ExternalUrlFetcher : public UrlAsyncFetcher {
  public:
   ExternalUrlFetcher() {}
-  virtual ~ExternalUrlFetcher() {}
+  ~ExternalUrlFetcher() override {}
 
   // TODO(sligocki): Allow protocol version number (e.g. HTTP/1.1)
   // and request type (e.g. GET, POST, etc.) to be specified.
-  virtual void Fetch(const GoogleString& url,
+  void Fetch(const GoogleString& url,
                      MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+                     AsyncFetch* fetch) override;
 
   // Default user agent to use.
   static const char kDefaultUserAgent[];

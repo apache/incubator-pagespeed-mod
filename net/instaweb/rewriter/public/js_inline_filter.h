@@ -50,20 +50,20 @@ class JsInlineFilter : public CommonFilter {
   void StartDocumentImpl() override;
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual const char* Name() const { return "InlineJs"; }
+  void EndElementImpl(HtmlElement* element) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  const char* Name() const override { return "InlineJs"; }
   // Inlining javascript from unauthorized domains into HTML is considered
   // safe because it does not cause any new content to be executed compared
   // to the unoptimized page.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const {
+  RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
+      const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
                semantic_type::kScript) ?
            RewriteDriver::kInlineUnauthorizedResources :
            RewriteDriver::kInlineOnlyAuthorizedResources;
   }
-  virtual bool IntendedForInlining() const { return true; }
+  bool IntendedForInlining() const override { return true; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
   static void InitStats(Statistics* statistics);

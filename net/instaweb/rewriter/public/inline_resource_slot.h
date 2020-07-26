@@ -39,10 +39,10 @@ class InlineResourceSlot : public ResourceSlot {
 
   // Debug information should be placed next to <style> or <script> block
   // surrounding the Characters node.
-  virtual HtmlElement* element() const { return char_node_->parent(); }
+  HtmlElement* element() const override { return char_node_->parent(); }
 
-  virtual void Render();
-  virtual GoogleString LocationString() const;
+  void Render() override;
+  GoogleString LocationString() const override;
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(InlineResourceSlot);

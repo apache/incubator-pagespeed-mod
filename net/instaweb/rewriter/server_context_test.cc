@@ -84,7 +84,6 @@ const char kResourceUrlPath[] = "/image.png";
 const char kOptionsHash[] = "1234";
 
 const char kUrlPrefix[] = "http://www.example.com/";
-const size_t kUrlPrefixLength = STATIC_STRLEN(kUrlPrefix);
 
 }  // namespace
 

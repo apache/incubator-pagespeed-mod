@@ -614,13 +614,13 @@ class RewriteOptions {
   // This version number should be incremented if any default-values
   // are changed, either in an Add*Property() call or via
   // options->set_default.
-  static const int kOptionsVersion = 14;
+  static constexpr int kOptionsVersion = 14;
 
   // Number of bytes used for signature hashing.
-  static const int kHashBytes = 20;
+  static constexpr int kHashBytes = 20;
 
   // Number of bytes capacity in the URL invalidation set.
-  static const int kCachePurgeBytes = 25000;
+  static constexpr int kCachePurgeBytes = 25000;
 
   // Determines the scope at which an option is evaluated.  In Apache,
   // for example, kDirectoryScope indicates it can be changed via .htaccess

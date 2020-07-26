@@ -59,10 +59,10 @@ class DedupInlinedImagesFilter : public CommonFilter {
   void StartDocumentImpl() override;
   void EndDocument() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void EndElementImpl(HtmlElement* element) override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
-  virtual const char* Name() const { return "DedupInlinedImages"; }
+  const char* Name() const override { return "DedupInlinedImages"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

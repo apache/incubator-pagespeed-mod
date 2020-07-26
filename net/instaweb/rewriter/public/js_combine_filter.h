@@ -76,7 +76,7 @@ class JsCombineFilter : public RewriteFilter {
 
   // Registers the provided statistics variable names with 'statistics'.
   static void InitStats(Statistics* statistics);
-  virtual const char* id() const {
+  const char* id() const override {
     return RewriteOptions::kJavascriptCombinerId;
   }
 
@@ -92,13 +92,13 @@ class JsCombineFilter : public RewriteFilter {
   // RewriteFilter overrides --- HTML parsing event handlers.
   void StartDocumentImpl() override;
   void StartElementImpl(HtmlElement* element) override;
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void Flush();
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual const char* Name() const { return "JsCombine"; }
-  virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const {
+  void EndElementImpl(HtmlElement* element) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  void Flush() override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  const char* Name() const override { return "JsCombine"; }
+  RewriteContext* MakeRewriteContext() override;
+  const UrlSegmentEncoder* encoder() const override {
     return &encoder_;
   }
 
