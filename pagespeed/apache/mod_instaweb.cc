@@ -43,7 +43,9 @@
 #include "pagespeed/apache/header_util.h"
 #include "pagespeed/apache/instaweb_context.h"
 #include "pagespeed/apache/instaweb_handler.h"
+// clang-format off
 #include "pagespeed/apache/mod_instaweb.h"
+// clang-format on
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"

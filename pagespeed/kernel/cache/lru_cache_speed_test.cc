@@ -45,7 +45,9 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
 #include "pagespeed/kernel/util/simple_random.h"
+// clang-format off
 #include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 namespace {
 
