@@ -24,7 +24,9 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/wildcard_group.h"
+// clang-format off
 #include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 //
 // (8 X 2262 MHz CPUs); 2012/07/11-19:20:51

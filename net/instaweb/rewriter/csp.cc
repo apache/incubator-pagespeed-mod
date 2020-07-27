@@ -388,7 +388,7 @@ bool CspSourceExpression::ParseBase64(StringPiece input) {
 
 bool CspSourceExpression::HasDefaultPortForScheme(const GoogleUrl& url) {
   int url_scheme_port = GoogleUrl::DefaultPortForScheme(url.Scheme());
-  if (url_scheme_port == url::PORT_UNSPECIFIED) {
+  if (GoogleUrl::isPortGurlUnspecified(url_scheme_port)) {
     return false;
   }
 

@@ -65,7 +65,8 @@ UrlInputResource::UrlInputResource(RewriteDriver* rewrite_driver,
   set_is_authorized_domain(is_authorized_domain);
   if (!is_authorized_domain) {
     GoogleUrl tmp_url(url);
-    if (tmp_url.IsWebValid() && tmp_url.IntPort() == url::PORT_UNSPECIFIED) {
+    if (tmp_url.IsWebValid() &&
+        GoogleUrl::isPortGurlUnspecified(tmp_url.IntPort())) {
       // Note: Port 80 and 443 are considered as "unspecified" ports for http
       // and https respectively, so we will allow URLs that carry the
       // expected port numbers wrt the protocols.

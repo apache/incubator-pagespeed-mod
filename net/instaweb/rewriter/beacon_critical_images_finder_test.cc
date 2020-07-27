@@ -42,8 +42,6 @@ namespace net_instaweb {
 
 namespace {
 
-const char kRequestUrl[] = "http://www.example.com";
-
 class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
  public:
   CriticalImagesFinder* finder() override { return finder_; }

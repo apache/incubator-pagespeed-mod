@@ -22,28 +22,24 @@
 
 #include <cctype>  // for isascii
 #include <cstddef>
+#include <cstdlib>  // NOLINT
+#include <iostream>
 #include <map>
 #include <set>
+#include <string>  // NOLINT
 #include <vector>
 
-#include <iostream>
-
+#include "absl/strings/internal/memutil.h"  // StripAsciiWhitespace
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/strings/internal/memutil.h"  // StripAsciiWhitespace
-#include "absl/strings/match.h"
-
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-
+#include "base/logging.h"
 #include "fmt/format.h"
 #include "fmt/printf.h"
-#include "base/logging.h"
-
-#include <cstdlib>  // NOLINT
-#include <string>   // NOLINT
+#include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/string.h"
 
 static const int32 kint32max = 0x7FFFFFFF;
 static const int32 kint32min = -kint32max - 1;

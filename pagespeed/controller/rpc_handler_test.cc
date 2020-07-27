@@ -22,7 +22,9 @@
 #include "pagespeed/controller/grpc_server_test.h"
 #include "pagespeed/controller/grpc_test.grpc.pb.h"
 #include "pagespeed/controller/grpc_test.pb.h"
+// clang-format off
 #include "pagespeed/controller/rpc_handler.h"
+// clang-format on
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/proto_matcher.h"

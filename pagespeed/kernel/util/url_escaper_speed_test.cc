@@ -28,9 +28,11 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-#include "pagespeed/kernel/util/url_escaper.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/string.h"
+#include "pagespeed/kernel/util/url_escaper.h"
+// clang-format off
+#include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 using net_instaweb::UrlEscaper::EncodeToUrlSegment;
 

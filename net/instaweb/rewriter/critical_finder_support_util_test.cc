@@ -29,8 +29,6 @@
 namespace net_instaweb {
 namespace {
 
-const int kSupportInterval = 10;
-
 class CriticalFinderSupportUtilTest : public RewriteTestBase {
  protected:
   CriticalFinderSupportUtilTest() {}

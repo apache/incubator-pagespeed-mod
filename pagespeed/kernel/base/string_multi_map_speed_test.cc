@@ -23,7 +23,9 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string_multi_map.h"
 #include "pagespeed/kernel/base/string_util.h"
+// clang-format off
 #include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 //
 // .../src/out/Release/mod_pagespeed_speed_test "BM_Sanitize*

@@ -24,7 +24,9 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
+// clang-format off
 #include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 // Running the speed test:
 //   src/out/Release/mod_pagespeed_speed_test .File

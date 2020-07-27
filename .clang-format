@@ -6,7 +6,7 @@ AccessModifierOffset: -1
 ColumnLimit: 80
 DerivePointerAlignment: false
 PointerAlignment: Left
-SortIncludes: false
+SortIncludes: true
 # This excludes multi-line comments, and with that
 # we leave license banners as-is
 CommentPragmas: "."
