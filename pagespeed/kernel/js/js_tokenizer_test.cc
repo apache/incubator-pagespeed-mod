@@ -1380,9 +1380,9 @@ TEST_F(JsTokenizerTest, LinebreakInStringLiteral) {
 
   // Strings can contain Unicode characters.
   BeginTokenizing(
-      "'foo\xE2\x98\x83quux'+"  // U+2603 SNOWMAN
-                                // Unicode linebreaks are allowed if
-                                // backslash-escaped.
+      "'foo\xE2\x98\x83quux'+"    // U+2603 SNOWMAN
+                                  // Unicode linebreaks are allowed if
+                                  // backslash-escaped.
       "'foo\\\xE2\x80\xA8quux'+"  // U+2028 LINE SEPARATOR
       // But it's an error if the Unicode linebreak isn't escaped!
       "'foo\xE2\x80\xA8quux';");  // U+2028 LINE SEPARATOR

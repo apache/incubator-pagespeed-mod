@@ -47,27 +47,15 @@ const char kGlobalAdminPath[] = "GlobalAdminPath";
 // compare.
 // TODO(oschaaf): this duplication is a short term solution.
 const char* const server_only_options[] = {
-    "FetcherTimeoutMs",
-    "FetchProxy",
-    "ForceCaching",
-    "GeneratedFilePrefix",
-    "ImgMaxRewritesAtOnce",
-    "InheritVHostConfig",
-    "InstallCrashHandler",
-    "MessageBufferSize",
-    "NumRewriteThreads",
-    "NumExpensiveRewriteThreads",
-    "StaticAssetPrefix",
-    "TrackOriginalContentLength",
+    "FetcherTimeoutMs", "FetchProxy", "ForceCaching", "GeneratedFilePrefix",
+    "ImgMaxRewritesAtOnce", "InheritVHostConfig", "InstallCrashHandler",
+    "MessageBufferSize", "NumRewriteThreads", "NumExpensiveRewriteThreads",
+    "StaticAssetPrefix", "TrackOriginalContentLength",
     "UsePerVHostStatistics",  // TODO(anupama): What to do about "No longer
                               // used"
-    "BlockingRewriteRefererUrls",
-    "CreateSharedMemoryMetadataCache",
-    "LoadFromFile",
-    "LoadFromFileMatch",
-    "LoadFromFileRule",
-    "LoadFromFileRuleMatch",
-    "UseNativeFetcher",
+    "BlockingRewriteRefererUrls", "CreateSharedMemoryMetadataCache",
+    "LoadFromFile", "LoadFromFileMatch", "LoadFromFileRule",
+    "LoadFromFileRuleMatch", "UseNativeFetcher",
     "NativeFetcherMaxKeepaliveRequests"};
 
 // Options that can only be used in the main (http) option scope.

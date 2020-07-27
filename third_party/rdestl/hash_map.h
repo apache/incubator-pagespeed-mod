@@ -147,7 +147,8 @@ class hash_map {
         m_allocator(allocator) {
     *this = rhs;
   }
-  explicit hash_map(e_noinitialize) { /**/ }
+  explicit hash_map(e_noinitialize) { /**/
+  }
   ~hash_map() { delete_nodes(); }
 
   iterator begin() {
@@ -167,7 +168,7 @@ class hash_map {
 
   // @note:	Added for compatiblity sake.
   //			Personally, I consider it "risky". Use find/insert for
-  //more 			explicit operations.
+  // more 			explicit operations.
   mapped_type& operator[](const key_type& key) {
     hash_value_t hash;
     node* n = find_for_insert(key, &hash);

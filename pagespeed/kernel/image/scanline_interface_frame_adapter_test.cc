@@ -40,7 +40,7 @@ class ScanlineInterfaceFrameAdapterTest : public ::testing::Test {
   ScanlineInterfaceFrameAdapterTest() : message_handler_(new NullMutex) {}
 
  protected:
-  void ReadGifFile(const char *filename) {
+  void ReadGifFile(const char* filename) {
     CHECK(ReadTestFileWithExt(kGifTestDir, filename, &original_image_));
   }
 
@@ -51,7 +51,7 @@ class ScanlineInterfaceFrameAdapterTest : public ::testing::Test {
 };
 
 struct TestCase {
-  const char *input_gif;
+  const char* input_gif;
   ImageFormat output_format;
   bool success;
   ScanlineStatusType status_type;
@@ -69,7 +69,7 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
   };
 
   for (size_t k = 0; k < arraysize(cases); ++k) {
-    const TestCase &test = cases[k];
+    const TestCase& test = cases[k];
     ScanlineStatus status;
     ImageSpec spec;
 
@@ -85,7 +85,7 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
         original_image_.length(), &message_handler_, &status));
 
     ASSERT_TRUE(status.Success()) << test_info;
-    ASSERT_NE(static_cast<void *>(nullptr), reader.get()) << test_info;
+    ASSERT_NE(static_cast<void*>(nullptr), reader.get()) << test_info;
 
     status = ScanlineStatus();
     EXPECT_TRUE(reader->GetImageSpec(&spec, &status)) << test_info;
@@ -95,7 +95,7 @@ TEST_F(ScanlineInterfaceFrameAdapterTest, PrepareImage) {
     std::unique_ptr<MultipleFrameWriter> writer(
         CreateImageFrameWriter(test.output_format, nullptr, &converted_image_,
                                &message_handler_, &status));
-    ASSERT_NE(static_cast<void *>(nullptr), reader.get()) << test_info;
+    ASSERT_NE(static_cast<void*>(nullptr), reader.get()) << test_info;
 
     status = ScanlineStatus();
     EXPECT_EQ(test.success, writer->PrepareImage(&spec, &status)) << test_info;

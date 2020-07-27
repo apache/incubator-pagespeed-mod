@@ -39,7 +39,7 @@ namespace {
 // Helper that snapshots the state of a z_stream structure.
 struct ZlibSnapshot {
  public:
-  explicit ZlibSnapshot(z_stream *zlib)
+  explicit ZlibSnapshot(z_stream* zlib)
       : total_out(zlib->total_out),
         total_in(zlib->total_in),
         avail_in(zlib->avail_in),
@@ -48,7 +48,7 @@ struct ZlibSnapshot {
   const uLong total_out;
   const uLong total_in;
   const uInt avail_in;
-  Bytef *const next_in;
+  Bytef* const next_in;
 };
 
 bool IsValidZlibStreamHeaderByte(uint8 first_byte) {
@@ -98,7 +98,7 @@ void GzipInflater::Free() {
 
 /* static */
 bool GzipInflater::GetWindowBitsForFormat(StreamFormat format,
-                                          int *out_window_bits) {
+                                          int* out_window_bits) {
   // From zlib.h:
   //  [For zlib stream format] the windowBits parameter is the base
   //  two logarithm of the window size... windowBits can also be
@@ -124,7 +124,7 @@ bool GzipInflater::Init() {
     return false;
   }
 
-  zlib_ = static_cast<z_stream *>(malloc(sizeof(z_stream)));
+  zlib_ = static_cast<z_stream*>(malloc(sizeof(z_stream)));
   if (zlib_ == nullptr) {
     return false;
   }
@@ -158,7 +158,7 @@ bool GzipInflater::HasUnconsumedInput() const {
   return zlib_->avail_in > 0;
 }
 
-bool GzipInflater::SetInput(const void *in, size_t in_size) {
+bool GzipInflater::SetInput(const void* in, size_t in_size) {
   if (zlib_ == nullptr) {
     return false;
   }
@@ -180,7 +180,7 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
   }
 
   if (format_ == FORMAT_ZLIB_STREAM && zlib_->total_in == 0 &&
-      !IsValidZlibStreamHeaderByte(static_cast<const uint8 *>(in)[0])) {
+      !IsValidZlibStreamHeaderByte(static_cast<const uint8*>(in)[0])) {
     // Special case: Content-Encoding: deflate can sometimes be zlib
     // stream and sometimes be raw deflate. The header byte is not a
     // valid zlib stream header byte, so try to decode as raw deflate
@@ -195,10 +195,10 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
   return true;
 }
 
-void GzipInflater::SetInputInternal(const void *in, size_t in_size) {
+void GzipInflater::SetInputInternal(const void* in, size_t in_size) {
   // The zlib library won't modify the buffer, but it does not use
   // const here, so we must const cast.
-  zlib_->next_in = const_cast<Bytef *>(reinterpret_cast<const Bytef *>(in));
+  zlib_->next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(in));
   zlib_->avail_in = static_cast<uInt>(in_size);
 }
 
@@ -229,7 +229,7 @@ void GzipInflater::SwitchToRawDeflateFormat() {
   Init();
 }
 
-int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
+int GzipInflater::InflateBytes(char* buf, size_t buf_size) {
   if (zlib_ == nullptr) {
     return -1;
   }
@@ -250,7 +250,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
     return -1;
   }
 
-  zlib_->next_out = reinterpret_cast<Bytef *>(buf);
+  zlib_->next_out = reinterpret_cast<Bytef*>(buf);
   zlib_->avail_out = static_cast<uInt>(buf_size);
 
   // Take a snapshot of the zlib state before we attempt to inflate,
@@ -272,7 +272,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
     SwitchToRawDeflateFormat();
     zlib_->next_in = zlib_snapshot.next_in;
     zlib_->avail_in = zlib_snapshot.avail_in;
-    zlib_->next_out = reinterpret_cast<Bytef *>(buf);
+    zlib_->next_out = reinterpret_cast<Bytef*>(buf);
     zlib_->avail_out = static_cast<uInt>(buf_size);
     err = inflate(zlib_, Z_SYNC_FLUSH);
   }
@@ -309,7 +309,7 @@ void GzipInflater::ShutDown() { Free(); }
 //
 // TODO(jmarantz): make an incremental interface to Deflate.
 bool GzipInflater::Deflate(StringPiece in, InflateType format,
-                           int compression_level, Writer *writer) {
+                           int compression_level, Writer* writer) {
   z_stream strm;
   char out[kStackBufferSize];
 
@@ -334,13 +334,13 @@ bool GzipInflater::Deflate(StringPiece in, InflateType format,
   }
 
   // compress until end of file
-  strm.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in.data()));
+  strm.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(in.data()));
   strm.avail_in = in.size();
   // run deflate() on input until output buffer not full, finish
   // compression if all of source has been read in
   do {
     strm.avail_out = kStackBufferSize;
-    strm.next_out = reinterpret_cast<Byte *>(out);
+    strm.next_out = reinterpret_cast<Byte*>(out);
     ret = deflate(&strm, Z_FINISH);  // no bad return value
     if (ret == Z_STREAM_ERROR) {
       return false;
@@ -360,13 +360,13 @@ bool GzipInflater::Deflate(StringPiece in, InflateType format,
   return true;
 }
 
-bool GzipInflater::Deflate(StringPiece in, InflateType format, Writer *writer) {
+bool GzipInflater::Deflate(StringPiece in, InflateType format, Writer* writer) {
   return GzipInflater::Deflate(in, format, Z_DEFAULT_COMPRESSION, writer);
 }
 
 // TODO(jmarantz): Consider using the incremental interface to implement
 // Inflate.
-bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer *writer) {
+bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
   z_stream strm;
   char out[kStackBufferSize];
   const int kOutSize = sizeof(out);
@@ -387,13 +387,13 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer *writer) {
     }
   }
 
-  strm.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in.data()));
+  strm.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(in.data()));
   strm.avail_in = in.size();
 
   // run inflate() on input until output buffer not full
   do {
     strm.avail_out = kOutSize;
-    strm.next_out = reinterpret_cast<Bytef *>(out);
+    strm.next_out = reinterpret_cast<Bytef*>(out);
     switch (inflate(&strm, Z_NO_FLUSH)) {
       case Z_STREAM_ERROR:
         LOG(DFATAL) << "state should not be not clobbered";
@@ -410,7 +410,7 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer *writer) {
         break;
     }
     int have = kOutSize - strm.avail_out;
-    if (!writer->Write(StringPiece(static_cast<char *>(out), have), nullptr)) {
+    if (!writer->Write(StringPiece(static_cast<char*>(out), have), nullptr)) {
       inflateEnd(&strm);
       return false;
     }

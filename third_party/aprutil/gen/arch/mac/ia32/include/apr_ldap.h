@@ -142,8 +142,8 @@ extern "C" {
  * what really happened.
  */
 typedef struct apr_ldap_err_t {
-  const char *reason;
-  const char *msg;
+  const char* reason;
+  const char* msg;
   int rc;
 } apr_ldap_err_t;
 

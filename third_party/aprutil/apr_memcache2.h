@@ -60,20 +60,20 @@ typedef struct apr_memcache2_t apr_memcache2_t;
 /** Memcache Server Info Object */
 typedef struct apr_memcache2_server_t apr_memcache2_server_t;
 struct apr_memcache2_server_t {
-  const char *host; /**< Hostname of this Server */
+  const char* host; /**< Hostname of this Server */
   apr_port_t port;  /**< Port of this Server */
   apr_memcache2_server_status_t
       status; /**< @see apr_memcache2_server_status_t */
 #if APR_HAS_THREADS || defined(DOXYGEN)
-  apr_reslist_t *conns; /**< Resource list of actual client connections */
+  apr_reslist_t* conns; /**< Resource list of actual client connections */
 #else
-  apr_memcache2_conn_t *conn;
+  apr_memcache2_conn_t* conn;
 #endif
 #if APR_HAS_THREADS
-  apr_thread_mutex_t *lock;
+  apr_thread_mutex_t* lock;
 #endif
   apr_time_t btime;
-  apr_memcache2_t *memcache;
+  apr_memcache2_t* memcache;
 };
 
 /* Custom hash callback function prototype, user for server selection.
@@ -81,7 +81,7 @@ struct apr_memcache2_server_t {
  * @param data data to hash
  * @param data_len length of data
  */
-typedef apr_uint32_t (*apr_memcache2_hash_func)(void *baton, const char *data,
+typedef apr_uint32_t (*apr_memcache2_hash_func)(void* baton, const char* data,
                                                 const apr_size_t data_len);
 
 /* Custom Server Select callback function prototype.
@@ -89,18 +89,18 @@ typedef apr_uint32_t (*apr_memcache2_hash_func)(void *baton, const char *data,
  * @param mc memcache instance, use mc->live_servers to select a node
  * @param hash hash of the selected key.
  */
-typedef apr_memcache2_server_t *(*apr_memcache2_server_func)(
-    void *baton, apr_memcache2_t *mc, const apr_uint32_t hash);
+typedef apr_memcache2_server_t* (*apr_memcache2_server_func)(
+    void* baton, apr_memcache2_t* mc, const apr_uint32_t hash);
 
 /** Container for a set of memcached servers */
 struct apr_memcache2_t {
   apr_uint32_t flags;                    /**< Flags, Not currently used */
   apr_uint16_t nalloc;                   /**< Number of Servers Allocated */
   apr_uint16_t ntotal;                   /**< Number of Servers Added */
-  apr_memcache2_server_t **live_servers; /**< Array of Servers */
-  void *hash_baton;
+  apr_memcache2_server_t** live_servers; /**< Array of Servers */
+  void* hash_baton;
   apr_memcache2_hash_func hash_func;
-  void *server_baton;
+  void* server_baton;
   apr_memcache2_server_func server_func;
   apr_uint32_t timeout_microseconds;
 };
@@ -108,9 +108,9 @@ struct apr_memcache2_t {
 /** Returned Data from a multiple get */
 typedef struct {
   apr_status_t status;
-  const char *key;
+  const char* key;
   apr_size_t len;
-  char *data;
+  char* data;
   apr_uint16_t flags;
 } apr_memcache2_value_t;
 
@@ -123,21 +123,21 @@ typedef struct {
  * @remark The crc32 hash is not compatible with old memcached clients.
  */
 APU_DECLARE(apr_uint32_t)
-apr_memcache2_hash(apr_memcache2_t *mc, const char *data,
+apr_memcache2_hash(apr_memcache2_t* mc, const char* data,
                    const apr_size_t data_len);
 
 /**
  * Pure CRC32 Hash. Used by some clients.
  */
 APU_DECLARE(apr_uint32_t)
-apr_memcache2_hash_crc32(void *baton, const char *data,
+apr_memcache2_hash_crc32(void* baton, const char* data,
                          const apr_size_t data_len);
 
 /**
  * hash compatible with the standard Perl Client.
  */
 APU_DECLARE(apr_uint32_t)
-apr_memcache2_hash_default(void *baton, const char *data,
+apr_memcache2_hash_default(void* baton, const char* data,
                            const apr_size_t data_len);
 
 /**
@@ -147,14 +147,14 @@ apr_memcache2_hash_default(void *baton, const char *data,
  * @return server that controls specified hash
  * @see apr_memcache2_hash
  */
-APU_DECLARE(apr_memcache2_server_t *)
-apr_memcache2_find_server_hash(apr_memcache2_t *mc, const apr_uint32_t hash);
+APU_DECLARE(apr_memcache2_server_t*)
+apr_memcache2_find_server_hash(apr_memcache2_t* mc, const apr_uint32_t hash);
 
 /**
  * server selection compatible with the standard Perl Client.
  */
-APU_DECLARE(apr_memcache2_server_t *)
-apr_memcache2_find_server_hash_default(void *baton, apr_memcache2_t *mc,
+APU_DECLARE(apr_memcache2_server_t*)
+apr_memcache2_find_server_hash_default(void* baton, apr_memcache2_t* mc,
                                        const apr_uint32_t hash);
 
 /**
@@ -167,7 +167,7 @@ apr_memcache2_find_server_hash_default(void *baton, apr_memcache2_t *mc,
  * different servers.
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_add_server(apr_memcache2_t *mc, apr_memcache2_server_t *server);
+apr_memcache2_add_server(apr_memcache2_t* mc, apr_memcache2_server_t* server);
 
 /**
  * Finds a Server object based on a hostname/port pair
@@ -176,8 +176,8 @@ apr_memcache2_add_server(apr_memcache2_t *mc, apr_memcache2_server_t *server);
  * @param port Port of the server
  * @return Server with matching Hostname and Port, or NULL if none was found.
  */
-APU_DECLARE(apr_memcache2_server_t *)
-apr_memcache2_find_server(apr_memcache2_t *mc, const char *host,
+APU_DECLARE(apr_memcache2_server_t*)
+apr_memcache2_find_server(apr_memcache2_t* mc, const char* host,
                           apr_port_t port);
 
 /**
@@ -186,7 +186,7 @@ apr_memcache2_find_server(apr_memcache2_t *mc, const char *host,
  * @param ms Server to Activate
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_enable_server(apr_memcache2_t *mc, apr_memcache2_server_t *ms);
+apr_memcache2_enable_server(apr_memcache2_t* mc, apr_memcache2_server_t* ms);
 
 /**
  * Disable a Server
@@ -194,7 +194,7 @@ apr_memcache2_enable_server(apr_memcache2_t *mc, apr_memcache2_server_t *ms);
  * @param ms Server to Disable
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_disable_server(apr_memcache2_t *mc, apr_memcache2_server_t *ms);
+apr_memcache2_disable_server(apr_memcache2_t* mc, apr_memcache2_server_t* ms);
 
 /**
  * Creates a new Server Object
@@ -210,10 +210,10 @@ apr_memcache2_disable_server(apr_memcache2_t *mc, apr_memcache2_server_t *ms);
  * @remark min, smax, and max are only used when APR_HAS_THREADS
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_server_create(apr_pool_t *p, const char *host, apr_port_t port,
+apr_memcache2_server_create(apr_pool_t* p, const char* host, apr_port_t port,
                             apr_uint32_t min, apr_uint32_t smax,
                             apr_uint32_t max, apr_uint32_t ttl,
-                            apr_memcache2_server_t **ns);
+                            apr_memcache2_server_t** ns);
 /**
  * Creates a new memcached client object
  * @param p Pool to use
@@ -222,8 +222,8 @@ apr_memcache2_server_create(apr_pool_t *p, const char *host, apr_port_t port,
  * @param mc   location of the new memcache client object
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_create(apr_pool_t *p, apr_uint16_t max_servers,
-                     apr_uint32_t flags, apr_memcache2_t **mc);
+apr_memcache2_create(apr_pool_t* p, apr_uint16_t max_servers,
+                     apr_uint32_t flags, apr_memcache2_t** mc);
 
 /**
  * Gets a value from the server, allocating the value out of p
@@ -236,8 +236,8 @@ apr_memcache2_create(apr_pool_t *p, apr_uint16_t max_servers,
  * @return
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_getp(apr_memcache2_t *mc, apr_pool_t *p, const char *key,
-                   char **baton, apr_size_t *len, apr_uint16_t *flags);
+apr_memcache2_getp(apr_memcache2_t* mc, apr_pool_t* p, const char* key,
+                   char** baton, apr_size_t* len, apr_uint16_t* flags);
 
 /**
  * Add a key to a hash for a multiget query
@@ -248,8 +248,8 @@ apr_memcache2_getp(apr_memcache2_t *mc, apr_pool_t *p, const char *key,
  * @return
  */
 APU_DECLARE(void)
-apr_memcache2_add_multget_key(apr_pool_t *data_pool, const char *key,
-                              apr_hash_t **values);
+apr_memcache2_add_multget_key(apr_pool_t* data_pool, const char* key,
+                              apr_hash_t** values);
 
 /**
  * Gets multiple values from the server, allocating the values out of p
@@ -262,8 +262,8 @@ apr_memcache2_add_multget_key(apr_pool_t *data_pool, const char *key,
  * @return
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_multgetp(apr_memcache2_t *mc, apr_pool_t *temp_pool,
-                       apr_pool_t *data_pool, apr_hash_t *values);
+apr_memcache2_multgetp(apr_memcache2_t* mc, apr_pool_t* temp_pool,
+                       apr_pool_t* data_pool, apr_hash_t* values);
 
 /**
  * Sets a value by key on the server
@@ -275,7 +275,7 @@ apr_memcache2_multgetp(apr_memcache2_t *mc, apr_pool_t *temp_pool,
  * @param flags any flags set by the client for this key
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_set(apr_memcache2_t *mc, const char *key, char *baton,
+apr_memcache2_set(apr_memcache2_t* mc, const char* key, char* baton,
                   const apr_size_t data_size, apr_uint32_t timeout,
                   apr_uint16_t flags);
 
@@ -291,7 +291,7 @@ apr_memcache2_set(apr_memcache2_t *mc, const char *key, char *baton,
  * already exists on the server.
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_add(apr_memcache2_t *mc, const char *key, char *baton,
+apr_memcache2_add(apr_memcache2_t* mc, const char* key, char* baton,
                   const apr_size_t data_size, apr_uint32_t timeout,
                   apr_uint16_t flags);
 
@@ -307,7 +307,7 @@ apr_memcache2_add(apr_memcache2_t *mc, const char *key, char *baton,
  * did not exist on the server.
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_replace(apr_memcache2_t *mc, const char *key, char *baton,
+apr_memcache2_replace(apr_memcache2_t* mc, const char* key, char* baton,
                       const apr_size_t data_size, apr_uint32_t timeout,
                       apr_uint16_t flags);
 /**
@@ -317,7 +317,7 @@ apr_memcache2_replace(apr_memcache2_t *mc, const char *key, char *baton,
  * @param timeout time for the delete to stop other clients from adding
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_delete(apr_memcache2_t *mc, const char *key,
+apr_memcache2_delete(apr_memcache2_t* mc, const char* key,
                      apr_uint32_t timeout);
 
 /**
@@ -328,8 +328,8 @@ apr_memcache2_delete(apr_memcache2_t *mc, const char *key,
  * @param nv    new value after incrementing
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_incr(apr_memcache2_t *mc, const char *key, apr_int32_t n,
-                   apr_uint32_t *nv);
+apr_memcache2_incr(apr_memcache2_t* mc, const char* key, apr_int32_t n,
+                   apr_uint32_t* nv);
 
 /**
  * Decrements a value
@@ -339,8 +339,8 @@ apr_memcache2_incr(apr_memcache2_t *mc, const char *key, apr_int32_t n,
  * @param new_value    new value after decrementing
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_decr(apr_memcache2_t *mc, const char *key, apr_int32_t n,
-                   apr_uint32_t *new_value);
+apr_memcache2_decr(apr_memcache2_t* mc, const char* key, apr_int32_t n,
+                   apr_uint32_t* new_value);
 
 /**
  * Query a server's version
@@ -350,11 +350,11 @@ apr_memcache2_decr(apr_memcache2_t *mc, const char *key, apr_int32_t n,
  * @param len   length of the server version string
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_version(apr_memcache2_server_t *ms, apr_pool_t *p, char **baton);
+apr_memcache2_version(apr_memcache2_server_t* ms, apr_pool_t* p, char** baton);
 
 typedef struct {
   /** Version string of this server */
-  const char *version;
+  const char* version;
   /** Process id of this server process */
   apr_uint32_t pid;
   /** Number of seconds this server has been running */
@@ -407,8 +407,8 @@ typedef struct {
  * @param stats location of the new statistics structure
  */
 APU_DECLARE(apr_status_t)
-apr_memcache2_stats(apr_memcache2_server_t *ms, apr_pool_t *p,
-                    apr_memcache2_stats_t **stats);
+apr_memcache2_stats(apr_memcache2_server_t* ms, apr_pool_t* p,
+                    apr_memcache2_stats_t** stats);
 
 /**
  * Set the maximum number of microseconds to wait for
@@ -417,7 +417,7 @@ apr_memcache2_stats(apr_memcache2_server_t *ms, apr_pool_t *p,
  * @param timeout_microseconds    Timeout in microseconds
  */
 APU_DECLARE(void)
-apr_memcache2_set_timeout_microseconds(apr_memcache2_t *mc,
+apr_memcache2_set_timeout_microseconds(apr_memcache2_t* mc,
                                        apr_int32_t timeout_microseconds);
 
 /** @} */

@@ -66,13 +66,13 @@ namespace net_instaweb {
 
 class RobotDetect {
  private:
-  static inline unsigned int hash(const char *str, unsigned int len);
+  static inline unsigned int hash(const char* str, unsigned int len);
 
  public:
-  static const char *Lookup(const char *str, unsigned int len);
+  static const char* Lookup(const char* str, unsigned int len);
 };
 
-inline unsigned int RobotDetect::hash(register const char *str,
+inline unsigned int RobotDetect::hash(register const char* str,
                                       register unsigned int len) {
   static const unsigned char asso_values[] = {
       75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
@@ -94,7 +94,7 @@ inline unsigned int RobotDetect::hash(register const char *str,
          asso_values[(unsigned char)str[0]];
 }
 
-static const char *const wordlist[] = {"",
+static const char* const wordlist[] = {"",
                                        "",
                                        "",
                                        "",
@@ -170,13 +170,13 @@ static const char *const wordlist[] = {"",
                                        "",
                                        "EIT-Link-Verifier-Robot"};
 
-const char *RobotDetect::Lookup(register const char *str,
+const char* RobotDetect::Lookup(register const char* str,
                                 register unsigned int len) {
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH) {
     register int key = hash(str, len);
 
     if (key <= MAX_HASH_VALUE && key >= 0) {
-      register const char *s = wordlist[key];
+      register const char* s = wordlist[key];
 
       if (*str == *s && !strncmp(str + 1, s + 1, len - 1) && s[len] == '\0')
         return s;
@@ -187,7 +187,7 @@ const char *RobotDetect::Lookup(register const char *str,
 #line 88 "http/bot_checker.gperf"
 
 // TODO:(fangfei) check other cases
-bool BotChecker::Lookup(const StringPiece &user_agent) {
+bool BotChecker::Lookup(const StringPiece& user_agent) {
   // check whether the whole string is in database
   if (RobotDetect::Lookup(user_agent.data(), user_agent.size()) != NULL) {
     return true;

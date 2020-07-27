@@ -58,7 +58,7 @@
 namespace net_instaweb {
 #line 22 "htmlparse/html_name.gperf"
 struct KeywordMap {
-  const char *name;
+  const char* name;
   net_instaweb::HtmlName::Keyword keyword;
 };
 #include <string.h>
@@ -95,7 +95,7 @@ static unsigned char gperf_downcase[256] = {
 
 #ifndef GPERF_CASE_STRNCMP
 #define GPERF_CASE_STRNCMP 1
-static int gperf_case_strncmp(register const char *s1, register const char *s2,
+static int gperf_case_strncmp(register const char* s1, register const char* s2,
                               register unsigned int n) {
   for (; n > 0;) {
     unsigned char c1 = gperf_downcase[(unsigned char)*s1++];
@@ -112,13 +112,13 @@ static int gperf_case_strncmp(register const char *s1, register const char *s2,
 
 class KeywordMapper {
  private:
-  static inline unsigned int hash(const char *str, unsigned int len);
+  static inline unsigned int hash(const char* str, unsigned int len);
 
  public:
-  static const struct KeywordMap *Lookup(const char *str, unsigned int len);
+  static const struct KeywordMap* Lookup(const char* str, unsigned int len);
 };
 
-inline unsigned int KeywordMapper::hash(register const char *str,
+inline unsigned int KeywordMapper::hash(register const char* str,
                                         register unsigned int len) {
   static const unsigned char asso_values[] = {
       210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210,
@@ -508,13 +508,13 @@ static const struct KeywordMap kHtmlNameTable[] = {
 #line 151 "htmlparse/html_name.gperf"
     {"textarea", HtmlName::kTextarea}};
 
-const struct KeywordMap *KeywordMapper::Lookup(register const char *str,
+const struct KeywordMap* KeywordMapper::Lookup(register const char* str,
                                                register unsigned int len) {
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH) {
     register int key = hash(str, len);
 
     if (key <= MAX_HASH_VALUE && key >= 0) {
-      register const char *s = kHtmlNameTable[key].name;
+      register const char* s = kHtmlNameTable[key].name;
 
       if ((((unsigned char)*str ^ (unsigned char)*s) & ~32) == 0 &&
           !gperf_case_strncmp(str, s, len) && s[len] == '\0')
@@ -525,8 +525,8 @@ const struct KeywordMap *KeywordMapper::Lookup(register const char *str,
 }
 #line 164 "htmlparse/html_name.gperf"
 
-HtmlName::Keyword HtmlName::Lookup(const StringPiece &keyword) {
-  const KeywordMap *keyword_map =
+HtmlName::Keyword HtmlName::Lookup(const StringPiece& keyword) {
+  const KeywordMap* keyword_map =
       KeywordMapper::Lookup(keyword.data(), keyword.size());
   if (keyword_map != NULL) {
     return keyword_map->keyword;
@@ -544,7 +544,7 @@ void HtmlName::Iterator::Next() {
   }
 }
 
-const char *HtmlName::Iterator::name() const {
+const char* HtmlName::Iterator::name() const {
   DCHECK(!AtEnd());
   return kHtmlNameTable[index_].name;
 }

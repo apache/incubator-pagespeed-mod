@@ -160,7 +160,8 @@ class hash_map {
         m_allocator(allocator) {
     *this = rhs;
   }
-  explicit hash_map(e_noinitialize) { /**/ }
+  explicit hash_map(e_noinitialize) { /**/
+  }
   ~hash_map() { delete_nodes(); }
 
   iterator begin() {

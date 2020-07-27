@@ -89,6 +89,9 @@
 			"regex": "cpp",
 			"set": "cpp",
 			"bit": "cpp"
-		}
+		},
+		"C_Cpp.clang_format_fallbackStyle": "Google",
+		"C_Cpp.clang_format_sortIncludes": true,
+		"editor.formatOnSave": true
 	}
 }

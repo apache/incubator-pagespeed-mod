@@ -59,22 +59,22 @@ namespace {
 #define DESTINATION_MANAGER_BUFFER_SIZE 4096
 struct DestinationManager : public jpeg_destination_mgr {
   JOCTET buffer[DESTINATION_MANAGER_BUFFER_SIZE];
-  GoogleString *str;
+  GoogleString* str;
 };
 
 METHODDEF(void) InitDestination(j_compress_ptr cinfo) {
-  DestinationManager &dest =
-      *reinterpret_cast<DestinationManager *>(cinfo->dest);
+  DestinationManager& dest =
+      *reinterpret_cast<DestinationManager*>(cinfo->dest);
 
   dest.next_output_byte = dest.buffer;
   dest.free_in_buffer = DESTINATION_MANAGER_BUFFER_SIZE;
 };
 
 METHODDEF(boolean) EmptyOutputBuffer(j_compress_ptr cinfo) {
-  DestinationManager &dest =
-      *reinterpret_cast<DestinationManager *>(cinfo->dest);
+  DestinationManager& dest =
+      *reinterpret_cast<DestinationManager*>(cinfo->dest);
 
-  dest.str->append(reinterpret_cast<char *>(dest.buffer),
+  dest.str->append(reinterpret_cast<char*>(dest.buffer),
                    DESTINATION_MANAGER_BUFFER_SIZE);
 
   dest.free_in_buffer = DESTINATION_MANAGER_BUFFER_SIZE;
@@ -84,25 +84,25 @@ METHODDEF(boolean) EmptyOutputBuffer(j_compress_ptr cinfo) {
 };
 
 METHODDEF(void) TermDestination(j_compress_ptr cinfo) {
-  DestinationManager &dest =
-      *reinterpret_cast<DestinationManager *>(cinfo->dest);
+  DestinationManager& dest =
+      *reinterpret_cast<DestinationManager*>(cinfo->dest);
 
   const size_t datacount =
       DESTINATION_MANAGER_BUFFER_SIZE - dest.free_in_buffer;
   if (datacount > 0) {
-    dest.str->append(reinterpret_cast<char *>(dest.buffer), datacount);
+    dest.str->append(reinterpret_cast<char*>(dest.buffer), datacount);
   }
 };
 
 // Call this function on a j_compress_ptr to install a writer that will write
 // to the given string.
-void JpegStringWriter(j_compress_ptr cinfo, GoogleString *data_dest) {
+void JpegStringWriter(j_compress_ptr cinfo, GoogleString* data_dest) {
   if (cinfo->dest == nullptr) {
-    cinfo->dest = (struct jpeg_destination_mgr *)(*cinfo->mem->alloc_small)(
+    cinfo->dest = (struct jpeg_destination_mgr*)(*cinfo->mem->alloc_small)(
         (j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(DestinationManager));
   }
-  DestinationManager &dest =
-      *reinterpret_cast<DestinationManager *>(cinfo->dest);
+  DestinationManager& dest =
+      *reinterpret_cast<DestinationManager*>(cinfo->dest);
 
   dest.str = data_dest;
 
@@ -115,7 +115,7 @@ void JpegStringWriter(j_compress_ptr cinfo, GoogleString *data_dest) {
 // encountered within libjpeg.  The longjmp jumps back
 // to the setjmp in JpegOptimizer::CreateOptimizedJpeg().
 void ErrorExit(j_common_ptr jpeg_state_struct) {
-  jmp_buf *env = static_cast<jmp_buf *>(jpeg_state_struct->client_data);
+  jmp_buf* env = static_cast<jmp_buf*>(jpeg_state_struct->client_data);
   (*jpeg_state_struct->err->output_message)(jpeg_state_struct);
   if (env) longjmp(*env, 1);
 }
@@ -139,7 +139,7 @@ const int kExifDataMarker = JPEG_APP0 + 1;
 const int kMaxSegmentSize = 0xFFFF;
 
 // Initializes the jpeg compress struct.
-void InitJpegCompress(j_compress_ptr cinfo, jpeg_error_mgr *compress_error) {
+void InitJpegCompress(j_compress_ptr cinfo, jpeg_error_mgr* compress_error) {
   memset(cinfo, 0, sizeof(jpeg_compress_struct));
   memset(compress_error, 0, sizeof(jpeg_error_mgr));
 
@@ -150,11 +150,11 @@ void InitJpegCompress(j_compress_ptr cinfo, jpeg_error_mgr *compress_error) {
 }
 
 void SetJpegCompressBeforeStartCompress(
-    const JpegCompressionOptions &options,
-    const jpeg_decompress_struct *jpeg_decompress,
-    jpeg_compress_struct *jpeg_compress) {
+    const JpegCompressionOptions& options,
+    const jpeg_decompress_struct* jpeg_decompress,
+    jpeg_compress_struct* jpeg_compress) {
   if (options.lossy) {
-    const JpegLossyOptions &lossy_options = options.lossy_options;
+    const JpegLossyOptions& lossy_options = options.lossy_options;
     // Set the compression parameters if set and lossy compression is enabled,
     // else use the defaults. Last parameter to jpeg_set_quality resticts the
     // jpeg quantizer values in 8 bit values, even though jpeg support 12 bit
@@ -200,9 +200,9 @@ void SetJpegCompressBeforeStartCompress(
 }
 
 void SetJpegCompressAfterStartCompress(
-    const JpegCompressionOptions &options,
-    const jpeg_decompress_struct &jpeg_decompress,
-    jpeg_compress_struct *jpeg_compress) {
+    const JpegCompressionOptions& options,
+    const jpeg_decompress_struct& jpeg_decompress,
+    jpeg_compress_struct* jpeg_compress) {
   if (options.retain_color_profile || options.retain_exif_data) {
     jpeg_saved_marker_ptr marker;
     for (marker = jpeg_decompress.marker_list; marker != nullptr;
@@ -220,7 +220,7 @@ void SetJpegCompressAfterStartCompress(
 
 class JpegOptimizer {
  public:
-  explicit JpegOptimizer(MessageHandler *handler);
+  explicit JpegOptimizer(MessageHandler* handler);
   ~JpegOptimizer();
 
   // Take the given input file and compress it, either losslessly or lossily,
@@ -228,43 +228,43 @@ class JpegOptimizer {
   // null, in which case the default options are used.
   // If this function fails (returns false), it can be called again.
   // @return true on success, false on failure.
-  bool CreateOptimizedJpeg(const GoogleString &original,
-                           GoogleString *compressed,
-                           const JpegCompressionOptions &options);
+  bool CreateOptimizedJpeg(const GoogleString& original,
+                           GoogleString* compressed,
+                           const JpegCompressionOptions& options);
 
  private:
-  bool DoCreateOptimizedJpeg(const GoogleString &original,
-                             jpeg_decompress_struct *jpeg_decompress,
-                             GoogleString *compressed,
-                             const JpegCompressionOptions &options);
+  bool DoCreateOptimizedJpeg(const GoogleString& original,
+                             jpeg_decompress_struct* jpeg_decompress,
+                             GoogleString* compressed,
+                             const JpegCompressionOptions& options);
 
-  bool OptimizeLossless(jpeg_decompress_struct *jpeg_decompress,
-                        GoogleString *compressed,
-                        const JpegCompressionOptions &options);
+  bool OptimizeLossless(jpeg_decompress_struct* jpeg_decompress,
+                        GoogleString* compressed,
+                        const JpegCompressionOptions& options);
 
-  bool OptimizeLossy(jpeg_decompress_struct *jpeg_decompress,
-                     GoogleString *compressed,
-                     const JpegCompressionOptions &options);
+  bool OptimizeLossy(jpeg_decompress_struct* jpeg_decompress,
+                     GoogleString* compressed,
+                     const JpegCompressionOptions& options);
 
   // Structures for jpeg compression.
   jpeg_compress_struct jpeg_compress_;
   jpeg_error_mgr compress_error_;
-  MessageHandler *message_handler_;
+  MessageHandler* message_handler_;
   pagespeed::image_compression::JpegReader reader_;
 
   DISALLOW_COPY_AND_ASSIGN(JpegOptimizer);
 };
 
-JpegOptimizer::JpegOptimizer(MessageHandler *handler)
+JpegOptimizer::JpegOptimizer(MessageHandler* handler)
     : message_handler_(handler), reader_(handler) {
   InitJpegCompress(&jpeg_compress_, &compress_error_);
 }
 
 JpegOptimizer::~JpegOptimizer() { jpeg_destroy_compress(&jpeg_compress_); }
 
-bool JpegOptimizer::OptimizeLossy(jpeg_decompress_struct *jpeg_decompress,
-                                  GoogleString *compressed,
-                                  const JpegCompressionOptions &options) {
+bool JpegOptimizer::OptimizeLossy(jpeg_decompress_struct* jpeg_decompress,
+                                  GoogleString* compressed,
+                                  const JpegCompressionOptions& options) {
   if (!options.lossy) {
     PS_LOG_DFATAL(message_handler_,
                   "lossy is not set in options for lossy jpeg compression");
@@ -306,7 +306,7 @@ bool JpegOptimizer::OptimizeLossy(jpeg_decompress_struct *jpeg_decompress,
   bool valid_jpeg = true;
 
   JSAMPROW row_pointer[1];
-  row_pointer[0] = static_cast<JSAMPLE *>(malloc(
+  row_pointer[0] = static_cast<JSAMPLE*>(malloc(
       jpeg_decompress->output_width * jpeg_decompress->output_components));
   while (jpeg_compress_.next_scanline < jpeg_compress_.image_height) {
     const JDIMENSION num_scanlines_read =
@@ -327,16 +327,16 @@ bool JpegOptimizer::OptimizeLossy(jpeg_decompress_struct *jpeg_decompress,
   return valid_jpeg;
 }
 
-bool JpegOptimizer::OptimizeLossless(jpeg_decompress_struct *jpeg_decompress,
-                                     GoogleString *compressed,
-                                     const JpegCompressionOptions &options) {
+bool JpegOptimizer::OptimizeLossless(jpeg_decompress_struct* jpeg_decompress,
+                                     GoogleString* compressed,
+                                     const JpegCompressionOptions& options) {
   if (options.lossy) {
     PS_LOG_DFATAL(message_handler_,
                   "Lossy options are not allowed in lossless compression.");
     return false;
   }
 
-  jvirt_barray_ptr *coefficients = jpeg_read_coefficients(jpeg_decompress);
+  jvirt_barray_ptr* coefficients = jpeg_read_coefficients(jpeg_decompress);
   bool valid_jpeg = (coefficients != nullptr);
 
   if (valid_jpeg) {
@@ -366,9 +366,9 @@ bool JpegOptimizer::OptimizeLossless(jpeg_decompress_struct *jpeg_decompress,
 // Helper for JpegOptimizer::CreateOptimizedJpeg().  This function does the
 // work, and CreateOptimizedJpeg() does some cleanup.
 bool JpegOptimizer::DoCreateOptimizedJpeg(
-    const GoogleString &original, jpeg_decompress_struct *jpeg_decompress,
-    GoogleString *compressed,
-    const pagespeed::image_compression::JpegCompressionOptions &options) {
+    const GoogleString& original, jpeg_decompress_struct* jpeg_decompress,
+    GoogleString* compressed,
+    const pagespeed::image_compression::JpegCompressionOptions& options) {
   // libjpeg's error handling mechanism requires that longjmp be used
   // to get control after an error.
   jmp_buf env;
@@ -381,8 +381,8 @@ bool JpegOptimizer::DoCreateOptimizedJpeg(
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
-  jpeg_compress_.client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
+  jpeg_compress_.client_data = static_cast<void*>(&env);
 
   reader_.PrepareForRead(original.data(), original.size());
 
@@ -411,10 +411,10 @@ bool JpegOptimizer::DoCreateOptimizedJpeg(
   return valid_jpeg;
 }
 
-bool JpegOptimizer::CreateOptimizedJpeg(const GoogleString &original,
-                                        GoogleString *compressed,
-                                        const JpegCompressionOptions &options) {
-  jpeg_decompress_struct *jpeg_decompress = reader_.decompress_struct();
+bool JpegOptimizer::CreateOptimizedJpeg(const GoogleString& original,
+                                        GoogleString* compressed,
+                                        const JpegCompressionOptions& options) {
+  jpeg_decompress_struct* jpeg_decompress = reader_.decompress_struct();
 
   bool result =
       DoCreateOptimizedJpeg(original, jpeg_decompress, compressed, options);
@@ -451,13 +451,13 @@ struct JpegScanlineWriter::Data {
   jpeg_error_mgr compress_error_;
 };
 
-JpegScanlineWriter::JpegScanlineWriter(MessageHandler *handler)
+JpegScanlineWriter::JpegScanlineWriter(MessageHandler* handler)
     : data_(new Data()), message_handler_(handler) {}
 
 JpegScanlineWriter::~JpegScanlineWriter() { delete data_; }
 
-void JpegScanlineWriter::SetJmpBufEnv(jmp_buf *env) {
-  data_->jpeg_compress_.client_data = static_cast<void *>(env);
+void JpegScanlineWriter::SetJmpBufEnv(jmp_buf* env) {
+  data_->jpeg_compress_.client_data = static_cast<void*>(env);
 }
 
 ScanlineStatus JpegScanlineWriter::InitWithStatus(const size_t width,
@@ -497,7 +497,7 @@ ScanlineStatus JpegScanlineWriter::InitWithStatus(const size_t width,
 }
 
 void JpegScanlineWriter::SetJpegCompressParams(
-    const JpegCompressionOptions &options) {
+    const JpegCompressionOptions& options) {
   if (!options.lossy) {
     PS_LOG_DFATAL(message_handler_,
                   "Unable to perform lossless encoding in JpegScanlineWriter."
@@ -507,14 +507,14 @@ void JpegScanlineWriter::SetJpegCompressParams(
 }
 
 ScanlineStatus JpegScanlineWriter::InitializeWriteWithStatus(
-    const void *const params, GoogleString *const compressed) {
+    const void* const params, GoogleString* const compressed) {
   if (params == nullptr) {
     return PS_LOGGED_STATUS(
         PS_LOG_DFATAL, message_handler_, SCANLINE_STATUS_INVOCATION_ERROR,
         SCANLINE_JPEGWRITER, "missing JpegCompressionOptions*");
   }
-  const JpegCompressionOptions *jpeg_compression_options =
-      static_cast<const JpegCompressionOptions *>(params);
+  const JpegCompressionOptions* jpeg_compression_options =
+      static_cast<const JpegCompressionOptions*>(params);
   SetJpegCompressParams(*jpeg_compression_options);
   JpegStringWriter(&data_->jpeg_compress_, compressed);
   jpeg_start_compress(&data_->jpeg_compress_, TRUE);
@@ -522,9 +522,9 @@ ScanlineStatus JpegScanlineWriter::InitializeWriteWithStatus(
 }
 
 ScanlineStatus JpegScanlineWriter::WriteNextScanlineWithStatus(
-    const void *const scanline_bytes) {
+    const void* const scanline_bytes) {
   JSAMPROW row_pointer[1] = {
-      static_cast<JSAMPLE *>(const_cast<void *>(scanline_bytes))};
+      static_cast<JSAMPLE*>(const_cast<void*>(scanline_bytes))};
   unsigned int result =
       jpeg_write_scanlines(&data_->jpeg_compress_, row_pointer, 1);
   if (result == 1) {
@@ -546,17 +546,17 @@ void JpegScanlineWriter::AbortWrite() {
   jpeg_abort_compress(&data_->jpeg_compress_);
 }
 
-bool OptimizeJpeg(const GoogleString &original, GoogleString *compressed,
-                  MessageHandler *handler) {
+bool OptimizeJpeg(const GoogleString& original, GoogleString* compressed,
+                  MessageHandler* handler) {
   JpegOptimizer optimizer(handler);
   JpegCompressionOptions options;
   return optimizer.CreateOptimizedJpeg(original, compressed, options);
 }
 
-bool OptimizeJpegWithOptions(const GoogleString &original,
-                             GoogleString *compressed,
-                             const JpegCompressionOptions &options,
-                             MessageHandler *handler) {
+bool OptimizeJpegWithOptions(const GoogleString& original,
+                             GoogleString* compressed,
+                             const JpegCompressionOptions& options,
+                             MessageHandler* handler) {
   JpegOptimizer optimizer(handler);
   return optimizer.CreateOptimizedJpeg(original, compressed, options);
 }

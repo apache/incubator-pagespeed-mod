@@ -25,9 +25,9 @@
 // The ""'s catch people who don't pass in a literal for "str"
 #define strliterallen(str) (sizeof("" str "") - 1)
 
-inline int memcasecmp(const char *s1, const char *s2, size_t len) {
-  const unsigned char *us1 = reinterpret_cast<const unsigned char *>(s1);
-  const unsigned char *us2 = reinterpret_cast<const unsigned char *>(s2);
+inline int memcasecmp(const char* s1, const char* s2, size_t len) {
+  const unsigned char* us1 = reinterpret_cast<const unsigned char*>(s1);
+  const unsigned char* us2 = reinterpret_cast<const unsigned char*>(s2);
 
   for (int i = 0; i < len; i++) {
     const int diff =

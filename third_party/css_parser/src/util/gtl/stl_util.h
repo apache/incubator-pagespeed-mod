@@ -30,7 +30,7 @@ void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
 }
 
 template <class T>
-void STLDeleteElements(T *container) {
+void STLDeleteElements(T* container) {
   if (!container) return;
   STLDeleteContainerPointers(container->begin(), container->end());
   container->clear();

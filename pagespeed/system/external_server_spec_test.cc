@@ -59,7 +59,7 @@ TEST(ExternalServerSpecTest, ToString) {
 
 class ExternalServerSpecTestInvalid : public ::testing::Test {
  protected:
-  void TestInvalidSpec(const GoogleString &value) {
+  void TestInvalidSpec(const GoogleString& value) {
     GoogleString msg;
     ExternalServerSpec spec("old.com", 4321);
     EXPECT_FALSE(spec.SetFromString(value, kDefaultPortForTesting, &msg));

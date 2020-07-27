@@ -41,17 +41,17 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext() {
   EnvoyRewriteDriverFactory::Initialize();
   // net_instaweb::log_message_handler::Install();
 
-  EnvoyThreadSystem *ts = new EnvoyThreadSystem();
+  EnvoyThreadSystem* ts = new EnvoyThreadSystem();
   message_handler_ = std::make_unique<GoogleMessageHandler>();
   driver_factory_ = std::make_unique<EnvoyRewriteDriverFactory>(
       *this, ts, "" /*hostname, not used*/, -1 /*port, not used*/);
   driver_factory_->Init();
   server_context_ = driver_factory()->MakeEnvoyServerContext("", -1);
 
-  EnvoyRewriteOptions *root_options_ =
-      (EnvoyRewriteOptions *)driver_factory_->default_options();
-  EnvoyRewriteOptions *server_options = root_options_->Clone();
-  EnvoyRewriteOptions *options =
+  EnvoyRewriteOptions* root_options_ =
+      (EnvoyRewriteOptions*)driver_factory_->default_options();
+  EnvoyRewriteOptions* server_options = root_options_->Clone();
+  EnvoyRewriteOptions* options =
       new EnvoyRewriteOptions(driver_factory_->thread_system());
   server_options->Merge(*options);
   delete options;
@@ -66,14 +66,14 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext() {
       kInfo, "Server context global options:\r\n %s",
       server_context_->global_options()->OptionsToString().c_str());
 
-  std::vector<SystemServerContext *> server_contexts;
+  std::vector<SystemServerContext*> server_contexts;
   server_contexts.push_back(server_context_);
 
   // Statistics* statistics =
   //    driver_factory_->MakeGlobalSharedMemStatistics(*(SystemRewriteOptions*)server_context_->global_options());
   GoogleString error_message;
   int error_index = -1;
-  Statistics *global_statistics = nullptr;
+  Statistics* global_statistics = nullptr;
   driver_factory_.get()->PostConfig(server_contexts, &error_message,
                                     &error_index, &global_statistics);
   if (error_index != -1) {

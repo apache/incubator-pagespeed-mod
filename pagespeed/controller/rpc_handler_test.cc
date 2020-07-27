@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include <memory>
 
 #include "pagespeed/controller/grpc_server_test.h"

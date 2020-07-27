@@ -1,15 +1,15 @@
 ---
-Language:        Cpp
-AccessModifierOffset: -2
-ColumnLimit: 100
+# Use the Google style in this project.
+BasedOnStyle: Google
+Language: Cpp
+AccessModifierOffset: -1
+ColumnLimit: 80
 DerivePointerAlignment: false
 PointerAlignment: Left
 SortIncludes: false
-...
 
 ---
 Language: Proto
 ColumnLimit: 100
 SpacesInContainerLiterals: false
 AllowShortFunctionsOnASingleLine: false
-...

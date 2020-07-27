@@ -58,7 +58,7 @@
 namespace net_instaweb {
 #line 21 "js/js_keywords.gperf"
 struct JsKeywordMap {
-  const char *name;
+  const char* name;
   net_instaweb::JsKeywords::Type keyword;
   net_instaweb::JsKeywords::Flag flag;
 };
@@ -73,13 +73,13 @@ struct JsKeywordMap {
 
 class JsKeywordMapper {
  private:
-  static inline unsigned int hash(const char *str, unsigned int len);
+  static inline unsigned int hash(const char* str, unsigned int len);
 
  public:
-  static const struct JsKeywordMap *Lookup(const char *str, unsigned int len);
+  static const struct JsKeywordMap* Lookup(const char* str, unsigned int len);
 };
 
-inline unsigned int JsKeywordMapper::hash(register const char *str,
+inline unsigned int JsKeywordMapper::hash(register const char* str,
                                           register unsigned int len) {
   static const unsigned char asso_values[] = {
       49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 49,
@@ -197,13 +197,13 @@ static const struct JsKeywordMap kJsKeywordsTable[] = {
 #line 67 "js/js_keywords.gperf"
     {"implements", JsKeywords::kImplements, JsKeywords::kIsReservedStrict}};
 
-const struct JsKeywordMap *JsKeywordMapper::Lookup(register const char *str,
+const struct JsKeywordMap* JsKeywordMapper::Lookup(register const char* str,
                                                    register unsigned int len) {
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH) {
     register int key = hash(str, len);
 
     if (key <= MAX_HASH_VALUE && key >= 0) {
-      register const char *s = kJsKeywordsTable[key].name;
+      register const char* s = kJsKeywordsTable[key].name;
 
       if (*str == *s && !strncmp(str + 1, s + 1, len - 1) && s[len] == '\0')
         return &kJsKeywordsTable[key];
@@ -213,9 +213,9 @@ const struct JsKeywordMap *JsKeywordMapper::Lookup(register const char *str,
 }
 #line 76 "js/js_keywords.gperf"
 
-JsKeywords::Type JsKeywords::Lookup(const StringPiece &keyword,
-                                    JsKeywords::Flag *flag) {
-  const JsKeywordMap *keyword_map =
+JsKeywords::Type JsKeywords::Lookup(const StringPiece& keyword,
+                                    JsKeywords::Flag* flag) {
+  const JsKeywordMap* keyword_map =
       JsKeywordMapper::Lookup(keyword.data(), keyword.size());
   if (keyword_map != NULL) {
     *flag = keyword_map->flag;
@@ -234,7 +234,7 @@ void JsKeywords::Iterator::Next() {
   }
 }
 
-const char *JsKeywords::Iterator::name() const {
+const char* JsKeywords::Iterator::name() const {
   DCHECK(!AtEnd());
   return kJsKeywordsTable[index_].name;
 }

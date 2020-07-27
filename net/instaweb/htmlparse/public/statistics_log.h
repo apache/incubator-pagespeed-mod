@@ -28,7 +28,7 @@ class StatisticsLog {
  public:
   StatisticsLog() {}
   virtual ~StatisticsLog();
-  virtual void LogStat(const char *statName, int value) = 0;
+  virtual void LogStat(const char* statName, int value) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StatisticsLog);
