@@ -112,13 +112,9 @@ const char* kDeferJSMobileWhitelist[] = {
 //  2. Recent Opera support WebP, and some Opera have both "Opera" and
 //     "Firefox" in the user agent.
 const char* kLegacyWebpWhitelist[] = {
-  "*Android *",
-  "*Firefox/66.*",
-  "*Firefox/67.*",
-  "*Firefox/68.*",
-  "*Firefox/69.*",
-  "*Firefox/70.*",
-  "*Firefox/71.*", // These Firefox versions are webp capable but don´t send webp header
+    "*Android *",    "*Firefox/66.*", "*Firefox/67.*",
+    "*Firefox/68.*", "*Firefox/69.*", "*Firefox/70.*",
+    "*Firefox/71.*",  // These Firefox versions are webp capable but don´t send webp header
 };
 
 // Based on https://github.com/apache/incubator-pagespeed-mod/issues/978,
@@ -126,68 +122,34 @@ const char* kLegacyWebpWhitelist[] = {
 // https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/mod-pagespeed-discuss/HYzzdOzJu_k/ftdV8koVgUEJ
 // a browser called Midori might (at some point) masquerade as Chrome as well.
 const char* kLegacyWebpBlacklist[] = {
-  "*Android 0.*",
-  "*Android 1.*",
-  "*Android 2.*",
-  "*Android 3.*",
-  "*Firefox/*",
-  "*Edge/*",
-  "*Trident/*",
-  "*Windows Phone*",
-  "*Chrome/*",       // Genuine Chrome always sends Accept: webp.
-  "*CriOS/*",        // Paranoia: we should not see Android and CriOS together.
-  "*Firefox/?.*",
-  "*Firefox/1?.*",
-  "*Firefox/2?.*",
-  "*Firefox/3?.*",
-  "*Firefox/4?.*",
-  "*Firefox/5?.*",
-  "*Firefox/60.*",
-  "*Firefox/61.*",
-  "*Firefox/62.*",
-  "*Firefox/63.*",
-  "*Firefox/64.*",  // Firefox versions not webp capables
+    "*Android 0.*",  "*Android 1.*",  "*Android 2.*",  "*Android 3.*",
+    "*Firefox/*",    "*Edge/*",       "*Trident/*",    "*Windows Phone*",
+    "*Chrome/*",  // Genuine Chrome always sends Accept: webp.
+    "*CriOS/*",   // Paranoia: we should not see Android and CriOS together.
+    "*Firefox/?.*",  "*Firefox/1?.*", "*Firefox/2?.*", "*Firefox/3?.*",
+    "*Firefox/4?.*", "*Firefox/5?.*", "*Firefox/60.*", "*Firefox/61.*",
+    "*Firefox/62.*", "*Firefox/63.*",
+    "*Firefox/64.*",  // Firefox versions not webp capables
 };
 
 // To determine lossless webp support and animated webp support, we must
 // examine the UA.
 const char* kWebpLosslessAlphaWhitelist[] = {
-  "*Chrome/??.*",
-  "*Chrome/???.*",
-  "*CriOS/??.*",
-  // User agent used only for internal testing.
-  "webp-la",
-  "webp-animated",
-  "*Firefox/*", // Do this way to permit Firefox webcapable to convert png
+    "*Chrome/??.*", "*Chrome/???.*", "*CriOS/??.*",
+    // User agent used only for internal testing.
+    "webp-la", "webp-animated",
+    "*Firefox/*",  // Do this way to permit Firefox webcapable to convert png
 };
 
 const char* kWebpLosslessAlphaBlacklist[] = {
-  "*Chrome/?.*",
-  "*Chrome/1?.*",
-  "*Chrome/20.*",
-  "*Chrome/21.*",
-  "*Chrome/22.*",
-  "*CriOS/1?.*",
-  "*CriOS/20.*",
-  "*CriOS/21.*",
-  "*CriOS/22.*",
-  "*CriOS/23.*",
-  "*CriOS/24.*",
-  "*CriOS/25.*",
-  "*CriOS/26.*",
-  "*CriOS/27.*",
-  "*CriOS/28.*",
-  "*Firefox/?.*",
-  "*Firefox/1?.*",
-  "*Firefox/2?.*",
-  "*Firefox/3?.*",
-  "*Firefox/4?.*",
-  "*Firefox/5?.*",
-  "*Firefox/60.*",
-  "*Firefox/61.*",
-  "*Firefox/62.*",
-  "*Firefox/63.*",
-  "*Firefox/64.*", // Black list Firefox not webp capable
+    "*Chrome/?.*",   "*Chrome/1?.*",  "*Chrome/20.*",  "*Chrome/21.*",
+    "*Chrome/22.*",  "*CriOS/1?.*",   "*CriOS/20.*",   "*CriOS/21.*",
+    "*CriOS/22.*",   "*CriOS/23.*",   "*CriOS/24.*",   "*CriOS/25.*",
+    "*CriOS/26.*",   "*CriOS/27.*",   "*CriOS/28.*",   "*Firefox/?.*",
+    "*Firefox/1?.*", "*Firefox/2?.*", "*Firefox/3?.*", "*Firefox/4?.*",
+    "*Firefox/5?.*", "*Firefox/60.*", "*Firefox/61.*", "*Firefox/62.*",
+    "*Firefox/63.*",
+    "*Firefox/64.*",  // Black list Firefox not webp capable
 };
 
 // Animated WebP is supported by browsers based on Chromium v32+, including
@@ -196,34 +158,19 @@ const char* kWebpLosslessAlphaBlacklist[] = {
 // also cover Opera 19+.
 // [1] https://dev.opera.com/blog/opera-user-agent-strings-opera-15-and-beyond/
 const char* kWebpAnimatedWhitelist[] = {
-  "*Chrome/??.*",
-  "*CriOS/??.*",
-  "webp-animated",  // User agent for internal testing.
-  "*Firefox/*",
+    "*Chrome/??.*",
+    "*CriOS/??.*",
+    "webp-animated",  // User agent for internal testing.
+    "*Firefox/*",
 };
 
 const char* kWebpAnimatedBlacklist[] = {
-  "*Chrome/?.*",
-  "*Chrome/1?.*",
-  "*Chrome/2?.*",
-  "*Chrome/30.*",
-  "*Chrome/31.*",
-  "*CriOS/?.*",
-  "*CriOS/1?.*",
-  "*CriOS/2?.*",
-  "*CriOS/30.*",
-  "*CriOS/31.*",
-  "*Firefox/?.*",
-  "*Firefox/1?.*",
-  "*Firefox/2?.*",
-  "*Firefox/3?.*",
-  "*Firefox/4?.*",
-  "*Firefox/5?.*",
-  "*Firefox/60.*",
-  "*Firefox/61.*",
-  "*Firefox/62.*",
-  "*Firefox/63.*",
-  "*Firefox/64.*",
+    "*Chrome/?.*",   "*Chrome/1?.*",  "*Chrome/2?.*",  "*Chrome/30.*",
+    "*Chrome/31.*",  "*CriOS/?.*",    "*CriOS/1?.*",   "*CriOS/2?.*",
+    "*CriOS/30.*",   "*CriOS/31.*",   "*Firefox/?.*",  "*Firefox/1?.*",
+    "*Firefox/2?.*", "*Firefox/3?.*", "*Firefox/4?.*", "*Firefox/5?.*",
+    "*Firefox/60.*", "*Firefox/61.*", "*Firefox/62.*", "*Firefox/63.*",
+    "*Firefox/64.*",
 };
 
 const char* kInsertDnsPrefetchWhitelist[] = {
