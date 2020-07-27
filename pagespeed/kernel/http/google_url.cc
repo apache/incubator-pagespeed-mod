@@ -76,9 +76,15 @@ void GoogleUrl::Swap(GoogleUrl* google_url) {
 }
 
 void GoogleUrl::Init() {
-  is_web_valid_ = gurl_->is_valid() && (SchemeIs("http") || SchemeIs("https"));
-  is_web_or_data_valid_ =
-      is_web_valid_ || (gurl_->is_valid() && SchemeIs("data"));
+  if (gurl_ == nullptr) {
+    is_web_valid_ = false;
+    is_web_or_data_valid_ = false;
+  } else {
+    is_web_valid_ =
+        gurl_->is_valid() && (SchemeIs("http") || SchemeIs("https"));
+    is_web_or_data_valid_ =
+        is_web_valid_ || (gurl_->is_valid() && SchemeIs("data"));
+  }
 }
 
 bool GoogleUrl::ResolveHelper(const GURL& base, const std::string& url) {
@@ -87,17 +93,9 @@ bool GoogleUrl::ResolveHelper(const GURL& base, const std::string& url) {
 }
 
 void GoogleUrl::setGurlInternal(GURL* gurl) {
-  if (gurl_ != nullptr) {
-    delete gurl_;
-  }
-  if (gurl != nullptr) {
-    gurl_ = gurl;
-    Init();
-  } else {
-    gurl_ = nullptr;
-    is_web_valid_ = false;
-    is_web_or_data_valid_ = false;
-  }
+  delete gurl_;
+  gurl_ = gurl;
+  Init();
 }
 
 bool GoogleUrl::Reset(const GoogleUrl& base, const GoogleString& str) {
